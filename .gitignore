@@ -1,0 +1,6 @@
+/openknowledge
+/bin/
+/dist/
+/npm/vendor/
+*.test
+coverage.out

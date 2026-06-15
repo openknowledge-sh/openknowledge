@@ -1,0 +1,47 @@
+version: 2
+
+project_name: openknowledge
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: openknowledge
+    main: ./cmd/openknowledge
+    binary: openknowledge
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: openknowledge
+    ids:
+      - openknowledge
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: openknowledge-sh
+    name: openknowledge
+  extra_files:
+    - glob: ./install

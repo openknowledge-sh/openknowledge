@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${OPENKNOWLEDGE_REPO:-openknowledge-sh/openknowledge}"
+version="${OPENKNOWLEDGE_VERSION:-latest}"
+base_url="${OPENKNOWLEDGE_BASE_URL:-}"
+install_dir="${OPENKNOWLEDGE_INSTALL_DIR:-$HOME/.local/bin}"
+binary="openknowledge"
+
+need() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "openknowledge install: missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+detect_os() {
+  case "$(uname -s)" in
+    Darwin) echo "darwin" ;;
+    Linux) echo "linux" ;;
+    *)
+      echo "openknowledge install: unsupported OS: $(uname -s)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64 | amd64) echo "amd64" ;;
+    arm64 | aarch64) echo "arm64" ;;
+    *)
+      echo "openknowledge install: unsupported architecture: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+release_base() {
+  if [ -n "$base_url" ]; then
+    echo "${base_url%/}"
+    return
+  fi
+
+  if [ "$version" = "latest" ]; then
+    echo "https://github.com/$repo/releases/latest/download"
+    return
+  fi
+
+  tag="${version#v}"
+  echo "https://github.com/$repo/releases/download/v$tag"
+}
+
+checksum_line() {
+  checksums="$1"
+  asset="$2"
+
+  while read -r sum file extra; do
+    if [ "$file" = "$asset" ] && [ -z "${extra:-}" ]; then
+      printf '%s  %s\n' "$sum" "$file"
+      return 0
+    fi
+  done < "$checksums"
+
+  return 1
+}
+
+verify_checksum() {
+  checksums="$1"
+  archive="$2"
+  asset="$3"
+
+  line="$(checksum_line "$checksums" "$asset" || true)"
+  if [ -z "$line" ]; then
+    echo "openknowledge install: checksum missing for $asset" >&2
+    exit 1
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    (cd "$(dirname "$archive")" && printf '%s\n' "$line" | sha256sum -c -)
+    return
+  fi
+
+  if command -v shasum >/dev/null 2>&1; then
+    (cd "$(dirname "$archive")" && printf '%s\n' "$line" | shasum -a 256 -c -)
+    return
+  fi
+
+  echo "openknowledge install: missing sha256sum or shasum for checksum verification" >&2
+  exit 1
+}
+
+need curl
+need tar
+
+os="$(detect_os)"
+arch="$(detect_arch)"
+base="$(release_base)"
+asset="openknowledge_${os}_${arch}.tar.gz"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+archive="$tmp/$asset"
+checksums="$tmp/checksums.txt"
+
+echo "Installing openknowledge from $base"
+curl -fsSL "$base/$asset" -o "$archive"
+curl -fsSL "$base/checksums.txt" -o "$checksums"
+verify_checksum "$checksums" "$archive" "$asset"
+
+tar -xzf "$archive" -C "$tmp"
+
+if [ ! -f "$tmp/$binary" ]; then
+  echo "openknowledge install: archive did not contain $binary" >&2
+  exit 1
+fi
+
+mkdir -p "$install_dir"
+install -m 0755 "$tmp/$binary" "$install_dir/$binary"
+
+echo "Installed $("$install_dir/$binary" version) to $install_dir/$binary"
+
+case ":$PATH:" in
+  *":$install_dir:"*) ;;
+  *)
+    echo "Add $install_dir to PATH to run openknowledge from any shell."
+    ;;
+esac
