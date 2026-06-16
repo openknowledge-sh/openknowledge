@@ -1,6 +1,6 @@
 # Open Knowledge CLI
 
-Open Knowledge helps you create and maintain local LLM wikis that are both human-readable and agent-readable. It keeps your knowledge base portable and consistent using the [Open Knowledge Format v0.1][okf-spec] specification.
+Open Knowledge helps you create and maintain local LLM wikis that are human and agent readable. It keeps your knowledge base portable and consistent using the [Open Knowledge Format v0.1][okf-spec] specification.
 
 It is built for people who want knowledge to stay readable in Git and easy for coding agents to navigate. A wiki can live inside a project repo or stand alone as a private knowledge base.
 
