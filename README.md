@@ -1,12 +1,13 @@
 # Open Knowledge CLI
 
-Open Knowledge CLI helps create, validate, and inspect local agentic wikis:
-Markdown knowledge bases that agents can read, maintain, and verify. It
-implements the [Open Knowledge Format v0.1][okf-spec] spec.
+Open Knowledge helps you create and maintain local LLM wikis that are
+human-readable, agent-readable, and easy to validate. It keeps your knowledge
+base portable and consistent using the [Open Knowledge Format v0.1][okf-spec]
+specification.
 
-It is built for people that want project knowledge to stay portable, readable in
-Git, and easy for both humans and coding agents to navigate. A wiki can live
-inside a project repo or stand alone as a local knowledge base.
+It is built for people who want project knowledge to stay readable in Git and
+easy for both humans and coding agents to navigate. A wiki can live inside a
+project repo or stand alone as a local knowledge base.
 
 ## Start in 30 seconds
 
