@@ -4,39 +4,94 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Open Knowledge</title>
-    <meta name="description" content="Create local agentic wikis that agents can read, maintain, and validate.">
+    <meta name="description" content="Create and maintain local LLM wikis that are both human-readable and agent-readable.">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Open Knowledge CLI">
-    <meta property="og:description" content="Create a local agentic wiki for agents and humans to use.">
+    <meta property="og:description" content="Create a local LLM wiki that stays readable in Git and easy for coding agents to use.">
     <meta property="og:image" content="https://openknowledge.sh/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Open Knowledge CLI">
-    <meta name="twitter:description" content="Create a local agentic wiki for agents and humans to use.">
+    <meta name="twitter:description" content="Create a local LLM wiki that stays readable in Git and easy for coding agents to use.">
     <meta name="twitter:image" content="https://openknowledge.sh/og.png">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <main class="shell">
       <section class="intro">
-        <h1>Create a local agentic wiki for agents and humans</h1>
+        <h1>Create a local LLM wiki with your coding agent</h1>
         <p class="lede">
-          Open Knowledge CLI creates, validates, and inspects local Markdown
-          wikis with agent workflows, local skill guidance, and portable
-          structure. It implements the
+          Open Knowledge helps you create and maintain local LLM wikis that are
+          both human-readable and agent-readable. It keeps your knowledge base
+          portable and consistent using the
           <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a> spec.
+        </p>
+        <p class="intro-note">
+          Paste one prompt into Codex, Cowork, Cursor, Claude, or another
+          coding agent. The agent installs the CLI, asks where the wiki should
+          live, creates the scaffold, customizes workflows, and validates the
+          result.
         </p>
         <div class="github-row">
           <a class="github-link" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">View on GitHub</a>
         </div>
 
-        <section class="terminal" aria-label="Install Open Knowledge">
+        <section class="terminal setup-terminal" aria-label="Agent setup prompt">
           <div class="terminal-header">
-            <div class="tabs" role="tablist" aria-label="Install methods">
-              <button class="tab active" type="button" data-command="curl -fsSL https://openknowledge.sh/install | bash">Bash</button>
+            <div>
+              <p class="terminal-kicker">Start here</p>
+              <h2>Paste this into your agent</h2>
             </div>
-            <button class="copy-command" type="button" aria-label="Copy install command" title="Copy install command">
+            <button class="copy-command" type="button" data-copy-target="#setup-prompt" aria-label="Copy setup prompt" title="Copy setup prompt">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7Z"></path>
+                <path d="M4 11a2 2 0 0 1 2-2h2v6a2 2 0 0 0 2 2h6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Z"></path>
+              </svg>
+              <span>Copy prompt</span>
+            </button>
+          </div>
+          <pre class="prompt-block"><code id="setup-prompt">Set up an Open Knowledge agentic wiki for this workspace.
+
+First make sure the Open Knowledge CLI is installed. If it is not installed,
+install it with:
+
+curl -fsSL https://openknowledge.sh/install | bash
+
+Then run:
+
+openknowledge setup
+
+Read the setup guide printed by that command and follow it. Ask me the setup
+questions, create the knowledge base with openknowledge new, customize it for
+this workspace, create useful workflows/skills/automation specs, run
+openknowledge validate, and show me how to inspect it with openknowledge list
+and openknowledge open.</code></pre>
+        </section>
+      </section>
+
+      <section class="readme" aria-label="Open Knowledge README preview">
+        <article class="readme-body">
+          <h2>What Open Knowledge gives you</h2>
+          <p>
+            A wiki can live inside a project repo or stand alone as a private
+            knowledge base. It stays readable in Git and easy for both humans
+            and coding agents to navigate.
+          </p>
+          <ul class="feature-list">
+            <li>Portable Markdown files with predictable names, frontmatter, indexes, and logs.</li>
+            <li>Agent-readable scaffolding with <code>AGENTS.md</code>, <code>workflows/</code>, <code>skills/</code>, <code>automations/</code>, and a pinned <code>SPEC.md</code>.</li>
+            <li>A local Markdown viewer plus validation against embedded OKF v0.1 rules.</li>
+          </ul>
+
+          <h3>Codex CLI shortcut</h3>
+          <p>
+            Interactive Codex needs stdin to remain a terminal, so pass the
+            generated setup prompt as an argument:
+          </p>
+          <div class="code-with-copy">
+            <pre><code id="codex-command">codex "$(openknowledge setup)"</code></pre>
+            <button class="copy-command small-copy" type="button" data-copy-target="#codex-command" aria-label="Copy Codex command" title="Copy Codex command">
               <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                 <path d="M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7Z"></path>
                 <path d="M4 11a2 2 0 0 1 2-2h2v6a2 2 0 0 0 2 2h6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Z"></path>
@@ -44,45 +99,21 @@
               <span>Copy</span>
             </button>
           </div>
-          <div class="command-line">
-            <span aria-hidden="true">$</span>
-            <code id="install-command">curl -fsSL https://openknowledge.sh/install | bash</code>
-          </div>
-        </section>
-      </section>
 
-      <section class="readme" aria-label="Open Knowledge README preview">
-        <article class="readme-body">
-          <h2>Open Knowledge CLI</h2>
+          <h3>Manual setup</h3>
           <p>
-            Create, validate, and inspect local agentic wikis.
+            If you want the lower-level path, install the CLI and create a
+            generic scaffold directly:
           </p>
-          <p>
-            Keep project knowledge portable, readable in Git, and easy for
-            agents to maintain through explicit workflows.
-          </p>
-          <h3>Start in 30 seconds</h3>
-          <pre><code>codex "$(openknowledge setup)"
+          <pre><code>curl -fsSL https://openknowledge.sh/install | bash
+
+npm install -g @openknowledge-sh/openknowledge
 
 openknowledge new ./project-memory
 openknowledge open ./project-memory
 openknowledge list ./project-memory
 openknowledge validate ./project-memory</code></pre>
-          <h3>Why Open Knowledge</h3>
-          <ul class="feature-list">
-            <li>Portable Markdown files with predictable names, frontmatter, indexes, and logs.</li>
-            <li>Agent-readable scaffolding with <code>AGENTS.md</code>, <code>workflows/</code>, <code>skills/</code>, <code>automations/</code>, and a local pinned <code>SPEC.md</code>.</li>
-            <li>Spec-backed validation against the embedded OKF v0.1 rules.</li>
-          </ul>
-          <h3>How it works</h3>
-          <p>
-            <code>openknowledge setup</code> prints an agent prompt. Pass it to
-            Codex with command substitution so Codex keeps an interactive
-            terminal. The agent interviews you, runs <code>openknowledge
-            new</code>, creates workflows and local skill guidance, opens the
-            local viewer, and validates the result.
-          </p>
-          <pre><code>setup prompt -> agent interview -> new wiki -> workflows/skills -> open/validate</code></pre>
+
           <h3>Commands</h3>
           <ul class="command-list">
             <li><code>setup</code> prints an agent prompt for creating and customizing a knowledge base.</li>

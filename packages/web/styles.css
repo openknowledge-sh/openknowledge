@@ -125,14 +125,33 @@ h1 {
   background: var(--panel);
 }
 
+.setup-terminal {
+  max-width: 820px;
+}
+
 .terminal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 2px;
-  padding: 8px;
+  gap: 16px;
+  padding: 14px;
   border-bottom: 1px solid var(--line);
   background: #0a100d;
+}
+
+.terminal-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.terminal-kicker {
+  margin: 0 0 5px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .tabs {
@@ -213,6 +232,16 @@ li code {
   white-space: nowrap;
 }
 
+.prompt-block {
+  border: 0;
+  background: #090f0c;
+}
+
+.prompt-block code {
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
 .github-row {
   margin-bottom: 18px;
 }
@@ -274,6 +303,25 @@ pre code {
   white-space: pre;
 }
 
+.code-with-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+.code-with-copy pre {
+  min-width: 0;
+}
+
+.small-copy {
+  min-width: 42px;
+  height: auto;
+  border-color: var(--line);
+  background: var(--panel);
+}
+
 .site-footer {
   max-width: 780px;
   margin-top: 18px;
@@ -313,7 +361,6 @@ pre code {
 
   .terminal-header {
     align-items: flex-start;
-    overflow-x: auto;
   }
 
   .tabs {
@@ -324,7 +371,20 @@ pre code {
     display: none;
   }
 
+  .small-copy {
+    width: 100%;
+    height: 34px;
+  }
+
+  .small-copy span {
+    display: inline;
+  }
+
   .readme {
     margin-top: 36px;
+  }
+
+  .code-with-copy {
+    grid-template-columns: 1fr;
   }
 }

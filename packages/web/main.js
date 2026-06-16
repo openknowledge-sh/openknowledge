@@ -1,21 +1,14 @@
-const command = document.querySelector("#install-command");
-const copy = document.querySelector(".copy-command");
-const tabs = Array.from(document.querySelectorAll(".tab"));
-let copiedTimer;
-
-for (const tab of tabs) {
-  tab.addEventListener("click", () => {
-    for (const current of tabs) {
-      current.classList.toggle("active", current === tab);
-    }
-    command.textContent = tab.dataset.command;
-  });
-}
+const copyButtons = Array.from(document.querySelectorAll(".copy-command"));
+const copiedTimers = new WeakMap();
 
 async function copyText(text) {
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall back below when Clipboard API is blocked by browser permissions.
+    }
   }
 
   const field = document.createElement("textarea");
@@ -29,13 +22,24 @@ async function copyText(text) {
   field.remove();
 }
 
-copy.addEventListener("click", async () => {
-  await copyText(command.textContent);
-  copy.classList.add("copied");
-  copy.querySelector("span").textContent = "Copied";
-  clearTimeout(copiedTimer);
-  copiedTimer = setTimeout(() => {
-    copy.classList.remove("copied");
-    copy.querySelector("span").textContent = "Copy";
-  }, 1600);
-});
+for (const copy of copyButtons) {
+  copy.addEventListener("click", async () => {
+    const target = document.querySelector(copy.dataset.copyTarget);
+    if (!target) return;
+
+    const label = copy.querySelector("span");
+    const defaultLabel = label.textContent;
+
+    await copyText(target.textContent);
+    copy.classList.add("copied");
+    label.textContent = "Copied";
+    clearTimeout(copiedTimers.get(copy));
+    copiedTimers.set(
+      copy,
+      setTimeout(() => {
+        copy.classList.remove("copied");
+        label.textContent = defaultLabel;
+      }, 1600),
+    );
+  });
+}
