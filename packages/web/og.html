@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=1200, initial-scale=1">
+    <title>Open Knowledge OG Image</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+
+      body {
+        display: grid;
+        place-items: stretch;
+      }
+
+      .og-shell {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 1200px;
+        height: 630px;
+        padding: 68px 78px;
+        background:
+          linear-gradient(90deg, rgba(122, 242, 182, 0.12), transparent 42%),
+          var(--paper);
+      }
+
+      .og-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(244, 247, 244, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(244, 247, 244, 0.035) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: linear-gradient(90deg, black, transparent 78%);
+      }
+
+      .og-content {
+        position: relative;
+        z-index: 1;
+        max-width: 860px;
+      }
+
+      .og-brand {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+        margin-bottom: 34px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--accent);
+        font-family: var(--body-font);
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .og-title {
+        max-width: 860px;
+        margin: 0 0 22px;
+        color: #ffffff;
+        font-family: var(--heading-font);
+        font-size: 74px;
+        font-weight: 400;
+        line-height: 0.94;
+        letter-spacing: 0;
+      }
+
+      .og-lede {
+        max-width: 720px;
+        margin: 0 0 34px;
+        color: var(--muted);
+        font-family: var(--body-font);
+        font-size: 22px;
+        line-height: 1.35;
+      }
+
+      .og-terminal {
+        display: inline-flex;
+        align-items: center;
+        min-height: 64px;
+        max-width: 760px;
+        padding: 0 22px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        font-family: var(--body-font);
+        font-size: 19px;
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+      }
+
+      .og-terminal span {
+        margin-right: 12px;
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="og-shell">
+      <div class="og-grid" aria-hidden="true"></div>
+      <section class="og-content" aria-label="Open Knowledge">
+        <div class="og-brand">Open Knowledge CLI</div>
+        <h1 class="og-title">Create a local wiki for agents and humans to use</h1>
+        <p class="og-lede">
+          Create, validate, and inspect local Open Knowledge Format bundles.
+        </p>
+        <div class="og-terminal"><span>$</span>curl -fsSL https://openknowledge.sh/install | bash</div>
+      </section>
+    </main>
+  </body>
+</html>

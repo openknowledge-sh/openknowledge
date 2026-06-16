@@ -10,6 +10,7 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(path.join(webRoot, "index.html"), path.join(dist, "index.html"));
 await cp(path.join(webRoot, "main.js"), path.join(dist, "main.js"));
+await cp(path.join(webRoot, "og.png"), path.join(dist, "og.png"));
 await cp(path.join(webRoot, "styles.css"), path.join(dist, "styles.css"));
 
 console.log(`Built ${dist}`);
