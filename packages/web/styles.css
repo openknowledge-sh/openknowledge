@@ -41,19 +41,24 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 38px;
   min-height: 38px;
-  padding: 0 14px;
+  padding: 0;
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
-  font-size: 14px;
-  font-weight: 700;
   text-decoration: none;
 }
 
 .github-link:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.github-link svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
 }
 
 .shell {
@@ -286,10 +291,6 @@ li code {
 
   .lede {
     font-size: 18px;
-  }
-
-  .github-link {
-    width: 100%;
   }
 
   .terminal-header {
