@@ -9,13 +9,22 @@ The shell installer downloads release assets from
 `openknowledge-sh/openknowledge` GitHub Releases and verifies them against
 `checksums.txt`.
 
-`https://openknowledge.sh/install` should serve this repository's `install`
-script. The simplest deployment is a redirect to the latest GitHub Release
-asset:
+`https://openknowledge.sh/install` serves this repository's `install` script
+from the GitHub Pages site. The Pages build copies the root `install` file into
+the published site, so the stable endpoint installs the latest GitHub Release by
+default. The GitHub Release copy of the same installer is also available at:
 
 ```text
 https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install
 ```
+
+The web deployment workflow publishes `packages/web/dist` to GitHub Pages when
+run manually from GitHub Actions. The artifact includes:
+
+- the static site
+- `CNAME` for `openknowledge.sh`
+- `.nojekyll`
+- `/install`
 
 The npm package downloads the matching binary from GitHub Releases during
 installation. Set `OPENKNOWLEDGE_VERSION=latest` to install the latest GitHub

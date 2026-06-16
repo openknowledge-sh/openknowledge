@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const projectRoot = path.resolve(root, "../..");
 const port = Number(process.env.PORT || 4173);
 
 const types = new Map([
@@ -17,6 +18,11 @@ const types = new Map([
 function filePathForUrl(url) {
   const parsed = new URL(url, `http://127.0.0.1:${port}`);
   const pathname = decodeURIComponent(parsed.pathname);
+
+  if (pathname === "/install") {
+    return path.join(projectRoot, "install");
+  }
+
   const target = path.normalize(path.join(root, pathname === "/" ? "index.html" : pathname));
 
   if (!target.startsWith(root)) {
@@ -43,7 +49,10 @@ const server = http.createServer(async (request, response) => {
     }
 
     response.writeHead(200, {
-      "Content-Type": types.get(path.extname(filePath)) || "application/octet-stream"
+      "Content-Type":
+        path.basename(filePath) === "install"
+          ? "text/x-shellscript; charset=utf-8"
+          : types.get(path.extname(filePath)) || "application/octet-stream"
     });
     createReadStream(filePath).pipe(response);
   } catch {
