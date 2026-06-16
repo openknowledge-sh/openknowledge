@@ -27,7 +27,7 @@ pnpm add -g @openknowledge-sh/openknowledge
 Set up a knowledge base with Codex:
 
 ```sh
-openknowledge setup | codex
+codex "$(openknowledge setup)"
 ```
 
 Or create and inspect a generic scaffold directly:
@@ -43,7 +43,7 @@ openknowledge validate ./project-memory
 
 - **Portable by default**: knowledge lives in Markdown files with predictable
   names, frontmatter, indexes, and logs.
-- **Agentic setup**: `openknowledge setup | codex` asks an agent to interview
+- **Agentic setup**: `codex "$(openknowledge setup)"` asks an agent to interview
   the user, create the scaffold, and configure the wiki for the chosen use case.
 - **Workflow-ready**: new bundles include `AGENTS.md`, `SETUP.MD`, `workflows/`,
   `skills/`, `automations/`, and a pinned `SPEC.md` so agents know how to use
@@ -54,10 +54,10 @@ openknowledge validate ./project-memory
 ## How it works
 
 `openknowledge setup` prints an agent prompt for setting up a useful local
-knowledge base with the user. Pipe it into an agent such as Codex to have the
-agent ask where the knowledge base should live, create it with `openknowledge
-new`, create maintenance workflows and local skill guidance, and customize the
-scaffold for the chosen use case.
+knowledge base with the user. Pass it to Codex with command substitution so
+Codex keeps an interactive terminal. The agent asks where the knowledge base
+should live, creates it with `openknowledge new`, creates maintenance workflows
+and local skill guidance, and customizes the scaffold for the chosen use case.
 
 `openknowledge new` creates a local bundle with the base OKF structure, a setup
 handoff, agent guidance, workflow and automation sections, an update log, and a

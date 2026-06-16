@@ -62,7 +62,7 @@
             agents to maintain through explicit workflows.
           </p>
           <h3>Start in 30 seconds</h3>
-          <pre><code>openknowledge setup | codex
+          <pre><code>codex "$(openknowledge setup)"
 
 openknowledge new ./project-memory
 openknowledge open ./project-memory
@@ -76,10 +76,11 @@ openknowledge validate ./project-memory</code></pre>
           </ul>
           <h3>How it works</h3>
           <p>
-            <code>openknowledge setup</code> prints a prompt you can pipe into
-            an agent. The agent interviews you, runs <code>openknowledge
-            new</code>, creates workflows and local skill guidance, customizes
-            the scaffold, opens the local viewer, and validates the result.
+            <code>openknowledge setup</code> prints an agent prompt. Pass it to
+            Codex with command substitution so Codex keeps an interactive
+            terminal. The agent interviews you, runs <code>openknowledge
+            new</code>, creates workflows and local skill guidance, opens the
+            local viewer, and validates the result.
           </p>
           <pre><code>setup prompt -> agent interview -> new wiki -> workflows/skills -> open/validate</code></pre>
           <h3>Commands</h3>

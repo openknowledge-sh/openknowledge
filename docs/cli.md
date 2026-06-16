@@ -40,12 +40,16 @@ pnpm dev:web
 
 ## Setup prompt
 
-`openknowledge setup` prints only an agent prompt to stdout. This keeps the
-command composable with agent CLIs:
+`openknowledge setup` prints only an agent prompt to stdout. With interactive
+Codex, pass the prompt as an argument so stdin stays attached to the terminal:
 
 ```sh
-openknowledge setup | codex
+codex "$(openknowledge setup)"
 ```
+
+Do not use `openknowledge setup | codex` with interactive Codex; Codex will
+exit with `stdin is not a terminal`. A pipe is only appropriate for an agent CLI
+that explicitly accepts prompts from stdin.
 
 The prompt asks the agent to interview the user, choose where the knowledge base
 should live, run `openknowledge new --name "<name>" "<path>"`, read the

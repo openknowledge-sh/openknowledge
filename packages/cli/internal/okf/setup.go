@@ -2,8 +2,10 @@ package okf
 
 const setupPrompt = `This setup guide is meant to be executed by an AI coding agent.
 
-If you are a human reading this in your terminal, run it through an agent instead:
-  openknowledge setup | codex
+If you are a human reading this in your terminal, pass it to an agent instead:
+  codex "$(openknowledge setup)"
+
+Do not pipe this into interactive Codex with openknowledge setup | codex; interactive Codex needs stdin to remain a terminal. Pipes are only appropriate for agent CLIs that explicitly accept prompts from stdin.
 
 If you are an agent, follow the instructions below. Ask the user the setup questions, create the knowledge base with the Open Knowledge CLI, customize it for their use case, validate it, and explain what you created.
 
