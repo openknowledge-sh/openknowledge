@@ -1,0 +1,11 @@
+[[redirects]]
+  from = "/install"
+  to = "https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/install/"
+  to = "https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install"
+  status = 302
+  force = true
