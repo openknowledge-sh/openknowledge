@@ -2,7 +2,7 @@
   "name": "@openknowledge-sh/openknowledge",
   "version": "0.1.0",
   "description": "CLI for managing Open Knowledge Format bundles.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "bin": {
     "openknowledge": "bin/openknowledge.js"
   },
@@ -12,12 +12,15 @@
   "files": [
     "bin/",
     "install.js",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "third_party/",
     "vendor/"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/openknowledge-sh/openknowledge.git",
-    "directory": "npm"
+    "directory": "packages/npm"
   },
   "publishConfig": {
     "access": "public"

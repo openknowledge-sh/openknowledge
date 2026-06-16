@@ -15,6 +15,18 @@ const vendorDir = path.join(__dirname, "vendor");
 const executable = process.platform === "win32" ? "openknowledge.exe" : "openknowledge";
 const target = path.join(vendorDir, executable);
 
+if (process.env.OPENKNOWLEDGE_SKIP_DOWNLOAD === "1" || isSourceWorkspace()) {
+  console.log("openknowledge install: skipping binary download in source workspace");
+  process.exit(0);
+}
+
+function isSourceWorkspace() {
+  return (
+    fs.existsSync(path.join(__dirname, "..", "..", "go.work")) &&
+    fs.existsSync(path.join(__dirname, "..", "cli", "go.mod"))
+  );
+}
+
 function platform() {
   switch (process.platform) {
     case "darwin":
