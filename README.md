@@ -29,40 +29,23 @@ and openknowledge open.
 
 The agent will install the CLI if needed, run the setup guide, ask where the wiki should live, create the scaffold, tailor it to your use case, and validate the result.
 
-### Codex CLI shortcut
+### CLI shortcut
 
-If you are using Codex CLI directly, pass the generated setup prompt as the initial prompt:
+If you are using your agents in CLI, (Claude Code, Codex) you can directly pass the generated setup prompt as the initial prompt:
 
 ```sh
 codex "$(openknowledge setup)"
-```
-
-Interactive Codex needs stdin to remain a terminal, so use command substitution instead of `openknowledge setup | codex`.
-
-### Other agent CLIs
-
-For an agent CLI that accepts prompts from stdin, piping is fine:
-
-```sh
-openknowledge setup | your-agent-cli
+claude "$(openknowledge setup)"
 ```
 
 ## Manual setup
 
-Manual setup is useful when you want to install the CLI yourself or create a generic scaffold without an agent interview.
+Manual setup is useful when you want to install the CLI yourself and keep control over the process.
 
 Install with the shell installer:
 
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
-```
-
-Or install the npm wrapper:
-
-```sh
-npm install -g @openknowledge-sh/openknowledge
-# or
-pnpm add -g @openknowledge-sh/openknowledge
 ```
 
 Create and inspect a generic scaffold directly:
@@ -72,22 +55,6 @@ openknowledge new ./project-memory
 openknowledge open ./project-memory
 openknowledge list ./project-memory
 openknowledge validate ./project-memory
-```
-
-## Setup entry points
-
-Open Knowledge setup has two modes:
-
-- **App/editor mode**: paste the setup prompt into an agent app or editor so the
-  agent installs Open Knowledge, runs `openknowledge setup`, reads the printed
-  guide, and follows it.
-- **Agent CLI mode**: `openknowledge setup` prints the setup guide and your
-  agent CLI receives it as the initial prompt.
-
-For Claude Code CLI or another CLI that accepts an initial prompt argument, use:
-
-```sh
-claude "$(openknowledge setup)"
 ```
 
 ## Why Open Knowledge
