@@ -4,11 +4,11 @@ project_name: openknowledge
 
 before:
   hooks:
-    - go mod tidy
+    - go -C packages/cli mod tidy
 
 builds:
   - id: openknowledge
-    main: ./cmd/openknowledge
+    main: ./packages/cli/cmd/openknowledge
     binary: openknowledge
     env:
       - CGO_ENABLED=0
@@ -29,6 +29,11 @@ archives:
     formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - THIRD_PARTY_NOTICES.md
+      - third_party/licenses/GoogleCloudPlatform-knowledge-catalog-Apache-2.0.txt
 
 checksum:
   name_template: checksums.txt
