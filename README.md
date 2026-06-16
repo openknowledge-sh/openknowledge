@@ -1,70 +1,12 @@
 # Open Knowledge CLI
 
-Open Knowledge helps you create and maintain local LLM wikis that humans can read and agents can use. It keeps your knowledge base portable and consistent using the [Open Knowledge Format v0.1][okf-spec] specification.
+Open Knowledge helps you create and maintain local LLM wikis that are both human-readable and agent-readable. It keeps your knowledge base portable and consistent using the [Open Knowledge Format v0.1][okf-spec] specification.
 
 It is built for people who want knowledge to stay readable in Git and easy for coding agents to navigate. A wiki can live inside a project repo or stand alone as a private knowledge base.
 
-## Start in 30 seconds
+## Start with an agent
 
-Install with the shell installer:
-
-```sh
-curl -fsSL https://openknowledge.sh/install | bash
-```
-
-Or install the npm wrapper:
-
-```sh
-npm install -g @openknowledge-sh/openknowledge
-# or
-pnpm add -g @openknowledge-sh/openknowledge
-```
-
-Set up a knowledge base with Codex CLI:
-
-```sh
-codex "$(openknowledge setup)"
-```
-
-Or create and inspect a generic scaffold directly:
-
-```sh
-openknowledge new ./project-memory
-openknowledge open ./project-memory
-openknowledge list ./project-memory
-openknowledge validate ./project-memory
-```
-
-## Setup entry points
-
-Open Knowledge setup has two modes:
-
-- **Agent CLI mode**: `openknowledge setup` prints the setup guide and your
-  agent CLI receives it as the initial prompt.
-- **App/editor mode**: paste a bootstrap prompt into an agent app or editor so
-  the agent installs Open Knowledge, runs `openknowledge setup`, reads the
-  printed guide, and follows it.
-
-### Codex CLI
-
-Interactive Codex needs stdin to remain a terminal, so use command substitution:
-
-```sh
-codex "$(openknowledge setup)"
-```
-
-### Claude Code CLI
-
-If your Claude Code CLI accepts an initial prompt argument, use:
-
-```sh
-claude "$(openknowledge setup)"
-```
-
-### Codex and Cowork apps setup
-
-Paste this into the agent chat for the workspace where the wiki should be
-created:
+The fastest way to start is to paste this prompt into Codex, Cowork, Cursor, Claude, or another coding agent in the workspace where the wiki should live:
 
 ```text
 Set up an Open Knowledge agentic wiki for this workspace.
@@ -83,6 +25,69 @@ questions, create the knowledge base with openknowledge new, customize it for
 this workspace, create useful workflows/skills/automation specs, run
 openknowledge validate, and show me how to inspect it with openknowledge list
 and openknowledge open.
+```
+
+The agent will install the CLI if needed, run the setup guide, ask where the wiki should live, create the scaffold, tailor it to your use case, and validate the result.
+
+### Codex CLI shortcut
+
+If you are using Codex CLI directly, pass the generated setup prompt as the initial prompt:
+
+```sh
+codex "$(openknowledge setup)"
+```
+
+Interactive Codex needs stdin to remain a terminal, so use command substitution instead of `openknowledge setup | codex`.
+
+### Other agent CLIs
+
+For an agent CLI that accepts prompts from stdin, piping is fine:
+
+```sh
+openknowledge setup | your-agent-cli
+```
+
+## Manual setup
+
+Manual setup is useful when you want to install the CLI yourself or create a generic scaffold without an agent interview.
+
+Install with the shell installer:
+
+```sh
+curl -fsSL https://openknowledge.sh/install | bash
+```
+
+Or install the npm wrapper:
+
+```sh
+npm install -g @openknowledge-sh/openknowledge
+# or
+pnpm add -g @openknowledge-sh/openknowledge
+```
+
+Create and inspect a generic scaffold directly:
+
+```sh
+openknowledge new ./project-memory
+openknowledge open ./project-memory
+openknowledge list ./project-memory
+openknowledge validate ./project-memory
+```
+
+## Setup entry points
+
+Open Knowledge setup has two modes:
+
+- **App/editor mode**: paste the setup prompt into an agent app or editor so the
+  agent installs Open Knowledge, runs `openknowledge setup`, reads the printed
+  guide, and follows it.
+- **Agent CLI mode**: `openknowledge setup` prints the setup guide and your
+  agent CLI receives it as the initial prompt.
+
+For Claude Code CLI or another CLI that accepts an initial prompt argument, use:
+
+```sh
+claude "$(openknowledge setup)"
 ```
 
 ## Why Open Knowledge
