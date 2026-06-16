@@ -79,11 +79,16 @@ func specDocument() string {
 	return fmt.Sprintf(`---
 type: Specification
 title: %s
-description: Local pinned copy of the Open Knowledge Format draft specification.
+description: Local pinned upstream copy of the Open Knowledge Format draft specification.
 resource: %s
 tags: [openknowledge, okf, specification]
 timestamp: %s
 ---
+
+> This is a pinned upstream copy of the Open Knowledge Format specification
+> from the GoogleCloudPlatform Knowledge Catalog repository. The upstream
+> repository is licensed under Apache-2.0. Open Knowledge CLI is unofficial
+> tooling for this specification and is not an official Google product.
 
 %s
 `, info.Title, info.Source, info.Modified, strings.TrimSpace(LatestSpec()))

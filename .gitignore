@@ -1,6 +1,9 @@
 /openknowledge
 /bin/
 /dist/
-/npm/vendor/
+/packages/npm/vendor/
+/packages/web/dist/
+.pnpm-store/
+node_modules/
 *.test
 coverage.out

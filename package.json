@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @openknowledge-sh/web dev",
+    "build:web": "pnpm --filter @openknowledge-sh/web build",
+    "test:cli": "go test ./packages/cli/...",
+    "build:cli": "go build -o bin/openknowledge ./packages/cli/cmd/openknowledge",
+    "test": "pnpm test:cli",
+    "build": "pnpm build:cli && pnpm build:web"
+  }
+}

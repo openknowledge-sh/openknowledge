@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"openknowledge/internal/okf"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 var version = "0.1.0"
