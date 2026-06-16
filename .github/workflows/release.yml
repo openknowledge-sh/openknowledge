@@ -1,9 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, for example 0.1.0 or v0.1.0"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,6 +21,48 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          raw="${{ inputs.version }}"
+          version="${raw#v}"
+          tag="v${version}"
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release version must look like 0.1.0, v0.1.0, or v0.1.0-rc.1" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release tag
+        shell: bash
+        run: |
+          tag="${{ steps.release.outputs.tag }}"
+          git fetch --force origin "refs/tags/$tag:refs/tags/$tag" || true
+
+          if git rev-parse --verify --quiet "$tag" >/dev/null; then
+            tag_commit="$(git rev-list -n 1 "$tag")"
+            head_commit="$(git rev-parse HEAD)"
+
+            if [ "$tag_commit" != "$head_commit" ]; then
+              echo "Tag $tag already exists but points at $tag_commit, not current commit $head_commit" >&2
+              exit 1
+            fi
+
+            echo "Reusing existing tag $tag on current commit"
+            git checkout --detach "$tag"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "refs/tags/$tag"
+          git checkout --detach "$tag"
 
       - name: Setup Go
         uses: actions/setup-go@v5
