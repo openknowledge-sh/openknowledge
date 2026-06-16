@@ -170,6 +170,7 @@ h1 {
 }
 
 .copy-command {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -177,17 +178,41 @@ h1 {
   min-width: 40px;
   height: 34px;
   padding: 0 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
+  overflow: hidden;
+  border: 1px solid rgba(122, 242, 182, 0.35);
+  background: rgba(122, 242, 182, 0.08);
+  color: var(--accent);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
 
+.copy-command::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(122, 242, 182, 0.08) 30%,
+    rgba(122, 242, 182, 0.32) 50%,
+    rgba(122, 242, 182, 0.08) 70%,
+    transparent 100%
+  );
+  content: "";
+  transform: translateX(-125%);
+  animation: copy-sweep 4.8s ease-in-out infinite;
+}
+
+.copy-command svg,
+.copy-command span {
+  position: relative;
+  z-index: 1;
+}
+
 .copy-command:hover,
 .copy-command.copied {
-  border-color: var(--line);
+  border-color: var(--accent);
+  background: rgba(122, 242, 182, 0.13);
   color: var(--accent);
 }
 
@@ -199,6 +224,25 @@ h1 {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.8;
+}
+
+@keyframes copy-sweep {
+  0%,
+  45% {
+    transform: translateX(-125%);
+  }
+
+  68%,
+  100% {
+    transform: translateX(125%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-command::before {
+    animation: none;
+    transform: translateX(125%);
+  }
 }
 
 code {
