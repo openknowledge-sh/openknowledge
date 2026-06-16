@@ -33,7 +33,7 @@ openknowledge validate ./project-memory
 - **Portable by default**: knowledge lives in Markdown files with predictable
   names, frontmatter, indexes, and logs.
 - **Agent-readable**: new bundles include `AGENTS.md`, `SETUP.MD`, and a local
-  pinned `SPEC.md` so an agent can pick up the setup flow without hidden state.
+  pinned `SPEC.md` so an agent can pick up the expectations and context.
 - **Spec-backed**: validation targets an embedded Open Knowledge Format spec
   version, starting with OKF v0.1.
 
@@ -79,69 +79,10 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 It does not fail on optional fields, unknown concept types, unknown frontmatter
 keys, broken links, or missing index files.
 
-## Install details
+## More
 
-The shell installer downloads release assets from
-`openknowledge-sh/openknowledge` GitHub Releases and verifies them against
-`checksums.txt`.
-
-`https://openknowledge.sh/install` should serve this repository's `install`
-script. The simplest deployment is a redirect to the latest GitHub Release
-asset:
-
-```text
-https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install
-```
-
-The npm package downloads the matching binary from GitHub Releases during
-installation. Set `OPENKNOWLEDGE_VERSION=latest` to install the latest GitHub
-release instead of the npm package version.
-
-## Workspace
-
-```text
-packages/cli  - Go CLI
-packages/npm  - npm wrapper for the release binary
-packages/web  - static HTML/CSS site
-```
-
-## Develop
-
-```sh
-pnpm test:cli
-pnpm build:cli
-pnpm build:web
-pnpm dev:web
-```
-
-## Release
-
-GitHub Releases are the source of truth for downloadable binaries:
-
-```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The tag starts the GitHub Actions release workflow, which runs GoReleaser and
-uploads the installer, checksums, license files, third-party notices, and
-platform archives.
-
-Local installer test against a directory of release assets:
-
-```sh
-OPENKNOWLEDGE_BASE_URL=file:///tmp/openknowledge-release \
-OPENKNOWLEDGE_INSTALL_DIR=/tmp/openknowledge-bin \
-bash install
-```
-
-Publish the npm wrapper from `packages/npm/` after the matching GitHub Release
-exists:
-
-```sh
-cd packages/npm
-npm publish --access public
-```
+- [CLI operations](docs/cli.md): installer details, local development, release
+  flow, and workspace layout.
 
 ## License and attribution
 
