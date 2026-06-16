@@ -45,26 +45,16 @@
               <span>Copy prompt</span>
             </button>
           </div>
-          <pre class="prompt-block"><code id="setup-prompt">Set up an Open Knowledge agentic wiki for this workspace.
-
-First make sure the Open Knowledge CLI is installed. If it is not installed,
-install it with:
-
-curl -fsSL https://openknowledge.sh/install | bash
-
-Then run:
-
-openknowledge setup
-
-Read the setup guide printed by that command and follow it. Ask me the setup
-questions, create the knowledge base with openknowledge new, customize it for
-this workspace, create useful workflows/skills/automation specs, run
-openknowledge validate, and show me how to inspect it with openknowledge list
-and openknowledge open.</code></pre>
+          <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge agentic wiki for this workspace. Install the Open Knowledge CLI if needed, run openknowledge setup, ask me the setup questions, customize the wiki for this workspace, validate it, and show me how to open it.</p>
         </section>
+        <p class="setup-note">
+          Need CLI shortcuts, manual installs, or advanced setup options? See
+          the
+          <a href="https://github.com/openknowledge-sh/openknowledge#setup-entry-points" target="_blank" rel="noreferrer">GitHub docs</a>.
+        </p>
       </section>
 
-      <section class="readme" aria-label="Open Knowledge README preview">
+      <section class="readme" aria-label="Open Knowledge product overview">
         <article class="readme-body">
           <h2>What Open Knowledge gives you</h2>
           <p>
@@ -73,49 +63,9 @@ and openknowledge open.</code></pre>
             and coding agents to navigate.
           </p>
           <ul class="feature-list">
-            <li>Portable Markdown files with predictable names, frontmatter, indexes, and logs.</li>
-            <li>Agent-readable scaffolding with <code>AGENTS.md</code>, <code>workflows/</code>, <code>skills/</code>, <code>automations/</code>, and a pinned <code>SPEC.md</code>.</li>
-            <li>A local Markdown viewer plus validation against embedded OKF v0.1 rules.</li>
-          </ul>
-
-          <h3>Codex CLI shortcut</h3>
-          <p>
-            Interactive Codex needs stdin to remain a terminal, so pass the
-            generated setup prompt as an argument:
-          </p>
-          <div class="code-with-copy">
-            <pre><code id="codex-command">codex "$(openknowledge setup)"</code></pre>
-            <button class="copy-command small-copy" type="button" data-copy-target="#codex-command" aria-label="Copy Codex command" title="Copy Codex command">
-              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                <path d="M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7Z"></path>
-                <path d="M4 11a2 2 0 0 1 2-2h2v6a2 2 0 0 0 2 2h6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Z"></path>
-              </svg>
-              <span>Copy</span>
-            </button>
-          </div>
-
-          <h3>Manual setup</h3>
-          <p>
-            If you want the lower-level path, install the CLI and create a
-            generic scaffold directly:
-          </p>
-          <pre><code>curl -fsSL https://openknowledge.sh/install | bash
-
-npm install -g @openknowledge-sh/openknowledge
-
-openknowledge new ./project-memory
-openknowledge open ./project-memory
-openknowledge list ./project-memory
-openknowledge validate ./project-memory</code></pre>
-
-          <h3>Commands</h3>
-          <ul class="command-list">
-            <li><code>setup</code> prints an agent prompt for creating and customizing a knowledge base.</li>
-            <li><code>new</code> scaffolds a local Open Knowledge bundle.</li>
-            <li><code>open</code> starts a local Markdown viewer for the bundle.</li>
-            <li><code>list</code> prints the bundle tree with inline validation issues.</li>
-            <li><code>validate</code> checks the bundle against the latest or selected spec.</li>
-            <li><code>spec</code> prints the embedded Open Knowledge Format spec.</li>
+            <li>Turn a project, research folder, or private knowledge dump into a wiki that humans can read and agents can use.</li>
+            <li>Guide the first setup through an agent interview, so the wiki starts with the right purpose, structure, and maintenance habits.</li>
+            <li>Keep the result portable with Markdown files, local viewing, and validation against embedded OKF v0.1 rules.</li>
           </ul>
         </article>
       </section>
