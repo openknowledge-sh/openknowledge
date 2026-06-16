@@ -24,6 +24,8 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "--help", "-h":
+		fmt.Fprint(os.Stdout, helpText())
 	case "setup":
 		os.Exit(runSetup(os.Args[2:]))
 	case "new":
@@ -355,19 +357,44 @@ func formatListNode(node *listTreeNode) string {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `openknowledge creates and validates Open Knowledge Format v0.1 bundles.
+	fmt.Fprint(os.Stderr, helpText())
+}
+
+func helpText() string {
+	return `openknowledge creates and validates Open Knowledge Format v0.1 bundles.
 
 Usage:
+  openknowledge --help
   openknowledge setup
   openknowledge new [folder]
+  openknowledge new --name <name> [folder]
   openknowledge open [path]
+  openknowledge open --host <host> --port <port> [path]
   openknowledge spec latest|<version>
   openknowledge validate [path]
   openknowledge validate --spec <version> [path]
   openknowledge list [path]
   openknowledge list --spec <version> [path]
   openknowledge version
-`)
+
+Commands:
+  setup      Print an agent setup prompt.
+  new        Scaffold a local Open Knowledge bundle.
+  open       Start a local Markdown viewer.
+  spec       Print an embedded OKF spec.
+  validate   Validate a bundle against an OKF spec.
+  list       Print a bundle tree, with optional JSON output.
+  version    Print the CLI version.
+
+Flags:
+  -h, --help  Show this help.
+
+Examples:
+  openknowledge new ./project-memory
+  openknowledge validate ./project-memory
+  openknowledge list --json ./project-memory
+  openknowledge open ./project-memory
+`
 }
 
 func prompt(label, defaultValue string) (string, error) {

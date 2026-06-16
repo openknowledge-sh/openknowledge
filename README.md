@@ -86,16 +86,12 @@ open` starts a local viewer for reading the wiki, `openknowledge validate`
 checks the bundle for portable OKF structure, and `openknowledge list` prints
 the bundle tree with inline validation issues.
 
-The intended loop is:
-
-```text
-setup prompt -> agent interview -> new wiki -> workflows/skills -> open/validate -> commit
-```
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
+| `openknowledge --help` | Print command usage, summaries, and examples. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge open [path]` | Start a local Markdown viewer for a knowledge base. |
@@ -122,10 +118,6 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 It does not fail on optional fields, unknown concept types, unknown frontmatter
 keys, broken local links, or missing index files.
 
-## More
-
-- [CLI operations](docs/cli.md): installer details, local development, release
-  flow, and workspace layout.
 
 ## License and attribution
 
