@@ -127,6 +127,12 @@ h1 {
   line-height: 1.4;
 }
 
+.lede a {
+  color: rgba(244, 247, 244, 0.72);
+  text-decoration-color: rgba(244, 247, 244, 0.24);
+  text-underline-offset: 3px;
+}
+
 .intro-note {
   max-width: 720px;
   margin-top: 15px;
