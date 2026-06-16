@@ -62,6 +62,12 @@ body {
   padding: 52px 0 44px;
 }
 
+.site-topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 30px;
+}
+
 .intro {
   max-width: 820px;
 }
@@ -240,10 +246,6 @@ li code {
 .prompt-block code {
   overflow-wrap: break-word;
   white-space: pre-wrap;
-}
-
-.github-row {
-  margin-bottom: 18px;
 }
 
 .readme {
