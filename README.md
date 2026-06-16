@@ -24,7 +24,7 @@ npm install -g @openknowledge-sh/openknowledge
 pnpm add -g @openknowledge-sh/openknowledge
 ```
 
-Set up a knowledge base with Codex:
+Set up a knowledge base with Codex CLI:
 
 ```sh
 codex "$(openknowledge setup)"
@@ -38,6 +38,71 @@ openknowledge open ./project-memory
 openknowledge list ./project-memory
 openknowledge validate ./project-memory
 ```
+
+## Setup entry points
+
+Open Knowledge setup has two modes:
+
+- **Agent CLI mode**: `openknowledge setup` prints the setup guide and your
+  agent CLI receives it as the initial prompt.
+- **App/editor mode**: paste a bootstrap prompt into an agent app or editor so
+  the agent installs Open Knowledge, runs `openknowledge setup`, reads the
+  printed guide, and follows it.
+
+### Codex CLI
+
+Interactive Codex needs stdin to remain a terminal, so use command substitution:
+
+```sh
+codex "$(openknowledge setup)"
+```
+
+Do not use `openknowledge setup | codex`; interactive Codex exits with
+`stdin is not a terminal`.
+
+### Claude Code CLI
+
+If your Claude Code CLI accepts an initial prompt argument, use:
+
+```sh
+claude "$(openknowledge setup)"
+```
+
+If your agent CLI explicitly reads prompts from stdin, piping is also fine:
+
+```sh
+openknowledge setup | your-agent-cli
+```
+
+### Cursor or Editor Agents
+
+Paste this into the agent chat for the workspace where the wiki should be
+created:
+
+```text
+Set up an Open Knowledge agentic wiki for this workspace.
+
+First make sure the Open Knowledge CLI is installed. If it is not installed,
+install it with:
+
+curl -fsSL https://openknowledge.sh/install | bash
+
+Then run:
+
+openknowledge setup
+
+Read the setup guide printed by that command and follow it. Ask me the setup
+questions, create the knowledge base with openknowledge new, customize it for
+this workspace, create useful workflows/skills/automation specs, run
+openknowledge validate, and show me how to inspect it with openknowledge list
+and openknowledge open.
+```
+
+### Codex App or Claude App
+
+Use the same bootstrap prompt as above. If the app cannot execute local shell
+commands, ask it to tell you which command to run locally, then paste the
+`openknowledge setup` output back into the app.
 
 ## Why Open Knowledge
 
