@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Open Knowledge</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="github-link" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+    <main class="shell">
+      <section class="intro">
+        <h1>Your agentic wiki</h1>
+        <p class="lede">
+          Open Knowledge is a CLI for creating, validating, and inspecting Open
+          Knowledge Format bundles.
+        </p>
+        <section class="terminal" aria-label="Install Open Knowledge">
+          <div class="tabs" role="tablist" aria-label="Install methods">
+            <button class="tab active" type="button" data-command="curl -fsSL https://openknowledge.sh/install | bash">Bash</button>
+            <button class="tab" type="button" data-command="npm install -g @openknowledge-sh/openknowledge">npm</button>
+            <button class="tab" type="button" data-command="pnpm add -g @openknowledge-sh/openknowledge">pnpm</button>
+          </div>
+          <div class="command-line">
+            <span aria-hidden="true">$</span>
+            <code id="install-command">curl -fsSL https://openknowledge.sh/install | bash</code>
+          </div>
+        </section>
+      </section>
+
+      <section class="readme" aria-label="Open Knowledge README preview">
+        <div class="readme-header">
+          <span>README.md</span>
+        </div>
+        <article class="readme-body">
+          <h2>Open Knowledge</h2>
+          <p>
+            Create a local wiki that agents and humans can both navigate.
+          </p>
+          <h3><code>new</code></h3>
+          <p>
+            Scaffolds a local wiki with agent rules, setup handoff, indexes,
+            logs, and a pinned spec.
+          </p>
+          <pre><code>openknowledge new ./project-memory</code></pre>
+          <h3><code>validate</code></h3>
+          <p>
+            Checks the bundle against the selected Open Knowledge Format spec
+            and reports structural issues.
+          </p>
+          <pre><code>openknowledge validate ./project-memory</code></pre>
+          <h3><code>list</code></h3>
+          <p>
+            Prints the wiki tree and marks missing or invalid files inline, so
+            the structure is easy to inspect.
+          </p>
+          <pre><code>openknowledge list ./project-memory</code></pre>
+        </article>
+      </section>
+      <footer class="site-footer">
+        Unofficial tooling for the Open Knowledge Format specification defined
+        in the
+        <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md">GoogleCloudPlatform knowledge catalog</a>.
+      </footer>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>
