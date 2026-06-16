@@ -219,23 +219,10 @@ li code {
 
 .readme {
   margin-top: 52px;
-  border: 1px solid var(--line);
-  background: var(--panel-strong);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-}
-
-.readme-header {
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--line);
-  background: #0a100d;
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
 }
 
 .readme-body {
   max-width: 780px;
-  padding: 30px;
 }
 
 .readme-body h2 {
@@ -339,9 +326,5 @@ pre code {
 
   .readme {
     margin-top: 36px;
-  }
-
-  .readme-body {
-    padding: 22px;
   }
 }
