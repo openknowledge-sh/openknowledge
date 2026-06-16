@@ -152,14 +152,6 @@ h1 {
   line-height: 1.15;
 }
 
-.terminal-kicker {
-  margin: 0 0 5px;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
 .tabs {
   display: flex;
   gap: 2px;
