@@ -47,9 +47,20 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The tag starts the GitHub Actions release workflow, which runs GoReleaser and
-uploads the installer, checksums, license files, third-party notices, and
-platform archives.
+The tag starts the GitHub Actions release workflow. GoReleaser uploads the
+installer, checksums, license files, third-party notices, and platform archives
+to GitHub Releases. After the GitHub Release succeeds, the workflow publishes
+the npm wrapper from `packages/npm/`.
+
+Before tagging:
+
+- set `packages/npm/package.json` `version` to match the tag without the leading
+  `v`
+- configure the repository `NPM_TOKEN` secret with permission to publish
+  `@openknowledge-sh/openknowledge`
+
+The npm publish job fails fast if the package version does not match the tag or
+if `NPM_TOKEN` is missing.
 
 Local installer test against a directory of release assets:
 
@@ -59,8 +70,7 @@ OPENKNOWLEDGE_INSTALL_DIR=/tmp/openknowledge-bin \
 bash install
 ```
 
-Publish the npm wrapper from `packages/npm/` after the matching GitHub Release
-exists:
+Manual npm publish fallback after the matching GitHub Release exists:
 
 ```sh
 cd packages/npm
