@@ -40,27 +40,31 @@ pnpm dev:web
 
 ## Release
 
-GitHub Releases are the source of truth for downloadable binaries:
+GitHub Releases are the source of truth for downloadable binaries. Run the
+release manually from GitHub Actions:
 
-```sh
-git tag v0.1.0
-git push origin v0.1.0
+```text
+Actions -> Release -> Run workflow -> version: 0.1.0
 ```
 
-The tag starts the GitHub Actions release workflow. GoReleaser uploads the
-installer, checksums, license files, third-party notices, and platform archives
-to GitHub Releases. After the GitHub Release succeeds, the workflow publishes
-the npm wrapper from `packages/npm/`.
+The workflow normalizes the input to a `v*` tag, creates and pushes that tag,
+then runs GoReleaser. GoReleaser uploads the installer, checksums, license
+files, third-party notices, and platform archives to GitHub Releases. The
+workflow fails before creating a release if the version is malformed or if an
+existing tag points at a different commit. A rerun may reuse an existing tag
+when it already points at the current workflow commit.
 
-Before tagging:
+The npm publishing job is present in the workflow as commented YAML, but it is
+disabled for now while the GitHub Release artifact flow is validated first. When
+re-enabling npm publishing:
 
 - set `packages/npm/package.json` `version` to match the tag without the leading
   `v`
 - configure the repository `NPM_TOKEN` secret with permission to publish
   `@openknowledge-sh/openknowledge`
 
-The npm publish job fails fast if the package version does not match the tag or
-if `NPM_TOKEN` is missing.
+The commented npm publish job is designed to fail fast if the package version
+does not match the tag or if `NPM_TOKEN` is missing.
 
 Local installer test against a directory of release assets:
 

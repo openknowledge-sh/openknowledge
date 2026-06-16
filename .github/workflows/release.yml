@@ -1,9 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, for example 0.1.0 or v0.1.0"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -19,6 +22,48 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          raw="${{ inputs.version }}"
+          version="${raw#v}"
+          tag="v${version}"
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release version must look like 0.1.0, v0.1.0, or v0.1.0-rc.1" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare release tag
+        shell: bash
+        run: |
+          tag="${{ steps.release.outputs.tag }}"
+          git fetch --force origin "refs/tags/$tag:refs/tags/$tag" || true
+
+          if git rev-parse --verify --quiet "$tag" >/dev/null; then
+            tag_commit="$(git rev-list -n 1 "$tag")"
+            head_commit="$(git rev-parse HEAD)"
+
+            if [ "$tag_commit" != "$head_commit" ]; then
+              echo "Tag $tag already exists but points at $tag_commit, not current commit $head_commit" >&2
+              exit 1
+            fi
+
+            echo "Reusing existing tag $tag on current commit"
+            git checkout --detach "$tag"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "refs/tags/$tag"
+          git checkout --detach "$tag"
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -33,37 +78,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  npm:
-    needs: goreleaser
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      - name: Verify npm package version
-        run: |
-          node -e 'const pkg = require("./packages/npm/package.json"); const expected = process.env.GITHUB_REF_NAME.replace(/^v/, ""); if (pkg.version !== expected) { console.error(`packages/npm version ${pkg.version} does not match tag ${process.env.GITHUB_REF_NAME}`); process.exit(1); }'
-
-      - name: Require npm token
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN secret is required to publish @openknowledge-sh/openknowledge" >&2
-            exit 1
-          fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish npm package
-        run: npm publish --provenance --access public
-        working-directory: packages/npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # TODO: Re-enable after GitHub Release artifacts are stable and npm publishing
+  # is ready to ship.
+  #
+  # npm:
+  #   needs: goreleaser
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Setup Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 22
+  #         registry-url: https://registry.npmjs.org
+  #
+  #     - name: Verify npm package version
+  #       run: |
+  #         node -e 'const pkg = require("./packages/npm/package.json"); const expected = process.env.GITHUB_REF_NAME.replace(/^v/, ""); if (pkg.version !== expected) { console.error(`packages/npm version ${pkg.version} does not match tag ${process.env.GITHUB_REF_NAME}`); process.exit(1); }'
+  #
+  #     - name: Require npm token
+  #       run: |
+  #         if [ -z "$NODE_AUTH_TOKEN" ]; then
+  #           echo "NPM_TOKEN secret is required to publish @openknowledge-sh/openknowledge" >&2
+  #           exit 1
+  #         fi
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  #
+  #     - name: Publish npm package
+  #       run: npm publish --provenance --access public
+  #       working-directory: packages/npm
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
