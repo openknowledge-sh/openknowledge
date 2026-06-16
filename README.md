@@ -1,9 +1,9 @@
 # Open Knowledge CLI
 
-Open Knowledge is a small CLI for creating, validating, and inspecting local
-Open Knowledge Format bundles.
+Open Knowledge CLI is a tool for creating, validating, and inspecting local
+Open Knowledge Format bundles. It implements the [Open Knowledge Format v0.1][okf-spec] spec.
 
-It is built for teams that want project knowledge to stay portable, readable in
+It is built for people that want project knowledge to stay portable, readable in
 Git, and easy for both humans and coding agents to navigate.
 
 ## Start in 30 seconds
@@ -18,6 +18,8 @@ Or install the npm wrapper:
 
 ```sh
 npm install -g @openknowledge-sh/openknowledge
+# or
+pnpm add -g @openknowledge-sh/openknowledge
 ```
 
 Create and inspect a new knowledge bundle:
@@ -92,3 +94,6 @@ The embedded OKF spec copy is Apache-2.0 material from
 `GoogleCloudPlatform/knowledge-catalog`. See `THIRD_PARTY_NOTICES.md` and
 `packages/cli/internal/okf/assets/specs/README.md` for attribution and license
 handling.
+
+[knowledge-catalog]: https://github.com/GoogleCloudPlatform/knowledge-catalog
+[okf-spec]: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
