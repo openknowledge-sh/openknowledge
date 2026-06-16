@@ -35,7 +35,9 @@ func ListWithVersion(root string, version string) (ListResult, error) {
 		return ListResult{}, err
 	}
 
-	return listInventory(validation.Root, validation.Errors)
+	issues := append([]Issue{}, validation.Errors...)
+	issues = append(issues, validation.Warnings...)
+	return listInventory(validation.Root, issues)
 }
 
 func listInventory(absolute string, issues []Issue) (ListResult, error) {

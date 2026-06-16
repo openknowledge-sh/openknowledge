@@ -4,26 +4,27 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Open Knowledge</title>
-    <meta name="description" content="Create, validate, and inspect local Open Knowledge Format bundles.">
+    <meta name="description" content="Create local agentic wikis that agents can read, maintain, and validate.">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Open Knowledge CLI">
-    <meta property="og:description" content="Create a local wiki for agents and humans to use.">
+    <meta property="og:description" content="Create a local agentic wiki for agents and humans to use.">
     <meta property="og:image" content="https://openknowledge.sh/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Open Knowledge CLI">
-    <meta name="twitter:description" content="Create a local wiki for agents and humans to use.">
+    <meta name="twitter:description" content="Create a local agentic wiki for agents and humans to use.">
     <meta name="twitter:image" content="https://openknowledge.sh/og.png">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <main class="shell">
       <section class="intro">
-        <h1>Create a local wiki for agents and humans to use</h1>
+        <h1>Create a local agentic wiki for agents and humans</h1>
         <p class="lede">
-          Open Knowledge CLI creates, validates, and inspects local Open
-          Knowledge Format bundles. It implements the
+          Open Knowledge CLI creates, validates, and inspects local Markdown
+          wikis with agent workflows, local skill guidance, and portable
+          structure. It implements the
           <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a> spec.
         </p>
         <div class="github-row">
@@ -54,32 +55,38 @@
         <article class="readme-body">
           <h2>Open Knowledge CLI</h2>
           <p>
-            Create, validate, and inspect local Open Knowledge Format bundles.
+            Create, validate, and inspect local agentic wikis.
           </p>
           <p>
-            Keep project knowledge portable, readable in Git, and easy for both
-            humans and coding agents to navigate.
+            Keep project knowledge portable, readable in Git, and easy for
+            agents to maintain through explicit workflows.
           </p>
           <h3>Start in 30 seconds</h3>
-          <pre><code>openknowledge new ./project-memory
+          <pre><code>openknowledge setup | codex
+
+openknowledge new ./project-memory
+openknowledge open ./project-memory
 openknowledge list ./project-memory
 openknowledge validate ./project-memory</code></pre>
           <h3>Why Open Knowledge</h3>
           <ul class="feature-list">
             <li>Portable Markdown files with predictable names, frontmatter, indexes, and logs.</li>
-            <li>Agent-readable scaffolding with <code>AGENTS.md</code>, <code>SETUP.MD</code>, and a local pinned <code>SPEC.md</code>.</li>
+            <li>Agent-readable scaffolding with <code>AGENTS.md</code>, <code>workflows/</code>, <code>skills/</code>, <code>automations/</code>, and a local pinned <code>SPEC.md</code>.</li>
             <li>Spec-backed validation against the embedded OKF v0.1 rules.</li>
           </ul>
           <h3>How it works</h3>
           <p>
-            <code>openknowledge new</code> scaffolds the bundle. Humans and
-            agents edit normal Markdown files. <code>validate</code> checks the
-            structure and <code>list</code> prints the tree with inline issues.
+            <code>openknowledge setup</code> prints a prompt you can pipe into
+            an agent. The agent interviews you, runs <code>openknowledge
+            new</code>, creates workflows and local skill guidance, customizes
+            the scaffold, opens the local viewer, and validates the result.
           </p>
-          <pre><code>new bundle -> agent setup -> edit knowledge -> list/validate -> commit</code></pre>
+          <pre><code>setup prompt -> agent interview -> new wiki -> workflows/skills -> open/validate</code></pre>
           <h3>Commands</h3>
           <ul class="command-list">
+            <li><code>setup</code> prints an agent prompt for creating and customizing a knowledge base.</li>
             <li><code>new</code> scaffolds a local Open Knowledge bundle.</li>
+            <li><code>open</code> starts a local Markdown viewer for the bundle.</li>
             <li><code>list</code> prints the bundle tree with inline validation issues.</li>
             <li><code>validate</code> checks the bundle against the latest or selected spec.</li>
             <li><code>spec</code> prints the embedded Open Knowledge Format spec.</li>

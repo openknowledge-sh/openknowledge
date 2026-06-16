@@ -11,6 +11,7 @@ import (
 )
 
 var logDateHeading = regexp.MustCompile(`^##\s+\d{4}-\d{2}-\d{2}\s*$`)
+var markdownLink = regexp.MustCompile(`!?\[[^\]]*\]\(([^\s)]+)(?:\s+"[^"]*")?\)`)
 
 type Issue struct {
 	Path    string `json:"path"`
@@ -128,6 +129,7 @@ func validateFile(root, path string, result *Result) {
 	default:
 		validateConcept(rel, meta, result)
 	}
+	validateLinks(root, rel, string(content), result)
 }
 
 func validateIndex(rel string, meta frontmatter, result *Result) {
@@ -174,6 +176,139 @@ func validateConcept(rel string, meta frontmatter, result *Result) {
 	}
 }
 
+func validateLinks(root string, rel string, content string, result *Result) {
+	linkContent := maskFencedCode(content)
+	for _, match := range markdownLink.FindAllStringSubmatchIndex(linkContent, -1) {
+		href := linkContent[match[2]:match[3]]
+		if shouldSkipLink(href) {
+			continue
+		}
+
+		targetRel := linkTargetRel(rel, href)
+		if targetRel == "" {
+			continue
+		}
+		targetPath := filepath.Join(root, filepath.FromSlash(targetRel))
+		if !insideRoot(root, targetPath) {
+			result.Warnings = append(result.Warnings, Issue{
+				Path:    rel,
+				Line:    lineForOffset(content, match[0]),
+				Rule:    "link-target",
+				Message: fmt.Sprintf("link target escapes bundle root: %s", href),
+			})
+			continue
+		}
+
+		info, err := os.Stat(targetPath)
+		if err == nil && info.IsDir() {
+			_, err = os.Stat(filepath.Join(targetPath, "index.md"))
+		}
+		if err != nil {
+			result.Warnings = append(result.Warnings, Issue{
+				Path:    rel,
+				Line:    lineForOffset(content, match[0]),
+				Rule:    "link-target",
+				Message: fmt.Sprintf("link target does not exist: %s", href),
+			})
+		}
+	}
+}
+
+func maskFencedCode(content string) string {
+	lines := strings.SplitAfter(content, "\n")
+	var builder strings.Builder
+	inFence := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+			builder.WriteString(maskLinePreservingNewline(line))
+			continue
+		}
+		if inFence {
+			builder.WriteString(maskLinePreservingNewline(line))
+			continue
+		}
+		builder.WriteString(line)
+	}
+	return builder.String()
+}
+
+func maskLinePreservingNewline(line string) string {
+	var builder strings.Builder
+	for _, r := range line {
+		if r == '\n' || r == '\r' {
+			builder.WriteRune(r)
+		} else {
+			builder.WriteByte(' ')
+		}
+	}
+	return builder.String()
+}
+
+func shouldSkipLink(href string) bool {
+	href = strings.TrimSpace(href)
+	if href == "" || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "//") {
+		return true
+	}
+	if schemeIndex := strings.Index(href, ":"); schemeIndex > 0 {
+		slashIndex := strings.Index(href, "/")
+		if slashIndex < 0 || schemeIndex < slashIndex {
+			return true
+		}
+	}
+	return false
+}
+
+func linkTargetRel(sourceRel string, href string) string {
+	target := strings.TrimSpace(href)
+	if hash := strings.Index(target, "#"); hash >= 0 {
+		target = target[:hash]
+	}
+	if query := strings.Index(target, "?"); query >= 0 {
+		target = target[:query]
+	}
+	if target == "" {
+		return ""
+	}
+
+	var clean string
+	if strings.HasPrefix(target, "/") {
+		clean = filepath.ToSlash(filepath.Clean(strings.TrimPrefix(target, "/")))
+	} else {
+		base := filepath.Dir(sourceRel)
+		if base == "." {
+			base = ""
+		}
+		clean = filepath.ToSlash(filepath.Clean(filepath.Join(base, target)))
+	}
+	if clean == "." {
+		clean = ""
+	}
+	if strings.HasSuffix(target, "/") {
+		clean = filepath.ToSlash(filepath.Join(clean, "index.md"))
+	}
+	return clean
+}
+
+func insideRoot(root string, path string) bool {
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func lineForOffset(content string, offset int) int {
+	line := 1
+	for index := 0; index < offset && index < len(content); index++ {
+		if content[index] == '\n' {
+			line++
+		}
+	}
+	return line
+}
+
 func buildChecks(result Result) []Check {
 	specLabel := "OKF " + result.SpecVersion
 	return []Check{
@@ -202,6 +337,11 @@ func buildChecks(result Result) []Check {
 			Status:  versionStatus(result.Warnings),
 			Message: fmt.Sprintf("%s section 11; root index.md may declare okf_version: %q", specLabel, result.SpecVersion),
 		},
+		{
+			Name:    "Link targets",
+			Status:  warningStatus(result.Warnings, "link-target"),
+			Message: "Local Markdown links should resolve inside the bundle",
+		},
 	}
 }
 
@@ -217,9 +357,15 @@ func statusForRules(errors []Issue, rules ...string) string {
 }
 
 func versionStatus(warnings []Issue) string {
+	return warningStatus(warnings, "okf-version")
+}
+
+func warningStatus(warnings []Issue, rules ...string) string {
 	for _, warning := range warnings {
-		if warning.Rule == "okf-version" {
-			return "warn"
+		for _, rule := range rules {
+			if warning.Rule == rule {
+				return "warn"
+			}
 		}
 	}
 	return "pass"

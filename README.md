@@ -1,10 +1,12 @@
 # Open Knowledge CLI
 
-Open Knowledge CLI is a tool for creating, validating, and inspecting local
-Open Knowledge Format bundles. It implements the [Open Knowledge Format v0.1][okf-spec] spec.
+Open Knowledge CLI helps create, validate, and inspect local agentic wikis:
+Markdown knowledge bases that agents can read, maintain, and verify. It
+implements the [Open Knowledge Format v0.1][okf-spec] spec.
 
 It is built for people that want project knowledge to stay portable, readable in
-Git, and easy for both humans and coding agents to navigate.
+Git, and easy for both humans and coding agents to navigate. A wiki can live
+inside a project repo or stand alone as a local knowledge base.
 
 ## Start in 30 seconds
 
@@ -22,10 +24,17 @@ npm install -g @openknowledge-sh/openknowledge
 pnpm add -g @openknowledge-sh/openknowledge
 ```
 
-Create and inspect knowledge bundles:
+Set up a knowledge base with Codex:
+
+```sh
+openknowledge setup | codex
+```
+
+Or create and inspect a generic scaffold directly:
 
 ```sh
 openknowledge new ./project-memory
+openknowledge open ./project-memory
 openknowledge list ./project-memory
 openknowledge validate ./project-memory
 ```
@@ -34,31 +43,44 @@ openknowledge validate ./project-memory
 
 - **Portable by default**: knowledge lives in Markdown files with predictable
   names, frontmatter, indexes, and logs.
-- **Agent-readable**: new bundles include `AGENTS.md`, `SETUP.MD`, and a local
-  pinned `SPEC.md` so an agent can pick up the expectations and context.
+- **Agentic setup**: `openknowledge setup | codex` asks an agent to interview
+  the user, create the scaffold, and configure the wiki for the chosen use case.
+- **Workflow-ready**: new bundles include `AGENTS.md`, `SETUP.MD`, `workflows/`,
+  `skills/`, `automations/`, and a pinned `SPEC.md` so agents know how to use
+  and maintain the wiki.
 - **Spec-backed**: validation targets an embedded Open Knowledge Format spec
   version, starting with OKF v0.1.
 
 ## How it works
 
+`openknowledge setup` prints an agent prompt for setting up a useful local
+knowledge base with the user. Pipe it into an agent such as Codex to have the
+agent ask where the knowledge base should live, create it with `openknowledge
+new`, create maintenance workflows and local skill guidance, and customize the
+scaffold for the chosen use case.
+
 `openknowledge new` creates a local bundle with the base OKF structure, a setup
-handoff, agent guidance, an update log, and a pinned copy of the current spec.
+handoff, agent guidance, workflow and automation sections, an update log, and a
+pinned copy of the current spec.
 
 After that, humans and agents edit normal Markdown files. `openknowledge
-validate` checks the bundle for portable OKF structure, and `openknowledge list`
-prints the bundle tree with inline validation issues.
+open` starts a local viewer for reading the wiki, `openknowledge validate`
+checks the bundle for portable OKF structure, and `openknowledge list` prints
+the bundle tree with inline validation issues.
 
 The intended loop is:
 
 ```text
-new bundle -> agent setup -> edit knowledge -> list/validate -> commit
+setup prompt -> agent interview -> new wiki -> workflows/skills -> open/validate -> commit
 ```
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
+| `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
+| `openknowledge open [path]` | Start a local Markdown viewer for a knowledge base. |
 | `openknowledge spec latest` | Print the latest embedded OKF spec. |
 | `openknowledge spec 0.1` | Print a specific embedded spec version. |
 | `openknowledge validate [path]` | Validate a bundle against the latest spec. |
@@ -77,9 +99,10 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 - `index.md` and `log.md` are reserved files, not concept documents
 - root `index.md` may declare `okf_version: "0.1"`
 - `log.md` `##` headings use `YYYY-MM-DD`
+- local Markdown links resolve inside the bundle, reported as warnings
 
 It does not fail on optional fields, unknown concept types, unknown frontmatter
-keys, broken links, or missing index files.
+keys, broken local links, or missing index files.
 
 ## More
 

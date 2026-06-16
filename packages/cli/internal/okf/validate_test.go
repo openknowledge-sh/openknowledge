@@ -122,6 +122,62 @@ func TestListAnnotatesInvalidBundle(t *testing.T) {
 	}
 }
 
+func TestValidateWarnsForBrokenLocalLinks(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n\n[Concept](concepts/good.md)\n[Section](#section)\n[External](https://example.com)\n[Missing](missing.md)\n[Missing directory](references/)\n")
+	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
+	writeFile(t, root, "concepts/good.md", "---\ntype: Concept\ntitle: Good\n---\n\n# Good\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected no errors, got %#v", result.Errors)
+	}
+	if statusForCheck(result, "Link targets") != "warn" {
+		t.Fatalf("expected link targets check to warn, got %#v", result.Checks)
+	}
+	if len(result.Warnings) != 2 {
+		t.Fatalf("expected two broken-link warnings, got %#v", result.Warnings)
+	}
+	if result.Warnings[0].Rule != "link-target" || !strings.Contains(result.Warnings[0].Message, "missing.md") {
+		t.Fatalf("unexpected first warning: %#v", result.Warnings[0])
+	}
+
+	listing, err := List(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var index ListEntry
+	for _, entry := range listing.Entries {
+		if entry.Path == "index.md" {
+			index = entry
+			break
+		}
+	}
+	if len(index.Issues) != 2 {
+		t.Fatalf("expected list to include link warnings on index.md, got %#v", index.Issues)
+	}
+}
+
+func TestValidateIgnoresLinksInsideFencedCode(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n\n```markdown\n[Example](missing.md)\n```\n")
+	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("expected no warnings for example links inside fenced code, got %#v", result.Warnings)
+	}
+	if statusForCheck(result, "Link targets") != "pass" {
+		t.Fatalf("expected link targets check to pass, got %#v", result.Checks)
+	}
+}
+
 func TestNewProjectCreatesValidBundle(t *testing.T) {
 	parent := t.TempDir()
 	target := filepath.Join(parent, "my-knowledge-base")
@@ -137,7 +193,20 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 		t.Fatalf("unexpected setup path: %s", result.SetupPath)
 	}
 
-	for _, name := range []string{"index.md", "log.md", "AGENTS.md", "SETUP.MD", "SPEC.md", "concepts/index.md", "wiki/index.md", "raw/index.md"} {
+	for _, name := range []string{
+		"index.md",
+		"log.md",
+		"AGENTS.md",
+		"SETUP.MD",
+		"SPEC.md",
+		"concepts/index.md",
+		"projects/index.md",
+		"workflows/index.md",
+		"skills/index.md",
+		"automations/index.md",
+		"wiki/index.md",
+		"raw/index.md",
+	} {
 		if _, err := os.Stat(filepath.Join(target, name)); err != nil {
 			t.Fatalf("expected %s to exist: %v", name, err)
 		}

@@ -114,6 +114,9 @@ This is the entry point for the local Open Knowledge bundle.
 
 * [Concepts](concepts/) - core knowledge pages.
 * [Projects](projects/) - project and product context.
+* [Workflows](workflows/) - agent maintenance workflows and operating loops.
+* [Skills](skills/) - local guidance for agent tools that use this wiki.
+* [Automations](automations/) - recurring or external job specifications.
 * [References](references/) - source material and citations.
 * [Decisions](decisions/) - durable decisions and tradeoffs.
 * [Wiki](wiki/) - maintained synthesis pages.
@@ -152,8 +155,12 @@ You are working inside a local Open Knowledge wiki.
 * Treat index.md files as progressive-disclosure indexes.
 * Treat log.md files as chronological update logs.
 * Keep raw imported material separate from synthesized wiki content.
+* Use workflows/ for repeatable maintenance behaviors and operating loops.
+* Use skills/ for local agent-tool guidance that explains how agents should use this wiki.
+* Use automations/ for recurring or external job specifications.
 * Prefer concise, structured Markdown that future humans and agents can scan.
 * Preserve citations or source paths when a page depends on external material.
+* After meaningful wiki edits, run openknowledge validate and fix issues before finishing.
 
 ## Setup
 
@@ -209,6 +216,9 @@ After the interview:
 * create the smallest useful folder structure for the domain
 * write initial section indexes
 * update AGENTS.md so future agents understand the final wiki purpose, rules, and boundaries
+* create workflows/ pages for selected agent maintenance behaviors
+* create skills/ pages for local agent-tool guidance
+* create automations/ specs when the user wants recurring or external jobs
 * keep every non-reserved Markdown document OKF-valid with a non-empty type field
 * keep raw source snapshots separate from maintained synthesis
 * record setup decisions in log.md
@@ -228,6 +238,18 @@ After the interview:
 		{
 			name:    "projects/index.md",
 			content: "# Projects\n\nProject and product context belongs here.\n",
+		},
+		{
+			name:    "workflows/index.md",
+			content: "# Workflows\n\nAgent maintenance workflows and operating loops belong here.\n",
+		},
+		{
+			name:    "skills/index.md",
+			content: "# Skills\n\nLocal agent-tool guidance belongs here.\n",
+		},
+		{
+			name:    "automations/index.md",
+			content: "# Automations\n\nRecurring or external job specifications belong here.\n",
 		},
 		{
 			name:    "references/index.md",

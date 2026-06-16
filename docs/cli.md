@@ -38,6 +38,53 @@ pnpm build:web
 pnpm dev:web
 ```
 
+## Setup prompt
+
+`openknowledge setup` prints only an agent prompt to stdout. This keeps the
+command composable with agent CLIs:
+
+```sh
+openknowledge setup | codex
+```
+
+The prompt asks the agent to interview the user, choose where the knowledge base
+should live, run `openknowledge new --name "<name>" "<path>"`, read the
+generated setup files, and turn the generic scaffold into an agentic wiki.
+
+During setup the agent should create or update:
+
+- `AGENTS.md` with local rules for when future agents should read and update the
+  wiki
+- `workflows/` with repeatable maintenance behaviors such as docs updates,
+  changelog updates, feature memory, bug triage, or research import
+- `skills/` with local agent-tool guidance for using `openknowledge list`,
+  reading relevant pages, applying workflows, and validating changes
+- `automations/` with specs for recurring or external jobs when the user wants
+  them
+
+The agent should run `openknowledge validate "<path>"`, fix issues, and delete
+`SETUP.MD` only after setup is complete.
+
+## Local viewer
+
+`openknowledge open [path]` starts a local HTTP viewer for a knowledge base and
+prints the URL:
+
+```sh
+openknowledge open ./project-memory
+```
+
+By default it binds to `127.0.0.1` on a free port and keeps running until the
+process is stopped. Use `--host` or `--port` when a fixed address is needed.
+
+The viewer renders Markdown files, strips YAML frontmatter from document pages,
+rewrites relative Markdown links between `.md` files, and shows inline
+validation issues from the bundle listing.
+
+`openknowledge validate` reports broken local Markdown links as warnings. It
+does not fail the bundle for link warnings because OKF v0.1 keeps link targets
+outside the required conformance rules.
+
 ## Release
 
 GitHub Releases are the source of truth for downloadable binaries. Run the

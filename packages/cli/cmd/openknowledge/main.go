@@ -24,8 +24,12 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "setup":
+		os.Exit(runSetup(os.Args[2:]))
 	case "new":
 		os.Exit(runNew(os.Args[2:]))
+	case "open":
+		os.Exit(runOpen(os.Args[2:]))
 	case "spec":
 		os.Exit(runSpec(os.Args[2:]))
 	case "validate":
@@ -39,6 +43,16 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+}
+
+func runSetup(args []string) int {
+	if len(args) != 0 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge setup")
+		return 2
+	}
+
+	fmt.Print(okf.SetupPrompt())
+	return 0
 }
 
 func runSpec(args []string) int {
@@ -341,10 +355,12 @@ func formatListNode(node *listTreeNode) string {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `openknowledge validates Open Knowledge Format v0.1 bundles.
+	fmt.Fprint(os.Stderr, `openknowledge creates and validates Open Knowledge Format v0.1 bundles.
 
 Usage:
+  openknowledge setup
   openknowledge new [folder]
+  openknowledge open [path]
   openknowledge spec latest|<version>
   openknowledge validate [path]
   openknowledge validate --spec <version> [path]
