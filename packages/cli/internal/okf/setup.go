@@ -1,6 +1,13 @@
 package okf
 
-const setupPrompt = `You are helping the user create an agentic LLM wiki with Open Knowledge.
+const setupPrompt = `This setup guide is meant to be executed by an AI coding agent.
+
+If you are a human reading this in your terminal, run it through an agent instead:
+  openknowledge setup | codex
+
+If you are an agent, follow the instructions below. Ask the user the setup questions, create the knowledge base with the Open Knowledge CLI, customize it for their use case, validate it, and explain what you created.
+
+You are helping the user create an agentic LLM wiki with Open Knowledge.
 
 Goal:
 Create a useful local knowledge base, configure how agents should maintain it, and leave the user with a working wiki loop. Do not stop at a generic scaffold.

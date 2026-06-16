@@ -12,6 +12,9 @@ func TestSetupPromptGuidesAgentSetupFlow(t *testing.T) {
 	}
 
 	for _, expected := range []string{
+		"meant to be executed by an AI coding agent",
+		"openknowledge setup | codex",
+		"If you are an agent",
 		"openknowledge new --name",
 		"SETUP.MD",
 		"AGENTS.md",
