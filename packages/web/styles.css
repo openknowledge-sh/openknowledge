@@ -8,6 +8,7 @@
   --panel-strong: #121c17;
   --accent: #7af2b6;
   --accent-soft: #153a2a;
+  --content-width: 820px;
   --heading-font: "Geist Pixel", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --body-font: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
@@ -62,7 +63,7 @@ body {
 }
 
 .shell {
-  width: min(1040px, calc(100% - 32px));
+  width: min(var(--content-width), calc(100% - 32px));
   margin: 0 auto;
   padding: 52px 0 44px;
 }
