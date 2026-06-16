@@ -69,8 +69,17 @@ body {
 
 .site-topbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   margin-bottom: 30px;
+}
+
+.site-logo {
+  color: var(--ink);
+  font-family: var(--heading-font);
+  font-size: 19px;
+  line-height: 1;
 }
 
 .intro {
