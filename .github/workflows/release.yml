@@ -33,37 +33,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  npm:
-    needs: goreleaser
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      - name: Verify npm package version
-        run: |
-          node -e 'const pkg = require("./packages/npm/package.json"); const expected = process.env.GITHUB_REF_NAME.replace(/^v/, ""); if (pkg.version !== expected) { console.error(`packages/npm version ${pkg.version} does not match tag ${process.env.GITHUB_REF_NAME}`); process.exit(1); }'
-
-      - name: Require npm token
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN secret is required to publish @openknowledge-sh/openknowledge" >&2
-            exit 1
-          fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish npm package
-        run: npm publish --provenance --access public
-        working-directory: packages/npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # TODO: Re-enable after GitHub Release artifacts are stable and npm publishing
+  # is ready to ship.
+  #
+  # npm:
+  #   needs: goreleaser
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Setup Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 22
+  #         registry-url: https://registry.npmjs.org
+  #
+  #     - name: Verify npm package version
+  #       run: |
+  #         node -e 'const pkg = require("./packages/npm/package.json"); const expected = process.env.GITHUB_REF_NAME.replace(/^v/, ""); if (pkg.version !== expected) { console.error(`packages/npm version ${pkg.version} does not match tag ${process.env.GITHUB_REF_NAME}`); process.exit(1); }'
+  #
+  #     - name: Require npm token
+  #       run: |
+  #         if [ -z "$NODE_AUTH_TOKEN" ]; then
+  #           echo "NPM_TOKEN secret is required to publish @openknowledge-sh/openknowledge" >&2
+  #           exit 1
+  #         fi
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  #
+  #     - name: Publish npm package
+  #       run: npm publish --provenance --access public
+  #       working-directory: packages/npm
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
