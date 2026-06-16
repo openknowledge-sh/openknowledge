@@ -57,9 +57,6 @@ Interactive Codex needs stdin to remain a terminal, so use command substitution:
 codex "$(openknowledge setup)"
 ```
 
-Do not use `openknowledge setup | codex`; interactive Codex exits with
-`stdin is not a terminal`.
-
 ### Claude Code CLI
 
 If your Claude Code CLI accepts an initial prompt argument, use:
@@ -68,13 +65,7 @@ If your Claude Code CLI accepts an initial prompt argument, use:
 claude "$(openknowledge setup)"
 ```
 
-If your agent CLI explicitly reads prompts from stdin, piping is also fine:
-
-```sh
-openknowledge setup | your-agent-cli
-```
-
-### Cursor or Editor Agents
+### Codex and Cowork apps setup
 
 Paste this into the agent chat for the workspace where the wiki should be
 created:
@@ -97,12 +88,6 @@ this workspace, create useful workflows/skills/automation specs, run
 openknowledge validate, and show me how to inspect it with openknowledge list
 and openknowledge open.
 ```
-
-### Codex App or Claude App
-
-Use the same bootstrap prompt as above. If the app cannot execute local shell
-commands, ask it to tell you which command to run locally, then paste the
-`openknowledge setup` output back into the app.
 
 ## Why Open Knowledge
 
