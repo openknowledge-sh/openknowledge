@@ -218,6 +218,11 @@ li code {
   overflow-wrap: anywhere;
 }
 
+.prompt-inline code {
+  color: var(--ink);
+  white-space: normal;
+}
+
 .readme {
   margin-top: 52px;
 }
