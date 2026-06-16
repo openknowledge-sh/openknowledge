@@ -19,6 +19,10 @@ import (
 )
 
 func runOpen(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, openHelpText())
+		return 0
+	}
 	fs := flag.NewFlagSet("open", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	host := fs.String("host", "127.0.0.1", "host to bind")

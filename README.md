@@ -92,6 +92,7 @@ the bundle tree with inline validation issues.
 | Command | Purpose |
 | --- | --- |
 | `openknowledge --help` | Print command usage, summaries, and examples. |
+| `openknowledge <command> --help` | Print command-specific usage, flags, and examples. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge open [path]` | Start a local Markdown viewer for a knowledge base. |
@@ -101,7 +102,7 @@ the bundle tree with inline validation issues.
 | `openknowledge validate --spec 0.1 [path]` | Validate against a specific spec version. |
 | `openknowledge list [path]` | Print a bundle tree with inline validation issues. |
 | `openknowledge list --spec 0.1 [path]` | List while validating against a specific spec version. |
-| `openknowledge list -json [path]` | Print machine-readable inventory output. |
+| `openknowledge list --json [path]` | Print machine-readable inventory output. |
 | `openknowledge version` | Print the CLI version. |
 
 ## What validation checks

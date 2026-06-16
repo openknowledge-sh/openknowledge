@@ -39,7 +39,7 @@ func main() {
 	case "list":
 		os.Exit(runList(os.Args[2:]))
 	case "version":
-		fmt.Println(version)
+		os.Exit(runVersion(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", os.Args[1])
 		usage()
@@ -48,6 +48,10 @@ func main() {
 }
 
 func runSetup(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, setupHelpText())
+		return 0
+	}
 	if len(args) != 0 {
 		fmt.Fprintln(os.Stderr, "usage: openknowledge setup")
 		return 2
@@ -58,6 +62,10 @@ func runSetup(args []string) int {
 }
 
 func runSpec(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, specHelpText())
+		return 0
+	}
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "usage: openknowledge spec latest|<version>")
 		return 2
@@ -78,6 +86,10 @@ func runSpec(args []string) int {
 }
 
 func runNew(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, newHelpText())
+		return 0
+	}
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	nameFlag := fs.String("name", "", "knowledge base name")
@@ -133,6 +145,10 @@ func runNew(args []string) int {
 }
 
 func runValidate(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, validateHelpText())
+		return 0
+	}
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	quiet := fs.Bool("quiet", false, "print only errors")
@@ -214,6 +230,10 @@ func printValidationResult(result okf.Result) {
 }
 
 func runList(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, listHelpText())
+		return 0
+	}
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	asJSON := fs.Bool("json", false, "print JSON")
@@ -248,6 +268,19 @@ func runList(args []string) int {
 	}
 
 	printListTree(listing)
+	return 0
+}
+
+func runVersion(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, versionHelpText())
+		return 0
+	}
+	if len(args) != 0 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge version")
+		return 2
+	}
+	fmt.Println(version)
 	return 0
 }
 
@@ -360,11 +393,25 @@ func usage() {
 	fmt.Fprint(os.Stderr, helpText())
 }
 
+func hasHelpFlag(args []string) bool {
+	for _, arg := range args {
+		if isHelpFlag(arg) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHelpFlag(arg string) bool {
+	return arg == "--help" || arg == "-h" || arg == "-help"
+}
+
 func helpText() string {
 	return `openknowledge creates and validates Open Knowledge Format v0.1 bundles.
 
 Usage:
   openknowledge --help
+  openknowledge <command> --help
   openknowledge setup
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
@@ -375,6 +422,7 @@ Usage:
   openknowledge validate --spec <version> [path]
   openknowledge list [path]
   openknowledge list --spec <version> [path]
+  openknowledge list --json [path]
   openknowledge version
 
 Commands:
@@ -389,12 +437,157 @@ Commands:
 Flags:
   -h, --help  Show this help.
 
+Run openknowledge <command> --help for command-specific help.
+
 Examples:
   openknowledge new ./project-memory
   openknowledge validate ./project-memory
   openknowledge list --json ./project-memory
   openknowledge open ./project-memory
 `
+}
+
+func setupHelpText() string {
+	return `openknowledge setup
+
+Print an agent setup prompt for creating and customizing a knowledge base.
+
+Usage:
+  openknowledge setup
+  openknowledge setup --help
+
+The prompt tells an agent to interview the user, create a bundle with
+openknowledge new, customize the scaffold, and validate the result.
+`
+}
+
+func newHelpText() string {
+	return `openknowledge new
+
+Scaffold a local Open Knowledge bundle.
+
+Usage:
+  openknowledge new [folder]
+  openknowledge new --name <name> [folder]
+  openknowledge new --help
+
+Arguments:
+  folder       Destination folder. Defaults to the current directory.
+
+Flags:
+  --name       Knowledge base name. If omitted, the CLI prompts for one.
+
+Examples:
+  openknowledge new ./project-memory
+  openknowledge new --name "Project Memory" ./project-memory
+`
+}
+
+func openHelpText() string {
+	return `openknowledge open
+
+Start a local HTTP Markdown viewer for a knowledge base.
+
+Usage:
+  openknowledge open [path]
+  openknowledge open --host <host> --port <port> [path]
+  openknowledge open --help
+
+Arguments:
+  path         Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --host       Host to bind. Defaults to 127.0.0.1.
+  --port       Port to bind. Defaults to 0, which selects a free port.
+
+Examples:
+  openknowledge open ./project-memory
+  openknowledge open --port 8080 ./project-memory
+`
+}
+
+func specHelpText() string {
+	return fmt.Sprintf(`openknowledge spec
+
+Print an embedded Open Knowledge Format spec.
+
+Usage:
+  openknowledge spec latest|<version>
+  openknowledge spec --help
+
+Versions:
+  %s
+
+Examples:
+  openknowledge spec latest
+  openknowledge spec 0.1
+`, supportedSpecVersionsText())
+}
+
+func validateHelpText() string {
+	return fmt.Sprintf(`openknowledge validate
+
+Validate a bundle against an Open Knowledge Format spec.
+
+Usage:
+  openknowledge validate [path]
+  openknowledge validate --spec <version> [path]
+  openknowledge validate --quiet [path]
+  openknowledge validate --help
+
+Arguments:
+  path         Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --spec       OKF spec version. Defaults to latest.
+  --quiet      Print only validation errors.
+
+Versions:
+  %s
+
+Exit codes:
+  0            Validation passed.
+  1            Validation found errors.
+  2            Usage or setup error.
+`, supportedSpecVersionsText())
+}
+
+func listHelpText() string {
+	return fmt.Sprintf(`openknowledge list
+
+Print a bundle tree with inline validation issues.
+
+Usage:
+  openknowledge list [path]
+  openknowledge list --spec <version> [path]
+  openknowledge list --json [path]
+  openknowledge list --help
+
+Arguments:
+  path         Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --spec       OKF spec version. Defaults to latest.
+  --json       Print machine-readable inventory JSON.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func versionHelpText() string {
+	return `openknowledge version
+
+Print the CLI version.
+
+Usage:
+  openknowledge version
+  openknowledge version --help
+`
+}
+
+func supportedSpecVersionsText() string {
+	return "latest, " + strings.Join(okf.SupportedSpecVersions(), ", ")
 }
 
 func prompt(label, defaultValue string) (string, error) {
