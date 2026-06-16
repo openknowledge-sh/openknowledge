@@ -22,7 +22,7 @@ npm install -g @openknowledge-sh/openknowledge
 pnpm add -g @openknowledge-sh/openknowledge
 ```
 
-Create and inspect a new knowledge bundle:
+Create and inspect knowledge bundles:
 
 ```sh
 openknowledge new ./project-memory
