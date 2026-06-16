@@ -7,19 +7,32 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <a class="github-link" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
     <main class="shell">
       <section class="intro">
-        <h1>Your agentic wiki</h1>
+        <h1>Create a local wiki for agents and humans to use</h1>
         <p class="lede">
-          Open Knowledge is a CLI for creating, validating, and inspecting Open
-          Knowledge Format bundles.
+          Open Knowledge CLI creates, validates, and inspects local Open
+          Knowledge Format bundles. It implements the
+          <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a> spec.
         </p>
+        <div class="github-row">
+          <a class="github-link" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">View on GitHub</a>
+        </div>
+
         <section class="terminal" aria-label="Install Open Knowledge">
-          <div class="tabs" role="tablist" aria-label="Install methods">
-            <button class="tab active" type="button" data-command="curl -fsSL https://openknowledge.sh/install | bash">Bash</button>
-            <button class="tab" type="button" data-command="npm install -g @openknowledge-sh/openknowledge">npm</button>
-            <button class="tab" type="button" data-command="pnpm add -g @openknowledge-sh/openknowledge">pnpm</button>
+          <div class="terminal-header">
+            <div class="tabs" role="tablist" aria-label="Install methods">
+              <button class="tab active" type="button" data-command="curl -fsSL https://openknowledge.sh/install | bash">Bash</button>
+              <button class="tab" type="button" data-command="npm install -g @openknowledge-sh/openknowledge">npm</button>
+              <button class="tab" type="button" data-command="pnpm add -g @openknowledge-sh/openknowledge">pnpm</button>
+            </div>
+            <button class="copy-command" type="button" aria-label="Copy install command" title="Copy install command">
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                <path d="M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7Z"></path>
+                <path d="M4 11a2 2 0 0 1 2-2h2v6a2 2 0 0 0 2 2h6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Z"></path>
+              </svg>
+              <span>Copy</span>
+            </button>
           </div>
           <div class="command-line">
             <span aria-hidden="true">$</span>
@@ -33,34 +46,52 @@
           <span>README.md</span>
         </div>
         <article class="readme-body">
-          <h2>Open Knowledge</h2>
+          <h2>Open Knowledge CLI</h2>
           <p>
-            Create a local wiki that agents and humans can both navigate.
+            Create, validate, and inspect local Open Knowledge Format bundles.
           </p>
-          <h3><code>new</code></h3>
           <p>
-            Scaffolds a local wiki with agent rules, setup handoff, indexes,
-            logs, and a pinned spec.
+            Keep project knowledge portable, readable in Git, and easy for both
+            humans and coding agents to navigate.
           </p>
-          <pre><code>openknowledge new ./project-memory</code></pre>
-          <h3><code>validate</code></h3>
+          <h3>Start in 30 seconds</h3>
+          <pre><code>openknowledge new ./project-memory
+openknowledge list ./project-memory
+openknowledge validate ./project-memory</code></pre>
+          <h3>Why Open Knowledge</h3>
+          <ul class="feature-list">
+            <li>Portable Markdown files with predictable names, frontmatter, indexes, and logs.</li>
+            <li>Agent-readable scaffolding with <code>AGENTS.md</code>, <code>SETUP.MD</code>, and a local pinned <code>SPEC.md</code>.</li>
+            <li>Spec-backed validation against the embedded OKF v0.1 rules.</li>
+          </ul>
+          <h3>How it works</h3>
           <p>
-            Checks the bundle against the selected Open Knowledge Format spec
-            and reports structural issues.
+            <code>openknowledge new</code> scaffolds the bundle. Humans and
+            agents edit normal Markdown files. <code>validate</code> checks the
+            structure and <code>list</code> prints the tree with inline issues.
           </p>
-          <pre><code>openknowledge validate ./project-memory</code></pre>
-          <h3><code>list</code></h3>
-          <p>
-            Prints the wiki tree and marks missing or invalid files inline, so
-            the structure is easy to inspect.
-          </p>
-          <pre><code>openknowledge list ./project-memory</code></pre>
+          <pre><code>new bundle -> agent setup -> edit knowledge -> list/validate -> commit</code></pre>
+          <h3>Commands</h3>
+          <ul class="command-list">
+            <li><code>new</code> scaffolds a local Open Knowledge bundle.</li>
+            <li><code>list</code> prints the bundle tree with inline validation issues.</li>
+            <li><code>validate</code> checks the bundle against the latest or selected spec.</li>
+            <li><code>spec</code> prints the embedded Open Knowledge Format spec.</li>
+          </ul>
         </article>
       </section>
       <footer class="site-footer">
-        Unofficial tooling for the Open Knowledge Format specification defined
-        in the
-        <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md">GoogleCloudPlatform knowledge catalog</a>.
+        <h2>License and attribution</h2>
+        <p>Open Knowledge is licensed under Apache-2.0.</p>
+        <p>
+          The embedded OKF spec copy is Apache-2.0 material from
+          <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog" target="_blank" rel="noreferrer">GoogleCloudPlatform/knowledge-catalog</a>.
+          See
+          <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noreferrer">THIRD_PARTY_NOTICES.md</a>
+          and
+          <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/assets/specs/README.md" target="_blank" rel="noreferrer">the embedded specs README</a>
+          for attribution and license handling.
+        </p>
       </footer>
     </main>
     <script src="main.js"></script>

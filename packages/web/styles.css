@@ -8,6 +8,20 @@
   --panel-strong: #121c17;
   --accent: #7af2b6;
   --accent-soft: #153a2a;
+  --heading-font: "Geist Pixel", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --body-font: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+@font-face {
+  font-family: "Geist Pixel";
+  src: url("https://unpkg.com/geist@1.7.2/dist/fonts/geist-pixel/GeistPixel-Square.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("https://unpkg.com/geist@1.7.2/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+  font-display: swap;
 }
 
 * {
@@ -19,16 +33,14 @@ body {
   min-height: 100vh;
   background: var(--paper);
   color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--body-font);
   line-height: 1.5;
 }
 
 .github-link {
-  position: absolute;
-  top: 24px;
-  right: 24px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 38px;
   padding: 0 14px;
   border: 1px solid var(--line);
@@ -47,7 +59,7 @@ body {
 .shell {
   width: min(1040px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 76px 0 44px;
+  padding: 52px 0 44px;
 }
 
 .intro {
@@ -56,8 +68,25 @@ body {
 
 h1,
 h2,
+h3,
 p {
   margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading-font);
+  font-weight: 400;
+}
+
+.eyebrow {
+  margin-bottom: 12px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 h1 {
@@ -71,9 +100,23 @@ h1 {
 
 .lede {
   max-width: 690px;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
   color: var(--muted);
-  font-size: 20px;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.intro-note {
+  max-width: 720px;
+  margin-top: 15px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.intro-note a {
+  color: var(--ink);
+  text-decoration-color: rgba(244, 247, 244, 0.3);
+  text-underline-offset: 3px;
 }
 
 .terminal {
@@ -82,12 +125,20 @@ h1 {
   background: var(--panel);
 }
 
-.tabs {
+.terminal-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 2px;
   padding: 8px;
   border-bottom: 1px solid var(--line);
   background: #0a100d;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
 }
 
 .tab {
@@ -104,6 +155,38 @@ h1 {
 .tab.active {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.copy-command {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 40px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.copy-command:hover,
+.copy-command.copied {
+  border-color: var(--line);
+  color: var(--accent);
+}
+
+.copy-command svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .command-line {
@@ -128,6 +211,10 @@ code {
 .command-line code,
 li code {
   white-space: nowrap;
+}
+
+.github-row {
+  margin-bottom: 18px;
 }
 
 .readme {
@@ -164,13 +251,19 @@ li code {
   font-size: 20px;
 }
 
-.readme-body h3 code {
-  font-size: inherit;
-}
-
 .readme-body p {
   margin-bottom: 14px;
   color: var(--muted);
+}
+
+.readme-body ul {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.readme-body li + li {
+  margin-top: 8px;
 }
 
 .readme-body a,
@@ -197,18 +290,24 @@ pre code {
 .site-footer {
   max-width: 780px;
   margin-top: 18px;
+  padding: 24px 0 0;
+  border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 13px;
 }
 
-@media (max-width: 760px) {
-  .github-link {
-    position: static;
-    display: flex;
-    width: max-content;
-    margin: 16px 16px 0 auto;
-  }
+.site-footer h2 {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.2;
+}
 
+.site-footer p {
+  margin: 0 0 10px;
+}
+
+@media (max-width: 760px) {
   .shell {
     padding-top: 48px;
   }
@@ -221,8 +320,21 @@ pre code {
     font-size: 18px;
   }
 
-  .tabs {
+  .github-link {
+    width: 100%;
+  }
+
+  .terminal-header {
+    align-items: flex-start;
     overflow-x: auto;
+  }
+
+  .tabs {
+    flex: 1 0 auto;
+  }
+
+  .copy-command span {
+    display: none;
   }
 
   .readme {
