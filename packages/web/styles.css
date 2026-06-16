@@ -314,8 +314,7 @@ li code {
 }
 
 .readme-body a,
-.setup-note a,
-.site-footer a {
+.setup-note a {
   color: var(--accent);
   text-decoration-color: rgba(122, 242, 182, 0.45);
   text-underline-offset: 3px;
@@ -330,15 +329,8 @@ li code {
   font-size: 13px;
 }
 
-.site-footer h2 {
-  margin: 0 0 10px;
-  color: var(--ink);
-  font-size: 18px;
-  line-height: 1.2;
-}
-
 .site-footer p {
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 @media (max-width: 760px) {
