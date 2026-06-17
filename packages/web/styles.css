@@ -136,6 +136,7 @@ h1 {
   margin-bottom: 16px;
   color: var(--muted);
   font-size: 17px;
+  font-weight: 200;
   line-height: 1.4;
 }
 
@@ -144,6 +145,7 @@ h1 {
   margin-bottom: 0;
   color: var(--muted);
   font-size: 13px;
+  font-weight: 300;
   line-height: 1.45;
 }
 
@@ -169,7 +171,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--panel-strong);
 }
@@ -178,7 +180,7 @@ h1 {
   margin: 0;
   color: var(--ink);
   font-family: var(--body-font);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.15;
 }
 
@@ -189,8 +191,8 @@ h1 {
   justify-content: center;
   gap: 7px;
   min-width: 40px;
-  height: 34px;
-  padding: 0 10px;
+  height: 30px;
+  padding: 0 9px;
   overflow: hidden;
   border: 1px solid rgba(var(--accent-rgb), 0.42);
   background: rgba(var(--accent-rgb), 0.09);
