@@ -1,4 +1,6 @@
-# Open Knowledge CLI
+<h1>
+  <img src="docs/assets/openknowledge-readme-logo.png" alt="Open Knowledge CLI" width="360">
+</h1>
 
 Open Knowledge CLI helps you create local LLM wikis that are readable for both
 humans and agents, then keep them up to date using a maintenance loop.
