@@ -1,13 +1,17 @@
 :root {
   color-scheme: dark;
-  --ink: #f4f7f4;
-  --muted: #8f9d96;
-  --line: #27342f;
-  --paper: #070b09;
-  --panel: #0d1411;
-  --panel-strong: #121c17;
-  --accent: #7af2b6;
-  --accent-soft: #153a2a;
+  --ink: #f3f8ff;
+  --ink-rgb: 243, 248, 255;
+  --muted: #8fa3ca;
+  --line: #17315f;
+  --paper: #000000;
+  --panel: #030817;
+  --panel-strong: #06142c;
+  --accent: #6fa8ff;
+  --accent-rgb: 111, 168, 255;
+  --accent-soft: #071b42;
+  --secondary: #dceeff;
+  --secondary-rgb: 220, 238, 255;
   --content-width: 820px;
   --heading-font: "Geist Pixel", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --body-font: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -80,7 +84,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: var(--ink);
+  color: var(--secondary);
   font-family: var(--heading-font);
   font-size: 19px;
   line-height: 1;
@@ -90,6 +94,7 @@ body {
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
+  filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.34));
 }
 
 .intro {
@@ -122,7 +127,7 @@ h3 {
 h1 {
   max-width: 780px;
   margin-bottom: 20px;
-  color: #ffffff;
+  color: var(--secondary);
   font-size: 53px;
   line-height: 0.96;
   letter-spacing: 0;
@@ -145,8 +150,8 @@ h1 {
 }
 
 .spec-note a {
-  color: rgba(244, 247, 244, 0.72);
-  text-decoration-color: rgba(244, 247, 244, 0.24);
+  color: rgba(var(--secondary-rgb), 0.78);
+  text-decoration-color: rgba(var(--secondary-rgb), 0.24);
   text-underline-offset: 3px;
 }
 
@@ -168,7 +173,7 @@ h1 {
   gap: 16px;
   padding: 14px;
   border-bottom: 1px solid var(--line);
-  background: #0a100d;
+  background: var(--panel-strong);
 }
 
 .terminal-header h2 {
@@ -189,8 +194,8 @@ h1 {
   height: 34px;
   padding: 0 10px;
   overflow: hidden;
-  border: 1px solid rgba(122, 242, 182, 0.35);
-  background: rgba(122, 242, 182, 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.42);
+  background: rgba(var(--accent-rgb), 0.09);
   color: var(--accent);
   font: inherit;
   font-size: 13px;
@@ -203,9 +208,9 @@ h1 {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(122, 242, 182, 0.08) 30%,
-    rgba(122, 242, 182, 0.32) 50%,
-    rgba(122, 242, 182, 0.08) 70%,
+    rgba(var(--accent-rgb), 0.08) 30%,
+    rgba(var(--accent-rgb), 0.34) 50%,
+    rgba(var(--accent-rgb), 0.08) 70%,
     transparent 100%
   );
   content: "";
@@ -222,7 +227,7 @@ h1 {
 .copy-command:hover,
 .copy-command.copied {
   border-color: var(--accent);
-  background: rgba(122, 242, 182, 0.13);
+  background: rgba(var(--accent-rgb), 0.15);
   color: var(--accent);
 }
 
@@ -268,8 +273,8 @@ li code {
 .prompt-inline {
   margin: 0;
   padding: 16px 18px;
-  background: #090f0c;
-  color: #999f9a;
+  background: #01040c;
+  color: #8f9dbd;
   font-size: 14px;
   line-height: 1.7;
   overflow-wrap: anywhere;
@@ -325,7 +330,7 @@ li code {
 .readme-body a,
 .setup-note a {
   color: var(--accent);
-  text-decoration-color: rgba(122, 242, 182, 0.45);
+  text-decoration-color: rgba(var(--accent-rgb), 0.45);
   text-underline-offset: 3px;
 }
 
