@@ -49,14 +49,13 @@ body {
   width: 38px;
   min-height: 38px;
   padding: 0;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--ink);
+  border: 0;
+  background: transparent;
+  color: var(--secondary);
   text-decoration: none;
 }
 
 .github-link:hover {
-  border-color: var(--accent);
   color: var(--accent);
 }
 
