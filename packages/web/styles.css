@@ -77,10 +77,19 @@ body {
 }
 
 .site-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: var(--ink);
   font-family: var(--heading-font);
   font-size: 19px;
   line-height: 1;
+}
+
+.site-logo img {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
 }
 
 .intro {
