@@ -169,19 +169,11 @@ h1 {
 .terminal-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--panel-strong);
-}
-
-.terminal-header h2 {
-  margin: 0;
-  color: var(--ink);
-  font-family: var(--body-font);
-  font-size: 16px;
-  line-height: 1.15;
 }
 
 .copy-command {
@@ -358,14 +350,6 @@ li code {
 
   .lede {
     font-size: 17px;
-  }
-
-  .terminal-header {
-    align-items: flex-start;
-  }
-
-  .copy-command span {
-    display: none;
   }
 
   .readme {

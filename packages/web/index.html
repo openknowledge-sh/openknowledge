@@ -46,15 +46,12 @@
 
         <section class="terminal setup-terminal" aria-label="Agent setup prompt">
           <div class="terminal-header">
-            <div>
-              <h2>Setup prompt</h2>
-            </div>
             <button class="copy-command" type="button" data-copy-target="#setup-prompt" aria-label="Copy setup prompt" title="Copy setup prompt">
               <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                 <path d="M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7Z"></path>
                 <path d="M4 11a2 2 0 0 1 2-2h2v6a2 2 0 0 0 2 2h6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Z"></path>
               </svg>
-              <span>Copy prompt</span>
+              <span>Copy setup prompt</span>
             </button>
           </div>
           <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge agentic wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, ask me the setup questions, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, and show me how to inspect it with <code>openknowledge open</code>.</p>
