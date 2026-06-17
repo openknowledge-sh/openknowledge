@@ -94,7 +94,6 @@ body {
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
-  filter: drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.34));
 }
 
 .intro {
