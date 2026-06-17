@@ -162,7 +162,7 @@ h1 {
 }
 
 .setup-terminal {
-  margin-top: 35px;
+  margin-top: 50px;
   max-width: 820px;
 }
 
@@ -314,7 +314,7 @@ li code {
 
 .setup-note {
   max-width: 820px;
-  margin: 12px 0 0;
+  margin: 12px 0 50px;
   color: var(--muted);
   font-size: 13px;
 }
