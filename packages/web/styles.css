@@ -127,22 +127,17 @@ h1 {
   line-height: 1.4;
 }
 
-.lede a {
+.spec-note {
+  max-width: 720px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.spec-note a {
   color: rgba(244, 247, 244, 0.72);
   text-decoration-color: rgba(244, 247, 244, 0.24);
-  text-underline-offset: 3px;
-}
-
-.intro-note {
-  max-width: 720px;
-  margin-top: 15px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.intro-note a {
-  color: var(--ink);
-  text-decoration-color: rgba(244, 247, 244, 0.3);
   text-underline-offset: 3px;
 }
 
