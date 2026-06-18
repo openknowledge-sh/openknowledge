@@ -25,6 +25,18 @@ func WriteHTML(root string, out string) (HTMLResult, error) {
 }
 
 func WriteHTMLWithVersion(root string, out string, version string) (HTMLResult, error) {
+	return writeHTMLWithVersion(root, out, version, staticPageTemplate)
+}
+
+func WritePlainHTML(root string, out string) (HTMLResult, error) {
+	return WritePlainHTMLWithVersion(root, out, LatestSpecVersion)
+}
+
+func WritePlainHTMLWithVersion(root string, out string, version string) (HTMLResult, error) {
+	return writeHTMLWithVersion(root, out, version, plainPageTemplate)
+}
+
+func writeHTMLWithVersion(root string, out string, version string, pageTemplate *template.Template) (HTMLResult, error) {
 	bundle, err := ParseBundleWithVersion(root, version)
 	if err != nil {
 		return HTMLResult{}, err
@@ -52,7 +64,7 @@ func WriteHTMLWithVersion(root string, out string, version string) (HTMLResult, 
 		}
 
 		var builder strings.Builder
-		if err := staticPageTemplate.Execute(&builder, page); err != nil {
+		if err := pageTemplate.Execute(&builder, page); err != nil {
 			return HTMLResult{}, err
 		}
 		if err := os.WriteFile(target, []byte(builder.String()), 0644); err != nil {
@@ -89,6 +101,21 @@ var staticPageTemplate = template.Must(template.New("static-page").Funcs(templat
   </header>
   <main>
     <article class="document">
+      {{.Body}}
+    </article>
+  </main>
+</body>
+</html>`))
+
+var plainPageTemplate = template.Must(template.New("plain-page").Parse(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}}</title>
+</head>
+<body>
+  <main>
+    <article>
       {{.Body}}
     </article>
   </main>

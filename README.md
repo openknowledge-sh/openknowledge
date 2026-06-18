@@ -47,6 +47,7 @@ openknowledge open ./project-memory
 openknowledge list ./project-memory
 openknowledge validate ./project-memory
 openknowledge to html --out ./project-site ./project-memory
+openknowledge to html --plain --out ./project-plain-site ./project-memory
 openknowledge to json ./project-memory
 ```
 
@@ -81,8 +82,9 @@ After that, humans and agents edit normal Markdown files. `openknowledge
 open` starts a local viewer for reading the wiki, `openknowledge validate`
 checks the bundle for portable OKF structure, and `openknowledge list` prints
 the bundle tree with inline validation issues. `openknowledge to html` writes a
-static HTML copy, and `openknowledge to json` writes a normalized bundle model
-for tools and agents.
+static viewer app bundle by default, `openknowledge to html --plain` writes
+unstyled semantic HTML, and `openknowledge to json` writes a normalized bundle
+model for tools and agents.
 
 
 ## Commands
@@ -94,7 +96,8 @@ for tools and agents.
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge open [path]` | Start a local Markdown viewer for a knowledge base. |
-| `openknowledge to html --out <folder> [path]` | Write a static HTML site. |
+| `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle. |
+| `openknowledge to html --plain --out <folder> [path]` | Write unstyled semantic HTML files. |
 | `openknowledge to json [path]` | Print normalized bundle JSON. |
 | `openknowledge to json --out <file> [path]` | Write normalized bundle JSON to a file. |
 | `openknowledge spec latest` | Print the latest embedded OKF spec. |

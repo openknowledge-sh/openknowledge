@@ -292,9 +292,10 @@ func runTo(args []string) int {
 }
 
 type toOptions struct {
-	path string
-	out  string
-	spec string
+	path  string
+	out   string
+	spec  string
+	plain bool
 }
 
 func runToHTML(args []string) int {
@@ -312,7 +313,12 @@ func runToHTML(args []string) int {
 		return 2
 	}
 
-	result, err := writeViewerHTMLWithVersion(options.path, options.out, options.spec)
+	var result okf.HTMLResult
+	if options.plain {
+		result, err = okf.WritePlainHTMLWithVersion(options.path, options.out, options.spec)
+	} else {
+		result, err = writeViewerHTMLWithVersion(options.path, options.out, options.spec)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -333,6 +339,10 @@ func runToJSON(args []string) int {
 	options, err := parseToOptions(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if options.plain {
+		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
 		return 2
 	}
 
@@ -392,6 +402,8 @@ func parseToOptions(args []string) (toOptions, error) {
 			if strings.TrimSpace(options.spec) == "" {
 				return toOptions{}, fmt.Errorf("--spec requires a value")
 			}
+		case arg == "--plain":
+			options.plain = true
 		case strings.HasPrefix(arg, "-"):
 			return toOptions{}, fmt.Errorf("unknown flag: %s", arg)
 		default:
@@ -594,12 +606,13 @@ Convert an Open Knowledge bundle to another format.
 
 Usage:
   openknowledge to html --out <folder> [path]
+  openknowledge to html --plain --out <folder> [path]
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
   openknowledge to --help
 
 Targets:
-  html       Write a static HTML site.
+  html       Write a static HTML site. Defaults to the viewer app bundle.
   json       Write normalized bundle JSON.
 
 Flags:
@@ -618,6 +631,7 @@ Write a static HTML site for an Open Knowledge bundle.
 
 Usage:
   openknowledge to html --out <folder> [path]
+  openknowledge to html --plain --out <folder> [path]
   openknowledge to html --spec <version> --out <folder> [path]
   openknowledge to html --help
 
@@ -626,6 +640,7 @@ Arguments:
 
 Flags:
   --out       Output folder for generated HTML files. Required.
+  --plain     Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.
   --spec      OKF spec version. Defaults to latest.
 
 Versions:
