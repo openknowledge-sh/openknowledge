@@ -95,6 +95,11 @@ knowledge bases. A name is only an alias: path-based commands still work, and
 agents can use `openknowledge where <name>` to get the real folder before using
 normal filesystem tools such as `rg`.
 
+The local viewer also prints an `open.knowledge` alias URL and serves registered
+knowledge bases under paths such as `/personal/`. The hostname must be mapped to
+loopback through local DNS, `/etc/hosts`, or a reverse proxy; the CLI only serves
+the HTTP routes.
+
 ## Commands
 
 | Command | Purpose |
@@ -107,6 +112,7 @@ normal filesystem tools such as `rg`.
 | `openknowledge registry add <name> <path>` | Register a name for a knowledge base folder. |
 | `openknowledge where <name-or-path>` | Print the absolute path for a registry name or path. |
 | `openknowledge open [path]` | Start the registry or knowledge base Markdown viewer. |
+| `openknowledge open --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
 | `openknowledge to html --out <folder> [path]` | Write a static HTML site. |
 | `openknowledge to json [path]` | Print normalized bundle JSON. |
 | `openknowledge to json --out <file> [path]` | Write normalized bundle JSON to a file. |

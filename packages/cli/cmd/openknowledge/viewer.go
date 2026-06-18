@@ -28,6 +28,8 @@ func runOpen(args []string) int {
 	fs.SetOutput(os.Stderr)
 	host := fs.String("host", "127.0.0.1", "host to bind")
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
+	name := fs.String("name", "", "local alias name for direct path mode")
+	localDomain := fs.String("local-domain", "open.knowledge", "local alias domain to print, or empty to disable")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -38,13 +40,19 @@ func runOpen(args []string) int {
 
 	var handler http.Handler
 	var details func()
+	aliasNames := []string{}
 	if fs.NArg() == 1 {
+		target := fs.Arg(0)
 		absolute, err := resolveViewerRoot(fs.Arg(0))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
-		handler = newViewerHandler(absolute)
+		aliasName := directViewerAliasName(target, absolute, *name)
+		if aliasName != "" {
+			aliasNames = append(aliasNames, aliasName)
+		}
+		handler = newViewerHandlerWithAlias(absolute, aliasName)
 		details = func() {
 			fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(absolute))
 		}
@@ -53,6 +61,9 @@ func runOpen(args []string) int {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
+		}
+		for _, entry := range entries {
+			aliasNames = append(aliasNames, entry.Name)
 		}
 		handler = newRegistryViewerHandler(entries)
 		details = func() {
@@ -69,12 +80,14 @@ func runOpen(args []string) int {
 		return 1
 	}
 
-	addr := listener.Addr().String()
-	if strings.HasPrefix(addr, "0.0.0.0:") {
-		addr = "127.0.0.1:" + strings.TrimPrefix(addr, "0.0.0.0:")
-	}
+	displayHost, displayPort := displayHostPort(listener.Addr())
 
-	fmt.Printf("Open Knowledge view: http://%s/\n", addr)
+	if domain := strings.TrimSpace(*localDomain); domain != "" {
+		fmt.Printf("Open Knowledge view: %s\n", viewerAliasDisplayURL(domain, displayPort, aliasNames))
+		fmt.Printf("Open Knowledge fallback: %s\n", viewerDisplayURL(displayHost, displayPort, ""))
+	} else {
+		fmt.Printf("Open Knowledge view: %s\n", viewerDisplayURL(displayHost, displayPort, ""))
+	}
 	details()
 	fmt.Println(terminal.muted("Press Ctrl+C to stop."))
 
@@ -105,15 +118,77 @@ func resolveViewerRoot(root string) (string, error) {
 	return absolute, nil
 }
 
+func directViewerAliasName(target string, root string, override string) string {
+	if name := normalizeLocalAliasName(override); name != "" {
+		return name
+	}
+	if !okf.LooksLikePath(target) {
+		if entry, ok, err := okf.ResolveRegistryEntry(target); err == nil && ok {
+			return entry.Name
+		}
+	}
+	if name := registryAliasNameForRoot(root); name != "" {
+		return name
+	}
+	return normalizeLocalAliasName(filepath.Base(filepath.Clean(root)))
+}
+
+func registryAliasNameForRoot(root string) string {
+	root = filepath.Clean(root)
+	entries, err := okf.RegistryEntries()
+	if err != nil {
+		return ""
+	}
+	for _, entry := range entries {
+		entryRoot, err := okf.ExpandUserPath(entry.Path)
+		if err != nil {
+			continue
+		}
+		absolute, err := filepath.Abs(entryRoot)
+		if err != nil {
+			continue
+		}
+		if filepath.Clean(absolute) == root {
+			return entry.Name
+		}
+	}
+	return ""
+}
+
 func newViewerHandler(root string) http.Handler {
+	return newViewerHandlerWithAlias(root, "")
+}
+
+func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 	mux := http.NewServeMux()
 	searchCache := &viewerSearchCache{root: root}
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
-		if request.URL.Path != "/" {
+		if request.URL.Path == "/" {
+			renderViewerIndex(response, root, viewerFrame{}, "", filepath.Base(root))
+			return
+		}
+		rest, ok := parseDirectAliasRoute(request.URL.Path, aliasName)
+		if !ok {
 			http.NotFound(response, request)
 			return
 		}
-		renderViewerIndex(response, root, viewerFrame{}, "", filepath.Base(root))
+		if rest == "" {
+			if !strings.HasSuffix(request.URL.Path, "/") {
+				http.Redirect(response, request, localAliasURL(aliasName), http.StatusFound)
+				return
+			}
+			renderViewerIndex(response, root, viewerFrame{}, localAliasPrefix(aliasName), filepath.Base(root))
+			return
+		}
+		if rest == "api/search" {
+			renderViewerSearch(response, request, searchCache, localAliasPrefix(aliasName))
+			return
+		}
+		if strings.HasPrefix(rest, "file/") {
+			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), viewerFrame{}, localAliasPrefix(aliasName))
+			return
+		}
+		http.NotFound(response, request)
 	})
 	mux.HandleFunc("/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/file/")
@@ -145,6 +220,47 @@ func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 	}
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/" {
+			entry, rest, ok := parseRegistryAliasRoute(request.URL.Path, entries)
+			if ok {
+				if rest == "" {
+					if !strings.HasSuffix(request.URL.Path, "/") {
+						http.Redirect(response, request, localAliasURL(entry.Name), http.StatusFound)
+						return
+					}
+					root, err := registryEntryRoot(entry)
+					frame := registryFrame(entries, entry.Name, localAliasURL)
+					if err != nil {
+						renderHTML(response, viewerIndexTemplate, viewerIndexData{
+							Frame: frame,
+							Title: entry.Name,
+							Root:  entry.Path,
+							Error: err.Error(),
+						})
+						return
+					}
+					renderViewerIndex(response, root, frame, localAliasPrefix(entry.Name), entry.Name)
+					return
+				}
+				if rest == "api/search" {
+					cache, err := searchCacheForEntry(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					renderViewerSearch(response, request, cache, localAliasPrefix(entry.Name))
+					return
+				}
+				if strings.HasPrefix(rest, "file/") {
+					root, err := registryEntryRoot(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					frame := registryFrame(entries, entry.Name, localAliasURL)
+					renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, localAliasPrefix(entry.Name))
+					return
+				}
+			}
 			http.NotFound(response, request)
 			return
 		}
@@ -188,7 +304,7 @@ func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 				http.Error(response, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			frame := registryFrame(entries, entry.Name)
+			frame := registryFrame(entries, entry.Name, workspaceURL)
 			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, workspacePrefix(entry.Name))
 			return
 		}
@@ -468,7 +584,7 @@ func renderRegistryIndex(response http.ResponseWriter, entries []okf.RegistryEnt
 	}
 
 	root, err := registryEntryRoot(entry)
-	frame := registryFrame(entries, entry.Name)
+	frame := registryFrame(entries, entry.Name, workspaceURL)
 	if err != nil {
 		renderHTML(response, viewerIndexTemplate, viewerIndexData{
 			Frame: frame,
@@ -500,6 +616,44 @@ func parseWorkspaceRoute(requestPath string) (string, string, bool) {
 	return name, rest, true
 }
 
+func parseRegistryAliasRoute(requestPath string, entries []okf.RegistryEntry) (okf.RegistryEntry, string, bool) {
+	name, rest, ok := parseLocalAliasRoute(requestPath)
+	if !ok {
+		return okf.RegistryEntry{}, "", false
+	}
+	entry, found := registryEntryByName(entries, name)
+	if !found {
+		return okf.RegistryEntry{}, "", false
+	}
+	return entry, rest, true
+}
+
+func parseDirectAliasRoute(requestPath string, aliasName string) (string, bool) {
+	name, rest, ok := parseLocalAliasRoute(requestPath)
+	if !ok || aliasName == "" || name != aliasName {
+		return "", false
+	}
+	return rest, true
+}
+
+func parseLocalAliasRoute(requestPath string) (string, string, bool) {
+	trimmed := strings.TrimPrefix(requestPath, "/")
+	if trimmed == requestPath || trimmed == "" {
+		return "", "", false
+	}
+	namePart := trimmed
+	rest := ""
+	if slash := strings.Index(trimmed, "/"); slash >= 0 {
+		namePart = trimmed[:slash]
+		rest = trimmed[slash+1:]
+	}
+	name, err := url.PathUnescape(namePart)
+	if err != nil || strings.TrimSpace(name) == "" {
+		return "", "", false
+	}
+	return name, rest, true
+}
+
 func registryEntryByName(entries []okf.RegistryEntry, name string) (okf.RegistryEntry, bool) {
 	for _, entry := range entries {
 		if entry.Name == name {
@@ -509,17 +663,17 @@ func registryEntryByName(entries []okf.RegistryEntry, name string) (okf.Registry
 	return okf.RegistryEntry{}, false
 }
 
-func registryFrame(entries []okf.RegistryEntry, activeName string) viewerFrame {
+func registryFrame(entries []okf.RegistryEntry, activeName string, urlFor func(string) string) viewerFrame {
 	workspaces := make([]viewerWorkspace, 0, len(entries))
 	for _, entry := range entries {
 		workspaces = append(workspaces, viewerWorkspace{
 			Name:   entry.Name,
 			Root:   entry.Path,
-			URL:    workspaceURL(entry.Name),
+			URL:    urlFor(entry.Name),
 			Active: entry.Name == activeName,
 		})
 	}
-	return viewerFrame{Workspaces: workspaces, ActiveName: activeName, ActiveURL: workspaceURL(activeName)}
+	return viewerFrame{Workspaces: workspaces, ActiveName: activeName, ActiveURL: urlFor(activeName)}
 }
 
 func registryEntryRoot(entry okf.RegistryEntry) (string, error) {
@@ -607,6 +761,21 @@ func workspaceURL(name string) string {
 	return workspacePrefix(name) + "/"
 }
 
+func localAliasPrefix(name string) string {
+	if strings.TrimSpace(name) == "" {
+		return ""
+	}
+	return "/" + url.PathEscape(name)
+}
+
+func localAliasURL(name string) string {
+	prefix := localAliasPrefix(name)
+	if prefix == "" {
+		return "/"
+	}
+	return prefix + "/"
+}
+
 func viewerLinkWithPrefix(prefix string) okf.LinkResolver {
 	prefix = strings.TrimRight(prefix, "/")
 	return func(currentRel string, href string) string {
@@ -616,6 +785,85 @@ func viewerLinkWithPrefix(prefix string) okf.LinkResolver {
 		}
 		return resolved
 	}
+}
+
+func viewerAliasDisplayURL(host string, port string, aliasNames []string) string {
+	if len(aliasNames) == 0 {
+		return viewerDisplayURL(host, port, "")
+	}
+	if len(aliasNames) == 1 {
+		return viewerDisplayURL(host, port, localAliasPrefix(aliasNames[0]))
+	}
+	return viewerDisplayBaseURL(host, port) + "<name>/"
+}
+
+func viewerDisplayURL(host string, port string, basePath string) string {
+	return viewerDisplayBaseURL(host, port) + strings.TrimPrefix(viewerDisplayPath(basePath), "/")
+}
+
+func viewerDisplayBaseURL(host string, port string) string {
+	hostPort := host
+	if port != "" && port != "80" {
+		hostPort = net.JoinHostPort(host, port)
+	} else if port == "80" && strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
+		hostPort = "[" + host + "]"
+	}
+	return "http://" + hostPort + "/"
+}
+
+func viewerDisplayPath(basePath string) string {
+	clean := strings.TrimRight(basePath, "/")
+	if clean == "" {
+		return "/"
+	}
+	return clean + "/"
+}
+
+func displayHostPort(address net.Addr) (string, string) {
+	host, port, err := net.SplitHostPort(address.String())
+	if err != nil {
+		return address.String(), ""
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return host, port
+}
+
+func normalizeLocalAliasName(value string) string {
+	value = strings.TrimSpace(value)
+	var builder strings.Builder
+	separator := false
+	for _, char := range value {
+		switch {
+		case char >= 'a' && char <= 'z':
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(char)
+			separator = false
+		case char >= 'A' && char <= 'Z':
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(char + ('a' - 'A'))
+			separator = false
+		case char >= '0' && char <= '9':
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(char)
+			separator = false
+		case char == '-' || char == '_' || char == '.':
+			if builder.Len() > 0 {
+				builder.WriteRune(char)
+			}
+			separator = false
+		default:
+			separator = true
+		}
+	}
+	return strings.Trim(builder.String(), "-_.")
 }
 
 func titleForMarkdownFile(rel string) string {

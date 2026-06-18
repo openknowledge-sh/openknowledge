@@ -62,6 +62,32 @@ func TestViewerSearchAPI(t *testing.T) {
 	}
 }
 
+func TestViewerServesDirectAliasPath(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Workflow](workflows/docs.md).\n")
+	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\n---\n\n# Docs\n\nRun validation before publishing.\n")
+
+	handler := newViewerHandlerWithAlias(root, "project-memory")
+
+	index := getViewerBody(t, handler, "/project-memory/")
+	if !strings.Contains(index, `href="/project-memory/file/workflows/docs.md"`) {
+		t.Fatalf("viewer index did not prefix file links:\n%s", index)
+	}
+	if !strings.Contains(index, `data-search-url="/project-memory/api/search"`) {
+		t.Fatalf("viewer index did not prefix search URL:\n%s", index)
+	}
+
+	page := getViewerBody(t, handler, "/project-memory/file/index.md")
+	if !strings.Contains(page, `href="/project-memory/file/workflows/docs.md"`) {
+		t.Fatalf("viewer file did not prefix markdown links:\n%s", page)
+	}
+
+	payload := getViewerSearch(t, handler, "/project-memory/api/search?q=validation")
+	if len(payload.Results) == 0 || payload.Results[0].URL != "/project-memory/file/workflows/docs.md" {
+		t.Fatalf("unexpected prefixed search result: %#v", payload)
+	}
+}
+
 func TestViewerSearchRefreshesAfterMarkdownChanges(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n")
@@ -107,7 +133,7 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	writeViewerFile(t, personal, "index.md", "# Personal\n")
 	writeViewerFile(t, personal, "only-personal.md", "---\ntype: Note\n---\n\n# Personal note\n")
 	writeViewerFile(t, work, "index.md", "# Work\n\nSee [Guide](notes/guide.md).\n")
-	writeViewerFile(t, work, "notes/guide.md", "---\ntype: Note\n---\n\n# Guide\n")
+	writeViewerFile(t, work, "notes/guide.md", "---\ntype: Note\n---\n\n# Guide\n\nRun validation before publishing.\n")
 
 	handler := newRegistryViewerHandler([]okf.RegistryEntry{
 		{Name: "personal", Path: personal},
@@ -138,12 +164,59 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	if !strings.Contains(workPage, `href="/kb/work/file/notes/guide.md"`) {
 		t.Fatalf("registry viewer did not prefix markdown links:\n%s", workPage)
 	}
+
+	aliasIndex := getViewerBody(t, handler, "/work/")
+	if !strings.Contains(aliasIndex, `class="workspace active" href="/work/"`) {
+		t.Fatalf("alias route did not keep alias workspace links:\n%s", aliasIndex)
+	}
+	if !strings.Contains(aliasIndex, `href="/work/file/notes/guide.md"`) {
+		t.Fatalf("alias route did not prefix file links:\n%s", aliasIndex)
+	}
+
+	aliasPage := getViewerBody(t, handler, "/work/file/index.md")
+	if !strings.Contains(aliasPage, `href="/work/file/notes/guide.md"`) {
+		t.Fatalf("alias route did not prefix markdown links:\n%s", aliasPage)
+	}
+
+	aliasSearch := getViewerSearch(t, handler, "/work/api/search?q=validation")
+	if len(aliasSearch.Results) == 0 || aliasSearch.Results[0].URL != "/work/file/notes/guide.md" {
+		t.Fatalf("unexpected alias search result: %#v", aliasSearch)
+	}
 }
 
 func TestRegistryViewerEmptyRegistry(t *testing.T) {
 	body := getViewerBody(t, newRegistryViewerHandler(nil), "/")
 	if !strings.Contains(body, "No registered knowledge bases") {
 		t.Fatalf("empty registry page did not explain the empty state:\n%s", body)
+	}
+}
+
+func TestViewerLocalAliasNameNormalization(t *testing.T) {
+	tests := map[string]string{
+		"Project Memory":      "project-memory",
+		" project_memory.v1 ": "project_memory.v1",
+		"Project/Memory/Test": "project-memory-test",
+		"--Project Memory---": "project-memory",
+		"":                    "",
+	}
+
+	for input, expected := range tests {
+		if actual := normalizeLocalAliasName(input); actual != expected {
+			t.Fatalf("normalizeLocalAliasName(%q) = %q, want %q", input, actual, expected)
+		}
+	}
+}
+
+func TestDirectViewerAliasNameUsesRegistryPath(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+	if _, err := okf.AddRegistryEntry("personal", root); err != nil {
+		t.Fatal(err)
+	}
+
+	alias := directViewerAliasName(root, root, "")
+	if alias != "personal" {
+		t.Fatalf("expected registry name alias, got %q", alias)
 	}
 }
 

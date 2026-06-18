@@ -95,9 +95,20 @@ the registry contains several, choose one from the selector. `openknowledge open
 
 By default it binds to `127.0.0.1` on a free port and keeps running until the
 process is stopped. Use `--host` or `--port` when a fixed address is needed.
-Custom local names such as `openknowledge.local` need to resolve to the local
-machine through `/etc/hosts`, local DNS, or a reverse proxy; the CLI does not
-create hostname aliases itself.
+The viewer also serves each knowledge base at a registry-style local alias path.
+For a registered name `personal`, `openknowledge open --port 3000` serves:
+
+```text
+http://127.0.0.1:3000/kb/personal/
+http://open.knowledge:3000/personal/
+```
+
+Direct path mode also gets an alias path. Use `--name <alias-name>` to choose it
+explicitly and `--local-domain <domain>` to change the printed alias domain.
+Custom local names such as `open.knowledge` need to resolve to the local machine
+through `/etc/hosts`, local DNS, or a reverse proxy; the CLI does not create
+hostname aliases itself. To drop the port from the URL, bind the viewer to port
+80 or put a local proxy in front of it.
 
 The viewer renders Markdown files, strips YAML frontmatter from document pages,
 rewrites relative Markdown links between `.md` files, and shows inline
