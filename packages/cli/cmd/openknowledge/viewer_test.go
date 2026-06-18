@@ -71,6 +71,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.is-focus-mode`) {
 		t.Fatalf("viewer file page did not include focus mode styles:\n%s", page)
 	}
+	if strings.Contains(page, `body.viewer-document.is-focus-mode { height: auto`) || strings.Contains(page, `body.viewer-document.is-focus-mode .note-workspace { height: auto`) || !strings.Contains(page, `body.viewer-document.is-focus-mode .note-workspace { overflow: hidden; }`) || !strings.Contains(page, `body.viewer-document.is-focus-mode .note-panel.document`) || !strings.Contains(page, `overflow-y: auto;`) {
+		t.Fatalf("viewer focus mode should keep page-level scroll locked and scroll inside the panel:\n%s", page)
+	}
 	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
 		t.Fatalf("viewer file page did not include knowledge tree empty state:\n%s", page)
 	}
