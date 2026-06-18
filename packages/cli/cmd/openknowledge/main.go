@@ -312,7 +312,7 @@ func runToHTML(args []string) int {
 		return 2
 	}
 
-	result, err := okf.WriteHTMLWithVersion(options.path, options.out, options.spec)
+	result, err := writeViewerHTMLWithVersion(options.path, options.out, options.spec)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
