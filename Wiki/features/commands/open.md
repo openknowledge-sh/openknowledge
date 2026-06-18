@@ -18,7 +18,10 @@ validation issues in the index.
 
 ```sh
 openknowledge open [path]
+openknowledge open --name <alias-name> [path]
 openknowledge open --host <host> --port <port> [path]
+openknowledge open --local-domain <domain> [path]
+openknowledge open --no-browser [path]
 openknowledge open --help
 ```
 
@@ -29,6 +32,30 @@ openknowledge open --help
 | `path` | argument | Optional knowledge base root or registry name. When omitted, the viewer uses the Open Knowledge Registry. |
 | `--host` | flag | Host to bind. Defaults to `127.0.0.1`. |
 | `--port` | flag | Port to bind. Defaults to `0`, which selects a free port. |
+| `--name` | flag | Alias name for direct path mode. Defaults to the registry name or folder name. |
+| `--local-domain` | flag | Local alias domain to print. Defaults to `open.knowledge`; set it to an empty string to hide the alias URL. |
+| `--no-browser` | flag | Print URLs without opening the default browser. |
+
+## URL Output
+
+`Open Knowledge view` is the primary URL and uses the actual listener host,
+defaulting to `127.0.0.1`. Direct path mode and single-workspace registry mode
+include the alias path in that loopback URL, for example:
+
+```text
+Open Knowledge view: http://127.0.0.1:57475/wiki/
+```
+
+When `--local-domain` is not empty, the command also prints the
+`Open Knowledge alias` line with the configured local domain:
+
+```text
+Open Knowledge alias: http://open.knowledge:57475/wiki/
+```
+
+The CLI does not create hostname aliases. If the alias URL is unreachable, use
+the printed `127.0.0.1` view URL or map the alias hostname to loopback with
+`/etc/hosts`, local DNS, or a reverse proxy.
 
 ## Use Cases
 

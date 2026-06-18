@@ -220,6 +220,21 @@ func TestDirectViewerAliasNameUsesRegistryPath(t *testing.T) {
 	}
 }
 
+func TestViewerDisplayURLsUseReachableHostAsPrimary(t *testing.T) {
+	viewURL, aliasURL := viewerDisplayURLs("127.0.0.1", "57475", "open.knowledge", []string{"wiki"})
+	if viewURL != "http://127.0.0.1:57475/wiki/" {
+		t.Fatalf("expected loopback view URL, got %q", viewURL)
+	}
+	if aliasURL != "http://open.knowledge:57475/wiki/" {
+		t.Fatalf("expected local-domain alias URL, got %q", aliasURL)
+	}
+
+	viewURL, aliasURL = viewerDisplayURLs("127.0.0.1", "57475", "", []string{"wiki"})
+	if viewURL != "http://127.0.0.1:57475/wiki/" || aliasURL != "" {
+		t.Fatalf("expected alias domain disabled, got view=%q alias=%q", viewURL, aliasURL)
+	}
+}
+
 func TestBrowserOpenCommand(t *testing.T) {
 	tests := []struct {
 		goos    string

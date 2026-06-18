@@ -95,11 +95,11 @@ knowledge bases. A name is only an alias: path-based commands still work, and
 agents can use `openknowledge where <name>` to get the real folder before using
 normal filesystem tools such as `rg`.
 
-The local viewer opens the printed view URL in your default browser. It also
-prints an `open.knowledge` alias URL and serves registered knowledge bases under
-paths such as `/personal/`. The hostname must be mapped to loopback through
-local DNS, `/etc/hosts`, or a reverse proxy; the CLI only serves the HTTP
-routes.
+The local viewer opens the printed `127.0.0.1` view URL in your default
+browser. It also prints an optional `open.knowledge` alias URL and serves
+registered knowledge bases under paths such as `/personal/`. The alias hostname
+must be mapped to loopback through local DNS, `/etc/hosts`, or a reverse proxy;
+the CLI only serves the HTTP routes.
 
 ## Commands
 

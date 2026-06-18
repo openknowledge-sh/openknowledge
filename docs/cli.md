@@ -94,23 +94,25 @@ the registry contains several, choose one from the selector. `openknowledge open
 <path-or-name>` opens that folder or registry alias directly.
 
 By default it binds to `127.0.0.1` on a free port and keeps running until the
-process is stopped, and opens the printed view URL in the default browser. Use
-`--host` or `--port` when a fixed address is needed, and `--no-browser` for
-headless or scripted runs.
+process is stopped, and opens the printed loopback view URL in the default
+browser. Use `--host` or `--port` when a fixed address is needed, and
+`--no-browser` for headless or scripted runs.
 The viewer also serves each knowledge base at a registry-style local alias path.
-For a registered name `personal`, `openknowledge open --port 3000` serves:
+For a single registered name `personal`, `openknowledge open --port 3000`
+prints:
 
 ```text
-http://127.0.0.1:3000/kb/personal/
-http://open.knowledge:3000/personal/
+Open Knowledge view: http://127.0.0.1:3000/personal/
+Open Knowledge alias: http://open.knowledge:3000/personal/
 ```
 
 Direct path mode also gets an alias path. Use `--name <alias-name>` to choose it
 explicitly and `--local-domain <domain>` to change the printed alias domain.
 Custom local names such as `open.knowledge` need to resolve to the local machine
 through `/etc/hosts`, local DNS, or a reverse proxy; the CLI does not create
-hostname aliases itself. To drop the port from the URL, bind the viewer to port
-80 or put a local proxy in front of it.
+hostname aliases itself. If the alias URL is unreachable, use the printed
+`127.0.0.1` view URL. To drop the port from the URL, bind the viewer to port 80
+or put a local proxy in front of it.
 
 The viewer renders Markdown files, strips YAML frontmatter from document pages,
 rewrites relative Markdown links between `.md` files, and shows inline

@@ -84,14 +84,11 @@ func runOpen(args []string) int {
 	}
 
 	displayHost, displayPort := displayHostPort(listener.Addr())
-	viewURL := viewerDisplayURL(displayHost, displayPort, "")
+	viewURL, aliasURL := viewerDisplayURLs(displayHost, displayPort, *localDomain, aliasNames)
 
-	if domain := strings.TrimSpace(*localDomain); domain != "" {
-		viewURL = viewerAliasDisplayURL(domain, displayPort, aliasNames)
-		fmt.Printf("Open Knowledge view: %s\n", viewURL)
-		fmt.Printf("Open Knowledge fallback: %s\n", viewerDisplayURL(displayHost, displayPort, ""))
-	} else {
-		fmt.Printf("Open Knowledge view: %s\n", viewURL)
+	fmt.Printf("Open Knowledge view: %s\n", viewURL)
+	if aliasURL != "" && aliasURL != viewURL {
+		fmt.Printf("Open Knowledge alias: %s\n", aliasURL)
 	}
 	details()
 	fmt.Println(terminal.muted("Press Ctrl+C to stop."))
@@ -803,6 +800,15 @@ func viewerAliasDisplayURL(host string, port string, aliasNames []string) string
 		return viewerDisplayURL(host, port, localAliasPrefix(aliasNames[0]))
 	}
 	return viewerDisplayURL(host, port, "")
+}
+
+func viewerDisplayURLs(host string, port string, localDomain string, aliasNames []string) (string, string) {
+	viewURL := viewerAliasDisplayURL(host, port, aliasNames)
+	domain := strings.TrimSpace(localDomain)
+	if domain == "" {
+		return viewURL, ""
+	}
+	return viewURL, viewerAliasDisplayURL(domain, port, aliasNames)
 }
 
 func viewerDisplayURL(host string, port string, basePath string) string {

@@ -14,6 +14,18 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Reachable local viewer URL
+
+* `openknowledge open` now prints and opens the actual listener URL as the
+  `Open Knowledge view` line, defaulting to `127.0.0.1`, so direct path aliases
+  such as `/wiki/` remain reachable without local DNS setup.
+* The optional local-domain URL is still printed as `Open Knowledge alias` for
+  environments that map names such as `open.knowledge` to loopback.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/main.go`.
+* Docs updated: `README.md`, `docs/cli.md`,
+  `Wiki/features/commands/open.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-18 - Markdown and frontmatter validation warnings
 
 * `openknowledge validate` now checks Markdown syntax for malformed links,

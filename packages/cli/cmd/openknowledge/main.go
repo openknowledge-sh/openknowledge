@@ -898,7 +898,7 @@ Flags:
                Local alias domain to print. Defaults to open.knowledge.
                Set to an empty string to hide the alias URL.
   --no-browser
-               Print the URL without opening the default browser.
+               Print URLs without opening the default browser.
 
 Examples:
   openknowledge open
