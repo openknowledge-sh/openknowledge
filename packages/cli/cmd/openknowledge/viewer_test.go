@@ -70,6 +70,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
 	}
+	if !strings.Contains(page, `--sidebar-bg:`) || !strings.Contains(page, `.file-sidebar-head`) || !strings.Contains(page, `--sidebar-head-bg`) {
+		t.Fatalf("viewer file sidebar should use its own darker surface colors:\n%s", page)
+	}
 	if strings.Contains(page, "openInitialNote(treeLink.dataset.treePath, true);\n      setSidebarOpen(false);") {
 		t.Fatalf("viewer file sidebar should remain open after opening a tree item:\n%s", page)
 	}
