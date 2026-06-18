@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
@@ -96,6 +98,52 @@ func TestViewerRejectsTraversalAndNonMarkdown(t *testing.T) {
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/file/notes.txt", nil))
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("expected non-markdown file to return 404, got %d", recorder.Code)
+	}
+}
+
+func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
+	personal := t.TempDir()
+	work := t.TempDir()
+	writeViewerFile(t, personal, "index.md", "# Personal\n")
+	writeViewerFile(t, personal, "only-personal.md", "---\ntype: Note\n---\n\n# Personal note\n")
+	writeViewerFile(t, work, "index.md", "# Work\n\nSee [Guide](notes/guide.md).\n")
+	writeViewerFile(t, work, "notes/guide.md", "---\ntype: Note\n---\n\n# Guide\n")
+
+	handler := newRegistryViewerHandler([]okf.RegistryEntry{
+		{Name: "personal", Path: personal},
+		{Name: "work", Path: work},
+	})
+
+	index := getViewerBody(t, handler, "/")
+	for _, required := range []string{
+		"Knowledge bases",
+		`href="/kb/personal/"`,
+		`href="/kb/work/"`,
+		"only-personal.md",
+	} {
+		if !strings.Contains(index, required) {
+			t.Fatalf("registry index missing %q:\n%s", required, index)
+		}
+	}
+
+	workIndex := getViewerBody(t, handler, "/kb/work/")
+	if !strings.Contains(workIndex, `class="workspace active" href="/kb/work/"`) {
+		t.Fatalf("work knowledge base was not active:\n%s", workIndex)
+	}
+	if !strings.Contains(workIndex, "notes/guide.md") || strings.Contains(workIndex, "only-personal.md") {
+		t.Fatalf("work index did not switch file listing:\n%s", workIndex)
+	}
+
+	workPage := getViewerBody(t, handler, "/kb/work/file/index.md")
+	if !strings.Contains(workPage, `href="/kb/work/file/notes/guide.md"`) {
+		t.Fatalf("registry viewer did not prefix markdown links:\n%s", workPage)
+	}
+}
+
+func TestRegistryViewerEmptyRegistry(t *testing.T) {
+	body := getViewerBody(t, newRegistryViewerHandler(nil), "/")
+	if !strings.Contains(body, "No registered knowledge bases") {
+		t.Fatalf("empty registry page did not explain the empty state:\n%s", body)
 	}
 }
 
