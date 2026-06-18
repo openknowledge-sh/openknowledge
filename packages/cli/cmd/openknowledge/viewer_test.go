@@ -41,6 +41,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-note-workspace`) || !strings.Contains(page, `data-note-path="index.md"`) {
 		t.Fatalf("viewer file page did not include stacked note layout:\n%s", page)
 	}
+	if !strings.Contains(page, `note-panel is-active-panel`) || !strings.Contains(page, `.note-panel:not(.is-active-panel) .editor-picker`) {
+		t.Fatalf("viewer file page did not limit editor picker to the active panel:\n%s", page)
+	}
 	if !strings.Contains(page, `data-note-root="`) {
 		t.Fatalf("viewer file page did not expose note root for editor deeplinks:\n%s", page)
 	}

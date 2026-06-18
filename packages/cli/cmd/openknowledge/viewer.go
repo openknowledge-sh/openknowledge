@@ -916,7 +916,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </div>
     </section>
     <section class="note-stack" data-note-stack aria-label="Open notes">
-      <article class="document note-panel" data-note-path="{{.Path}}" data-note-title="{{.Title}}" tabindex="-1">
+      <article class="document note-panel is-active-panel" data-note-path="{{.Path}}" data-note-title="{{.Title}}" tabindex="-1">
         <div class="note-chrome">
           <a class="note-path" href="{{.FileURL}}" data-direct-link="true">{{.Path}}</a>
           <div class="note-actions">
@@ -1514,6 +1514,38 @@ const viewerJS = `
     });
   }
 
+  function activePanel() {
+    return stackEl.querySelector(".note-panel.is-active-panel");
+  }
+
+  function setActivePanel(panel) {
+    if (!panel || !stackEl.contains(panel)) {
+      return;
+    }
+
+    panels().forEach(function (item) {
+      const active = item === panel;
+      item.classList.toggle("is-active-panel", active);
+      item.dataset.activePanel = active ? "true" : "false";
+      if (!active) {
+        item.querySelectorAll("[data-editor-picker]").forEach(function (picker) {
+          setEditorMenuOpen(picker, false);
+        });
+      }
+    });
+    updateTitle();
+  }
+
+  function ensureActivePanel() {
+    const all = panels();
+    if (!all.length) {
+      return;
+    }
+    if (!activePanel()) {
+      setActivePanel(all[all.length - 1]);
+    }
+  }
+
   function bindEditorPicker(picker) {
     if (!picker || picker.dataset.editorBound === "true") {
       return;
@@ -1612,6 +1644,7 @@ const viewerJS = `
     if (emptyState) {
       emptyState.hidden = !isEmpty;
     }
+    ensureActivePanel();
     updateCloseLinks();
   }
 
@@ -1631,12 +1664,12 @@ const viewerJS = `
 
   function updateTitle() {
     const all = panels();
-    const activePanel = isFocusMode() ? all[0] : all[all.length - 1];
-    if (!activePanel) {
+    const currentPanel = activePanel() || (isFocusMode() ? all[0] : all[all.length - 1]);
+    if (!currentPanel) {
       document.title = "Knowledge base - Open Knowledge";
       return;
     }
-    const title = activePanel?.dataset.noteTitle || activePanel?.dataset.notePath || "Open Knowledge";
+    const title = currentPanel?.dataset.noteTitle || currentPanel?.dataset.notePath || "Open Knowledge";
     document.title = title + " - Open Knowledge";
   }
 
@@ -1679,6 +1712,7 @@ const viewerJS = `
   }
 
   function scrollToPanel(panel) {
+    setActivePanel(panel);
     window.requestAnimationFrame(function () {
       panel.scrollIntoView({
         block: "nearest",
@@ -1794,6 +1828,7 @@ const viewerJS = `
     }
 
     stackEl.append(panel);
+    setActivePanel(panel);
     updateWorkspaceState();
     updateActiveLinks();
     updateTitle();
@@ -1840,6 +1875,7 @@ const viewerJS = `
     }
 
     const nextPanel = remaining[Math.min(Math.max(index, 0), remaining.length - 1)];
+    setActivePanel(nextPanel);
     scrollToPanel(nextPanel);
   }
 
@@ -1868,6 +1904,11 @@ const viewerJS = `
   }
 
   workspace.addEventListener("click", function (event) {
+    const clickedPanel = closestElement(event.target, "[data-note-path]");
+    if (clickedPanel) {
+      setActivePanel(clickedPanel);
+    }
+
     const closeButton = closestElement(event.target, "[data-close-panel]");
     if (closeButton) {
       const panel = closeButton.closest("[data-note-path]");
@@ -1917,6 +1958,13 @@ const viewerJS = `
     openFromPanel(sourcePanel, targetPath, true);
   });
 
+  workspace.addEventListener("focusin", function (event) {
+    const focusedPanel = closestElement(event.target, "[data-note-path]");
+    if (focusedPanel) {
+      setActivePanel(focusedPanel);
+    }
+  });
+
   const viewModeToggle = document.querySelector("[data-view-mode-toggle]");
   if (viewModeToggle) {
     viewModeToggle.addEventListener("click", function () {
@@ -1946,6 +1994,7 @@ const viewerJS = `
 
   const requestedStack = stackFromLocation();
   panels().forEach(bindPanel);
+  ensureActivePanel();
   if (isFocusMode()) {
     const focusedStack = focusStack(requestedStack);
     updateHistory(focusedStack, false);
@@ -2033,6 +2082,7 @@ body.viewer-document.is-focus-mode .note-close { display: none; }
 .note-path:hover { color: var(--accent); }
 .note-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
 .editor-picker { position: relative; flex: 0 0 auto; }
+.note-panel:not(.is-active-panel) .editor-picker { display: none; }
 .editor-trigger { display: inline-flex; min-width: 58px; height: 30px; align-items: stretch; justify-content: center; overflow: hidden; border: 1px solid #cbd6d0; border-radius: 7px; background: #f8faf8; color: #52615b; line-height: 1; box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset; }
 .editor-open, .editor-menu-trigger { display: inline-flex; height: 100%; align-items: center; justify-content: center; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; line-height: 1; text-decoration: none; }
 .editor-open { min-width: 32px; padding: 0 6px; }
