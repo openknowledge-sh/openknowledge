@@ -885,7 +885,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
 <body class="viewer-document">
   <header>
     <a class="brand" href="/">Open Knowledge</a>
-    <button class="view-mode-toggle" type="button" data-view-mode-toggle aria-label="Switch to focus view" aria-pressed="false" title="Stack view">
+    <button class="view-mode-toggle" type="button" data-view-mode-toggle aria-label="Switch to focus view" aria-pressed="false" title="Switch to focus view">
       <svg class="view-mode-icon view-mode-icon-focus" data-view-mode-icon="focus" viewBox="0 0 24 24" aria-hidden="true">
         <rect x="6.5" y="4.5" width="11" height="15" rx="1.8"></rect>
       </svg>
@@ -1243,7 +1243,7 @@ const viewerJS = `
     if (toggle) {
       toggle.setAttribute("aria-pressed", focus ? "true" : "false");
       toggle.setAttribute("aria-label", focus ? "Switch to stack view" : "Switch to focus view");
-      toggle.title = focus ? "Focus view" : "Stack view";
+      toggle.title = focus ? "Switch to stack view" : "Switch to focus view";
     }
 
     updateWorkspaceState();
@@ -2036,9 +2036,9 @@ body.viewer-document > header { border-bottom: 0; background: #eef1ee; }
 .view-mode-toggle { display: inline-flex; flex: 0 0 auto; width: 34px; height: 34px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #5f6d67; cursor: pointer; }
 .view-mode-toggle:hover, .view-mode-toggle:focus-visible { border-color: #cbd5cf; background: #e7ece8; color: #25302b; outline: none; }
 .view-mode-icon { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-.view-mode-icon-focus { display: none; }
-body[data-view-mode="focus"] .view-mode-icon-focus { display: block; }
-body[data-view-mode="focus"] .view-mode-icon-stack { display: none; }
+.view-mode-icon-stack { display: none; }
+body[data-view-mode="focus"] .view-mode-icon-focus { display: none; }
+body[data-view-mode="focus"] .view-mode-icon-stack { display: block; }
 .control-icon { display: block; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
 .note-workspace { position: relative; width: 100%; height: calc(100vh - var(--header-height)); margin: 0; padding: 0; overflow-x: auto; overflow-y: hidden; background: #eef1ee; scroll-behavior: smooth; overscroll-behavior-x: contain; }

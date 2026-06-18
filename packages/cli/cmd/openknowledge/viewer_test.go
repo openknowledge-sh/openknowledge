@@ -65,6 +65,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-view-mode-toggle`) || !strings.Contains(page, `data-view-mode-icon="focus"`) || !strings.Contains(page, `data-view-mode-icon="stack"`) {
 		t.Fatalf("viewer file page did not include focus/stack mode toggle:\n%s", page)
 	}
+	if !strings.Contains(page, `title="Switch to focus view"`) || !strings.Contains(page, `.view-mode-icon-stack { display: none; }`) || !strings.Contains(page, `body[data-view-mode="focus"] .view-mode-icon-stack { display: block; }`) {
+		t.Fatalf("viewer mode toggle should show the mode it will switch to:\n%s", page)
+	}
 	if !strings.Contains(page, `.is-focus-mode`) {
 		t.Fatalf("viewer file page did not include focus mode styles:\n%s", page)
 	}
