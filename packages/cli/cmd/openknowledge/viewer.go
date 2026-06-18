@@ -1656,7 +1656,18 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
 </head>
 <body class="viewer-document">
   <header>
-    <a class="brand" href="/">Open Knowledge</a>
+    <div class="header-left">
+      <a class="brand" href="/">Open Knowledge</a>
+      <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Open file explorer" aria-expanded="false" title="File explorer">
+        <svg class="sidebar-toggle-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect>
+          <path d="M9 4.5v15"></path>
+          <path d="M6 8h.01"></path>
+          <path d="M6 11h.01"></path>
+          <path d="M6 14h.01"></path>
+        </svg>
+      </button>
+    </div>
     <button class="view-mode-toggle" type="button" data-view-mode-toggle aria-label="Switch to focus view" aria-pressed="false" title="Switch to focus view">
       <svg class="view-mode-icon view-mode-icon-focus" data-view-mode-icon="focus" viewBox="0 0 24 24" aria-hidden="true">
         <rect x="6.5" y="4.5" width="11" height="15" rx="1.8"></rect>
@@ -1668,6 +1679,31 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </svg>
     </button>
   </header>
+  <aside class="file-sidebar" data-file-sidebar aria-label="File explorer" aria-hidden="true">
+    <div class="file-sidebar-head">
+      <span>Files</span>
+      <button class="file-sidebar-close" type="button" data-sidebar-close aria-label="Close file explorer" title="Close">
+        <svg class="note-close-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18 6 6 18"></path>
+          <path d="m6 6 12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="file-sidebar-tree knowledge-tree" role="tree">
+      {{range .Tree}}
+        {{if .Directory}}
+          <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
+        {{else}}
+          <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" style="--indent: {{.Indent}}px">
+            <span class="tree-file-name">{{.Name}}</span>
+            <span class="tree-file-path">{{.Path}}</span>
+          </a>
+        {{end}}
+      {{else}}
+        <p class="empty">No Markdown files found.</p>
+      {{end}}
+    </div>
+  </aside>
   <main class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
     <section class="knowledge-empty" data-empty-state aria-label="Knowledge base files" hidden>
       <div class="knowledge-empty-inner">
@@ -1813,6 +1849,9 @@ const viewerJS = `
   const workspace = document.querySelector("[data-note-workspace]");
   const stackEl = document.querySelector("[data-note-stack]");
   const emptyState = document.querySelector("[data-empty-state]");
+  const fileSidebar = document.querySelector("[data-file-sidebar]");
+  const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
+  const sidebarClose = document.querySelector("[data-sidebar-close]");
 
   if (!workspace || !stackEl) {
     return;
@@ -1840,6 +1879,16 @@ const viewerJS = `
       return target.closest(selector);
     }
     return target.parentElement ? target.parentElement.closest(selector) : null;
+  }
+
+  function setSidebarOpen(open) {
+    document.body.classList.toggle("is-sidebar-open", open);
+    if (fileSidebar) {
+      fileSidebar.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+    if (sidebarToggle) {
+      sidebarToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    }
   }
 
   function notePathFromHref(href, sourcePath) {
@@ -2838,6 +2887,35 @@ const viewerJS = `
     }
   });
 
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener("click", function () {
+      setSidebarOpen(!document.body.classList.contains("is-sidebar-open"));
+    });
+  }
+  if (sidebarClose) {
+    sidebarClose.addEventListener("click", function () {
+      setSidebarOpen(false);
+      sidebarToggle?.focus();
+    });
+  }
+  if (fileSidebar) {
+    fileSidebar.addEventListener("click", function (event) {
+      const treeLink = closestElement(event.target, "[data-tree-path]");
+      if (!treeLink) {
+        return;
+      }
+      if (isFocusMode()) {
+        return;
+      }
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      openInitialNote(treeLink.dataset.treePath, true);
+      setSidebarOpen(false);
+    });
+  }
+
   const viewModeToggle = document.querySelector("[data-view-mode-toggle]");
   if (viewModeToggle) {
     viewModeToggle.addEventListener("click", function () {
@@ -2862,6 +2940,7 @@ const viewerJS = `
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
       closeEditorMenus();
+      setSidebarOpen(false);
     }
   });
 
@@ -2905,7 +2984,11 @@ body { margin: 0; color: var(--ink); background: var(--paper); line-height: 1.55
 body.viewer-document { height: 100vh; overflow: hidden; }
 header { display: flex; min-height: var(--header-height); justify-content: space-between; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .92); color: var(--muted); font-size: 13px; }
 body.viewer-document > header { border-bottom: 0; background: #eef1ee; }
+.header-left { display: inline-flex; min-width: 0; align-items: center; gap: 10px; }
 .brand { color: var(--ink); font-weight: 700; text-decoration: none; }
+.sidebar-toggle { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #5f6d67; cursor: pointer; }
+.sidebar-toggle:hover, .sidebar-toggle:focus-visible, body.is-sidebar-open .sidebar-toggle { border-color: #cbd5cf; background: #e7ece8; color: #25302b; outline: none; }
+.sidebar-toggle-icon { width: 19px; height: 19px; }
 .view-mode-toggle { display: inline-flex; flex: 0 0 auto; width: 34px; height: 34px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #5f6d67; cursor: pointer; }
 .view-mode-toggle:hover, .view-mode-toggle:focus-visible { border-color: #cbd5cf; background: #e7ece8; color: #25302b; outline: none; }
 .view-mode-icon { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
@@ -2913,6 +2996,12 @@ body.viewer-document > header { border-bottom: 0; background: #eef1ee; }
 body[data-view-mode="focus"] .view-mode-icon-focus { display: none; }
 body[data-view-mode="focus"] .view-mode-icon-stack { display: block; }
 .control-icon { display: block; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.file-sidebar { position: fixed; top: var(--header-height); bottom: 0; left: 0; z-index: 5; display: flex; width: min(340px, calc(100vw - 36px)); flex-direction: column; border-right: 1px solid #d7dfda; background: #eef1ee; box-shadow: 16px 0 34px rgba(24, 34, 30, .12); transform: translateX(-102%); transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
+body.is-sidebar-open .file-sidebar { transform: translateX(0); }
+.file-sidebar-head { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 18px; color: #51605a; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.file-sidebar-close { display: inline-flex; flex: 0 0 auto; width: 30px; height: 30px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #6d7c76; cursor: pointer; }
+.file-sidebar-close:hover, .file-sidebar-close:focus-visible { border-color: #cbd5cf; background: #e7ece8; color: #25302b; outline: none; }
+.file-sidebar-tree { flex: 1 1 auto; width: 100%; overflow: auto; padding: 4px 10px 18px 8px; }
 main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
 .workspaces { margin: 0 0 28px; }
 .sidebar-label { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
