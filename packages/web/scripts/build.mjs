@@ -14,5 +14,7 @@ await cp(path.join(webRoot, "favicon.png"), path.join(dist, "favicon.png"));
 await cp(path.join(webRoot, "apple-touch-icon.png"), path.join(dist, "apple-touch-icon.png"));
 await cp(path.join(webRoot, "og.png"), path.join(dist, "og.png"));
 await cp(path.join(webRoot, "styles.css"), path.join(dist, "styles.css"));
+await cp(path.join(webRoot, "favicon.png"), path.join(dist, "favicon.png"));
+await cp(path.join(webRoot, "apple-touch-icon.png"), path.join(dist, "apple-touch-icon.png"));
 
 console.log(`Built ${dist}`);
