@@ -114,6 +114,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: toHelpText(),
 			required: []string{
 				"openknowledge to html --out <folder> [path]",
+				"openknowledge to html --plain --out <folder> [path]",
 				"openknowledge to json --out <file> [path]",
 				"Targets:",
 			},
@@ -121,8 +122,10 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"to html": {
 			help: toHTMLHelpText(),
 			required: []string{
+				"openknowledge to html --plain --out <folder> [path]",
 				"openknowledge to html --spec <version> --out <folder> [path]",
 				"Output folder for generated HTML files. Required.",
+				"Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.",
 			},
 		},
 		"to json": {
@@ -186,11 +189,11 @@ func TestHasHelpFlagRecognizesCommonHelpForms(t *testing.T) {
 }
 
 func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
-	options, err := parseToOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1"})
+	options, err := parseToOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1", "--plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.path != "./project-memory" || options.out != "./site" || options.spec != "0.1" {
+	if options.path != "./project-memory" || options.out != "./site" || options.spec != "0.1" || !options.plain {
 		t.Fatalf("unexpected options: %#v", options)
 	}
 }

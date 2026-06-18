@@ -160,12 +160,19 @@ Markdown bundle.
 ## Static exports
 
 `openknowledge to html [path] --out <folder>` writes one `.html` file for each
-Markdown file in the bundle. It strips YAML frontmatter from rendered pages and
-rewrites Markdown links between local `.md` files to their generated `.html`
-targets.
+Markdown file in the bundle using the same static viewer app as
+`openknowledge open`. It strips YAML frontmatter from rendered pages and rewrites
+Markdown links between local `.md` files to their generated `.html` targets.
 
 ```sh
 openknowledge to html ./project-memory --out ./project-site
+```
+
+Use `--plain` when you want parsed HTML without the viewer app, CSS, JavaScript,
+or chrome.
+
+```sh
+openknowledge to html ./project-memory --plain --out ./project-plain-site
 ```
 
 `openknowledge to json [path]` writes the normalized bundle model as JSON. The
