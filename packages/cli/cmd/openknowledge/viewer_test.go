@@ -76,6 +76,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `id="viewer-sidebar-search"`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
 		t.Fatalf("viewer file page did not include sidebar search:\n%s", page)
 	}
+	if !strings.Contains(page, `.search-results[hidden] { display: none; }`) || !strings.Contains(page, `closeSearchResults(searchResult)`) || !strings.Contains(page, `closeSearchResults(link)`) {
+		t.Fatalf("viewer search dropdown should stay hidden when empty and close after selecting a result:\n%s", page)
+	}
 	if !strings.Contains(page, `search-shortcut`) || !strings.Contains(page, `event.metaKey || event.ctrlKey`) || !strings.Contains(page, `primaryInput?.focus()`) {
 		t.Fatalf("viewer file page did not include command-k search shortcut:\n%s", page)
 	}

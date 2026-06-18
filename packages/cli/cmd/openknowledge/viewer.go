@@ -3278,8 +3278,29 @@ const viewerJS = `
         return;
       }
       event.preventDefault();
+      closeSearchResults(link);
       openInitialNote(targetPath, true);
     });
+  }
+
+  function closeSearchResults(source) {
+    const search = closestElement(source, ".search");
+    if (!search) {
+      return;
+    }
+    const input = search.querySelector(".search-input");
+    const results = search.querySelector(".search-results");
+    const status = search.querySelector(".search-status");
+    if (input) {
+      input.value = "";
+    }
+    if (status) {
+      status.textContent = "";
+    }
+    if (results) {
+      results.hidden = true;
+      results.replaceChildren();
+    }
   }
 
   window.addEventListener("popstate", function () {
@@ -3296,6 +3317,7 @@ const viewerJS = `
       const targetPath = notePathFromHref(searchResult.getAttribute("href") || searchResult.href);
       if (targetPath) {
         event.preventDefault();
+        closeSearchResults(searchResult);
         openInitialNote(targetPath, true);
         return;
       }
@@ -3430,6 +3452,7 @@ hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .search-input:focus { border-color: rgba(var(--accent-rgb), .5); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .12); outline: none; }
 .search-status { min-height: 20px; margin-top: 8px; color: var(--muted); font-size: 13px; }
 .search-results { display: grid; gap: 7px; margin-top: 8px; }
+.search-results[hidden] { display: none; }
 .search-result { display: grid; gap: 2px; padding: 10px 11px; border: 1px solid #dce4df; border-radius: 6px; background: #fff; color: inherit; text-decoration: none; }
 .search-result:hover, .search-result:focus-visible { border-color: rgba(var(--accent-rgb), .35); background: #f2f7f4; outline: none; }
 .search-result-title { color: var(--ink); font-weight: 700; }
