@@ -20,9 +20,10 @@ single-page focus mode; the panel stack is the default and only document
 browsing layout. The file explorer can be opened from the header and stays open
 while selecting files.
 
-The file explorer sidebar includes search. In the local server viewer it uses
-the search API; in exported static HTML it searches the embedded static note
-manifest in the browser.
+The top bar includes the primary search field, and `Command+K` on macOS or
+`Ctrl+K` elsewhere focuses it. The file explorer sidebar also includes search.
+In the local server viewer, search uses the search API; in exported static HTML
+it searches the embedded static note manifest in the browser.
 
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.

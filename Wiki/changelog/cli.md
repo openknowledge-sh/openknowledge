@@ -17,6 +17,8 @@ that were updated.
 ### 2026-06-19 - Sidebar search restored in viewer
 
 * The panel viewer file explorer now includes a search box above the file tree.
+* The top bar now includes the primary search field, focused by `Command+K` on
+  macOS and `Ctrl+K` elsewhere.
 * Local `openknowledge open` pages use the existing `/api/search` endpoint, and
   exported static HTML searches the embedded note manifest in-browser.
 * Search result clicks open as panels and keep the sidebar open.

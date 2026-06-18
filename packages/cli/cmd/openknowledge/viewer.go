@@ -1670,6 +1670,15 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </button>
       <a class="brand" href="/">Open Knowledge</a>
     </div>
+    <section class="search header-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}" data-primary-search>
+      <label class="sr-only" for="viewer-search">Search</label>
+      <div class="search-field">
+        <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search">
+        <kbd class="search-shortcut">⌘K</kbd>
+      </div>
+      <div class="search-status" aria-live="polite"></div>
+      <div class="search-results" hidden></div>
+    </section>
   </header>
   <aside class="file-sidebar" data-file-sidebar aria-label="File explorer" aria-hidden="true">
     <div class="file-sidebar-head">
@@ -1682,10 +1691,10 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </button>
     </div>
     <section class="search file-sidebar-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}">
-      <label class="search-label" for="viewer-search">Search</label>
-      <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false">
-      <div id="viewer-search-status" class="search-status" aria-live="polite"></div>
-      <div id="viewer-search-results" class="search-results" hidden></div>
+      <label class="search-label" for="viewer-sidebar-search">Search</label>
+      <input id="viewer-sidebar-search" class="search-input" type="search" autocomplete="off" spellcheck="false">
+      <div class="search-status" aria-live="polite"></div>
+      <div class="search-results" hidden></div>
     </section>
     <div class="file-sidebar-tree knowledge-tree" role="tree">
       {{range .Tree}}
@@ -1762,56 +1771,73 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
 
 const viewerSearchJS = `
 (() => {
-  const input = document.getElementById("viewer-search");
-  const results = document.getElementById("viewer-search-results");
-  const status = document.getElementById("viewer-search-status");
-  const search = input?.closest(".search");
-  if (!input || !results || !status || !search) return;
-  const searchURL = search.dataset.searchUrl || "/api/search";
+  const searches = Array.from(document.querySelectorAll(".search"));
+  if (searches.length === 0) return;
   const staticNotes = readStaticNotes();
+  const primarySearch = document.querySelector("[data-primary-search]") || searches[0];
+  const primaryInput = primarySearch?.querySelector(".search-input");
 
-  let timer = 0;
-  let controller = null;
+  searches.forEach(bindSearch);
 
-  input.addEventListener("input", () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(runSearch, 140);
+  document.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      primaryInput?.focus();
+      primaryInput?.select();
+    }
   });
 
-  async function runSearch() {
-    const query = input.value.trim();
-    if (!query) {
-      status.textContent = "";
-      results.hidden = true;
-      results.replaceChildren();
+  function bindSearch(search) {
+    const input = search.querySelector(".search-input");
+    const results = search.querySelector(".search-results");
+    const status = search.querySelector(".search-status");
+    if (!input || !results || !status) {
+      return;
+    }
+    const searchURL = search.dataset.searchUrl || "/api/search";
+    let timer = 0;
+    let controller = null;
+
+    input.addEventListener("input", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(runSearch, 140);
+    });
+
+    async function runSearch() {
+      const query = input.value.trim();
+      if (!query) {
+        status.textContent = "";
+        results.hidden = true;
+        results.replaceChildren();
+        if (controller) controller.abort();
+        return;
+      }
+
+      if (staticNotes.length > 0) {
+        renderResults(results, status, searchStaticNotes(query), query);
+        return;
+      }
+
       if (controller) controller.abort();
-      return;
-    }
+      controller = new AbortController();
+      status.textContent = "Searching...";
 
-    if (staticNotes.length > 0) {
-      renderResults(searchStaticNotes(query), query);
-      return;
-    }
-
-    if (controller) controller.abort();
-    controller = new AbortController();
-    status.textContent = "Searching...";
-
-    try {
-      const response = await fetch(searchURL + "?q=" + encodeURIComponent(query) + "&limit=12", {
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("search request failed");
-      const payload = await response.json();
-      renderResults(payload.results || [], query);
-    } catch (error) {
-      if (error.name === "AbortError") return;
-      status.textContent = "Search failed.";
-      results.hidden = true;
+      try {
+        const response = await fetch(searchURL + "?q=" + encodeURIComponent(query) + "&limit=12", {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("search request failed");
+        const payload = await response.json();
+        renderResults(results, status, payload.results || [], query);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        status.textContent = "Search failed.";
+        results.hidden = true;
+      }
     }
   }
 
-  function renderResults(items, query) {
+  function renderResults(results, status, items, query) {
     results.replaceChildren();
     if (items.length === 0) {
       status.textContent = "No results for \"" + query + "\".";
@@ -3020,6 +3046,19 @@ const viewerJS = `
   });
 
   document.addEventListener("click", function (event) {
+    const searchResult = closestElement(event.target, ".search-result[href]");
+    if (searchResult) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      const targetPath = notePathFromHref(searchResult.getAttribute("href") || searchResult.href);
+      if (targetPath) {
+        event.preventDefault();
+        openInitialNote(targetPath, true);
+        return;
+      }
+    }
+
     if (!closestElement(event.target, "[data-editor-picker]")) {
       closeEditorMenus();
     }
@@ -3068,10 +3107,11 @@ const viewerCSS = `
 body { margin: 0; color: var(--ink); background: var(--paper); line-height: 1.55; }
 body.viewer-document { height: 100vh; overflow: hidden; }
 header { display: flex; min-height: var(--header-height); justify-content: space-between; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .92); color: var(--muted); font-size: 13px; }
-body.viewer-document > header { border-bottom: 0; background: #f0f0f0; transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
+body.viewer-document > header { position: relative; justify-content: center; border-bottom: 0; background: #f0f0f0; transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
 body.viewer-document.is-sidebar-open > header { transform: translateX(var(--sidebar-width)); }
-.header-left { display: inline-flex; min-width: 0; align-items: center; gap: 10px; }
+.header-left { position: absolute; left: 22px; top: 50%; display: inline-flex; min-width: 0; align-items: center; gap: 10px; transform: translateY(-50%); }
 .brand { color: var(--ink); font-weight: 700; text-decoration: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .sidebar-toggle { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #666666; cursor: pointer; }
 .sidebar-toggle:hover, .sidebar-toggle:focus-visible, body.is-sidebar-open .sidebar-toggle { border-color: #cdcdcd; background: #e4e4e4; color: #2f2f2f; outline: none; }
 .sidebar-toggle-icon { width: 19px; height: 19px; }
@@ -3081,6 +3121,14 @@ body.is-sidebar-open .file-sidebar { transform: translateX(0); }
 .file-sidebar-head { display: flex; min-height: var(--header-height); align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 18px; border-bottom: 1px solid #c7c7c7; background: var(--sidebar-head-bg); color: #4f4f4f; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .file-sidebar-close { display: inline-flex; flex: 0 0 auto; width: 30px; height: 30px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #707070; cursor: pointer; }
 .file-sidebar-close:hover, .file-sidebar-close:focus-visible { border-color: #c4c4c4; background: #e5e5e5; color: #2f2f2f; outline: none; }
+.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }
+.search-field { position: relative; display: flex; align-items: center; }
+.header-search .search-input { min-height: 34px; padding: 6px 48px 6px 11px; border-color: #c9c9c9; border-radius: 7px; background: #f9f9f9; font-size: 13px; }
+.header-search .search-shortcut { position: absolute; right: 7px; display: inline-flex; min-width: 32px; height: 22px; align-items: center; justify-content: center; border: 1px solid #d1d1d1; border-radius: 5px; background: #eeeeee; color: #666666; font: 600 11px/1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; pointer-events: none; }
+.header-search .search-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.header-search .search-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 7; gap: 5px; max-height: min(430px, 58vh); overflow: auto; padding: 6px; border: 1px solid #d4d4d4; border-radius: 8px; background: #ffffff; box-shadow: 0 18px 42px rgba(30, 30, 30, .16); }
+.header-search .search-result { padding: 8px 9px; border-color: #e0e0e0; border-radius: 6px; }
+.header-search .search-result:hover, .header-search .search-result:focus-visible { border-color: #c7c7c7; background: #f0f0f0; }
 .file-sidebar-search { flex: 0 0 auto; margin: 0; padding: 10px 12px 11px; border-bottom: 1px solid #c7c7c7; background: #dedede; }
 .file-sidebar-search .search-label { margin-bottom: 5px; color: #5d5d5d; }
 .file-sidebar-search .search-input { min-height: 34px; border-color: #c4c4c4; background: #f7f7f7; padding: 6px 9px; }
@@ -3214,9 +3262,15 @@ ul, ol { padding-left: 22px; }
 }
 @media (max-width: 680px) {
   header { display: block; }
-  header span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+  body:not(.viewer-document) header span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
   .row { grid-template-columns: 1fr; }
-  body.viewer-document header { display: flex; min-height: var(--header-height); }
+  body.viewer-document header { display: flex; min-height: 68px; justify-content: flex-end; padding: 12px; }
+  .header-left { left: 12px; max-width: 42%; }
+  .brand { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-search { width: min(52vw, 320px); min-width: 0; }
+  .header-search .search-shortcut { display: none; }
+  .header-search .search-input { padding-right: 10px; }
+  .header-search .search-results { left: auto; width: min(320px, calc(100vw - 24px)); }
   .note-workspace { height: calc(100vh - 68px); }
   .note-stack { gap: 12px; padding: 12px; }
   .knowledge-empty-inner { padding: 28px 14px 44px; }
