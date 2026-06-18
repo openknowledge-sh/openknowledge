@@ -1657,7 +1657,6 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
 <body class="viewer-document">
   <header>
     <div class="header-left">
-      <a class="brand" href="/">Open Knowledge</a>
       <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Open file explorer" aria-expanded="false" title="File explorer">
         <svg class="sidebar-toggle-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
           <rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect>
@@ -1667,6 +1666,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           <path d="M6 14h.01"></path>
         </svg>
       </button>
+      <a class="brand" href="/">Open Knowledge</a>
     </div>
     <button class="view-mode-toggle" type="button" data-view-mode-toggle aria-label="Switch to focus view" aria-pressed="false" title="Switch to focus view">
       <svg class="view-mode-icon view-mode-icon-focus" data-view-mode-icon="focus" viewBox="0 0 24 24" aria-hidden="true">
