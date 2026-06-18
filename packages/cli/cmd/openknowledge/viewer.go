@@ -2741,20 +2741,43 @@ const viewerJS = `
     }, true);
   }
 
-  async function appendNote(path, animate) {
-    let panel;
+  async function panelForPath(path, animate) {
     try {
-      panel = createPanel(await fetchNote(path), animate);
+      return createPanel(await fetchNote(path), animate);
     } catch (error) {
-      panel = createErrorPanel(path, error);
+      return createErrorPanel(path, error);
     }
+  }
 
+  function appendPanel(panel) {
     stackEl.append(panel);
     setActivePanel(panel);
     updateWorkspaceState();
     updateActiveLinks();
     updateTitle();
     scrollToPanel(panel);
+  }
+
+  async function appendNote(path, animate) {
+    appendPanel(await panelForPath(path, animate));
+  }
+
+  function canUseStackTransition() {
+    return !reduceMotion.matches && typeof document.startViewTransition === "function";
+  }
+
+  async function runStackTransition(mutator) {
+    if (!canUseStackTransition()) {
+      return mutator();
+    }
+
+    document.body.classList.add("is-view-transitioning");
+    try {
+      const transition = document.startViewTransition(mutator);
+      await transition.finished;
+    } finally {
+      document.body.classList.remove("is-view-transitioning");
+    }
   }
 
   function clearStack() {
@@ -2776,53 +2799,78 @@ const viewerJS = `
   }
 
   async function openInitialNote(targetPath, pushHistory) {
-    clearStack();
-    await appendNote(targetPath, true);
-    updateHistory(currentStack(), pushHistory);
+    const panel = await panelForPath(targetPath, true);
+    await runStackTransition(function () {
+      clearStack();
+      appendPanel(panel);
+      updateHistory(currentStack(), pushHistory);
+    });
   }
 
-  function closePanel(panel, pushHistory) {
+  async function closePanel(panel, pushHistory) {
     const before = panels();
     const index = before.indexOf(panel);
-    panel.remove();
+    let nextPanel;
 
-    const remaining = panels();
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
-    updateHistory(currentStack(), pushHistory);
+    await runStackTransition(function () {
+      panel.remove();
 
-    if (!remaining.length) {
+      const remaining = panels();
+      updateWorkspaceState();
+      updateActiveLinks();
+      updateTitle();
+      updateHistory(currentStack(), pushHistory);
+
+      if (!remaining.length) {
+        return;
+      }
+
+      nextPanel = remaining[Math.min(Math.max(index, 0), remaining.length - 1)];
+      setActivePanel(nextPanel);
+    });
+
+    if (!nextPanel) {
       return;
     }
-
-    const nextPanel = remaining[Math.min(Math.max(index, 0), remaining.length - 1)];
-    setActivePanel(nextPanel);
     scrollToPanel(nextPanel);
   }
 
   async function openFromPanel(sourcePanel, targetPath, pushHistory) {
-    const all = panels();
-    let sourceIndex = all.indexOf(sourcePanel);
-    if (sourceIndex < 0) {
-      sourceIndex = all.length - 1;
-    }
+    const panel = await panelForPath(targetPath, true);
+    await runStackTransition(function () {
+      const all = panels();
+      let sourceIndex = all.indexOf(sourcePanel);
+      if (sourceIndex < 0) {
+        sourceIndex = all.length - 1;
+      }
 
-    trimAfter(sourceIndex);
-    await appendNote(targetPath, true);
+      trimAfter(sourceIndex);
+      appendPanel(panel);
 
-    updateHistory(currentStack(), pushHistory);
+      updateHistory(currentStack(), pushHistory);
+    });
   }
 
   async function restoreStack(paths) {
-    clearStack();
+    const loadedPanels = [];
     for (const path of paths) {
-      await appendNote(path, false);
+      loadedPanels.push(await panelForPath(path, false));
     }
 
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
+    await runStackTransition(function () {
+      clearStack();
+      loadedPanels.forEach(function (panel) {
+        stackEl.append(panel);
+      });
+      ensureActivePanel();
+      updateWorkspaceState();
+      updateActiveLinks();
+      updateTitle();
+      const active = activePanel();
+      if (active) {
+        scrollToPanel(active);
+      }
+    });
   }
 
   workspace.addEventListener("click", function (event) {
@@ -3059,6 +3107,7 @@ body.viewer-document.is-focus-mode .note-panel:not(:first-child) { display: none
 body.viewer-document.is-focus-mode .note-close { display: none; }
 .note-panel:focus { border-color: rgba(var(--accent-rgb), .45); }
 .note-panel.is-entering { animation: note-enter .28s cubic-bezier(.22, .8, .2, 1); }
+body.is-view-transitioning .note-panel.is-entering { animation: none; }
 .note-chrome { position: sticky; top: 0; z-index: 1; display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 14px; margin: 0 -34px 24px; padding: 0 12px 0 34px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .96); }
 .note-path { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .note-path:hover { color: var(--accent); }
@@ -3104,6 +3153,25 @@ ul, ol { padding-left: 22px; }
 @keyframes note-enter {
   from { opacity: .001; transform: translateX(34px) scale(.985); }
   to { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes stack-view-old {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to { opacity: .72; transform: translateX(-18px) scale(.992); }
+}
+@keyframes stack-view-new {
+  from { opacity: .001; transform: translateX(22px) scale(.992); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+@supports (view-transition-name: none) {
+  .note-workspace { view-transition-name: note-workspace; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  ::view-transition-old(note-workspace), ::view-transition-new(note-workspace) {
+    animation-duration: .24s;
+    animation-timing-function: cubic-bezier(.22, .8, .2, 1);
+    mix-blend-mode: normal;
+  }
+  ::view-transition-old(note-workspace) { animation-name: stack-view-old; }
+  ::view-transition-new(note-workspace) { animation-name: stack-view-new; }
 }
 @media (prefers-reduced-motion: reduce) {
   .note-workspace { scroll-behavior: auto; }
