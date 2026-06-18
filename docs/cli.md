@@ -96,6 +96,27 @@ validation issues from the bundle listing.
 does not fail the bundle for link warnings because OKF v0.1 keeps link targets
 outside the required conformance rules.
 
+## Static exports
+
+`openknowledge to html [path] --out <folder>` writes one `.html` file for each
+Markdown file in the bundle. It strips YAML frontmatter from rendered pages and
+rewrites Markdown links between local `.md` files to their generated `.html`
+targets.
+
+```sh
+openknowledge to html ./project-memory --out ./project-site
+```
+
+`openknowledge to json [path]` writes the normalized bundle model as JSON. The
+JSON includes file metadata, frontmatter scalar values, Markdown body content,
+local and external links, and validation issues. It prints to stdout by default
+or writes to `--out <file>`.
+
+```sh
+openknowledge to json ./project-memory
+openknowledge to json ./project-memory --out ./bundle.json
+```
+
 ## Release
 
 GitHub Releases are the source of truth for downloadable binaries. Run the
