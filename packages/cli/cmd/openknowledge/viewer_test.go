@@ -73,8 +73,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
 	}
-	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `id="viewer-sidebar-search"`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
-		t.Fatalf("viewer file page did not include sidebar search:\n%s", page)
+	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
+		t.Fatalf("viewer file page did not include top bar search:\n%s", page)
+	}
+	if strings.Contains(page, `id="viewer-sidebar-search"`) || strings.Contains(page, `file-sidebar-search`) {
+		t.Fatalf("viewer file sidebar should not include search:\n%s", page)
 	}
 	if !strings.Contains(page, `.search-results[hidden] { display: none; }`) || !strings.Contains(page, `closeSearchResults(searchResult)`) || !strings.Contains(page, `closeSearchResults(link)`) {
 		t.Fatalf("viewer search dropdown should stay hidden when empty and close after selecting a result:\n%s", page)
@@ -194,8 +197,11 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if !strings.Contains(index, `function fetchNote(path)`) || !strings.Contains(index, `staticNotesByPath[path]`) {
 		t.Fatalf("expected exported index to use static note runtime:\n%s", index)
 	}
-	if !strings.Contains(index, `id="viewer-search"`) || !strings.Contains(index, `data-primary-search`) || !strings.Contains(index, `id="viewer-sidebar-search"`) || !strings.Contains(index, `searchStaticNotes`) || !strings.Contains(index, `staticRelativeURL(item.path)`) {
-		t.Fatalf("expected exported index to include static sidebar search:\n%s", index)
+	if !strings.Contains(index, `id="viewer-search"`) || !strings.Contains(index, `data-primary-search`) || !strings.Contains(index, `searchStaticNotes`) || !strings.Contains(index, `staticRelativeURL(item.path)`) {
+		t.Fatalf("expected exported index to include static top bar search:\n%s", index)
+	}
+	if strings.Contains(index, `id="viewer-sidebar-search"`) || strings.Contains(index, `file-sidebar-search`) {
+		t.Fatalf("expected exported index to omit sidebar search:\n%s", index)
 	}
 	if !strings.Contains(index, `data-knowledge-graph`) || !strings.Contains(index, `"source":"index.md"`) || !strings.Contains(index, `"target":"guides/setup.md"`) {
 		t.Fatalf("expected exported index to include static knowledge graph:\n%s", index)

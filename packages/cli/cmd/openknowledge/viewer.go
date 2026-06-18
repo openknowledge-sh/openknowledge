@@ -1809,12 +1809,6 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </svg>
       </button>
     </div>
-    <section class="search file-sidebar-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}">
-      <label class="search-label" for="viewer-sidebar-search">Search</label>
-      <input id="viewer-sidebar-search" class="search-input" type="search" autocomplete="off" spellcheck="false">
-      <div class="search-status" aria-live="polite"></div>
-      <div class="search-results" hidden></div>
-    </section>
     <div class="file-sidebar-tree knowledge-tree" role="tree">
       {{range .Tree}}
         {{if .Directory}}
@@ -3394,13 +3388,6 @@ body.is-sidebar-open .file-sidebar { transform: translateX(0); }
 .header-search .search-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 7; gap: 5px; max-height: min(430px, 58vh); overflow: auto; padding: 6px; border: 1px solid #d4d4d4; border-radius: 8px; background: #ffffff; box-shadow: 0 18px 42px rgba(30, 30, 30, .16); }
 .header-search .search-result { padding: 8px 9px; border-color: #e0e0e0; border-radius: 6px; }
 .header-search .search-result:hover, .header-search .search-result:focus-visible { border-color: #c7c7c7; background: #f0f0f0; }
-.file-sidebar-search { flex: 0 0 auto; margin: 0; padding: 10px 12px 11px; border-bottom: 1px solid #c7c7c7; background: #dedede; }
-.file-sidebar-search .search-label { margin-bottom: 5px; color: #5d5d5d; }
-.file-sidebar-search .search-input { min-height: 34px; border-color: #c4c4c4; background: #f7f7f7; padding: 6px 9px; }
-.file-sidebar-search .search-status { min-height: 18px; margin-top: 5px; font-size: 12px; }
-.file-sidebar-search .search-results { gap: 5px; max-height: min(280px, 38vh); overflow: auto; }
-.file-sidebar-search .search-result { padding: 7px 8px; border-color: #cbcbcb; background: #f7f7f7; }
-.file-sidebar-search .search-result:hover, .file-sidebar-search .search-result:focus-visible { border-color: #b9b9b9; background: #ececec; }
 .file-sidebar-tree { flex: 1 1 auto; width: 100%; overflow: auto; padding: 4px 10px 18px 8px; }
 main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
 .workspaces { margin: 0 0 28px; }

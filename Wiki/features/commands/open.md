@@ -25,9 +25,9 @@ file tree on the left and a connected graph of Markdown files on the right. The
 graph is built from local Markdown links and graph nodes open files as panels.
 
 The top bar includes the primary search field, and `Command+K` on macOS or
-`Ctrl+K` elsewhere focuses it. The file explorer sidebar also includes search.
-In the local server viewer, search uses the search API; in exported static HTML
-it searches the embedded static note manifest in the browser.
+`Ctrl+K` elsewhere focuses it. In the local server viewer, search uses the
+search API; in exported static HTML it searches the embedded static note
+manifest in the browser.
 
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.
@@ -83,7 +83,7 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
 * Review validation warnings alongside the bundle tree.
 * Browse local Markdown links as adjacent panels without leaving the current
   context.
-* Search the knowledge base from the file explorer sidebar.
+* Search the knowledge base from the top bar.
 * Browse command and feature docs without leaving the repo.
 
 ## Source Anchors

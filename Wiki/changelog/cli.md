@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Viewer search moved out of sidebar
+
+* Removed the duplicate search box from the file explorer sidebar; viewer
+  search now lives only in the top bar.
+* `Command+K` on macOS and `Ctrl+K` elsewhere still focus the top-bar search,
+  and exported static HTML keeps the same search behavior.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Empty workspace graph overview
 
 * The panel viewer empty workspace now uses a 50/50 overview with the file tree
