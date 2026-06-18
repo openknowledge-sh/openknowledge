@@ -94,7 +94,9 @@ the registry contains several, choose one from the selector. `openknowledge open
 <path-or-name>` opens that folder or registry alias directly.
 
 By default it binds to `127.0.0.1` on a free port and keeps running until the
-process is stopped. Use `--host` or `--port` when a fixed address is needed.
+process is stopped, and opens the printed view URL in the default browser. Use
+`--host` or `--port` when a fixed address is needed, and `--no-browser` for
+headless or scripted runs.
 The viewer also serves each knowledge base at a registry-style local alias path.
 For a registered name `personal`, `openknowledge open --port 3000` serves:
 

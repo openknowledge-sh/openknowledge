@@ -688,6 +688,7 @@ Usage:
   openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
   openknowledge open --local-domain <domain> [path]
+  openknowledge open --no-browser [path]
   openknowledge to html --out <folder> [path]
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
@@ -881,6 +882,7 @@ Usage:
   openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
   openknowledge open --local-domain <domain> [path]
+  openknowledge open --no-browser [path]
   openknowledge open --help
 
 Arguments:
@@ -895,6 +897,8 @@ Flags:
   --local-domain
                Local alias domain to print. Defaults to open.knowledge.
                Set to an empty string to hide the alias URL.
+  --no-browser
+               Print the URL without opening the default browser.
 
 Examples:
   openknowledge open

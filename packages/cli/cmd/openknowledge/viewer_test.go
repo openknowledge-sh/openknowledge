@@ -220,6 +220,29 @@ func TestDirectViewerAliasNameUsesRegistryPath(t *testing.T) {
 	}
 }
 
+func TestBrowserOpenCommand(t *testing.T) {
+	tests := []struct {
+		goos    string
+		command string
+		args    []string
+	}{
+		{goos: "darwin", command: "open", args: []string{"http://open.knowledge:3000/personal/"}},
+		{goos: "linux", command: "xdg-open", args: []string{"http://open.knowledge:3000/personal/"}},
+		{goos: "windows", command: "rundll32", args: []string{"url.dll,FileProtocolHandler", "http://open.knowledge:3000/personal/"}},
+	}
+
+	for _, test := range tests {
+		command, args, ok := browserOpenCommand(test.goos, "http://open.knowledge:3000/personal/")
+		if !ok || command != test.command || strings.Join(args, "\x00") != strings.Join(test.args, "\x00") {
+			t.Fatalf("browserOpenCommand(%q) = %q %#v %v, want %q %#v true", test.goos, command, args, ok, test.command, test.args)
+		}
+	}
+
+	if _, _, ok := browserOpenCommand("linux", " "); ok {
+		t.Fatal("expected empty target to be rejected")
+	}
+}
+
 func writeViewerFile(t *testing.T, root string, name string, content string) {
 	t.Helper()
 	path := filepath.Join(root, name)

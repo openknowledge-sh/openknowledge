@@ -10,8 +10,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,6 +32,7 @@ func runOpen(args []string) int {
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
 	name := fs.String("name", "", "local alias name for direct path mode")
 	localDomain := fs.String("local-domain", "open.knowledge", "local alias domain to print, or empty to disable")
+	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -81,15 +84,23 @@ func runOpen(args []string) int {
 	}
 
 	displayHost, displayPort := displayHostPort(listener.Addr())
+	viewURL := viewerDisplayURL(displayHost, displayPort, "")
 
 	if domain := strings.TrimSpace(*localDomain); domain != "" {
-		fmt.Printf("Open Knowledge view: %s\n", viewerAliasDisplayURL(domain, displayPort, aliasNames))
+		viewURL = viewerAliasDisplayURL(domain, displayPort, aliasNames)
+		fmt.Printf("Open Knowledge view: %s\n", viewURL)
 		fmt.Printf("Open Knowledge fallback: %s\n", viewerDisplayURL(displayHost, displayPort, ""))
 	} else {
-		fmt.Printf("Open Knowledge view: %s\n", viewerDisplayURL(displayHost, displayPort, ""))
+		fmt.Printf("Open Knowledge view: %s\n", viewURL)
 	}
 	details()
 	fmt.Println(terminal.muted("Press Ctrl+C to stop."))
+
+	if !*noBrowser {
+		if err := openBrowser(viewURL); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not open browser: %v\n", err)
+		}
+	}
 
 	if err := http.Serve(listener, handler); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -788,13 +799,10 @@ func viewerLinkWithPrefix(prefix string) okf.LinkResolver {
 }
 
 func viewerAliasDisplayURL(host string, port string, aliasNames []string) string {
-	if len(aliasNames) == 0 {
-		return viewerDisplayURL(host, port, "")
-	}
 	if len(aliasNames) == 1 {
 		return viewerDisplayURL(host, port, localAliasPrefix(aliasNames[0]))
 	}
-	return viewerDisplayBaseURL(host, port) + "<name>/"
+	return viewerDisplayURL(host, port, "")
 }
 
 func viewerDisplayURL(host string, port string, basePath string) string {
@@ -864,6 +872,36 @@ func normalizeLocalAliasName(value string) string {
 		}
 	}
 	return strings.Trim(builder.String(), "-_.")
+}
+
+func openBrowser(target string) error {
+	command, args, ok := browserOpenCommand(runtime.GOOS, target)
+	if !ok {
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+	cmd := exec.Command(command, args...)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() {
+		_ = cmd.Wait()
+	}()
+	return nil
+}
+
+func browserOpenCommand(goos string, target string) (string, []string, bool) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", nil, false
+	}
+	switch goos {
+	case "darwin":
+		return "open", []string{target}, true
+	case "windows":
+		return "rundll32", []string{"url.dll,FileProtocolHandler", target}, true
+	default:
+		return "xdg-open", []string{target}, true
+	}
 }
 
 func titleForMarkdownFile(rel string) string {
