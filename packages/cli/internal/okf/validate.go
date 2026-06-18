@@ -11,7 +11,7 @@ import (
 )
 
 var logDateHeading = regexp.MustCompile(`^##\s+\d{4}-\d{2}-\d{2}\s*$`)
-var markdownLink = regexp.MustCompile(`!?\[[^\]]*\]\(([^\s)]+)(?:\s+"[^"]*")?\)`)
+var markdownLinkDetail = regexp.MustCompile(`(!?)\[([^\]]*)\]\(([^\s)]+)(?:\s+"[^"]*")?\)`)
 
 type Issue struct {
 	Path    string `json:"path"`
@@ -178,8 +178,8 @@ func validateConcept(rel string, meta frontmatter, result *Result) {
 
 func validateLinks(root string, rel string, content string, result *Result) {
 	linkContent := maskFencedCode(content)
-	for _, match := range markdownLink.FindAllStringSubmatchIndex(linkContent, -1) {
-		href := linkContent[match[2]:match[3]]
+	for _, match := range markdownLinkDetail.FindAllStringSubmatchIndex(linkContent, -1) {
+		href := linkContent[match[6]:match[7]]
 		if shouldSkipLink(href) {
 			continue
 		}

@@ -32,6 +32,8 @@ func main() {
 		os.Exit(runNew(os.Args[2:]))
 	case "open":
 		os.Exit(runOpen(os.Args[2:]))
+	case "to":
+		os.Exit(runTo(os.Args[2:]))
 	case "spec":
 		os.Exit(runSpec(os.Args[2:]))
 	case "validate":
@@ -271,6 +273,138 @@ func runList(args []string) int {
 	return 0
 }
 
+func runTo(args []string) int {
+	if len(args) == 0 || isHelpFlag(args[0]) {
+		fmt.Fprint(os.Stdout, toHelpText())
+		return 0
+	}
+
+	switch args[0] {
+	case "html":
+		return runToHTML(args[1:])
+	case "json":
+		return runToJSON(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "unknown to target: %s\n\n", args[0])
+		fmt.Fprint(os.Stderr, toHelpText())
+		return 2
+	}
+}
+
+type toOptions struct {
+	path string
+	out  string
+	spec string
+}
+
+func runToHTML(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, toHTMLHelpText())
+		return 0
+	}
+	options, err := parseToOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if options.out == "" {
+		fmt.Fprintln(os.Stderr, "openknowledge to html requires --out <folder>")
+		return 2
+	}
+
+	result, err := okf.WriteHTMLWithVersion(options.path, options.out, options.spec)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	terminal.success("Exported HTML")
+	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
+	fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(result.Out))
+	fmt.Printf("%s %d files\n", terminal.muted("wrote"), len(result.Written))
+	return 0
+}
+
+func runToJSON(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, toJSONHelpText())
+		return 0
+	}
+	options, err := parseToOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	bundle, err := okf.ParseBundleWithVersion(options.path, options.spec)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	data, err := json.MarshalIndent(bundle, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	data = append(data, '\n')
+
+	if options.out != "" {
+		if err := os.WriteFile(options.out, data, 0644); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		terminal.success("Exported JSON")
+		fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(bundle.Root))
+		fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(options.out))
+		return 0
+	}
+
+	fmt.Print(string(data))
+	return 0
+}
+
+func parseToOptions(args []string) (toOptions, error) {
+	options := toOptions{path: ".", spec: "latest"}
+	pathSet := false
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--out":
+			index++
+			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
+				return toOptions{}, fmt.Errorf("--out requires a value")
+			}
+			options.out = args[index]
+		case strings.HasPrefix(arg, "--out="):
+			options.out = strings.TrimPrefix(arg, "--out=")
+			if strings.TrimSpace(options.out) == "" {
+				return toOptions{}, fmt.Errorf("--out requires a value")
+			}
+		case arg == "--spec":
+			index++
+			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
+				return toOptions{}, fmt.Errorf("--spec requires a value")
+			}
+			options.spec = args[index]
+		case strings.HasPrefix(arg, "--spec="):
+			options.spec = strings.TrimPrefix(arg, "--spec=")
+			if strings.TrimSpace(options.spec) == "" {
+				return toOptions{}, fmt.Errorf("--spec requires a value")
+			}
+		case strings.HasPrefix(arg, "-"):
+			return toOptions{}, fmt.Errorf("unknown flag: %s", arg)
+		default:
+			if pathSet {
+				return toOptions{}, fmt.Errorf("to accepts at most one path")
+			}
+			options.path = arg
+			pathSet = true
+		}
+	}
+	return options, nil
+}
+
 func runVersion(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, versionHelpText())
@@ -417,6 +551,9 @@ Usage:
   openknowledge new --name <name> [folder]
   openknowledge open [path]
   openknowledge open --host <host> --port <port> [path]
+  openknowledge to html --out <folder> [path]
+  openknowledge to json [path]
+  openknowledge to json --out <file> [path]
   openknowledge spec latest|<version>
   openknowledge validate [path]
   openknowledge validate --spec <version> [path]
@@ -429,6 +566,7 @@ Commands:
   setup      Print an agent setup prompt.
   new        Scaffold a local Open Knowledge bundle.
   open       Start a local Markdown viewer.
+  to         Convert a bundle to another format.
   spec       Print an embedded OKF spec.
   validate   Validate a bundle against an OKF spec.
   list       Print a bundle tree, with optional JSON output.
@@ -442,9 +580,80 @@ Run openknowledge <command> --help for command-specific help.
 Examples:
   openknowledge new ./project-memory
   openknowledge validate ./project-memory
+  openknowledge to html --out ./site ./project-memory
+  openknowledge to json ./project-memory
   openknowledge list --json ./project-memory
   openknowledge open ./project-memory
 `
+}
+
+func toHelpText() string {
+	return fmt.Sprintf(`openknowledge to
+
+Convert an Open Knowledge bundle to another format.
+
+Usage:
+  openknowledge to html --out <folder> [path]
+  openknowledge to json [path]
+  openknowledge to json --out <file> [path]
+  openknowledge to --help
+
+Targets:
+  html       Write a static HTML site.
+  json       Write normalized bundle JSON.
+
+Flags:
+  --spec     OKF spec version. Defaults to latest.
+  --out      Output folder for html, optional output file for json.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func toHTMLHelpText() string {
+	return fmt.Sprintf(`openknowledge to html
+
+Write a static HTML site for an Open Knowledge bundle.
+
+Usage:
+  openknowledge to html --out <folder> [path]
+  openknowledge to html --spec <version> --out <folder> [path]
+  openknowledge to html --help
+
+Arguments:
+  path        Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --out       Output folder for generated HTML files. Required.
+  --spec      OKF spec version. Defaults to latest.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func toJSONHelpText() string {
+	return fmt.Sprintf(`openknowledge to json
+
+Write normalized JSON for an Open Knowledge bundle.
+
+Usage:
+  openknowledge to json [path]
+  openknowledge to json --out <file> [path]
+  openknowledge to json --spec <version> [path]
+  openknowledge to json --help
+
+Arguments:
+  path        Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --out       Output file. Defaults to stdout.
+  --spec      OKF spec version. Defaults to latest.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
 }
 
 func setupHelpText() string {

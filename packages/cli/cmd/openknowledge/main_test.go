@@ -14,6 +14,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge setup",
 		"openknowledge new --name <name> [folder]",
 		"openknowledge open --host <host> --port <port> [path]",
+		"openknowledge to html --out <folder> [path]",
+		"openknowledge to json --out <file> [path]",
 		"openknowledge validate --spec <version> [path]",
 		"openknowledge list --spec <version> [path]",
 		"openknowledge list --json [path]",
@@ -21,6 +23,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"setup      Print an agent setup prompt.",
 		"new        Scaffold a local Open Knowledge bundle.",
 		"open       Start a local Markdown viewer.",
+		"to         Convert a bundle to another format.",
 		"spec       Print an embedded OKF spec.",
 		"validate   Validate a bundle against an OKF spec.",
 		"list       Print a bundle tree, with optional JSON output.",
@@ -29,6 +32,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"-h, --help  Show this help.",
 		"Examples:",
 		"openknowledge validate ./project-memory",
+		"openknowledge to html --out ./site ./project-memory",
+		"openknowledge to json ./project-memory",
 	}
 
 	for _, expected := range required {
@@ -73,6 +78,28 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge spec latest|<version>",
 				"Versions:",
 				"latest, 0.1",
+			},
+		},
+		"to": {
+			help: toHelpText(),
+			required: []string{
+				"openknowledge to html --out <folder> [path]",
+				"openknowledge to json --out <file> [path]",
+				"Targets:",
+			},
+		},
+		"to html": {
+			help: toHTMLHelpText(),
+			required: []string{
+				"openknowledge to html --spec <version> --out <folder> [path]",
+				"Output folder for generated HTML files. Required.",
+			},
+		},
+		"to json": {
+			help: toJSONHelpText(),
+			required: []string{
+				"openknowledge to json --out <file> [path]",
+				"Output file. Defaults to stdout.",
 			},
 		},
 		"validate": {
@@ -125,5 +152,21 @@ func TestHasHelpFlagRecognizesCommonHelpForms(t *testing.T) {
 	}
 	if hasHelpFlag([]string{"./project-memory"}) {
 		t.Fatal("did not expect normal arguments to be recognized as help")
+	}
+}
+
+func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
+	options, err := parseToOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.path != "./project-memory" || options.out != "./site" || options.spec != "0.1" {
+		t.Fatalf("unexpected options: %#v", options)
+	}
+}
+
+func TestParseToOptionsRejectsMultiplePaths(t *testing.T) {
+	if _, err := parseToOptions([]string{".", "./other"}); err == nil {
+		t.Fatal("expected multiple paths to fail")
 	}
 }

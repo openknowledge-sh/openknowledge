@@ -3,15 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html"
 	"html/template"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -165,7 +162,7 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 		Title: titleForMarkdownFile(rel),
 		Root:  root,
 		Path:  rel,
-		Body:  renderMarkdown(content, rel),
+		Body:  template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), rel, okf.ViewerLink)),
 	})
 }
 
@@ -232,86 +229,6 @@ func titleForMarkdownFile(rel string) string {
 	return strings.Join(words, " ")
 }
 
-var linkPattern = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-
-func renderMarkdown(content []byte, currentRel string) template.HTML {
-	text := stripFrontmatter(string(content))
-	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	var builder strings.Builder
-	inList := false
-	inCode := false
-	var paragraph []string
-
-	closeParagraph := func() {
-		if len(paragraph) == 0 {
-			return
-		}
-		builder.WriteString("<p>")
-		builder.WriteString(renderInline(strings.Join(paragraph, " "), currentRel))
-		builder.WriteString("</p>\n")
-		paragraph = nil
-	}
-	closeList := func() {
-		if !inList {
-			return
-		}
-		builder.WriteString("</ul>\n")
-		inList = false
-	}
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "```") {
-			closeParagraph()
-			closeList()
-			if inCode {
-				builder.WriteString("</code></pre>\n")
-				inCode = false
-			} else {
-				builder.WriteString("<pre><code>")
-				inCode = true
-			}
-			continue
-		}
-		if inCode {
-			builder.WriteString(html.EscapeString(line))
-			builder.WriteByte('\n')
-			continue
-		}
-		if trimmed == "" {
-			closeParagraph()
-			closeList()
-			continue
-		}
-		if level := headingLevel(trimmed); level > 0 {
-			closeParagraph()
-			closeList()
-			content := strings.TrimSpace(trimmed[level:])
-			fmt.Fprintf(&builder, "<h%d>%s</h%d>\n", level, renderInline(content, currentRel), level)
-			continue
-		}
-		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
-			closeParagraph()
-			if !inList {
-				builder.WriteString("<ul>\n")
-				inList = true
-			}
-			builder.WriteString("<li>")
-			builder.WriteString(renderInline(strings.TrimSpace(trimmed[2:]), currentRel))
-			builder.WriteString("</li>\n")
-			continue
-		}
-		paragraph = append(paragraph, trimmed)
-	}
-
-	closeParagraph()
-	closeList()
-	if inCode {
-		builder.WriteString("</code></pre>\n")
-	}
-	return template.HTML(builder.String())
-}
-
 func stripFrontmatter(text string) string {
 	if !strings.HasPrefix(text, "---\n") {
 		return text
@@ -322,87 +239,6 @@ func stripFrontmatter(text string) string {
 		return text
 	}
 	return rest[index+len("\n---\n"):]
-}
-
-func headingLevel(line string) int {
-	level := 0
-	for level < len(line) && level < 6 && line[level] == '#' {
-		level++
-	}
-	if level == 0 || level >= len(line) || line[level] != ' ' {
-		return 0
-	}
-	return level
-}
-
-func renderInline(text string, currentRel string) string {
-	var builder strings.Builder
-	last := 0
-	for _, match := range linkPattern.FindAllStringSubmatchIndex(text, -1) {
-		builder.WriteString(renderInlineCode(text[last:match[0]]))
-		label := text[match[2]:match[3]]
-		href := text[match[4]:match[5]]
-		builder.WriteString(`<a href="`)
-		builder.WriteString(html.EscapeString(resolveLink(currentRel, href)))
-		builder.WriteString(`">`)
-		builder.WriteString(renderInlineCode(label))
-		builder.WriteString("</a>")
-		last = match[1]
-	}
-	builder.WriteString(renderInlineCode(text[last:]))
-	return builder.String()
-}
-
-func renderInlineCode(text string) string {
-	parts := strings.Split(text, "`")
-	var builder strings.Builder
-	for index, part := range parts {
-		if index%2 == 1 {
-			builder.WriteString("<code>")
-			builder.WriteString(html.EscapeString(part))
-			builder.WriteString("</code>")
-			continue
-		}
-		builder.WriteString(html.EscapeString(part))
-	}
-	return builder.String()
-}
-
-func resolveLink(currentRel string, href string) string {
-	trimmed := strings.TrimSpace(href)
-	if trimmed == "" {
-		return "#"
-	}
-	parsed, err := url.Parse(trimmed)
-	if err == nil && parsed.Scheme != "" {
-		if parsed.Scheme == "http" || parsed.Scheme == "https" {
-			return trimmed
-		}
-		return "#"
-	}
-	if strings.HasPrefix(trimmed, "#") {
-		return trimmed
-	}
-
-	linkPath := trimmed
-	fragment := ""
-	if hash := strings.Index(linkPath, "#"); hash >= 0 {
-		fragment = linkPath[hash:]
-		linkPath = linkPath[:hash]
-	}
-	currentDir := path.Dir(strings.TrimPrefix(path.Clean("/"+currentRel), "/"))
-	if currentDir == "." {
-		currentDir = ""
-	}
-	if strings.HasSuffix(linkPath, "/") {
-		target := path.Clean(path.Join(currentDir, linkPath, "index.md"))
-		return fileURL(target) + fragment
-	}
-	target := path.Clean(path.Join(currentDir, linkPath))
-	if isMarkdownFile(target) {
-		return fileURL(target) + fragment
-	}
-	return trimmed
 }
 
 var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!doctype html>
@@ -476,6 +312,7 @@ main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56p
 h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.15; }
 h2 { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); }
 h3 { margin-top: 26px; }
+hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .lede { margin: 0 0 26px; color: var(--muted); }
 .list { border-top: 1px solid var(--line); }
 .row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(160px, .7fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
@@ -486,10 +323,13 @@ h3 { margin-top: 26px; }
 .document { max-width: 780px; }
 .document p, .document li { color: #2f3834; }
 a { color: var(--accent); text-underline-offset: 3px; }
+strong { color: var(--ink); font-weight: 700; }
+blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--line); color: var(--muted); }
+blockquote p { color: var(--muted); }
 code { padding: 1px 4px; border-radius: 4px; background: #edf2ef; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
 pre { overflow-x: auto; padding: 14px; border: 1px solid var(--line); background: #111714; color: #f3f7f4; }
 pre code { padding: 0; background: transparent; color: inherit; }
-ul { padding-left: 22px; }
+ul, ol { padding-left: 22px; }
 .empty { color: var(--muted); }
 @media (max-width: 680px) {
   header { display: block; }
