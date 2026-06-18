@@ -20,6 +20,8 @@ that were updated.
   the horizontally scrollable panel stack.
 * File-tree and Markdown link navigation now consistently append or replace
   panels instead of switching into a single-page layout.
+* Stack View Transitions now clear fallback panel-entry animation classes before
+  the live DOM is shown again, avoiding a second flash after the transition.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.
 * Docs updated: `Wiki/features/commands/open.md`,

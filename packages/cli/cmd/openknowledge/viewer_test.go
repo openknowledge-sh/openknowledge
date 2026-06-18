@@ -88,6 +88,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
 	}
+	if !strings.Contains(page, `clearEnteringPanels();`) || !strings.Contains(page, `document.body.classList.remove("is-view-transitioning")`) {
+		t.Fatalf("viewer stack transitions should clear fallback panel animations before showing the live DOM:\n%s", page)
+	}
 	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
 		t.Fatalf("viewer file page did not include knowledge tree empty state:\n%s", page)
 	}

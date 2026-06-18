@@ -20,6 +20,9 @@ single-page focus mode; the panel stack is the default and only document
 browsing layout. The file explorer can be opened from the header and stays open
 while selecting files.
 
+Panel changes use the browser View Transitions API when it is available and a
+single CSS entry animation as a fallback when it is not.
+
 ## Usage
 
 ```sh

@@ -2691,6 +2691,12 @@ const viewerJS = `
     return !reduceMotion.matches && typeof document.startViewTransition === "function";
   }
 
+  function clearEnteringPanels() {
+    stackEl.querySelectorAll(".note-panel.is-entering").forEach(function (panel) {
+      panel.classList.remove("is-entering");
+    });
+  }
+
   async function runStackTransition(mutator) {
     if (!canUseStackTransition()) {
       return mutator();
@@ -2701,6 +2707,7 @@ const viewerJS = `
       const transition = document.startViewTransition(mutator);
       await transition.finished;
     } finally {
+      clearEnteringPanels();
       document.body.classList.remove("is-view-transitioning");
     }
   }
