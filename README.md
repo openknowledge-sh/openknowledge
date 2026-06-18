@@ -1,5 +1,5 @@
 
-  <img src="docs/assets/openknowledge-readme-logo.png" alt="Open Knowledge CLI" width="140">
+  <img src="docs/assets/openknowledge-readme-logo.png" alt="Open Knowledge CLI" width="200">
 
 
 Open Knowledge CLI helps you create local LLM wikis that are readable for both
