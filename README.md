@@ -60,7 +60,7 @@ knowledge base. With workflows and agent instructions to help your agents mainta
 - Guided setup through an agent interview, so the wiki starts with the right
   purpose, structure, and maintenance habits and rules.
 - An agentic maintenance loop so wiki stays up to date.
-- Local markdown viewer to inspect the wiki.
+- Local markdown viewer with full-text search to inspect the wiki.
 - Consistency against the [Open Knowledge Format v0.1][okf-spec]
   specification.
 

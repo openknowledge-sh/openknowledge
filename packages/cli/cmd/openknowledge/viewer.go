@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
@@ -76,6 +79,7 @@ func runOpen(args []string) int {
 
 func newViewerHandler(root string) http.Handler {
 	mux := http.NewServeMux()
+	searchCache := &viewerSearchCache{root: root}
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/" {
 			http.NotFound(response, request)
@@ -86,6 +90,9 @@ func newViewerHandler(root string) http.Handler {
 	mux.HandleFunc("/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/file/")
 		renderViewerFile(response, request, root, rel)
+	})
+	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
+		renderViewerSearch(response, request, searchCache)
 	})
 	return mux
 }
@@ -164,6 +171,161 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 		Path:  rel,
 		Body:  template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), rel, okf.ViewerLink)),
 	})
+}
+
+type viewerSearchResponse struct {
+	Query   string               `json:"query"`
+	Results []viewerSearchResult `json:"results"`
+}
+
+type viewerSearchResult struct {
+	Path        string   `json:"path"`
+	URL         string   `json:"url"`
+	ID          string   `json:"id"`
+	Kind        string   `json:"kind"`
+	Type        string   `json:"type,omitempty"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Snippet     string   `json:"snippet,omitempty"`
+	Score       float64  `json:"score"`
+	Matches     []string `json:"matches,omitempty"`
+}
+
+type viewerSearchCache struct {
+	root        string
+	mutex       sync.Mutex
+	fingerprint string
+	index       okf.SearchIndex
+}
+
+func (cache *viewerSearchCache) Search(options okf.SearchOptions) ([]okf.SearchResult, error) {
+	fingerprint, err := markdownFingerprint(cache.root)
+	if err != nil {
+		return nil, err
+	}
+
+	cache.mutex.Lock()
+	if cache.fingerprint == fingerprint {
+		index := cache.index
+		cache.mutex.Unlock()
+		return index.Search(options), nil
+	}
+	cache.mutex.Unlock()
+
+	bundle, err := okf.ParseBundle(cache.root)
+	if err != nil {
+		return nil, err
+	}
+	index := okf.NewSearchIndex(bundle)
+
+	cache.mutex.Lock()
+	cache.fingerprint = fingerprint
+	cache.index = index
+	cache.mutex.Unlock()
+
+	return index.Search(options), nil
+}
+
+func markdownFingerprint(root string) (string, error) {
+	var builder strings.Builder
+	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !isMarkdownFile(current) {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, current)
+		if err != nil {
+			return err
+		}
+		builder.WriteString(filepath.ToSlash(rel))
+		builder.WriteByte('\x00')
+		builder.WriteString(strconv.FormatInt(info.Size(), 10))
+		builder.WriteByte('\x00')
+		builder.WriteString(strconv.FormatInt(info.ModTime().UnixNano(), 10))
+		builder.WriteByte('\n')
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return builder.String(), nil
+}
+
+func renderViewerSearch(response http.ResponseWriter, request *http.Request, searchCache *viewerSearchCache) {
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", http.MethodGet)
+		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := strings.TrimSpace(request.URL.Query().Get("q"))
+	limit := 12
+	if rawLimit := strings.TrimSpace(request.URL.Query().Get("limit")); rawLimit != "" {
+		parsed, err := strconv.Atoi(rawLimit)
+		if err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if limit > 30 {
+		limit = 30
+	}
+
+	if query == "" {
+		writeViewerSearchJSON(response, viewerSearchResponse{Query: query})
+		return
+	}
+
+	results, err := searchCache.Search(okf.SearchOptions{
+		Query: query,
+		Limit: limit,
+		Fuzzy: true,
+	})
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	payload := viewerSearchResponse{
+		Query:   query,
+		Results: make([]viewerSearchResult, 0, len(results)),
+	}
+	for _, result := range results {
+		payload.Results = append(payload.Results, viewerSearchResult{
+			Path:        result.Path,
+			URL:         fileURL(result.Path),
+			ID:          result.ID,
+			Kind:        result.Kind,
+			Type:        result.Type,
+			Title:       result.Title,
+			Description: result.Description,
+			Snippet:     result.Snippet,
+			Score:       result.Score,
+			Matches:     result.Matches,
+		})
+	}
+
+	writeViewerSearchJSON(response, payload)
+}
+
+func writeViewerSearchJSON(response http.ResponseWriter, payload viewerSearchResponse) {
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(response)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(payload); err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func renderHTML(response http.ResponseWriter, tmpl *template.Template, data any) {
@@ -257,6 +419,12 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
   <main>
     <h1>{{.Title}}</h1>
     <p class="lede">Local agentic wiki rendered from Markdown files.</p>
+    <section class="search" role="search" aria-label="Search">
+      <label class="search-label" for="viewer-search">Search</label>
+      <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false">
+      <div id="viewer-search-status" class="search-status" aria-live="polite"></div>
+      <div id="viewer-search-results" class="search-results" hidden></div>
+    </section>
     <section class="list">
       {{range .Entries}}
         <a class="row" href="{{.URL}}">
@@ -269,6 +437,7 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
       {{end}}
     </section>
   </main>
+  <script>` + viewerSearchJS + `</script>
 </body>
 </html>`))
 
@@ -293,6 +462,87 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
 </body>
 </html>`))
 
+const viewerSearchJS = `
+(() => {
+  const input = document.getElementById("viewer-search");
+  const results = document.getElementById("viewer-search-results");
+  const status = document.getElementById("viewer-search-status");
+  if (!input || !results || !status) return;
+
+  let timer = 0;
+  let controller = null;
+
+  input.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(runSearch, 140);
+  });
+
+  async function runSearch() {
+    const query = input.value.trim();
+    if (!query) {
+      status.textContent = "";
+      results.hidden = true;
+      results.replaceChildren();
+      if (controller) controller.abort();
+      return;
+    }
+
+    if (controller) controller.abort();
+    controller = new AbortController();
+    status.textContent = "Searching...";
+
+    try {
+      const response = await fetch("/api/search?q=" + encodeURIComponent(query) + "&limit=12", {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("search request failed");
+      const payload = await response.json();
+      renderResults(payload.results || [], query);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      status.textContent = "Search failed.";
+      results.hidden = true;
+    }
+  }
+
+  function renderResults(items, query) {
+    results.replaceChildren();
+    if (items.length === 0) {
+      status.textContent = "No results for \"" + query + "\".";
+      results.hidden = true;
+      return;
+    }
+
+    status.textContent = items.length + " result" + (items.length === 1 ? "" : "s");
+    results.hidden = false;
+    for (const item of items) {
+      const link = document.createElement("a");
+      link.className = "search-result";
+      link.href = item.url;
+
+      const title = document.createElement("span");
+      title.className = "search-result-title";
+      title.textContent = item.title || item.path;
+      link.append(title);
+
+      const meta = document.createElement("span");
+      meta.className = "search-result-meta";
+      meta.textContent = item.path + (item.type ? " - " + item.type : "");
+      link.append(meta);
+
+      if (item.snippet) {
+        const snippet = document.createElement("span");
+        snippet.className = "search-result-snippet";
+        snippet.textContent = item.snippet;
+        link.append(snippet);
+      }
+
+      results.append(link);
+    }
+  }
+})();
+`
+
 const viewerCSS = `
 :root {
   color-scheme: light;
@@ -314,6 +564,17 @@ h2 { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); }
 h3 { margin-top: 26px; }
 hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .lede { margin: 0 0 26px; color: var(--muted); }
+.search { margin: 0 0 24px; }
+.search-label { display: block; margin: 0 0 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.search-input { width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; }
+.search-input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 34%, transparent); outline-offset: 2px; border-color: var(--accent); }
+.search-status { min-height: 20px; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.search-results { display: grid; gap: 0; margin-top: 8px; border-top: 1px solid var(--line); }
+.search-result { display: grid; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
+.search-result:hover .search-result-title { color: var(--accent); }
+.search-result-title { font-weight: 700; }
+.search-result-meta { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }
+.search-result-snippet { color: #2f3834; font-size: 14px; }
 .list { border-top: 1px solid var(--line); }
 .row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(160px, .7fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
 .row:hover .path { color: var(--accent); }

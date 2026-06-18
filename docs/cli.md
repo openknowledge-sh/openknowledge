@@ -90,7 +90,9 @@ process is stopped. Use `--host` or `--port` when a fixed address is needed.
 
 The viewer renders Markdown files, strips YAML frontmatter from document pages,
 rewrites relative Markdown links between `.md` files, and shows inline
-validation issues from the bundle listing.
+validation issues from the bundle listing. The index page includes local
+full-text search across paths, titles, metadata, headings, and document bodies,
+with light fuzzy and diacritic-insensitive matching.
 
 `openknowledge validate` reports broken local Markdown links as warnings. It
 does not fail the bundle for link warnings because OKF v0.1 keeps link targets

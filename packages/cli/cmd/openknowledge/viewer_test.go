@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,6 +23,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(index, "index.md") || !strings.Contains(index, "workflows/docs.md") {
 		t.Fatalf("viewer index did not include markdown files:\n%s", index)
 	}
+	if !strings.Contains(index, `id="viewer-search"`) {
+		t.Fatalf("viewer index did not include search input:\n%s", index)
+	}
 
 	page := getViewerBody(t, handler, "/file/index.md")
 	if strings.Contains(page, "okf_version") {
@@ -35,6 +39,41 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `href="/file/concepts/index.md"`) {
 		t.Fatalf("viewer did not rewrite directory index link:\n%s", page)
+	}
+}
+
+func TestViewerSearchAPI(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead the workflow docs.\n")
+	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\n---\n\n# Docs\n\nRun validation before publishing.\n")
+
+	handler := newViewerHandler(root)
+	payload := getViewerSearch(t, handler, "/api/search?q=validaton&limit=4")
+	if payload.Query != "validaton" {
+		t.Fatalf("expected query echo, got %#v", payload)
+	}
+	if len(payload.Results) == 0 {
+		t.Fatalf("expected fuzzy search results, got %#v", payload)
+	}
+	if payload.Results[0].Path != "workflows/docs.md" || payload.Results[0].URL != "/file/workflows/docs.md" {
+		t.Fatalf("unexpected search result: %#v", payload.Results[0])
+	}
+}
+
+func TestViewerSearchRefreshesAfterMarkdownChanges(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n")
+
+	handler := newViewerHandler(root)
+	first := getViewerSearch(t, handler, "/api/search?q=draft")
+	if len(first.Results) != 0 {
+		t.Fatalf("expected no draft results before file is written, got %#v", first)
+	}
+
+	writeViewerFile(t, root, "notes/draft.md", "---\ntype: Note\ntitle: Draft Note\n---\n\n# Draft\n\nFresh searchable content.\n")
+	second := getViewerSearch(t, handler, "/api/search?q=draft")
+	if len(second.Results) == 0 || second.Results[0].Path != "notes/draft.md" {
+		t.Fatalf("expected refreshed search result, got %#v", second)
 	}
 }
 
@@ -85,4 +124,26 @@ func getViewerBody(t *testing.T, handler http.Handler, target string) string {
 		t.Fatalf("expected 200 from %s, got %d: %s", target, response.StatusCode, string(body))
 	}
 	return string(body)
+}
+
+func getViewerSearch(t *testing.T, handler http.Handler, target string) viewerSearchResponse {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, target, nil))
+	response := recorder.Result()
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 from %s, got %d: %s", target, response.StatusCode, string(body))
+	}
+
+	var payload viewerSearchResponse
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatal(err)
+	}
+	return payload
 }
