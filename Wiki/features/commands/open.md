@@ -20,6 +20,10 @@ single-page focus mode; the panel stack is the default and only document
 browsing layout. The file explorer can be opened from the header and stays open
 while selecting files.
 
+The file explorer sidebar includes search. In the local server viewer it uses
+the search API; in exported static HTML it searches the embedded static note
+manifest in the browser.
+
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.
 
@@ -74,6 +78,7 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
 * Review validation warnings alongside the bundle tree.
 * Browse local Markdown links as adjacent panels without leaving the current
   context.
+* Search the knowledge base from the file explorer sidebar.
 * Browse command and feature docs without leaving the repo.
 
 ## Source Anchors

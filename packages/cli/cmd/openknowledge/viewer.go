@@ -475,6 +475,7 @@ type viewerFileData struct {
 	Path        string
 	FileURL     string
 	LinkPrefix  string
+	SearchURL   string
 	Body        template.HTML
 	Tree        []viewerTreeItem
 	EditorsJSON template.JS
@@ -587,6 +588,7 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		Path:        cleanRel,
 		FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
 		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
+		SearchURL:   searchURLWithPrefix(linkPrefix),
 		Body:        template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), cleanRel, viewerLinkWithPrefix(linkPrefix))),
 		Tree:        viewerTreeWithURL(listing.Entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
@@ -1679,6 +1681,12 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </svg>
       </button>
     </div>
+    <section class="search file-sidebar-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}">
+      <label class="search-label" for="viewer-search">Search</label>
+      <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false">
+      <div id="viewer-search-status" class="search-status" aria-live="polite"></div>
+      <div id="viewer-search-results" class="search-results" hidden></div>
+    </section>
     <div class="file-sidebar-tree knowledge-tree" role="tree">
       {{range .Tree}}
         {{if .Directory}}
@@ -1748,6 +1756,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
   <script>` + viewerJS + `</script>
+  <script>` + viewerSearchJS + `</script>
 </body>
 </html>`))
 
@@ -1759,6 +1768,7 @@ const viewerSearchJS = `
   const search = input?.closest(".search");
   if (!input || !results || !status || !search) return;
   const searchURL = search.dataset.searchUrl || "/api/search";
+  const staticNotes = readStaticNotes();
 
   let timer = 0;
   let controller = null;
@@ -1775,6 +1785,11 @@ const viewerSearchJS = `
       results.hidden = true;
       results.replaceChildren();
       if (controller) controller.abort();
+      return;
+    }
+
+    if (staticNotes.length > 0) {
+      renderResults(searchStaticNotes(query), query);
       return;
     }
 
@@ -1809,7 +1824,7 @@ const viewerSearchJS = `
     for (const item of items) {
       const link = document.createElement("a");
       link.className = "search-result";
-      link.href = item.url;
+      link.href = item.url || staticRelativeURL(item.path);
 
       const title = document.createElement("span");
       title.className = "search-result-title";
@@ -1830,6 +1845,114 @@ const viewerSearchJS = `
 
       results.append(link);
     }
+  }
+
+  function readStaticNotes() {
+    const source = document.querySelector("[data-static-notes]");
+    if (!source) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(source.textContent || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function searchStaticNotes(query) {
+    const normalizedQuery = normalizeSearchText(query);
+    return staticNotes
+      .map(function (note) {
+        const bodyText = htmlToText(note.body || "");
+        const title = note.title || note.path || "";
+        const path = note.path || "";
+        const haystack = normalizeSearchText([title, path, bodyText].join(" "));
+        const titleMatch = normalizeSearchText(title).includes(normalizedQuery);
+        const pathMatch = normalizeSearchText(path).includes(normalizedQuery);
+        const bodyMatch = haystack.includes(normalizedQuery);
+        if (!bodyMatch) {
+          return null;
+        }
+        return {
+          path,
+          title,
+          snippet: staticSnippet(bodyText, query),
+          score: (titleMatch ? 3 : 0) + (pathMatch ? 2 : 0) + 1,
+        };
+      })
+      .filter(Boolean)
+      .sort(function (a, b) {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return a.path.localeCompare(b.path);
+      })
+      .slice(0, 12);
+  }
+
+  function normalizeSearchText(value) {
+    return String(value || "").toLowerCase();
+  }
+
+  function htmlToText(html) {
+    const element = document.createElement("div");
+    element.innerHTML = html;
+    return element.textContent || "";
+  }
+
+  function staticSnippet(text, query) {
+    const value = String(text || "").replace(/\s+/g, " ").trim();
+    if (!value) {
+      return "";
+    }
+    const index = value.toLowerCase().indexOf(String(query || "").toLowerCase());
+    const start = Math.max(0, index < 0 ? 0 : index - 48);
+    const end = Math.min(value.length, start + 140);
+    return (start > 0 ? "..." : "") + value.slice(start, end) + (end < value.length ? "..." : "");
+  }
+
+  function staticRelativeURL(targetPath) {
+    const currentPath = document.querySelector("[data-note-path]")?.dataset.notePath || "index.md";
+    const currentHTML = staticHTMLPath(currentPath);
+    const targetHTML = staticHTMLPath(targetPath);
+    const currentDirectory = currentHTML.includes("/") ? currentHTML.slice(0, currentHTML.lastIndexOf("/") + 1) : "";
+    return relativeStaticPath(currentDirectory, targetHTML);
+  }
+
+  function staticHTMLPath(path) {
+    const extensionIndex = String(path || "").lastIndexOf(".");
+    if (extensionIndex < 0) {
+      return normalizeStaticPath(path + "/index.html");
+    }
+    return normalizeStaticPath(path.slice(0, extensionIndex) + ".html");
+  }
+
+  function relativeStaticPath(fromDirectory, targetPath) {
+    const fromParts = normalizeStaticPath(fromDirectory).split("/").filter(Boolean);
+    const targetParts = normalizeStaticPath(targetPath).split("/").filter(Boolean);
+    while (fromParts.length && targetParts.length && fromParts[0] === targetParts[0]) {
+      fromParts.shift();
+      targetParts.shift();
+    }
+    const relativeParts = fromParts.map(function () { return ".."; }).concat(targetParts);
+    return relativeParts.join("/") || ".";
+  }
+
+  function normalizeStaticPath(value) {
+    const parts = String(value || "").replace(/\\/g, "/").split("/");
+    const normalized = [];
+    parts.forEach(function (part) {
+      if (!part || part === ".") {
+        return;
+      }
+      if (part === "..") {
+        normalized.pop();
+        return;
+      }
+      normalized.push(part);
+    });
+    return normalized.join("/");
   }
 })();
 `
@@ -2875,14 +2998,19 @@ const viewerJS = `
   if (fileSidebar) {
     fileSidebar.addEventListener("click", function (event) {
       const treeLink = closestElement(event.target, "[data-tree-path]");
-      if (!treeLink) {
+      const link = treeLink || closestElement(event.target, "a[href]");
+      if (!link) {
         return;
       }
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
+      const targetPath = treeLink?.dataset.treePath || notePathFromHref(link.getAttribute("href") || link.href);
+      if (!targetPath) {
+        return;
+      }
       event.preventDefault();
-      openInitialNote(treeLink.dataset.treePath, true);
+      openInitialNote(targetPath, true);
     });
   }
 
@@ -2953,6 +3081,13 @@ body.is-sidebar-open .file-sidebar { transform: translateX(0); }
 .file-sidebar-head { display: flex; min-height: var(--header-height); align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 18px; border-bottom: 1px solid #c7c7c7; background: var(--sidebar-head-bg); color: #4f4f4f; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .file-sidebar-close { display: inline-flex; flex: 0 0 auto; width: 30px; height: 30px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #707070; cursor: pointer; }
 .file-sidebar-close:hover, .file-sidebar-close:focus-visible { border-color: #c4c4c4; background: #e5e5e5; color: #2f2f2f; outline: none; }
+.file-sidebar-search { flex: 0 0 auto; margin: 0; padding: 10px 12px 11px; border-bottom: 1px solid #c7c7c7; background: #dedede; }
+.file-sidebar-search .search-label { margin-bottom: 5px; color: #5d5d5d; }
+.file-sidebar-search .search-input { min-height: 34px; border-color: #c4c4c4; background: #f7f7f7; padding: 6px 9px; }
+.file-sidebar-search .search-status { min-height: 18px; margin-top: 5px; font-size: 12px; }
+.file-sidebar-search .search-results { gap: 5px; max-height: min(280px, 38vh); overflow: auto; }
+.file-sidebar-search .search-result { padding: 7px 8px; border-color: #cbcbcb; background: #f7f7f7; }
+.file-sidebar-search .search-result:hover, .file-sidebar-search .search-result:focus-visible { border-color: #b9b9b9; background: #ececec; }
 .file-sidebar-tree { flex: 1 1 auto; width: 100%; overflow: auto; padding: 4px 10px 18px 8px; }
 main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
 .workspaces { margin: 0 0 28px; }

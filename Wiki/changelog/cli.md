@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Sidebar search restored in viewer
+
+* The panel viewer file explorer now includes a search box above the file tree.
+* Local `openknowledge open` pages use the existing `/api/search` endpoint, and
+  exported static HTML searches the embedded note manifest in-browser.
+* Search result clicks open as panels and keep the sidebar open.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Local viewer always uses panel stack
 
 * Removed the local viewer focus-mode toggle so document browsing always uses

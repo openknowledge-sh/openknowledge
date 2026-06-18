@@ -73,6 +73,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
 	}
+	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
+		t.Fatalf("viewer file page did not include sidebar search:\n%s", page)
+	}
 	if !strings.Contains(page, `--sidebar-bg:`) || !strings.Contains(page, `.file-sidebar-head`) || !strings.Contains(page, `--sidebar-head-bg`) {
 		t.Fatalf("viewer file sidebar should use its own darker surface colors:\n%s", page)
 	}
@@ -178,6 +181,9 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	}
 	if !strings.Contains(index, `function fetchNote(path)`) || !strings.Contains(index, `staticNotesByPath[path]`) {
 		t.Fatalf("expected exported index to use static note runtime:\n%s", index)
+	}
+	if !strings.Contains(index, `id="viewer-search"`) || !strings.Contains(index, `searchStaticNotes`) || !strings.Contains(index, `staticRelativeURL(item.path)`) {
+		t.Fatalf("expected exported index to include static sidebar search:\n%s", index)
 	}
 
 	setup := readViewerExportFile(t, out, "guides/setup.html")
