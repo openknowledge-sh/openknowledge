@@ -341,8 +341,8 @@ func cleanSnippetLine(line string) string {
 	if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
 		line = strings.TrimSpace(line[2:])
 	}
-	if item, ok := orderedListItem(line); ok {
-		line = item
+	if match := orderedListItem.FindStringIndex(line); match != nil {
+		line = strings.TrimSpace(line[match[1]:])
 	}
 	return strings.TrimSpace(line)
 }

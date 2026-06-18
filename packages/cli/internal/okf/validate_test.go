@@ -179,6 +179,74 @@ func TestValidateIgnoresLinksInsideFencedCode(t *testing.T) {
 	}
 }
 
+func TestValidateWarnsForMarkdownSyntax(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n\n[Broken](missing.md\n\n```sh\necho ok\n")
+	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected markdown syntax issues to be warnings, got errors %#v", result.Errors)
+	}
+	if statusForCheck(result, "Markdown syntax") != "warn" {
+		t.Fatalf("expected markdown syntax check to warn, got %#v", result.Checks)
+	}
+	if countRule(result.Warnings, "markdown-syntax") != 2 {
+		t.Fatalf("expected two markdown syntax warnings, got %#v", result.Warnings)
+	}
+}
+
+func TestValidateMarkdownSyntaxIgnoresFrontmatterValues(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "concept.md", "---\ntype: Concept\ntitle: \"Use `code\"\n---\n\n# Concept\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countRule(result.Warnings, "markdown-syntax") != 0 {
+		t.Fatalf("expected no markdown syntax warnings from frontmatter values, got %#v", result.Warnings)
+	}
+}
+
+func TestValidateWarnsForFrontmatterFormatting(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "concept.md", " ---\ntype: Concept\ntype: Duplicate\n--- \n\n# Concept\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected frontmatter formatting issues to be warnings, got errors %#v", result.Errors)
+	}
+	if statusForCheck(result, "Frontmatter formatting") != "warn" {
+		t.Fatalf("expected frontmatter formatting check to warn, got %#v", result.Checks)
+	}
+	if countRule(result.Warnings, "frontmatter-format") != 3 {
+		t.Fatalf("expected three frontmatter formatting warnings, got %#v", result.Warnings)
+	}
+}
+
+func TestValidateErrorsForUnparseableFrontmatter(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "concept.md", "---\ntype:Concept\n---\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected one frontmatter parse error, got %#v", result.Errors)
+	}
+	if result.Errors[0].Rule != "frontmatter" || result.Errors[0].Line != 2 {
+		t.Fatalf("unexpected frontmatter parse error: %#v", result.Errors[0])
+	}
+}
+
 func TestNewProjectCreatesValidBundle(t *testing.T) {
 	parent := t.TempDir()
 	target := filepath.Join(parent, "my-knowledge-base")
@@ -273,6 +341,16 @@ func statusForCheck(result Result, name string) string {
 		}
 	}
 	return ""
+}
+
+func countRule(issues []Issue, rule string) int {
+	count := 0
+	for _, issue := range issues {
+		if issue.Rule == rule {
+			count++
+		}
+	}
+	return count
 }
 
 func writeFile(t *testing.T, root, name, content string) {

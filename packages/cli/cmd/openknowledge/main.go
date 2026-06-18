@@ -935,7 +935,7 @@ Versions:
   %s
 
 Exit codes:
-  0            Validation passed.
+  0            Validation passed, with or without warnings.
   1            Validation found errors.
   2            Usage or setup error.
 `, supportedSpecVersionsText())

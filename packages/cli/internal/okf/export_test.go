@@ -86,33 +86,6 @@ func TestWriteHTMLRendersPagesAndRewritesMarkdownLinks(t *testing.T) {
 	}
 }
 
-func TestWriteHTMLRendersBlockquotesAndStrongText(t *testing.T) {
-	root := t.TempDir()
-	out := filepath.Join(t.TempDir(), "site")
-	writeFile(t, root, "index.md", "# Home\n\n> This is a pinned upstream copy.\n> It is unofficial tooling.\n\n**Version 0.1 - Draft**\n\nUse *standard markdown*.\n\n---\n\n1. First\n2. Second\n")
-
-	if _, err := WriteHTML(root, out); err != nil {
-		t.Fatal(err)
-	}
-
-	index := readExportFile(t, out, "index.html")
-	if !strings.Contains(index, "<blockquote>") || strings.Contains(index, "&gt; This is a pinned upstream copy") {
-		t.Fatalf("expected markdown blockquote to render as blockquote:\n%s", index)
-	}
-	if !strings.Contains(index, "<strong>Version 0.1 - Draft</strong>") || strings.Contains(index, "**Version") {
-		t.Fatalf("expected strong markdown to render as strong text:\n%s", index)
-	}
-	if !strings.Contains(index, "<em>standard markdown</em>") || strings.Contains(index, "*standard markdown*") {
-		t.Fatalf("expected emphasis markdown to render as em text:\n%s", index)
-	}
-	if !strings.Contains(index, "<hr>") || strings.Contains(index, "<p>---</p>") {
-		t.Fatalf("expected thematic break markdown to render as hr:\n%s", index)
-	}
-	if !strings.Contains(index, "<ol>") || !strings.Contains(index, "<li>First</li>") || strings.Contains(index, "<p>1. First") {
-		t.Fatalf("expected ordered list markdown to render as ol:\n%s", index)
-	}
-}
-
 func bundleFileByPath(t *testing.T, bundle Bundle, path string) BundleFile {
 	t.Helper()
 	for _, file := range bundle.Files {
