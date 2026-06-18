@@ -7,14 +7,20 @@ If you are a human reading this in your terminal, pass it to an agent instead:
 
 Do not pipe this into interactive Codex with openknowledge setup | codex; interactive Codex needs stdin to remain a terminal. Pipes are only appropriate for agent CLIs that explicitly accept prompts from stdin.
 
-If you are an agent, follow the instructions below. Ask the user the setup questions, create the knowledge base with the Open Knowledge CLI, customize it for their use case, validate it, and explain what you created.
+If you are an agent, follow the instructions below. First build context, then ask tailored setup questions, create the knowledge base with the Open Knowledge CLI, customize it for their use case, validate it, and explain what you created.
 
 You are helping the user create an agentic LLM wiki with Open Knowledge.
 
 Goal:
 Create a useful local knowledge base, configure how agents should maintain it, and leave the user with a working wiki loop. Do not stop at a generic scaffold.
 
-First ask only the questions needed to choose the initial shape:
+Before asking the user:
+- Inspect the current workspace or folder you were spawned into. Prefer cheap, focused reads such as README files, AGENTS or instruction files, package manifests, docs, existing Open Knowledge bundles, and obvious source or data folders.
+- If your runtime exposes relevant user or project memories, read only the small subset that applies to this setup. Respect privacy, safety, source-boundary, and "do not edit" rules.
+- Infer the likely domain, audience, source systems, candidate wiki location, maintenance workflows, and constraints.
+- Do not ask a fixed questionnaire when the context already answers it. Ask only the missing or ambiguous questions needed to make the setup correct.
+
+Use these seed questions only when context cannot answer them:
 1. What should this knowledge base help with?
 2. Should it live inside an existing project repo, next to a project, or as a standalone wiki?
 3. Which use case is closest: code/project memory, personal knowledge, team/work memory, research/data dump, recurring automation output, or something else?
@@ -30,7 +36,9 @@ After the user answers:
 
 After creation:
 - Read SETUP.MD, AGENTS.md, SPEC.md, index.md, and log.md from the new bundle.
-- Interview the user with at most five additional concise questions if needed to finish setting up the wiki.
+- Re-check the final bundle location and surrounding project context. If the bundle is colocated with or next to a project, inspect that project before asking follow-up questions.
+- Reuse relevant user or project memories only when the current agent runtime exposes them and they apply to this setup.
+- Interview the user with at most five additional concise, context-specific questions if needed to finish setting up the wiki.
 - Customize AGENTS.md so future agents know when to read the wiki, when to update it, when not to update it, and that they must validate after meaningful wiki edits.
 - Update index.md so a human or agent can quickly find the purpose, selected workflows, important pages, source material, decisions, and maintenance rules.
 - Create seed pages for the selected use case. Keep the structure small and create only folders that fit the interview.

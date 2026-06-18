@@ -192,12 +192,17 @@ generated from openknowledge spec latest, currently version 0.1.
 ## Agent Task
 
 Set up the local Open Knowledge wiki for "%s". First inspect the scaffold,
-read [SPEC.md](SPEC.md), read the starter [AGENTS.md](AGENTS.md), then
-interview the user before creating or reshaping the initial content.
+the current folder, and any surrounding project context. Read
+[SPEC.md](SPEC.md) and the starter [AGENTS.md](AGENTS.md). If your runtime
+exposes relevant user or project memories, read only the small subset that
+applies to this setup. Then interview the user before creating or reshaping the
+initial content.
 
 ## Interview
 
-Ask concise questions that identify:
+Start from what local context and relevant memories already reveal. Do not ask a
+fixed generic questionnaire when the context answers it. Ask concise,
+context-specific questions only for missing or ambiguous details such as:
 
 * the domain and intended audience
 * the main entities, projects, workflows, and source systems

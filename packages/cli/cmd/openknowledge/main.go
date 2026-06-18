@@ -140,9 +140,11 @@ func runNew(args []string) int {
 
 	fmt.Println()
 	terminal.section("Agent handoff")
-	fmt.Printf("  Read %s and set up this local Open Knowledge wiki.\n", terminal.path(result.SetupPath))
-	fmt.Println("  Start by interviewing me about what the knowledge base should cover, then create")
-	fmt.Println("  the tailored structure, rules, indexes, and seed pages described there.")
+	fmt.Println("  Paste this into your agent:")
+	fmt.Println()
+	fmt.Printf("  Set up an Open Knowledge agentic wiki for this workspace. Read %s,\n", terminal.path(result.SetupPath))
+	fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
+	fmt.Println("  run openknowledge validate, and show me how to inspect it with openknowledge open.")
 	return 0
 }
 
@@ -665,8 +667,9 @@ Usage:
   openknowledge setup
   openknowledge setup --help
 
-The prompt tells an agent to interview the user, create a bundle with
-openknowledge new, customize the scaffold, and validate the result.
+The prompt tells an agent to inspect the current workspace, ask tailored
+questions, create a bundle with openknowledge new, customize the scaffold, and
+validate the result.
 `
 }
 
