@@ -2912,7 +2912,6 @@ const viewerJS = `
       }
       event.preventDefault();
       openInitialNote(treeLink.dataset.treePath, true);
-      setSidebarOpen(false);
     });
   }
 
