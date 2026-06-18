@@ -14,6 +14,12 @@ opens that knowledge base directly. The viewer renders Markdown, strips
 frontmatter from document pages, rewrites local Markdown links, and shows
 validation issues in the index.
 
+In direct knowledge base mode, Markdown links open into a horizontally
+scrollable stack of panels. The viewer does not switch into a separate
+single-page focus mode; the panel stack is the default and only document
+browsing layout. The file explorer can be opened from the header and stays open
+while selecting files.
+
 ## Usage
 
 ```sh
@@ -63,6 +69,8 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
   left selector.
 * Inspect the wiki locally after setup.
 * Review validation warnings alongside the bundle tree.
+* Browse local Markdown links as adjacent panels without leaving the current
+  context.
 * Browse command and feature docs without leaving the repo.
 
 ## Source Anchors

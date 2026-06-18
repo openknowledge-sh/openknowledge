@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Local viewer always uses panel stack
+
+* Removed the local viewer focus-mode toggle so document browsing always uses
+  the horizontally scrollable panel stack.
+* File-tree and Markdown link navigation now consistently append or replace
+  panels instead of switching into a single-page layout.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Reachable local viewer URL
 
 * `openknowledge open` now prints and opens the actual listener URL as the

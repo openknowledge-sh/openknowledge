@@ -1654,7 +1654,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <title>{{.Title}} - Open Knowledge</title>
   <style>` + viewerCSS + `</style>
 </head>
-<body class="viewer-document">
+<body class="viewer-document is-stack-mode">
   <header>
     <div class="header-left">
       <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Open file explorer" aria-expanded="false" title="File explorer">
@@ -1668,16 +1668,6 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </button>
       <a class="brand" href="/">Open Knowledge</a>
     </div>
-    <button class="view-mode-toggle" type="button" data-view-mode-toggle aria-label="Switch to focus view" aria-pressed="false" title="Switch to focus view">
-      <svg class="view-mode-icon view-mode-icon-focus" data-view-mode-icon="focus" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="6.5" y="4.5" width="11" height="15" rx="1.8"></rect>
-      </svg>
-      <svg class="view-mode-icon view-mode-icon-stack" data-view-mode-icon="stack" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3.5 7.5h3.2v9H3.5"></path>
-        <rect x="8" y="4.5" width="8" height="15" rx="1.8"></rect>
-        <path d="M20.5 7.5h-3.2v9h3.2"></path>
-      </svg>
-    </button>
   </header>
   <aside class="file-sidebar" data-file-sidebar aria-label="File explorer" aria-hidden="true">
     <div class="file-sidebar-head">
@@ -1859,13 +1849,11 @@ const viewerJS = `
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const editorStorageKey = "openknowledge.viewer.editorOrder";
-  const viewModeStorageKey = "openknowledge.viewer.viewMode";
   const editorOptions = readEditorOptions();
   const staticNotes = readStaticNotes();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
-  let viewMode = readViewMode();
 
   function panels() {
     return Array.prototype.slice.call(stackEl.querySelectorAll("[data-note-path]"));
@@ -2127,65 +2115,6 @@ const viewerJS = `
         return "webstorm://open?file=" + encodeURIComponent(absolutePath);
       default:
         return fileLink;
-    }
-  }
-
-  function readViewMode() {
-    try {
-      return window.localStorage.getItem(viewModeStorageKey) === "focus" ? "focus" : "stack";
-    } catch {
-      return "stack";
-    }
-  }
-
-  function writeViewMode(nextMode) {
-    try {
-      window.localStorage.setItem(viewModeStorageKey, nextMode);
-    } catch {
-      return;
-    }
-  }
-
-  function isFocusMode() {
-    return viewMode === "focus";
-  }
-
-  function focusStack(paths) {
-    const source = Array.isArray(paths) ? paths : currentStack();
-    return source.length ? [source[0]] : [];
-  }
-
-  function applyViewModeUI() {
-    const focus = isFocusMode();
-    document.body.dataset.viewMode = viewMode;
-    document.body.classList.toggle("is-focus-mode", focus);
-    document.body.classList.toggle("is-stack-mode", !focus);
-
-    const toggle = document.querySelector("[data-view-mode-toggle]");
-    if (toggle) {
-      toggle.setAttribute("aria-pressed", focus ? "true" : "false");
-      toggle.setAttribute("aria-label", focus ? "Switch to stack view" : "Switch to focus view");
-      toggle.title = focus ? "Switch to stack view" : "Switch to focus view";
-    }
-
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
-  }
-
-  function setViewMode(nextMode, pushHistory) {
-    viewMode = nextMode === "focus" ? "focus" : "stack";
-    writeViewMode(viewMode);
-    applyViewModeUI();
-
-    const paths = isFocusMode() ? focusStack() : currentStack();
-    updateHistory(paths, pushHistory);
-    if (!isFocusMode()) {
-      const all = panels();
-      const last = all[all.length - 1];
-      if (last) {
-        scrollToPanel(last);
-      }
     }
   }
 
@@ -2586,7 +2515,7 @@ const viewerJS = `
 
   function updateTitle() {
     const all = panels();
-    const currentPanel = activePanel() || (isFocusMode() ? all[0] : all[all.length - 1]);
+    const currentPanel = activePanel() || all[all.length - 1];
     if (!currentPanel) {
       document.title = "Knowledge base - Open Knowledge";
       return;
@@ -2597,7 +2526,7 @@ const viewerJS = `
 
   function updateHistory(paths, pushHistory) {
     const nextURL = stackURL(paths);
-    const state = { stack: paths, viewMode };
+    const state = { stack: paths };
     if (pushHistory) {
       window.history.pushState(state, "", nextURL);
     } else {
@@ -2613,10 +2542,6 @@ const viewerJS = `
         link.removeAttribute("aria-current");
       });
     });
-
-    if (isFocusMode()) {
-      return;
-    }
 
     all.forEach(function (panel, index) {
       const nextPath = all[index + 1]?.dataset.notePath;
@@ -2892,9 +2817,6 @@ const viewerJS = `
 
     const treeLink = closestElement(event.target, "[data-tree-path]");
     if (treeLink) {
-      if (isFocusMode()) {
-        return;
-      }
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
@@ -2905,9 +2827,6 @@ const viewerJS = `
 
     const link = closestElement(event.target, "a[href]");
     if (!link || link.dataset.directLink === "true") {
-      return;
-    }
-    if (isFocusMode()) {
       return;
     }
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -2952,9 +2871,6 @@ const viewerJS = `
       if (!treeLink) {
         return;
       }
-      if (isFocusMode()) {
-        return;
-      }
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
@@ -2963,20 +2879,9 @@ const viewerJS = `
     });
   }
 
-  const viewModeToggle = document.querySelector("[data-view-mode-toggle]");
-  if (viewModeToggle) {
-    viewModeToggle.addEventListener("click", function () {
-      setViewMode(isFocusMode() ? "stack" : "focus", true);
-    });
-  }
-
   window.addEventListener("popstate", function () {
     const paths = stackFromLocation();
-    if (isFocusMode()) {
-      restoreStack(focusStack(paths)).then(applyViewModeUI);
-      return;
-    }
-    restoreStack(paths).then(applyViewModeUI);
+    restoreStack(paths);
   });
 
   document.addEventListener("click", function (event) {
@@ -2994,20 +2899,14 @@ const viewerJS = `
   const requestedStack = stackFromLocation();
   panels().forEach(bindPanel);
   ensureActivePanel();
-  if (isFocusMode()) {
-    const focusedStack = focusStack(requestedStack);
-    updateHistory(focusedStack, false);
-    if (focusedStack.length !== panels().length || focusedStack[0] !== panels()[0]?.dataset.notePath) {
-      restoreStack(focusedStack).then(applyViewModeUI);
-    } else {
-      applyViewModeUI();
-    }
-  } else if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
-    window.history.replaceState({ stack: requestedStack, viewMode }, "", window.location.href);
-    restoreStack(requestedStack).then(applyViewModeUI);
+  if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
+    window.history.replaceState({ stack: requestedStack }, "", window.location.href);
+    restoreStack(requestedStack);
   } else {
-    window.history.replaceState({ stack: requestedStack, viewMode }, "", window.location.href);
-    applyViewModeUI();
+    window.history.replaceState({ stack: requestedStack }, "", window.location.href);
+    updateWorkspaceState();
+    updateActiveLinks();
+    updateTitle();
   }
 })();
 `
@@ -3041,12 +2940,6 @@ body.viewer-document.is-sidebar-open > header { transform: translateX(var(--side
 .sidebar-toggle { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #5f6d67; cursor: pointer; }
 .sidebar-toggle:hover, .sidebar-toggle:focus-visible, body.is-sidebar-open .sidebar-toggle { border-color: #cbd5cf; background: #e7ece8; color: #25302b; outline: none; }
 .sidebar-toggle-icon { width: 19px; height: 19px; }
-.view-mode-toggle { display: inline-flex; flex: 0 0 auto; width: 34px; height: 34px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #5f6d67; cursor: pointer; }
-.view-mode-toggle:hover, .view-mode-toggle:focus-visible { border-color: #cbd5cf; background: #e7ece8; color: #25302b; outline: none; }
-.view-mode-icon { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-.view-mode-icon-stack { display: none; }
-body[data-view-mode="focus"] .view-mode-icon-focus { display: none; }
-body[data-view-mode="focus"] .view-mode-icon-stack { display: block; }
 .control-icon { display: block; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; display: flex; width: var(--sidebar-width); flex-direction: column; border-right: 1px solid #c8d2cc; background: var(--sidebar-bg); box-shadow: none; transform: translateX(-100%); transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
 body.is-sidebar-open .file-sidebar { transform: translateX(0); }
@@ -3104,12 +2997,6 @@ hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .issue { grid-column: 1 / -1; color: #a44b28; }
 .document { max-width: 780px; }
 .note-panel.document { flex: 0 0 min(650px, calc(100vw - 44px)); max-width: none; height: 100%; padding: 0 34px 34px; overflow-y: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 46px var(--shadow); outline: none; scroll-padding-top: 62px; }
-body.viewer-document.is-focus-mode { background: #eef1ee; }
-body.viewer-document.is-focus-mode .note-workspace { overflow: hidden; }
-body.viewer-document.is-focus-mode .note-workspace:not(.is-empty) .note-stack { display: flex; justify-content: center; gap: 0; width: 100%; min-width: 0; height: 100%; padding: 22px max(22px, calc((100vw - 980px) / 2)) 26px; }
-body.viewer-document.is-focus-mode .note-panel.document { display: block; flex: 0 1 min(780px, calc(100vw - 44px)); width: min(780px, calc(100vw - 44px)); max-width: 780px; min-height: 0; height: 100%; margin: 0; overflow-y: auto; }
-body.viewer-document.is-focus-mode .note-panel:not(:first-child) { display: none; }
-body.viewer-document.is-focus-mode .note-close { display: none; }
 .note-panel:focus { border-color: rgba(var(--accent-rgb), .45); }
 .note-panel.is-entering { animation: note-enter .28s cubic-bezier(.22, .8, .2, 1); }
 body.is-view-transitioning .note-panel.is-entering { animation: none; }
@@ -3193,8 +3080,6 @@ ul, ol { padding-left: 22px; }
   .knowledge-empty-inner { padding: 28px 14px 44px; }
   .tree-file-path { display: none; }
   .note-panel.document { flex-basis: calc(100vw - 24px); padding: 0 22px 28px; }
-  body.viewer-document.is-focus-mode .note-workspace:not(.is-empty) .note-stack { padding: 12px; }
-  body.viewer-document.is-focus-mode .note-panel.document { flex-basis: calc(100vw - 24px); width: calc(100vw - 24px); min-height: 0; height: 100%; }
   .note-chrome { margin: 0 -22px 22px; padding: 0 10px 0 22px; }
 }
 `

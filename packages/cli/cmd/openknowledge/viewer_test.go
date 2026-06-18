@@ -43,6 +43,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-note-workspace`) || !strings.Contains(page, `data-note-path="index.md"`) {
 		t.Fatalf("viewer file page did not include stacked note layout:\n%s", page)
 	}
+	if !strings.Contains(page, `class="viewer-document is-stack-mode"`) {
+		t.Fatalf("viewer file page should start in stack panel mode:\n%s", page)
+	}
 	if !strings.Contains(page, `note-panel is-active-panel`) || !strings.Contains(page, `.note-panel:not(.is-active-panel) .editor-picker`) {
 		t.Fatalf("viewer file page did not limit editor picker to the active panel:\n%s", page)
 	}
@@ -64,8 +67,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-icon="chevron-down"`) || !strings.Contains(page, `data-icon="x"`) {
 		t.Fatalf("viewer file page did not include SVG control icons:\n%s", page)
 	}
-	if !strings.Contains(page, `data-view-mode-toggle`) || !strings.Contains(page, `data-view-mode-icon="focus"`) || !strings.Contains(page, `data-view-mode-icon="stack"`) {
-		t.Fatalf("viewer file page did not include focus/stack mode toggle:\n%s", page)
+	if strings.Contains(page, `data-view-mode-toggle`) || strings.Contains(page, `data-view-mode-icon`) || strings.Contains(page, `is-focus-mode`) {
+		t.Fatalf("viewer file page should always use stack panels without focus mode controls:\n%s", page)
 	}
 	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
@@ -81,15 +84,6 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .note-workspace`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > .note-workspace`) {
 		t.Fatalf("viewer file sidebar should push the workspace instead of overlaying it:\n%s", page)
-	}
-	if !strings.Contains(page, `title="Switch to focus view"`) || !strings.Contains(page, `.view-mode-icon-stack { display: none; }`) || !strings.Contains(page, `body[data-view-mode="focus"] .view-mode-icon-stack { display: block; }`) {
-		t.Fatalf("viewer mode toggle should show the mode it will switch to:\n%s", page)
-	}
-	if !strings.Contains(page, `.is-focus-mode`) {
-		t.Fatalf("viewer file page did not include focus mode styles:\n%s", page)
-	}
-	if strings.Contains(page, `body.viewer-document.is-focus-mode { height: auto`) || strings.Contains(page, `body.viewer-document.is-focus-mode .note-workspace { height: auto`) || !strings.Contains(page, `body.viewer-document.is-focus-mode .note-workspace { overflow: hidden; }`) || !strings.Contains(page, `body.viewer-document.is-focus-mode .note-panel.document`) || !strings.Contains(page, `overflow-y: auto;`) {
-		t.Fatalf("viewer focus mode should keep page-level scroll locked and scroll inside the panel:\n%s", page)
 	}
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
