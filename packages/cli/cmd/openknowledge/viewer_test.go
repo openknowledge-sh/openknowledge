@@ -76,6 +76,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `--sidebar-bg:`) || !strings.Contains(page, `.file-sidebar-head`) || !strings.Contains(page, `--sidebar-head-bg`) {
 		t.Fatalf("viewer file sidebar should use its own darker surface colors:\n%s", page)
 	}
+	if !strings.Contains(page, `background: #f0f0f0`) || !strings.Contains(page, `--sidebar-bg: #e2e2e2`) || !strings.Contains(page, `--sidebar-head-bg: #d8d8d8`) {
+		t.Fatalf("viewer document and sidebar backgrounds should use neutral gray surfaces:\n%s", page)
+	}
 	if strings.Contains(page, "openInitialNote(treeLink.dataset.treePath, true);\n      setSidebarOpen(false);") {
 		t.Fatalf("viewer file sidebar should remain open after opening a tree item:\n%s", page)
 	}
