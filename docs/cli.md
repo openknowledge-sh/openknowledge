@@ -51,10 +51,12 @@ Do not use `openknowledge setup | codex` with interactive Codex; Codex will
 exit with `stdin is not a terminal`. A pipe is only appropriate for an agent CLI
 that explicitly accepts prompts from stdin.
 
-The prompt asks the agent to interview the user, choose where the knowledge base
-should live, run `openknowledge new --name "<name>" "<path>"`, read the
-generated setup files, and turn the minimal scaffold into an agentic wiki with
-only the folders that fit the user's interview.
+The prompt asks the agent to inspect the current workspace or target folder,
+read relevant user or project memories when the runtime exposes them, ask only
+the missing setup questions, choose where the knowledge base should live, run
+`openknowledge new --name "<name>" "<path>"`, read the generated setup files,
+and turn the minimal scaffold into an agentic wiki with only the folders that
+fit the discovered context and user's answers.
 
 During setup the agent should create or update:
 
@@ -78,23 +80,80 @@ The agent should run `openknowledge validate "<path>"`, fix issues, and delete
 
 ## Local viewer
 
-`openknowledge open [path]` starts a local HTTP viewer for a knowledge base and
-prints the URL:
+`openknowledge open` starts a local HTTP viewer from the registry and prints the
+URL:
 
 ```sh
+openknowledge open
 openknowledge open ./project-memory
 ```
 
+With no path, the viewer shows registered knowledge bases in a left workspace
+selector. If the registry contains one knowledge base, that one is selected. If
+the registry contains several, choose one from the selector. `openknowledge open
+<path-or-name>` opens that folder or registry alias directly.
+
 By default it binds to `127.0.0.1` on a free port and keeps running until the
-process is stopped. Use `--host` or `--port` when a fixed address is needed.
+process is stopped, and opens the printed view URL in the default browser. Use
+`--host` or `--port` when a fixed address is needed, and `--no-browser` for
+headless or scripted runs.
+The viewer also serves each knowledge base at a registry-style local alias path.
+For a registered name `personal`, `openknowledge open --port 3000` serves:
+
+```text
+http://127.0.0.1:3000/kb/personal/
+http://open.knowledge:3000/personal/
+```
+
+Direct path mode also gets an alias path. Use `--name <alias-name>` to choose it
+explicitly and `--local-domain <domain>` to change the printed alias domain.
+Custom local names such as `open.knowledge` need to resolve to the local machine
+through `/etc/hosts`, local DNS, or a reverse proxy; the CLI does not create
+hostname aliases itself. To drop the port from the URL, bind the viewer to port
+80 or put a local proxy in front of it.
 
 The viewer renders Markdown files, strips YAML frontmatter from document pages,
 rewrites relative Markdown links between `.md` files, and shows inline
-validation issues from the bundle listing.
+validation issues from the bundle listing. The index page includes local
+full-text search across paths, titles, metadata, headings, and document bodies,
+with light fuzzy and diacritic-insensitive matching.
 
 `openknowledge validate` reports broken local Markdown links as warnings. It
 does not fail the bundle for link warnings because OKF v0.1 keeps link targets
 outside the required conformance rules.
+
+Validation also warns for non-blocking Markdown syntax problems, such as
+malformed links or unclosed code fences, and for frontmatter formatting issues
+that can still be parsed. Frontmatter that cannot be parsed is an error because
+the validator cannot safely apply OKF frontmatter rules after that point.
+
+## Registry
+
+The registry stores named local paths for shared or standalone knowledge bases:
+
+```sh
+openknowledge registry add personal ~/knowledge
+openknowledge registry list
+openknowledge where personal
+```
+
+Registry names are only aliases for filesystem paths. Commands that read a
+bundle accept either form:
+
+```sh
+openknowledge open personal
+openknowledge list personal
+openknowledge list ~/knowledge
+openknowledge validate personal
+```
+
+The registry is also the default source for `openknowledge open` when no path is
+provided.
+
+For agent workflows, prefer `openknowledge where <name>` to discover the actual
+folder, then use normal filesystem tools such as `rg`, file reads, and edits
+against that path. The CLI registry does not replace direct navigation of the
+Markdown bundle.
 
 ## Static exports
 

@@ -30,6 +30,10 @@ func main() {
 		os.Exit(runSetup(os.Args[2:]))
 	case "new":
 		os.Exit(runNew(os.Args[2:]))
+	case "registry":
+		os.Exit(runRegistry(os.Args[2:]))
+	case "where":
+		os.Exit(runWhere(os.Args[2:]))
 	case "open":
 		os.Exit(runOpen(os.Args[2:]))
 	case "to":
@@ -140,10 +144,116 @@ func runNew(args []string) int {
 
 	fmt.Println()
 	terminal.section("Agent handoff")
-	fmt.Printf("  Read %s and set up this local Open Knowledge wiki.\n", terminal.path(result.SetupPath))
-	fmt.Println("  Start by interviewing me about what the knowledge base should cover, then create")
-	fmt.Println("  the tailored structure, rules, indexes, and seed pages described there.")
+	fmt.Println("  Paste this into your agent:")
+	fmt.Println()
+	fmt.Printf("  Set up an Open Knowledge agentic wiki for this workspace. Read %s,\n", terminal.path(result.SetupPath))
+	fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
+	fmt.Println("  run openknowledge validate, and show me how to inspect it with openknowledge open.")
 	return 0
+}
+
+func runRegistry(args []string) int {
+	if len(args) == 0 || hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, registryHelpText())
+		return 0
+	}
+
+	switch args[0] {
+	case "list":
+		if len(args) != 1 {
+			fmt.Fprintln(os.Stderr, "usage: openknowledge registry list")
+			return 2
+		}
+		entries, err := okf.RegistryEntries()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		printRegistryEntries(entries)
+		return 0
+	case "add":
+		if len(args) != 3 {
+			fmt.Fprintln(os.Stderr, "usage: openknowledge registry add <name> <path>")
+			return 2
+		}
+		entry, err := okf.AddRegistryEntry(args[1], args[2])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		terminal.success("Registered knowledge base")
+		fmt.Printf("%s %s\n", terminal.muted("name"), entry.Name)
+		fmt.Printf("%s %s\n", terminal.muted("path"), terminal.path(entry.Path))
+		return 0
+	default:
+		fmt.Fprintf(os.Stderr, "unknown registry command: %s\n\n", args[0])
+		fmt.Fprint(os.Stderr, registryHelpText())
+		return 2
+	}
+}
+
+func printRegistryEntries(entries []okf.RegistryEntry) {
+	terminal.title("Open Knowledge Registry", "known knowledge bases")
+	path, err := okf.RegistryFile()
+	if err == nil {
+		fmt.Printf("%s %s\n", terminal.muted("config"), terminal.path(path))
+	}
+	fmt.Println()
+	if len(entries) == 0 {
+		fmt.Println(terminal.muted("No registered knowledge bases."))
+		return
+	}
+	for _, entry := range entries {
+		fmt.Printf("  %-18s %s\n", entry.Name, terminal.path(entry.Path))
+	}
+}
+
+func runWhere(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, whereHelpText())
+		return 0
+	}
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge where <name|path>")
+		return 2
+	}
+
+	root, err := resolveWhereTarget(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Println(root)
+	return 0
+}
+
+func resolveWhereTarget(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("name or path is required")
+	}
+
+	root, err := okf.ResolveKnowledgeRoot(value)
+	if err != nil {
+		return "", err
+	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+
+	if okf.LooksLikePath(value) {
+		return absolute, nil
+	}
+	if info, err := os.Stat(absolute); err == nil && info.IsDir() {
+		return absolute, nil
+	}
+	if _, ok, err := okf.ResolveRegistryEntry(value); err != nil {
+		return "", err
+	} else if ok {
+		return absolute, nil
+	}
+	return "", fmt.Errorf("unknown knowledge base: %s", value)
 }
 
 func runValidate(args []string) int {
@@ -166,6 +276,12 @@ func runValidate(args []string) int {
 	}
 	if fs.NArg() == 1 {
 		root = fs.Arg(0)
+	}
+
+	root, err := okf.ResolveKnowledgeRoot(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
 	}
 
 	result, err := okf.ValidateWithVersion(root, *specVersion)
@@ -253,6 +369,12 @@ func runList(args []string) int {
 		root = fs.Arg(0)
 	}
 
+	root, err := okf.ResolveKnowledgeRoot(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
 	listing, err := okf.ListWithVersion(root, *specVersion)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -314,10 +436,15 @@ func runToHTML(args []string) int {
 	}
 
 	var result okf.HTMLResult
+	root, err := okf.ResolveKnowledgeRoot(options.path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 	if options.plain {
-		result, err = okf.WritePlainHTMLWithVersion(options.path, options.out, options.spec)
+		result, err = okf.WritePlainHTMLWithVersion(root, options.out, options.spec)
 	} else {
-		result, err = writeViewerHTMLWithVersion(options.path, options.out, options.spec)
+		result, err = writeViewerHTMLWithVersion(root, options.out, options.spec)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -346,7 +473,13 @@ func runToJSON(args []string) int {
 		return 2
 	}
 
-	bundle, err := okf.ParseBundleWithVersion(options.path, options.spec)
+	root, err := okf.ResolveKnowledgeRoot(options.path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	bundle, err := okf.ParseBundleWithVersion(root, options.spec)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -376,7 +509,6 @@ func runToJSON(args []string) int {
 
 func parseToOptions(args []string) (toOptions, error) {
 	options := toOptions{path: ".", spec: "latest"}
-	pathSet := false
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
@@ -407,11 +539,10 @@ func parseToOptions(args []string) (toOptions, error) {
 		case strings.HasPrefix(arg, "-"):
 			return toOptions{}, fmt.Errorf("unknown flag: %s", arg)
 		default:
-			if pathSet {
+			if options.path != "." {
 				return toOptions{}, fmt.Errorf("to accepts at most one path")
 			}
 			options.path = arg
-			pathSet = true
 		}
 	}
 	return options, nil
@@ -561,8 +692,14 @@ Usage:
   openknowledge setup
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
+  openknowledge registry list
+  openknowledge registry add <name> <path>
+  openknowledge where <name|path>
   openknowledge open [path]
+  openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
+  openknowledge open --local-domain <domain> [path]
+  openknowledge open --no-browser [path]
   openknowledge to html --out <folder> [path]
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
@@ -577,7 +714,9 @@ Usage:
 Commands:
   setup      Print an agent setup prompt.
   new        Scaffold a local Open Knowledge bundle.
-  open       Start a local Markdown viewer.
+  registry   Manage named knowledge base paths.
+  where      Print the path for a named knowledge base or path.
+  open       Start the registry or knowledge base Markdown viewer.
   to         Convert a bundle to another format.
   spec       Print an embedded OKF spec.
   validate   Validate a bundle against an OKF spec.
@@ -591,11 +730,50 @@ Run openknowledge <command> --help for command-specific help.
 
 Examples:
   openknowledge new ./project-memory
+  openknowledge registry add personal ~/knowledge
+  openknowledge where personal
+  openknowledge list personal
   openknowledge validate ./project-memory
   openknowledge to html --out ./site ./project-memory
   openknowledge to json ./project-memory
   openknowledge list --json ./project-memory
+  openknowledge open
   openknowledge open ./project-memory
+`
+}
+
+func registryHelpText() string {
+	return `openknowledge registry
+
+Manage named knowledge base paths.
+
+Usage:
+  openknowledge registry list
+  openknowledge registry add <name> <path>
+  openknowledge registry --help
+
+Registry names are shortcuts for normal filesystem paths. Path-based commands
+continue to work directly, for example openknowledge list ./project-memory.
+
+Examples:
+  openknowledge registry add personal ~/knowledge
+  openknowledge registry list
+  openknowledge list personal
+`
+}
+
+func whereHelpText() string {
+	return `openknowledge where
+
+Print the absolute path for a named knowledge base or path.
+
+Usage:
+  openknowledge where <name|path>
+  openknowledge where --help
+
+Examples:
+  openknowledge where personal
+  openknowledge where ./project-memory
 `
 }
 
@@ -680,8 +858,9 @@ Usage:
   openknowledge setup
   openknowledge setup --help
 
-The prompt tells an agent to interview the user, create a bundle with
-openknowledge new, customize the scaffold, and validate the result.
+The prompt tells an agent to inspect the current workspace, ask tailored
+questions, create a bundle with openknowledge new, customize the scaffold, and
+validate the result.
 `
 }
 
@@ -710,23 +889,37 @@ Examples:
 func openHelpText() string {
 	return `openknowledge open
 
-Start a local HTTP Markdown viewer for a knowledge base.
+Start a local HTTP Markdown viewer.
 
 Usage:
   openknowledge open [path]
+  openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
+  openknowledge open --local-domain <domain> [path]
+  openknowledge open --no-browser [path]
   openknowledge open --help
 
 Arguments:
-  path         Knowledge base root. Defaults to the current directory.
+  path         Optional knowledge base root or registry name. When omitted,
+               the viewer opens the Open Knowledge Registry workspace selector.
 
 Flags:
   --host       Host to bind. Defaults to 127.0.0.1.
   --port       Port to bind. Defaults to 0, which selects a free port.
+  --name       Alias name for direct path mode. Defaults to the registry name
+               or folder name.
+  --local-domain
+               Local alias domain to print. Defaults to open.knowledge.
+               Set to an empty string to hide the alias URL.
+  --no-browser
+               Print the URL without opening the default browser.
 
 Examples:
+  openknowledge open
+  openknowledge open personal
   openknowledge open ./project-memory
   openknowledge open --port 8080 ./project-memory
+  openknowledge open --name project-memory --port 3000 ./project-memory
 `
 }
 
@@ -770,7 +963,7 @@ Versions:
   %s
 
 Exit codes:
-  0            Validation passed.
+  0            Validation passed, with or without warnings.
   1            Validation found errors.
   2            Usage or setup error.
 `, supportedSpecVersionsText())

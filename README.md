@@ -14,10 +14,10 @@ The fastest way to start is to paste this prompt into Codex, Cowork, Cursor, Cla
 ```text
 Set up an Open Knowledge agentic wiki for this workspace.
 
-First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, ask me the setup questions, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect it with openknowledge open.
+First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, inspect this workspace and any relevant memories, ask only the setup questions still needed, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect it with openknowledge open.
 ```
 
-The agent will install the CLI if needed, run setup, ask where the wiki should live, create the scaffold, tailor it to your use case, and validate the result.
+The agent will install the CLI if needed, run setup, inspect local context and relevant memories, ask only for missing decisions, create the scaffold, tailor it to your use case, and validate the result.
 
 ### CLI shortcut
 
@@ -43,8 +43,12 @@ Create and inspect a minimal scaffold directly:
 
 ```sh
 openknowledge new ./project-memory
+openknowledge registry add personal ./project-memory
+openknowledge where personal
+openknowledge open
 openknowledge open ./project-memory
 openknowledge list ./project-memory
+openknowledge list personal
 openknowledge validate ./project-memory
 openknowledge to html --out ./project-site ./project-memory
 openknowledge to html --plain --out ./project-plain-site ./project-memory
@@ -61,7 +65,7 @@ knowledge base. With workflows and agent instructions to help your agents mainta
 - Guided setup through an agent interview, so the wiki starts with the right
   purpose, structure, and maintenance habits and rules.
 - An agentic maintenance loop so wiki stays up to date.
-- Local markdown viewer to inspect the wiki.
+- Local markdown viewer with full-text search to inspect the wiki.
 - Consistency against the [Open Knowledge Format v0.1][okf-spec]
   specification.
 
@@ -69,23 +73,35 @@ knowledge base. With workflows and agent instructions to help your agents mainta
 
 `openknowledge setup` prints an agent prompt for setting up a useful local
 knowledge base with the user. Paste it into a coding agent, or pass it as an
-initial CLI prompt when your agent CLI supports that pattern. The agent asks
-where the knowledge base should live, creates it with `openknowledge new`, then
-creates the folders, workflows, agent instructions, native automations when
-supported, and seed pages that fit the chosen use case.
+initial CLI prompt when your agent CLI supports that pattern. The agent first
+inspects the workspace and any relevant user or project memories available in
+its runtime, asks only the missing setup questions, creates the bundle with
+`openknowledge new`, then creates the folders, workflows, agent instructions,
+native automations when supported, and seed pages that fit the chosen use case.
 
 `openknowledge new` creates a minimal local bundle with the base OKF files: a
 setup handoff, starter agent guidance, an update log, and a pinned copy of the
 current spec. The use-case structure is intentionally left to setup.
 
-After that, humans and agents edit normal Markdown files. `openknowledge
-open` starts a local viewer for reading the wiki, `openknowledge validate`
-checks the bundle for portable OKF structure, and `openknowledge list` prints
-the bundle tree with inline validation issues. `openknowledge to html` writes a
-static viewer app bundle by default, `openknowledge to html --plain` writes
-unstyled semantic HTML, and `openknowledge to json` writes a normalized bundle
-model for tools and agents.
+After that, humans and agents edit normal Markdown files. `openknowledge open`
+starts a registry-backed local viewer with a workspace selector, and
+`openknowledge open <path-or-name>` opens one knowledge base directly.
+`openknowledge validate` checks the bundle for portable OKF structure, and
+`openknowledge list` prints the bundle tree with inline validation issues.
+`openknowledge to html` writes the same static viewer app bundle by default,
+`openknowledge to html --plain` writes unstyled semantic HTML, and
+`openknowledge to json` writes a normalized bundle model for tools and agents.
 
+`openknowledge registry` stores named local paths for shared or standalone
+knowledge bases. A name is only an alias: path-based commands still work, and
+agents can use `openknowledge where <name>` to get the real folder before using
+normal filesystem tools such as `rg`.
+
+The local viewer opens the printed view URL in your default browser. It also
+prints an `open.knowledge` alias URL and serves registered knowledge bases under
+paths such as `/personal/`. The hostname must be mapped to loopback through
+local DNS, `/etc/hosts`, or a reverse proxy; the CLI only serves the HTTP
+routes.
 
 ## Commands
 
@@ -95,7 +111,11 @@ model for tools and agents.
 | `openknowledge <command> --help` | Print command-specific usage, flags, and examples. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
-| `openknowledge open [path]` | Start a local Markdown viewer for a knowledge base. |
+| `openknowledge registry list` | List named local knowledge base paths. |
+| `openknowledge registry add <name> <path>` | Register a name for a knowledge base folder. |
+| `openknowledge where <name-or-path>` | Print the absolute path for a registry name or path. |
+| `openknowledge open [path]` | Start the registry or knowledge base Markdown viewer. |
+| `openknowledge open --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
 | `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle. |
 | `openknowledge to html --plain --out <folder> [path]` | Write unstyled semantic HTML files. |
 | `openknowledge to json [path]` | Print normalized bundle JSON. |
@@ -115,13 +135,16 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 
 - every non-reserved Markdown file has top-level YAML frontmatter
 - every concept frontmatter has a non-empty `type`
+- YAML frontmatter parses cleanly; non-blocking formatting issues are warnings
+- Markdown bodies avoid malformed links, code spans, tables, and fences
 - `index.md` and `log.md` are reserved files, not concept documents
 - root `index.md` may declare `okf_version: "0.1"`
 - `log.md` `##` headings use `YYYY-MM-DD`
 - local Markdown links resolve inside the bundle, reported as warnings
 
 It does not fail on optional fields, unknown concept types, unknown frontmatter
-keys, broken local links, or missing index files.
+keys, broken local links, non-blocking Markdown syntax warnings, or missing
+index files.
 
 
 ## License and attribution

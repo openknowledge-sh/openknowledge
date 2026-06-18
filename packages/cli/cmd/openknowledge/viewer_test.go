@@ -197,8 +197,81 @@ func TestViewerIndexFallsBackToListWithoutIndexMarkdown(t *testing.T) {
 	if !strings.Contains(index, "notes/details.md") || !strings.Contains(index, "workflows/docs.md") {
 		t.Fatalf("viewer index fallback did not include markdown files:\n%s", index)
 	}
+	if !strings.Contains(index, `id="viewer-search"`) {
+		t.Fatalf("viewer index fallback did not include search input:\n%s", index)
+	}
 	if startPath := viewerStartPath(root); startPath != "/" {
 		t.Fatalf("expected viewer start path to fall back to list, got %q", startPath)
+	}
+}
+
+func TestViewerSearchAPI(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead the workflow docs.\n")
+	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\n---\n\n# Docs\n\nRun validation before publishing.\n")
+
+	handler := newViewerHandler(root)
+	payload := getViewerSearch(t, handler, "/api/search?q=validaton&limit=4")
+	if payload.Query != "validaton" {
+		t.Fatalf("expected query echo, got %#v", payload)
+	}
+	if len(payload.Results) == 0 {
+		t.Fatalf("expected fuzzy search results, got %#v", payload)
+	}
+	if payload.Results[0].Path != "workflows/docs.md" || payload.Results[0].URL != "/file/workflows/docs.md" {
+		t.Fatalf("unexpected search result: %#v", payload.Results[0])
+	}
+}
+
+func TestViewerServesDirectAliasPath(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Workflow](workflows/docs.md).\n")
+	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\n---\n\n# Docs\n\nRun validation before publishing.\n")
+
+	handler := newViewerHandlerWithAlias(root, "project-memory")
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/project-memory/", nil))
+	if recorder.Code != http.StatusFound {
+		t.Fatalf("expected alias root to redirect to index.md, got %d", recorder.Code)
+	}
+	if location := recorder.Header().Get("Location"); location != "/project-memory/file/index.md" {
+		t.Fatalf("expected alias redirect to prefixed index.md, got %q", location)
+	}
+
+	page := getViewerBody(t, handler, "/project-memory/file/index.md")
+	if !strings.Contains(page, `href="/project-memory/file/workflows/docs.md"`) {
+		t.Fatalf("viewer file did not prefix markdown links:\n%s", page)
+	}
+	if !strings.Contains(page, `data-link-prefix="/project-memory"`) || !strings.Contains(page, `linkPrefix + "/api/file/"`) {
+		t.Fatalf("viewer file did not expose prefixed stack runtime:\n%s", page)
+	}
+
+	api := getViewerJSON(t, handler, "/project-memory/api/file/index.md")
+	if !strings.Contains(api.Body, `href="/project-memory/file/workflows/docs.md"`) {
+		t.Fatalf("viewer API did not prefix markdown links: %#v", api)
+	}
+
+	payload := getViewerSearch(t, handler, "/project-memory/api/search?q=validation")
+	if len(payload.Results) == 0 || payload.Results[0].URL != "/project-memory/file/workflows/docs.md" {
+		t.Fatalf("unexpected prefixed search result: %#v", payload)
+	}
+}
+
+func TestViewerSearchRefreshesAfterMarkdownChanges(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n")
+
+	handler := newViewerHandler(root)
+	first := getViewerSearch(t, handler, "/api/search?q=draft")
+	if len(first.Results) != 0 {
+		t.Fatalf("expected no draft results before file is written, got %#v", first)
+	}
+
+	writeViewerFile(t, root, "notes/draft.md", "---\ntype: Note\ntitle: Draft Note\n---\n\n# Draft\n\nFresh searchable content.\n")
+	second := getViewerSearch(t, handler, "/api/search?q=draft")
+	if len(second.Results) == 0 || second.Results[0].Path != "notes/draft.md" {
+		t.Fatalf("expected refreshed search result, got %#v", second)
 	}
 }
 
@@ -268,6 +341,27 @@ func getViewerJSON(t *testing.T, handler http.Handler, target string) viewerFile
 	var payload viewerFilePayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("expected viewer API JSON, got %s: %v", string(body), err)
+	}
+	return payload
+}
+
+func getViewerSearch(t *testing.T, handler http.Handler, target string) viewerSearchResponse {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, target, nil))
+	response := recorder.Result()
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 from %s, got %d: %s", target, response.StatusCode, string(body))
+	}
+
+	var payload viewerSearchResponse
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatal(err)
 	}
 	return payload
 }

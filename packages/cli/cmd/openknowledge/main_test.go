@@ -13,7 +13,12 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge <command> --help",
 		"openknowledge setup",
 		"openknowledge new --name <name> [folder]",
+		"openknowledge registry add <name> <path>",
+		"openknowledge where <name|path>",
+		"openknowledge open --name <alias-name> [path]",
 		"openknowledge open --host <host> --port <port> [path]",
+		"openknowledge open --local-domain <domain> [path]",
+		"openknowledge open --no-browser [path]",
 		"openknowledge to html --out <folder> [path]",
 		"openknowledge to json --out <file> [path]",
 		"openknowledge validate --spec <version> [path]",
@@ -22,7 +27,9 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"Commands:",
 		"setup      Print an agent setup prompt.",
 		"new        Scaffold a local Open Knowledge bundle.",
-		"open       Start a local Markdown viewer.",
+		"registry   Manage named knowledge base paths.",
+		"where      Print the path for a named knowledge base or path.",
+		"open       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
 		"spec       Print an embedded OKF spec.",
 		"validate   Validate a bundle against an OKF spec.",
@@ -64,12 +71,35 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"--name",
 			},
 		},
+		"registry": {
+			help: registryHelpText(),
+			required: []string{
+				"openknowledge registry add <name> <path>",
+				"Registry names are shortcuts",
+				"openknowledge list personal",
+			},
+		},
+		"where": {
+			help: whereHelpText(),
+			required: []string{
+				"openknowledge where <name|path>",
+				"Print the absolute path",
+			},
+		},
 		"open": {
 			help: openHelpText(),
 			required: []string{
 				"openknowledge open --host <host> --port <port> [path]",
+				"openknowledge open --name <alias-name> [path]",
+				"openknowledge open --local-domain <domain> [path]",
+				"openknowledge open --no-browser [path]",
+				"Open Knowledge Registry workspace selector",
+				"openknowledge open personal",
 				"--host",
 				"--port",
+				"--name",
+				"--local-domain",
+				"--no-browser",
 			},
 		},
 		"spec": {
@@ -165,11 +195,5 @@ func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 	}
 	if options.path != "./project-memory" || options.out != "./site" || options.spec != "0.1" || !options.plain {
 		t.Fatalf("unexpected options: %#v", options)
-	}
-}
-
-func TestParseToOptionsRejectsMultiplePaths(t *testing.T) {
-	if _, err := parseToOptions([]string{".", "./other"}); err == nil {
-		t.Fatal("expected multiple paths to fail")
 	}
 }

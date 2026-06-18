@@ -6,15 +6,19 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
@@ -28,6 +32,9 @@ func runOpen(args []string) int {
 	fs.SetOutput(os.Stderr)
 	host := fs.String("host", "127.0.0.1", "host to bind")
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
+	name := fs.String("name", "", "local alias name for direct path mode")
+	localDomain := fs.String("local-domain", "open.knowledge", "local alias domain to print, or empty to disable")
+	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -36,24 +43,40 @@ func runOpen(args []string) int {
 		return 2
 	}
 
-	root := "."
+	var handler http.Handler
+	var details func()
+	aliasNames := []string{}
 	if fs.NArg() == 1 {
-		root = fs.Arg(0)
-	}
-
-	absolute, err := filepath.Abs(root)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	info, err := os.Stat(absolute)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "%s is not a directory\n", absolute)
-		return 1
+		target := fs.Arg(0)
+		absolute, err := resolveViewerRoot(target)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		aliasName := directViewerAliasName(target, absolute, *name)
+		if aliasName != "" {
+			aliasNames = append(aliasNames, aliasName)
+		}
+		handler = newViewerHandlerWithAlias(absolute, aliasName)
+		details = func() {
+			fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(absolute))
+		}
+	} else {
+		entries, err := okf.RegistryEntries()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		for _, entry := range entries {
+			aliasNames = append(aliasNames, entry.Name)
+		}
+		handler = newRegistryViewerHandler(entries)
+		details = func() {
+			if path, err := okf.RegistryFile(); err == nil {
+				fmt.Printf("%s %s\n", terminal.muted("registry"), terminal.path(path))
+			}
+			fmt.Printf("%s %d\n", terminal.muted("knowledge bases"), len(entries))
+		}
 	}
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(*host, strconv.Itoa(*port)))
@@ -62,42 +85,289 @@ func runOpen(args []string) int {
 		return 1
 	}
 
-	addr := listener.Addr().String()
-	if strings.HasPrefix(addr, "0.0.0.0:") {
-		addr = "127.0.0.1:" + strings.TrimPrefix(addr, "0.0.0.0:")
-	}
+	displayHost, displayPort := displayHostPort(listener.Addr())
+	viewURL := viewerDisplayURL(displayHost, displayPort, "")
 
-	fmt.Printf("Open Knowledge view: http://%s%s\n", addr, viewerStartPath(absolute))
-	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(absolute))
+	if domain := strings.TrimSpace(*localDomain); domain != "" {
+		viewURL = viewerAliasDisplayURL(domain, displayPort, aliasNames)
+		fmt.Printf("Open Knowledge view: %s\n", viewURL)
+		fmt.Printf("Open Knowledge fallback: %s\n", viewerDisplayURL(displayHost, displayPort, ""))
+	} else {
+		fmt.Printf("Open Knowledge view: %s\n", viewURL)
+	}
+	details()
 	fmt.Println(terminal.muted("Press Ctrl+C to stop."))
 
-	if err := http.Serve(listener, newViewerHandler(absolute)); err != nil {
+	if !*noBrowser {
+		if err := openBrowser(viewURL); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not open browser: %v\n", err)
+		}
+	}
+
+	if err := http.Serve(listener, handler); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	return 0
 }
 
+func resolveViewerRoot(root string) (string, error) {
+	resolved, err := okf.ResolveKnowledgeRoot(root)
+	if err != nil {
+		return "", err
+	}
+
+	absolute, err := filepath.Abs(resolved)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%s is not a directory", absolute)
+	}
+	return absolute, nil
+}
+
+func directViewerAliasName(target string, root string, override string) string {
+	if name := normalizeLocalAliasName(override); name != "" {
+		return name
+	}
+	if !okf.LooksLikePath(target) {
+		if entry, ok, err := okf.ResolveRegistryEntry(target); err == nil && ok {
+			return entry.Name
+		}
+	}
+	if name := registryAliasNameForRoot(root); name != "" {
+		return name
+	}
+	return normalizeLocalAliasName(filepath.Base(filepath.Clean(root)))
+}
+
+func registryAliasNameForRoot(root string) string {
+	root = filepath.Clean(root)
+	entries, err := okf.RegistryEntries()
+	if err != nil {
+		return ""
+	}
+	for _, entry := range entries {
+		entryRoot, err := okf.ExpandUserPath(entry.Path)
+		if err != nil {
+			continue
+		}
+		absolute, err := filepath.Abs(entryRoot)
+		if err != nil {
+			continue
+		}
+		if filepath.Clean(absolute) == root {
+			return entry.Name
+		}
+	}
+	return ""
+}
+
 func newViewerHandler(root string) http.Handler {
+	return newViewerHandlerWithAlias(root, "")
+}
+
+func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 	mux := http.NewServeMux()
+	searchCache := &viewerSearchCache{root: root}
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
-		if request.URL.Path != "/" {
+		if request.URL.Path == "/" {
+			if startPath := viewerStartPath(root); startPath != "/" {
+				http.Redirect(response, request, startPath, http.StatusFound)
+				return
+			}
+			renderViewerIndex(response, root, viewerFrame{}, "", filepath.Base(root))
+			return
+		}
+		rest, ok := parseDirectAliasRoute(request.URL.Path, aliasName)
+		if !ok {
 			http.NotFound(response, request)
 			return
 		}
-		if startPath := viewerStartPath(root); startPath != "/" {
-			http.Redirect(response, request, startPath, http.StatusFound)
+		prefix := localAliasPrefix(aliasName)
+		if rest == "" {
+			if !strings.HasSuffix(request.URL.Path, "/") {
+				http.Redirect(response, request, localAliasURL(aliasName), http.StatusFound)
+				return
+			}
+			if startPath := viewerStartPathWithPrefix(root, prefix); startPath != prefix+"/" {
+				http.Redirect(response, request, startPath, http.StatusFound)
+				return
+			}
+			renderViewerIndex(response, root, viewerFrame{}, prefix, filepath.Base(root))
 			return
 		}
-		renderViewerIndex(response, root)
+		if rest == "api/search" {
+			renderViewerSearch(response, request, searchCache, prefix)
+			return
+		}
+		if strings.HasPrefix(rest, "api/file/") {
+			rel := strings.TrimPrefix(rest, "api/file/")
+			renderViewerFileAPI(response, request, root, rel, prefix)
+			return
+		}
+		if strings.HasPrefix(rest, "file/") {
+			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), viewerFrame{}, prefix)
+			return
+		}
+		http.NotFound(response, request)
 	})
 	mux.HandleFunc("/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/file/")
-		renderViewerFile(response, request, root, rel)
+		renderViewerFile(response, request, root, rel, viewerFrame{}, "")
 	})
 	mux.HandleFunc("/api/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/api/file/")
-		renderViewerFileAPI(response, request, root, rel)
+		renderViewerFileAPI(response, request, root, rel, "")
+	})
+	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
+		renderViewerSearch(response, request, searchCache, "")
+	})
+	mux.HandleFunc("/api/editor-icon/", func(response http.ResponseWriter, request *http.Request) {
+		editorID := strings.TrimPrefix(request.URL.Path, "/api/editor-icon/")
+		renderViewerEditorIcon(response, request, editorID)
+	})
+	return mux
+}
+
+func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
+	mux := http.NewServeMux()
+	searchCaches := make(map[string]*viewerSearchCache)
+	var searchCachesMutex sync.Mutex
+	searchCacheForEntry := func(entry okf.RegistryEntry) (*viewerSearchCache, error) {
+		root, err := registryEntryRoot(entry)
+		if err != nil {
+			return nil, err
+		}
+		searchCachesMutex.Lock()
+		defer searchCachesMutex.Unlock()
+		cache := searchCaches[entry.Name]
+		if cache == nil || cache.root != root {
+			cache = &viewerSearchCache{root: root}
+			searchCaches[entry.Name] = cache
+		}
+		return cache, nil
+	}
+	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/" {
+			entry, rest, ok := parseRegistryAliasRoute(request.URL.Path, entries)
+			if ok {
+				prefix := localAliasPrefix(entry.Name)
+				if rest == "" {
+					if !strings.HasSuffix(request.URL.Path, "/") {
+						http.Redirect(response, request, localAliasURL(entry.Name), http.StatusFound)
+						return
+					}
+					root, err := registryEntryRoot(entry)
+					frame := registryFrame(entries, entry.Name, localAliasURL)
+					if err != nil {
+						renderHTML(response, viewerIndexTemplate, viewerIndexData{
+							Frame: frame,
+							Title: entry.Name,
+							Root:  entry.Path,
+							Error: err.Error(),
+						})
+						return
+					}
+					if startPath := viewerStartPathWithPrefix(root, prefix); startPath != prefix+"/" {
+						http.Redirect(response, request, startPath, http.StatusFound)
+						return
+					}
+					renderViewerIndex(response, root, frame, prefix, entry.Name)
+					return
+				}
+				if rest == "api/search" {
+					cache, err := searchCacheForEntry(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					renderViewerSearch(response, request, cache, prefix)
+					return
+				}
+				if strings.HasPrefix(rest, "api/file/") {
+					root, err := registryEntryRoot(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
+					return
+				}
+				if strings.HasPrefix(rest, "file/") {
+					root, err := registryEntryRoot(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					frame := registryFrame(entries, entry.Name, localAliasURL)
+					renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix)
+					return
+				}
+			}
+			http.NotFound(response, request)
+			return
+		}
+		if len(entries) == 0 {
+			renderRegistryEmpty(response)
+			return
+		}
+		renderRegistryIndex(response, entries, entries[0].Name)
+	})
+	mux.HandleFunc("/kb/", func(response http.ResponseWriter, request *http.Request) {
+		name, rest, ok := parseWorkspaceRoute(request.URL.Path)
+		if !ok {
+			http.NotFound(response, request)
+			return
+		}
+		entry, found := registryEntryByName(entries, name)
+		if !found {
+			http.NotFound(response, request)
+			return
+		}
+		prefix := workspacePrefix(entry.Name)
+		if rest == "" {
+			if !strings.HasSuffix(request.URL.Path, "/") {
+				http.Redirect(response, request, workspaceURL(name), http.StatusFound)
+				return
+			}
+			renderRegistryIndex(response, entries, entry.Name)
+			return
+		}
+		if rest == "api/search" {
+			cache, err := searchCacheForEntry(entry)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			renderViewerSearch(response, request, cache, prefix)
+			return
+		}
+		if strings.HasPrefix(rest, "api/file/") {
+			root, err := registryEntryRoot(entry)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
+			return
+		}
+		if strings.HasPrefix(rest, "file/") {
+			root, err := registryEntryRoot(entry)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			frame := registryFrame(entries, entry.Name, workspaceURL)
+			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix)
+			return
+		}
+		http.NotFound(response, request)
 	})
 	mux.HandleFunc("/api/editor-icon/", func(response http.ResponseWriter, request *http.Request) {
 		editorID := strings.TrimPrefix(request.URL.Path, "/api/editor-icon/")
@@ -107,15 +377,27 @@ func newViewerHandler(root string) http.Handler {
 }
 
 func viewerStartPath(root string) string {
+	return viewerStartPathWithPrefix(root, "")
+}
+
+func viewerStartPathWithPrefix(root string, prefix string) string {
 	filePath, ok := safeMarkdownPath(root, "index.md")
 	if !ok {
-		return "/"
+		return viewerPrefixRoot(prefix)
 	}
 	info, err := os.Stat(filePath)
 	if err != nil || info.IsDir() {
+		return viewerPrefixRoot(prefix)
+	}
+	return fileURLWithPrefix(prefix, "index.md")
+}
+
+func viewerPrefixRoot(prefix string) string {
+	prefix = strings.TrimRight(prefix, "/")
+	if prefix == "" {
 		return "/"
 	}
-	return fileURL("index.md")
+	return prefix + "/"
 }
 
 type viewerEntry struct {
@@ -127,16 +409,37 @@ type viewerEntry struct {
 	Issues []okf.Issue
 }
 
-type viewerIndexData struct {
-	Title   string
-	Root    string
-	Entries []viewerEntry
+type viewerWorkspace struct {
+	Name   string
+	Root   string
+	URL    string
+	Active bool
 }
 
-func renderViewerIndex(response http.ResponseWriter, root string) {
+type viewerFrame struct {
+	Workspaces []viewerWorkspace
+	ActiveName string
+	ActiveURL  string
+}
+
+type viewerIndexData struct {
+	Frame     viewerFrame
+	Title     string
+	Root      string
+	Error     string
+	SearchURL string
+	Entries   []viewerEntry
+}
+
+func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFrame, linkPrefix string, title string) {
 	listing, err := okf.List(root)
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
+		renderHTML(response, viewerIndexTemplate, viewerIndexData{
+			Frame: frame,
+			Title: title,
+			Root:  root,
+			Error: err.Error(),
+		})
 		return
 	}
 
@@ -151,7 +454,7 @@ func renderViewerIndex(response http.ResponseWriter, root string) {
 		}
 		entries = append(entries, viewerEntry{
 			Path:   entry.Path,
-			URL:    fileURL(entry.Path),
+			URL:    fileURLWithPrefix(linkPrefix, entry.Path),
 			Kind:   kind,
 			Type:   entry.Type,
 			Title:  entry.Title,
@@ -160,17 +463,21 @@ func renderViewerIndex(response http.ResponseWriter, root string) {
 	}
 
 	renderHTML(response, viewerIndexTemplate, viewerIndexData{
-		Title:   filepath.Base(root),
-		Root:    root,
-		Entries: entries,
+		Frame:     frame,
+		Title:     title,
+		Root:      root,
+		SearchURL: searchURLWithPrefix(linkPrefix),
+		Entries:   entries,
 	})
 }
 
 type viewerFileData struct {
+	Frame       viewerFrame
 	Title       string
 	Root        string
 	Path        string
 	FileURL     string
+	LinkPrefix  string
 	Body        template.HTML
 	Tree        []viewerTreeItem
 	EditorsJSON template.JS
@@ -221,8 +528,8 @@ type viewerTreeItem struct {
 	Directory bool
 }
 
-func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string) {
-	data, ok, err := viewerFile(root, rel)
+func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, frame viewerFrame, linkPrefix string) {
+	data, ok, err := viewerFile(root, rel, frame, linkPrefix)
 	if !ok {
 		http.NotFound(response, request)
 		return
@@ -235,8 +542,8 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 	renderHTML(response, viewerFileTemplate, data)
 }
 
-func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string) {
-	data, ok, err := viewerFile(root, rel)
+func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
+	data, ok, err := viewerFile(root, rel, viewerFrame{}, linkPrefix)
 	if !ok {
 		http.NotFound(response, request)
 		return
@@ -256,7 +563,7 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 	}
 }
 
-func viewerFile(root string, rel string) (viewerFileData, bool, error) {
+func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (viewerFileData, bool, error) {
 	cleanRel, ok := cleanMarkdownRel(rel)
 	if !ok {
 		return viewerFileData{}, false, nil
@@ -277,14 +584,301 @@ func viewerFile(root string, rel string) (viewerFileData, bool, error) {
 	}
 
 	return viewerFileData{
+		Frame:       frame,
 		Title:       titleForMarkdownFile(cleanRel),
 		Root:        root,
 		Path:        cleanRel,
-		FileURL:     fileURL(cleanRel),
-		Body:        template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), cleanRel, okf.ViewerLink)),
-		Tree:        viewerTree(listing.Entries),
+		FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
+		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
+		Body:        template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), cleanRel, viewerLinkWithPrefix(linkPrefix))),
+		Tree:        viewerTreeWithURL(listing.Entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
 	}, true, nil
+}
+
+type viewerSearchResponse struct {
+	Query   string               `json:"query"`
+	Results []viewerSearchResult `json:"results"`
+}
+
+type viewerSearchResult struct {
+	Path        string   `json:"path"`
+	URL         string   `json:"url"`
+	ID          string   `json:"id"`
+	Kind        string   `json:"kind"`
+	Type        string   `json:"type,omitempty"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Snippet     string   `json:"snippet,omitempty"`
+	Score       float64  `json:"score"`
+	Matches     []string `json:"matches,omitempty"`
+}
+
+type viewerSearchCache struct {
+	root        string
+	mutex       sync.Mutex
+	fingerprint string
+	index       okf.SearchIndex
+}
+
+func (cache *viewerSearchCache) Search(options okf.SearchOptions) ([]okf.SearchResult, error) {
+	fingerprint, err := markdownFingerprint(cache.root)
+	if err != nil {
+		return nil, err
+	}
+
+	cache.mutex.Lock()
+	if cache.fingerprint == fingerprint {
+		index := cache.index
+		cache.mutex.Unlock()
+		return index.Search(options), nil
+	}
+	cache.mutex.Unlock()
+
+	bundle, err := okf.ParseBundle(cache.root)
+	if err != nil {
+		return nil, err
+	}
+	index := okf.NewSearchIndex(bundle)
+
+	cache.mutex.Lock()
+	cache.fingerprint = fingerprint
+	cache.index = index
+	cache.mutex.Unlock()
+
+	return index.Search(options), nil
+}
+
+func markdownFingerprint(root string) (string, error) {
+	var builder strings.Builder
+	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !isMarkdownFile(current) {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, current)
+		if err != nil {
+			return err
+		}
+		builder.WriteString(filepath.ToSlash(rel))
+		builder.WriteByte('\x00')
+		builder.WriteString(strconv.FormatInt(info.Size(), 10))
+		builder.WriteByte('\x00')
+		builder.WriteString(strconv.FormatInt(info.ModTime().UnixNano(), 10))
+		builder.WriteByte('\n')
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return builder.String(), nil
+}
+
+func renderViewerSearch(response http.ResponseWriter, request *http.Request, searchCache *viewerSearchCache, linkPrefix string) {
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", http.MethodGet)
+		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := strings.TrimSpace(request.URL.Query().Get("q"))
+	limit := 12
+	if rawLimit := strings.TrimSpace(request.URL.Query().Get("limit")); rawLimit != "" {
+		parsed, err := strconv.Atoi(rawLimit)
+		if err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if limit > 30 {
+		limit = 30
+	}
+
+	if query == "" {
+		writeViewerSearchJSON(response, viewerSearchResponse{Query: query})
+		return
+	}
+
+	results, err := searchCache.Search(okf.SearchOptions{
+		Query: query,
+		Limit: limit,
+		Fuzzy: true,
+	})
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	payload := viewerSearchResponse{
+		Query:   query,
+		Results: make([]viewerSearchResult, 0, len(results)),
+	}
+	for _, result := range results {
+		payload.Results = append(payload.Results, viewerSearchResult{
+			Path:        result.Path,
+			URL:         fileURLWithPrefix(linkPrefix, result.Path),
+			ID:          result.ID,
+			Kind:        result.Kind,
+			Type:        result.Type,
+			Title:       result.Title,
+			Description: result.Description,
+			Snippet:     result.Snippet,
+			Score:       result.Score,
+			Matches:     result.Matches,
+		})
+	}
+
+	writeViewerSearchJSON(response, payload)
+}
+
+func writeViewerSearchJSON(response http.ResponseWriter, payload viewerSearchResponse) {
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	encoder := json.NewEncoder(response)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(payload); err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func renderRegistryEmpty(response http.ResponseWriter) {
+	renderHTML(response, viewerIndexTemplate, viewerIndexData{
+		Title: "Open Knowledge Registry",
+		Error: "No registered knowledge bases. Add one with openknowledge registry add <name> <path>.",
+	})
+}
+
+func renderRegistryIndex(response http.ResponseWriter, entries []okf.RegistryEntry, activeName string) {
+	entry, found := registryEntryByName(entries, activeName)
+	if !found {
+		http.Error(response, "knowledge base not found", http.StatusNotFound)
+		return
+	}
+
+	root, err := registryEntryRoot(entry)
+	frame := registryFrame(entries, entry.Name, workspaceURL)
+	if err != nil {
+		renderHTML(response, viewerIndexTemplate, viewerIndexData{
+			Frame: frame,
+			Title: entry.Name,
+			Root:  entry.Path,
+			Error: err.Error(),
+		})
+		return
+	}
+	renderViewerIndex(response, root, frame, workspacePrefix(entry.Name), entry.Name)
+}
+
+func parseWorkspaceRoute(requestPath string) (string, string, bool) {
+	trimmed := strings.TrimPrefix(requestPath, "/kb/")
+	if trimmed == requestPath || trimmed == "" {
+		return "", "", false
+	}
+
+	namePart := trimmed
+	rest := ""
+	if slash := strings.Index(trimmed, "/"); slash >= 0 {
+		namePart = trimmed[:slash]
+		rest = trimmed[slash+1:]
+	}
+	name, err := url.PathUnescape(namePart)
+	if err != nil || strings.TrimSpace(name) == "" {
+		return "", "", false
+	}
+	return name, rest, true
+}
+
+func parseRegistryAliasRoute(requestPath string, entries []okf.RegistryEntry) (okf.RegistryEntry, string, bool) {
+	name, rest, ok := parseLocalAliasRoute(requestPath)
+	if !ok {
+		return okf.RegistryEntry{}, "", false
+	}
+	entry, found := registryEntryByName(entries, name)
+	if !found {
+		return okf.RegistryEntry{}, "", false
+	}
+	return entry, rest, true
+}
+
+func parseDirectAliasRoute(requestPath string, aliasName string) (string, bool) {
+	name, rest, ok := parseLocalAliasRoute(requestPath)
+	if !ok || aliasName == "" || name != aliasName {
+		return "", false
+	}
+	return rest, true
+}
+
+func parseLocalAliasRoute(requestPath string) (string, string, bool) {
+	trimmed := strings.TrimPrefix(requestPath, "/")
+	if trimmed == requestPath || trimmed == "" {
+		return "", "", false
+	}
+	namePart := trimmed
+	rest := ""
+	if slash := strings.Index(trimmed, "/"); slash >= 0 {
+		namePart = trimmed[:slash]
+		rest = trimmed[slash+1:]
+	}
+	name, err := url.PathUnescape(namePart)
+	if err != nil || strings.TrimSpace(name) == "" {
+		return "", "", false
+	}
+	return name, rest, true
+}
+
+func registryEntryByName(entries []okf.RegistryEntry, name string) (okf.RegistryEntry, bool) {
+	for _, entry := range entries {
+		if entry.Name == name {
+			return entry, true
+		}
+	}
+	return okf.RegistryEntry{}, false
+}
+
+func registryFrame(entries []okf.RegistryEntry, activeName string, urlFor func(string) string) viewerFrame {
+	workspaces := make([]viewerWorkspace, 0, len(entries))
+	for _, entry := range entries {
+		workspaces = append(workspaces, viewerWorkspace{
+			Name:   entry.Name,
+			Root:   entry.Path,
+			URL:    urlFor(entry.Name),
+			Active: entry.Name == activeName,
+		})
+	}
+	return viewerFrame{Workspaces: workspaces, ActiveName: activeName, ActiveURL: urlFor(activeName)}
+}
+
+func registryEntryRoot(entry okf.RegistryEntry) (string, error) {
+	root, err := okf.ExpandUserPath(entry.Path)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(root) == "" {
+		return "", fmt.Errorf("registry entry %s has an empty path", entry.Name)
+	}
+
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%s is not a directory", absolute)
+	}
+	return absolute, nil
 }
 
 func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HTMLResult, error) {
@@ -814,6 +1408,154 @@ func fileURL(rel string) string {
 	return "/file/" + strings.TrimPrefix(path.Clean("/"+rel), "/")
 }
 
+func fileURLWithPrefix(prefix string, rel string) string {
+	return strings.TrimRight(prefix, "/") + fileURL(rel)
+}
+
+func searchURLWithPrefix(prefix string) string {
+	return strings.TrimRight(prefix, "/") + "/api/search"
+}
+
+func workspacePrefix(name string) string {
+	return "/kb/" + url.PathEscape(name)
+}
+
+func workspaceURL(name string) string {
+	return workspacePrefix(name) + "/"
+}
+
+func localAliasPrefix(name string) string {
+	if strings.TrimSpace(name) == "" {
+		return ""
+	}
+	return "/" + url.PathEscape(name)
+}
+
+func localAliasURL(name string) string {
+	prefix := localAliasPrefix(name)
+	if prefix == "" {
+		return "/"
+	}
+	return prefix + "/"
+}
+
+func viewerLinkWithPrefix(prefix string) okf.LinkResolver {
+	prefix = strings.TrimRight(prefix, "/")
+	return func(currentRel string, href string) string {
+		resolved := okf.ViewerLink(currentRel, href)
+		if prefix != "" && strings.HasPrefix(resolved, "/file/") {
+			return prefix + resolved
+		}
+		return resolved
+	}
+}
+
+func viewerAliasDisplayURL(host string, port string, aliasNames []string) string {
+	if len(aliasNames) == 1 {
+		return viewerDisplayURL(host, port, localAliasPrefix(aliasNames[0]))
+	}
+	return viewerDisplayURL(host, port, "")
+}
+
+func viewerDisplayURL(host string, port string, basePath string) string {
+	return viewerDisplayBaseURL(host, port) + strings.TrimPrefix(viewerDisplayPath(basePath), "/")
+}
+
+func viewerDisplayBaseURL(host string, port string) string {
+	hostPort := host
+	if port != "" && port != "80" {
+		hostPort = net.JoinHostPort(host, port)
+	} else if port == "80" && strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
+		hostPort = "[" + host + "]"
+	}
+	return "http://" + hostPort + "/"
+}
+
+func viewerDisplayPath(basePath string) string {
+	clean := strings.TrimRight(basePath, "/")
+	if clean == "" {
+		return "/"
+	}
+	return clean + "/"
+}
+
+func displayHostPort(address net.Addr) (string, string) {
+	host, port, err := net.SplitHostPort(address.String())
+	if err != nil {
+		return address.String(), ""
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return host, port
+}
+
+func normalizeLocalAliasName(value string) string {
+	value = strings.TrimSpace(value)
+	var builder strings.Builder
+	separator := false
+	for _, char := range value {
+		switch {
+		case char >= 'a' && char <= 'z':
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(char)
+			separator = false
+		case char >= 'A' && char <= 'Z':
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(char + ('a' - 'A'))
+			separator = false
+		case char >= '0' && char <= '9':
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(char)
+			separator = false
+		case char == '-' || char == '_' || char == '.':
+			if builder.Len() > 0 {
+				builder.WriteRune(char)
+			}
+			separator = false
+		default:
+			separator = true
+		}
+	}
+	return strings.Trim(builder.String(), "-_.")
+}
+
+func openBrowser(target string) error {
+	command, args, ok := browserOpenCommand(runtime.GOOS, target)
+	if !ok {
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+	cmd := exec.Command(command, args...)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() {
+		_ = cmd.Wait()
+	}()
+	return nil
+}
+
+func browserOpenCommand(goos string, target string) (string, []string, bool) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", nil, false
+	}
+	switch goos {
+	case "darwin":
+		return "open", []string{target}, true
+	case "windows":
+		return "rundll32", []string{"url.dll,FileProtocolHandler", target}, true
+	default:
+		return "xdg-open", []string{target}, true
+	}
+}
+
 func titleForMarkdownFile(rel string) string {
 	base := filepath.Base(rel)
 	extension := filepath.Ext(base)
@@ -853,24 +1595,35 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
 </head>
 <body>
   <header>
-    <a class="brand" href="/">Open Knowledge</a>
+    {{if .Frame.Workspaces}}<a class="brand" href="{{.Frame.ActiveURL}}">{{.Frame.ActiveName}}</a>{{else}}<a class="brand" href="/">Open Knowledge</a>{{end}}
     <span>{{.Root}}</span>
   </header>
   <main>
     <h1>{{.Title}}</h1>
-    <p class="lede">Local agentic wiki rendered from Markdown files.</p>
-    <section class="list">
-      {{range .Entries}}
-        <a class="row" href="{{.URL}}">
-          <span class="path">{{.Path}}</span>
-          <span class="meta">{{if .Type}}{{.Type}}{{else}}{{.Kind}}{{end}}{{if .Title}} - {{.Title}}{{end}}</span>
-          {{if .Issues}}{{with index .Issues 0}}<span class="issue">{{.Message}}</span>{{end}}{{end}}
-        </a>
-      {{else}}
-        <p class="empty">No Markdown files found.</p>
-      {{end}}
-    </section>
+    {{if .Error}}
+      <p class="error">{{.Error}}</p>
+    {{else}}
+      <p class="lede">Local agentic wiki rendered from Markdown files.</p>
+      <section class="search" role="search" aria-label="Search" data-search-url="{{.SearchURL}}">
+        <label class="search-label" for="viewer-search">Search</label>
+        <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false">
+        <div id="viewer-search-status" class="search-status" aria-live="polite"></div>
+        <div id="viewer-search-results" class="search-results" hidden></div>
+      </section>
+      <section class="list">
+        {{range .Entries}}
+          <a class="row" href="{{.URL}}">
+            <span class="path">{{.Path}}</span>
+            <span class="meta">{{if .Type}}{{.Type}}{{else}}{{.Kind}}{{end}}{{if .Title}} - {{.Title}}{{end}}</span>
+            {{if .Issues}}{{with index .Issues 0}}<span class="issue">{{.Message}}</span>{{end}}{{end}}
+          </a>
+        {{else}}
+          <p class="empty">No Markdown files found.</p>
+        {{end}}
+      </section>
+    {{end}}
   </main>
+  <script>` + viewerSearchJS + `</script>
 </body>
 </html>`))
 
@@ -896,7 +1649,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </svg>
     </button>
   </header>
-  <main class="note-workspace" data-note-workspace data-note-root="{{.Root}}">
+  <main class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
     <section class="knowledge-empty" data-empty-state aria-label="Knowledge base files" hidden>
       <div class="knowledge-empty-inner">
         <div class="knowledge-tree" role="tree">
@@ -953,6 +1706,89 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
 </body>
 </html>`))
 
+const viewerSearchJS = `
+(() => {
+  const input = document.getElementById("viewer-search");
+  const results = document.getElementById("viewer-search-results");
+  const status = document.getElementById("viewer-search-status");
+  const search = input?.closest(".search");
+  if (!input || !results || !status || !search) return;
+  const searchURL = search.dataset.searchUrl || "/api/search";
+
+  let timer = 0;
+  let controller = null;
+
+  input.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(runSearch, 140);
+  });
+
+  async function runSearch() {
+    const query = input.value.trim();
+    if (!query) {
+      status.textContent = "";
+      results.hidden = true;
+      results.replaceChildren();
+      if (controller) controller.abort();
+      return;
+    }
+
+    if (controller) controller.abort();
+    controller = new AbortController();
+    status.textContent = "Searching...";
+
+    try {
+      const response = await fetch(searchURL + "?q=" + encodeURIComponent(query) + "&limit=12", {
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("search request failed");
+      const payload = await response.json();
+      renderResults(payload.results || [], query);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      status.textContent = "Search failed.";
+      results.hidden = true;
+    }
+  }
+
+  function renderResults(items, query) {
+    results.replaceChildren();
+    if (items.length === 0) {
+      status.textContent = "No results for \"" + query + "\".";
+      results.hidden = true;
+      return;
+    }
+
+    status.textContent = items.length + " result" + (items.length === 1 ? "" : "s");
+    results.hidden = false;
+    for (const item of items) {
+      const link = document.createElement("a");
+      link.className = "search-result";
+      link.href = item.url;
+
+      const title = document.createElement("span");
+      title.className = "search-result-title";
+      title.textContent = item.title || item.path;
+      link.append(title);
+
+      const meta = document.createElement("span");
+      meta.className = "search-result-meta";
+      meta.textContent = item.path + (item.type ? " - " + item.type : "");
+      link.append(meta);
+
+      if (item.snippet) {
+        const snippet = document.createElement("span");
+        snippet.className = "search-result-snippet";
+        snippet.textContent = item.snippet;
+        link.append(snippet);
+      }
+
+      results.append(link);
+    }
+  }
+})();
+`
+
 const viewerJS = `
 (function () {
   const workspace = document.querySelector("[data-note-workspace]");
@@ -970,6 +1806,7 @@ const viewerJS = `
   const staticNotes = readStaticNotes();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
+  const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   let viewMode = readViewMode();
 
   function panels() {
@@ -998,11 +1835,12 @@ const viewerJS = `
       return null;
     }
 
-    if (url.origin !== window.location.origin || !url.pathname.startsWith("/file/")) {
+    const filePrefix = serverFilePrefix();
+    if (url.origin !== window.location.origin || !url.pathname.startsWith(filePrefix)) {
       return null;
     }
 
-    const raw = url.pathname.slice("/file/".length) || "index.md";
+    const raw = url.pathname.slice(filePrefix.length) || "index.md";
     try {
       return decodeURIComponent(raw);
     } catch {
@@ -1018,11 +1856,27 @@ const viewerJS = `
     if (isStaticBundle()) {
       return staticRelativeURL(path);
     }
-    return encodedNoteURL("/file/", path);
+    return encodedNoteURL(serverFilePrefix(), path);
   }
 
   function apiURL(path) {
-    return encodedNoteURL("/api/file/", path);
+    return encodedNoteURL(serverAPIPrefix(), path);
+  }
+
+  function serverFilePrefix() {
+    return linkPrefix + "/file/";
+  }
+
+  function serverAPIPrefix() {
+    return linkPrefix + "/api/file/";
+  }
+
+  function normalizeLinkPrefix(value) {
+    const trimmed = String(value || "").replace(/\/+$/, "");
+    if (!trimmed) {
+      return "";
+    }
+    return trimmed.startsWith("/") ? trimmed : "/" + trimmed;
   }
 
   function readStaticNotes() {
@@ -2061,6 +2915,17 @@ h2 { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); }
 h3 { margin-top: 26px; }
 hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .lede { margin: 0 0 26px; color: var(--muted); }
+.error { color: #a44b28; }
+.search { position: relative; margin: 0 0 22px; }
+.search-label { display: block; margin: 0 0 7px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.search-input { width: 100%; min-height: 42px; border: 1px solid #ced8d2; border-radius: 6px; background: #fff; color: var(--ink); font: inherit; padding: 8px 11px; }
+.search-input:focus { border-color: rgba(var(--accent-rgb), .5); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .12); outline: none; }
+.search-status { min-height: 20px; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.search-results { display: grid; gap: 7px; margin-top: 8px; }
+.search-result { display: grid; gap: 2px; padding: 10px 11px; border: 1px solid #dce4df; border-radius: 6px; background: #fff; color: inherit; text-decoration: none; }
+.search-result:hover, .search-result:focus-visible { border-color: rgba(var(--accent-rgb), .35); background: #f2f7f4; outline: none; }
+.search-result-title { color: var(--ink); font-weight: 700; }
+.search-result-meta, .search-result-snippet { color: var(--muted); font-size: 13px; }
 .list { border-top: 1px solid var(--line); }
 .row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(160px, .7fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
 .row:hover .path { color: var(--accent); }

@@ -6,18 +6,22 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var inlineLink = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+var orderedListItem = regexp.MustCompile(`^\d+[\.)]\s+`)
 
 type LinkResolver func(currentRel string, href string) string
 
 func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string {
 	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
 	var builder strings.Builder
-	listKind := ""
+	listTag := ""
 	inCode := false
 	var paragraph []string
-	var blockquote []string
+	var quote []string
 
 	closeParagraph := func() {
 		if len(paragraph) == 0 {
@@ -29,46 +33,37 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 		paragraph = nil
 	}
 	closeList := func() {
-		if listKind == "" {
+		if listTag == "" {
 			return
 		}
-		builder.WriteString("</")
-		builder.WriteString(listKind)
-		builder.WriteString(">\n")
-		listKind = ""
+		fmt.Fprintf(&builder, "</%s>\n", listTag)
+		listTag = ""
 	}
-	openList := func(kind string) {
-		if listKind == kind {
+	openList := func(tag string) {
+		if listTag == tag {
 			return
 		}
 		closeList()
-		builder.WriteString("<")
-		builder.WriteString(kind)
-		builder.WriteString(">\n")
-		listKind = kind
+		fmt.Fprintf(&builder, "<%s>\n", tag)
+		listTag = tag
 	}
-	closeBlockquote := func() {
-		if len(blockquote) == 0 {
+	closeQuote := func() {
+		if len(quote) == 0 {
 			return
 		}
 		builder.WriteString("<blockquote>\n")
-		builder.WriteString(RenderMarkdown(strings.Join(blockquote, "\n"), currentRel, resolve))
+		builder.WriteString(RenderMarkdown(strings.Join(quote, "\n"), currentRel, resolve))
 		builder.WriteString("</blockquote>\n")
-		blockquote = nil
+		quote = nil
 	}
 
-	for _, line := range lines {
+	for index := 0; index < len(lines); index++ {
+		line := lines[index]
 		trimmed := strings.TrimSpace(line)
-		if quote, ok := blockquoteLine(trimmed); ok && !inCode {
-			closeParagraph()
-			closeList()
-			blockquote = append(blockquote, quote)
-			continue
-		}
 		if strings.HasPrefix(trimmed, "```") {
 			closeParagraph()
 			closeList()
-			closeBlockquote()
+			closeQuote()
 			if inCode {
 				builder.WriteString("</code></pre>\n")
 				inCode = false
@@ -86,91 +81,63 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 		if trimmed == "" {
 			closeParagraph()
 			closeList()
-			closeBlockquote()
+			closeQuote()
 			continue
 		}
-		if isThematicBreak(trimmed) {
+		if strings.HasPrefix(trimmed, ">") {
 			closeParagraph()
 			closeList()
-			closeBlockquote()
+			quote = append(quote, strings.TrimSpace(strings.TrimPrefix(trimmed, ">")))
+			continue
+		}
+		closeQuote()
+		if isHorizontalRule(trimmed) {
+			closeParagraph()
+			closeList()
 			builder.WriteString("<hr>\n")
+			continue
+		}
+		if tableHTML, next, ok := renderTable(lines, index, currentRel, resolve); ok {
+			closeParagraph()
+			closeList()
+			builder.WriteString(tableHTML)
+			index = next - 1
 			continue
 		}
 		if level := HeadingLevel(trimmed); level > 0 {
 			closeParagraph()
 			closeList()
-			closeBlockquote()
 			content := strings.TrimSpace(trimmed[level:])
 			fmt.Fprintf(&builder, "<h%d>%s</h%d>\n", level, renderInline(content, currentRel, resolve), level)
 			continue
 		}
 		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
 			closeParagraph()
-			closeBlockquote()
 			openList("ul")
 			builder.WriteString("<li>")
 			builder.WriteString(renderInline(strings.TrimSpace(trimmed[2:]), currentRel, resolve))
 			builder.WriteString("</li>\n")
 			continue
 		}
-		if item, ok := orderedListItem(trimmed); ok {
+		if match := orderedListItem.FindStringIndex(trimmed); match != nil {
 			closeParagraph()
-			closeBlockquote()
 			openList("ol")
 			builder.WriteString("<li>")
-			builder.WriteString(renderInline(item, currentRel, resolve))
+			builder.WriteString(renderInline(strings.TrimSpace(trimmed[match[1]:]), currentRel, resolve))
 			builder.WriteString("</li>\n")
 			continue
 		}
-		closeBlockquote()
+		closeList()
 		paragraph = append(paragraph, trimmed)
 	}
 
 	closeParagraph()
 	closeList()
-	closeBlockquote()
+	closeQuote()
 	if inCode {
 		builder.WriteString("</code></pre>\n")
 	}
 	return builder.String()
-}
-
-func blockquoteLine(trimmed string) (string, bool) {
-	if !strings.HasPrefix(trimmed, ">") {
-		return "", false
-	}
-	content := strings.TrimPrefix(trimmed, ">")
-	if strings.HasPrefix(content, " ") {
-		content = strings.TrimPrefix(content, " ")
-	}
-	return content, true
-}
-
-func isThematicBreak(trimmed string) bool {
-	if len(trimmed) < 3 {
-		return false
-	}
-	first := trimmed[0]
-	if first != '-' && first != '*' && first != '_' {
-		return false
-	}
-	for index := 0; index < len(trimmed); index++ {
-		if trimmed[index] != first {
-			return false
-		}
-	}
-	return true
-}
-
-func orderedListItem(trimmed string) (string, bool) {
-	index := 0
-	for index < len(trimmed) && trimmed[index] >= '0' && trimmed[index] <= '9' {
-		index++
-	}
-	if index == 0 || index+1 >= len(trimmed) || trimmed[index] != '.' || trimmed[index+1] != ' ' {
-		return "", false
-	}
-	return strings.TrimSpace(trimmed[index+2:]), true
 }
 
 func HeadingLevel(line string) int {
@@ -189,24 +156,6 @@ func renderInline(text string, currentRel string, resolve LinkResolver) string {
 		resolve = func(_ string, href string) string { return href }
 	}
 
-	var builder strings.Builder
-	last := 0
-	for _, match := range markdownLinkDetail.FindAllStringSubmatchIndex(text, -1) {
-		builder.WriteString(renderInlineText(text[last:match[0]]))
-		label := text[match[4]:match[5]]
-		href := text[match[6]:match[7]]
-		builder.WriteString(`<a href="`)
-		builder.WriteString(html.EscapeString(resolve(currentRel, href)))
-		builder.WriteString(`">`)
-		builder.WriteString(renderInlineText(label))
-		builder.WriteString("</a>")
-		last = match[1]
-	}
-	builder.WriteString(renderInlineText(text[last:]))
-	return builder.String()
-}
-
-func renderInlineText(text string) string {
 	parts := strings.Split(text, "`")
 	var builder strings.Builder
 	for index, part := range parts {
@@ -216,63 +165,158 @@ func renderInlineText(text string) string {
 			builder.WriteString("</code>")
 			continue
 		}
-		builder.WriteString(renderInlineFormatting(part))
+		builder.WriteString(renderInlineMarkup(part, currentRel, resolve))
 	}
 	return builder.String()
 }
 
-type inlineFormat struct {
-	start     int
-	delimiter string
-	openTag   string
-	closeTag  string
-}
-
-func renderInlineFormatting(text string) string {
+func renderInlineMarkup(text string, currentRel string, resolve LinkResolver) string {
 	var builder strings.Builder
-	position := 0
-	for position < len(text) {
-		format := nextInlineFormat(text, position)
-		if format.start < 0 {
-			builder.WriteString(html.EscapeString(text[position:]))
-			break
-		}
-
-		end := strings.Index(text[format.start+len(format.delimiter):], format.delimiter)
-		if end < 0 {
-			builder.WriteString(html.EscapeString(text[position:]))
-			break
-		}
-		end += format.start + len(format.delimiter)
-
-		builder.WriteString(html.EscapeString(text[position:format.start]))
-		builder.WriteString(format.openTag)
-		builder.WriteString(html.EscapeString(text[format.start+len(format.delimiter) : end]))
-		builder.WriteString(format.closeTag)
-		position = end + len(format.delimiter)
+	last := 0
+	for _, match := range inlineLink.FindAllStringSubmatchIndex(text, -1) {
+		builder.WriteString(renderEmphasis(text[last:match[0]]))
+		label := text[match[2]:match[3]]
+		href := text[match[4]:match[5]]
+		builder.WriteString(`<a href="`)
+		builder.WriteString(html.EscapeString(resolve(currentRel, href)))
+		builder.WriteString(`">`)
+		builder.WriteString(renderEmphasis(label))
+		builder.WriteString("</a>")
+		last = match[1]
 	}
+	builder.WriteString(renderEmphasis(text[last:]))
 	return builder.String()
 }
 
-func nextInlineFormat(text string, position int) inlineFormat {
-	formats := []inlineFormat{
-		{delimiter: "**", openTag: "<strong>", closeTag: "</strong>"},
-		{delimiter: "__", openTag: "<strong>", closeTag: "</strong>"},
-		{delimiter: "*", openTag: "<em>", closeTag: "</em>"},
-		{delimiter: "_", openTag: "<em>", closeTag: "</em>"},
-	}
-	next := inlineFormat{start: -1}
-	for _, format := range formats {
-		index := strings.Index(text[position:], format.delimiter)
-		if index < 0 {
+func renderEmphasis(text string) string {
+	var builder strings.Builder
+	for len(text) > 0 {
+		if strings.HasPrefix(text, "**") {
+			if end := strings.Index(text[2:], "**"); end >= 0 {
+				builder.WriteString("<strong>")
+				builder.WriteString(html.EscapeString(text[2 : 2+end]))
+				builder.WriteString("</strong>")
+				text = text[2+end+2:]
+				continue
+			}
+		}
+		if strings.HasPrefix(text, "*") {
+			if end := strings.Index(text[1:], "*"); end >= 0 {
+				builder.WriteString("<em>")
+				builder.WriteString(html.EscapeString(text[1 : 1+end]))
+				builder.WriteString("</em>")
+				text = text[1+end+1:]
+				continue
+			}
+		}
+
+		next := strings.Index(text, "*")
+		if next < 0 {
+			builder.WriteString(html.EscapeString(text))
+			break
+		}
+		if next > 0 {
+			builder.WriteString(html.EscapeString(text[:next]))
+			text = text[next:]
 			continue
 		}
-		format.start = position + index
-		if next.start < 0 || format.start < next.start || (format.start == next.start && len(format.delimiter) > len(next.delimiter)) {
-			next = format
+		builder.WriteString(html.EscapeString(text[:1]))
+		text = text[1:]
+	}
+	return builder.String()
+}
+
+func isHorizontalRule(line string) bool {
+	if len(line) < 3 {
+		return false
+	}
+	first := line[0]
+	if first != '-' && first != '*' && first != '_' {
+		return false
+	}
+	for _, r := range line {
+		if byte(r) != first && r != ' ' && r != '\t' {
+			return false
 		}
 	}
-	return next
+	return true
+}
+
+func renderTable(lines []string, start int, currentRel string, resolve LinkResolver) (string, int, bool) {
+	if start+1 >= len(lines) {
+		return "", start, false
+	}
+	header := tableCells(lines[start])
+	separator := tableCells(lines[start+1])
+	if len(header) == 0 || len(separator) != len(header) || !isTableSeparator(separator) {
+		return "", start, false
+	}
+
+	var builder strings.Builder
+	builder.WriteString("<table>\n<thead>\n<tr>")
+	for _, cell := range header {
+		builder.WriteString("<th>")
+		builder.WriteString(renderInline(cell, currentRel, resolve))
+		builder.WriteString("</th>")
+	}
+	builder.WriteString("</tr>\n</thead>\n<tbody>\n")
+
+	index := start + 2
+	for index < len(lines) {
+		cells := tableCells(lines[index])
+		if len(cells) == 0 {
+			break
+		}
+		builder.WriteString("<tr>")
+		for column := range header {
+			cell := ""
+			if column < len(cells) {
+				cell = cells[column]
+			}
+			builder.WriteString("<td>")
+			builder.WriteString(renderInline(cell, currentRel, resolve))
+			builder.WriteString("</td>")
+		}
+		builder.WriteString("</tr>\n")
+		index++
+	}
+
+	builder.WriteString("</tbody>\n</table>\n")
+	return builder.String(), index, true
+}
+
+func tableCells(line string) []string {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || !strings.Contains(trimmed, "|") {
+		return nil
+	}
+	trimmed = strings.TrimPrefix(trimmed, "|")
+	trimmed = strings.TrimSuffix(trimmed, "|")
+	parts := strings.Split(trimmed, "|")
+	cells := make([]string, 0, len(parts))
+	for _, part := range parts {
+		cells = append(cells, strings.TrimSpace(part))
+	}
+	return cells
+}
+
+func isTableSeparator(cells []string) bool {
+	for _, cell := range cells {
+		cell = strings.TrimSpace(cell)
+		if cell == "" {
+			return false
+		}
+		cell = strings.Trim(cell, ":")
+		if len(cell) < 3 {
+			return false
+		}
+		for _, r := range cell {
+			if r != '-' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func ViewerLink(currentRel string, href string) string {

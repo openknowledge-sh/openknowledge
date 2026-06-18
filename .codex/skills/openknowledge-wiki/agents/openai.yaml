@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenKnowledge Wiki"
+  short_description: "Maintain CLI wiki docs and changelog"
+  default_prompt: "Use $openknowledge-wiki to update the CLI wiki docs and changelog for this change."
