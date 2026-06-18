@@ -70,6 +70,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
 	}
+	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; header`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > header`) {
+		t.Fatalf("viewer file sidebar should push the page header instead of overlaying it:\n%s", page)
+	}
+	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .note-workspace`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > .note-workspace`) {
+		t.Fatalf("viewer file sidebar should push the workspace instead of overlaying it:\n%s", page)
+	}
 	if !strings.Contains(page, `title="Switch to focus view"`) || !strings.Contains(page, `.view-mode-icon-stack { display: none; }`) || !strings.Contains(page, `body[data-view-mode="focus"] .view-mode-icon-stack { display: block; }`) {
 		t.Fatalf("viewer mode toggle should show the mode it will switch to:\n%s", page)
 	}
