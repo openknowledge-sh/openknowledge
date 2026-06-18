@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Empty workspace graph overview
+
+* The panel viewer empty workspace now uses a 50/50 overview with the file tree
+  on the left and a connected graph of Markdown files on the right.
+* The graph is built from local Markdown links and graph nodes open files as
+  panels, including in exported static HTML.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Sidebar search restored in viewer
 
 * The panel viewer file explorer now includes a search box above the file tree.

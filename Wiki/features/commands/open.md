@@ -20,6 +20,10 @@ single-page focus mode; the panel stack is the default and only document
 browsing layout. The file explorer can be opened from the header and stays open
 while selecting files.
 
+When all panels are closed, the empty workspace shows a split overview: the
+file tree on the left and a connected graph of Markdown files on the right. The
+graph is built from local Markdown links and graph nodes open files as panels.
+
 The top bar includes the primary search field, and `Command+K` on macOS or
 `Ctrl+K` elsewhere focuses it. The file explorer sidebar also includes search.
 In the local server viewer, search uses the search API; in exported static HTML

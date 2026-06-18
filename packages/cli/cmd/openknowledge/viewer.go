@@ -480,6 +480,7 @@ type viewerFileData struct {
 	Tree        []viewerTreeItem
 	EditorsJSON template.JS
 	StaticJSON  template.JS
+	GraphJSON   template.JS
 }
 
 type viewerFilePayload struct {
@@ -493,6 +494,23 @@ type viewerStaticPayload struct {
 	Path     string `json:"path"`
 	HTMLPath string `json:"htmlPath"`
 	Body     string `json:"body"`
+}
+
+type viewerGraphData struct {
+	Nodes []viewerGraphNode `json:"nodes"`
+	Edges []viewerGraphEdge `json:"edges"`
+}
+
+type viewerGraphNode struct {
+	Path  string `json:"path"`
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+type viewerGraphEdge struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+	Label  string `json:"label,omitempty"`
 }
 
 type viewerEditor struct {
@@ -580,6 +598,9 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	if err != nil {
 		return viewerFileData{}, true, err
 	}
+	graphJSON := viewerGraphJSON(root, listing.Entries, func(path string) string {
+		return fileURLWithPrefix(linkPrefix, path)
+	})
 
 	return viewerFileData{
 		Frame:       frame,
@@ -592,6 +613,7 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		Body:        template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), cleanRel, viewerLinkWithPrefix(linkPrefix))),
 		Tree:        viewerTreeWithURL(listing.Entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
+		GraphJSON:   graphJSON,
 	}, true, nil
 }
 
@@ -896,6 +918,7 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 		return okf.HTMLResult{}, err
 	}
 	editorsJSON := viewerEditorsStaticJSON()
+	graphJSON := viewerStaticGraphJSON(bundle.Files)
 
 	var written []string
 	for _, file := range bundle.Files {
@@ -913,6 +936,7 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 			Tree:        viewerStaticTree(bundle.Files, file.Path),
 			EditorsJSON: editorsJSON,
 			StaticJSON:  staticJSON,
+			GraphJSON:   graphJSON,
 		}
 
 		var builder strings.Builder
@@ -985,6 +1009,101 @@ func viewerStaticTree(files []okf.BundleFile, currentPath string) []viewerTreeIt
 	return viewerTreeWithURL(entries, func(path string) string {
 		return viewerStaticRelativeURL(currentPath, path)
 	})
+}
+
+func viewerGraphJSON(root string, entries []okf.ListEntry, fileURL func(string) string) template.JS {
+	graph := viewerGraphFromEntries(root, entries, fileURL)
+	data, err := json.Marshal(graph)
+	if err != nil {
+		return `{"nodes":[],"edges":[]}`
+	}
+	return template.JS(data)
+}
+
+func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
+	entries := make([]okf.ListEntry, 0, len(files))
+	for _, file := range files {
+		entries = append(entries, okf.ListEntry{Path: file.Path, Title: file.Title})
+	}
+	graph := viewerGraphFromBundleFiles(files, entries, func(path string) string {
+		return viewerStaticRelativeURL("index.md", path)
+	})
+	data, err := json.Marshal(graph)
+	if err != nil {
+		return `{"nodes":[],"edges":[]}`
+	}
+	return template.JS(data)
+}
+
+func viewerGraphFromEntries(root string, entries []okf.ListEntry, fileURL func(string) string) viewerGraphData {
+	files := make([]okf.BundleFile, 0, len(entries))
+	for _, entry := range entries {
+		contentPath, ok := safeMarkdownPath(root, entry.Path)
+		if !ok {
+			continue
+		}
+		content, err := os.ReadFile(contentPath)
+		if err != nil {
+			continue
+		}
+		files = append(files, okf.BundleFile{
+			Path:  entry.Path,
+			Title: entry.Title,
+			Links: okf.ExtractLinks(root, entry.Path, string(content)),
+		})
+	}
+	return viewerGraphFromBundleFiles(files, entries, fileURL)
+}
+
+func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, fileURL func(string) string) viewerGraphData {
+	titles := make(map[string]string, len(entries))
+	paths := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		paths[entry.Path] = true
+		titles[entry.Path] = entry.Title
+	}
+
+	nodes := make([]viewerGraphNode, 0, len(entries))
+	for _, entry := range entries {
+		title := strings.TrimSpace(titles[entry.Path])
+		if title == "" {
+			title = titleForMarkdownFile(entry.Path)
+		}
+		nodes = append(nodes, viewerGraphNode{
+			Path:  entry.Path,
+			Title: title,
+			URL:   fileURL(entry.Path),
+		})
+	}
+
+	seenEdges := map[string]bool{}
+	var edges []viewerGraphEdge
+	for _, file := range files {
+		for _, link := range file.Links {
+			if link.Kind != "local" || !paths[link.TargetPath] || link.TargetPath == file.Path {
+				continue
+			}
+			key := file.Path + "\x00" + link.TargetPath
+			if seenEdges[key] {
+				continue
+			}
+			seenEdges[key] = true
+			edges = append(edges, viewerGraphEdge{
+				Source: file.Path,
+				Target: link.TargetPath,
+				Label:  link.Label,
+			})
+		}
+	}
+
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].Source == edges[j].Source {
+			return edges[i].Target < edges[j].Target
+		}
+		return edges[i].Source < edges[j].Source
+	})
+
+	return viewerGraphData{Nodes: nodes, Edges: edges}
 }
 
 func viewerEditorsJSON() template.JS {
@@ -1714,20 +1833,23 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <main class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
     <section class="knowledge-empty" data-empty-state aria-label="Knowledge base files" hidden>
       <div class="knowledge-empty-inner">
-        <div class="knowledge-tree" role="tree">
-          {{range .Tree}}
-            {{if .Directory}}
-              <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
+        <div class="knowledge-empty-pane knowledge-empty-tree">
+          <div class="knowledge-tree" role="tree" aria-label="Knowledge base files">
+            {{range .Tree}}
+              {{if .Directory}}
+                <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
+              {{else}}
+                <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" style="--indent: {{.Indent}}px">
+                  <span class="tree-file-name">{{.Name}}</span>
+                  <span class="tree-file-path">{{.Path}}</span>
+                </a>
+              {{end}}
             {{else}}
-              <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" style="--indent: {{.Indent}}px">
-                <span class="tree-file-name">{{.Name}}</span>
-                <span class="tree-file-path">{{.Path}}</span>
-              </a>
+              <p class="empty">No Markdown files found.</p>
             {{end}}
-          {{else}}
-            <p class="empty">No Markdown files found.</p>
-          {{end}}
+          </div>
         </div>
+        <div class="knowledge-empty-pane knowledge-empty-graph" data-knowledge-graph-view aria-label="Knowledge graph"></div>
       </div>
     </section>
     <section class="note-stack" data-note-stack aria-label="Open notes">
@@ -1763,6 +1885,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     </section>
   </main>
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
+  <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
   <script>` + viewerJS + `</script>
   <script>` + viewerSearchJS + `</script>
@@ -2002,6 +2125,7 @@ const viewerJS = `
   const staticNotes = readStaticNotes();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
+  const knowledgeGraph = readKnowledgeGraph();
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
 
   function panels() {
@@ -2095,6 +2219,123 @@ const viewerJS = `
     } catch {
       return [];
     }
+  }
+
+  function readKnowledgeGraph() {
+    const source = document.querySelector("[data-knowledge-graph]");
+    if (!source) {
+      return { nodes: [], edges: [] };
+    }
+    try {
+      const parsed = JSON.parse(source.textContent || "{}");
+      return {
+        nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
+        edges: Array.isArray(parsed.edges) ? parsed.edges : [],
+      };
+    } catch {
+      return { nodes: [], edges: [] };
+    }
+  }
+
+  function renderKnowledgeGraph() {
+    const graphView = document.querySelector("[data-knowledge-graph-view]");
+    if (!graphView) {
+      return;
+    }
+    graphView.replaceChildren();
+    if (!knowledgeGraph.nodes.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty";
+      empty.textContent = "No Markdown files found.";
+      graphView.append(empty);
+      return;
+    }
+
+    const width = 900;
+    const height = 640;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.max(180, Math.min(270, 118 + knowledgeGraph.nodes.length * 5));
+    const positions = Object.create(null);
+    const indexPath = knowledgeGraph.nodes.find(function (node) { return node.path === "index.md"; })?.path;
+    const ringNodes = knowledgeGraph.nodes.filter(function (node) { return node.path !== indexPath; });
+
+    if (indexPath) {
+      positions[indexPath] = { x: centerX, y: centerY };
+    }
+    ringNodes.forEach(function (node, index) {
+      const angle = (-Math.PI / 2) + (index / Math.max(ringNodes.length, 1)) * Math.PI * 2;
+      positions[node.path] = {
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+      };
+    });
+
+    const svg = createSVGElement("svg");
+    svg.setAttribute("class", "knowledge-graph-svg");
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Connected graph of Markdown files");
+
+    const edges = createSVGElement("g");
+    edges.setAttribute("class", "knowledge-graph-edges");
+    knowledgeGraph.edges.forEach(function (edge) {
+      const source = positions[edge.source];
+      const target = positions[edge.target];
+      if (!source || !target) {
+        return;
+      }
+      const line = createSVGElement("line");
+      line.setAttribute("x1", source.x.toFixed(1));
+      line.setAttribute("y1", source.y.toFixed(1));
+      line.setAttribute("x2", target.x.toFixed(1));
+      line.setAttribute("y2", target.y.toFixed(1));
+      edges.append(line);
+    });
+    svg.append(edges);
+
+    const nodes = createSVGElement("g");
+    nodes.setAttribute("class", "knowledge-graph-nodes");
+    knowledgeGraph.nodes.forEach(function (node) {
+      const point = positions[node.path];
+      if (!point) {
+        return;
+      }
+      const group = createSVGElement("a");
+      group.setAttribute("href", fileURL(node.path));
+      group.dataset.graphPath = node.path;
+      group.setAttribute("class", "knowledge-graph-node" + (node.path === indexPath ? " is-index-node" : ""));
+
+      const title = createSVGElement("title");
+      title.textContent = node.title || node.path;
+      group.append(title);
+
+      const circle = createSVGElement("circle");
+      circle.setAttribute("cx", point.x.toFixed(1));
+      circle.setAttribute("cy", point.y.toFixed(1));
+      circle.setAttribute("r", node.path === indexPath ? "16" : "10");
+      group.append(circle);
+
+      const label = createSVGElement("text");
+      label.setAttribute("x", point.x.toFixed(1));
+      label.setAttribute("y", (point.y + (node.path === indexPath ? 31 : 25)).toFixed(1));
+      label.textContent = graphNodeLabel(node);
+      group.append(label);
+
+      nodes.append(group);
+    });
+    svg.append(nodes);
+    graphView.append(svg);
+  }
+
+  function createSVGElement(name) {
+    return document.createElementNS("http://www.w3.org/2000/svg", name);
+  }
+
+  function graphNodeLabel(node) {
+    const raw = node.title || node.path || "";
+    const label = raw.includes("/") ? raw.slice(raw.lastIndexOf("/") + 1) : raw;
+    return label.length > 18 ? label.slice(0, 17) + "..." : label;
   }
 
   function indexStaticNotes(notes, key) {
@@ -2972,12 +3213,13 @@ const viewerJS = `
     }
 
     const treeLink = closestElement(event.target, "[data-tree-path]");
-    if (treeLink) {
+    const graphLink = closestElement(event.target, "[data-graph-path]");
+    if (treeLink || graphLink) {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
       event.preventDefault();
-      openInitialNote(treeLink.dataset.treePath, true);
+      openInitialNote(treeLink?.dataset.treePath || graphLink.dataset.graphPath, true);
       return;
     }
 
@@ -3071,6 +3313,7 @@ const viewerJS = `
   });
 
   const requestedStack = stackFromLocation();
+  renderKnowledgeGraph();
   panels().forEach(bindPanel);
   ensureActivePanel();
   if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
@@ -3152,7 +3395,19 @@ body.viewer-document.is-sidebar-open > .note-workspace { transform: translateX(v
 .note-workspace.is-empty .note-stack { display: none; }
 .knowledge-empty { position: absolute; inset: 0; z-index: 0; overflow: auto; background: #f0f0f0; }
 .knowledge-empty[hidden] { display: none; }
-.knowledge-empty-inner { min-height: 100%; padding: 52px max(24px, calc((100vw - 960px) / 2)) 64px; }
+.knowledge-empty-inner { display: grid; min-height: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; padding: 32px max(24px, calc((100vw - 1420px) / 2)) 42px; }
+.knowledge-empty-pane { min-width: 0; min-height: 0; }
+.knowledge-empty-tree { overflow: auto; }
+.knowledge-empty-tree .knowledge-tree { width: 100%; }
+.knowledge-empty-graph { position: sticky; top: 26px; align-self: start; min-height: min(640px, calc(100vh - 132px)); overflow: hidden; }
+.knowledge-graph-svg { display: block; width: 100%; height: min(640px, calc(100vh - 132px)); min-height: 440px; }
+.knowledge-graph-edges line { stroke: #c8c8c8; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.knowledge-graph-node { color: #5b6661; cursor: pointer; text-decoration: none; }
+.knowledge-graph-node circle { fill: #f8f8f8; stroke: #aeb8b2; stroke-width: 1.6; vector-effect: non-scaling-stroke; transition: fill .16s ease, stroke .16s ease, transform .16s ease; transform-box: fill-box; transform-origin: center; }
+.knowledge-graph-node text { fill: #5f6b66; font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-anchor: middle; pointer-events: none; }
+.knowledge-graph-node:hover circle, .knowledge-graph-node:focus-visible circle { fill: #ffffff; stroke: var(--accent); transform: scale(1.16); }
+.knowledge-graph-node:hover text, .knowledge-graph-node:focus-visible text { fill: #26302c; }
+.knowledge-graph-node.is-index-node circle { fill: #ffffff; stroke: #89958f; stroke-width: 2; }
 .knowledge-tree { width: min(720px, 100%); color: #51605a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
 .tree-row { display: flex; min-height: 30px; align-items: center; gap: 12px; padding: 4px 10px 4px var(--indent); border-radius: 6px; color: inherit; text-decoration: none; }
 .tree-directory { margin: 7px 0 2px; background: #e1e6e2; color: #56645f; font-weight: 700; }
@@ -3273,7 +3528,9 @@ ul, ol { padding-left: 22px; }
   .header-search .search-results { left: auto; width: min(320px, calc(100vw - 24px)); }
   .note-workspace { height: calc(100vh - 68px); }
   .note-stack { gap: 12px; padding: 12px; }
-  .knowledge-empty-inner { padding: 28px 14px 44px; }
+  .knowledge-empty-inner { grid-template-columns: 1fr; gap: 22px; padding: 28px 14px 44px; }
+  .knowledge-empty-graph { position: relative; top: auto; min-height: 380px; }
+  .knowledge-graph-svg { height: 380px; min-height: 380px; }
   .tree-file-path { display: none; }
   .note-panel.document { flex-basis: calc(100vw - 24px); padding: 0 22px 28px; }
   .note-chrome { margin: 0 -22px 22px; padding: 0 10px 0 22px; }

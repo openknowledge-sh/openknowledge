@@ -103,6 +103,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
 		t.Fatalf("viewer file page did not include knowledge tree empty state:\n%s", page)
 	}
+	if !strings.Contains(page, `data-knowledge-graph`) || !strings.Contains(page, `data-knowledge-graph-view`) || !strings.Contains(page, `"source":"index.md"`) || !strings.Contains(page, `"target":"workflows/docs.md"`) {
+		t.Fatalf("viewer file page did not include connected knowledge graph data:\n%s", page)
+	}
+	if !strings.Contains(page, `.knowledge-empty-inner { display: grid`) || !strings.Contains(page, `grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)`) || !strings.Contains(page, `renderKnowledgeGraph()`) {
+		t.Fatalf("viewer empty state should render a 50/50 tree and graph layout:\n%s", page)
+	}
 	if !strings.Contains(page, "/api/file/") {
 		t.Fatalf("viewer file page did not include note API runtime:\n%s", page)
 	}
@@ -187,6 +193,9 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	}
 	if !strings.Contains(index, `id="viewer-search"`) || !strings.Contains(index, `data-primary-search`) || !strings.Contains(index, `id="viewer-sidebar-search"`) || !strings.Contains(index, `searchStaticNotes`) || !strings.Contains(index, `staticRelativeURL(item.path)`) {
 		t.Fatalf("expected exported index to include static sidebar search:\n%s", index)
+	}
+	if !strings.Contains(index, `data-knowledge-graph`) || !strings.Contains(index, `"source":"index.md"`) || !strings.Contains(index, `"target":"guides/setup.md"`) {
+		t.Fatalf("expected exported index to include static knowledge graph:\n%s", index)
 	}
 
 	setup := readViewerExportFile(t, out, "guides/setup.html")
