@@ -53,18 +53,25 @@ that explicitly accepts prompts from stdin.
 
 The prompt asks the agent to interview the user, choose where the knowledge base
 should live, run `openknowledge new --name "<name>" "<path>"`, read the
-generated setup files, and turn the generic scaffold into an agentic wiki.
+generated setup files, and turn the minimal scaffold into an agentic wiki with
+only the folders that fit the user's interview.
 
 During setup the agent should create or update:
 
 - `AGENTS.md` with local rules for when future agents should read and update the
   wiki
-- `workflows/` with repeatable maintenance behaviors such as docs updates,
-  changelog updates, feature memory, bug triage, or research import
-- `skills/` with local agent-tool guidance for using `openknowledge list`,
-  reading relevant pages, applying workflows, and validating changes
-- `automations/` with specs for recurring or external jobs when the user wants
-  them
+- workflow docs for selected repeatable maintenance behaviors such as docs
+  updates, changelog updates, feature memory, bug triage, or research import
+- repo-scoped or user-scoped agent instructions when local agent-tool behavior
+  should be reusable, such as using `openknowledge list`, reading relevant
+  pages, applying workflows, and validating changes
+- wiki skill pages only when they are useful as documentation or references, not
+  as the default place where executable agent skills live
+- native automations in Codex app, Cowork, or another available orchestrator
+  only when the runtime can create them and the user approves
+- automation candidate notes or manual workflows when recurring behavior would
+  help but no native automation is available or approved
+- any domain-specific folders and seed pages needed for the selected use case
 
 The agent should run `openknowledge validate "<path>"`, fix issues, and delete
 `SETUP.MD` only after setup is complete.

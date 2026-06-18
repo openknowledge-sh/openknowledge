@@ -39,7 +39,7 @@ Install with the shell installer:
 curl -fsSL https://openknowledge.sh/install | bash
 ```
 
-Create and inspect a generic scaffold directly:
+Create and inspect a minimal scaffold directly:
 
 ```sh
 openknowledge new ./project-memory
@@ -51,7 +51,7 @@ openknowledge validate ./project-memory
 ## What Open Knowledge CLI gives you
 
 An agentic wiki that lives inside a project repo or stand alone as your private
-knowledge base. With skills and workflows, to help your agents maintain it.
+knowledge base. With workflows and agent instructions to help your agents maintain it.
 
 - Turn a project, research folder, or private knowledge dump into a wiki that
   agents can use effectively.
@@ -67,13 +67,13 @@ knowledge base. With skills and workflows, to help your agents maintain it.
 `openknowledge setup` prints an agent prompt for setting up a useful local
 knowledge base with the user. Paste it into a coding agent, or pass it as an
 initial CLI prompt when your agent CLI supports that pattern. The agent asks
-where the knowledge base should live, creates it with `openknowledge new`,
-creates maintenance workflows and local skill guidance, and customizes the
-scaffold for the chosen use case.
+where the knowledge base should live, creates it with `openknowledge new`, then
+creates the folders, workflows, agent instructions, native automations when
+supported, and seed pages that fit the chosen use case.
 
-`openknowledge new` creates a local bundle with the base OKF structure, a setup
-handoff, agent guidance, workflow and automation sections, an update log, and a
-pinned copy of the current spec.
+`openknowledge new` creates a minimal local bundle with the base OKF files: a
+setup handoff, starter agent guidance, an update log, and a pinned copy of the
+current spec. The use-case structure is intentionally left to setup.
 
 After that, humans and agents edit normal Markdown files. `openknowledge
 open` starts a local viewer for reading the wiki, `openknowledge validate`
