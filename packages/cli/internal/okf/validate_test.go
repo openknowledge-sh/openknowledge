@@ -3,6 +3,7 @@ package okf
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -193,37 +194,42 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 		t.Fatalf("unexpected setup path: %s", result.SetupPath)
 	}
 
+	expectedCreated := []string{
+		"index.md",
+		"log.md",
+		"AGENTS.md",
+		"SETUP.MD",
+		"SPEC.md",
+	}
+	if !reflect.DeepEqual(result.Created, expectedCreated) {
+		t.Fatalf("unexpected created paths: %#v", result.Created)
+	}
+
 	for _, name := range []string{
 		"index.md",
 		"log.md",
 		"AGENTS.md",
 		"SETUP.MD",
 		"SPEC.md",
-		"concepts/index.md",
-		"projects/index.md",
-		"workflows/index.md",
-		"skills/index.md",
-		"automations/index.md",
-		"wiki/index.md",
-		"raw/index.md",
 	} {
 		if _, err := os.Stat(filepath.Join(target, name)); err != nil {
 			t.Fatalf("expected %s to exist: %v", name, err)
 		}
 	}
-	agents, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(agents), "type: Agent Rules") || !strings.Contains(string(agents), "Open Knowledge wiki") {
-		t.Fatalf("generated AGENTS.md does not contain expected starter rules")
-	}
-	spec, err := os.ReadFile(filepath.Join(target, "SPEC.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(spec), "type: Specification") || !strings.Contains(string(spec), "Open Knowledge Format") {
-		t.Fatalf("generated SPEC.md does not contain expected spec content")
+	for _, name := range []string{
+		"concepts",
+		"projects",
+		"workflows",
+		"skills",
+		"automations",
+		"references",
+		"decisions",
+		"wiki",
+		"raw",
+	} {
+		if _, err := os.Stat(filepath.Join(target, name)); !os.IsNotExist(err) {
+			t.Fatalf("expected optional scaffold path %s not to exist, got err=%v", name, err)
+		}
 	}
 
 	validation, err := Validate(target)

@@ -140,7 +140,7 @@ func runNew(args []string) int {
 	terminal.section("Agent handoff")
 	fmt.Printf("  Read %s and set up this local Open Knowledge wiki.\n", terminal.path(result.SetupPath))
 	fmt.Println("  Start by interviewing me about what the knowledge base should cover, then create")
-	fmt.Println("  the initial structure, rules, indexes, and seed pages described there.")
+	fmt.Println("  the tailored structure, rules, indexes, and seed pages described there.")
 	return 0
 }
 

@@ -112,15 +112,10 @@ This is the entry point for the local Open Knowledge bundle.
 
 ## Sections
 
-* [Concepts](concepts/) - core knowledge pages.
-* [Projects](projects/) - project and product context.
-* [Workflows](workflows/) - agent maintenance workflows and operating loops.
-* [Skills](skills/) - local guidance for agent tools that use this wiki.
-* [Automations](automations/) - recurring or external job specifications.
-* [References](references/) - source material and citations.
-* [Decisions](decisions/) - durable decisions and tradeoffs.
-* [Wiki](wiki/) - maintained synthesis pages.
-* [Raw](raw/) - imported or unedited source snapshots.
+This scaffold is intentionally small. During setup, create only the folders
+and pages that fit the user's interview and expectations. Common optional
+sections include workflows, references, decisions, raw sources, and
+domain-specific concept folders.
 `, title),
 		},
 		{
@@ -154,10 +149,12 @@ You are working inside a local Open Knowledge wiki.
 * Keep Markdown concept documents OKF-valid with YAML frontmatter and a non-empty type field.
 * Treat index.md files as progressive-disclosure indexes.
 * Treat log.md files as chronological update logs.
-* Keep raw imported material separate from synthesized wiki content.
-* Use workflows/ for repeatable maintenance behaviors and operating loops.
-* Use skills/ for local agent-tool guidance that explains how agents should use this wiki.
-* Use automations/ for recurring or external job specifications.
+* Keep the folder structure small and shaped around the user's domain.
+* Create folders only when they match the interview and expected maintenance loop.
+* Keep raw imported material separate from synthesized wiki content when both exist.
+* Add workflow docs only for behaviors the user actually wants.
+* Do not store agent skills inside the wiki by default; prefer repo-scoped or user-scoped agent configuration where the agent actually reads it.
+* Do not treat wiki automation pages as running jobs; real automations belong in the agent runtime or orchestrator that executes them.
 * Prefer concise, structured Markdown that future humans and agents can scan.
 * Preserve citations or source paths when a page depends on external material.
 * After meaningful wiki edits, run openknowledge validate and fix issues before finishing.
@@ -183,7 +180,7 @@ timestamp: %sT00:00:00Z
 
 Use this file as the setup handoff for this local Open Knowledge wiki.
 
-The basic scaffold already exists. Your job is to turn it into a useful,
+The basic minimal scaffold already exists. Your job is to turn it into a useful,
 domain-specific knowledge base.
 
 This file is temporary. After setup is complete and the resulting rules,
@@ -214,11 +211,15 @@ After the interview:
 
 * update index.md for progressive disclosure
 * create the smallest useful folder structure for the domain
-* write initial section indexes
+* write initial section indexes for folders you create
 * update AGENTS.md so future agents understand the final wiki purpose, rules, and boundaries
-* create workflows/ pages for selected agent maintenance behaviors
-* create skills/ pages for local agent-tool guidance
-* create automations/ specs when the user wants recurring or external jobs
+* create workflow pages for selected agent maintenance behaviors
+* configure agent instructions or skills where the agent will actually read them: repo-scoped instructions such as AGENTS.md updates or a repo-scoped skill/instruction file for colocated project wikis, or user-scoped skill guidance for standalone or external wikis when appropriate
+* create wiki pages for skills only when they are useful as documentation or references, not as the default skill location
+* configure recurring or external jobs only as native automations in the current agent runtime or orchestrator when that runtime can create them and the user approves
+* if native automation setup is unavailable or not approved, do not claim an automation exists; create only a manual workflow or an automation candidate note when useful
+* document installed automation prompts or automation candidates in the wiki only when that helps future agents understand them
+* use conventional folder names such as workflows/, raw/, references/, and decisions/ only when they fit
 * keep every non-reserved Markdown document OKF-valid with a non-empty type field
 * keep raw source snapshots separate from maintained synthesis
 * record setup decisions in log.md
@@ -230,42 +231,6 @@ After the interview:
 		{
 			name:    "SPEC.md",
 			content: specDocument(),
-		},
-		{
-			name:    "concepts/index.md",
-			content: "# Concepts\n\nCore knowledge pages belong here.\n",
-		},
-		{
-			name:    "projects/index.md",
-			content: "# Projects\n\nProject and product context belongs here.\n",
-		},
-		{
-			name:    "workflows/index.md",
-			content: "# Workflows\n\nAgent maintenance workflows and operating loops belong here.\n",
-		},
-		{
-			name:    "skills/index.md",
-			content: "# Skills\n\nLocal agent-tool guidance belongs here.\n",
-		},
-		{
-			name:    "automations/index.md",
-			content: "# Automations\n\nRecurring or external job specifications belong here.\n",
-		},
-		{
-			name:    "references/index.md",
-			content: "# References\n\nSource references and citations belong here.\n",
-		},
-		{
-			name:    "decisions/index.md",
-			content: "# Decisions\n\nDurable decisions and tradeoffs belong here.\n",
-		},
-		{
-			name:    "wiki/index.md",
-			content: "# Wiki\n\nMaintained synthesis pages belong here.\n",
-		},
-		{
-			name:    "raw/index.md",
-			content: "# Raw Sources\n\nImported or unedited source snapshots belong here.\n",
 		},
 	}
 }
