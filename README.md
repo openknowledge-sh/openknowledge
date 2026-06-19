@@ -119,10 +119,9 @@ agents can use `openknowledge where <name>` to get the real folder before using
 normal filesystem tools such as `rg`.
 
 The local viewer opens the printed `127.0.0.1` view URL in your default
-browser. It also prints an optional `open.knowledge` alias URL and serves
-registered knowledge bases under paths such as `/personal/`. The alias hostname
-must be mapped to loopback through local DNS, `/etc/hosts`, or a reverse proxy;
-the CLI only serves the HTTP routes.
+browser. It serves registered knowledge bases under stable paths such as
+`/personal/`; those path aliases do not require local DNS or `/etc/hosts`
+changes.
 
 ## Commands
 

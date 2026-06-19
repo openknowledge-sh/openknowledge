@@ -41,10 +41,10 @@
   --ok-color-close-hover-border: #c4c4c4;
   --ok-color-close-hover-bg: #e5e5e5;
 
-  --ok-color-sidebar: #e2e2e2;
-  --ok-color-sidebar-header: #d8d8d8;
+  --ok-color-sidebar: #f0f0f0;
+  --ok-color-sidebar-header: #f0f0f0;
   --ok-color-sidebar-row: #d0d0d0;
-  --ok-color-sidebar-border: #c7c7c7;
+  --ok-color-sidebar-border: transparent;
   --ok-color-sidebar-text: #4f4f4f;
   --ok-color-sidebar-tree-hover-bg: #d6d6d6;
 

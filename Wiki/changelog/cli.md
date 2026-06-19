@@ -14,6 +14,63 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Viewer hostname alias output removed
+
+* `openknowledge open` no longer prints the secondary `Open Knowledge alias`
+  URL or accepts `--local-domain`; the printed `Open Knowledge view` loopback
+  URL remains the browser target.
+* Stable knowledge base names still appear as served path segments such as
+  `/wiki/` or `/personal/`, which work without local DNS or `/etc/hosts`
+  changes.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer panels use taller canvas
+
+* `openknowledge open` now uses smaller vertical stack gutters around note
+  panels, letting panels extend farther within the slimmer top chrome.
+* Single-panel and multi-panel layouts keep matching vertical gaps while still
+  reserving a compact bottom gap for the custom horizontal rail.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer sidebar surface flattened
+
+* `openknowledge open` now renders the file explorer sidebar on the same
+  neutral canvas color as the document workspace.
+* The sidebar no longer draws a vertical border between itself and the shifted
+  page content, making the open drawer feel seamless with the wiki background.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer attribution reduced
+
+* `openknowledge open` now renders the bottom-right
+  `Powered by OpenKnowledge.sh` attribution at a smaller size so it reads as
+  secondary viewer chrome.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer top bar height tightened
+
+* `openknowledge open` document pages now render the top bar at the configured
+  viewer header height instead of adding vertical padding on top of it.
+* Header controls, the knowledge base brand, and the primary search field stay
+  vertically centered in the slimmer chrome.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer app assets split from Go source
 
 * The built-in `openknowledge open` viewer app CSS and JavaScript now live in
@@ -368,8 +425,6 @@ that were updated.
 * `openknowledge open` now prints and opens the actual listener URL as the
   `Open Knowledge view` line, defaulting to `127.0.0.1`, so direct path aliases
   such as `/wiki/` remain reachable without local DNS setup.
-* The optional local-domain URL is still printed as `Open Knowledge alias` for
-  environments that map names such as `open.knowledge` to loopback.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/main.go`.
 * Docs updated: `README.md`,

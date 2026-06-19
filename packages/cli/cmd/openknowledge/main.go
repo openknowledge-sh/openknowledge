@@ -745,7 +745,6 @@ Usage:
   openknowledge open [path]
   openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
-  openknowledge open --local-domain <domain> [path]
   openknowledge open --no-browser [path]
   openknowledge to html --out <folder> [path]
   openknowledge to json [path]
@@ -961,7 +960,6 @@ Usage:
   openknowledge open [path]
   openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
-  openknowledge open --local-domain <domain> [path]
   openknowledge open --no-browser [path]
   openknowledge open --help
 
@@ -974,9 +972,6 @@ Flags:
   --port       Port to bind. Defaults to 0, which selects a free port.
   --name       Alias name for direct path mode. Defaults to the registry name
                or folder name.
-  --local-domain
-               Local alias domain to print. Defaults to open.knowledge.
-               Set to an empty string to hide the alias URL.
   --no-browser
                Print URLs without opening the default browser.
 

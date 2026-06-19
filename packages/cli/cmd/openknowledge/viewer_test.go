@@ -37,8 +37,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-openknowledge-theme="default"`) || !strings.Contains(page, `--ok-color-accent`) || !strings.Contains(page, `--ok-font-body`) {
 		t.Fatalf("viewer file page should expose theme data and root CSS variables:\n%s", page)
 	}
-	if strings.Contains(page, `padding-top: 0; padding-bottom: 0`) {
-		t.Fatalf("viewer document header should keep vertical padding aligned with the logo:\n%s", page)
+	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; height: var(--ok-header-height); min-height: 0; justify-content: center; padding: 0 22px;`) &&
+		!strings.Contains(page, `body.viewer-document > header { position: relative; height: var(--ok-header-height); min-height: 0; justify-content: center; padding: 0 22px;`) {
+		t.Fatalf("viewer document header should use a slim fixed height with centered contents:\n%s", page)
+	}
+	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }`) {
+		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
 	}
 	if !strings.Contains(page, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer did not rewrite relative markdown link:\n%s", page)
@@ -64,8 +68,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `display: flex; flex: 0 0 auto; align-self: stretch`) || strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%`) {
 		t.Fatalf("viewer note stack should stretch inside the horizontal scroller without forcing full scrollbar height:\n%s", page)
 	}
-	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 64px; }`) || !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 58px; }`) {
-		t.Fatalf("single and multi-panel stacks should reserve the same bottom rail gap:\n%s", page)
+	if !strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 18px; min-width: max-content; min-height: 0; padding: 12px max(22px, calc((100vw - 1180px) / 2)) 22px 22px; }`) {
+		t.Fatalf("viewer note stack should use a compact top gutter so panels can extend vertically:\n%s", page)
+	}
+	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 50px; }`) || !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 46px; }`) {
+		t.Fatalf("single and multi-panel stacks should reserve a compact bottom rail gap:\n%s", page)
 	}
 	if !strings.Contains(page, `min-height: 0; padding: 0 34px 34px; overflow-x: hidden; overflow-y: auto`) || strings.Contains(page, `max-width: none; height: 100%; padding: 0 34px 34px`) {
 		t.Fatalf("viewer panels should leave the horizontal scrollbar gutter to the workspace:\n%s", page)
@@ -175,11 +182,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `search-shortcut`) || !strings.Contains(page, `event.metaKey || event.ctrlKey`) || !strings.Contains(page, `primaryInput?.focus()`) {
 		t.Fatalf("viewer file page did not include command-k search shortcut:\n%s", page)
 	}
-	if !strings.Contains(page, `--ok-color-sidebar:`) || !strings.Contains(page, `.file-sidebar-head`) || !strings.Contains(page, `--ok-color-sidebar-header`) {
-		t.Fatalf("viewer file sidebar should use its own darker surface colors:\n%s", page)
+	if !strings.Contains(page, `.file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; display: flex; width: var(--ok-sidebar-width); flex-direction: column; border-right: 0; background: var(--ok-color-sidebar);`) {
+		t.Fatalf("viewer file sidebar should not draw a vertical divider against the document canvas:\n%s", page)
 	}
-	if !strings.Contains(page, `--ok-color-viewer-canvas: #f0f0f0`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #e2e2e2`) || !strings.Contains(page, `--ok-color-sidebar-header: #d8d8d8`) {
-		t.Fatalf("viewer document and sidebar backgrounds should use neutral gray surfaces:\n%s", page)
+	if !strings.Contains(page, `--ok-color-viewer-canvas: #f0f0f0`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #f0f0f0`) || !strings.Contains(page, `--ok-color-sidebar-header: #f0f0f0`) {
+		t.Fatalf("viewer sidebar should share the document canvas surface:\n%s", page)
 	}
 	if strings.Contains(page, "openInitialNote(treeLink.dataset.treePath, true);\n      setSidebarOpen(false);") {
 		t.Fatalf("viewer file sidebar should remain open after opening a tree item:\n%s", page)
@@ -891,18 +898,15 @@ func TestDirectViewerAliasNameUsesRegistryPath(t *testing.T) {
 	}
 }
 
-func TestViewerDisplayURLsUseReachableHostAsPrimary(t *testing.T) {
-	viewURL, aliasURL := viewerDisplayURLs("127.0.0.1", "57475", "open.knowledge", []string{"wiki"})
+func TestViewerAliasDisplayURLUsesReachableHost(t *testing.T) {
+	viewURL := viewerAliasDisplayURL("127.0.0.1", "57475", []string{"wiki"})
 	if viewURL != "http://127.0.0.1:57475/wiki/" {
 		t.Fatalf("expected loopback view URL, got %q", viewURL)
 	}
-	if aliasURL != "http://open.knowledge:57475/wiki/" {
-		t.Fatalf("expected local-domain alias URL, got %q", aliasURL)
-	}
 
-	viewURL, aliasURL = viewerDisplayURLs("127.0.0.1", "57475", "", []string{"wiki"})
-	if viewURL != "http://127.0.0.1:57475/wiki/" || aliasURL != "" {
-		t.Fatalf("expected alias domain disabled, got view=%q alias=%q", viewURL, aliasURL)
+	viewURL = viewerAliasDisplayURL("127.0.0.1", "57475", []string{"wiki", "docs"})
+	if viewURL != "http://127.0.0.1:57475/" {
+		t.Fatalf("expected registry view URL without a single alias path, got %q", viewURL)
 	}
 }
 
@@ -912,13 +916,13 @@ func TestBrowserOpenCommand(t *testing.T) {
 		command string
 		args    []string
 	}{
-		{goos: "darwin", command: "open", args: []string{"http://open.knowledge:3000/personal/"}},
-		{goos: "linux", command: "xdg-open", args: []string{"http://open.knowledge:3000/personal/"}},
-		{goos: "windows", command: "rundll32", args: []string{"url.dll,FileProtocolHandler", "http://open.knowledge:3000/personal/"}},
+		{goos: "darwin", command: "open", args: []string{"http://127.0.0.1:3000/personal/"}},
+		{goos: "linux", command: "xdg-open", args: []string{"http://127.0.0.1:3000/personal/"}},
+		{goos: "windows", command: "rundll32", args: []string{"url.dll,FileProtocolHandler", "http://127.0.0.1:3000/personal/"}},
 	}
 
 	for _, test := range tests {
-		command, args, ok := browserOpenCommand(test.goos, "http://open.knowledge:3000/personal/")
+		command, args, ok := browserOpenCommand(test.goos, "http://127.0.0.1:3000/personal/")
 		if !ok || command != test.command || strings.Join(args, "\x00") != strings.Join(test.args, "\x00") {
 			t.Fatalf("browserOpenCommand(%q) = %q %#v %v, want %q %#v true", test.goos, command, args, ok, test.command, test.args)
 		}

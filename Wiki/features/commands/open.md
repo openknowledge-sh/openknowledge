@@ -24,10 +24,12 @@ In direct knowledge base mode, Markdown links open into a horizontally
 scrollable stack of panels. The viewer does not switch into a separate
 single-page focus mode; the panel stack is the default and only document
 browsing layout. A single open panel is exactly centered, keeps symmetric
-viewport gutters, and keeps the same top and bottom canvas gaps as multi-panel
-stacks. When that lone panel is resized, it grows or shrinks around its center
-so both vertical edges move symmetrically. Opening another panel returns the
-stack to the left-to-right browsing layout. Multi-panel stacks follow the Andy
+viewport gutters, and uses compact vertical canvas gaps so the panel extends
+farther within the slimmer viewer chrome. It keeps the same top and bottom
+canvas gaps as multi-panel stacks. When that lone panel is resized, it grows or
+shrinks around its center so both vertical edges move symmetrically. Opening
+another panel returns the stack to the left-to-right browsing layout.
+Multi-panel stacks follow the Andy
 Matuschak-style pane pattern: the workspace is the horizontal flex scroll
 container and panels keep their own vertical scrolling without showing native
 horizontal scrollbars inside individual panels. The viewer adds a custom
@@ -42,9 +44,10 @@ the note is opened again, while notes without a saved width keep the default
 panel size. The resize handles remain aligned with the visible panel edges
 while the note content is scrolled vertically. Panels enforce a minimum width so
 a note cannot be collapsed into an unreadable strip. The file explorer can be
-opened from the header and stays open while selecting files. File rows show
-only the filename; reserved Markdown files such as `index.md` and `log.md` are
-marked with a right-aligned `system` badge.
+opened from the header and stays open while selecting files. It uses the same
+canvas color as the document workspace without a vertical divider between the
+sidebar and content. File rows show only the filename; reserved Markdown files
+such as `index.md` and `log.md` are marked with a right-aligned `system` badge.
 
 When all panels are closed, the empty workspace shows a split overview: a
 narrow file tree on the left and a wider connected graph of Markdown files on
@@ -60,15 +63,17 @@ highlights the links connected to the active node. Generic `index` labels
 include path context such as `commands/index` so nested index files can be
 distinguished.
 
-The top bar includes the primary search field, and `Command+K` on macOS or
-`Ctrl+K` elsewhere focuses it. In the local server viewer, search uses the
-search API; in exported static HTML it searches the embedded static note
-manifest in the browser. The result dropdown opens while the search field is
-focused, shows top file entries for an empty query, updates in place while
-typing, closes after a result is activated, and supports `ArrowDown`, `ArrowUp`,
-and `Enter` keyboard selection while keeping focus in the search field.
+The top bar is a slim fixed-height chrome with the file explorer control,
+knowledge base brand, and primary search field vertically centered inside it.
+`Command+K` on macOS or `Ctrl+K` elsewhere focuses search. In the local server
+viewer, search uses the search API; in exported static HTML it searches the
+embedded static note manifest in the browser. The result dropdown opens while
+the search field is focused, shows top file entries for an empty query, updates
+in place while typing, closes after a result is activated, and supports
+`ArrowDown`, `ArrowUp`, and `Enter` keyboard selection while keeping focus in
+the search field.
 Reserved `index.md` files remain searchable but rank below comparable regular
-pages. The document viewer also keeps a bottom-right
+pages. The document viewer also keeps a small bottom-right
 `Powered by OpenKnowledge.sh` link to the project website.
 
 Panel changes use the browser View Transitions API when it is available and a
@@ -97,7 +102,6 @@ embed the raw PDF URL in the browser.
 openknowledge open [path]
 openknowledge open --name <alias-name> [path]
 openknowledge open --host <host> --port <port> [path]
-openknowledge open --local-domain <domain> [path]
 openknowledge open --no-browser [path]
 openknowledge open --help
 ```
@@ -110,7 +114,6 @@ openknowledge open --help
 | `--host` | flag | Host to bind. Defaults to `127.0.0.1`. |
 | `--port` | flag | Port to bind. Defaults to `0`, which selects a free port. |
 | `--name` | flag | Alias name for direct path mode. Defaults to the registry name or folder name. |
-| `--local-domain` | flag | Local alias domain to print. Defaults to `open.knowledge`; set it to an empty string to hide the alias URL. |
 | `--no-browser` | flag | Print URLs without opening the default browser. |
 
 ## URL Output
@@ -123,16 +126,9 @@ include the alias path in that loopback URL, for example:
 Open Knowledge view: http://127.0.0.1:57475/wiki/
 ```
 
-When `--local-domain` is not empty, the command also prints the
-`Open Knowledge alias` line with the configured local domain:
-
-```text
-Open Knowledge alias: http://open.knowledge:57475/wiki/
-```
-
-The CLI does not create hostname aliases. If the alias URL is unreachable, use
-the printed `127.0.0.1` view URL or map the alias hostname to loopback with
-`/etc/hosts`, local DNS, or a reverse proxy.
+The CLI does not print or configure custom hostname aliases. Use the printed
+loopback URL; stable knowledge base names are represented as path segments such
+as `/wiki/` or `/personal/`.
 
 ## Use Cases
 
