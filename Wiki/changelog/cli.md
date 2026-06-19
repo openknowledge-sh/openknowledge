@@ -14,6 +14,32 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Viewer multi-panel horizontal scrolling
+
+* Multi-panel document stacks now use an Andy Matuschak-style horizontal flex
+  scroll container plus a custom always-visible bottom rail for horizontal
+  movement on mouse or trackpad devices.
+* The rail thumb can be dragged, the rail track can be clicked, and the focused
+  thumb supports keyboard scrolling.
+* The gray workspace gaps support mouse drag scrolling left and right while
+  preserving normal text selection inside note panels.
+* Browser-aborted View Transition animations no longer surface as viewer app
+  errors after the stack DOM update has already completed.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer single-panel centering
+
+* The panel viewer now centers a lone open panel in the workspace.
+* Opening a second panel removes the single-panel centering and keeps the
+  existing left-to-right stack browsing behavior.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Viewer file tree system badges
 
 * The viewer file explorer now shows only the filename in each file row instead

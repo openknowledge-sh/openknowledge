@@ -17,9 +17,17 @@ validation issues in the index.
 In direct knowledge base mode, Markdown links open into a horizontally
 scrollable stack of panels. The viewer does not switch into a separate
 single-page focus mode; the panel stack is the default and only document
-browsing layout. The file explorer can be opened from the header and stays open
-while selecting files. File rows show only the filename; reserved Markdown files
-such as `index.md` and `log.md` are marked with a right-aligned `system` badge.
+browsing layout. A single open panel is centered; opening another panel returns
+the stack to the left-to-right browsing layout. Multi-panel stacks follow the
+Andy Matuschak-style pane pattern: the workspace is the horizontal flex scroll
+container and panels keep their own vertical scrolling. The viewer adds a
+custom always-visible bottom rail for horizontal panel movement; dragging the
+rail thumb, clicking the rail track, keyboarding the focused thumb, or dragging
+the gray workspace gaps scrolls left or right without taking over text
+selection inside note panels. The file explorer can be opened from the header
+and stays open while selecting files. File rows show only the filename; reserved
+Markdown files such as `index.md` and `log.md` are marked with a right-aligned
+`system` badge.
 
 When all panels are closed, the empty workspace shows a split overview: the
 file tree on the left and a connected graph of Markdown files on the right. The
@@ -91,6 +99,8 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
   duplicating each row's full path.
 * Browse local Markdown links as adjacent panels without leaving the current
   context.
+* Move across multi-panel stacks with the bottom rail, rail keyboard controls,
+  or by dragging the workspace gaps on mouse devices.
 * Search the knowledge base from the top bar with pointer or keyboard result
   selection.
 * Browse command and feature docs without leaving the repo.

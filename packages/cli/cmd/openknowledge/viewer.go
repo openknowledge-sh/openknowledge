@@ -1834,7 +1834,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       {{end}}
     </div>
   </aside>
-  <main class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
+  <main id="note-workspace" class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
     <section class="knowledge-empty" data-empty-state aria-label="Knowledge base files" hidden>
       <div class="knowledge-empty-inner">
         <div class="knowledge-empty-pane knowledge-empty-tree">
@@ -1888,6 +1888,11 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </article>
     </section>
   </main>
+  <div class="workspace-scroll-rail" data-workspace-rail aria-hidden="true" hidden>
+    <div class="workspace-scroll-track" data-workspace-scroll-track>
+      <button class="workspace-scroll-thumb" type="button" data-workspace-scroll-thumb aria-label="Scroll notes horizontally" aria-controls="note-workspace" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" role="scrollbar"></button>
+    </div>
+  </div>
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
@@ -2339,6 +2344,9 @@ const viewerJS = `
   const fileSidebar = document.querySelector("[data-file-sidebar]");
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
   const sidebarClose = document.querySelector("[data-sidebar-close]");
+  const scrollRail = document.querySelector("[data-workspace-rail]");
+  const scrollTrack = document.querySelector("[data-workspace-scroll-track]");
+  const scrollThumb = document.querySelector("[data-workspace-scroll-thumb]");
 
   if (!workspace || !stackEl) {
     return;
@@ -2365,6 +2373,10 @@ const viewerJS = `
       return target.closest(selector);
     }
     return target.parentElement ? target.parentElement.closest(selector) : null;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
   }
 
   function setSidebarOpen(open) {
@@ -3105,13 +3117,17 @@ const viewerJS = `
   }
 
   function updateWorkspaceState() {
-    const isEmpty = panels().length === 0;
+    const panelCount = panels().length;
+    const isEmpty = panelCount === 0;
     workspace.classList.toggle("is-empty", isEmpty);
+    workspace.classList.toggle("is-single-panel", panelCount === 1);
+    workspace.classList.toggle("is-multi-panel", panelCount > 1);
     if (emptyState) {
       emptyState.hidden = !isEmpty;
     }
     ensureActivePanel();
     updateCloseLinks();
+    queueWorkspaceRailUpdate();
   }
 
   function updateCloseLinks() {
@@ -3126,6 +3142,63 @@ const viewerJS = `
       });
       closeLink.href = stackURL(nextPaths).href;
     });
+  }
+
+  function maxWorkspaceScroll() {
+    return Math.max(0, workspace.scrollWidth - workspace.clientWidth);
+  }
+
+  function canShowWorkspaceRail() {
+    return Boolean(scrollRail && scrollTrack && scrollThumb && panels().length > 1 && maxWorkspaceScroll() > 1 && !workspace.classList.contains("is-empty"));
+  }
+
+  function queueWorkspaceRailUpdate() {
+    window.requestAnimationFrame(updateWorkspaceRail);
+  }
+
+  function updateWorkspaceRail() {
+    if (!scrollRail || !scrollTrack || !scrollThumb) {
+      return;
+    }
+
+    if (!canShowWorkspaceRail()) {
+      scrollRail.hidden = true;
+      scrollRail.setAttribute("aria-hidden", "true");
+      scrollThumb.style.width = "";
+      scrollThumb.style.setProperty("--thumb-x", "0px");
+      scrollThumb.setAttribute("aria-valuemax", "0");
+      scrollThumb.setAttribute("aria-valuenow", "0");
+      return;
+    }
+
+    scrollRail.hidden = false;
+    scrollRail.setAttribute("aria-hidden", "false");
+
+    const trackWidth = scrollTrack.getBoundingClientRect().width;
+    if (trackWidth <= 0) {
+      return;
+    }
+    const maxScroll = maxWorkspaceScroll();
+    const thumbWidth = clamp(trackWidth * (workspace.clientWidth / workspace.scrollWidth), 44, trackWidth);
+    const maxThumbX = Math.max(0, trackWidth - thumbWidth);
+    const thumbX = maxScroll > 0 ? (workspace.scrollLeft / maxScroll) * maxThumbX : 0;
+
+    scrollThumb.style.width = thumbWidth + "px";
+    scrollThumb.style.setProperty("--thumb-x", clamp(thumbX, 0, maxThumbX) + "px");
+    scrollThumb.setAttribute("aria-valuemax", String(Math.round(maxScroll)));
+    scrollThumb.setAttribute("aria-valuenow", String(Math.round(workspace.scrollLeft)));
+  }
+
+  function scrollWorkspaceFromRail(clientX, thumbOffset) {
+    if (!canShowWorkspaceRail()) {
+      return;
+    }
+    const trackRect = scrollTrack.getBoundingClientRect();
+    const thumbRect = scrollThumb.getBoundingClientRect();
+    const maxThumbX = Math.max(0, trackRect.width - thumbRect.width);
+    const maxScroll = maxWorkspaceScroll();
+    const thumbX = clamp(clientX - trackRect.left - thumbOffset, 0, maxThumbX);
+    workspace.scrollLeft = maxThumbX > 0 ? (thumbX / maxThumbX) * maxScroll : 0;
   }
 
   function updateTitle() {
@@ -3320,7 +3393,14 @@ const viewerJS = `
     document.body.classList.add("is-view-transitioning");
     try {
       const transition = document.startViewTransition(mutator);
-      await transition.finished;
+      if (transition.updateCallbackDone) {
+        await transition.updateCallbackDone;
+      }
+      try {
+        await transition.finished;
+      } catch {
+        // Browser-driven transition aborts should not surface as app errors.
+      }
     } finally {
       clearEnteringPanels();
       document.body.classList.remove("is-view-transitioning");
@@ -3418,6 +3498,177 @@ const viewerJS = `
         scrollToPanel(active);
       }
     });
+  }
+
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+  let workspaceDrag = null;
+  let railDrag = null;
+
+  function canStartWorkspaceDrag(event) {
+    const pointerType = event.pointerType || "mouse";
+    if (pointerType !== "mouse" || !finePointer.matches || event.button !== 0 || panels().length < 2) {
+      return false;
+    }
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return false;
+    }
+    return !closestElement(event.target, "[data-note-path], a, button, input, textarea, select, [contenteditable='true'], [role='button']");
+  }
+
+  function startWorkspaceDrag(event) {
+    if (!canStartWorkspaceDrag(event)) {
+      return;
+    }
+    workspaceDrag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startScrollLeft: workspace.scrollLeft,
+      moved: false
+    };
+    workspace.classList.add("is-drag-scrolling");
+    try {
+      workspace.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can fail if the pointer is already released.
+    }
+  }
+
+  function updateWorkspaceDrag(event) {
+    if (!workspaceDrag || event.pointerId !== workspaceDrag.pointerId) {
+      return;
+    }
+    const deltaX = event.clientX - workspaceDrag.startX;
+    if (Math.abs(deltaX) < 3 && !workspaceDrag.moved) {
+      return;
+    }
+    workspaceDrag.moved = true;
+    workspace.scrollLeft = workspaceDrag.startScrollLeft - deltaX;
+    event.preventDefault();
+  }
+
+  function stopWorkspaceDrag(event) {
+    if (!workspaceDrag || event.pointerId !== workspaceDrag.pointerId) {
+      return;
+    }
+    try {
+      workspace.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can already be released by the browser.
+    }
+    workspaceDrag = null;
+    workspace.classList.remove("is-drag-scrolling");
+  }
+
+  function startRailDrag(event) {
+    if (!canShowWorkspaceRail() || event.button !== 0) {
+      return;
+    }
+    const thumbRect = scrollThumb.getBoundingClientRect();
+    railDrag = {
+      pointerId: event.pointerId,
+      thumbOffset: clamp(event.clientX - thumbRect.left, 0, thumbRect.width)
+    };
+    scrollRail.classList.add("is-rail-dragging");
+    window.addEventListener("pointermove", updateRailDrag);
+    window.addEventListener("pointerup", stopRailDrag);
+    window.addEventListener("pointercancel", stopRailDrag);
+    window.addEventListener("blur", cancelRailDrag);
+    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset);
+    event.preventDefault();
+    try {
+      scrollThumb.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can fail if the pointer is already released.
+    }
+  }
+
+  function startRailTrackJump(event) {
+    if (!canShowWorkspaceRail() || event.button !== 0 || closestElement(event.target, "[data-workspace-scroll-thumb]")) {
+      return;
+    }
+    const thumbRect = scrollThumb.getBoundingClientRect();
+    scrollWorkspaceFromRail(event.clientX, thumbRect.width / 2);
+    event.preventDefault();
+  }
+
+  function updateRailDrag(event) {
+    if (!railDrag || event.pointerId !== railDrag.pointerId) {
+      return;
+    }
+    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset);
+    event.preventDefault();
+  }
+
+  function finishRailDrag(pointerId) {
+    const releasedPointerId = pointerId ?? railDrag.pointerId;
+    try {
+      scrollThumb.releasePointerCapture(releasedPointerId);
+    } catch {
+      // Pointer capture can already be released by the browser.
+    }
+    railDrag = null;
+    scrollRail.classList.remove("is-rail-dragging");
+    window.removeEventListener("pointermove", updateRailDrag);
+    window.removeEventListener("pointerup", stopRailDrag);
+    window.removeEventListener("pointercancel", stopRailDrag);
+    window.removeEventListener("blur", cancelRailDrag);
+  }
+
+  function stopRailDrag(event) {
+    if (!railDrag || event.pointerId !== railDrag.pointerId) {
+      return;
+    }
+    finishRailDrag(event.pointerId);
+  }
+
+  function cancelRailDrag() {
+    if (!railDrag) {
+      return;
+    }
+    finishRailDrag();
+  }
+
+  function scrollRailWithKeyboard(event) {
+    if (!canShowWorkspaceRail()) {
+      return;
+    }
+    const smallStep = Math.max(48, workspace.clientWidth * 0.12);
+    const largeStep = Math.max(120, workspace.clientWidth * 0.72);
+    let nextScroll = workspace.scrollLeft;
+    const key = (event.key || "").toLowerCase();
+    if (key === "arrowleft") {
+      nextScroll -= smallStep;
+    } else if (key === "arrowright") {
+      nextScroll += smallStep;
+    } else if (key === "pageup") {
+      nextScroll -= largeStep;
+    } else if (key === "pagedown") {
+      nextScroll += largeStep;
+    } else if (key === "home") {
+      nextScroll = 0;
+    } else if (key === "end") {
+      nextScroll = maxWorkspaceScroll();
+    } else {
+      return;
+    }
+    event.preventDefault();
+    workspace.scrollLeft = clamp(nextScroll, 0, maxWorkspaceScroll());
+  }
+
+  workspace.addEventListener("pointerdown", startWorkspaceDrag);
+  workspace.addEventListener("pointermove", updateWorkspaceDrag);
+  workspace.addEventListener("pointerup", stopWorkspaceDrag);
+  workspace.addEventListener("pointercancel", stopWorkspaceDrag);
+  workspace.addEventListener("scroll", queueWorkspaceRailUpdate);
+  window.addEventListener("resize", queueWorkspaceRailUpdate);
+
+  if (scrollTrack && scrollThumb) {
+    scrollTrack.addEventListener("pointerdown", startRailTrackJump);
+    scrollThumb.addEventListener("pointerdown", startRailDrag);
+    scrollThumb.addEventListener("pointermove", updateRailDrag);
+    scrollThumb.addEventListener("pointerup", stopRailDrag);
+    scrollThumb.addEventListener("pointercancel", stopRailDrag);
+    scrollThumb.addEventListener("keydown", scrollRailWithKeyboard);
   }
 
   workspace.addEventListener("click", function (event) {
@@ -3628,11 +3879,24 @@ main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56p
 .workspace:hover, .workspace:focus-visible, .workspace.active { border-color: rgba(var(--accent-rgb), .36); background: #f2f7f4; outline: none; }
 .workspace-name { overflow: hidden; color: var(--ink); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-root { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.note-workspace { position: relative; width: 100%; height: calc(100vh - var(--header-height)); margin: 0; padding: 0; overflow-x: auto; overflow-y: hidden; background: #f0f0f0; scroll-behavior: smooth; overscroll-behavior-x: contain; transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
+.note-workspace { position: relative; display: flex; width: 100%; height: calc(100vh - var(--header-height)); margin: 0; padding: 0; overflow: auto hidden; background: #f0f0f0; scroll-behavior: smooth; overscroll-behavior-x: contain; transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
 body.viewer-document.is-sidebar-open > .note-workspace { transform: translateX(var(--sidebar-width)); }
-.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%; padding: 22px max(22px, calc((100vw - 1180px) / 2)) 26px 22px; }
+.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 18px; min-width: max-content; min-height: 0; padding: 22px max(22px, calc((100vw - 1180px) / 2)) 26px 22px; }
+.note-workspace.is-single-panel .note-stack { min-width: 100%; justify-content: center; padding-right: 22px; }
+.note-workspace.is-multi-panel { scrollbar-width: none; }
+.note-workspace.is-multi-panel::-webkit-scrollbar { width: 0; height: 0; }
+.note-workspace.is-multi-panel .note-stack { padding-bottom: 64px; }
+.note-workspace.is-drag-scrolling { cursor: grabbing; scroll-behavior: auto; }
 .note-workspace.is-empty { overflow-x: hidden; overflow-y: auto; }
 .note-workspace.is-empty .note-stack { display: none; }
+.workspace-scroll-rail { position: fixed; right: max(22px, calc((100vw - 1180px) / 2)); bottom: 11px; left: 22px; z-index: 4; display: flex; height: 18px; align-items: center; padding: 7px 0; opacity: .58; transition: transform .22s cubic-bezier(.22, .8, .2, 1), opacity .16s ease; }
+.workspace-scroll-rail[hidden] { display: none; }
+body.viewer-document.is-sidebar-open > .workspace-scroll-rail { transform: translateX(var(--sidebar-width)); }
+.workspace-scroll-rail:hover, .workspace-scroll-rail:focus-within, .workspace-scroll-rail.is-rail-dragging { opacity: 1; }
+.workspace-scroll-track { position: relative; flex: 1 1 auto; height: 1px; border-radius: 999px; background: rgba(95, 95, 95, .12); cursor: pointer; }
+.workspace-scroll-thumb { position: absolute; top: 50%; left: 0; min-width: 44px; height: 3px; border: 0; border-radius: 999px; background: rgba(74, 74, 74, .34); cursor: grab; transform: translate(var(--thumb-x, 0px), -50%); transition: height .14s ease, background-color .14s ease; }
+.workspace-scroll-thumb:hover, .workspace-scroll-thumb:focus-visible, .workspace-scroll-rail.is-rail-dragging .workspace-scroll-thumb { height: 5px; background: rgba(54, 54, 54, .62); outline: none; }
+.workspace-scroll-rail.is-rail-dragging .workspace-scroll-thumb { cursor: grabbing; }
 .knowledge-empty { position: absolute; inset: 0; z-index: 0; overflow: auto; background: #f0f0f0; }
 .knowledge-empty[hidden] { display: none; }
 .knowledge-empty-inner { display: grid; min-height: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; padding: 32px max(24px, calc((100vw - 1420px) / 2)) 42px; }
@@ -3681,7 +3945,7 @@ hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .meta, .issue { color: var(--muted); font-size: 13px; }
 .issue { grid-column: 1 / -1; color: #a44b28; }
 .document { max-width: 780px; }
-.note-panel.document { flex: 0 0 min(650px, calc(100vw - 44px)); max-width: none; height: 100%; padding: 0 34px 34px; overflow-y: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 46px var(--shadow); outline: none; scroll-padding-top: 62px; }
+.note-panel.document { flex: 0 0 min(650px, calc(100vw - 44px)); max-width: none; min-height: 0; padding: 0 34px 34px; overflow-y: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 46px var(--shadow); outline: none; scroll-padding-top: 62px; }
 .note-panel:focus { border-color: rgba(var(--accent-rgb), .45); }
 .note-panel.is-entering { animation: note-enter .28s cubic-bezier(.22, .8, .2, 1); }
 body.is-view-transitioning .note-panel.is-entering { animation: none; }
@@ -3755,6 +4019,11 @@ ul, ol { padding-left: 22px; }
   .note-panel.is-entering { animation: none; }
   .note-body a { transition: none; }
 }
+@media (hover: hover) and (pointer: fine) {
+  .note-workspace.is-multi-panel { cursor: grab; }
+  .note-workspace.is-multi-panel .note-panel { cursor: auto; }
+  .note-workspace.is-multi-panel.is-drag-scrolling, .note-workspace.is-multi-panel.is-drag-scrolling .note-panel { cursor: grabbing; }
+}
 @media (max-width: 680px) {
   header { display: block; }
   body:not(.viewer-document) header span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
@@ -3768,6 +4037,8 @@ ul, ol { padding-left: 22px; }
   .header-search .search-results { left: auto; width: min(320px, calc(100vw - 24px)); }
   .note-workspace { height: calc(100vh - 68px); }
   .note-stack { gap: 12px; padding: 12px; }
+  .note-workspace.is-multi-panel .note-stack { padding-bottom: 44px; }
+  .workspace-scroll-rail { right: 12px; bottom: 8px; left: 12px; }
   .knowledge-empty-inner { grid-template-columns: 1fr; gap: 22px; padding: 28px 14px 44px; }
   .knowledge-empty-graph { position: relative; top: auto; min-height: 380px; }
   .knowledge-graph-svg { height: 380px; min-height: 380px; }

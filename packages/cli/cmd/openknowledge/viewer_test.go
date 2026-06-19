@@ -46,6 +46,39 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-note-workspace`) || !strings.Contains(page, `data-note-path="index.md"`) {
 		t.Fatalf("viewer file page did not include stacked note layout:\n%s", page)
 	}
+	if !strings.Contains(page, `is-single-panel`) || !strings.Contains(page, `justify-content: center`) {
+		t.Fatalf("viewer should center a lone open panel before additional panels are opened:\n%s", page)
+	}
+	if !strings.Contains(page, `display: flex; width: 100%; height: calc(100vh - var(--header-height))`) || !strings.Contains(page, `overflow: auto hidden`) {
+		t.Fatalf("viewer workspace should use an Andy-style flex horizontal scroll container:\n%s", page)
+	}
+	if !strings.Contains(page, `display: flex; flex: 0 0 auto; align-self: stretch`) || strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%`) {
+		t.Fatalf("viewer note stack should stretch inside the horizontal scroller without forcing full scrollbar height:\n%s", page)
+	}
+	if !strings.Contains(page, `min-height: 0; padding: 0 34px 34px; overflow-y: auto`) || strings.Contains(page, `max-width: none; height: 100%; padding: 0 34px 34px`) {
+		t.Fatalf("viewer panels should leave the horizontal scrollbar gutter to the workspace:\n%s", page)
+	}
+	if !strings.Contains(page, `data-workspace-rail`) || !strings.Contains(page, `data-workspace-scroll-track`) || !strings.Contains(page, `data-workspace-scroll-thumb`) {
+		t.Fatalf("viewer should include a custom bottom rail for horizontal panel browsing:\n%s", page)
+	}
+	if !strings.Contains(page, `.workspace-scroll-rail`) || !strings.Contains(page, `.workspace-scroll-thumb`) || !strings.Contains(page, `scrollbar-width: none`) {
+		t.Fatalf("viewer should style a custom rail and hide the native multi-panel scrollbar:\n%s", page)
+	}
+	if !strings.Contains(page, `updateWorkspaceRail`) || !strings.Contains(page, `scrollWorkspaceFromRail`) || !strings.Contains(page, `aria-valuenow`) {
+		t.Fatalf("viewer should synchronize the custom rail with workspace horizontal scroll:\n%s", page)
+	}
+	if !strings.Contains(page, `startRailDrag`) || !strings.Contains(page, `startRailTrackJump`) || !strings.Contains(page, `scrollRailWithKeyboard`) {
+		t.Fatalf("viewer custom rail should support dragging, track clicks, and keyboard scrolling:\n%s", page)
+	}
+	if !strings.Contains(page, `(event.key || "").toLowerCase()`) {
+		t.Fatalf("viewer custom rail should normalize keyboard events for horizontal scrolling:\n%s", page)
+	}
+	if !strings.Contains(page, `finishRailDrag`) || !strings.Contains(page, `window.addEventListener("pointerup", stopRailDrag)`) || !strings.Contains(page, `window.removeEventListener("pointerup", stopRailDrag)`) {
+		t.Fatalf("viewer custom rail should clean up drag state even when the pointer leaves the thumb:\n%s", page)
+	}
+	if !strings.Contains(page, `startWorkspaceDrag`) || !strings.Contains(page, `pointerType !== "mouse"`) || !strings.Contains(page, `!closestElement(event.target, "[data-note-path]`) {
+		t.Fatalf("viewer should support mouse drag scrolling from workspace gaps without stealing panel text selection:\n%s", page)
+	}
 	if !strings.Contains(page, `class="viewer-document is-stack-mode"`) {
 		t.Fatalf("viewer file page should start in stack panel mode:\n%s", page)
 	}
@@ -118,7 +151,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
 	}
-	if !strings.Contains(page, `clearEnteringPanels();`) || !strings.Contains(page, `document.body.classList.remove("is-view-transitioning")`) {
+	if !strings.Contains(page, `clearEnteringPanels();`) || !strings.Contains(page, `document.body.classList.remove("is-view-transitioning")`) || !strings.Contains(page, `transition.updateCallbackDone`) {
 		t.Fatalf("viewer stack transitions should clear fallback panel animations before showing the live DOM:\n%s", page)
 	}
 	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
