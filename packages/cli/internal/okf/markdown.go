@@ -20,6 +20,8 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 	var builder strings.Builder
 	listTag := ""
 	inCode := false
+	codeLanguage := ""
+	var codeLines []string
 	var paragraph []string
 	var quote []string
 
@@ -56,6 +58,15 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 		builder.WriteString("</blockquote>\n")
 		quote = nil
 	}
+	closeCode := func() {
+		if !inCode {
+			return
+		}
+		builder.WriteString(RenderCodeBlock(strings.Join(codeLines, "\n"), codeLanguage))
+		inCode = false
+		codeLanguage = ""
+		codeLines = nil
+	}
 
 	for index := 0; index < len(lines); index++ {
 		line := lines[index]
@@ -65,17 +76,16 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 			closeList()
 			closeQuote()
 			if inCode {
-				builder.WriteString("</code></pre>\n")
-				inCode = false
+				closeCode()
 			} else {
-				builder.WriteString("<pre><code>")
 				inCode = true
+				codeLanguage = codeFenceLanguage(trimmed)
+				codeLines = nil
 			}
 			continue
 		}
 		if inCode {
-			builder.WriteString(html.EscapeString(line))
-			builder.WriteByte('\n')
+			codeLines = append(codeLines, line)
 			continue
 		}
 		if trimmed == "" {
@@ -135,7 +145,7 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 	closeList()
 	closeQuote()
 	if inCode {
-		builder.WriteString("</code></pre>\n")
+		closeCode()
 	}
 	return builder.String()
 }
@@ -337,6 +347,95 @@ func StaticHTMLLink(currentRel string, href string) string {
 	})
 }
 
+func RenderCodeBlock(content string, language string) string {
+	language = NormalizeCodeLanguage(language)
+	className := "code-block"
+	if language != "" {
+		className += " language-" + language
+	}
+	return `<pre class="` + className + `"><code>` + highlightCode(content, language) + "</code></pre>\n"
+}
+
+func CodeLanguageForPath(name string) string {
+	extension := strings.ToLower(filepath.Ext(name))
+	switch extension {
+	case ".go":
+		return "go"
+	case ".js", ".mjs", ".cjs":
+		return "javascript"
+	case ".jsx":
+		return "jsx"
+	case ".ts", ".mts", ".cts":
+		return "typescript"
+	case ".tsx":
+		return "tsx"
+	case ".json", ".jsonc":
+		return "json"
+	case ".html", ".htm":
+		return "html"
+	case ".css":
+		return "css"
+	case ".sh", ".bash", ".zsh":
+		return "shell"
+	case ".py":
+		return "python"
+	case ".rb":
+		return "ruby"
+	case ".rs":
+		return "rust"
+	case ".java":
+		return "java"
+	case ".kt", ".kts":
+		return "kotlin"
+	case ".swift":
+		return "swift"
+	case ".sql":
+		return "sql"
+	case ".yml", ".yaml":
+		return "yaml"
+	case ".toml":
+		return "toml"
+	case ".xml", ".svg":
+		return "xml"
+	case ".md", ".markdown":
+		return "markdown"
+	default:
+		return ""
+	}
+}
+
+func NormalizeCodeLanguage(language string) string {
+	language = strings.TrimSpace(strings.ToLower(language))
+	if language == "" {
+		return ""
+	}
+	language = strings.Fields(language)[0]
+	language = strings.Trim(language, "{}")
+	language = strings.TrimPrefix(language, ".")
+	switch language {
+	case "js", "mjs", "cjs", "node":
+		return "javascript"
+	case "ts", "mts", "cts":
+		return "typescript"
+	case "py":
+		return "python"
+	case "bash", "zsh", "sh":
+		return "shell"
+	case "yml":
+		return "yaml"
+	case "md":
+		return "markdown"
+	case "htm":
+		return "html"
+	default:
+		return language
+	}
+}
+
+func codeFenceLanguage(fence string) string {
+	return NormalizeCodeLanguage(strings.TrimSpace(strings.TrimPrefix(fence, "```")))
+}
+
 func rewriteMarkdownLink(currentRel string, href string, targetURL func(target string) string) string {
 	trimmed := strings.TrimSpace(href)
 	if trimmed == "" {
@@ -368,6 +467,221 @@ func rewriteMarkdownLink(currentRel string, href string, targetURL func(target s
 		return targetURL(target) + fragment
 	}
 	return trimmed
+}
+
+func highlightCode(content string, language string) string {
+	language = NormalizeCodeLanguage(language)
+	keywords := codeKeywords(language)
+	if len(keywords) == 0 && !codeLanguageHasPrimitiveTokens(language) {
+		return html.EscapeString(content)
+	}
+
+	lines := strings.Split(content, "\n")
+	var builder strings.Builder
+	for index, line := range lines {
+		builder.WriteString(highlightCodeLine(line, language, keywords))
+		if index < len(lines)-1 {
+			builder.WriteByte('\n')
+		}
+	}
+	return builder.String()
+}
+
+func highlightCodeLine(line string, language string, keywords map[string]bool) string {
+	var builder strings.Builder
+	for index := 0; index < len(line); {
+		if codeLineCommentStart(line[index:], language) {
+			builder.WriteString(codeToken("comment", line[index:]))
+			break
+		} else if strings.HasPrefix(line[index:], "/*") && codeSupportsBlockComments(language) {
+			end := strings.Index(line[index+2:], "*/")
+			if end < 0 {
+				builder.WriteString(codeToken("comment", line[index:]))
+				break
+			}
+			endIndex := index + 2 + end + 2
+			builder.WriteString(codeToken("comment", line[index:endIndex]))
+			index = endIndex
+			continue
+		}
+
+		character := line[index]
+		if codeQuote(character, language) {
+			end := consumeCodeString(line, index, character)
+			builder.WriteString(codeToken("string", line[index:end]))
+			index = end
+			continue
+		}
+		if isCodeDigit(character) {
+			end := consumeCodeNumber(line, index)
+			builder.WriteString(codeToken("number", line[index:end]))
+			index = end
+			continue
+		}
+		if isCodeIdentifierStart(character) {
+			end := consumeCodeIdentifier(line, index)
+			word := line[index:end]
+			if keywords[word] {
+				builder.WriteString(codeToken("keyword", word))
+			} else {
+				builder.WriteString(html.EscapeString(word))
+			}
+			index = end
+			continue
+		}
+		builder.WriteString(html.EscapeString(line[index : index+1]))
+		index++
+	}
+	return builder.String()
+}
+
+func codeLineCommentStart(line string, language string) bool {
+	if strings.HasPrefix(line, "//") && codeSupportsSlashComments(language) {
+		return true
+	}
+	if strings.HasPrefix(line, "#") && codeSupportsHashComments(language) {
+		return true
+	}
+	if strings.HasPrefix(line, "--") && language == "sql" {
+		return true
+	}
+	return false
+}
+
+func codeQuote(character byte, language string) bool {
+	if character == '"' || character == '\'' {
+		return true
+	}
+	if character != '`' {
+		return false
+	}
+	switch language {
+	case "go", "javascript", "jsx", "typescript", "tsx", "shell":
+		return true
+	default:
+		return false
+	}
+}
+
+func consumeCodeString(line string, start int, quote byte) int {
+	for index := start + 1; index < len(line); index++ {
+		if line[index] == '\\' {
+			index++
+			continue
+		}
+		if line[index] == quote {
+			return index + 1
+		}
+	}
+	return len(line)
+}
+
+func consumeCodeNumber(line string, start int) int {
+	index := start + 1
+	for index < len(line) {
+		character := line[index]
+		if isCodeDigit(character) || (character >= 'a' && character <= 'f') || (character >= 'A' && character <= 'F') || character == '.' || character == '_' || character == 'x' || character == 'X' || character == '+' || character == '-' {
+			index++
+			continue
+		}
+		break
+	}
+	return index
+}
+
+func consumeCodeIdentifier(line string, start int) int {
+	index := start + 1
+	for index < len(line) && isCodeIdentifierPart(line[index]) {
+		index++
+	}
+	return index
+}
+
+func isCodeIdentifierStart(character byte) bool {
+	return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_'
+}
+
+func isCodeIdentifierPart(character byte) bool {
+	return isCodeIdentifierStart(character) || isCodeDigit(character) || character == '-'
+}
+
+func isCodeDigit(character byte) bool {
+	return character >= '0' && character <= '9'
+}
+
+func codeToken(kind string, value string) string {
+	return `<span class="tok-` + kind + `">` + html.EscapeString(value) + `</span>`
+}
+
+func codeLanguageHasPrimitiveTokens(language string) bool {
+	switch language {
+	case "go", "javascript", "jsx", "typescript", "tsx", "json", "html", "xml", "css", "shell", "python", "ruby", "rust", "java", "kotlin", "swift", "sql", "yaml", "toml":
+		return true
+	default:
+		return false
+	}
+}
+
+func codeSupportsSlashComments(language string) bool {
+	switch language {
+	case "go", "javascript", "jsx", "typescript", "tsx", "java", "kotlin", "swift", "rust":
+		return true
+	default:
+		return false
+	}
+}
+
+func codeSupportsHashComments(language string) bool {
+	switch language {
+	case "shell", "python", "ruby", "yaml":
+		return true
+	default:
+		return false
+	}
+}
+
+func codeSupportsBlockComments(language string) bool {
+	switch language {
+	case "go", "javascript", "jsx", "typescript", "tsx", "java", "kotlin", "swift", "rust", "css", "sql":
+		return true
+	default:
+		return false
+	}
+}
+
+func codeKeywords(language string) map[string]bool {
+	words := []string{}
+	switch language {
+	case "go":
+		words = []string{"break", "case", "chan", "const", "continue", "default", "defer", "else", "fallthrough", "for", "func", "go", "goto", "if", "import", "interface", "map", "package", "range", "return", "select", "struct", "switch", "type", "var"}
+	case "javascript", "jsx", "typescript", "tsx":
+		words = []string{"async", "await", "break", "case", "catch", "class", "const", "continue", "default", "else", "export", "extends", "finally", "for", "from", "function", "if", "import", "in", "instanceof", "let", "new", "of", "return", "switch", "throw", "try", "typeof", "var", "void", "while", "yield", "true", "false", "null", "undefined", "type", "interface"}
+	case "json":
+		words = []string{"true", "false", "null"}
+	case "shell":
+		words = []string{"case", "do", "done", "elif", "else", "esac", "export", "fi", "for", "function", "if", "in", "local", "then", "while"}
+	case "python":
+		words = []string{"and", "as", "assert", "async", "await", "break", "class", "continue", "def", "elif", "else", "except", "false", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "none", "nonlocal", "not", "or", "pass", "raise", "return", "true", "try", "while", "with", "yield"}
+	case "ruby":
+		words = []string{"begin", "class", "def", "do", "else", "elsif", "end", "ensure", "false", "if", "module", "nil", "rescue", "return", "self", "true", "unless", "until", "when", "while", "yield"}
+	case "rust":
+		words = []string{"as", "async", "await", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while"}
+	case "java", "kotlin":
+		words = []string{"abstract", "break", "case", "catch", "class", "const", "continue", "data", "default", "do", "else", "enum", "extends", "false", "final", "finally", "for", "fun", "if", "implements", "import", "in", "interface", "new", "null", "object", "override", "package", "private", "protected", "public", "return", "static", "super", "switch", "this", "throw", "true", "try", "val", "var", "void", "when", "while"}
+	case "swift":
+		words = []string{"as", "associatedtype", "break", "case", "catch", "class", "continue", "defer", "do", "else", "enum", "extension", "false", "for", "func", "guard", "if", "import", "in", "let", "nil", "protocol", "return", "self", "static", "struct", "switch", "throw", "true", "try", "typealias", "var", "where", "while"}
+	case "sql":
+		words = []string{"and", "as", "by", "case", "create", "delete", "desc", "distinct", "drop", "else", "end", "from", "group", "having", "in", "insert", "into", "is", "join", "left", "like", "limit", "not", "null", "on", "or", "order", "outer", "right", "select", "set", "table", "then", "union", "update", "values", "when", "where"}
+	}
+	if len(words) == 0 {
+		return nil
+	}
+	keywords := make(map[string]bool, len(words)*2)
+	for _, word := range words {
+		keywords[word] = true
+		keywords[strings.ToUpper(word)] = true
+	}
+	return keywords
 }
 
 func htmlPath(markdownPath string) string {
