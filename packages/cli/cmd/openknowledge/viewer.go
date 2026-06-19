@@ -2849,72 +2849,395 @@ const viewerJS = `
 
     const width = 900;
     const height = 640;
-    const indexPath = knowledgeGraph.nodes.find(function (node) { return node.path === "index.md"; })?.path;
-    const positions = graphLayoutPositions(knowledgeGraph, width, height);
     const labelsByPath = graphUniqueNodeLabels(knowledgeGraph.nodes);
+    const positions = graphLayoutPositions(knowledgeGraph, width, height, labelsByPath);
+    const canvas = document.createElement("canvas");
+    canvas.className = "knowledge-graph-canvas";
+    canvas.dataset.knowledgeGraphCanvas = "true";
+    canvas.width = width;
+    canvas.height = height;
+    canvas.tabIndex = 0;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "Animated graph of Markdown files. Hover a node to separate nearby notes and highlight direct connections.");
+    graphView.append(canvas);
+    createKnowledgeGraphCanvas(canvas, knowledgeGraph, positions, labelsByPath, width, height).start();
+  }
 
-    const svg = createSVGElement("svg");
-    svg.setAttribute("class", "knowledge-graph-svg");
-    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
-    svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Connected graph of Markdown files");
+  function createKnowledgeGraphCanvas(canvas, graph, positions, labelsByPath, width, height) {
+    const context = canvas.getContext("2d");
+    const nodeSet = Object.create(null);
+    graph.nodes.forEach(function (node) {
+      if (node && typeof node.path === "string") {
+        nodeSet[node.path] = true;
+      }
+    });
+    const links = graph.edges.filter(function (edge) {
+      return edge && nodeSet[edge.source] && nodeSet[edge.target] && positions[edge.source] && positions[edge.target];
+    });
+    const states = graph.nodes.filter(function (node) {
+      return node && typeof node.path === "string" && positions[node.path];
+    }).map(function (node) {
+      const point = positions[node.path];
+      const label = graphNodeLabel(node, labelsByPath);
+      return {
+        node: node,
+        path: node.path,
+        label: label,
+        fullLabel: graphNodeFullLabel(node, labelsByPath),
+        radius: node.path === "index.md" ? 16 : 10,
+        labelOffset: node.path === "index.md" ? 31 : 25,
+        baseX: point.x,
+        baseY: point.y,
+        x: point.x,
+        y: point.y,
+        z: 0,
+        vx: 0,
+        vy: 0,
+      };
+    });
+    const stateByPath = Object.create(null);
+    states.forEach(function (state) {
+      stateByPath[state.path] = state;
+    });
 
-    const edges = createSVGElement("g");
-    edges.setAttribute("class", "knowledge-graph-edges");
-    knowledgeGraph.edges.forEach(function (edge) {
-      const source = positions[edge.source];
-      const target = positions[edge.target];
+    let activePath = "";
+    let keyboardIndex = states.findIndex(function (state) { return state.path === "index.md"; });
+    if (keyboardIndex < 0) {
+      keyboardIndex = 0;
+    }
+    let lastPointer = null;
+    let frame = 0;
+
+    const setActivePath = function (path) {
+      const nextPath = path && stateByPath[path] ? path : "";
+      if (nextPath === activePath) {
+        return;
+      }
+      activePath = nextPath;
+      canvas.dataset.activeGraphPath = activePath;
+      canvas.style.cursor = activePath ? "pointer" : "default";
+      if (activePath) {
+        const activeIndex = states.findIndex(function (state) { return state.path === activePath; });
+        if (activeIndex >= 0) {
+          keyboardIndex = activeIndex;
+        }
+      }
+    };
+
+    const resizeCanvas = function () {
+      const pixelRatio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    };
+
+    const canvasPoint = function (event) {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        return { x: 0, y: 0 };
+      }
+      return {
+        x: (event.clientX - rect.left) * (width / rect.width),
+        y: (event.clientY - rect.top) * (height / rect.height),
+      };
+    };
+
+    const updatePointerTarget = function (point) {
+      lastPointer = point;
+      const hit = graphCanvasHitTest(states, point);
+      setActivePath(hit ? hit.path : "");
+    };
+
+    canvas.addEventListener("pointermove", function (event) {
+      updatePointerTarget(canvasPoint(event));
+    });
+    canvas.addEventListener("pointerleave", function () {
+      lastPointer = null;
+      if (document.activeElement !== canvas) {
+        setActivePath("");
+      }
+    });
+    canvas.addEventListener("click", function (event) {
+      const hit = graphCanvasHitTest(states, canvasPoint(event));
+      if (hit) {
+        window.location.href = fileURL(hit.path);
+      }
+    });
+    canvas.addEventListener("focus", function () {
+      if (states[keyboardIndex]) {
+        setActivePath(states[keyboardIndex].path);
+      }
+    });
+    canvas.addEventListener("blur", function () {
+      setActivePath(lastPointer ? activePath : "");
+    });
+    canvas.addEventListener("keydown", function (event) {
+      if (!states.length) {
+        return;
+      }
+      if (event.key === "Enter" || event.key === " ") {
+        if (activePath) {
+          event.preventDefault();
+          window.location.href = fileURL(activePath);
+        }
+        return;
+      }
+      if (event.key !== "ArrowRight" && event.key !== "ArrowDown" && event.key !== "ArrowLeft" && event.key !== "ArrowUp") {
+        return;
+      }
+      event.preventDefault();
+      const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+      keyboardIndex = (keyboardIndex + direction + states.length) % states.length;
+      setActivePath(states[keyboardIndex].path);
+    });
+
+    const tick = function () {
+      if (!canvas.isConnected) {
+        return;
+      }
+      frame = window.requestAnimationFrame(tick);
+      graphCanvasPhysicsStep(states, links, stateByPath, activePath, width, height);
+      drawKnowledgeGraphCanvas(context, states, links, stateByPath, activePath, width, height);
+    };
+
+    return {
+      start: function () {
+        if (!context) {
+          return;
+        }
+        resizeCanvas();
+        drawKnowledgeGraphCanvas(context, states, links, stateByPath, activePath, width, height);
+        frame = window.requestAnimationFrame(tick);
+      },
+      stop: function () {
+        if (frame) {
+          window.cancelAnimationFrame(frame);
+        }
+      },
+    };
+  }
+
+  function graphCanvasPhysicsStep(states, links, stateByPath, activePath, width, height) {
+    const active = activePath ? stateByPath[activePath] : null;
+    states.forEach(function (state) {
+      const targetZ = state === active ? 1 : 0;
+      const basePull = state === active ? 0.052 : 0.034;
+      state.vx += (state.baseX - state.x) * basePull;
+      state.vy += (state.baseY - state.y) * basePull;
+      state.z += (targetZ - state.z) * 0.095;
+    });
+    const hoverStrength = active ? graphEaseInOut(active.z) : 0;
+
+    links.forEach(function (edge) {
+      const source = stateByPath[edge.source];
+      const target = stateByPath[edge.target];
       if (!source || !target) {
         return;
       }
-      const line = createSVGElement("line");
-      line.setAttribute("x1", source.x.toFixed(1));
-      line.setAttribute("y1", source.y.toFixed(1));
-      line.setAttribute("x2", target.x.toFixed(1));
-      line.setAttribute("y2", target.y.toFixed(1));
-      edges.append(line);
+      const dx = target.x - source.x || 0.01;
+      const dy = target.y - source.y || 0.01;
+      const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      const connected = active && (edge.source === active.path || edge.target === active.path);
+      const desired = 104 + (connected ? 28 * hoverStrength : 0);
+      const force = (distance - desired) * (connected ? 0.0015 : 0.0011);
+      const nx = dx / distance;
+      const ny = dy / distance;
+      source.vx += nx * force;
+      source.vy += ny * force;
+      target.vx -= nx * force;
+      target.vy -= ny * force;
     });
-    svg.append(edges);
 
-    const nodes = createSVGElement("g");
-    nodes.setAttribute("class", "knowledge-graph-nodes");
-    knowledgeGraph.nodes.forEach(function (node) {
-      const point = positions[node.path];
-      if (!point) {
+    for (let i = 0; i < states.length; i += 1) {
+      for (let j = i + 1; j < states.length; j += 1) {
+        const a = states[i];
+        const b = states[j];
+        const dx = b.x - a.x || 0.01;
+        const dy = b.y - a.y || 0.01;
+        const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+        const nx = dx / distance;
+        const ny = dy / distance;
+        const activePair = active && (a === active || b === active);
+        const desired = activePair ? 48 + (64 + graphLabelWidth(active.fullLabel) * 0.2) * hoverStrength : 46;
+        if (distance < desired) {
+          const push = Math.min(activePair ? 3.2 : 1.6, (desired - distance) * (activePair ? 0.014 + hoverStrength * 0.012 : 0.009));
+          if (a !== active) {
+            a.vx -= nx * push;
+            a.vy -= ny * push;
+          }
+          if (b !== active) {
+            b.vx += nx * push;
+            b.vy += ny * push;
+          }
+        }
+      }
+    }
+
+    if (active && hoverStrength > 0.02) {
+      const activeBox = graphCanvasNodeBox(active, active.fullLabel);
+      states.forEach(function (state) {
+        if (state === active) {
+          return;
+        }
+        const overlap = graphBoxOverlap(activeBox, graphCanvasNodeBox(state, state.label));
+        if (!overlap) {
+          return;
+        }
+        const dx = state.x - active.x || 0.01;
+        const dy = state.y - active.y || 0.01;
+        const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+        const push = Math.min(3.2, (Math.max(overlap.x, overlap.y) * 0.026 + 0.8) * hoverStrength);
+        state.vx += (dx / distance) * push;
+        state.vy += (dy / distance) * push;
+      });
+    }
+
+    states.forEach(function (state) {
+      state.x += state.vx;
+      state.y += state.vy;
+      graphClampState(state, width, height);
+      graphLimitVelocity(state, active ? 5.5 : 4.2);
+      const damping = active ? 0.58 : 0.66;
+      state.vx *= damping;
+      state.vy *= damping;
+      if (Math.abs(state.vx) < 0.018) {
+        state.vx = 0;
+      }
+      if (Math.abs(state.vy) < 0.018) {
+        state.vy = 0;
+      }
+    });
+  }
+
+  function graphEaseInOut(value) {
+    const t = clamp(value, 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function graphLimitVelocity(state, maxVelocity) {
+    const speed = Math.sqrt(state.vx * state.vx + state.vy * state.vy);
+    if (speed <= maxVelocity || speed <= 0) {
+      return;
+    }
+    const scale = maxVelocity / speed;
+    state.vx *= scale;
+    state.vy *= scale;
+  }
+
+  function drawKnowledgeGraphCanvas(context, states, links, stateByPath, activePath, width, height) {
+    const active = activePath ? stateByPath[activePath] : null;
+    const accentRGB = graphCanvasAccentRGB();
+    context.clearRect(0, 0, width, height);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+
+    links.forEach(function (edge) {
+      const source = stateByPath[edge.source];
+      const target = stateByPath[edge.target];
+      if (!source || !target) {
         return;
       }
-      const group = createSVGElement("a");
-      group.setAttribute("href", fileURL(node.path));
-      group.dataset.graphPath = node.path;
-      group.setAttribute("class", "knowledge-graph-node" + (node.path === indexPath ? " is-index-node" : ""));
-
-      const title = createSVGElement("title");
-      title.textContent = node.title ? node.title + " - " + node.path : node.path;
-      group.append(title);
-
-      const circle = createSVGElement("circle");
-      circle.setAttribute("cx", point.x.toFixed(1));
-      circle.setAttribute("cy", point.y.toFixed(1));
-      circle.setAttribute("r", node.path === indexPath ? "16" : "10");
-      group.append(circle);
-
-      const label = createSVGElement("text");
-      label.setAttribute("x", point.x.toFixed(1));
-      label.setAttribute("y", (point.y + (node.path === indexPath ? 31 : 25)).toFixed(1));
-      label.textContent = graphNodeLabel(node, labelsByPath);
-      group.append(label);
-
-      nodes.append(group);
+      const connected = active && (edge.source === active.path || edge.target === active.path);
+      context.beginPath();
+      context.moveTo(source.x, source.y);
+      context.lineTo(target.x, target.y);
+      context.strokeStyle = connected ? "rgba(" + accentRGB + ", .78)" : active ? "rgba(128, 138, 133, .11)" : "rgba(128, 138, 133, .25)";
+      context.lineWidth = connected ? 2.35 : 1.05;
+      context.stroke();
     });
-    svg.append(nodes);
-    graphView.append(svg);
+
+    states.slice().sort(function (a, b) {
+      return a.z - b.z;
+    }).forEach(function (state) {
+      const activeNode = state === active;
+      const scale = 1 + state.z * 0.22;
+      const radius = state.radius * scale;
+      const label = activeNode ? state.fullLabel : state.label;
+      context.save();
+      context.globalAlpha = 1;
+      context.shadowColor = activeNode ? "rgba(" + accentRGB + ", .24)" : "rgba(42, 52, 48, .08)";
+      context.shadowBlur = activeNode ? 18 : 5;
+      context.shadowOffsetY = activeNode ? 7 : 2;
+      context.beginPath();
+      context.arc(state.x, state.y - state.z * 6, radius, 0, Math.PI * 2);
+      context.fillStyle = "#f8f8f8";
+      context.fill();
+      context.shadowBlur = 0;
+      context.strokeStyle = activeNode ? "rgb(" + accentRGB + ")" : "#aeb8b2";
+      context.lineWidth = activeNode ? 2.35 : state.path === "index.md" ? 2 : 1.55;
+      context.stroke();
+
+      context.font = (activeNode ? "700 14px" : "600 13px") + " ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      context.textBaseline = "middle";
+      context.textAlign = graphCanvasTextAlign(state.x, graphLabelWidth(label), width);
+      const labelX = context.textAlign === "start" ? Math.max(16, state.x - graphLabelWidth(label) / 2) : context.textAlign === "end" ? Math.min(width - 16, state.x + graphLabelWidth(label) / 2) : state.x;
+      const labelY = state.y + state.labelOffset + state.z * 4;
+      context.lineWidth = 4;
+      context.strokeStyle = "#f0f0f0";
+      context.strokeText(label, labelX, labelY);
+      context.fillStyle = activeNode ? "#26302c" : "#5f6b66";
+      context.fillText(label, labelX, labelY);
+      context.restore();
+    });
   }
 
-  function createSVGElement(name) {
-    return document.createElementNS("http://www.w3.org/2000/svg", name);
+  function graphCanvasAccentRGB() {
+    const value = getComputedStyle(document.documentElement).getPropertyValue("--accent-rgb").trim();
+    return value || "72, 93, 84";
   }
 
-  function graphLayoutPositions(graph, width, height) {
+  function graphCanvasHitTest(states, point) {
+    for (let index = states.length - 1; index >= 0; index -= 1) {
+      const state = states[index];
+      const dx = point.x - state.x;
+      const dy = point.y - state.y;
+      const radius = state.radius * (1 + state.z * 0.22) + 6;
+      if (dx * dx + dy * dy <= radius * radius) {
+        return state;
+      }
+      if (graphPointInBox(point, graphCanvasNodeBox(state, state.z > 0.6 ? state.fullLabel : state.label))) {
+        return state;
+      }
+    }
+    return null;
+  }
+
+  function graphCanvasNodeBox(state, label) {
+    const labelWidth = graphLabelWidth(label);
+    const labelTop = state.y + state.labelOffset - 10;
+    const halfWidth = Math.max(state.radius + 8, labelWidth / 2 + 9);
+    return {
+      left: state.x - halfWidth,
+      right: state.x + halfWidth,
+      top: Math.min(state.y - state.radius - 8, labelTop),
+      bottom: Math.max(state.y + state.radius + 8, labelTop + 22),
+    };
+  }
+
+  function graphPointInBox(point, box) {
+    return point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom;
+  }
+
+  function graphCanvasTextAlign(x, labelWidth, width) {
+    if (x - labelWidth / 2 < 16) {
+      return "start";
+    }
+    if (x + labelWidth / 2 > width - 16) {
+      return "end";
+    }
+    return "center";
+  }
+
+  function graphStatesConnected(links, activePath, path) {
+    if (path === activePath) {
+      return true;
+    }
+    return links.some(function (edge) {
+      return (edge.source === activePath && edge.target === path) || (edge.target === activePath && edge.source === path);
+    });
+  }
+
+  function graphLayoutPositions(graph, width, height, labelsByPath) {
     const nodes = graph.nodes.filter(function (node) {
       return node && typeof node.path === "string" && node.path.length > 0;
     });
@@ -2955,6 +3278,8 @@ const viewerJS = `
       return {
         node: node,
         group: group,
+        label: graphNodeLabel(node, labelsByPath),
+        radius: node.path === "index.md" ? 16 : 10,
         x: groupCenter.x + Math.cos(angle) * spread,
         y: groupCenter.y + Math.sin(angle) * spread,
         vx: 0,
@@ -3004,6 +3329,8 @@ const viewerJS = `
         target.vy -= ny * force;
       });
 
+      applyGraphCollisionForces(states, 0.072);
+
       states.forEach(function (state) {
         const groupCenter = groupCenters[state.group] || center;
         const nodeDegree = degree[state.node.path] || 0;
@@ -3015,12 +3342,14 @@ const viewerJS = `
         state.vy += (groupCenter.y - state.y) * groupPull;
         state.x += state.vx;
         state.y += state.vy;
+        graphClampState(state, width, height);
         state.vx *= 0.62;
         state.vy *= 0.62;
       });
     }
 
     fitGraphLayout(states, width, height);
+    resolveGraphCollisions(states, width, height);
     states.forEach(function (state) {
       positions[state.node.path] = { x: state.x, y: state.y };
     });
@@ -3096,7 +3425,112 @@ const viewerJS = `
     states.forEach(function (state) {
       state.x = clamp(targetCenterX + (state.x - sourceCenterX) * scale, paddingX, width - paddingX);
       state.y = clamp(targetCenterY + (state.y - sourceCenterY) * scale, paddingY, height - paddingY);
+      graphClampState(state, width, height);
     });
+  }
+
+  function applyGraphCollisionForces(states, strength) {
+    const boxes = states.map(graphNodeCollisionBox);
+    for (let i = 0; i < states.length; i += 1) {
+      for (let j = i + 1; j < states.length; j += 1) {
+        const overlap = graphBoxOverlap(boxes[i], boxes[j]);
+        if (!overlap) {
+          continue;
+        }
+        const a = states[i];
+        const b = states[j];
+        const dx = b.x - a.x || 0.01;
+        const dy = b.y - a.y || 0.01;
+        if (overlap.x < overlap.y) {
+          const push = overlap.x * strength * Math.sign(dx);
+          a.vx -= push;
+          b.vx += push;
+        } else {
+          const push = overlap.y * strength * Math.sign(dy);
+          a.vy -= push;
+          b.vy += push;
+        }
+      }
+    }
+  }
+
+  function resolveGraphCollisions(states, width, height) {
+    for (let iteration = 0; iteration < 96; iteration += 1) {
+      let moved = false;
+      const boxes = states.map(graphNodeCollisionBox);
+      for (let i = 0; i < states.length; i += 1) {
+        for (let j = i + 1; j < states.length; j += 1) {
+          const overlap = graphBoxOverlap(boxes[i], boxes[j]);
+          if (!overlap) {
+            continue;
+          }
+          const a = states[i];
+          const b = states[j];
+          const dx = b.x - a.x || 0.01;
+          const dy = b.y - a.y || 0.01;
+          if (overlap.x < overlap.y) {
+            const push = (overlap.x / 2 + 2.5) * Math.sign(dx);
+            a.x -= push;
+            b.x += push;
+          } else {
+            const push = (overlap.y / 2 + 2.5) * Math.sign(dy);
+            a.y -= push;
+            b.y += push;
+          }
+          graphClampState(a, width, height);
+          graphClampState(b, width, height);
+          moved = true;
+        }
+      }
+      if (!moved) {
+        return;
+      }
+    }
+  }
+
+  function graphNodeCollisionBox(state) {
+    const labelWidth = graphLabelWidth(state.label);
+    const labelTop = state.y + (state.node.path === "index.md" ? 19 : 15);
+    const labelBottom = labelTop + 20;
+    const halfWidth = Math.max(state.radius + 10, labelWidth / 2 + 11);
+    return {
+      left: state.x - halfWidth,
+      right: state.x + halfWidth,
+      top: Math.min(state.y - state.radius - 6, labelTop),
+      bottom: Math.max(state.y + state.radius + 6, labelBottom),
+    };
+  }
+
+  function graphLabelWidth(label) {
+    return Math.max(20, String(label || "").length * 8.6);
+  }
+
+  function graphBoxOverlap(a, b) {
+    const x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    if (x <= 0) {
+      return null;
+    }
+    const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    if (y <= 0) {
+      return null;
+    }
+    return { x: x, y: y };
+  }
+
+  function graphClampState(state, width, height) {
+    const box = graphNodeCollisionBox(state);
+    if (box.left < 14) {
+      state.x += 14 - box.left;
+    }
+    if (box.right > width - 14) {
+      state.x -= box.right - (width - 14);
+    }
+    if (box.top < 18) {
+      state.y += 18 - box.top;
+    }
+    if (box.bottom > height - 18) {
+      state.y -= box.bottom - (height - 18);
+    }
   }
 
   function graphHash(value) {
@@ -3176,8 +3610,12 @@ const viewerJS = `
   }
 
   function graphNodeLabel(node, labelsByPath) {
-    const label = labelsByPath[node.path] || graphNodeBaseLabel(node);
+    const label = graphNodeFullLabel(node, labelsByPath);
     return label.length > 22 ? label.slice(0, 21) + "..." : label;
+  }
+
+  function graphNodeFullLabel(node, labelsByPath) {
+    return labelsByPath[node.path] || graphNodeBaseLabel(node);
   }
 
   function indexStaticNotes(notes, key) {
@@ -4611,14 +5049,8 @@ body.viewer-document.is-sidebar-open > .workspace-scroll-rail { transform: trans
 .knowledge-empty-tree { overflow: auto; }
 .knowledge-empty-tree .knowledge-tree { width: 100%; }
 .knowledge-empty-graph { position: sticky; top: 26px; align-self: start; min-height: min(640px, calc(100vh - 132px)); overflow: hidden; }
-.knowledge-graph-svg { display: block; width: 100%; height: min(640px, calc(100vh - 132px)); min-height: 440px; }
-.knowledge-graph-edges line { stroke: #c8c8c8; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
-.knowledge-graph-node { color: #5b6661; cursor: pointer; text-decoration: none; }
-.knowledge-graph-node circle { fill: #f8f8f8; stroke: #aeb8b2; stroke-width: 1.6; vector-effect: non-scaling-stroke; transition: fill .16s ease, stroke .16s ease, transform .16s ease; transform-box: fill-box; transform-origin: center; }
-.knowledge-graph-node text { fill: #5f6b66; stroke: #f0f0f0; stroke-linejoin: round; stroke-width: 4px; paint-order: stroke; font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-anchor: middle; pointer-events: none; }
-.knowledge-graph-node:hover circle, .knowledge-graph-node:focus-visible circle { fill: #ffffff; stroke: var(--accent); transform: scale(1.16); }
-.knowledge-graph-node:hover text, .knowledge-graph-node:focus-visible text { fill: #26302c; }
-.knowledge-graph-node.is-index-node circle { fill: #ffffff; stroke: #89958f; stroke-width: 2; }
+.knowledge-graph-canvas { display: block; width: 100%; height: min(640px, calc(100vh - 132px)); min-height: 440px; outline: none; }
+.knowledge-graph-canvas:focus-visible { outline: 2px solid rgba(var(--accent-rgb), .55); outline-offset: -3px; }
 .knowledge-tree { width: min(720px, 100%); color: #51605a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
 .tree-row { display: flex; min-height: 30px; align-items: center; gap: 12px; padding: 4px 10px 4px var(--indent); border-radius: 6px; color: inherit; text-decoration: none; }
 .tree-directory { margin: 7px 0 2px; background: #e1e6e2; color: #56645f; font-weight: 700; }
@@ -4755,7 +5187,7 @@ ul, ol { padding-left: 22px; }
   .workspace-scroll-rail { right: 12px; bottom: 8px; left: 12px; }
   .knowledge-empty-inner { grid-template-columns: 1fr; gap: 22px; padding: 28px 14px 44px; }
   .knowledge-empty-graph { position: relative; top: auto; min-height: 380px; }
-  .knowledge-graph-svg { height: 380px; min-height: 380px; }
+  .knowledge-graph-canvas { height: 380px; min-height: 380px; }
   .note-panel.document { flex-basis: calc(100vw - 24px); padding: 0 22px 28px; }
   .note-chrome { margin: 0 -22px 22px; padding: 0 10px 0 22px; }
 }

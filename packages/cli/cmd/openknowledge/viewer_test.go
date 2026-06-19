@@ -175,6 +175,18 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `graphLayoutPositions`) || !strings.Contains(page, `graphGroupCenters`) || strings.Contains(page, `ringNodes`) {
 		t.Fatalf("viewer knowledge graph should use a grouped force layout instead of a fixed circle:\n%s", page)
 	}
+	if !strings.Contains(page, `resolveGraphCollisions`) || !strings.Contains(page, `graphNodeCollisionBox`) || !strings.Contains(page, `graphBoxOverlap`) {
+		t.Fatalf("viewer knowledge graph should try to resolve node label collisions:\n%s", page)
+	}
+	if !strings.Contains(page, `createKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasPhysicsStep`) || !strings.Contains(page, `drawKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasHitTest`) || !strings.Contains(page, `requestAnimationFrame(tick)`) || !strings.Contains(page, `dataset.knowledgeGraphCanvas`) || !strings.Contains(page, `.knowledge-graph-canvas`) {
+		t.Fatalf("viewer knowledge graph should render as an animated canvas graph:\n%s", page)
+	}
+	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `graphStatesConnected`) || !strings.Contains(page, `window.location.href = fileURL(activePath)`) {
+		t.Fatalf("viewer canvas graph should separate hovered nodes and highlight connected edges:\n%s", page)
+	}
+	if !strings.Contains(page, `graphEaseInOut`) || !strings.Contains(page, `graphLimitVelocity`) || !strings.Contains(page, `context.globalAlpha = 1`) {
+		t.Fatalf("viewer canvas graph should damp hover physics without dimming inactive nodes:\n%s", page)
+	}
 	if !strings.Contains(page, `graphUniqueNodeLabels`) || !strings.Contains(page, `graphShortestUniquePathSuffix`) || !strings.Contains(page, `parts.slice(-2).join("/")`) {
 		t.Fatalf("viewer knowledge graph should disambiguate generic node labels with path suffixes:\n%s", page)
 	}
