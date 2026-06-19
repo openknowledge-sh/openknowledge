@@ -194,6 +194,66 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 }
 
+func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", strings.Join([]string{
+		"# Home",
+		"",
+		"See [Report](references/report.pdf) and [Tool](src/tool.go).",
+		"",
+		"```go",
+		"package main",
+		"func main() {",
+		"  println(\"ok\")",
+		"}",
+		"```",
+	}, "\n"))
+	writeViewerFile(t, root, "references/report.pdf", "%PDF-1.4\n% test pdf\n")
+	writeViewerFile(t, root, "src/tool.go", "package main\n\nfunc main() {\n\tprintln(\"ok\")\n}\n")
+
+	handler := newViewerHandler(root)
+	page := getViewerBody(t, handler, "/file/index.md")
+	if !strings.Contains(page, `href="/raw/references/report.pdf"`) {
+		t.Fatalf("viewer should rewrite PDF links to raw browser URLs:\n%s", page)
+	}
+	if !strings.Contains(page, `href="/file/src/tool.go"`) {
+		t.Fatalf("viewer should rewrite code links to asset preview pages:\n%s", page)
+	}
+	if !strings.Contains(page, `class="code-block language-go"`) || !strings.Contains(page, `tok-keyword">func</span>`) {
+		t.Fatalf("viewer should syntax-highlight fenced code blocks:\n%s", page)
+	}
+	if !strings.Contains(page, `function isMarkdownPath(path)`) {
+		t.Fatalf("viewer stack runtime should distinguish markdown links from asset links:\n%s", page)
+	}
+
+	rawRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(rawRecorder, httptest.NewRequest(http.MethodGet, "/raw/references/report.pdf", nil))
+	rawResponse := rawRecorder.Result()
+	defer rawResponse.Body.Close()
+	if rawResponse.StatusCode != http.StatusOK {
+		t.Fatalf("expected raw PDF to return 200, got %d", rawResponse.StatusCode)
+	}
+	if contentType := rawResponse.Header.Get("Content-Type"); !strings.Contains(contentType, "application/pdf") {
+		t.Fatalf("expected raw PDF content type, got %q", contentType)
+	}
+	if rawResponse.Header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("expected raw assets to disable content sniffing")
+	}
+
+	codePage := getViewerBody(t, handler, "/file/src/tool.go")
+	if !strings.Contains(codePage, `asset-code`) || !strings.Contains(codePage, `class="code-block language-go"`) || !strings.Contains(codePage, `tok-keyword">package</span>`) {
+		t.Fatalf("viewer should render highlighted code asset preview:\n%s", codePage)
+	}
+	if !strings.Contains(codePage, `href="/raw/src/tool.go"`) {
+		t.Fatalf("code asset preview should expose raw file link:\n%s", codePage)
+	}
+
+	pdfPage := getViewerBody(t, handler, "/file/references/report.pdf")
+	if !strings.Contains(pdfPage, `class="asset-frame"`) || !strings.Contains(pdfPage, `src="/raw/references/report.pdf"`) {
+		t.Fatalf("direct PDF asset page should embed the raw browser PDF URL:\n%s", pdfPage)
+	}
+}
+
 func TestViewerEditorsIncludeCommonFallbacks(t *testing.T) {
 	editors := viewerEditors()
 	byID := make(map[string]viewerEditor, len(editors))
@@ -368,8 +428,9 @@ func TestViewerSearchAPI(t *testing.T) {
 
 func TestViewerServesDirectAliasPath(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Workflow](workflows/docs.md).\n")
+	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Workflow](workflows/docs.md) and [Report](references/report.pdf).\n")
 	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\n---\n\n# Docs\n\nRun validation before publishing.\n")
+	writeViewerFile(t, root, "references/report.pdf", "%PDF-1.4\n% test pdf\n")
 
 	handler := newViewerHandlerWithAlias(root, "project-memory")
 
@@ -386,13 +447,25 @@ func TestViewerServesDirectAliasPath(t *testing.T) {
 	if !strings.Contains(page, `href="/project-memory/file/workflows/docs.md"`) {
 		t.Fatalf("viewer file did not prefix markdown links:\n%s", page)
 	}
+	if !strings.Contains(page, `href="/project-memory/raw/references/report.pdf"`) {
+		t.Fatalf("viewer file did not prefix raw asset links:\n%s", page)
+	}
 	if !strings.Contains(page, `data-link-prefix="/project-memory"`) || !strings.Contains(page, `linkPrefix + "/api/file/"`) {
 		t.Fatalf("viewer file did not expose prefixed stack runtime:\n%s", page)
+	}
+
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/project-memory/raw/references/report.pdf", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected prefixed raw asset to return 200, got %d", recorder.Code)
 	}
 
 	api := getViewerJSON(t, handler, "/project-memory/api/file/index.md")
 	if !strings.Contains(api.Body, `href="/project-memory/file/workflows/docs.md"`) {
 		t.Fatalf("viewer API did not prefix markdown links: %#v", api)
+	}
+	if !strings.Contains(api.Body, `href="/project-memory/raw/references/report.pdf"`) {
+		t.Fatalf("viewer API did not prefix raw links: %#v", api)
 	}
 
 	payload := getViewerSearch(t, handler, "/project-memory/api/search?q=validation")
@@ -418,7 +491,7 @@ func TestViewerSearchRefreshesAfterMarkdownChanges(t *testing.T) {
 	}
 }
 
-func TestViewerRejectsTraversalAndNonMarkdown(t *testing.T) {
+func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "notes.txt", "not markdown\n")
@@ -432,12 +505,16 @@ func TestViewerRejectsTraversalAndNonMarkdown(t *testing.T) {
 	if _, ok := safeMarkdownPath(root, "../outside.md"); ok {
 		t.Fatal("expected traversal path to be rejected")
 	}
+	if _, ok := safeViewerPath(root, "../outside.md"); ok {
+		t.Fatal("expected asset traversal path to be rejected")
+	}
 
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/file/notes.txt", nil))
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/file/notes.txt", nil))
 	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("expected non-markdown file to return 404, got %d", recorder.Code)
+		t.Fatalf("expected non-markdown file API to return 404, got %d", recorder.Code)
 	}
+
 }
 
 func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {

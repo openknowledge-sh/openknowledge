@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -208,6 +210,10 @@ func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 			renderViewerFileAPI(response, request, root, rel, prefix)
 			return
 		}
+		if strings.HasPrefix(rest, "raw/") {
+			renderViewerRaw(response, request, root, strings.TrimPrefix(rest, "raw/"))
+			return
+		}
 		if strings.HasPrefix(rest, "file/") {
 			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), viewerFrame{}, prefix)
 			return
@@ -221,6 +227,10 @@ func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 	mux.HandleFunc("/api/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/api/file/")
 		renderViewerFileAPI(response, request, root, rel, "")
+	})
+	mux.HandleFunc("/raw/", func(response http.ResponseWriter, request *http.Request) {
+		rel := strings.TrimPrefix(request.URL.Path, "/raw/")
+		renderViewerRaw(response, request, root, rel)
 	})
 	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
 		renderViewerSearch(response, request, searchCache, "")
@@ -296,6 +306,15 @@ func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 					renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
 					return
 				}
+				if strings.HasPrefix(rest, "raw/") {
+					root, err := registryEntryRoot(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					renderViewerRaw(response, request, root, strings.TrimPrefix(rest, "raw/"))
+					return
+				}
 				if strings.HasPrefix(rest, "file/") {
 					root, err := registryEntryRoot(entry)
 					if err != nil {
@@ -352,6 +371,15 @@ func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 				return
 			}
 			renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
+			return
+		}
+		if strings.HasPrefix(rest, "raw/") {
+			root, err := registryEntryRoot(entry)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			renderViewerRaw(response, request, root, strings.TrimPrefix(rest, "raw/"))
 			return
 		}
 		if strings.HasPrefix(rest, "file/") {
@@ -483,6 +511,18 @@ type viewerFileData struct {
 	GraphJSON   template.JS
 }
 
+type viewerAssetData struct {
+	Title      string
+	Root       string
+	Path       string
+	RawURL     string
+	Kind       string
+	MediaType  string
+	Language   string
+	Body       template.HTML
+	PreviewURL string
+}
+
 type viewerFilePayload struct {
 	Title string `json:"title"`
 	Path  string `json:"path"`
@@ -512,6 +552,8 @@ type viewerGraphEdge struct {
 	Target string `json:"target"`
 	Label  string `json:"label,omitempty"`
 }
+
+const maxViewerTextPreviewBytes = 1024 * 1024
 
 type viewerEditor struct {
 	ID        string `json:"id"`
@@ -546,6 +588,11 @@ type viewerTreeItem struct {
 }
 
 func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, frame viewerFrame, linkPrefix string) {
+	if cleanRel, ok := cleanViewerRel(rel, true); ok && !isMarkdownFile(cleanRel) {
+		renderViewerAsset(response, request, root, cleanRel, linkPrefix)
+		return
+	}
+
 	data, ok, err := viewerFile(root, rel, frame, linkPrefix)
 	if !ok {
 		http.NotFound(response, request)
@@ -557,6 +604,92 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 	}
 
 	renderHTML(response, viewerFileTemplate, data)
+}
+
+func renderViewerAsset(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
+	data, ok, err := viewerAsset(root, rel, linkPrefix)
+	if !ok {
+		http.NotFound(response, request)
+		return
+	}
+	if err != nil {
+		http.NotFound(response, request)
+		return
+	}
+
+	renderHTML(response, viewerAssetTemplate, data)
+}
+
+func viewerAsset(root string, rel string, linkPrefix string) (viewerAssetData, bool, error) {
+	cleanRel, ok := cleanViewerRel(rel, false)
+	if !ok || isMarkdownFile(cleanRel) {
+		return viewerAssetData{}, false, nil
+	}
+	filePath, ok := safeViewerPath(root, cleanRel)
+	if !ok {
+		return viewerAssetData{}, false, nil
+	}
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return viewerAssetData{}, true, err
+	}
+	if info.IsDir() {
+		return viewerAssetData{}, false, nil
+	}
+
+	mediaType := viewerMediaType(filePath)
+	rawURL := rawURLWithPrefix(linkPrefix, cleanRel)
+	data := viewerAssetData{
+		Title:      titleForAssetFile(cleanRel),
+		Root:       root,
+		Path:       cleanRel,
+		RawURL:     rawURL,
+		Kind:       viewerAssetKind(filePath, mediaType),
+		MediaType:  mediaType,
+		Language:   okf.CodeLanguageForPath(cleanRel),
+		PreviewURL: rawURL,
+	}
+
+	if data.Kind == "code" || data.Kind == "text" {
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return viewerAssetData{}, true, err
+		}
+		if len(content) > maxViewerTextPreviewBytes || !viewerLooksText(content) {
+			data.Kind = "download"
+			return data, true, nil
+		}
+		language := data.Language
+		if language == "" {
+			language = "text"
+		}
+		data.Body = template.HTML(okf.RenderCodeBlock(string(content), language))
+	}
+
+	return data, true, nil
+}
+
+func renderViewerRaw(response http.ResponseWriter, request *http.Request, root string, rel string) {
+	filePath, ok := safeViewerPath(root, rel)
+	if !ok {
+		http.NotFound(response, request)
+		return
+	}
+	file, err := os.Open(filePath)
+	if err != nil {
+		http.NotFound(response, request)
+		return
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || info.IsDir() {
+		http.NotFound(response, request)
+		return
+	}
+
+	response.Header().Set("X-Content-Type-Options", "nosniff")
+	response.Header().Set("Content-Type", viewerSafeRawMediaType(filePath))
+	http.ServeContent(response, request, info.Name(), info.ModTime(), file)
 }
 
 func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
@@ -1489,6 +1622,20 @@ func renderHTML(response http.ResponseWriter, tmpl *template.Template, data any)
 	}
 }
 
+func safeViewerPath(root string, rel string) (string, bool) {
+	clean, ok := cleanViewerRel(rel, false)
+	if !ok {
+		return "", false
+	}
+
+	full := filepath.Join(root, filepath.FromSlash(clean))
+	relative, err := filepath.Rel(root, full)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return full, true
+}
+
 func safeMarkdownPath(root string, rel string) (string, bool) {
 	clean, ok := cleanMarkdownRel(rel)
 	if !ok {
@@ -1501,6 +1648,21 @@ func safeMarkdownPath(root string, rel string) (string, bool) {
 		return "", false
 	}
 	return full, true
+}
+
+func cleanViewerRel(rel string, defaultIndex bool) (string, bool) {
+	if hasParentSegment(rel) {
+		return "", false
+	}
+	clean := path.Clean("/" + rel)
+	clean = strings.TrimPrefix(clean, "/")
+	if clean == "." || clean == "" {
+		if !defaultIndex {
+			return "", false
+		}
+		clean = "index.md"
+	}
+	return clean, true
 }
 
 func cleanMarkdownRel(rel string) (string, bool) {
@@ -1523,6 +1685,76 @@ func isMarkdownFile(name string) bool {
 	return extension == ".md" || extension == ".markdown"
 }
 
+func isCodePreviewFile(name string) bool {
+	return okf.CodeLanguageForPath(name) != "" && !isMarkdownFile(name)
+}
+
+func isTextPreviewFile(name string) bool {
+	extension := strings.ToLower(filepath.Ext(name))
+	switch extension {
+	case ".txt", ".log", ".csv", ".tsv", ".ini", ".env", ".gitignore", ".dockerignore":
+		return true
+	default:
+		return false
+	}
+}
+
+func viewerAssetKind(filePath string, mediaType string) string {
+	extension := strings.ToLower(filepath.Ext(filePath))
+	if extension == ".pdf" || strings.HasPrefix(mediaType, "application/pdf") {
+		return "pdf"
+	}
+	if isCodePreviewFile(filePath) {
+		return "code"
+	}
+	if isTextPreviewFile(filePath) || strings.HasPrefix(mediaType, "text/") {
+		return "text"
+	}
+	if strings.HasPrefix(mediaType, "image/") {
+		return "image"
+	}
+	if strings.HasPrefix(mediaType, "video/") {
+		return "video"
+	}
+	if strings.HasPrefix(mediaType, "audio/") {
+		return "audio"
+	}
+	return "download"
+}
+
+func viewerMediaType(filePath string) string {
+	extension := strings.ToLower(filepath.Ext(filePath))
+	if extension == ".mov" {
+		return "video/quicktime"
+	}
+	mediaType := mime.TypeByExtension(extension)
+	if mediaType != "" {
+		return mediaType
+	}
+	return "application/octet-stream"
+}
+
+func viewerSafeRawMediaType(filePath string) string {
+	if isCodePreviewFile(filePath) || isTextPreviewFile(filePath) {
+		return "text/plain; charset=utf-8"
+	}
+	extension := strings.ToLower(filepath.Ext(filePath))
+	switch extension {
+	case ".html", ".htm", ".svg", ".js", ".mjs", ".cjs":
+		return "text/plain; charset=utf-8"
+	default:
+		return viewerMediaType(filePath)
+	}
+}
+
+func viewerLooksText(content []byte) bool {
+	sample := content
+	if len(sample) > 8192 {
+		sample = sample[:8192]
+	}
+	return !bytes.Contains(sample, []byte{0})
+}
+
 func hasParentSegment(value string) bool {
 	for _, segment := range strings.Split(value, "/") {
 		if segment == ".." {
@@ -1538,6 +1770,21 @@ func fileURL(rel string) string {
 
 func fileURLWithPrefix(prefix string, rel string) string {
 	return strings.TrimRight(prefix, "/") + fileURL(rel)
+}
+
+func rawURL(rel string) string {
+	return "/raw/" + strings.TrimPrefix(path.Clean("/"+rel), "/")
+}
+
+func rawURLWithPrefix(prefix string, rel string) string {
+	return strings.TrimRight(prefix, "/") + rawURL(rel)
+}
+
+func viewerContentURLWithPrefix(prefix string, rel string) string {
+	if isMarkdownFile(rel) || isCodePreviewFile(rel) || isTextPreviewFile(rel) {
+		return fileURLWithPrefix(prefix, rel)
+	}
+	return rawURLWithPrefix(prefix, rel)
 }
 
 func searchURLWithPrefix(prefix string) string {
@@ -1570,12 +1817,67 @@ func localAliasURL(name string) string {
 func viewerLinkWithPrefix(prefix string) okf.LinkResolver {
 	prefix = strings.TrimRight(prefix, "/")
 	return func(currentRel string, href string) string {
-		resolved := okf.ViewerLink(currentRel, href)
-		if prefix != "" && strings.HasPrefix(resolved, "/file/") {
-			return prefix + resolved
-		}
-		return resolved
+		return viewerResolveLinkWithPrefix(prefix, currentRel, href)
 	}
+}
+
+func viewerResolveLinkWithPrefix(prefix string, currentRel string, href string) string {
+	trimmed := strings.TrimSpace(href)
+	if trimmed == "" {
+		return "#"
+	}
+	parsed, err := url.Parse(trimmed)
+	if err == nil && parsed.Scheme != "" {
+		if parsed.Scheme == "http" || parsed.Scheme == "https" {
+			return trimmed
+		}
+		return "#"
+	}
+	if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
+		return trimmed
+	}
+
+	linkPath := trimmed
+	suffix := ""
+	if hash := strings.Index(linkPath, "#"); hash >= 0 {
+		suffix = linkPath[hash:] + suffix
+		linkPath = linkPath[:hash]
+	}
+	if query := strings.Index(linkPath, "?"); query >= 0 {
+		suffix = linkPath[query:] + suffix
+		linkPath = linkPath[:query]
+	}
+
+	target := viewerLinkTargetRel(currentRel, linkPath)
+	if target == "" {
+		return suffix
+	}
+	return viewerContentURLWithPrefix(prefix, target) + suffix
+}
+
+func viewerLinkTargetRel(sourceRel string, href string) string {
+	target := strings.TrimSpace(href)
+	if target == "" {
+		return ""
+	}
+
+	var clean string
+	if strings.HasPrefix(target, "/") {
+		clean = filepath.ToSlash(filepath.Clean(strings.TrimPrefix(target, "/")))
+	} else {
+		base := filepath.Dir(sourceRel)
+		if base == "." {
+			base = ""
+		}
+		clean = filepath.ToSlash(filepath.Clean(filepath.Join(base, target)))
+	}
+	if clean == "." {
+		clean = ""
+	}
+	if strings.HasSuffix(target, "/") {
+		clean = filepath.ToSlash(filepath.Join(clean, "index.md"))
+	}
+	return clean
 }
 
 func viewerAliasDisplayURL(host string, port string, aliasNames []string) string {
@@ -1710,6 +2012,15 @@ func titleForMarkdownFile(rel string) string {
 	return strings.Join(words, " ")
 }
 
+func titleForAssetFile(rel string) string {
+	title := titleForMarkdownFile(rel)
+	extension := strings.TrimPrefix(filepath.Ext(rel), ".")
+	if extension == "" {
+		return title
+	}
+	return title + " ." + extension
+}
+
 func stripFrontmatter(text string) string {
 	if !strings.HasPrefix(text, "---\n") {
 		return text
@@ -1774,6 +2085,47 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
     {{end}}
   </main>
   <script>` + viewerSearchJS + `</script>
+</body>
+</html>`))
+
+var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} - Open Knowledge</title>
+  <style>` + viewerCSS + `</style>
+</head>
+<body class="viewer-document viewer-asset-document">
+  <header>
+    <div class="header-left">
+      <a class="brand" href="/">Open Knowledge</a>
+    </div>
+    <a class="asset-open-raw" href="{{.RawURL}}" data-direct-link="true">Open raw</a>
+  </header>
+  <main class="asset-workspace">
+    <article class="document asset-panel">
+      <div class="note-chrome">
+        <a class="note-path" href="{{.RawURL}}" data-direct-link="true">{{.Path}}</a>
+        <span class="asset-kind">{{.MediaType}}</span>
+      </div>
+      <div class="asset-body asset-{{.Kind}}">
+        {{if eq .Kind "pdf"}}
+          <iframe class="asset-frame" src="{{.PreviewURL}}" title="{{.Path}}"></iframe>
+        {{else if eq .Kind "image"}}
+          <img class="asset-image" src="{{.PreviewURL}}" alt="{{.Path}}">
+        {{else if eq .Kind "video"}}
+          <video class="asset-video" src="{{.PreviewURL}}" controls preload="metadata"></video>
+        {{else if eq .Kind "audio"}}
+          <audio class="asset-audio" src="{{.PreviewURL}}" controls preload="metadata"></audio>
+        {{else if or (eq .Kind "code") (eq .Kind "text")}}
+          {{.Body}}
+        {{else}}
+          <p class="asset-download">This file type is not previewed inline. Open the raw file in the browser.</p>
+        {{end}}
+      </div>
+    </article>
+  </main>
 </body>
 </html>`))
 
@@ -2407,6 +2759,9 @@ const viewerJS = `
     }
 
     const raw = url.pathname.slice(filePrefix.length) || "index.md";
+    if (!isMarkdownPath(raw)) {
+      return null;
+    }
     try {
       return decodeURIComponent(raw);
     } catch {
@@ -2416,6 +2771,10 @@ const viewerJS = `
 
   function encodedNoteURL(prefix, path) {
     return prefix + path.split("/").map(encodeURIComponent).join("/");
+  }
+
+  function isMarkdownPath(path) {
+    return /\.(md|markdown)$/i.test(String(path || "").split("?")[0].split("#")[0]);
   }
 
   function fileURL(path) {
@@ -4184,11 +4543,14 @@ const viewerCSS = `
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--ink); background: var(--paper); line-height: 1.55; }
 body.viewer-document { height: 100vh; overflow: hidden; }
+body.viewer-asset-document { overflow: auto; }
 header { display: flex; min-height: var(--header-height); justify-content: space-between; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .92); color: var(--muted); font-size: 13px; }
 body.viewer-document > header { position: relative; justify-content: center; border-bottom: 0; background: #f0f0f0; transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
 body.viewer-document.is-sidebar-open > header { transform: translateX(var(--sidebar-width)); }
 .header-left { position: absolute; left: 22px; top: 50%; display: inline-flex; min-width: 0; align-items: center; gap: 10px; transform: translateY(-50%); }
 .brand { color: var(--ink); font-weight: 700; text-decoration: none; }
+.asset-open-raw { position: absolute; right: 22px; color: var(--muted); font-weight: 700; text-decoration: none; }
+.asset-open-raw:hover { color: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .sidebar-toggle { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #666666; cursor: pointer; }
 .sidebar-toggle:hover, .sidebar-toggle:focus-visible, body.is-sidebar-open .sidebar-toggle { border-color: #cdcdcd; background: #e4e4e4; color: #2f2f2f; outline: none; }
@@ -4209,6 +4571,14 @@ body.is-sidebar-open .file-sidebar { transform: translateX(0); }
 .header-search .search-result:hover, .header-search .search-result:focus-visible, .header-search .search-result.is-active { border-color: #c7c7c7; background: #f0f0f0; }
 .file-sidebar-tree { flex: 1 1 auto; width: 100%; overflow: auto; padding: 4px 10px 18px 8px; }
 main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
+.asset-workspace { width: min(1180px, calc(100% - 32px)); min-height: calc(100vh - var(--header-height)); padding: 22px 0 44px; }
+.asset-panel.document { max-width: none; min-height: min(760px, calc(100vh - 118px)); padding: 0 28px 30px; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 46px var(--shadow); }
+.asset-panel .note-chrome { margin: 0 -28px 22px; padding-left: 28px; }
+.asset-kind { flex: 0 0 auto; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.asset-frame { display: block; width: 100%; height: min(78vh, 900px); border: 1px solid var(--line); border-radius: 6px; background: #ffffff; }
+.asset-image { display: block; max-width: 100%; height: auto; margin: 0 auto; border: 1px solid var(--line); border-radius: 6px; background: #ffffff; }
+.asset-video, .asset-audio { display: block; width: 100%; }
+.asset-download { margin: 0; color: var(--muted); }
 .workspaces { margin: 0 0 28px; }
 .sidebar-label { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .workspace-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 9px; }
@@ -4323,8 +4693,14 @@ strong { color: var(--ink); font-weight: 700; }
 blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--line); color: var(--muted); }
 blockquote p { color: var(--muted); }
 code { padding: 1px 4px; border-radius: 4px; background: #edf2ef; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
-pre { overflow-x: auto; padding: 14px; border: 1px solid var(--line); background: #111714; color: #f3f7f4; }
-pre code { padding: 0; background: transparent; color: inherit; }
+pre, .code-block { overflow-x: auto; padding: 14px; border: 1px solid var(--line); background: #111714; color: #f3f7f4; }
+pre code, .code-block code { padding: 0; background: transparent; color: inherit; }
+.code-block { border-radius: 6px; line-height: 1.6; tab-size: 2; }
+.asset-code .code-block, .asset-text .code-block { margin: 0; min-height: 440px; }
+.tok-keyword { color: #8fd3ff; font-weight: 700; }
+.tok-string { color: #a7e08f; }
+.tok-number { color: #ffd479; }
+.tok-comment { color: #8c9a93; font-style: italic; }
 ul, ol { padding-left: 22px; }
 .empty { color: var(--muted); }
 .note-error { color: #a44b28; }
