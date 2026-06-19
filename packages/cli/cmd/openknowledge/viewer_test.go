@@ -58,6 +58,18 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `min-height: 0; padding: 0 34px 34px; overflow-y: auto`) || strings.Contains(page, `max-width: none; height: 100%; padding: 0 34px 34px`) {
 		t.Fatalf("viewer panels should leave the horizontal scrollbar gutter to the workspace:\n%s", page)
 	}
+	if !strings.Contains(page, `--note-panel-width`) || !strings.Contains(page, `--note-panel-min-width`) || !strings.Contains(page, `minPanelWidth`) {
+		t.Fatalf("viewer panels should expose a resizable width with a minimum width:\n%s", page)
+	}
+	if !strings.Contains(page, `data-panel-resize-handle`) || !strings.Contains(page, `note-resize-handle-left`) || !strings.Contains(page, `note-resize-handle-right`) {
+		t.Fatalf("viewer panels should include left and right resize handles:\n%s", page)
+	}
+	if !strings.Contains(page, `panelWidthStorageKey`) || !strings.Contains(page, `readPanelWidths`) || !strings.Contains(page, `savePanelWidths`) || !strings.Contains(page, `writeCookie(panelWidthStorageKey`) {
+		t.Fatalf("viewer panel widths should persist per knowledge base:\n%s", page)
+	}
+	if !strings.Contains(page, `startPanelResize`) || !strings.Contains(page, `resizePanelWithKeyboard`) || !strings.Contains(page, `workspace.scrollLeft = panelResize.startScrollLeft + (nextWidth - panelResize.startWidth)`) {
+		t.Fatalf("viewer panels should resize from either edge and keep left-edge resizing anchored:\n%s", page)
+	}
 	if !strings.Contains(page, `data-workspace-rail`) || !strings.Contains(page, `data-workspace-scroll-track`) || !strings.Contains(page, `data-workspace-scroll-thumb`) {
 		t.Fatalf("viewer should include a custom bottom rail for horizontal panel browsing:\n%s", page)
 	}

@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Viewer resizable panels
+
+* Note panels in the local viewer can now be resized horizontally from either
+  vertical edge, with a minimum width to keep notes readable.
+* Panel widths are stored per note and restored when that note is opened again;
+  notes without a saved width keep the existing default panel size.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Viewer knowledge graph clustering
 
 * The empty-state knowledge graph now uses a deterministic force-style layout

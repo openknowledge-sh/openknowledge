@@ -26,10 +26,14 @@ rail thumb, clicking the rail track, keyboarding the focused thumb, or dragging
 the gray workspace gaps scrolls left or right without taking over text
 selection inside note panels. Holding `Space` switches mouse devices into a
 canvas-style pan mode, so dragging sideways across panels scrolls the stack
-without activating links. The file explorer can be opened from the header and
-stays open while selecting files. File rows show only the filename; reserved
-Markdown files such as `index.md` and `log.md` are marked with a right-aligned
-`system` badge.
+without activating links. Each note panel has left and right resize handles for
+horizontal width changes. Resized widths are stored per note and restored when
+the note is opened again, while notes without a saved width keep the default
+panel size. Panels enforce a minimum width so a note cannot be collapsed into
+an unreadable strip. The file explorer can be opened from the header and stays
+open while selecting files. File rows show only the filename; reserved Markdown
+files such as `index.md` and `log.md` are marked with a right-aligned `system`
+badge.
 
 When all panels are closed, the empty workspace shows a split overview: the
 file tree on the left and a connected graph of Markdown files on the right. The
@@ -107,6 +111,8 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
 * Move across multi-panel stacks with the bottom rail, rail keyboard controls,
   by dragging the workspace gaps, or by holding `Space` and dragging sideways
   across panels on mouse devices.
+* Resize individual panels from either vertical edge and keep those widths for
+  future openings of the same note.
 * Search the knowledge base from the top bar with pointer or keyboard result
   selection.
 * Browse command and feature docs without leaving the repo.

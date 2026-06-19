@@ -2354,12 +2354,14 @@ const viewerJS = `
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const editorStorageKey = "openknowledge.viewer.editorOrder";
+  const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
+  const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
   const editorOptions = readEditorOptions();
+  const panelWidths = readPanelWidths();
   const staticNotes = readStaticNotes();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
   const knowledgeGraph = readKnowledgeGraph();
-  const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
 
   function panels() {
     return Array.prototype.slice.call(stackEl.querySelectorAll("[data-note-path]"));
@@ -2377,6 +2379,105 @@ const viewerJS = `
 
   function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
+  }
+
+  function readPanelWidths() {
+    const stored = readStoredJSON(panelWidthStorageKey);
+    if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+      return stored;
+    }
+    return {};
+  }
+
+  function savePanelWidths() {
+    const serialized = JSON.stringify(panelWidths);
+    try {
+      window.localStorage.setItem(panelWidthStorageKey, serialized);
+    } catch {
+      // Browser storage can be disabled in private or file-export contexts.
+    }
+    writeCookie(panelWidthStorageKey, serialized);
+  }
+
+  function readStoredJSON(key) {
+    const sources = [readLocalStorage(key), readCookie(key)];
+    for (const source of sources) {
+      if (!source) {
+        continue;
+      }
+      try {
+        return JSON.parse(source);
+      } catch {
+        // Ignore malformed storage and keep the viewer usable.
+      }
+    }
+    return null;
+  }
+
+  function readLocalStorage(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function readCookie(name) {
+    const prefix = encodeURIComponent(name) + "=";
+    const parts = document.cookie ? document.cookie.split("; ") : [];
+    for (const part of parts) {
+      if (part.startsWith(prefix)) {
+        try {
+          return decodeURIComponent(part.slice(prefix.length));
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  function writeCookie(name, value) {
+    try {
+      document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + "; Max-Age=31536000; Path=/; SameSite=Lax";
+    } catch {
+      // Cookies are best-effort; localStorage still covers same-origin exports.
+    }
+  }
+
+  function minPanelWidth() {
+    return Math.min(360, Math.max(260, window.innerWidth - 24));
+  }
+
+  function maxPanelWidth() {
+    return Math.max(defaultPanelWidth(), 1180);
+  }
+
+  function defaultPanelWidth() {
+    return Math.max(minPanelWidth(), Math.min(650, window.innerWidth - 44));
+  }
+
+  function normalizePanelWidth(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return null;
+    }
+    return Math.round(clamp(numeric, minPanelWidth(), maxPanelWidth()));
+  }
+
+  function savedPanelWidth(panel) {
+    return normalizePanelWidth(panelWidths[panel.dataset.notePath]);
+  }
+
+  function applyPanelWidth(panel) {
+    const width = savedPanelWidth(panel);
+    if (!width) {
+      panel.style.removeProperty("--note-panel-width");
+      delete panel.dataset.panelWidth;
+      return;
+    }
+    panel.style.setProperty("--note-panel-width", width + "px");
+    panel.dataset.panelWidth = String(width);
   }
 
   function setSidebarOpen(open) {
@@ -3270,6 +3371,26 @@ const viewerJS = `
     }
   }
 
+  function ensurePanelResizeHandles(panel) {
+    if (!panel || panel.dataset.resizeHandlesBound === "true") {
+      return;
+    }
+    panel.dataset.resizeHandlesBound = "true";
+    ["left", "right"].forEach(function (edge) {
+      const handle = document.createElement("button");
+      handle.type = "button";
+      handle.className = "note-resize-handle note-resize-handle-" + edge;
+      handle.dataset.panelResizeHandle = edge;
+      handle.setAttribute("aria-label", "Resize note panel from the " + edge);
+      handle.title = "Resize panel";
+      handle.addEventListener("pointerdown", startPanelResize);
+      handle.addEventListener("keydown", function (event) {
+        resizePanelWithKeyboard(panel, edge, event);
+      });
+      panel.append(handle);
+    });
+  }
+
   function bindEditorPicker(picker) {
     if (!picker || picker.dataset.editorBound === "true") {
       return;
@@ -3565,6 +3686,8 @@ const viewerJS = `
   }
 
   function bindPanel(panel) {
+    applyPanelWidth(panel);
+    ensurePanelResizeHandles(panel);
     panel.querySelectorAll("[data-editor-picker]").forEach(bindEditorPicker);
 
     const closeButton = panel.querySelector("[data-close-panel]");
@@ -3750,6 +3873,7 @@ const viewerJS = `
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
   let workspaceDrag = null;
   let railDrag = null;
+  let panelResize = null;
   let spacePanPressed = false;
   let suppressWorkspaceClickUntil = 0;
 
@@ -3820,6 +3944,139 @@ const viewerJS = `
     event.preventDefault();
     event.stopPropagation();
     return true;
+  }
+
+  function currentPanelWidth(panel) {
+    return panel.getBoundingClientRect().width || savedPanelWidth(panel) || defaultPanelWidth();
+  }
+
+  function setPanelWidth(panel, width) {
+    const nextWidth = normalizePanelWidth(width);
+    if (!nextWidth || !panel) {
+      return null;
+    }
+    panel.style.setProperty("--note-panel-width", nextWidth + "px");
+    panel.dataset.panelWidth = String(nextWidth);
+    if (panel.dataset.notePath) {
+      panelWidths[panel.dataset.notePath] = nextWidth;
+    }
+    queueWorkspaceRailUpdate();
+    return nextWidth;
+  }
+
+  function resizePanelWithKeyboard(panel, edge, event) {
+    const key = (event.key || "").toLowerCase();
+    const currentWidth = currentPanelWidth(panel);
+    const step = event.shiftKey ? 64 : 24;
+    let nextWidth = currentWidth;
+    if (key === "arrowleft") {
+      nextWidth += edge === "left" ? step : -step;
+    } else if (key === "arrowright") {
+      nextWidth += edge === "right" ? step : -step;
+    } else if (key === "home") {
+      nextWidth = minPanelWidth();
+    } else if (key === "end") {
+      nextWidth = maxPanelWidth();
+    } else {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const storedWidth = setPanelWidth(panel, nextWidth);
+    if (!storedWidth) {
+      return;
+    }
+    if (edge === "left") {
+      workspace.scrollLeft += storedWidth - currentWidth;
+    }
+    savePanelWidths();
+  }
+
+  function startPanelResize(event) {
+    const handle = closestElement(event.target, "[data-panel-resize-handle]");
+    const panel = handle?.closest("[data-note-path]");
+    if (!handle || !panel || event.button !== 0) {
+      return;
+    }
+    panelResize = {
+      pointerId: event.pointerId,
+      panel: panel,
+      handle: handle,
+      edge: handle.dataset.panelResizeHandle === "left" ? "left" : "right",
+      startX: event.clientX,
+      startWidth: currentPanelWidth(panel),
+      startScrollLeft: workspace.scrollLeft,
+      moved: false
+    };
+    setActivePanel(panel);
+    panel.classList.add("is-panel-resizing");
+    document.body.classList.add("is-panel-resizing");
+    window.addEventListener("pointermove", updatePanelResize);
+    window.addEventListener("pointerup", stopPanelResize);
+    window.addEventListener("pointercancel", stopPanelResize);
+    window.addEventListener("blur", cancelPanelResize);
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      handle.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can fail if the pointer is already released.
+    }
+  }
+
+  function updatePanelResize(event) {
+    if (!panelResize || event.pointerId !== panelResize.pointerId) {
+      return;
+    }
+    const deltaX = event.clientX - panelResize.startX;
+    if (Math.abs(deltaX) > 2) {
+      panelResize.moved = true;
+    }
+    const requestedWidth = panelResize.startWidth + (panelResize.edge === "left" ? -deltaX : deltaX);
+    const nextWidth = setPanelWidth(panelResize.panel, requestedWidth);
+    if (!nextWidth) {
+      return;
+    }
+    if (panelResize.edge === "left") {
+      workspace.scrollLeft = panelResize.startScrollLeft + (nextWidth - panelResize.startWidth);
+    }
+    event.preventDefault();
+  }
+
+  function finishPanelResize(pointerId) {
+    if (!panelResize) {
+      return;
+    }
+    const resized = panelResize.moved;
+    panelResize.panel.classList.remove("is-panel-resizing");
+    try {
+      if (pointerId !== undefined) {
+        panelResize.handle.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Pointer capture can already be released by the browser.
+    }
+    panelResize = null;
+    document.body.classList.remove("is-panel-resizing");
+    window.removeEventListener("pointermove", updatePanelResize);
+    window.removeEventListener("pointerup", stopPanelResize);
+    window.removeEventListener("pointercancel", stopPanelResize);
+    window.removeEventListener("blur", cancelPanelResize);
+    if (resized) {
+      savePanelWidths();
+      suppressNextWorkspaceClick();
+    }
+  }
+
+  function stopPanelResize(event) {
+    if (!panelResize || event.pointerId !== panelResize.pointerId) {
+      return;
+    }
+    finishPanelResize(event.pointerId);
+  }
+
+  function cancelPanelResize() {
+    finishPanelResize();
   }
 
   function canStartWorkspaceDrag(event) {
@@ -4179,6 +4436,8 @@ const viewerCSS = `
   --sidebar-bg: #e2e2e2;
   --sidebar-head-bg: #d8d8d8;
   --sidebar-row-bg: #d0d0d0;
+  --note-panel-default-width: min(650px, calc(100vw - 44px));
+  --note-panel-min-width: min(360px, calc(100vw - 24px));
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
@@ -4282,10 +4541,17 @@ hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .meta, .issue { color: var(--muted); font-size: 13px; }
 .issue { grid-column: 1 / -1; color: #a44b28; }
 .document { max-width: 780px; }
-.note-panel.document { flex: 0 0 min(650px, calc(100vw - 44px)); max-width: none; min-height: 0; padding: 0 34px 34px; overflow-y: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 46px var(--shadow); outline: none; scroll-padding-top: 62px; }
+.note-panel.document { position: relative; flex: 0 0 var(--note-panel-width, var(--note-panel-default-width)); max-width: none; min-width: var(--note-panel-min-width); min-height: 0; padding: 0 34px 34px; overflow-y: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 46px var(--shadow); outline: none; scroll-padding-top: 62px; }
 .note-panel:focus { border-color: rgba(var(--accent-rgb), .45); }
 .note-panel.is-entering { animation: note-enter .28s cubic-bezier(.22, .8, .2, 1); }
 body.is-view-transitioning .note-panel.is-entering { animation: none; }
+.note-resize-handle { position: absolute; top: 0; bottom: 0; z-index: 3; width: 14px; padding: 0; border: 0; background: transparent; color: transparent; cursor: ew-resize; touch-action: none; }
+.note-resize-handle-left { left: -7px; }
+.note-resize-handle-right { right: -7px; }
+.note-resize-handle::after { position: absolute; top: 10px; bottom: 10px; left: 6px; width: 2px; border-radius: 999px; background: transparent; content: ""; transition: background-color .12s ease; }
+.note-resize-handle:hover::after, .note-resize-handle:focus-visible::after, .note-panel.is-panel-resizing .note-resize-handle::after { background: rgba(var(--accent-rgb), .38); }
+.note-resize-handle:focus-visible { outline: none; }
+body.is-panel-resizing, body.is-panel-resizing * { cursor: ew-resize !important; user-select: none; }
 .note-chrome { position: sticky; top: 0; z-index: 1; display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 14px; margin: 0 -34px 24px; padding: 0 12px 0 34px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .96); }
 .note-path { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .note-path:hover { color: var(--accent); }
@@ -4380,7 +4646,7 @@ ul, ol { padding-left: 22px; }
   .knowledge-empty-inner { grid-template-columns: 1fr; gap: 22px; padding: 28px 14px 44px; }
   .knowledge-empty-graph { position: relative; top: auto; min-height: 380px; }
   .knowledge-graph-svg { height: 380px; min-height: 380px; }
-  .note-panel.document { flex-basis: calc(100vw - 24px); padding: 0 22px 28px; }
+  .note-panel.document { --note-panel-default-width: calc(100vw - 24px); --note-panel-min-width: min(360px, calc(100vw - 24px)); padding: 0 22px 28px; }
   .note-chrome { margin: 0 -22px 22px; padding: 0 10px 0 22px; }
 }
 `
