@@ -4,7 +4,7 @@
   --ok-font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ok-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --ok-header-height: 52px;
+  --ok-header-height: 48px;
   --ok-mobile-header-height: 68px;
   --ok-sidebar-width: min(340px, calc(100vw - 36px));
   --ok-note-panel-default-width: min(650px, calc(100vw - 44px));
