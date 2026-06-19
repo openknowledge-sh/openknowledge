@@ -18,7 +18,8 @@ In direct knowledge base mode, Markdown links open into a horizontally
 scrollable stack of panels. The viewer does not switch into a separate
 single-page focus mode; the panel stack is the default and only document
 browsing layout. The file explorer can be opened from the header and stays open
-while selecting files.
+while selecting files. File rows show only the filename; reserved Markdown files
+such as `index.md` and `log.md` are marked with a right-aligned `system` badge.
 
 When all panels are closed, the empty workspace shows a split overview: the
 file tree on the left and a connected graph of Markdown files on the right. The
@@ -27,7 +28,12 @@ graph is built from local Markdown links and graph nodes open files as panels.
 The top bar includes the primary search field, and `Command+K` on macOS or
 `Ctrl+K` elsewhere focuses it. In the local server viewer, search uses the
 search API; in exported static HTML it searches the embedded static note
-manifest in the browser.
+manifest in the browser. The result dropdown opens while the search field is
+focused, shows top file entries for an empty query, updates in place while
+typing, closes after a result is activated, and supports `ArrowDown`, `ArrowUp`,
+and `Enter` keyboard selection while keeping focus in the search field.
+Reserved `index.md` files remain searchable but rank below comparable regular
+pages.
 
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.
@@ -81,9 +87,12 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
   left selector.
 * Inspect the wiki locally after setup.
 * Review validation warnings alongside the bundle tree.
+* Distinguish reserved system Markdown files in the file explorer without
+  duplicating each row's full path.
 * Browse local Markdown links as adjacent panels without leaving the current
   context.
-* Search the knowledge base from the top bar.
+* Search the knowledge base from the top bar with pointer or keyboard result
+  selection.
 * Browse command and feature docs without leaving the repo.
 
 ## Source Anchors

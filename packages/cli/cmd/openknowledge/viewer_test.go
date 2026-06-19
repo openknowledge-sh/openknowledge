@@ -34,6 +34,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, "body.viewer-document &gt; header") && !strings.Contains(page, "body.viewer-document > header") {
 		t.Fatalf("viewer file page did not include seamless header override:\n%s", page)
 	}
+	if strings.Contains(page, `padding-top: 0; padding-bottom: 0`) {
+		t.Fatalf("viewer document header should keep vertical padding aligned with the logo:\n%s", page)
+	}
 	if !strings.Contains(page, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer did not rewrite relative markdown link:\n%s", page)
 	}
@@ -79,8 +82,20 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if strings.Contains(page, `id="viewer-sidebar-search"`) || strings.Contains(page, `file-sidebar-search`) {
 		t.Fatalf("viewer file sidebar should not include search:\n%s", page)
 	}
-	if !strings.Contains(page, `.search-results[hidden] { display: none; }`) || !strings.Contains(page, `closeSearchResults(searchResult)`) || !strings.Contains(page, `closeSearchResults(link)`) {
-		t.Fatalf("viewer search dropdown should stay hidden when empty and close after selecting a result:\n%s", page)
+	if !strings.Contains(page, `.search-results[hidden] { display: none; }`) || !strings.Contains(page, `renderDefaultResults(true)`) || !strings.Contains(page, `defaultSearchResults()`) || !strings.Contains(page, `Top files`) {
+		t.Fatalf("viewer search dropdown should stay open on focus with default results for an empty query:\n%s", page)
+	}
+	if !strings.Contains(page, `isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore`) || !strings.Contains(page, `isIndexMarkdownPath(a.path) ? 1 : -1`) {
+		t.Fatalf("viewer static search should rank index.md files below regular pages:\n%s", page)
+	}
+	if !strings.Contains(page, `renderResults(results, status, payload.results || [], query`) || strings.Contains(page, `setResultsOpen(false);\n\n      if (staticNotes.length > 0)`) {
+		t.Fatalf("viewer search should keep the dropdown open while typed queries are pending:\n%s", page)
+	}
+	if !strings.Contains(page, `initializeSearchAccessibility`) || !strings.Contains(page, `event.key === "ArrowDown"`) || !strings.Contains(page, `selectedSearchResult(results, activeIndex)`) || !strings.Contains(page, `aria-activedescendant`) {
+		t.Fatalf("viewer search should expose combobox keyboard navigation:\n%s", page)
+	}
+	if !strings.Contains(page, `results.addEventListener("click"`) || !strings.Contains(page, `closeSearch(true)`) || !strings.Contains(page, `.search-result.is-active`) {
+		t.Fatalf("viewer search dropdown should close on result activation and style keyboard selection:\n%s", page)
 	}
 	if !strings.Contains(page, `search-shortcut`) || !strings.Contains(page, `event.metaKey || event.ctrlKey`) || !strings.Contains(page, `primaryInput?.focus()`) {
 		t.Fatalf("viewer file page did not include command-k search shortcut:\n%s", page)
@@ -108,6 +123,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
 		t.Fatalf("viewer file page did not include knowledge tree empty state:\n%s", page)
+	}
+	if strings.Contains(page, `tree-file-path`) || strings.Contains(page, `tree-file::before`) {
+		t.Fatalf("viewer file tree should show file names without duplicate path text or md pseudo badges:\n%s", page)
+	}
+	if !strings.Contains(page, `tree-file-system`) || !strings.Contains(page, `>system</span>`) {
+		t.Fatalf("viewer file tree should mark reserved markdown files with a system badge:\n%s", page)
 	}
 	if !strings.Contains(page, `data-knowledge-graph`) || !strings.Contains(page, `data-knowledge-graph-view`) || !strings.Contains(page, `"source":"index.md"`) || !strings.Contains(page, `"target":"workflows/docs.md"`) {
 		t.Fatalf("viewer file page did not include connected knowledge graph data:\n%s", page)
@@ -142,6 +163,36 @@ func TestViewerEditorsIncludeCommonFallbacks(t *testing.T) {
 	}
 	if byID["zed"].Icon == "" {
 		t.Fatalf("expected Zed to have a real icon fallback: %#v", byID["zed"])
+	}
+}
+
+func TestViewerTreeMarksOnlyReservedMarkdownAsSystem(t *testing.T) {
+	tree := viewerTreeWithURL([]okf.ListEntry{
+		{Path: "AGENTS.md"},
+		{Path: "index.md", Reserved: true},
+		{Path: "notes/log.md", Reserved: true},
+		{Path: "notes/runbook.md"},
+	}, func(path string) string {
+		return "/file/" + path
+	})
+
+	systemByPath := map[string]bool{}
+	for _, item := range tree {
+		if item.Directory {
+			continue
+		}
+		systemByPath[item.Path] = item.System
+	}
+
+	for _, path := range []string{"index.md", "notes/log.md"} {
+		if !systemByPath[path] {
+			t.Fatalf("expected %s to be marked as a system markdown file: %#v", path, tree)
+		}
+	}
+	for _, path := range []string{"AGENTS.md", "notes/runbook.md"} {
+		if systemByPath[path] {
+			t.Fatalf("expected %s to remain a regular markdown file: %#v", path, tree)
+		}
 	}
 }
 

@@ -14,6 +14,36 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Viewer file tree system badges
+
+* The viewer file explorer now shows only the filename in each file row instead
+  of repeating the full relative path on the right.
+* Removed the generic `md` badge and replaced it with a right-aligned `system`
+  badge only for reserved Markdown files such as `index.md` and `log.md`.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer search dropdown focus and keyboard controls
+
+* The viewer search dropdown now opens on focus with top file entries for an
+  empty query and stays open while typed search requests are pending, avoiding
+  flicker between keystrokes.
+* The dropdown closes when a result is activated, including after pending search
+  requests resolve.
+* Search now gives `index.md` files lower priority than comparable regular
+  pages in both the local search API and exported static HTML.
+* The document viewer header keeps its vertical padding so the top-bar search
+  aligns with the logo.
+* Search results can be selected with `ArrowDown`/`ArrowUp` and opened with
+  `Enter` while focus stays in the search field.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/cli/internal/okf/search.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Viewer search moved out of sidebar
 
 * Removed the duplicate search box from the file explorer sidebar; viewer

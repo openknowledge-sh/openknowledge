@@ -2,6 +2,7 @@ package okf
 
 import (
 	"math"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode"
@@ -136,6 +137,9 @@ func scoreSearchDocument(document searchDocument, terms []string, normalizedQuer
 	}
 
 	file := document.file
+	if isIndexMarkdownSearchResult(file.Path) {
+		score *= 0.55
+	}
 	result := SearchResult{
 		Path:        file.Path,
 		ID:          file.ID,
@@ -151,6 +155,10 @@ func scoreSearchDocument(document searchDocument, terms []string, normalizedQuer
 		result.Title = deriveTitle(file.Path)
 	}
 	return result, true
+}
+
+func isIndexMarkdownSearchResult(path string) bool {
+	return strings.EqualFold(filepath.Base(path), "index.md")
 }
 
 func scoreSearchField(field searchField, term string, fuzzy bool) (float64, bool) {

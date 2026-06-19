@@ -542,6 +542,7 @@ type viewerTreeItem struct {
 	Depth     int
 	Indent    int
 	Directory bool
+	System    bool
 }
 
 func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, frame viewerFrame, linkPrefix string) {
@@ -1467,9 +1468,18 @@ func viewerTreeWithURL(entries []okf.ListEntry, urlFor func(string) string) []vi
 			URL:    urlFor(entry.Path),
 			Depth:  len(segments) - 1,
 			Indent: 10 + (len(segments)-1)*22,
+			System: viewerSystemMarkdownFile(entry),
 		})
 	}
 	return tree
+}
+
+func viewerSystemMarkdownFile(entry okf.ListEntry) bool {
+	if entry.Reserved {
+		return true
+	}
+	name := filepath.Base(entry.Path)
+	return strings.EqualFold(name, "index.md") || strings.EqualFold(name, "log.md")
 }
 
 func renderHTML(response http.ResponseWriter, tmpl *template.Template, data any) {
@@ -1816,7 +1826,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         {{else}}
           <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" style="--indent: {{.Indent}}px">
             <span class="tree-file-name">{{.Name}}</span>
-            <span class="tree-file-path">{{.Path}}</span>
+            {{if .System}}<span class="tree-file-system">system</span>{{end}}
           </a>
         {{end}}
       {{else}}
@@ -1835,7 +1845,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
               {{else}}
                 <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" style="--indent: {{.Indent}}px">
                   <span class="tree-file-name">{{.Name}}</span>
-                  <span class="tree-file-path">{{.Path}}</span>
+                  {{if .System}}<span class="tree-file-system">system</span>{{end}}
                 </a>
               {{end}}
             {{else}}
@@ -1914,24 +1924,102 @@ const viewerSearchJS = `
     const searchURL = search.dataset.searchUrl || "/api/search";
     let timer = 0;
     let controller = null;
+    let activeIndex = -1;
+    let sequence = 0;
+
+    initializeSearchAccessibility(input, results);
+    closeSearch(false);
 
     input.addEventListener("input", () => {
       window.clearTimeout(timer);
+      setActiveResult(-1, false);
+      if (!input.value.trim()) {
+        renderDefaultResults(true);
+        return;
+      }
       timer = window.setTimeout(runSearch, 140);
+    });
+    input.addEventListener("focus", () => {
+      if (!input.value.trim()) {
+        renderDefaultResults(true);
+        return;
+      }
+      if (searchResultLinks(results).length > 0) {
+        setResultsOpen(true);
+      } else {
+        runSearch();
+      }
+    });
+    input.addEventListener("keydown", (event) => {
+      const links = searchResultLinks(results);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        if (!links.length) {
+          return;
+        }
+        event.preventDefault();
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        const nextIndex = activeIndex < 0
+          ? (direction > 0 ? 0 : links.length - 1)
+          : (activeIndex + direction + links.length) % links.length;
+        setActiveResult(nextIndex, true);
+        setResultsOpen(true);
+        return;
+      }
+      if (event.key === "Enter") {
+        const link = selectedSearchResult(results, activeIndex);
+        if (!link) {
+          return;
+        }
+        event.preventDefault();
+        link.click();
+        closeSearch(true);
+        return;
+      }
+      if (event.key === "Escape" && (!results.hidden || input.value)) {
+        event.preventDefault();
+        closeSearch(true);
+      }
+    });
+    results.addEventListener("mousemove", (event) => {
+      const link = closestSearchResult(event.target);
+      if (!link) {
+        return;
+      }
+      const index = searchResultLinks(results).indexOf(link);
+      if (index >= 0) {
+        setActiveResult(index, false);
+      }
+    });
+    results.addEventListener("focusin", (event) => {
+      const link = closestSearchResult(event.target);
+      if (!link) {
+        return;
+      }
+      const index = searchResultLinks(results).indexOf(link);
+      if (index >= 0) {
+        setActiveResult(index, false);
+      }
+    });
+    results.addEventListener("click", (event) => {
+      const link = closestSearchResult(event.target);
+      if (!link || isModifiedClick(event)) {
+        return;
+      }
+      closeSearch(true);
     });
 
     async function runSearch() {
       const query = input.value.trim();
       if (!query) {
-        status.textContent = "";
-        results.hidden = true;
-        results.replaceChildren();
-        if (controller) controller.abort();
+        renderDefaultResults(document.activeElement === input);
         return;
       }
 
+      const requestID = ++sequence;
+      setActiveResult(-1, false);
+
       if (staticNotes.length > 0) {
-        renderResults(results, status, searchStaticNotes(query), query);
+        renderResults(results, status, searchStaticNotes(query), query, setResultsOpen, setActiveResult);
         return;
       }
 
@@ -1945,29 +2033,98 @@ const viewerSearchJS = `
         });
         if (!response.ok) throw new Error("search request failed");
         const payload = await response.json();
-        renderResults(results, status, payload.results || [], query);
+        if (requestID !== sequence || input.value.trim() !== query) {
+          return;
+        }
+        renderResults(results, status, payload.results || [], query, setResultsOpen, setActiveResult);
       } catch (error) {
         if (error.name === "AbortError") return;
         status.textContent = "Search failed.";
-        results.hidden = true;
+        setActiveResult(-1, false);
+        setResultsOpen(false);
+      }
+    }
+
+    function renderDefaultResults(open) {
+      sequence += 1;
+      window.clearTimeout(timer);
+      if (controller) {
+        controller.abort();
+        controller = null;
+      }
+      const items = defaultSearchResults();
+      status.textContent = items.length ? "Top files" : "";
+      renderResults(results, status, items, "", setResultsOpen, setActiveResult, {
+        emptyStatus: "",
+        keepOpenWhenEmpty: open,
+        statusText: items.length ? "Top files" : "",
+      });
+      setResultsOpen(open && items.length > 0);
+    }
+
+    function closeSearch(clearInput) {
+      sequence += 1;
+      window.clearTimeout(timer);
+      if (controller) {
+        controller.abort();
+        controller = null;
+      }
+      if (clearInput) {
+        input.value = "";
+      }
+      status.textContent = "";
+      results.replaceChildren();
+      setActiveResult(-1, false);
+      setResultsOpen(false);
+    }
+
+    function setResultsOpen(open) {
+      results.hidden = !open;
+      input.setAttribute("aria-expanded", open ? "true" : "false");
+      if (!open) {
+        input.removeAttribute("aria-activedescendant");
+      }
+    }
+
+    function setActiveResult(index, scroll) {
+      const links = searchResultLinks(results);
+      activeIndex = links.length ? (index + links.length) % links.length : -1;
+      links.forEach((link, linkIndex) => {
+        const selected = linkIndex === activeIndex;
+        link.classList.toggle("is-active", selected);
+        link.setAttribute("aria-selected", selected ? "true" : "false");
+        if (selected) {
+          input.setAttribute("aria-activedescendant", link.id);
+          if (scroll) {
+            link.scrollIntoView({ block: "nearest" });
+          }
+        }
+      });
+      if (activeIndex < 0) {
+        input.removeAttribute("aria-activedescendant");
       }
     }
   }
 
-  function renderResults(results, status, items, query) {
+  function renderResults(results, status, items, query, setResultsOpen, setActiveResult, options) {
+    const config = options || {};
     results.replaceChildren();
     if (items.length === 0) {
-      status.textContent = "No results for \"" + query + "\".";
-      results.hidden = true;
+      status.textContent = config.emptyStatus ?? "No results for \"" + query + "\".";
+      setActiveResult(-1, false);
+      setResultsOpen(Boolean(config.keepOpenWhenEmpty));
       return;
     }
 
-    status.textContent = items.length + " result" + (items.length === 1 ? "" : "s");
-    results.hidden = false;
-    for (const item of items) {
+    status.textContent = config.statusText || (items.length + " result" + (items.length === 1 ? "" : "s"));
+    setResultsOpen(true);
+    items.forEach((item, index) => {
       const link = document.createElement("a");
       link.className = "search-result";
       link.href = item.url || staticRelativeURL(item.path);
+      link.id = results.id + "-option-" + index;
+      link.setAttribute("role", "option");
+      link.setAttribute("aria-selected", "false");
 
       const title = document.createElement("span");
       title.className = "search-result-title";
@@ -1987,7 +2144,77 @@ const viewerSearchJS = `
       }
 
       results.append(link);
+    });
+    setActiveResult(0, false);
+  }
+
+  function defaultSearchResults() {
+    const seen = new Set();
+    const items = [];
+    const links = Array.from(document.querySelectorAll("[data-tree-path]"));
+    for (const link of links) {
+      const path = link.dataset.treePath || "";
+      if (!path || seen.has(path)) {
+        continue;
+      }
+      seen.add(path);
+      const title = link.querySelector(".tree-file-name")?.textContent?.trim() || path;
+      items.push({
+        path,
+        title,
+        url: link.getAttribute("href") || link.href,
+      });
+      if (items.length >= 12) {
+        break;
+      }
     }
+    return items.sort(function (a, b) {
+      if (isIndexMarkdownPath(a.path) !== isIndexMarkdownPath(b.path)) {
+        return isIndexMarkdownPath(a.path) ? 1 : -1;
+      }
+      return 0;
+    });
+  }
+
+  function isIndexMarkdownPath(path) {
+    return String(path || "").split("/").pop().toLowerCase() === "index.md";
+  }
+
+  function initializeSearchAccessibility(input, results) {
+    if (!results.id) {
+      results.id = (input.id || "viewer-search") + "-results-" + Math.random().toString(36).slice(2);
+    }
+    results.setAttribute("role", "listbox");
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-controls", results.id);
+    input.setAttribute("aria-expanded", "false");
+  }
+
+  function searchResultLinks(results) {
+    return Array.from(results.querySelectorAll(".search-result[href]"));
+  }
+
+  function selectedSearchResult(results, activeIndex) {
+    const links = searchResultLinks(results);
+    if (!links.length) {
+      return null;
+    }
+    return links[activeIndex >= 0 ? activeIndex : 0] || links[0];
+  }
+
+  function closestSearchResult(target) {
+    if (!target) {
+      return null;
+    }
+    if (target.closest) {
+      return target.closest(".search-result[href]");
+    }
+    return target.parentElement ? target.parentElement.closest(".search-result[href]") : null;
+  }
+
+  function isModifiedClick(event) {
+    return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
   }
 
   function readStaticNotes() {
@@ -2017,17 +2244,21 @@ const viewerSearchJS = `
         if (!bodyMatch) {
           return null;
         }
+        const baseScore = (titleMatch ? 3 : 0) + (pathMatch ? 2 : 0) + 1;
         return {
           path,
           title,
           snippet: staticSnippet(bodyText, query),
-          score: (titleMatch ? 3 : 0) + (pathMatch ? 2 : 0) + 1,
+          score: isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore,
         };
       })
       .filter(Boolean)
       .sort(function (a, b) {
         if (b.score !== a.score) {
           return b.score - a.score;
+        }
+        if (isIndexMarkdownPath(a.path) !== isIndexMarkdownPath(b.path)) {
+          return isIndexMarkdownPath(a.path) ? 1 : -1;
         }
         return a.path.localeCompare(b.path);
       })
@@ -3387,7 +3618,7 @@ body.is-sidebar-open .file-sidebar { transform: translateX(0); }
 .header-search .search-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .header-search .search-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 7; gap: 5px; max-height: min(430px, 58vh); overflow: auto; padding: 6px; border: 1px solid #d4d4d4; border-radius: 8px; background: #ffffff; box-shadow: 0 18px 42px rgba(30, 30, 30, .16); }
 .header-search .search-result { padding: 8px 9px; border-color: #e0e0e0; border-radius: 6px; }
-.header-search .search-result:hover, .header-search .search-result:focus-visible { border-color: #c7c7c7; background: #f0f0f0; }
+.header-search .search-result:hover, .header-search .search-result:focus-visible, .header-search .search-result.is-active { border-color: #c7c7c7; background: #f0f0f0; }
 .file-sidebar-tree { flex: 1 1 auto; width: 100%; overflow: auto; padding: 4px 10px 18px 8px; }
 main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
 .workspaces { margin: 0 0 28px; }
@@ -3422,11 +3653,10 @@ body.viewer-document.is-sidebar-open > .note-workspace { transform: translateX(v
 .tree-directory { margin: 7px 0 2px; background: #e1e6e2; color: #56645f; font-weight: 700; }
 .file-sidebar .tree-directory { background: var(--sidebar-row-bg); color: #4f4f4f; }
 .tree-directory::before { color: #82908a; content: "/"; }
-.tree-file::before { flex: 0 0 auto; padding: 1px 5px; border: 1px solid #cad4ce; border-radius: 4px; color: #708078; content: "md"; font-size: 10px; line-height: 1.2; }
 .tree-file:hover { background: rgba(var(--accent-rgb), .09); color: var(--accent); }
 .file-sidebar .tree-file:hover { background: #d6d6d6; }
-.tree-file-name { flex: 0 0 auto; }
-.tree-file-path { overflow: hidden; color: #7b8983; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.tree-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-file-system { margin-left: auto; flex: 0 0 auto; padding: 1px 5px; border: 1px solid #cad4ce; border-radius: 4px; color: #708078; font-size: 10px; line-height: 1.2; text-transform: lowercase; }
 h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.15; }
 h2 { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); }
 h3 { margin-top: 26px; }
@@ -3441,7 +3671,7 @@ hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
 .search-results { display: grid; gap: 7px; margin-top: 8px; }
 .search-results[hidden] { display: none; }
 .search-result { display: grid; gap: 2px; padding: 10px 11px; border: 1px solid #dce4df; border-radius: 6px; background: #fff; color: inherit; text-decoration: none; }
-.search-result:hover, .search-result:focus-visible { border-color: rgba(var(--accent-rgb), .35); background: #f2f7f4; outline: none; }
+.search-result:hover, .search-result:focus-visible, .search-result.is-active { border-color: rgba(var(--accent-rgb), .35); background: #f2f7f4; outline: none; }
 .search-result-title { color: var(--ink); font-weight: 700; }
 .search-result-meta, .search-result-snippet { color: var(--muted); font-size: 13px; }
 .list { border-top: 1px solid var(--line); }
@@ -3541,7 +3771,6 @@ ul, ol { padding-left: 22px; }
   .knowledge-empty-inner { grid-template-columns: 1fr; gap: 22px; padding: 28px 14px 44px; }
   .knowledge-empty-graph { position: relative; top: auto; min-height: 380px; }
   .knowledge-graph-svg { height: 380px; min-height: 380px; }
-  .tree-file-path { display: none; }
   .note-panel.document { flex-basis: calc(100vw - 24px); padding: 0 22px 28px; }
   .note-chrome { margin: 0 -22px 22px; padding: 0 10px 0 22px; }
 }

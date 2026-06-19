@@ -51,6 +51,25 @@ func TestSearchBundleSupportsFuzzyAndDiacriticInsensitiveMatches(t *testing.T) {
 	}
 }
 
+func TestSearchBundleRanksIndexMarkdownBelowRegularPages(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "docs/index.md", "# Index\n\nShared ranking topic.\n")
+	writeFile(t, root, "docs/topic.md", "---\ntype: Note\ntitle: Index\n---\n\n# Index\n\nShared ranking topic.\n")
+
+	bundle, err := ParseBundle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results := SearchBundle(bundle, SearchOptions{Query: "index", Limit: 5, Fuzzy: true})
+	if len(results) < 2 {
+		t.Fatalf("expected multiple search results, got %#v", results)
+	}
+	if results[0].Path != "docs/topic.md" {
+		t.Fatalf("expected regular page to outrank index.md, got %#v", results)
+	}
+}
+
 func TestSearchBundleReturnsNoResultsForBlankQuery(t *testing.T) {
 	results := SearchBundle(Bundle{}, SearchOptions{Query: "   "})
 	if len(results) != 0 {
