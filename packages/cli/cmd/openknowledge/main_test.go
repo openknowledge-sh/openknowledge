@@ -67,8 +67,10 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: newHelpText(),
 			required: []string{
 				"openknowledge new --name <name> [folder]",
+				"openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]",
 				"Arguments:",
 				"--name",
+				"--bundle-entry",
 			},
 		},
 		"registry": {
@@ -185,6 +187,23 @@ func TestHasHelpFlagRecognizesCommonHelpForms(t *testing.T) {
 	}
 	if hasHelpFlag([]string{"./project-memory"}) {
 		t.Fatal("did not expect normal arguments to be recognized as help")
+	}
+}
+
+func TestParseBundleEntryFlags(t *testing.T) {
+	entries, err := parseBundleEntryFlags([]string{
+		"default=agents/checker.md",
+		"review=agents/review.md",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 || entries[0].Name != "default" || entries[0].Path != "agents/checker.md" || entries[1].Name != "review" || entries[1].Path != "agents/review.md" {
+		t.Fatalf("unexpected entries: %#v", entries)
+	}
+
+	if _, err := parseBundleEntryFlags([]string{"missing-separator"}); err == nil {
+		t.Fatal("expected missing separator to fail")
 	}
 }
 

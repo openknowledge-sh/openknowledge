@@ -26,6 +26,20 @@ func TestValidateMinimalBundle(t *testing.T) {
 	}
 }
 
+func TestValidateRootIndexAllowsBundleMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: \"accessibility\"\nokf_bundle_title: \"Accessibility Review\"\nokf_bundle_tags: [\"accessibility\", \"review\"]\nokf_bundle_entry_default: \"agents/checker.md\"\n---\n\n# Bundle\n")
+	writeFile(t, root, "concept.md", "---\ntype: Concept\n---\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected root bundle metadata to validate, got %#v", result.Errors)
+	}
+}
+
 func TestValidateConceptRequiresType(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "concept.md", "---\ntitle: Missing Type\n---\n")
@@ -309,6 +323,56 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 	}
 	if validation.Concepts != 3 {
 		t.Fatalf("expected AGENTS.md, SETUP.MD and SPEC.md to count as concepts, got %#v", validation)
+	}
+}
+
+func TestNewProjectWritesOptionalBundleMetadata(t *testing.T) {
+	parent := t.TempDir()
+	target := filepath.Join(parent, "accessibility")
+
+	_, err := NewProject(NewProjectOptions{
+		Name: "Accessibility Review",
+		Path: target,
+		BundleMetadata: BundleMetadata{
+			Name:    "accessibility",
+			Title:   "Accessibility Review",
+			Purpose: "Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems.",
+			Tags:    []string{"accessibility", "ui", "review", "ui"},
+			Entries: []BundleEntry{
+				{Name: "review", Path: "agents/accessibility-review.md"},
+				{Name: "default", Path: "agents/accessibility-checker.md"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(target, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := string(content)
+	required := []string{
+		`okf_bundle_name: "accessibility"`,
+		`okf_bundle_title: "Accessibility Review"`,
+		`okf_bundle_purpose: "Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems."`,
+		`okf_bundle_tags: ["accessibility", "ui", "review"]`,
+		`okf_bundle_entry_default: "agents/accessibility-checker.md"`,
+		`okf_bundle_entry_review: "agents/accessibility-review.md"`,
+	}
+	for _, expected := range required {
+		if !strings.Contains(index, expected) {
+			t.Fatalf("expected generated index.md to include %q:\n%s", expected, index)
+		}
+	}
+
+	validation, err := Validate(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(validation.Errors) != 0 {
+		t.Fatalf("expected generated project with bundle metadata to validate, got %#v", validation.Errors)
 	}
 }
 

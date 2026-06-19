@@ -99,6 +99,13 @@ func runNew(args []string) int {
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	nameFlag := fs.String("name", "", "knowledge base name")
+	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
+	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
+	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for root okf_bundle_purpose metadata")
+	var bundleTags stringListFlag
+	var bundleEntries stringListFlag
+	fs.Var(&bundleTags, "bundle-tag", "bundle tag for root okf_bundle_tags metadata; repeatable")
+	fs.Var(&bundleEntries, "bundle-entry", "bundle entrypoint as name=path; repeatable")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -128,7 +135,23 @@ func runNew(args []string) int {
 		}
 	}
 
-	result, err := okf.NewProject(okf.NewProjectOptions{Name: name, Path: path})
+	entries, err := parseBundleEntryFlags(bundleEntries)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	result, err := okf.NewProject(okf.NewProjectOptions{
+		Name: name,
+		Path: path,
+		BundleMetadata: okf.BundleMetadata{
+			Name:    *bundleNameFlag,
+			Title:   *bundleTitleFlag,
+			Purpose: *bundlePurposeFlag,
+			Tags:    []string(bundleTags),
+			Entries: entries,
+		},
+	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -190,6 +213,29 @@ func runRegistry(args []string) int {
 		fmt.Fprint(os.Stderr, registryHelpText())
 		return 2
 	}
+}
+
+type stringListFlag []string
+
+func (flag *stringListFlag) String() string {
+	return strings.Join(*flag, ",")
+}
+
+func (flag *stringListFlag) Set(value string) error {
+	*flag = append(*flag, value)
+	return nil
+}
+
+func parseBundleEntryFlags(values []string) ([]okf.BundleEntry, error) {
+	entries := make([]okf.BundleEntry, 0, len(values))
+	for _, value := range values {
+		name, path, ok := strings.Cut(value, "=")
+		if !ok {
+			return nil, fmt.Errorf("bundle entry must use name=path: %s", value)
+		}
+		entries = append(entries, okf.BundleEntry{Name: name, Path: path})
+	}
+	return entries, nil
 }
 
 func printRegistryEntries(entries []okf.RegistryEntry) {
@@ -692,6 +738,7 @@ Usage:
   openknowledge setup
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
+  openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
   openknowledge registry list
   openknowledge registry add <name> <path>
   openknowledge where <name|path>
@@ -730,6 +777,7 @@ Run openknowledge <command> --help for command-specific help.
 
 Examples:
   openknowledge new ./project-memory
+  openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
   openknowledge registry add personal ~/knowledge
   openknowledge where personal
   openknowledge list personal
@@ -872,6 +920,7 @@ Scaffold a local Open Knowledge bundle.
 Usage:
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
+  openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
   openknowledge new --help
 
 Arguments:
@@ -879,10 +928,22 @@ Arguments:
 
 Flags:
   --name       Knowledge base name. If omitted, the CLI prompts for one.
+  --bundle-name
+               Optional stable bundle id written as okf_bundle_name.
+  --bundle-title
+               Optional display title written as okf_bundle_title.
+  --bundle-purpose
+               Optional purpose written as okf_bundle_purpose.
+  --bundle-tag
+               Optional tag written into okf_bundle_tags. Repeatable.
+  --bundle-entry
+               Optional entrypoint as name=path, for example
+               default=agents/checker.md. Repeatable.
 
 Examples:
   openknowledge new ./project-memory
   openknowledge new --name "Project Memory" ./project-memory
+  openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility
 `
 }
 

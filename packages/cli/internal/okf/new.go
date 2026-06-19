@@ -4,12 +4,27 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
 )
 
 type NewProjectOptions struct {
+	Name           string
+	Path           string
+	BundleMetadata BundleMetadata
+}
+
+type BundleMetadata struct {
+	Name    string
+	Title   string
+	Purpose string
+	Tags    []string
+	Entries []BundleEntry
+}
+
+type BundleEntry struct {
 	Name string
 	Path string
 }
@@ -40,7 +55,12 @@ func NewProject(options NewProjectOptions) (NewProjectResult, error) {
 		return NewProjectResult{}, err
 	}
 
-	files := newProjectFiles(name)
+	metadata, err := normalizeBundleMetadata(options.BundleMetadata)
+	if err != nil {
+		return NewProjectResult{}, err
+	}
+
+	files := newProjectFiles(name, metadata)
 	var created []string
 	for _, file := range files {
 		path := filepath.Join(absolute, file.name)
@@ -88,7 +108,7 @@ type projectFile struct {
 	content string
 }
 
-func newProjectFiles(name string) []projectFile {
+func newProjectFiles(name string, metadata BundleMetadata) []projectFile {
 	date := time.Now().Format("2006-01-02")
 	title := markdownEscape(name)
 
@@ -96,7 +116,7 @@ func newProjectFiles(name string) []projectFile {
 		{
 			name: "index.md",
 			content: fmt.Sprintf(`---
-okf_version: "0.1"
+%s
 ---
 
 # %s
@@ -116,7 +136,7 @@ This scaffold is intentionally small. During setup, create only the folders
 and pages that fit the user's interview and expectations. Common optional
 sections include workflows, references, decisions, raw sources, and
 domain-specific concept folders.
-`, title),
+`, bundleRootFrontmatter(metadata), title),
 		},
 		{
 			name: "log.md",
@@ -238,6 +258,98 @@ After the interview:
 			content: specDocument(),
 		},
 	}
+}
+
+func normalizeBundleMetadata(metadata BundleMetadata) (BundleMetadata, error) {
+	metadata.Name = strings.TrimSpace(metadata.Name)
+	metadata.Title = strings.TrimSpace(metadata.Title)
+	metadata.Purpose = strings.TrimSpace(metadata.Purpose)
+
+	if metadata.Name != "" && !validRegistryName(metadata.Name) {
+		return BundleMetadata{}, fmt.Errorf("bundle name must use letters, numbers, dots, underscores, or dashes and must not look like a path")
+	}
+
+	metadata.Tags = compactStrings(metadata.Tags)
+	entries := make([]BundleEntry, 0, len(metadata.Entries))
+	seen := map[string]struct{}{}
+	for _, entry := range metadata.Entries {
+		name := strings.TrimSpace(entry.Name)
+		path := strings.TrimSpace(entry.Path)
+		if name == "" || path == "" {
+			return BundleMetadata{}, fmt.Errorf("bundle entry must use name=path")
+		}
+		if !validRegistryName(name) {
+			return BundleMetadata{}, fmt.Errorf("bundle entry name %q must use letters, numbers, dots, underscores, or dashes and must not look like a path", name)
+		}
+		if _, ok := seen[name]; ok {
+			return BundleMetadata{}, fmt.Errorf("bundle entry %q is declared more than once", name)
+		}
+		seen[name] = struct{}{}
+		entries = append(entries, BundleEntry{Name: name, Path: path})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Name == "default" {
+			return true
+		}
+		if entries[j].Name == "default" {
+			return false
+		}
+		return entries[i].Name < entries[j].Name
+	})
+	metadata.Entries = entries
+	return metadata, nil
+}
+
+func compactStrings(values []string) []string {
+	compacted := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		compacted = append(compacted, value)
+	}
+	return compacted
+}
+
+func bundleRootFrontmatter(metadata BundleMetadata) string {
+	lines := []string{`okf_version: "0.1"`}
+	if metadata.Name != "" {
+		lines = append(lines, "okf_bundle_name: "+yamlQuotedScalar(metadata.Name))
+	}
+	if metadata.Title != "" {
+		lines = append(lines, "okf_bundle_title: "+yamlQuotedScalar(metadata.Title))
+	}
+	if metadata.Purpose != "" {
+		lines = append(lines, "okf_bundle_purpose: "+yamlQuotedScalar(metadata.Purpose))
+	}
+	if len(metadata.Tags) > 0 {
+		lines = append(lines, "okf_bundle_tags: "+yamlFlowSequence(metadata.Tags))
+	}
+	for _, entry := range metadata.Entries {
+		lines = append(lines, "okf_bundle_entry_"+entry.Name+": "+yamlQuotedScalar(entry.Path))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func yamlFlowSequence(values []string) string {
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, yamlQuotedScalar(value))
+	}
+	return "[" + strings.Join(quoted, ", ") + "]"
+}
+
+func yamlQuotedScalar(value string) string {
+	value = markdownEscape(value)
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `"`, `\"`)
+	return `"` + value + `"`
 }
 
 func slugify(value string) string {

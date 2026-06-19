@@ -160,8 +160,8 @@ func validateIndex(rel string, meta frontmatter, result *Result) {
 	if strings.EqualFold(rel, "index.md") {
 		if meta.has {
 			for key := range meta.keys {
-				if key != "okf_version" {
-					result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "index-frontmatter", Message: "root index.md frontmatter may only declare okf_version"})
+				if key != "okf_version" && !strings.HasPrefix(key, "okf_bundle_") {
+					result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "index-frontmatter", Message: "root index.md frontmatter may only declare okf_version and okf_bundle_* metadata"})
 				}
 			}
 			if version := meta.values["okf_version"]; version != "" && version != result.SpecVersion {
