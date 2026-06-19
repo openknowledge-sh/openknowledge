@@ -12,7 +12,8 @@ timestamp: 2026-06-18T00:00:00Z
 prompt asks the agent to inspect the current workspace or target folder, read
 relevant user or project memories when the runtime exposes them, ask only the
 missing setup questions, create a bundle with `openknowledge new`, customize
-it, validate it, and show how to inspect it.
+it, configure repo-scoped or user-scoped skills with focused lower-reasoning
+subagent guidance when useful, validate it, and show how to inspect it.
 
 ## Usage
 
@@ -31,6 +32,8 @@ No arguments are accepted. `--help` prints setup-specific help.
 * Generate a reusable bootstrap prompt for agent CLIs.
 * Let setup interviews adapt to the existing workspace, project docs, and
   available agent memory instead of repeating the same generic questionnaire.
+* Seed repo-scoped or user-scoped skills with guidance for spawning focused
+  lower-reasoning subagents for bounded wiki maintenance tasks.
 * Keep interactive agent stdin available by passing the prompt as an argument,
   for example `codex "$(openknowledge setup)"`.
 

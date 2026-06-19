@@ -24,14 +24,19 @@ container and panels keep their own vertical scrolling. The viewer adds a
 custom always-visible bottom rail for horizontal panel movement; dragging the
 rail thumb, clicking the rail track, keyboarding the focused thumb, or dragging
 the gray workspace gaps scrolls left or right without taking over text
-selection inside note panels. The file explorer can be opened from the header
-and stays open while selecting files. File rows show only the filename; reserved
+selection inside note panels. Holding `Space` switches mouse devices into a
+canvas-style pan mode, so dragging sideways across panels scrolls the stack
+without activating links. The file explorer can be opened from the header and
+stays open while selecting files. File rows show only the filename; reserved
 Markdown files such as `index.md` and `log.md` are marked with a right-aligned
 `system` badge.
 
 When all panels are closed, the empty workspace shows a split overview: the
 file tree on the left and a connected graph of Markdown files on the right. The
-graph is built from local Markdown links and graph nodes open files as panels.
+graph is built from local Markdown links, uses a deterministic force layout so
+well-connected notes cluster together, and opens graph nodes as panels. Generic
+`index` labels include path context such as `commands/index` so nested index
+files can be distinguished.
 
 The top bar includes the primary search field, and `Command+K` on macOS or
 `Ctrl+K` elsewhere focuses it. In the local server viewer, search uses the
@@ -100,7 +105,8 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
 * Browse local Markdown links as adjacent panels without leaving the current
   context.
 * Move across multi-panel stacks with the bottom rail, rail keyboard controls,
-  or by dragging the workspace gaps on mouse devices.
+  by dragging the workspace gaps, or by holding `Space` and dragging sideways
+  across panels on mouse devices.
 * Search the knowledge base from the top bar with pointer or keyboard result
   selection.
 * Browse command and feature docs without leaving the repo.

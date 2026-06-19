@@ -15,6 +15,7 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"Do not ask a fixed questionnaire",
 		"Use these seed questions only when context cannot answer them",
 		"context-specific questions",
+		"spawn focused subagents with lower reasoning effort",
 	}
 
 	for _, expected := range required {
@@ -43,6 +44,7 @@ func TestGeneratedSetupHandoffRequiresContextFirstInterview(t *testing.T) {
 		"relevant user or project memories",
 		"Do not ask a\nfixed generic questionnaire",
 		"context-specific questions only for missing or ambiguous details",
+		"spawn focused subagents with lower reasoning effort",
 	}
 
 	for _, expected := range required {

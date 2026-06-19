@@ -2490,23 +2490,9 @@ const viewerJS = `
 
     const width = 900;
     const height = 640;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = Math.max(180, Math.min(270, 118 + knowledgeGraph.nodes.length * 5));
-    const positions = Object.create(null);
     const indexPath = knowledgeGraph.nodes.find(function (node) { return node.path === "index.md"; })?.path;
-    const ringNodes = knowledgeGraph.nodes.filter(function (node) { return node.path !== indexPath; });
-
-    if (indexPath) {
-      positions[indexPath] = { x: centerX, y: centerY };
-    }
-    ringNodes.forEach(function (node, index) {
-      const angle = (-Math.PI / 2) + (index / Math.max(ringNodes.length, 1)) * Math.PI * 2;
-      positions[node.path] = {
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
-      };
-    });
+    const positions = graphLayoutPositions(knowledgeGraph, width, height);
+    const labelsByPath = graphUniqueNodeLabels(knowledgeGraph.nodes);
 
     const svg = createSVGElement("svg");
     svg.setAttribute("class", "knowledge-graph-svg");
@@ -2544,7 +2530,7 @@ const viewerJS = `
       group.setAttribute("class", "knowledge-graph-node" + (node.path === indexPath ? " is-index-node" : ""));
 
       const title = createSVGElement("title");
-      title.textContent = node.title || node.path;
+      title.textContent = node.title ? node.title + " - " + node.path : node.path;
       group.append(title);
 
       const circle = createSVGElement("circle");
@@ -2556,7 +2542,7 @@ const viewerJS = `
       const label = createSVGElement("text");
       label.setAttribute("x", point.x.toFixed(1));
       label.setAttribute("y", (point.y + (node.path === indexPath ? 31 : 25)).toFixed(1));
-      label.textContent = graphNodeLabel(node);
+      label.textContent = graphNodeLabel(node, labelsByPath);
       group.append(label);
 
       nodes.append(group);
@@ -2569,10 +2555,270 @@ const viewerJS = `
     return document.createElementNS("http://www.w3.org/2000/svg", name);
   }
 
-  function graphNodeLabel(node) {
-    const raw = node.title || node.path || "";
-    const label = raw.includes("/") ? raw.slice(raw.lastIndexOf("/") + 1) : raw;
-    return label.length > 18 ? label.slice(0, 17) + "..." : label;
+  function graphLayoutPositions(graph, width, height) {
+    const nodes = graph.nodes.filter(function (node) {
+      return node && typeof node.path === "string" && node.path.length > 0;
+    });
+    const positions = Object.create(null);
+    if (nodes.length === 0) {
+      return positions;
+    }
+    if (nodes.length === 1) {
+      positions[nodes[0].path] = { x: width / 2, y: height / 2 };
+      return positions;
+    }
+
+    const center = { x: width / 2, y: height / 2 };
+    const nodeSet = Object.create(null);
+    const degree = Object.create(null);
+    nodes.forEach(function (node) {
+      nodeSet[node.path] = true;
+      degree[node.path] = 0;
+    });
+
+    const links = [];
+    graph.edges.forEach(function (edge) {
+      if (!edge || !nodeSet[edge.source] || !nodeSet[edge.target]) {
+        return;
+      }
+      links.push(edge);
+      degree[edge.source] += 1;
+      degree[edge.target] += 1;
+    });
+
+    const groupCenters = graphGroupCenters(nodes, width, height);
+    const states = nodes.map(function (node) {
+      const group = graphPathGroup(node.path);
+      const groupCenter = groupCenters[group] || center;
+      const hash = graphHash(node.path);
+      const angle = ((hash % 360) / 360) * Math.PI * 2;
+      const spread = 26 + (hash % 74);
+      return {
+        node: node,
+        group: group,
+        x: groupCenter.x + Math.cos(angle) * spread,
+        y: groupCenter.y + Math.sin(angle) * spread,
+        vx: 0,
+        vy: 0,
+      };
+    });
+    const stateByPath = Object.create(null);
+    states.forEach(function (state) {
+      stateByPath[state.node.path] = state;
+    });
+
+    for (let iteration = 0; iteration < 220; iteration += 1) {
+      for (let i = 0; i < states.length; i += 1) {
+        for (let j = i + 1; j < states.length; j += 1) {
+          const a = states[i];
+          const b = states[j];
+          const dx = b.x - a.x || 0.01;
+          const dy = b.y - a.y || 0.01;
+          const distance = Math.max(9, Math.sqrt(dx * dx + dy * dy));
+          const force = Math.min(42, 6200 / (distance * distance));
+          const nx = dx / distance;
+          const ny = dy / distance;
+          a.vx -= nx * force;
+          a.vy -= ny * force;
+          b.vx += nx * force;
+          b.vy += ny * force;
+        }
+      }
+
+      links.forEach(function (edge) {
+        const source = stateByPath[edge.source];
+        const target = stateByPath[edge.target];
+        if (!source || !target) {
+          return;
+        }
+        const dx = target.x - source.x || 0.01;
+        const dy = target.y - source.y || 0.01;
+        const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+        const linkedDegree = Math.max(1, Math.min(degree[edge.source], degree[edge.target]));
+        const desired = Math.max(90, 152 - linkedDegree * 7);
+        const force = (distance - desired) * 0.014;
+        const nx = dx / distance;
+        const ny = dy / distance;
+        source.vx += nx * force;
+        source.vy += ny * force;
+        target.vx -= nx * force;
+        target.vy -= ny * force;
+      });
+
+      states.forEach(function (state) {
+        const groupCenter = groupCenters[state.group] || center;
+        const nodeDegree = degree[state.node.path] || 0;
+        const centerPull = state.node.path === "index.md" ? 0.04 : 0.002 + Math.min(nodeDegree, 8) * 0.0008;
+        const groupPull = nodeDegree > 0 ? 0.006 : 0.018;
+        state.vx += (center.x - state.x) * centerPull;
+        state.vy += (center.y - state.y) * centerPull;
+        state.vx += (groupCenter.x - state.x) * groupPull;
+        state.vy += (groupCenter.y - state.y) * groupPull;
+        state.x += state.vx;
+        state.y += state.vy;
+        state.vx *= 0.62;
+        state.vy *= 0.62;
+      });
+    }
+
+    fitGraphLayout(states, width, height);
+    states.forEach(function (state) {
+      positions[state.node.path] = { x: state.x, y: state.y };
+    });
+    return positions;
+  }
+
+  function graphGroupCenters(nodes, width, height) {
+    const counts = Object.create(null);
+    nodes.forEach(function (node) {
+      const group = graphPathGroup(node.path);
+      counts[group] = (counts[group] || 0) + 1;
+    });
+    const groups = Object.keys(counts).sort(function (a, b) {
+      if (counts[b] === counts[a]) {
+        return a.localeCompare(b);
+      }
+      return counts[b] - counts[a];
+    });
+    const centers = Object.create(null);
+    if (groups.length === 0) {
+      return centers;
+    }
+
+    const columns = Math.max(1, Math.ceil(Math.sqrt(groups.length * (width / height))));
+    const rows = Math.max(1, Math.ceil(groups.length / columns));
+    const cellWidth = width / columns;
+    const cellHeight = height / rows;
+    groups.forEach(function (group, index) {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const hash = graphHash(group);
+      const jitterX = ((hash % 31) - 15) * 0.9;
+      const jitterY = (((hash >> 5) % 31) - 15) * 0.9;
+      centers[group] = {
+        x: cellWidth * (column + 0.5) + jitterX,
+        y: cellHeight * (row + 0.5) + jitterY,
+      };
+    });
+    return centers;
+  }
+
+  function graphPathGroup(path) {
+    const parts = graphPathParts(path);
+    if (parts.length <= 1) {
+      return ".";
+    }
+    if (parts.length >= 3) {
+      return parts.slice(0, 2).join("/");
+    }
+    return parts[0];
+  }
+
+  function fitGraphLayout(states, width, height) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    states.forEach(function (state) {
+      minX = Math.min(minX, state.x);
+      maxX = Math.max(maxX, state.x);
+      minY = Math.min(minY, state.y);
+      maxY = Math.max(maxY, state.y);
+    });
+    const paddingX = 74;
+    const paddingY = 58;
+    const spanX = Math.max(1, maxX - minX);
+    const spanY = Math.max(1, maxY - minY);
+    const scale = Math.min((width - paddingX * 2) / spanX, (height - paddingY * 2) / spanY, 1.28);
+    const sourceCenterX = (minX + maxX) / 2;
+    const sourceCenterY = (minY + maxY) / 2;
+    const targetCenterX = width / 2;
+    const targetCenterY = height / 2;
+    states.forEach(function (state) {
+      state.x = clamp(targetCenterX + (state.x - sourceCenterX) * scale, paddingX, width - paddingX);
+      state.y = clamp(targetCenterY + (state.y - sourceCenterY) * scale, paddingY, height - paddingY);
+    });
+  }
+
+  function graphHash(value) {
+    let hash = 2166136261;
+    const text = String(value || "");
+    for (let index = 0; index < text.length; index += 1) {
+      hash ^= text.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function graphUniqueNodeLabels(nodes) {
+    const groups = Object.create(null);
+    nodes.forEach(function (node) {
+      if (!node || typeof node.path !== "string") {
+        return;
+      }
+      const base = graphNodeBaseLabel(node);
+      if (!groups[base]) {
+        groups[base] = [];
+      }
+      groups[base].push(node);
+    });
+
+    const labels = Object.create(null);
+    Object.keys(groups).forEach(function (base) {
+      const peers = groups[base];
+      if (peers.length === 1) {
+        labels[peers[0].path] = base;
+        return;
+      }
+      const peerPaths = peers.map(function (node) { return node.path; });
+      peers.forEach(function (node) {
+        labels[node.path] = graphShortestUniquePathSuffix(node.path, peerPaths);
+      });
+    });
+    return labels;
+  }
+
+  function graphNodeBaseLabel(node) {
+    const title = String(node.title || "").trim();
+    if (title && title.toLowerCase() !== "index") {
+      return title;
+    }
+    return graphPathDisplayName(node.path);
+  }
+
+  function graphPathDisplayName(path) {
+    const parts = graphPathParts(path);
+    if (parts.length === 0) {
+      return String(path || "");
+    }
+    const last = parts[parts.length - 1];
+    if (last.toLowerCase() === "index" && parts.length > 1) {
+      return parts.slice(-2).join("/");
+    }
+    return last;
+  }
+
+  function graphShortestUniquePathSuffix(path, peers) {
+    const parts = graphPathParts(path);
+    for (let length = 1; length <= parts.length; length += 1) {
+      const suffix = parts.slice(-length).join("/");
+      const unique = peers.every(function (peer) {
+        return peer === path || graphPathParts(peer).slice(-length).join("/") !== suffix;
+      });
+      if (unique) {
+        return suffix;
+      }
+    }
+    return parts.join("/") || String(path || "");
+  }
+
+  function graphPathParts(path) {
+    return String(path || "").replace(/\.md$/i, "").split("/").filter(Boolean);
+  }
+
+  function graphNodeLabel(node, labelsByPath) {
+    const label = labelsByPath[node.path] || graphNodeBaseLabel(node);
+    return label.length > 22 ? label.slice(0, 21) + "..." : label;
   }
 
   function indexStaticNotes(notes, key) {
@@ -3127,6 +3373,7 @@ const viewerJS = `
     }
     ensureActivePanel();
     updateCloseLinks();
+    updateSpacePanState();
     queueWorkspaceRailUpdate();
   }
 
@@ -3503,6 +3750,77 @@ const viewerJS = `
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
   let workspaceDrag = null;
   let railDrag = null;
+  let spacePanPressed = false;
+  let suppressWorkspaceClickUntil = 0;
+
+  function isSpacePanKey(event) {
+    return event.code === "Space" || event.key === " " || event.key === "Spacebar";
+  }
+
+  function isEditableTarget(target) {
+    return Boolean(closestElement(target, "input, textarea, select, [contenteditable='true']"));
+  }
+
+  function isInteractiveShortcutTarget(target) {
+    return Boolean(closestElement(target, "a[href], button, input, textarea, select, [contenteditable='true'], [role='button']"));
+  }
+
+  function canUseSpacePanShortcut() {
+    return finePointer.matches && panels().length > 1 && !workspace.classList.contains("is-empty");
+  }
+
+  function isSpacePanActive() {
+    return spacePanPressed && canUseSpacePanShortcut();
+  }
+
+  function updateSpacePanState() {
+    workspace.classList.toggle("is-space-panning", isSpacePanActive());
+  }
+
+  function startSpacePan(event) {
+    if (!isSpacePanKey(event) || event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || isInteractiveShortcutTarget(event.target)) {
+      return;
+    }
+    if (!canUseSpacePanShortcut()) {
+      return;
+    }
+    spacePanPressed = true;
+    updateSpacePanState();
+    event.preventDefault();
+  }
+
+  function stopSpacePan(event) {
+    if (!isSpacePanKey(event) || !spacePanPressed) {
+      return;
+    }
+    spacePanPressed = false;
+    updateSpacePanState();
+    event.preventDefault();
+  }
+
+  function cancelSpacePan() {
+    spacePanPressed = false;
+    updateSpacePanState();
+  }
+
+  function suppressNextWorkspaceClick() {
+    suppressWorkspaceClickUntil = Date.now() + 350;
+    window.setTimeout(function () {
+      if (Date.now() >= suppressWorkspaceClickUntil) {
+        suppressWorkspaceClickUntil = 0;
+      }
+    }, 360);
+  }
+
+  function consumeSuppressedWorkspaceClick(event) {
+    if (!suppressWorkspaceClickUntil || Date.now() > suppressWorkspaceClickUntil) {
+      return false;
+    }
+    suppressWorkspaceClickUntil = 0;
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  }
 
   function canStartWorkspaceDrag(event) {
     const pointerType = event.pointerType || "mouse";
@@ -3512,6 +3830,9 @@ const viewerJS = `
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
       return false;
     }
+    if (isSpacePanActive()) {
+      return !isEditableTarget(event.target);
+    }
     return !closestElement(event.target, "[data-note-path], a, button, input, textarea, select, [contenteditable='true'], [role='button']");
   }
 
@@ -3519,13 +3840,18 @@ const viewerJS = `
     if (!canStartWorkspaceDrag(event)) {
       return;
     }
+    const fromSpacePan = isSpacePanActive();
     workspaceDrag = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startScrollLeft: workspace.scrollLeft,
-      moved: false
+      moved: false,
+      fromSpacePan: fromSpacePan
     };
     workspace.classList.add("is-drag-scrolling");
+    if (fromSpacePan) {
+      event.preventDefault();
+    }
     try {
       workspace.setPointerCapture(event.pointerId);
     } catch {
@@ -3550,10 +3876,14 @@ const viewerJS = `
     if (!workspaceDrag || event.pointerId !== workspaceDrag.pointerId) {
       return;
     }
+    const drag = workspaceDrag;
     try {
       workspace.releasePointerCapture(event.pointerId);
     } catch {
       // Pointer capture can already be released by the browser.
+    }
+    if (drag.moved || drag.fromSpacePan) {
+      suppressNextWorkspaceClick();
     }
     workspaceDrag = null;
     workspace.classList.remove("is-drag-scrolling");
@@ -3660,6 +3990,9 @@ const viewerJS = `
   workspace.addEventListener("pointerup", stopWorkspaceDrag);
   workspace.addEventListener("pointercancel", stopWorkspaceDrag);
   workspace.addEventListener("scroll", queueWorkspaceRailUpdate);
+  window.addEventListener("keydown", startSpacePan, true);
+  window.addEventListener("keyup", stopSpacePan, true);
+  window.addEventListener("blur", cancelSpacePan);
   window.addEventListener("resize", queueWorkspaceRailUpdate);
 
   if (scrollTrack && scrollThumb) {
@@ -3672,6 +4005,10 @@ const viewerJS = `
   }
 
   workspace.addEventListener("click", function (event) {
+    if (consumeSuppressedWorkspaceClick(event)) {
+      return;
+    }
+
     const clickedPanel = closestElement(event.target, "[data-note-path]");
     if (clickedPanel) {
       setActivePanel(clickedPanel);
@@ -3886,7 +4223,7 @@ body.viewer-document.is-sidebar-open > .note-workspace { transform: translateX(v
 .note-workspace.is-multi-panel { scrollbar-width: none; }
 .note-workspace.is-multi-panel::-webkit-scrollbar { width: 0; height: 0; }
 .note-workspace.is-multi-panel .note-stack { padding-bottom: 64px; }
-.note-workspace.is-drag-scrolling { cursor: grabbing; scroll-behavior: auto; }
+.note-workspace.is-space-panning, .note-workspace.is-drag-scrolling { scroll-behavior: auto; }
 .note-workspace.is-empty { overflow-x: hidden; overflow-y: auto; }
 .note-workspace.is-empty .note-stack { display: none; }
 .workspace-scroll-rail { position: fixed; right: max(22px, calc((100vw - 1180px) / 2)); bottom: 11px; left: 22px; z-index: 4; display: flex; height: 18px; align-items: center; padding: 7px 0; opacity: .58; transition: transform .22s cubic-bezier(.22, .8, .2, 1), opacity .16s ease; }
@@ -3908,7 +4245,7 @@ body.viewer-document.is-sidebar-open > .workspace-scroll-rail { transform: trans
 .knowledge-graph-edges line { stroke: #c8c8c8; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
 .knowledge-graph-node { color: #5b6661; cursor: pointer; text-decoration: none; }
 .knowledge-graph-node circle { fill: #f8f8f8; stroke: #aeb8b2; stroke-width: 1.6; vector-effect: non-scaling-stroke; transition: fill .16s ease, stroke .16s ease, transform .16s ease; transform-box: fill-box; transform-origin: center; }
-.knowledge-graph-node text { fill: #5f6b66; font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-anchor: middle; pointer-events: none; }
+.knowledge-graph-node text { fill: #5f6b66; stroke: #f0f0f0; stroke-linejoin: round; stroke-width: 4px; paint-order: stroke; font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-anchor: middle; pointer-events: none; }
 .knowledge-graph-node:hover circle, .knowledge-graph-node:focus-visible circle { fill: #ffffff; stroke: var(--accent); transform: scale(1.16); }
 .knowledge-graph-node:hover text, .knowledge-graph-node:focus-visible text { fill: #26302c; }
 .knowledge-graph-node.is-index-node circle { fill: #ffffff; stroke: #89958f; stroke-width: 2; }
@@ -4022,7 +4359,8 @@ ul, ol { padding-left: 22px; }
 @media (hover: hover) and (pointer: fine) {
   .note-workspace.is-multi-panel { cursor: grab; }
   .note-workspace.is-multi-panel .note-panel { cursor: auto; }
-  .note-workspace.is-multi-panel.is-drag-scrolling, .note-workspace.is-multi-panel.is-drag-scrolling .note-panel { cursor: grabbing; }
+  .note-workspace.is-multi-panel.is-space-panning, .note-workspace.is-multi-panel.is-space-panning * { cursor: grab; }
+  .note-workspace.is-multi-panel.is-drag-scrolling, .note-workspace.is-multi-panel.is-drag-scrolling * { cursor: grabbing; user-select: none; }
 }
 @media (max-width: 680px) {
   header { display: block; }

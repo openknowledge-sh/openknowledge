@@ -78,6 +78,9 @@ inspects the workspace and any relevant user or project memories available in
 its runtime, asks only the missing setup questions, creates the bundle with
 `openknowledge new`, then creates the folders, workflows, agent instructions,
 native automations when supported, and seed pages that fit the chosen use case.
+When setup creates repo-scoped or user-scoped skills, the prompt tells the
+agent to include guidance for focused lower-reasoning subagents on bounded wiki
+maintenance tasks when the runtime supports that.
 
 `openknowledge new` creates a minimal local bundle with the base OKF files: a
 setup handoff, starter agent guidance, an update log, and a pinned copy of the

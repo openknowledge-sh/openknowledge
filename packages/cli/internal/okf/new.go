@@ -219,7 +219,7 @@ After the interview:
 * write initial section indexes for folders you create
 * update AGENTS.md so future agents understand the final wiki purpose, rules, and boundaries
 * create workflow pages for selected agent maintenance behaviors
-* configure agent instructions or skills where the agent will actually read them: repo-scoped instructions such as AGENTS.md updates or a repo-scoped skill/instruction file for colocated project wikis, or user-scoped skill guidance for standalone or external wikis when appropriate
+* configure agent instructions or skills where the agent will actually read them: repo-scoped instructions such as AGENTS.md updates or a repo-scoped skill/instruction file for colocated project wikis, or user-scoped skill guidance for standalone or external wikis when appropriate; when creating repo-scoped or user-scoped skills, include guidance to spawn focused subagents with lower reasoning effort for bounded wiki maintenance tasks when the runtime supports that
 * create wiki pages for skills only when they are useful as documentation or references, not as the default skill location
 * configure recurring or external jobs only as native automations in the current agent runtime or orchestrator when that runtime can create them and the user approves
 * if native automation setup is unavailable or not approved, do not claim an automation exists; create only a manual workflow or an automation candidate note when useful

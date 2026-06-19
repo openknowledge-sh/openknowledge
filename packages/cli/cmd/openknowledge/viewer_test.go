@@ -79,6 +79,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `startWorkspaceDrag`) || !strings.Contains(page, `pointerType !== "mouse"`) || !strings.Contains(page, `!closestElement(event.target, "[data-note-path]`) {
 		t.Fatalf("viewer should support mouse drag scrolling from workspace gaps without stealing panel text selection:\n%s", page)
 	}
+	if !strings.Contains(page, `isSpacePanActive()`) || !strings.Contains(page, `window.addEventListener("keydown", startSpacePan, true)`) || !strings.Contains(page, `fromSpacePan: fromSpacePan`) || !strings.Contains(page, `consumeSuppressedWorkspaceClick(event)`) {
+		t.Fatalf("viewer should support canvas-style Space+drag panning across note panels without activating links:\n%s", page)
+	}
+	if !strings.Contains(page, `.note-workspace.is-multi-panel.is-space-panning`) || !strings.Contains(page, `cursor: grab`) || !strings.Contains(page, `user-select: none`) {
+		t.Fatalf("viewer should expose Space+drag panning cursor styles:\n%s", page)
+	}
 	if !strings.Contains(page, `class="viewer-document is-stack-mode"`) {
 		t.Fatalf("viewer file page should start in stack panel mode:\n%s", page)
 	}
@@ -165,6 +171,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `data-knowledge-graph`) || !strings.Contains(page, `data-knowledge-graph-view`) || !strings.Contains(page, `"source":"index.md"`) || !strings.Contains(page, `"target":"workflows/docs.md"`) {
 		t.Fatalf("viewer file page did not include connected knowledge graph data:\n%s", page)
+	}
+	if !strings.Contains(page, `graphLayoutPositions`) || !strings.Contains(page, `graphGroupCenters`) || strings.Contains(page, `ringNodes`) {
+		t.Fatalf("viewer knowledge graph should use a grouped force layout instead of a fixed circle:\n%s", page)
+	}
+	if !strings.Contains(page, `graphUniqueNodeLabels`) || !strings.Contains(page, `graphShortestUniquePathSuffix`) || !strings.Contains(page, `parts.slice(-2).join("/")`) {
+		t.Fatalf("viewer knowledge graph should disambiguate generic node labels with path suffixes:\n%s", page)
 	}
 	if !strings.Contains(page, `.knowledge-empty-inner { display: grid`) || !strings.Contains(page, `grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)`) || !strings.Contains(page, `renderKnowledgeGraph()`) {
 		t.Fatalf("viewer empty state should render a 50/50 tree and graph layout:\n%s", page)

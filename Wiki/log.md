@@ -2,6 +2,9 @@
 
 ## 2026-06-19
 
+* **Repo skill subagents**: Updated the active repo-local wiki skill and agent
+  rules to prefer focused lower-reasoning subagents for bounded wiki maintenance
+  tasks when the runtime supports them.
 * **Command docs audit**: Compared wiki command and exporter pages against the
   current CLI implementation and tightened docs for help aliases, scaffold
   defaults, registry storage, converter flags, JSON behavior, HTML viewer versus

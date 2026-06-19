@@ -67,6 +67,8 @@ During setup the agent should create or update:
 - repo-scoped or user-scoped agent instructions when local agent-tool behavior
   should be reusable, such as using `openknowledge list`, reading relevant
   pages, applying workflows, and validating changes
+- repo-scoped or user-scoped skills with guidance for spawning focused
+  lower-reasoning subagents for bounded wiki maintenance tasks when supported
 - wiki skill pages only when they are useful as documentation or references, not
   as the default place where executable agent skills live
 - native automations in Codex app, Cowork, or another available orchestrator

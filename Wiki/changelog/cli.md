@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Viewer knowledge graph clustering
+
+* The empty-state knowledge graph now uses a deterministic force-style layout
+  so linked notes cluster together instead of being arranged in a fixed circle.
+* Generic `index` graph labels now include path suffix context, such as
+  `commands/index`, to distinguish nested index files.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Viewer multi-panel horizontal scrolling
 
 * Multi-panel document stacks now use an Andy Matuschak-style horizontal flex
@@ -23,11 +34,26 @@ that were updated.
   thumb supports keyboard scrolling.
 * The gray workspace gaps support mouse drag scrolling left and right while
   preserving normal text selection inside note panels.
+* Holding `Space` now enables canvas-style mouse panning across note panels, so
+  sideways dragging scrolls the stack without opening links under the pointer.
 * Browser-aborted View Transition animations no longer surface as viewer app
   errors after the stack DOM update has already completed.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.
 * Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Setup skill subagent guidance
+
+* Updated the setup prompt and generated `SETUP.MD` so repo-scoped or
+  user-scoped skills should include guidance for spawning focused subagents
+  with lower reasoning effort for bounded wiki maintenance tasks when the
+  runtime supports that.
+* Source anchors: `packages/cli/internal/okf/setup.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/internal/okf/setup_test.go`.
+* Docs updated: `README.md`, `docs/cli.md`,
+  `Wiki/features/commands/setup.md`,
   `Wiki/changelog/cli.md`.
 
 ### 2026-06-19 - Viewer single-panel centering
