@@ -11,8 +11,9 @@ timestamp: 2026-06-18T00:00:00Z
 `openknowledge open` starts a local HTTP viewer in the browser. Without a path,
 it opens a registry-backed workspace selector. With a path or registry name, it
 opens that knowledge base directly. The viewer renders Markdown, strips
-frontmatter from document pages, rewrites local Markdown links, and shows
-validation issues in the index.
+frontmatter from document pages, rewrites local Markdown links, preserves inline
+formatting inside link labels such as code spans, syntax-highlights fenced code
+blocks for common languages, and shows validation issues in the index.
 
 In direct knowledge base mode, Markdown links open into a horizontally
 scrollable stack of panels. The viewer does not switch into a separate
@@ -34,9 +35,13 @@ Markdown files such as `index.md` and `log.md` are marked with a right-aligned
 When all panels are closed, the empty workspace shows a split overview: the
 file tree on the left and a connected graph of Markdown files on the right. The
 graph is built from local Markdown links, uses a deterministic force layout so
-well-connected notes cluster together, and opens graph nodes as panels. Generic
-`index` labels include path context such as `commands/index` so nested index
-files can be distinguished.
+well-connected notes cluster together, and renders into an animated canvas that
+continues to apply lightweight physics after the initial layout. Hovering or
+focusing a graph node expands that node's label, gently pushes nearby nodes away
+from the active label with eased damping, keeps non-active nodes in their
+default visual style, and highlights the links connected to the active node.
+Generic `index` labels include path context such as `commands/index` so nested
+index files can be distinguished.
 
 The top bar includes the primary search field, and `Command+K` on macOS or
 `Ctrl+K` elsewhere focuses it. In the local server viewer, search uses the

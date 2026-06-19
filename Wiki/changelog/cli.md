@@ -32,10 +32,64 @@ that were updated.
 * Docs updated: `docs/cli.md`, `Wiki/features/commands/open.md`,
   `Wiki/changelog/cli.md`.
 
+### 2026-06-19 - New bundle metadata flags
+
+* `openknowledge new` now accepts optional `--bundle-name`, `--bundle-title`,
+  `--bundle-purpose`, repeatable `--bundle-tag`, and repeatable
+  `--bundle-entry name=path` flags.
+* The scaffold writes those values into root `index.md` as flat
+  `okf_bundle_*` metadata while preserving the default minimal scaffold when no
+  metadata flags are provided.
+* Validation now accepts `okf_bundle_*` keys in the bundle-root `index.md` as
+  an Open Knowledge CLI metadata layer; plain OKF bundles with only
+  `okf_version: "0.1"` remain valid, and nested `index.md` files still cannot
+  use frontmatter.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/internal/okf/validate.go`.
+* Docs updated: `README.md`, `docs/cli.md`,
+  `Wiki/features/commands/new.md`,
+  `Wiki/features/commands/validate.md`,
+  `Wiki/features/commands/help.md`,
+  `Wiki/features/commands/use.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer knowledge graph canvas physics
+
+* The empty-state knowledge graph now renders as an animated canvas graph
+  instead of static SVG, allowing lightweight physics to keep nodes responsive
+  after the deterministic initial layout.
+* Hover and keyboard focus now ease the active node label and separation forces
+  in and out, with velocity clamping and damping to reduce jitter in displaced
+  nodes.
+* Non-active nodes keep their default visual style during hover; the emphasis is
+  on the active node and its direct connections.
+* Default graph lines are visually lighter so the connected-edge highlight is
+  the main emphasis during graph exploration.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer markdown links with code labels
+
+* Markdown links whose labels contain inline code spans, for example a React
+  docs link whose visible label includes `useEffect` as code, now render as
+  clickable anchors in `openknowledge open` instead of leaking the raw Markdown
+  syntax.
+* Inline code spans that contain link-looking text remain literal code and are
+  not converted into anchors.
+* Source anchors: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/markdown_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Viewer knowledge graph clustering
 
 * The empty-state knowledge graph now uses a deterministic force-style layout
   so linked notes cluster together instead of being arranged in a fixed circle.
+* The graph layout now runs collision passes against node and label bounds to
+  reduce overlapping note names when the graph has enough room to separate them.
 * Generic `index` graph labels now include path suffix context, such as
   `commands/index`, to distinguish nested index files.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,

@@ -65,7 +65,8 @@ Current errors:
   quotes, or unclosed flow `[]` / `{}` values.
 * A concept document is missing YAML frontmatter or has an empty `type`.
 * A non-root `index.md` uses concept frontmatter.
-* Root `index.md` declares frontmatter keys other than `okf_version`.
+* Root `index.md` declares frontmatter keys other than `okf_version` or
+  optional Open Knowledge CLI `okf_bundle_*` metadata.
 * `log.md` uses frontmatter.
 * A `log.md` `##` heading is not exactly `## YYYY-MM-DD`.
 
@@ -83,6 +84,10 @@ Current warnings:
 The frontmatter parser is intentionally lightweight. It extracts top-level
 scalar keys for OKF validation and skips nested YAML lines or sequence items
 instead of enforcing a complete YAML schema.
+
+Root `okf_bundle_*` keys are an optional Open Knowledge CLI metadata layer for
+bundle discovery and future agent entrypoint routing. They are accepted in the
+bundle-root `index.md`; nested `index.md` files still cannot use frontmatter.
 
 ## Use Cases
 

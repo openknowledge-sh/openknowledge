@@ -27,8 +27,9 @@ recognizes the common Go flag help spelling after a subcommand.
 ## Behavior
 
 Root help prints the supported command surface, global help flag, examples, and
-the command-specific help convention. Unknown commands print the root usage to
-stderr and exit with status `2`.
+the command-specific help convention. Its examples include both a minimal
+`openknowledge new` scaffold and a scaffold with optional bundle metadata.
+Unknown commands print the root usage to stderr and exit with status `2`.
 
 ## Use Cases
 

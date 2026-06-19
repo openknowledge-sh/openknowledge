@@ -9,6 +9,16 @@
   `openknowledge open` highlights fenced code and code/text asset previews, and
   serves PDF/media references through raw bundle URLs for browser-native
   viewing.
+* **Connected bundle command candidates**: Added candidate specifications for
+  `openknowledge connect` and `openknowledge disconnect`, and aligned
+  `list`, `where`, `registry`, and `use` docs around a path-keyed local
+  knowledge registry for agent discovery.
+* **New bundle metadata flags**: Updated `openknowledge new` documentation for
+  optional `okf_bundle_*` root metadata flags and recorded that root validation
+  accepts this Open Knowledge CLI layer while plain OKF bundles remain valid.
+* **Use command candidate**: Recorded the candidate `openknowledge use`
+  contract for optional `okf_bundle_*` root metadata, entrypoint frontmatter
+  with `use_when`, `--info`, and fallback behavior for plain OKF bundles.
 * **Repo skill subagents**: Updated the active repo-local wiki skill and agent
   rules to prefer focused lower-reasoning subagents for bounded wiki maintenance
   tasks when the runtime supports them.

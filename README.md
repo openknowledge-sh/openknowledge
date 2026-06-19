@@ -43,6 +43,7 @@ Create and inspect a minimal scaffold directly:
 
 ```sh
 openknowledge new ./project-memory
+openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
 openknowledge registry add personal ./project-memory
 openknowledge where personal
 openknowledge open
@@ -84,7 +85,9 @@ maintenance tasks when the runtime supports that.
 
 `openknowledge new` creates a minimal local bundle with the base OKF files: a
 setup handoff, starter agent guidance, an update log, and a pinned copy of the
-current spec. The use-case structure is intentionally left to setup.
+current spec. Optional `--bundle-*` flags can seed `okf_bundle_*` metadata in
+the root index for discovery and future agent entrypoints. The use-case
+structure is intentionally left to setup.
 
 After that, humans and agents edit normal Markdown files. `openknowledge open`
 starts a registry-backed local viewer with a workspace selector, and
@@ -114,6 +117,7 @@ the CLI only serves the HTTP routes.
 | `openknowledge <command> --help` | Print command-specific usage, flags, and examples. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
+| `openknowledge new --bundle-name <id> [folder]` | Scaffold with optional bundle metadata. |
 | `openknowledge registry list` | List named local knowledge base paths. |
 | `openknowledge registry add <name> <path>` | Register a name for a knowledge base folder. |
 | `openknowledge where <name-or-path>` | Print the absolute path for a registry name or path. |
@@ -141,7 +145,8 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 - YAML frontmatter parses cleanly; non-blocking formatting issues are warnings
 - Markdown bodies avoid malformed links, code spans, tables, and fences
 - `index.md` and `log.md` are reserved files, not concept documents
-- root `index.md` may declare `okf_version: "0.1"`
+- root `index.md` may declare `okf_version: "0.1"` and optional Open Knowledge
+  CLI `okf_bundle_*` metadata
 - `log.md` `##` headings use `YYYY-MM-DD`
 - local Markdown links resolve inside the bundle, reported as warnings
 

@@ -58,6 +58,23 @@ the missing setup questions, choose where the knowledge base should live, run
 and turn the minimal scaffold into an agentic wiki with only the folders that
 fit the discovered context and user's answers.
 
+`openknowledge new` also accepts optional bundle metadata flags:
+
+```sh
+openknowledge new --name "Accessibility Review" \
+  --bundle-name accessibility \
+  --bundle-purpose "Accessibility review guidance." \
+  --bundle-tag accessibility \
+  --bundle-entry default=agents/accessibility-checker.md \
+  ./accessibility
+```
+
+These flags write flat `okf_bundle_*` keys into the bundle-root `index.md`.
+They are an Open Knowledge CLI metadata layer for discovery and future agent
+entrypoint routing, not a requirement for OKF conformance. A scaffold created
+without these flags remains valid and uses only `okf_version: "0.1"` in the
+root index frontmatter.
+
 During setup the agent should create or update:
 
 - `AGENTS.md` with local rules for when future agents should read and update the
