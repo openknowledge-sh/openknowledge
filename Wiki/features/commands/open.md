@@ -51,6 +51,13 @@ pages.
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.
 
+Local links to code and text assets, such as `.go`, `.ts`, `.json`, `.yaml`, or
+`.txt` files, open lightweight asset preview pages with escaped source text and
+syntax highlighting. Local PDF, image, audio, and video references are served
+from a bundle-scoped raw URL so the browser can use its native PDF or media
+viewer. Direct `/file/<asset>` URLs also render an asset page; PDF asset pages
+embed the raw PDF URL in the browser.
+
 ## Usage
 
 ```sh
@@ -109,13 +116,17 @@ the printed `127.0.0.1` view URL or map the alias hostname to loopback with
   across panels on mouse devices.
 * Search the knowledge base from the top bar with pointer or keyboard result
   selection.
+* Open bundled source files with syntax highlighting and bundled PDFs in the
+  browser's native PDF viewer.
 * Browse command and feature docs without leaving the repo.
 
 ## Source Anchors
 
 * `packages/cli/cmd/openknowledge/viewer.go`
+* `packages/cli/cmd/openknowledge/viewer_test.go`
 * `packages/cli/cmd/openknowledge/main.go`
 * `packages/cli/internal/okf/markdown.go`
+* `packages/cli/internal/okf/markdown_test.go`
 
 ## Update Notes
 

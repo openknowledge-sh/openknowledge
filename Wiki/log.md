@@ -2,6 +2,13 @@
 
 ## 2026-06-19
 
+* **Viewer examples**: Added `examples/` with a small Markdown page, Go source
+  file, and PDF asset for manually testing code highlighting and browser PDF
+  viewing in `openknowledge open Wiki`.
+* **Viewer asset links and syntax highlighting**: Documented that
+  `openknowledge open` highlights fenced code and code/text asset previews, and
+  serves PDF/media references through raw bundle URLs for browser-native
+  viewing.
 * **Repo skill subagents**: Updated the active repo-local wiki skill and agent
   rules to prefer focused lower-reasoning subagents for bounded wiki maintenance
   tasks when the runtime supports them.

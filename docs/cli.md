@@ -117,8 +117,11 @@ hostname aliases itself. If the alias URL is unreachable, use the printed
 or put a local proxy in front of it.
 
 The viewer renders Markdown files, strips YAML frontmatter from document pages,
-rewrites relative Markdown links between `.md` files, and shows inline
-validation issues from the bundle listing. The index page includes local
+syntax-highlights fenced code blocks, rewrites relative Markdown links between
+`.md` files, and shows inline validation issues from the bundle listing. Local
+links to code and text assets open escaped syntax-highlighted source previews;
+local PDF, image, audio, and video links are served from bundle-scoped raw URLs
+so the browser can use its native viewers. The index page includes local
 full-text search across paths, titles, metadata, headings, and document bodies,
 with light fuzzy and diacritic-insensitive matching.
 

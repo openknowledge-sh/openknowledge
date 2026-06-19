@@ -14,6 +14,24 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-19 - Viewer asset links and syntax highlighting
+
+* `openknowledge open` now syntax-highlights fenced code blocks in rendered
+  Markdown and highlights common code/text files opened through the local
+  viewer.
+* Local links to code/text assets open escaped source preview pages, while local
+  PDF, image, audio, and video references resolve to bundle-scoped raw URLs so
+  the browser can use native PDF and media viewers.
+* Raw asset responses are constrained to files under the knowledge root and set
+  `X-Content-Type-Options: nosniff`; active code-like raw types are served as
+  plain text.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/markdown_test.go`.
+* Docs updated: `docs/cli.md`, `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-19 - Viewer knowledge graph clustering
 
 * The empty-state knowledge graph now uses a deterministic force-style layout
