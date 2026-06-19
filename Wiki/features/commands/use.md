@@ -171,5 +171,5 @@ This candidate likely requires:
 
 ## Update Notes
 
-When this command is implemented, update root help, `README.md`, `docs/cli.md`,
+When this command is implemented, update root help, `README.md`,
 [registry documentation](registry.md), tests, and [CLI changelog](/changelog/cli.md).

@@ -128,6 +128,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge to html --spec <version> --out <folder> [path]",
 				"Output folder for generated HTML files. Required.",
 				"Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.",
+				"Default viewer exports read [html.theme] from openknowledge.toml",
+				"Built-in variables are defined in viewer_theme.css",
 			},
 		},
 		"to json": {

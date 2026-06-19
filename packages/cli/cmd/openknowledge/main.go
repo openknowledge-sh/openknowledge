@@ -869,6 +869,11 @@ Flags:
   --plain     Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.
   --spec      OKF spec version. Defaults to latest.
 
+Theme:
+  Default viewer exports read [html.theme] from openknowledge.toml in the
+  bundle root. Set stylesheet = "assets/wiki-theme.css" to link theme CSS.
+  Built-in variables are defined in viewer_theme.css as --ok-* tokens.
+
 Versions:
   %s
 `, supportedSpecVersionsText())

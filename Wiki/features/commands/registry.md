@@ -106,7 +106,6 @@ Knowledge.
 
 * `packages/cli/internal/okf/registry.go`
 * `packages/cli/cmd/openknowledge/main.go`
-* `docs/cli.md`
 
 ## Update Notes
 

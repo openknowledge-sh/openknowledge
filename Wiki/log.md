@@ -1,5 +1,15 @@
 # Bundle Update Log
 
+## 2026-06-20
+
+* **Command change history rule**: Added a wiki maintenance rule requiring
+  command pages to capture dated history entries for major command-surface
+  changes such as added, removed, renamed, or behavior-changing flags,
+  properties, output fields, and exit-code semantics.
+* **CLI operations migration**: Moved the remaining development and release
+  notes from `docs/cli.md` into [features/operations.md](features/operations.md),
+  and made the wiki the canonical home for CLI operational docs.
+
 ## 2026-06-19
 
 * **Viewer examples**: Added `examples/` with a small Markdown page, Go source

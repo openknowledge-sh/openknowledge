@@ -211,7 +211,6 @@ Open questions before shipping `.skills/` support:
 
 ## Update Notes
 
-When implemented, update root help, `README.md`, `docs/cli.md`,
-[disconnect](disconnect.md), [list](list.md), [where](where.md),
-[registry](registry.md), [use](use.md), tests, and
-[CLI changelog](/changelog/cli.md).
+When implemented, update root help, `README.md`, [disconnect](disconnect.md),
+[list](list.md), [where](where.md), [registry](registry.md), [use](use.md),
+tests, and [CLI changelog](/changelog/cli.md).

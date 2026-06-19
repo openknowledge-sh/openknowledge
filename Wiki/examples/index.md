@@ -1,3 +1,7 @@
+---
+okf_publish: false
+---
+
 # Examples
 
 Small files in this section exist to smoke-test local viewer behavior.

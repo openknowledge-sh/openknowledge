@@ -53,7 +53,13 @@ openknowledge to json --out ./bundle.json ./project-memory
 
 `to html` requires `--out`. Without `--plain`, it writes static viewer pages
 that include the file tree, search, stacked-panel browsing, and embedded note
-manifest. With `--plain`, it writes unstyled semantic HTML pages.
+manifest. The default viewer export reads optional `[html.theme]` settings from
+`openknowledge.toml`, links the configured stylesheet after built-in viewer CSS,
+and copies local theme CSS files into the output folder. The built-in theme
+contract lives in `packages/cli/cmd/openknowledge/viewer_theme.css`, and the
+exported viewer derives colors, fonts, and viewer dimensions from its `--ok-*`
+variables. With `--plain`, it writes unstyled semantic HTML pages and does not
+include viewer CSS, JavaScript, or theme links.
 
 `to json` prints the normalized bundle model to stdout by default and writes to
 `--out <file>` when provided. `--plain` is not valid for JSON. Unknown targets
@@ -64,6 +70,8 @@ and unknown flags exit with status `2`.
 * Publish a static HTML copy of a wiki.
 * Produce a normalized JSON model for downstream tools or agents.
 * Keep future exporter targets grouped under one command family.
+* Deploy documentation that visually matches a landing page through a themed
+  viewer export.
 
 ## Source Anchors
 
@@ -71,6 +79,8 @@ and unknown flags exit with status `2`.
 * `packages/cli/internal/okf/html.go`
 * `packages/cli/internal/okf/bundle.go`
 * `packages/cli/cmd/openknowledge/viewer.go`
+* `packages/cli/cmd/openknowledge/viewer_theme.go`
+* `packages/cli/cmd/openknowledge/viewer_theme.css`
 * `packages/cli/internal/okf/export_test.go`
 * `packages/cli/cmd/openknowledge/viewer_test.go`
 

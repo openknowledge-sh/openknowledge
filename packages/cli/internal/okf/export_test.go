@@ -116,6 +116,29 @@ func TestWritePlainHTMLRendersUnstyledPages(t *testing.T) {
 	}
 }
 
+func TestWriteHTMLSkipsUnpublishedPages(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeFile(t, root, "index.md", "# Home\n\nRead [Public](public.md) and [Draft](draft.md).\n")
+	writeFile(t, root, "public.md", "---\ntype: Guide\n---\n\n# Public\n")
+	writeFile(t, root, "draft.md", "---\ntype: Draft\nokf_publish: false\n---\n\n# Draft\n")
+	writeFile(t, root, "examples/index.md", "---\nokf_publish: false\n---\n\n# Examples\n")
+
+	result, err := WriteHTML(root, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(result.Written, ",") != "index.html,public.html" {
+		t.Fatalf("expected only published files, got %#v", result.Written)
+	}
+	if _, err := os.Stat(filepath.Join(out, "draft.html")); !os.IsNotExist(err) {
+		t.Fatalf("expected draft.html to be absent, got err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "examples", "index.html")); !os.IsNotExist(err) {
+		t.Fatalf("expected examples/index.html to be absent, got err=%v", err)
+	}
+}
+
 func TestWriteHTMLRendersBlockquotesAndStrongText(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")

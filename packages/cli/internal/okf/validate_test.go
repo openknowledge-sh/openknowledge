@@ -40,6 +40,21 @@ func TestValidateRootIndexAllowsBundleMetadata(t *testing.T) {
 	}
 }
 
+func TestValidateIndexAllowsPublishMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Bundle\n")
+	writeFile(t, root, "docs/index.md", "---\nokf_publish: false\n---\n\n# Docs\n")
+	writeFile(t, root, "concept.md", "---\ntype: Concept\n---\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected index publish metadata to validate, got %#v", result.Errors)
+	}
+}
+
 func TestValidateConceptRequiresType(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "concept.md", "---\ntitle: Missing Type\n---\n")

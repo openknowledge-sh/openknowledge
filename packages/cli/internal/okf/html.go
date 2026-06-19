@@ -49,6 +49,9 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 
 	var written []string
 	for _, file := range bundle.Files {
+		if !ShouldPublish(file) {
+			continue
+		}
 		target := filepath.Join(absoluteOut, filepath.FromSlash(htmlPath(file.Path)))
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return HTMLResult{}, err

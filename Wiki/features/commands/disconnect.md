@@ -87,6 +87,6 @@ only and should never delete files.
 
 ## Update Notes
 
-When implemented, update root help, `README.md`, `docs/cli.md`,
-[connect](connect.md), [list](list.md), [where](where.md), tests, and
+When implemented, update root help, `README.md`, [connect](connect.md),
+[list](list.md), [where](where.md), tests, and
 [CLI changelog](/changelog/cli.md).

@@ -137,6 +137,10 @@ func frontmatterValues(meta frontmatter) map[string]string {
 	return values
 }
 
+func ShouldPublish(file BundleFile) bool {
+	return strings.TrimSpace(strings.ToLower(file.Frontmatter["okf_publish"])) != "false"
+}
+
 func ExtractLinks(root string, rel string, content string) []Link {
 	linkContent := maskFencedCode(content)
 	var links []Link

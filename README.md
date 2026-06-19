@@ -97,6 +97,21 @@ starts a registry-backed local viewer with a workspace selector, and
 `openknowledge to html` writes the same static viewer app bundle by default,
 `openknowledge to html --plain` writes unstyled semantic HTML, and
 `openknowledge to json` writes a normalized bundle model for tools and agents.
+The default HTML viewer export can inherit your site styling from an optional
+`openknowledge.toml` in the bundle root:
+
+```toml
+[html.theme]
+name = "landing"
+stylesheet = "assets/wiki-theme.css"
+```
+
+The stylesheet is copied into the static export and linked from every generated
+viewer page. Override the documented `--ok-*` variables to match your landing
+page. The canonical default theme lives at
+`packages/cli/cmd/openknowledge/viewer_theme.css`; the local viewer and default
+HTML export derive their colors, fonts, and viewer dimensions from that theme
+layer.
 
 `openknowledge registry` stores named local paths for shared or standalone
 knowledge bases. A name is only an alias: path-based commands still work, and
@@ -147,6 +162,7 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 - `index.md` and `log.md` are reserved files, not concept documents
 - root `index.md` may declare `okf_version: "0.1"` and optional Open Knowledge
   CLI `okf_bundle_*` metadata
+- any `index.md` may declare `okf_publish: false` for public-view exclusion
 - `log.md` `##` headings use `YYYY-MM-DD`
 - local Markdown links resolve inside the bundle, reported as warnings
 
