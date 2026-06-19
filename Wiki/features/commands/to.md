@@ -15,8 +15,11 @@ timestamp: 2026-06-18T00:00:00Z
 
 ```sh
 openknowledge to html --out <folder> [path]
+openknowledge to html --plain --out <folder> [path]
+openknowledge to html --spec <version> --out <folder> [path]
 openknowledge to json [path]
 openknowledge to json --out <file> [path]
+openknowledge to json --spec <version> [path]
 openknowledge to --help
 ```
 
@@ -30,11 +33,31 @@ openknowledge to --help
 
 ## Common Flags
 
-| Name | Kind | Description |
-| --- | --- | --- |
-| `path` | argument | Knowledge base root. Defaults to the current directory. |
-| `--spec` | flag | OKF spec version. Defaults to latest. |
-| `--out` | flag | Output folder for HTML and optional output file for JSON. |
+| Name | Kind | Applies To | Required | Default | Description |
+| --- | --- | --- | --- | --- | --- |
+| `path` | argument | `html`, `json` | no | current directory | Knowledge base root. |
+| `--spec` | flag | `html`, `json` | no | `latest` | OKF spec version. |
+| `--out` | flag | `html`, `json` | HTML yes, JSON no | stdout for JSON | Output folder for HTML and optional output file for JSON. |
+| `--plain` | flag | `html` only | no | off | Write plain semantic HTML without viewer chrome, CSS, or JavaScript. |
+
+## Quick Examples
+
+```sh
+openknowledge to html --out ./site ./project-memory
+openknowledge to html --plain --out ./plain-site ./project-memory
+openknowledge to json ./project-memory
+openknowledge to json --out ./bundle.json ./project-memory
+```
+
+## Behavior
+
+`to html` requires `--out`. Without `--plain`, it writes static viewer pages
+that include the file tree, search, stacked-panel browsing, and embedded note
+manifest. With `--plain`, it writes unstyled semantic HTML pages.
+
+`to json` prints the normalized bundle model to stdout by default and writes to
+`--out <file>` when provided. `--plain` is not valid for JSON. Unknown targets
+and unknown flags exit with status `2`.
 
 ## Use Cases
 
@@ -47,6 +70,9 @@ openknowledge to --help
 * `packages/cli/cmd/openknowledge/main.go`
 * `packages/cli/internal/okf/html.go`
 * `packages/cli/internal/okf/bundle.go`
+* `packages/cli/cmd/openknowledge/viewer.go`
+* `packages/cli/internal/okf/export_test.go`
+* `packages/cli/cmd/openknowledge/viewer_test.go`
 
 ## Update Notes
 

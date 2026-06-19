@@ -1,5 +1,15 @@
 # Bundle Update Log
 
+## 2026-06-19
+
+* **Command docs audit**: Compared wiki command and exporter pages against the
+  current CLI implementation and tightened docs for help aliases, scaffold
+  defaults, registry storage, converter flags, JSON behavior, HTML viewer versus
+  plain export modes, and installer environment variables.
+* **Feature docs workflow**: Added a command documentation pattern based on
+  current React, TanStack Query, Next.js, Vite, pnpm, npm, and GitHub CLI docs
+  research.
+
 ## 2026-06-18
 
 * **Setup**: Customized this bundle as the Open Knowledge CLI developer wiki.

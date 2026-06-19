@@ -30,6 +30,16 @@ openknowledge registry --help
 | `name` | argument | Alias using letters, numbers, dots, underscores, or dashes. |
 | `path` | argument | Knowledge base folder path. |
 
+## Behavior
+
+Registry entries are stored as JSON under the user config directory at
+`openknowledge/registry.json`. Set `OPENKNOWLEDGE_REGISTRY_FILE` to use a
+specific registry file, which is useful in tests and isolated agent runs.
+
+`registry add` expands `~`, resolves the target to an absolute path, requires it
+to be an existing directory, and replaces an existing entry with the same name.
+`registry list` prints the registry file path and sorted entries.
+
 ## Use Cases
 
 * Give shared or standalone wikis stable names.

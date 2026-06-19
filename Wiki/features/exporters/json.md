@@ -28,6 +28,13 @@ openknowledge to json --spec <version> [path]
 | `--out` | flag | Optional output file. Defaults to stdout. |
 | `--spec` | flag | OKF spec version. Defaults to latest. |
 
+## Behavior
+
+`to json` parses and validates the bundle before serialization. Validation
+errors and warnings are included in the top-level `issues` array and attached to
+matching files. When `--out` is omitted, the JSON is printed to stdout. The
+HTML-only `--plain` flag is rejected for JSON.
+
 ## Use Cases
 
 * Feed bundle content to tools and agents.

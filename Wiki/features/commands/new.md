@@ -27,6 +27,17 @@ openknowledge new --help
 | `folder` | argument | Destination folder. Defaults to a slug derived from the knowledge base name. |
 | `--name` | flag | Knowledge base display name. If omitted, the CLI prompts. |
 
+## Behavior
+
+The command creates the destination directory when it does not exist and refuses
+to write into an existing non-empty directory. When `folder` is omitted, the CLI
+uses `--name` or the interactive name answer to derive a lowercase slug. When
+`folder` is provided and `--name` is omitted, the prompt default is a title
+derived from the folder name.
+
+The scaffold writes the core handoff files only: `index.md`, `log.md`,
+`AGENTS.md`, `SETUP.MD`, and `SPEC.md`.
+
 ## Use Cases
 
 * Create the initial bundle for a project wiki.

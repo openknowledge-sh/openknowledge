@@ -16,8 +16,19 @@ global help flags, and examples. Command-specific help is available through
 
 ```sh
 openknowledge --help
+openknowledge -h
 openknowledge <command> --help
+openknowledge <command> -h
 ```
+
+Command-specific help also accepts `-help`, because the command dispatcher
+recognizes the common Go flag help spelling after a subcommand.
+
+## Behavior
+
+Root help prints the supported command surface, global help flag, examples, and
+the command-specific help convention. Unknown commands print the root usage to
+stderr and exit with status `2`.
 
 ## Use Cases
 
