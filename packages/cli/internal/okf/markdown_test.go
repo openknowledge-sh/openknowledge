@@ -48,6 +48,19 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 			forbidden: []string{"[Setup]", "(guides/setup.md)"},
 		},
 		{
+			name:  "links with inline code labels",
+			input: "See [React `useEffect`](https://react.dev/reference/react/useEffect) and `[literal](skip.md)`.",
+			required: []string{
+				`<a href="/resolved/https://react.dev/reference/react/useEffect">React <code>useEffect</code></a>`,
+				`<code>[literal](skip.md)</code>`,
+			},
+			forbidden: []string{
+				"[React",
+				`](https://react.dev/reference/react/useEffect)`,
+				`href="/resolved/skip.md"`,
+			},
+		},
+		{
 			name: "unordered and ordered lists",
 			input: strings.Join([]string{
 				"- **Readable** by humans.",

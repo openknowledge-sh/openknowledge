@@ -166,6 +166,27 @@ func renderInline(text string, currentRel string, resolve LinkResolver) string {
 		resolve = func(_ string, href string) string { return href }
 	}
 
+	var builder strings.Builder
+	last := 0
+	for _, match := range inlineLink.FindAllStringSubmatchIndex(text, -1) {
+		if insideInlineCodeSpan(text, match[0]) {
+			continue
+		}
+		builder.WriteString(renderInlineText(text[last:match[0]]))
+		label := text[match[2]:match[3]]
+		href := text[match[4]:match[5]]
+		builder.WriteString(`<a href="`)
+		builder.WriteString(html.EscapeString(resolve(currentRel, href)))
+		builder.WriteString(`">`)
+		builder.WriteString(renderInlineText(label))
+		builder.WriteString("</a>")
+		last = match[1]
+	}
+	builder.WriteString(renderInlineText(text[last:]))
+	return builder.String()
+}
+
+func renderInlineText(text string) string {
 	parts := strings.Split(text, "`")
 	var builder strings.Builder
 	for index, part := range parts {
@@ -175,27 +196,13 @@ func renderInline(text string, currentRel string, resolve LinkResolver) string {
 			builder.WriteString("</code>")
 			continue
 		}
-		builder.WriteString(renderInlineMarkup(part, currentRel, resolve))
+		builder.WriteString(renderEmphasis(part))
 	}
 	return builder.String()
 }
 
-func renderInlineMarkup(text string, currentRel string, resolve LinkResolver) string {
-	var builder strings.Builder
-	last := 0
-	for _, match := range inlineLink.FindAllStringSubmatchIndex(text, -1) {
-		builder.WriteString(renderEmphasis(text[last:match[0]]))
-		label := text[match[2]:match[3]]
-		href := text[match[4]:match[5]]
-		builder.WriteString(`<a href="`)
-		builder.WriteString(html.EscapeString(resolve(currentRel, href)))
-		builder.WriteString(`">`)
-		builder.WriteString(renderEmphasis(label))
-		builder.WriteString("</a>")
-		last = match[1]
-	}
-	builder.WriteString(renderEmphasis(text[last:]))
-	return builder.String()
+func insideInlineCodeSpan(text string, offset int) bool {
+	return strings.Count(text[:offset], "`")%2 == 1
 }
 
 func renderEmphasis(text string) string {
