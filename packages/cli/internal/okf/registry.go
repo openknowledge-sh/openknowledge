@@ -69,42 +69,6 @@ func RegistryEntries() ([]RegistryEntry, error) {
 	return entries, nil
 }
 
-func AddRegistryEntry(name string, path string) (RegistryEntry, error) {
-	name = strings.TrimSpace(name)
-	if !validRegistryName(name) {
-		return RegistryEntry{}, fmt.Errorf("registry name must use letters, numbers, dots, underscores, or dashes and must not look like a path")
-	}
-
-	absolute, err := absoluteDirectory(path)
-	if err != nil {
-		return RegistryEntry{}, err
-	}
-
-	registry, err := LoadRegistry()
-	if err != nil {
-		return RegistryEntry{}, err
-	}
-
-	entry := RegistryEntry{Name: name, Path: absolute}
-	replaced := false
-	for index := range registry.Entries {
-		if registry.Entries[index].Name == name {
-			registry.Entries[index] = entry
-			replaced = true
-			break
-		}
-	}
-	if !replaced {
-		registry.Entries = append(registry.Entries, entry)
-	}
-	sortRegistryEntries(registry.Entries)
-
-	if err := saveRegistry(registry); err != nil {
-		return RegistryEntry{}, err
-	}
-	return entry, nil
-}
-
 func ConnectRegistryEntry(name string, path string, access string, explicitName bool) (RegistryEntry, string, error) {
 	name = strings.TrimSpace(name)
 	access = strings.TrimSpace(access)

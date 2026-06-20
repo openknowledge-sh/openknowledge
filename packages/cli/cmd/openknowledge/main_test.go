@@ -22,8 +22,10 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge disconnect <key|path>",
 		"openknowledge use <name|path> [entry]",
 		"openknowledge use <name|path> --info",
-		"openknowledge registry add <name> <path>",
-		"openknowledge where <name|path>",
+		"openknowledge registry connect <path>",
+		"openknowledge registry connect <path> --as <key>",
+		"openknowledge registry disconnect <key|path>",
+		"openknowledge registry where <name|path>",
 		"openknowledge open --name <alias-name> [path]",
 		"openknowledge open --host <host> --port <port> [path]",
 		"openknowledge open --no-browser [path]",
@@ -38,8 +40,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"connect    Connect a local knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
 		"use        Print an agent entrypoint from a bundle.",
-		"registry   Manage named knowledge base paths.",
-		"where      Print the path for a named knowledge base or path.",
+		"registry   Manage local knowledge bundle connections.",
 		"open       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
 		"spec       Print an embedded OKF spec.",
@@ -57,6 +58,17 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 	for _, expected := range required {
 		if !strings.Contains(help, expected) {
 			t.Fatalf("expected help text to include %q:\n%s", expected, help)
+		}
+	}
+
+	forbidden := []string{
+		"openknowledge registry add <name> <path>",
+		"openknowledge where <name|path>",
+		"where      Print the path for a named knowledge base or path.",
+	}
+	for _, unexpected := range forbidden {
+		if strings.Contains(help, unexpected) {
+			t.Fatalf("did not expect help text to include %q:\n%s", unexpected, help)
 		}
 	}
 }
@@ -85,7 +97,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			},
 		},
 		"connect": {
-			help: connectHelpText(),
+			help: connectHelpText("openknowledge connect"),
 			required: []string{
 				"openknowledge connect <path> --as <key>",
 				"--access",
@@ -93,12 +105,28 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"Remote URL sources are not supported yet",
 			},
 		},
+		"registry connect": {
+			help: connectHelpText("openknowledge registry connect"),
+			required: []string{
+				"openknowledge registry connect <path> --as <key>",
+				"openknowledge registry connect <path> --access read|write",
+				"openknowledge registry connect --help",
+			},
+		},
 		"disconnect": {
-			help: disconnectHelpText(),
+			help: disconnectHelpText("openknowledge disconnect"),
 			required: []string{
 				"openknowledge disconnect <key|path> --keep-files",
 				"openknowledge disconnect <key|path> --delete-files",
 				"reserved for future managed remote-cache entries",
+			},
+		},
+		"registry disconnect": {
+			help: disconnectHelpText("openknowledge registry disconnect"),
+			required: []string{
+				"openknowledge registry disconnect <key|path> --keep-files",
+				"openknowledge registry disconnect <key|path> --delete-files",
+				"openknowledge registry disconnect --help",
 			},
 		},
 		"use": {
@@ -112,15 +140,17 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"registry": {
 			help: registryHelpText(),
 			required: []string{
-				"openknowledge registry add <name> <path>",
-				"Registry names are shortcuts",
+				"openknowledge registry connect <path> --as <key>",
+				"openknowledge registry disconnect <key|path> --keep-files",
+				"openknowledge registry where <name|path>",
+				"Registry keys are shortcuts",
 				"openknowledge list personal",
 			},
 		},
-		"where": {
-			help: whereHelpText(),
+		"registry where": {
+			help: registryWhereHelpText(),
 			required: []string{
-				"openknowledge where <name|path>",
+				"openknowledge registry where <name|path>",
 				"Print the absolute path",
 			},
 		},

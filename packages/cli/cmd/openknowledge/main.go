@@ -31,15 +31,13 @@ func main() {
 	case "new":
 		os.Exit(runNew(os.Args[2:]))
 	case "connect":
-		os.Exit(runConnect(os.Args[2:]))
+		os.Exit(runConnect(os.Args[2:], "openknowledge connect"))
 	case "disconnect":
-		os.Exit(runDisconnect(os.Args[2:]))
+		os.Exit(runDisconnect(os.Args[2:], "openknowledge disconnect"))
 	case "use":
 		os.Exit(runUse(os.Args[2:]))
 	case "registry":
 		os.Exit(runRegistry(os.Args[2:]))
-	case "where":
-		os.Exit(runWhere(os.Args[2:]))
 	case "open":
 		os.Exit(runOpen(os.Args[2:]))
 	case "to":
@@ -182,7 +180,7 @@ func runNew(args []string) int {
 }
 
 func runRegistry(args []string) int {
-	if len(args) == 0 || hasHelpFlag(args) {
+	if len(args) == 0 || isHelpFlag(args[0]) {
 		fmt.Fprint(os.Stdout, registryHelpText())
 		return 0
 	}
@@ -200,20 +198,12 @@ func runRegistry(args []string) int {
 		}
 		printRegistryEntries(entries)
 		return 0
-	case "add":
-		if len(args) != 3 {
-			fmt.Fprintln(os.Stderr, "usage: openknowledge registry add <name> <path>")
-			return 2
-		}
-		entry, err := okf.AddRegistryEntry(args[1], args[2])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
-		terminal.success("Registered knowledge base")
-		fmt.Printf("%s %s\n", terminal.muted("name"), entry.Name)
-		fmt.Printf("%s %s\n", terminal.muted("path"), terminal.path(entry.Path))
-		return 0
+	case "connect":
+		return runConnect(args[1:], "openknowledge registry connect")
+	case "disconnect":
+		return runDisconnect(args[1:], "openknowledge registry disconnect")
+	case "where":
+		return runRegistryWhere(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown registry command: %s\n\n", args[0])
 		fmt.Fprint(os.Stderr, registryHelpText())
@@ -244,9 +234,9 @@ func parseBundleEntryFlags(values []string) ([]okf.BundleEntry, error) {
 	return entries, nil
 }
 
-func runConnect(args []string) int {
+func runConnect(args []string, command string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, connectHelpText())
+		fmt.Fprint(os.Stdout, connectHelpText(command))
 		return 0
 	}
 	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
@@ -258,7 +248,7 @@ func runConnect(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge connect <path> [--as <key>]")
+		fmt.Fprintf(os.Stderr, "usage: %s <path> [--as <key>]\n", command)
 		return 2
 	}
 
@@ -363,9 +353,9 @@ func looksLikeRemoteSource(value string) bool {
 		strings.HasPrefix(value, "git@")
 }
 
-func runDisconnect(args []string) int {
+func runDisconnect(args []string, command string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, disconnectHelpText())
+		fmt.Fprint(os.Stdout, disconnectHelpText(command))
 		return 0
 	}
 	fs := flag.NewFlagSet("disconnect", flag.ContinueOnError)
@@ -376,7 +366,7 @@ func runDisconnect(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge disconnect <key|path>")
+		fmt.Fprintf(os.Stderr, "usage: %s <key|path>\n", command)
 		return 2
 	}
 	if *deleteFilesFlag && *keepFilesFlag {
@@ -679,13 +669,13 @@ func printRegistryEntries(entries []okf.RegistryEntry) {
 	}
 }
 
-func runWhere(args []string) int {
+func runRegistryWhere(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, whereHelpText())
+		fmt.Fprint(os.Stdout, registryWhereHelpText())
 		return 0
 	}
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge where <name|path>")
+		fmt.Fprintln(os.Stderr, "usage: openknowledge registry where <name|path>")
 		return 2
 	}
 
@@ -1169,9 +1159,11 @@ Usage:
   openknowledge disconnect <key|path>
   openknowledge use <name|path> [entry]
   openknowledge use <name|path> --info
+  openknowledge registry connect <path>
+  openknowledge registry connect <path> --as <key>
+  openknowledge registry disconnect <key|path>
   openknowledge registry list
-  openknowledge registry add <name> <path>
-  openknowledge where <name|path>
+  openknowledge registry where <name|path>
   openknowledge open [path]
   openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
@@ -1193,8 +1185,7 @@ Commands:
   connect    Connect a local knowledge bundle.
   disconnect Remove a knowledge bundle connection.
   use        Print an agent entrypoint from a bundle.
-  registry   Manage named knowledge base paths.
-  where      Print the path for a named knowledge base or path.
+  registry   Manage local knowledge bundle connections.
   open       Start the registry or knowledge base Markdown viewer.
   to         Convert a bundle to another format.
   spec       Print an embedded OKF spec.
@@ -1214,8 +1205,8 @@ Examples:
   openknowledge use accessibility --info
   openknowledge use accessibility
   openknowledge disconnect accessibility
-  openknowledge registry add personal ~/knowledge
-  openknowledge where personal
+  openknowledge registry connect ./team-wiki --as team
+  openknowledge registry where accessibility
   openknowledge list personal
   openknowledge validate ./project-memory
   openknowledge to html --out ./site ./project-memory
@@ -1257,16 +1248,16 @@ Examples:
 `
 }
 
-func disconnectHelpText() string {
-	return `openknowledge disconnect
+func disconnectHelpText(command string) string {
+	return fmt.Sprintf(`%s
 
 Remove a knowledge bundle connection from the user registry.
 
 Usage:
-  openknowledge disconnect <key|path>
-  openknowledge disconnect <key|path> --keep-files
-  openknowledge disconnect <key|path> --delete-files
-  openknowledge disconnect --help
+  %[1]s <key|path>
+  %[1]s <key|path> --keep-files
+  %[1]s <key|path> --delete-files
+  %[1]s --help
 
 Arguments:
   key|path        Connection key or connected local path.
@@ -1279,22 +1270,22 @@ The local connect command creates non-managed connections, so --delete-files is
 reserved for future managed remote-cache entries.
 
 Examples:
-  openknowledge disconnect accessibility
-  openknowledge disconnect ./project-memory --keep-files
-`
+  %[1]s accessibility
+  %[1]s ./project-memory --keep-files
+`, command)
 }
 
-func connectHelpText() string {
-	return `openknowledge connect
+func connectHelpText(command string) string {
+	return fmt.Sprintf(`%s
 
 Connect a local Open Knowledge bundle to the user registry.
 
 Usage:
-  openknowledge connect <path>
-  openknowledge connect <path> --as <key>
-  openknowledge connect <path> --access read|write
-  openknowledge connect <path> --no-validate
-  openknowledge connect --help
+  %[1]s <path>
+  %[1]s <path> --as <key>
+  %[1]s <path> --access read|write
+  %[1]s <path> --no-validate
+  %[1]s --help
 
 Arguments:
   path           Local knowledge base root. Registry names are also accepted
@@ -1309,44 +1300,53 @@ Remote URL sources are not supported yet. Clone remote bundles locally, then
 connect the local directory.
 
 Examples:
-  openknowledge connect ./project-memory
-  openknowledge connect ./accessibility --as accessibility
-  openknowledge connect ./team-wiki --access write
-`
+  %[1]s ./project-memory
+  %[1]s ./accessibility --as accessibility
+  %[1]s ./team-wiki --access write
+`, command)
 }
 
 func registryHelpText() string {
 	return `openknowledge registry
 
-Manage named knowledge base paths.
+Manage local knowledge bundle connections.
 
 Usage:
+  openknowledge registry connect <path>
+  openknowledge registry connect <path> --as <key>
+  openknowledge registry disconnect <key|path>
+  openknowledge registry disconnect <key|path> --keep-files
   openknowledge registry list
-  openknowledge registry add <name> <path>
+  openknowledge registry where <name|path>
   openknowledge registry --help
 
-Registry names are shortcuts for normal filesystem paths. Path-based commands
-continue to work directly, for example openknowledge list ./project-memory.
+Registry keys are shortcuts for local knowledge bundle paths. Path-based
+commands continue to work directly, for example openknowledge list
+./project-memory.
+
+Top-level openknowledge connect and openknowledge disconnect are aliases for
+the registry subcommands.
 
 Examples:
-  openknowledge registry add personal ~/knowledge
+  openknowledge registry connect ./project-memory --as personal
   openknowledge registry list
+  openknowledge registry where personal
   openknowledge list personal
 `
 }
 
-func whereHelpText() string {
-	return `openknowledge where
+func registryWhereHelpText() string {
+	return `openknowledge registry where
 
 Print the absolute path for a named knowledge base or path.
 
 Usage:
-  openknowledge where <name|path>
-  openknowledge where --help
+  openknowledge registry where <name|path>
+  openknowledge registry where --help
 
 Examples:
-  openknowledge where personal
-  openknowledge where ./project-memory
+  openknowledge registry where personal
+  openknowledge registry where ./project-memory
 `
 }
 

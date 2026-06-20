@@ -52,6 +52,11 @@ help, README command tables, and this wiki.
 
 ### 2026-06-20
 
+Root help removed top-level `where` and the `registry add` subcommand, added
+`openknowledge registry connect`, `openknowledge registry disconnect`, and
+`openknowledge registry where`, and reframed `registry` as the
+connection-management namespace.
+
 Root help added `openknowledge use <name|path> [entry]`,
 `openknowledge use <name|path> --info`, a `use` command summary, and quick
 examples for inspecting and printing an entrypoint.

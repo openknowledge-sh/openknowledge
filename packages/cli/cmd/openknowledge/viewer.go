@@ -944,7 +944,7 @@ func renderRegistryEmpty(response http.ResponseWriter) {
 		Title:     "Open Knowledge Registry",
 		BrandName: "Open Knowledge",
 		Theme:     viewerThemeData{Name: "default"},
-		Error:     "No registered knowledge bases. Add one with openknowledge registry add <name> <path>.",
+		Error:     "No registered knowledge bases. Add one with openknowledge registry connect <path> --as <key>.",
 	})
 }
 

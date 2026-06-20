@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Registry owns connection commands
+
+* `openknowledge registry connect`, `openknowledge registry disconnect`, and
+  `openknowledge registry where` now own connection creation, removal, listing,
+  and path lookup under one namespace.
+* The early `openknowledge registry add` and top-level `openknowledge where`
+  surfaces were removed. Top-level `openknowledge connect` and
+  `openknowledge disconnect` remain as aliases for the registry subcommands.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/registry.md`,
+  `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/disconnect.md`, `Wiki/features/commands/help.md`,
+  `Wiki/features/commands/index.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer mobile header search no longer overlaps brand
 
 * The shared viewer CSS now lets the top-bar search field override its desktop

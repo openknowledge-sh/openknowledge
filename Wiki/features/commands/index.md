@@ -10,9 +10,8 @@ anchors. Keep this index as the quick map.
 * [New](new.md) - scaffold a local OKF bundle.
 * [Connect](connect.md) - add a local OKF bundle to the local knowledge registry.
 * [Disconnect](disconnect.md) - remove a connected bundle from the local registry.
-* [Registry](registry.md) - current low-level named path registry and candidate internal storage layer.
+* [Registry](registry.md) - manage local bundle connections, listing, and path lookup.
 * [Use](use.md) - print agent entrypoint Markdown or metadata from a bundle.
-* [Where](where.md) - resolve names or paths to absolute bundle paths.
 * [Open](open.md) - local Markdown viewer.
 * [To](to.md) - conversion command group.
 * [Spec](spec.md) - print embedded OKF specs.

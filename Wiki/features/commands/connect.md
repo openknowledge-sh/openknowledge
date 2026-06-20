@@ -9,9 +9,8 @@ timestamp: 2026-06-20T00:00:00Z
 # `openknowledge connect`
 
 `openknowledge connect` adds a local Open Knowledge bundle to the user's
-registry so later commands can refer to it by a stable key. It is the
-user-facing path for creating registry entries; `openknowledge registry add`
-remains the low-level compatibility command.
+registry so later commands can refer to it by a stable key. It is a top-level
+alias for `openknowledge registry connect`.
 
 The shipped implementation connects existing local directories. Remote URL
 materialization is still planned work; clone a remote bundle locally before
@@ -80,7 +79,7 @@ Validation is a status signal, not a connection gate:
 openknowledge connect ./project-memory
 openknowledge connect ./accessibility --as accessibility
 openknowledge connect ./team-wiki --access write
-openknowledge where accessibility
+openknowledge registry where accessibility
 openknowledge use accessibility --info
 ```
 
@@ -105,6 +104,9 @@ future migration candidate.
 ## Command Change History
 
 ### 2026-06-20
+
+`openknowledge connect` became the top-level alias for the registry `connect`
+subcommand after connection management moved under the registry namespace.
 
 `openknowledge connect` shipped for local directories with `--as`,
 `--access`, and `--no-validate`, metadata-derived keys, validation status

@@ -9,7 +9,8 @@ timestamp: 2026-06-20T00:00:00Z
 # `openknowledge disconnect`
 
 `openknowledge disconnect` removes one knowledge bundle connection from the
-user registry. It unregisters the connection and keeps files by default.
+user registry. It unregisters the connection and keeps files by default. It is
+a top-level alias for `openknowledge registry disconnect`.
 
 The shipped local `connect` command creates non-managed connections, so
 `disconnect --delete-files` is reserved for future managed remote-cache entries
@@ -68,6 +69,10 @@ openknowledge disconnect ./project-memory --keep-files
 ## Command Change History
 
 ### 2026-06-20
+
+`openknowledge disconnect` became the top-level alias for the registry
+`disconnect` subcommand after connection management moved under the registry
+namespace.
 
 `openknowledge disconnect` shipped with key/path target resolution,
 `--keep-files`, guarded `--delete-files`, unknown-target key hints, and

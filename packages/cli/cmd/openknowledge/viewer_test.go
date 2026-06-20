@@ -939,7 +939,7 @@ func TestViewerLocalAliasNameNormalization(t *testing.T) {
 func TestDirectViewerAliasNameUsesRegistryPath(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
-	if _, err := okf.AddRegistryEntry("personal", root); err != nil {
+	if _, _, err := okf.ConnectRegistryEntry("personal", root, "read", true); err != nil {
 		t.Fatal(err)
 	}
 

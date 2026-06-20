@@ -5,14 +5,17 @@ import (
 	"testing"
 )
 
-func TestRegistryAddListAndResolve(t *testing.T) {
+func TestRegistryConnectListAndResolve(t *testing.T) {
 	registryFile := filepath.Join(t.TempDir(), "registry.json")
 	t.Setenv(RegistryFileEnv, registryFile)
 
 	root := t.TempDir()
-	entry, err := AddRegistryEntry("personal", root)
+	entry, warning, err := ConnectRegistryEntry("personal", root, "read", true)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if warning != "" {
+		t.Fatalf("did not expect connection warning, got %q", warning)
 	}
 	if entry.Name != "personal" || entry.Path != root {
 		t.Fatalf("unexpected registry entry: %#v", entry)
@@ -40,7 +43,7 @@ func TestResolveKnowledgeRootKeepsExplicitPaths(t *testing.T) {
 	t.Setenv(RegistryFileEnv, registryFile)
 
 	root := t.TempDir()
-	if _, err := AddRegistryEntry("personal", root); err != nil {
+	if _, _, err := ConnectRegistryEntry("personal", root, "read", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -53,12 +56,12 @@ func TestResolveKnowledgeRootKeepsExplicitPaths(t *testing.T) {
 	}
 }
 
-func TestRegistryRejectsPathLikeNames(t *testing.T) {
+func TestRegistryRejectsPathLikeKeys(t *testing.T) {
 	registryFile := filepath.Join(t.TempDir(), "registry.json")
 	t.Setenv(RegistryFileEnv, registryFile)
 
-	if _, err := AddRegistryEntry("./personal", t.TempDir()); err == nil {
-		t.Fatal("expected path-like registry name to fail")
+	if _, _, err := ConnectRegistryEntry("./personal", t.TempDir(), "read", true); err == nil {
+		t.Fatal("expected path-like registry key to fail")
 	}
 }
 
