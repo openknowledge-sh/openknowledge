@@ -1,10 +1,8 @@
 package okf
 
 import (
-	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -67,46 +65,24 @@ func ParseBundleWithVersion(root string, version string) (Bundle, error) {
 
 func bundleFiles(root string, issues []Issue) ([]BundleFile, error) {
 	issuesByPath := groupIssuesByPath(issues)
-	var files []BundleFile
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !isMarkdown(path) {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		rel := relPath(root, path)
-		meta, body, _ := splitFrontmatter(string(content))
-		files = append(files, bundleFile(root, rel, meta, body, string(content), issuesByPath[rel]))
-		return nil
-	})
+	documents, err := parseMarkdownDocuments(root)
 	if err != nil {
 		return nil, err
 	}
 
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Path < files[j].Path
-	})
+	files := make([]BundleFile, 0, len(documents))
+	for _, document := range documents {
+		files = append(files, bundleFile(root, document, issuesByPath[document.Rel]))
+	}
 	return files, nil
 }
 
-func bundleFile(root string, rel string, meta frontmatter, body string, content string, issues []Issue) BundleFile {
+func bundleFile(root string, document parsedDocument, issues []Issue) BundleFile {
 	entry := ListEntry{}
-	if isReserved(rel) {
-		entry = reservedEntry(rel)
+	if isReserved(document.Rel) {
+		entry = reservedEntry(document.Rel)
 	} else {
-		entry = conceptEntry(rel, meta)
+		entry = conceptEntry(document.Rel, document.Frontmatter)
 	}
 
 	return BundleFile{
@@ -118,9 +94,9 @@ func bundleFile(root string, rel string, meta frontmatter, body string, content 
 		Title:       entry.Title,
 		Description: entry.Description,
 		Resource:    entry.Resource,
-		Frontmatter: frontmatterValues(meta),
-		Body:        body,
-		Links:       ExtractLinks(root, rel, content),
+		Frontmatter: frontmatterValues(document.Frontmatter),
+		Body:        document.Body,
+		Links:       ExtractLinks(root, document.Rel, document.Content),
 		Issues:      issues,
 	}
 }

@@ -1,10 +1,7 @@
 package okf
 
 import (
-	"io/fs"
-	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -42,46 +39,23 @@ func ListWithVersion(root string, version string) (ListResult, error) {
 
 func listInventory(absolute string, issues []Issue) (ListResult, error) {
 	issuesByPath := groupIssuesByPath(issues)
-	var entries []ListEntry
-	err := filepath.WalkDir(absolute, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !isMarkdown(path) || isReserved(path) {
-			if !isMarkdown(path) {
-				return nil
-			}
-			rel := relPath(absolute, path)
-			entries = append(entries, attachIssues(reservedEntry(rel), issuesByPath))
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		rel := relPath(absolute, path)
-		meta, _, err := splitFrontmatter(string(content))
-		if err != nil {
-			entries = append(entries, attachIssues(conceptEntry(rel, frontmatter{}), issuesByPath))
-			return nil
-		}
-		entries = append(entries, attachIssues(conceptEntry(rel, meta), issuesByPath))
-		return nil
-	})
+	documents, err := parseMarkdownDocuments(absolute)
 	if err != nil {
 		return ListResult{}, err
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Path < entries[j].Path
-	})
+	entries := make([]ListEntry, 0, len(documents))
+	for _, document := range documents {
+		if isReserved(document.Rel) {
+			entries = append(entries, attachIssues(reservedEntry(document.Rel), issuesByPath))
+			continue
+		}
+		if document.FrontmatterErr != nil {
+			entries = append(entries, attachIssues(conceptEntry(document.Rel, frontmatter{}), issuesByPath))
+			continue
+		}
+		entries = append(entries, attachIssues(conceptEntry(document.Rel, document.Frontmatter), issuesByPath))
+	}
 	return ListResult{Root: absolute, Entries: entries}, nil
 }
 
