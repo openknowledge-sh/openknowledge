@@ -11,15 +11,19 @@ func TestReadBundleInfoReadsRootMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", `---
 okf_version: "0.1"
-okf_bundle_name: accessibility
-okf_bundle_title: "Accessibility Review"
-okf_bundle_purpose: "Review UI accessibility."
-okf_bundle_tags: ["accessibility", "ui", "review"]
-okf_bundle_entry_review: "agents/review.md"
-okf_bundle_entry_default: "agents/checker.md"
 ---
 
 # Root Heading
+`)
+	writeFile(t, root, ConfigFile, `[bundle]
+name = "accessibility"
+title = "Accessibility Review"
+purpose = "Review UI accessibility."
+tags = ["accessibility", "ui", "review"]
+
+[bundle.entries]
+review = "agents/review.md"
+default = "agents/checker.md"
 `)
 
 	info, err := ReadBundleInfo(root)
@@ -37,6 +41,51 @@ okf_bundle_entry_default: "agents/checker.md"
 	}
 	if !reflect.DeepEqual(info.EntryNames(), []string{"default", "review"}) {
 		t.Fatalf("unexpected entry names: %#v", info.EntryNames())
+	}
+}
+
+func TestReadConfigReadsBundleMetadataAndPublishExcludes(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, ConfigFile, `[bundle]
+name = "accessibility"
+title = "Accessibility Review"
+purpose = "Review UI accessibility."
+tags = ["accessibility", "ui", "review", "ui"]
+
+[bundle.entries]
+review = "agents/review.md"
+default = "agents/checker.md"
+
+[publish]
+exclude = ["drafts/index.md", "./archive/old.md"]
+`)
+
+	config, err := ReadConfig(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Bundle.Name != "accessibility" || config.Bundle.Title != "Accessibility Review" || config.Bundle.Purpose != "Review UI accessibility." {
+		t.Fatalf("unexpected bundle metadata: %#v", config.Bundle)
+	}
+	if !reflect.DeepEqual(config.Bundle.Tags, []string{"accessibility", "ui", "review"}) {
+		t.Fatalf("unexpected tags: %#v", config.Bundle.Tags)
+	}
+	if !reflect.DeepEqual(config.Bundle.Entries, []BundleEntry{{Name: "default", Path: "agents/checker.md"}, {Name: "review", Path: "agents/review.md"}}) {
+		t.Fatalf("unexpected entries: %#v", config.Bundle.Entries)
+	}
+	for _, path := range []string{"drafts/index.md", "archive/old.md"} {
+		if _, ok := config.PublishExclude[path]; !ok {
+			t.Fatalf("expected publish exclusion for %s in %#v", path, config.PublishExclude)
+		}
+	}
+}
+
+func TestReadConfigRejectsPublishExclusionOutsideBundle(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, ConfigFile, "[publish]\nexclude = [\"../outside.md\"]\n")
+
+	if _, err := ReadConfig(root); err == nil {
+		t.Fatal("expected outside publish exclusion to fail")
 	}
 }
 

@@ -89,10 +89,10 @@ They share parsing, output, and exit-code behavior.
 ## Connection Semantics
 
 `registry connect` accepts a local folder, derives a key from `--as`,
-`okf_bundle_name`, or the folder name, resolves the folder to an absolute path,
-and writes a registry entry. If the key was implicit and already points to a
-different path, it chooses a suffixed key such as `project-2`. If the key was
-explicit and collides with another path, it fails.
+`openknowledge.toml` `[bundle].name`, or the folder name, resolves the folder
+to an absolute path, and writes a registry entry. If the key was implicit and
+already points to a different path, it chooses a suffixed key such as
+`project-2`. If the key was explicit and collides with another path, it fails.
 
 Registry entries may now include optional `access` and `managed` fields. The
 current local connection command stores `access` as `read` or `write` and
@@ -124,8 +124,9 @@ Future registry storage should be path-keyed instead of name-keyed:
 ```
 
 Bundle metadata such as purpose, tags, and entrypoints remains in bundle
-content as `okf_bundle_*` root metadata. A future registry migration may store
-local state as path-keyed connections with source and managed-cache metadata.
+content under `openknowledge.toml` `[bundle]` and `[bundle.entries]`. A future
+registry migration may store local state as path-keyed connections with source
+and managed-cache metadata.
 
 ## Source Anchors
 

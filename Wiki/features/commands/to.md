@@ -61,7 +61,9 @@ viewer, and soft-wrapped list continuation lines stay inside their bullet or
 numbered item. The default viewer export
 reads optional `[html.theme]` settings from `openknowledge.toml`, links the
 configured stylesheet after built-in viewer CSS, and copies local theme CSS
-files into the output folder.
+files into the output folder. Files listed in `[publish] exclude` are omitted
+from HTML output; concept documents may also use `okf_publish: false`
+frontmatter for the same public-view exclusion.
 The built-in theme contract lives in
 `packages/cli/cmd/openknowledge/viewer_theme.css`, and the exported viewer
 derives colors, fonts, and viewer dimensions from its `--ok-*` variables. The

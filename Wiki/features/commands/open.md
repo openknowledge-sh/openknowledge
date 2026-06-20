@@ -22,9 +22,9 @@ uses explicit heading and list spacing so section breaks and multi-line bullets
 remain visually distinct.
 
 The document header brand is the knowledge base display name, not the product
-name. It prefers root `index.md` metadata in this order:
-`okf_bundle_title`, `okf_bundle_name`, then root index title metadata or the
-first H1. If none of those are present, it falls back to `Open Knowledge`.
+name. It prefers `openknowledge.toml` `[bundle].title`, then `[bundle].name`,
+then the root `index.md` H1. If none of those are present, it falls back to
+`Open Knowledge`.
 
 In direct knowledge base mode, Markdown links open into a horizontally
 scrollable stack of panels. The viewer does not switch into a separate

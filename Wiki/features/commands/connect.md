@@ -31,7 +31,7 @@ openknowledge connect --help
 | Name | Kind | Description |
 | --- | --- | --- |
 | `path` | argument | Local bundle root. Existing registry names are accepted and resolve to their stored path. |
-| `--as` | flag | Explicit connection key. Defaults to root `okf_bundle_name`, then the folder name. |
+| `--as` | flag | Explicit connection key. Defaults to `[bundle].name` in `openknowledge.toml`, then the folder name. |
 | `--access` | flag | Access label stored with the connection, `read` or `write`. Defaults to `read`. |
 | `--no-validate` | flag | Skip the validation status check in success output. |
 
@@ -42,18 +42,18 @@ are normalized when needed.
 ## Behavior
 
 `connect` resolves the target to an absolute local directory, reads optional
-root `index.md` metadata, writes or updates the registry entry, then prints a
-validation status unless `--no-validate` is set.
+`openknowledge.toml` bundle metadata, writes or updates the registry entry,
+then prints a validation status unless `--no-validate` is set.
 
-Root metadata keys used by `connect`:
+Bundle metadata keys used by `connect`:
 
 | Key | Meaning |
 | --- | --- |
-| `okf_bundle_name` | Preferred default key when `--as` is omitted. |
-| `okf_bundle_title` | Display name in success output. |
-| `okf_bundle_purpose` | Purpose shown in success output. |
-| `okf_bundle_tags` | Discovery tags parsed from a YAML flow list. |
-| `okf_bundle_entry_<name>` | Entrypoint names listed in success output. |
+| `[bundle].name` | Preferred default key when `--as` is omitted. |
+| `[bundle].title` | Display name in success output. |
+| `[bundle].purpose` | Purpose shown in success output. |
+| `[bundle].tags` | Discovery tags. |
+| `[bundle.entries]` | Entrypoint names listed in success output. |
 
 Missing metadata does not block connection. Display names fall back to the root
 `index.md` H1, then the folder name. Without metadata, `connect` still stores

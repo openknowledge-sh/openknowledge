@@ -26,7 +26,7 @@ func TestValidateMinimalBundle(t *testing.T) {
 	}
 }
 
-func TestValidateRootIndexAllowsBundleMetadata(t *testing.T) {
+func TestValidateRootIndexRejectsBundleMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: \"accessibility\"\nokf_bundle_title: \"Accessibility Review\"\nokf_bundle_tags: [\"accessibility\", \"review\"]\nokf_bundle_entry_default: \"agents/checker.md\"\n---\n\n# Bundle\n")
 	writeFile(t, root, "concept.md", "---\ntype: Concept\n---\n")
@@ -35,12 +35,12 @@ func TestValidateRootIndexAllowsBundleMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Errors) != 0 {
-		t.Fatalf("expected root bundle metadata to validate, got %#v", result.Errors)
+	if countRule(result.Errors, "index-frontmatter") == 0 {
+		t.Fatalf("expected root bundle metadata to fail reserved index validation, got %#v", result.Errors)
 	}
 }
 
-func TestValidateIndexAllowsPublishMetadata(t *testing.T) {
+func TestValidateIndexRejectsPublishMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Bundle\n")
 	writeFile(t, root, "docs/index.md", "---\nokf_publish: false\n---\n\n# Docs\n")
@@ -50,8 +50,8 @@ func TestValidateIndexAllowsPublishMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Errors) != 0 {
-		t.Fatalf("expected index publish metadata to validate, got %#v", result.Errors)
+	if countRule(result.Errors, "index-frontmatter") != 1 {
+		t.Fatalf("expected index publish metadata to fail reserved index validation, got %#v", result.Errors)
 	}
 }
 
@@ -393,17 +393,27 @@ func TestNewProjectWritesOptionalBundleMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 	index := string(content)
+	if strings.Contains(index, "okf_bundle_") {
+		t.Fatalf("expected generated index.md to omit bundle metadata:\n%s", index)
+	}
+	config, err := os.ReadFile(filepath.Join(target, ConfigFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	configText := string(config)
 	required := []string{
-		`okf_bundle_name: "accessibility"`,
-		`okf_bundle_title: "Accessibility Review"`,
-		`okf_bundle_purpose: "Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems."`,
-		`okf_bundle_tags: ["accessibility", "ui", "review"]`,
-		`okf_bundle_entry_default: "agents/accessibility-checker.md"`,
-		`okf_bundle_entry_review: "agents/accessibility-review.md"`,
+		`[bundle]`,
+		`name = "accessibility"`,
+		`title = "Accessibility Review"`,
+		`purpose = "Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems."`,
+		`tags = ["accessibility", "ui", "review"]`,
+		`[bundle.entries]`,
+		`default = "agents/accessibility-checker.md"`,
+		`review = "agents/accessibility-review.md"`,
 	}
 	for _, expected := range required {
-		if !strings.Contains(index, expected) {
-			t.Fatalf("expected generated index.md to include %q:\n%s", expected, index)
+		if !strings.Contains(configText, expected) {
+			t.Fatalf("expected generated openknowledge.toml to include %q:\n%s", expected, configText)
 		}
 	}
 

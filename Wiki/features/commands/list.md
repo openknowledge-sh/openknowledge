@@ -68,8 +68,8 @@ content:
 
 * `key`, `path`, `access`, `source`, and `managed` come from the local
   connection registry.
-* `name`, `purpose`, `tags`, and entrypoint names are read from root
-  `okf_bundle_*` metadata when present.
+* `name`, `purpose`, `tags`, and entrypoint names are read from
+  `openknowledge.toml` `[bundle]` metadata when present.
 * If metadata is absent, `name` falls back to the root `index.md` H1, then the
   folder basename.
 * `status` comes from the latest validation run or an on-demand lightweight

@@ -66,10 +66,8 @@ Current errors:
   malformed top-level key, missing `key: value` spacing for a scalar, unclosed
   quotes, or unclosed flow `[]` / `{}` values.
 * A concept document is missing YAML frontmatter or has an empty `type`.
-* A non-root `index.md` uses frontmatter other than optional `okf_publish`
-  metadata.
-* Root `index.md` declares frontmatter keys other than `okf_version` or
-  optional `okf_publish` or Open Knowledge CLI `okf_bundle_*` metadata.
+* A non-root `index.md` uses frontmatter.
+* Root `index.md` declares frontmatter keys other than `okf_version`.
 * `log.md` uses frontmatter.
 * A `log.md` `##` heading is not exactly `## YYYY-MM-DD`.
 
@@ -88,11 +86,11 @@ The frontmatter parser is intentionally lightweight. It extracts top-level
 scalar keys for OKF validation and skips nested YAML lines or sequence items
 instead of enforcing a complete YAML schema.
 
-Root `okf_bundle_*` keys are an optional Open Knowledge CLI metadata layer for
-bundle discovery and future agent entrypoint routing. They are accepted in the
-bundle-root `index.md`. Any `index.md` may also declare `okf_publish: false` so
-public-view publishers can exclude that index while the OKF validator still
-treats it as a reserved file instead of a concept document.
+Open Knowledge CLI metadata lives in `openknowledge.toml`, not reserved
+`index.md` frontmatter. Concept documents may still declare
+`okf_publish: false` because OKF requires consumers to tolerate unknown concept
+frontmatter keys. To exclude reserved indexes or other files from public HTML
+exports, use `[publish] exclude` in `openknowledge.toml`.
 
 ## Use Cases
 

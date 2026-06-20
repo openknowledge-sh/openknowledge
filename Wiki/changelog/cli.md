@@ -14,6 +14,35 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Reserved index frontmatter is spec-strict
+
+* `openknowledge validate` now rejects extension frontmatter on reserved
+  `index.md` files: root indexes may only declare `okf_version`, and non-root
+  indexes must not use frontmatter.
+* `openknowledge new --bundle-*` now writes optional bundle metadata to
+  `openknowledge.toml` under `[bundle]` and `[bundle.entries]` instead of
+  writing `okf_bundle_*` keys to root `index.md`.
+* Static HTML exporters now support `[publish] exclude` in `openknowledge.toml`
+  for excluding reserved indexes or other files, while concept-level
+  `okf_publish: false` remains supported.
+* Source anchors: `packages/cli/internal/okf/config.go`,
+  `packages/cli/internal/okf/validate.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/internal/okf/html.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`.
+* Docs updated: `README.md`,
+  `Wiki/features/commands/new.md`,
+  `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/use.md`,
+  `Wiki/features/commands/validate.md`,
+  `Wiki/features/commands/open.md`,
+  `Wiki/features/commands/to.md`,
+  `Wiki/features/commands/list.md`,
+  `Wiki/features/commands/registry.md`,
+  `Wiki/features/exporters/html.md`,
+  `Wiki/features/spec-compliance.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Static viewer brand stays inside exported wiki
 
 * Default `openknowledge to html` viewer exports now link the header brand to

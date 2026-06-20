@@ -27,11 +27,11 @@ openknowledge new --help
 | --- | --- | --- |
 | `folder` | argument | Destination folder. Defaults to a slug derived from the knowledge base name. |
 | `--name` | flag | Knowledge base display name. If omitted, the CLI prompts. |
-| `--bundle-name` | flag | Optional stable bundle id written to root `index.md` as `okf_bundle_name`. |
-| `--bundle-title` | flag | Optional display title written as `okf_bundle_title`. |
-| `--bundle-purpose` | flag | Optional bundle purpose written as `okf_bundle_purpose`. |
-| `--bundle-tag` | repeatable flag | Optional bundle tag written into `okf_bundle_tags`. |
-| `--bundle-entry` | repeatable flag | Optional entrypoint mapping as `name=path`, written as `okf_bundle_entry_<name>`. |
+| `--bundle-name` | flag | Optional stable bundle id written to `openknowledge.toml` as `[bundle].name`. |
+| `--bundle-title` | flag | Optional display title written as `[bundle].title`. |
+| `--bundle-purpose` | flag | Optional bundle purpose written as `[bundle].purpose`. |
+| `--bundle-tag` | repeatable flag | Optional bundle tag written into `[bundle].tags`. |
+| `--bundle-entry` | repeatable flag | Optional entrypoint mapping as `name=path`, written under `[bundle.entries]`. |
 
 ## Behavior
 
@@ -41,20 +41,33 @@ uses `--name` or the interactive name answer to derive a lowercase slug. When
 `folder` is provided and `--name` is omitted, the prompt default is a title
 derived from the folder name.
 
-The scaffold writes the core handoff files only: `index.md`, `log.md`,
+The default scaffold writes the core handoff files only: `index.md`, `log.md`,
 `AGENTS.md`, `SETUP.MD`, and `SPEC.md`.
 
 When bundle metadata flags are provided, `new` writes optional Open Knowledge
-CLI metadata into the root `index.md` frontmatter as flat `okf_bundle_*` keys.
-This metadata is a tooling layer for discovery, future `connect`, and candidate
-`use` entrypoint routing; it is not required for OKF conformance. Without these
-flags, `new` writes only `okf_version: "0.1"` in the root index frontmatter.
+CLI metadata into `openknowledge.toml` under `[bundle]` and `[bundle.entries]`.
+This metadata is a tooling layer for discovery, `connect`, and `use` entrypoint
+routing; it is not required for OKF conformance. Root `index.md` keeps only
+`okf_version: "0.1"` frontmatter.
 
 `--bundle-entry` accepts repeatable `name=path` values. For example,
 `--bundle-entry default=agents/checker.md` writes
-`okf_bundle_entry_default: "agents/checker.md"`. The command records the
+`default = "agents/checker.md"` under `[bundle.entries]`. The command records the
 mapping only; setup or later authoring should create and maintain the target
 entrypoint document.
+
+Generated `openknowledge.toml` metadata uses this shape:
+
+```toml
+[bundle]
+name = "accessibility"
+title = "Accessibility Review"
+purpose = "Accessibility review guidance."
+tags = ["accessibility", "review"]
+
+[bundle.entries]
+default = "agents/accessibility-checker.md"
+```
 
 ## Quick Examples
 

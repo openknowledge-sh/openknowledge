@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -112,11 +113,11 @@ func newProjectFiles(name string, metadata BundleMetadata) []projectFile {
 	date := time.Now().Format("2006-01-02")
 	title := markdownEscape(name)
 
-	return []projectFile{
+	files := []projectFile{
 		{
 			name: "index.md",
 			content: fmt.Sprintf(`---
-%s
+okf_version: "0.1"
 ---
 
 # %s
@@ -136,7 +137,7 @@ This scaffold is intentionally small. During setup, create only the folders
 and pages that fit the user's interview and expectations. Common optional
 sections include workflows, references, decisions, raw sources, and
 domain-specific concept folders.
-`, bundleRootFrontmatter(metadata), title),
+`, title),
 		},
 		{
 			name: "log.md",
@@ -258,6 +259,13 @@ After the interview:
 			content: specDocument(),
 		},
 	}
+	if hasBundleMetadata(metadata) {
+		files = append(files, projectFile{
+			name:    ConfigFile,
+			content: bundleConfig(metadata),
+		})
+	}
+	return files
 }
 
 func normalizeBundleMetadata(metadata BundleMetadata) (BundleMetadata, error) {
@@ -317,39 +325,39 @@ func compactStrings(values []string) []string {
 	return compacted
 }
 
-func bundleRootFrontmatter(metadata BundleMetadata) string {
-	lines := []string{`okf_version: "0.1"`}
+func bundleConfig(metadata BundleMetadata) string {
+	lines := []string{"[bundle]"}
 	if metadata.Name != "" {
-		lines = append(lines, "okf_bundle_name: "+yamlQuotedScalar(metadata.Name))
+		lines = append(lines, "name = "+tomlQuotedString(metadata.Name))
 	}
 	if metadata.Title != "" {
-		lines = append(lines, "okf_bundle_title: "+yamlQuotedScalar(metadata.Title))
+		lines = append(lines, "title = "+tomlQuotedString(metadata.Title))
 	}
 	if metadata.Purpose != "" {
-		lines = append(lines, "okf_bundle_purpose: "+yamlQuotedScalar(metadata.Purpose))
+		lines = append(lines, "purpose = "+tomlQuotedString(metadata.Purpose))
 	}
 	if len(metadata.Tags) > 0 {
-		lines = append(lines, "okf_bundle_tags: "+yamlFlowSequence(metadata.Tags))
+		lines = append(lines, "tags = "+tomlStringArray(metadata.Tags))
 	}
-	for _, entry := range metadata.Entries {
-		lines = append(lines, "okf_bundle_entry_"+entry.Name+": "+yamlQuotedScalar(entry.Path))
+	if len(metadata.Entries) > 0 {
+		lines = append(lines, "", "[bundle.entries]")
+		for _, entry := range metadata.Entries {
+			lines = append(lines, entry.Name+" = "+tomlQuotedString(entry.Path))
+		}
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(lines, "\n") + "\n"
 }
 
-func yamlFlowSequence(values []string) string {
+func tomlStringArray(values []string) string {
 	quoted := make([]string, 0, len(values))
 	for _, value := range values {
-		quoted = append(quoted, yamlQuotedScalar(value))
+		quoted = append(quoted, tomlQuotedString(value))
 	}
 	return "[" + strings.Join(quoted, ", ") + "]"
 }
 
-func yamlQuotedScalar(value string) string {
-	value = markdownEscape(value)
-	value = strings.ReplaceAll(value, `\`, `\\`)
-	value = strings.ReplaceAll(value, `"`, `\"`)
-	return `"` + value + `"`
+func tomlQuotedString(value string) string {
+	return strconv.Quote(value)
 }
 
 func slugify(value string) string {

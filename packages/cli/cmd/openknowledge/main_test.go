@@ -133,7 +133,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: useHelpText(),
 			required: []string{
 				"openknowledge use <name|path> <entry> --info",
-				"okf_bundle_entry_<name>",
+				"[bundle.entries]",
 				"prints the bundle root index.md",
 			},
 		},
@@ -297,11 +297,13 @@ func TestSelectUseEntrypointUsesDefaultNamedAndRootFallback(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", `---
 okf_version: "0.1"
-okf_bundle_entry_default: "agents/default.md"
-okf_bundle_entry_review: "agents/review.md"
 ---
 
 # Bundle
+`)
+	writeMainTestFile(t, root, "openknowledge.toml", `[bundle.entries]
+default = "agents/default.md"
+review = "agents/review.md"
 `)
 	writeMainTestFile(t, root, "agents/default.md", "---\ntype: Agent Entrypoint\n---\n\n# Default\n")
 	writeMainTestFile(t, root, "agents/review.md", "---\ntype: Agent Entrypoint\n---\n\n# Review\n")

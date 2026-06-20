@@ -3,7 +3,6 @@ package okf
 import (
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -27,24 +26,25 @@ type MarkdownDocumentInfo struct {
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	info := BundleInfo{Root: root}
 	content, err := os.ReadFile(filepath.Join(root, "index.md"))
-	if os.IsNotExist(err) {
-		return info, nil
-	}
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return info, err
 	}
 
-	info.HasIndex = true
-	meta, body, err := splitFrontmatter(string(content))
+	if err == nil {
+		info.HasIndex = true
+		_, body, err := splitFrontmatter(string(content))
+		if err != nil {
+			return info, err
+		}
+		info.RootTitle = firstH1(body)
+	}
+
+	config, err := ReadConfig(root)
 	if err != nil {
 		return info, err
 	}
-
-	info.RootTitle = firstH1(body)
-	if meta.has {
-		info.Metadata = bundleMetadataFromFrontmatter(meta.values)
-		info.HasMetadata = hasBundleMetadata(info.Metadata)
-	}
+	info.Metadata = config.Bundle
+	info.HasMetadata = hasBundleMetadata(info.Metadata)
 	return info, nil
 }
 
@@ -99,36 +99,6 @@ func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, er
 	info.Tags = parseFlowStringList(meta.values["tags"])
 	info.UseWhen = parseFlowStringList(meta.values["use_when"])
 	return info, nil
-}
-
-func bundleMetadataFromFrontmatter(values map[string]string) BundleMetadata {
-	metadata := BundleMetadata{
-		Name:    strings.TrimSpace(values["okf_bundle_name"]),
-		Title:   strings.TrimSpace(values["okf_bundle_title"]),
-		Purpose: strings.TrimSpace(values["okf_bundle_purpose"]),
-		Tags:    parseFlowStringList(values["okf_bundle_tags"]),
-	}
-
-	for key, value := range values {
-		name, ok := strings.CutPrefix(key, "okf_bundle_entry_")
-		if !ok || strings.TrimSpace(name) == "" {
-			continue
-		}
-		metadata.Entries = append(metadata.Entries, BundleEntry{
-			Name: strings.TrimSpace(name),
-			Path: strings.TrimSpace(value),
-		})
-	}
-	sort.Slice(metadata.Entries, func(i, j int) bool {
-		if metadata.Entries[i].Name == "default" {
-			return true
-		}
-		if metadata.Entries[j].Name == "default" {
-			return false
-		}
-		return metadata.Entries[i].Name < metadata.Entries[j].Name
-	})
-	return metadata
 }
 
 func hasBundleMetadata(metadata BundleMetadata) bool {

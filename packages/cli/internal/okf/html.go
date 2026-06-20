@@ -41,6 +41,10 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 	if err != nil {
 		return HTMLResult{}, err
 	}
+	config, err := ReadConfig(bundle.Root)
+	if err != nil {
+		return HTMLResult{}, err
+	}
 
 	absoluteOut, err := filepath.Abs(out)
 	if err != nil {
@@ -49,7 +53,7 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 
 	var written []string
 	for _, file := range bundle.Files {
-		if !ShouldPublish(file) {
+		if !ShouldPublishWithConfig(file, config) {
 			continue
 		}
 		target := filepath.Join(absoluteOut, filepath.FromSlash(htmlPath(file.Path)))
