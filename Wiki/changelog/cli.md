@@ -14,6 +14,13 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Landing page loads Google tag
+
+* Added the Google `gtag.js` snippet with measurement ID `G-62SWM7FC2J` to the
+  landing page head.
+* Source anchors: `packages/web/index.html`, `Wiki/features/operations.md`.
+* Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Railway serves install redirect
 
 * The website server now redirects `/install` and `/install/` to the latest

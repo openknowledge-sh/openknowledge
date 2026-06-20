@@ -52,6 +52,10 @@ The web server redirects `/install` and `/install/` to
 Keep this redirect in `packages/web/scripts/serve.mjs` because Railway serves
 the site through the Node server.
 
+The landing page includes Google Analytics through `gtag.js` with measurement
+ID `G-62SWM7FC2J`. Keep the tag in `packages/web/index.html` so `pnpm build:web`
+copies it into `packages/web/dist/index.html`.
+
 `pnpm dev:web` serves source files from `packages/web` by default, refreshes the
 wiki export on startup, and then falls back to `packages/web/dist/wiki` for
 `/wiki/` URLs. Set `OPENKNOWLEDGE_WEB_EXPORT_WIKI=0` only when you intentionally
