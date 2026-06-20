@@ -18,8 +18,8 @@ that were updated.
 
 * The website server now redirects `/install` and `/install/` to the latest
   GitHub Release installer asset directly from `packages/web/scripts/serve.mjs`.
-* This restores `https://openknowledge.sh/install` on Railway, where Netlify
-  redirect rules are no longer in the request path.
+* This restores `https://openknowledge.sh/install` on Railway by keeping the
+  redirect in the app server.
 * Source anchors: `packages/web/scripts/serve.mjs`,
   `Wiki/features/operations.md`.
 * Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
@@ -59,14 +59,14 @@ that were updated.
 * Docs updated: `Wiki/features/commands/open.md`,
   `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
 
-### 2026-06-20 - Website redirects short wiki command URLs
+### 2026-06-20 - Website server redirects short wiki command URLs
 
-* The Netlify site now redirects short wiki command aliases such as
+* The website server now redirects short wiki command aliases such as
   `/wiki/disconnect.html` and `/wiki/disconnect` to the generated canonical
   command page under `/wiki/features/commands/`.
 * `pnpm dev:web` mirrors the same fallback after checking for existing static
   files, so local preview matches the deployed URL behavior.
-* Source anchors: `netlify.toml`, `packages/web/scripts/serve.mjs`.
+* Source anchors: `packages/web/scripts/serve.mjs`.
 * Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-06-20 - Root index frontmatter stays permissive
