@@ -209,7 +209,7 @@ ul, ol { padding-left: 22px; }
   body.viewer-document header { display: flex; height: var(--ok-mobile-header-height); justify-content: flex-end; padding: 0 12px; }
   .header-left { left: 12px; max-width: 42%; }
   .brand { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .header-search { width: min(52vw, 320px); min-width: 0; }
+  .search.header-search { width: min(52vw, 320px); min-width: 0; }
   .header-search .search-shortcut { display: none; }
   .header-search .search-input { padding-right: 10px; }
   .header-search .search-results { left: auto; width: min(320px, calc(100vw - 24px)); }

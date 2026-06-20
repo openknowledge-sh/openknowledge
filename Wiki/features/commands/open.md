@@ -71,7 +71,9 @@ embedded static note manifest in the browser. The result dropdown opens while
 the search field is focused, shows top file entries for an empty query, updates
 in place while typing, closes after a result is activated, and supports
 `ArrowDown`, `ArrowUp`, and `Enter` keyboard selection while keeping focus in
-the search field.
+the search field. On narrow mobile widths, the header search field is allowed
+to shrink below its desktop minimum width so it stays beside the brand instead
+of overlapping it.
 Reserved `index.md` files remain searchable but rank below comparable regular
 pages. The document viewer also keeps a small bottom-right
 `Powered by OpenKnowledge.sh` link to the project website.
@@ -80,8 +82,12 @@ Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.
 
 When the knowledge base root has `openknowledge.toml` with `[html.theme]`,
-the local viewer links the configured stylesheet through the raw file endpoint
-so the same theme can be previewed before running `openknowledge to html`.
+the local viewer applies the same theme metadata as `openknowledge to html`.
+It sets `data-openknowledge-theme` on viewer HTML and links the configured
+stylesheet through the raw file endpoint, including on listing, file, asset
+preview, and alias-prefixed pages. Local stylesheets are validated before the
+page is rendered, so a missing or invalid local theme CSS file surfaces as a
+viewer error instead of silently falling back to the default theme.
 The built-in theme contract lives in
 `packages/cli/cmd/openknowledge/viewer_theme.css`; viewer colors, fonts, and
 viewer dimensions derive from its `--ok-*` variables.

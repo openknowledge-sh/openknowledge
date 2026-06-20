@@ -6,6 +6,20 @@
   command pages to capture dated history entries for major command-surface
   changes such as added, removed, renamed, or behavior-changing flags,
   properties, output fields, and exit-code semantics.
+* **Website wiki export**: Documented that `pnpm build:web` publishes the
+  colocated `Wiki/` bundle to `packages/web/dist/wiki` with
+  `openknowledge to html`, and added the landing-matched
+  `Wiki/assets/openknowledge-site.css` theme configuration. The web dev server
+  now falls back to that generated `dist/wiki` output for `/wiki/` URLs.
+* **Static export path hygiene**: Documented that default viewer HTML exports
+  leave `data-note-root` empty so public static sites do not expose the local
+  build machine's bundle path.
+* **Local viewer theme parity**: Documented that `openknowledge open` applies
+  `[html.theme]` to listing, file, asset preview, and alias-prefixed pages, and
+  validates local theme CSS paths before rendering.
+* **Mobile viewer header**: Documented the responsive header search fix that
+  lets the shared viewer app CSS shrink the search field on narrow mobile
+  widths instead of overlapping the knowledge base brand.
 * **CLI operations migration**: Moved the remaining development and release
   notes from `docs/cli.md` into [features/operations.md](features/operations.md),
   and made the wiki the canonical home for CLI operational docs.

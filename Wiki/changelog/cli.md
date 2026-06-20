@@ -14,6 +14,60 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Viewer mobile header search no longer overlaps brand
+
+* The shared viewer CSS now lets the top-bar search field override its desktop
+  minimum width on narrow mobile screens, so the search control stays beside
+  the file explorer button and knowledge base brand instead of covering them.
+* The fix applies to both `openknowledge open` and default
+  `openknowledge to html` viewer exports because they share the same embedded
+  viewer app stylesheet.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Local viewer validates and applies theme config
+
+* `openknowledge open` now treats `[html.theme]` in `openknowledge.toml` like
+  the default HTML viewer export does: listing pages, Markdown file pages,
+  asset previews, and alias-prefixed pages set `data-openknowledge-theme` and
+  link the configured stylesheet through the raw endpoint.
+* Local theme CSS paths are validated before rendering, so missing, directory,
+  or otherwise invalid local stylesheet paths surface as viewer errors instead
+  of silently falling back to the default theme.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_theme.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Static HTML export hides local root path
+
+* Default viewer HTML exports no longer write the local bundle root into
+  `data-note-root`, so deployed static sites do not expose the build machine's
+  filesystem path.
+* The static viewer still keeps stable per-page storage behavior by falling
+  back to the page URL when no note root is present.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Website publishes wiki export
+
+* The static website build now runs `openknowledge to html --out packages/web/dist/wiki Wiki`,
+  so the deployed landing page can link to the repository wiki at `/wiki/`.
+* The landing top navigation now includes a `Wiki` link before the GitHub icon,
+  and the generated wiki uses `Wiki/openknowledge.toml` plus
+  `Wiki/assets/openknowledge-site.css` to match the landing page theme.
+* `pnpm dev:web` now falls back to `packages/web/dist/wiki` for `/wiki/` URLs,
+  so `http://127.0.0.1:4173/wiki/` works after `pnpm build:web` even when the
+  dev server is serving source files from `packages/web`.
+* Source anchors: `packages/web/scripts/build.mjs`, `packages/web/index.html`,
+  `packages/web/scripts/serve.mjs`, `packages/web/styles.css`,
+  `Wiki/openknowledge.toml`, `Wiki/assets/openknowledge-site.css`.
+* Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer hostname alias output removed
 
 * `openknowledge open` no longer prints the secondary `Open Knowledge alias`

@@ -44,6 +44,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }`) {
 		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
 	}
+	if !strings.Contains(page, `.search.header-search { width: min(52vw, 320px); min-width: 0; }`) {
+		t.Fatalf("viewer mobile header search should override the desktop minimum width:\n%s", page)
+	}
 	if !strings.Contains(page, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer did not rewrite relative markdown link:\n%s", page)
 	}
@@ -615,11 +618,31 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	writeViewerFile(t, root, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "# Setup\n\nBack to [Home](../index.md).\n")
+	writeViewerFile(t, root, "references/report.pdf", "%PDF-1.4\n% test pdf\n")
 
 	handler := newViewerHandler(root)
 	page := getViewerBody(t, handler, "/file/index.md")
 	if !strings.Contains(page, `data-openknowledge-theme="landing"`) || !strings.Contains(page, `href="/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer should link the configured theme stylesheet from the raw endpoint:\n%s", page)
+	}
+
+	asset := getViewerBody(t, handler, "/file/references/report.pdf")
+	if !strings.Contains(asset, `data-openknowledge-theme="landing"`) || !strings.Contains(asset, `href="/raw/assets/wiki-theme.css"`) {
+		t.Fatalf("viewer asset pages should link the configured theme stylesheet from the raw endpoint:\n%s", asset)
+	}
+
+	alias := getViewerBody(t, newViewerHandlerWithAlias(root, "project-memory"), "/project-memory/file/index.md")
+	if !strings.Contains(alias, `data-openknowledge-theme="landing"`) || !strings.Contains(alias, `href="/project-memory/raw/assets/wiki-theme.css"`) {
+		t.Fatalf("viewer alias pages should link the prefixed theme stylesheet from the raw endpoint:\n%s", alias)
+	}
+
+	listRoot := t.TempDir()
+	writeViewerFile(t, listRoot, "openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
+	writeViewerFile(t, listRoot, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
+	writeViewerFile(t, listRoot, "notes/readme.md", "---\ntype: Note\n---\n\n# Readme\n")
+	listing := getViewerBody(t, newViewerHandler(listRoot), "/")
+	if !strings.Contains(listing, `data-openknowledge-theme="landing"`) || !strings.Contains(listing, `href="/raw/assets/wiki-theme.css"`) {
+		t.Fatalf("viewer index pages should link the configured theme stylesheet from the raw endpoint:\n%s", listing)
 	}
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
@@ -634,15 +657,43 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if !strings.Contains(index, `data-openknowledge-theme="landing"`) || !strings.Contains(index, `href="assets/wiki-theme.css"`) {
 		t.Fatalf("expected exported index to link copied theme stylesheet:\n%s", index)
 	}
+	if strings.Contains(index, root) || !strings.Contains(index, `data-note-root=""`) {
+		t.Fatalf("static export should not expose local bundle root:\n%s", index)
+	}
 
 	setup := readViewerExportFile(t, out, "guides/setup.html")
 	if !strings.Contains(setup, `href="../assets/wiki-theme.css"`) {
 		t.Fatalf("expected nested exported page to link theme stylesheet relatively:\n%s", setup)
 	}
+	if strings.Contains(setup, root) || !strings.Contains(setup, `data-note-root=""`) {
+		t.Fatalf("nested static export should not expose local bundle root:\n%s", setup)
+	}
 
 	theme := readViewerExportFile(t, out, "assets/wiki-theme.css")
 	if !strings.Contains(theme, `--ok-color-accent: #3257ff`) {
 		t.Fatalf("expected export to copy theme stylesheet, got:\n%s", theme)
+	}
+}
+
+func TestViewerThemeConfigReportsMissingStylesheetInOpen(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/missing.css\"\n")
+	writeViewerFile(t, root, "index.md", "# Home\n")
+
+	handler := newViewerHandler(root)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/file/index.md", nil))
+	response := recorder.Result()
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("expected missing open theme stylesheet to return 500, got %d: %s", response.StatusCode, string(body))
+	}
+	if !strings.Contains(string(body), "theme stylesheet assets/missing.css") {
+		t.Fatalf("expected missing stylesheet error to mention the configured theme path, got: %s", string(body))
 	}
 }
 

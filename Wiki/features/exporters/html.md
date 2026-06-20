@@ -11,8 +11,10 @@ timestamp: 2026-06-18T00:00:00Z
 The HTML exporter writes one `.html` file for each Markdown file in a bundle.
 By default, those pages use the same static viewer app bundle as
 `openknowledge open`: file tree, search, stacked-panel browsing, and embedded
-note data are available without a local server. The `--plain` flag switches to
-unstyled semantic HTML without CSS, JavaScript, or viewer chrome.
+note data are available without a local server. The shared viewer CSS keeps the
+top-bar search field responsive on narrow mobile widths so it does not overlap
+the knowledge base brand. The `--plain` flag switches to unstyled semantic HTML
+without CSS, JavaScript, or viewer chrome.
 
 ## Command
 
@@ -55,7 +57,13 @@ link the configured stylesheet after the built-in viewer CSS. Local stylesheets
 must stay inside the bundle; they are copied into the output folder and linked
 relatively from every generated page. External `http` and `https` stylesheet
 URLs are linked as-is. `openknowledge open` serves the same local stylesheet
-through the raw file endpoint for local preview.
+through the raw file endpoint for local preview, applies the same theme name on
+viewer HTML, and validates local stylesheet paths before rendering.
+
+Default viewer exports leave the internal `data-note-root` attribute empty, so
+portable static pages do not expose the local filesystem path used during the
+build. The browser-side viewer falls back to the page URL for static-only
+storage keys.
 
 The canonical default theme source is
 `packages/cli/cmd/openknowledge/viewer_theme.css`. The local viewer and default

@@ -32,6 +32,29 @@ The root `package.json` maps those commands to the Go CLI package and web
 workspace. `pnpm test` currently runs the CLI test suite, and `pnpm build`
 builds both the CLI and web package.
 
+## Project Website
+
+`pnpm build:web` writes the landing page into `packages/web/dist` and then runs
+the Open Knowledge HTML exporter for this repository wiki:
+
+```sh
+openknowledge to html --out packages/web/dist/wiki Wiki
+```
+
+That makes the public website's `wiki/` path a static viewer export of the
+colocated `Wiki/` bundle. The landing page links to that output from the top
+navigation before the GitHub icon.
+
+`pnpm dev:web` serves source files from `packages/web` by default, but falls
+back to `packages/web/dist/wiki` for `/wiki/` URLs when a generated wiki export
+exists. Run `pnpm build:web` after wiki or theme changes before checking
+`http://127.0.0.1:4173/wiki/` through the dev server.
+
+The wiki export reads `Wiki/openknowledge.toml` and copies
+`Wiki/assets/openknowledge-site.css` into the generated output. Keep that theme
+CSS aligned with `packages/web/styles.css` when changing the landing page
+palette, fonts, or core spacing.
+
 ## Release
 
 GitHub Releases are the source of truth for downloadable binaries. Run the
@@ -84,6 +107,10 @@ npm publish --access public
 * `.goreleaser.yaml`
 * `install`
 * `packages/npm/package.json`
+* `packages/web/scripts/build.mjs`
+* `packages/web/index.html`
+* `Wiki/openknowledge.toml`
+* `Wiki/assets/openknowledge-site.css`
 
 ## Update Notes
 

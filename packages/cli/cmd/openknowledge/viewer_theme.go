@@ -164,18 +164,21 @@ func isExternalThemeStylesheet(value string) bool {
 	return (scheme == "http" || scheme == "https") && parsed.Host != ""
 }
 
-func viewerThemeForServer(root string, linkPrefix string) viewerThemeData {
+func viewerThemeForServer(root string, linkPrefix string) (viewerThemeData, error) {
 	config, err := loadViewerThemeConfig(root)
 	if err != nil {
-		return viewerThemeData{Name: "default"}
+		return viewerThemeData{Name: "default"}, err
+	}
+	if err := validateViewerThemeStylesheet(root, config); err != nil {
+		return viewerThemeData{Name: "default"}, err
 	}
 	if config.Stylesheet == "" {
-		return viewerThemeData{Name: config.Name}
+		return viewerThemeData{Name: config.Name}, nil
 	}
 	if config.External {
-		return viewerThemeData{Name: config.Name, Stylesheet: config.Stylesheet}
+		return viewerThemeData{Name: config.Name, Stylesheet: config.Stylesheet}, nil
 	}
-	return viewerThemeData{Name: config.Name, Stylesheet: rawURLWithPrefix(linkPrefix, config.Stylesheet)}
+	return viewerThemeData{Name: config.Name, Stylesheet: rawURLWithPrefix(linkPrefix, config.Stylesheet)}, nil
 }
 
 func viewerThemeForStaticPage(config viewerThemeConfig, currentPath string) viewerThemeData {
@@ -194,20 +197,11 @@ func copyViewerThemeStylesheet(root string, out string, config viewerThemeConfig
 	if config.Stylesheet == "" || config.External {
 		return "", nil
 	}
-
-	source := filepath.Join(root, filepath.FromSlash(config.Stylesheet))
-	relative, err := filepath.Rel(root, source)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("theme stylesheet must stay inside the bundle")
-	}
-	info, err := os.Stat(source)
-	if err != nil {
+	if err := validateViewerThemeStylesheet(root, config); err != nil {
 		return "", err
 	}
-	if info.IsDir() {
-		return "", fmt.Errorf("theme stylesheet %s is a directory", config.Stylesheet)
-	}
 
+	source := filepath.Join(root, filepath.FromSlash(config.Stylesheet))
 	target := filepath.Join(out, filepath.FromSlash(config.Stylesheet))
 	content, err := os.ReadFile(source)
 	if err != nil {
@@ -220,4 +214,24 @@ func copyViewerThemeStylesheet(root string, out string, config viewerThemeConfig
 		return "", err
 	}
 	return viewerRelPath(out, target), nil
+}
+
+func validateViewerThemeStylesheet(root string, config viewerThemeConfig) error {
+	if config.Stylesheet == "" || config.External {
+		return nil
+	}
+
+	source := filepath.Join(root, filepath.FromSlash(config.Stylesheet))
+	relative, err := filepath.Rel(root, source)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("theme stylesheet must stay inside the bundle")
+	}
+	info, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("theme stylesheet %s: %w", config.Stylesheet, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("theme stylesheet %s is a directory", config.Stylesheet)
+	}
+	return nil
 }

@@ -457,8 +457,19 @@ type viewerIndexData struct {
 }
 
 func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFrame, linkPrefix string, title string) {
-	theme := viewerThemeForServer(root, linkPrefix)
+	theme, themeErr := viewerThemeForServer(root, linkPrefix)
 	brandName := viewerKnowledgeBaseName(root, title)
+	if themeErr != nil {
+		renderHTML(response, viewerIndexTemplate, viewerIndexData{
+			Frame:     frame,
+			Title:     title,
+			BrandName: brandName,
+			Root:      root,
+			Theme:     theme,
+			Error:     themeErr.Error(),
+		})
+		return
+	}
 	listing, err := okf.List(root)
 	if err != nil {
 		renderHTML(response, viewerIndexTemplate, viewerIndexData{
@@ -609,7 +620,7 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 		return
 	}
 	if err != nil {
-		http.NotFound(response, request)
+		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -623,7 +634,7 @@ func renderViewerAsset(response http.ResponseWriter, request *http.Request, root
 		return
 	}
 	if err != nil {
-		http.NotFound(response, request)
+		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -649,13 +660,17 @@ func viewerAsset(root string, rel string, linkPrefix string) (viewerAssetData, b
 
 	mediaType := viewerMediaType(filePath)
 	rawURL := rawURLWithPrefix(linkPrefix, cleanRel)
+	theme, err := viewerThemeForServer(root, linkPrefix)
+	if err != nil {
+		return viewerAssetData{}, true, err
+	}
 	data := viewerAssetData{
 		Title:      titleForAssetFile(cleanRel),
 		BrandName:  viewerKnowledgeBaseName(root, ""),
 		Root:       root,
 		Path:       cleanRel,
 		RawURL:     rawURL,
-		Theme:      viewerThemeForServer(root, linkPrefix),
+		Theme:      theme,
 		Kind:       viewerAssetKind(filePath, mediaType),
 		MediaType:  mediaType,
 		Language:   okf.CodeLanguageForPath(cleanRel),
@@ -747,6 +762,10 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	graphJSON := viewerGraphJSON(root, listing.Entries, func(path string) string {
 		return fileURLWithPrefix(linkPrefix, path)
 	})
+	theme, err := viewerThemeForServer(root, linkPrefix)
+	if err != nil {
+		return viewerFileData{}, true, err
+	}
 
 	return viewerFileData{
 		Frame:       frame,
@@ -757,7 +776,7 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
 		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
 		SearchURL:   searchURLWithPrefix(linkPrefix),
-		Theme:       viewerThemeForServer(root, linkPrefix),
+		Theme:       theme,
 		Body:        template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), cleanRel, viewerLinkWithPrefix(linkPrefix))),
 		Tree:        viewerTreeWithURL(listing.Entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
@@ -1093,7 +1112,7 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 		data := viewerFileData{
 			Title:       titleForMarkdownFile(file.Path),
 			BrandName:   viewerKnowledgeBaseNameFromFiles(bundle.Files, ""),
-			Root:        bundle.Root,
+			Root:        "",
 			Path:        file.Path,
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
 			Body:        template.HTML(viewerStaticFileBody(file)),
