@@ -5,6 +5,20 @@
 * **Website release badge**: Documented that the landing page header links to
   the latest GitHub Release and hydrates its tag plus relative publish age from
   GitHub's latest release API at runtime.
+* **Viewer panel reading width**: Set the default note panel width to a `65ch`
+  reading measure plus horizontal panel padding in the built-in viewer theme,
+  deployed wiki theme override, and resize fallback.
+* **Viewer table filter trigger**: Documented that Markdown table filter
+  dropdowns use a ghost trigger button in the shared viewer CSS for
+  `openknowledge open` and default `openknowledge to html` exports.
+* **Viewer table code wrapping**: Documented that inline code values in
+  Markdown tables wrap inside cells in `openknowledge open` and default
+  `openknowledge to html` viewer exports so evidence-heavy tables do not
+  overflow their visual frame.
+* **Spec compliance matrix**: Added
+  [features/spec-compliance.md](features/spec-compliance.md) with a
+  hard-rule OKF v0.1 compliance table that maps mandatory spec rules to CLI
+  behavior, status emojis, source anchors, and focused tests where they exist.
 * **Syntax highlighting examples**: Added
   [examples/syntax-highlighting.md](examples/syntax-highlighting.md) with
   fenced shell, Go, TypeScript, Python, JSON, YAML, CSS, and SQL blocks for
@@ -27,6 +41,13 @@
 * **Mobile viewer header**: Documented the responsive header search fix that
   lets the shared viewer app CSS shrink the search field on narrow mobile
   widths instead of overlapping the knowledge base brand.
+* **Mobile sidebar bottom chrome**: Documented that the shared viewer app CSS
+  hides the fixed bottom rail and `Powered by OpenKnowledge.sh` attribution
+  while the mobile sidebar is open so those elements do not overflow into the
+  drawer.
+* **Mobile sidebar file selection**: Documented that selecting a file from the
+  shared viewer sidebar closes the drawer on mobile while preserving the desktop
+  behavior where the sidebar stays open.
 * **Static viewer pretty URLs**: Documented that default viewer HTML exports
   resolve host-rewritten pretty URLs such as `/agents` and `/features/` back to
   the embedded static note manifest so stacked-panel navigation keeps working

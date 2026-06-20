@@ -14,6 +14,66 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Viewer panels default to comfortable reading width
+
+* Default note panels now use a `65ch` reading measure plus horizontal panel
+  padding, capped to the viewport, instead of a fixed pixel width.
+* The same default is used by the built-in viewer theme, the deployed wiki
+  theme override, and the resize fallback for panels without saved widths.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `Wiki/assets/openknowledge-site.css`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`,
+  `Wiki/examples/syntax-highlighting.md`.
+
+### 2026-06-20 - Viewer table filters use a ghost trigger
+
+* The Markdown table toolbar now renders its `Filters` dropdown trigger as a
+  ghost button, keeping the control quieter until hover, focus, or open state.
+* The change applies to `openknowledge open` and default
+  `openknowledge to html` viewer exports because they share `viewer_app.css`.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer table code wraps inside cells
+
+* Inline code inside Markdown tables now wraps long unbroken values such as
+  source paths and test names, so evidence-heavy tables stay inside their
+  visual frame instead of requiring oversized horizontal overflow.
+* The fix applies to `openknowledge open` and default `openknowledge to html`
+  viewer exports because they share `viewer_app.css`.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer mobile sidebar closes after file selection
+
+* On narrow mobile widths, selecting a file from the viewer sidebar now opens
+  the note and closes the sidebar so the panel is visible immediately.
+* Desktop behavior is unchanged: the sidebar stays open while selecting files.
+* The behavior applies to `openknowledge open` and default
+  `openknowledge to html` viewer exports because they share `viewer_app.js`.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer mobile sidebar hides bottom chrome
+
+* On narrow mobile widths, opening the file explorer sidebar now hides the
+  fixed bottom scroll rail and `Powered by OpenKnowledge.sh` attribution instead
+  of translating them sideways into or beyond the drawer.
+* The fix applies to `openknowledge open` and default `openknowledge to html`
+  viewer exports because they share `viewer_app.css`.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Website dev server refreshes wiki export
 
 * `pnpm dev:web` now regenerates `packages/web/dist/wiki` on startup before

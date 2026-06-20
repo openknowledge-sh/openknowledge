@@ -14,13 +14,17 @@ By default, those pages use the same static viewer app bundle as
 note data are available without a local server. Markdown tables in the default
 viewer export keep the same rich controls as the local viewer: horizontal
 scrolling, whole-table filtering, dropdown column filters with a clear filters
-control, sortable headers, and row counts. Shared viewer layering keeps sticky
-note-panel chrome above those table controls while content scrolls. Fenced code
+control, a ghost `Filters` trigger button, sortable headers, and row counts. On
+narrow mobile widths, selecting a file from the sidebar closes the drawer after
+opening that note. Shared viewer layering keeps sticky note-panel chrome above
+those table controls while content scrolls, and long inline code values wrap
+inside table cells instead of forcing table content past the frame. Fenced code
 blocks keep the same
 syntax highlighting and subtle language label as the local viewer; shell fences
 also color command names, flags, and variables. The shared viewer CSS keeps the
 top-bar search field responsive on narrow mobile widths so it does not overlap
-the knowledge base brand. The
+the knowledge base brand, and hides fixed bottom chrome while the mobile sidebar
+is open so the rail and attribution do not overflow into the drawer. The
 `--plain` flag switches to unstyled semantic HTML without CSS, JavaScript, or
 viewer chrome.
 
@@ -101,6 +105,8 @@ exported viewer renders no editor or source action.
 The canonical default theme source is
 `packages/cli/cmd/openknowledge/viewer_theme.css`. The local viewer and default
 HTML export derive colors, fonts, and viewer dimensions from this theme layer.
+The default note panel width uses a comfortable `65ch` reading measure plus the
+panel's horizontal padding, capped to the viewport on narrow screens.
 Supported theme variables are:
 
 ```css

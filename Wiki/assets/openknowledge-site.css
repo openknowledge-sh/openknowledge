@@ -19,7 +19,7 @@
   --ok-header-height: 48px;
   --ok-mobile-header-height: 68px;
   --ok-sidebar-width: min(340px, calc(100vw - 36px));
-  --ok-note-panel-default-width: min(660px, calc(100vw - 44px));
+  --ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));
   --ok-note-panel-min-width: min(360px, calc(100vw - 24px));
 
   --ok-color-text: #e9edf4;

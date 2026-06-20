@@ -100,7 +100,7 @@ html:
 /* A tiny accent override */
 :root {
   --ok-color-accent: #8db5dc;
-  --ok-note-panel-default-width: 660px;
+  --ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));
 }
 ```
 

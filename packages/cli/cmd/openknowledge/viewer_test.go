@@ -37,6 +37,10 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-openknowledge-theme="default"`) || !strings.Contains(page, `--ok-color-accent`) || !strings.Contains(page, `--ok-font-body`) {
 		t.Fatalf("viewer file page should expose theme data and root CSS variables:\n%s", page)
 	}
+	if !strings.Contains(page, `--ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));`) ||
+		!strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-default-width)", 650)`) {
+		t.Fatalf("viewer default panel width should follow a 65ch reading measure with matching resize fallback:\n%s", page)
+	}
 	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; height: var(--ok-header-height); min-height: 0; justify-content: center; padding: 0 22px;`) &&
 		!strings.Contains(page, `body.viewer-document > header { position: relative; height: var(--ok-header-height); min-height: 0; justify-content: center; padding: 0 22px;`) {
 		t.Fatalf("viewer document header should use a slim fixed height with centered contents:\n%s", page)

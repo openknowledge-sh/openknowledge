@@ -47,13 +47,17 @@ pan mode, so dragging sideways across panels scrolls the stack without
 activating links. Each note panel has left and right resize handles for
 horizontal width changes. Resized widths are stored per note and restored when
 the note is opened again, while notes without a saved width keep the default
-panel size. The resize handles remain aligned with the visible panel edges
-while the note content is scrolled vertically. Panels enforce a minimum width so
-a note cannot be collapsed into an unreadable strip. The file explorer can be
-opened from the header and stays open while selecting files. It uses the same
-canvas color as the document workspace without a vertical divider between the
-sidebar and content. File rows show only the filename; reserved Markdown files
-such as `index.md` and `log.md` are marked with a right-aligned `system` badge.
+panel size: a comfortable `65ch` reading measure plus panel padding, capped to
+the viewport on narrow screens. The resize handles remain aligned with the
+visible panel edges while the note content is scrolled vertically. Panels
+enforce a minimum width so a note cannot be collapsed into an unreadable strip.
+The file explorer can be
+opened from the header and stays open while selecting files on desktop. On
+narrow mobile widths, selecting a file from the explorer closes the sidebar so
+the opened panel is immediately visible. It uses the same canvas color as the
+document workspace without a vertical divider between the sidebar and content.
+File rows show only the filename; reserved Markdown files such as `index.md`
+and `log.md` are marked with a right-aligned `system` badge.
 
 When all panels are closed, the empty workspace shows a split overview: a
 narrow file tree on the left and a wider connected graph of Markdown files on
@@ -79,7 +83,9 @@ in place while typing, closes after a result is activated, and supports
 `ArrowDown`, `ArrowUp`, and `Enter` keyboard selection while keeping focus in
 the search field. On narrow mobile widths, the header search field is allowed
 to shrink below its desktop minimum width so it stays beside the brand instead
-of overlapping it.
+of overlapping it. When that mobile sidebar is open, the bottom rail and
+`Powered by OpenKnowledge.sh` attribution are hidden so fixed bottom chrome does
+not overflow into the drawer.
 Reserved `index.md` files remain searchable but rank below comparable regular
 pages. The document viewer also keeps a small bottom-right
 `Powered by OpenKnowledge.sh` link to the project website.
@@ -90,11 +96,13 @@ table wrapper, preserves Markdown alignment markers as `data-align` metadata,
 and gives each header `scope="col"`. When viewer JavaScript is active, each
 table gets a compact toolbar with visible whole-table text filtering, sortable
 headers, visible sort state, row counts, and a `Filters` dropdown. The dropdown
-contains basic per-column select filters for manageable value sets plus a clear
-filters control. The same enhancement runs for the first panel, panels opened
-through stacked navigation, and static HTML viewer exports. Sticky note-panel
-chrome stays layered above the table toolbar and filter dropdown while panel
-content scrolls.
+uses a ghost trigger button and contains basic per-column select filters for
+manageable value sets plus a clear filters control. The same enhancement runs
+for the first panel, panels opened through stacked navigation, and static HTML
+viewer exports. Sticky note-panel chrome stays layered above the table toolbar
+and filter dropdown while panel content scrolls. Long inline code values such as
+source paths and test names wrap inside table cells instead of forcing the table
+past its visual frame.
 
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.

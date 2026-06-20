@@ -129,7 +129,21 @@
   }
 
   function defaultPanelWidth() {
-    return Math.max(minPanelWidth(), Math.min(650, window.innerWidth - 44));
+    return Math.max(minPanelWidth(), cssLengthPixels("var(--ok-note-panel-default-width)", 650));
+  }
+
+  function cssLengthPixels(value, fallback) {
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.left = "-10000px";
+    probe.style.top = "-10000px";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.width = value;
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return Number.isFinite(width) && width > 0 ? width : fallback;
   }
 
   function normalizePanelWidth(value, panel) {
