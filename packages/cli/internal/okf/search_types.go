@@ -21,3 +21,22 @@ type SearchResult struct {
 type SearchIndex struct {
 	documents []searchDocument
 }
+
+type searchDocument struct {
+	path         string
+	id           string
+	kind         string
+	documentType string
+	title        string
+	description  string
+	body         string
+	fields       []searchField
+}
+
+type searchField struct {
+	name   string
+	weight float64
+	text   string
+	tokens []string
+	counts map[string]int
+}

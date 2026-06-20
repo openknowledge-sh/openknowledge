@@ -9,25 +9,6 @@ import (
 	"unicode/utf8"
 )
 
-type searchDocument struct {
-	path         string
-	id           string
-	kind         string
-	documentType string
-	title        string
-	description  string
-	body         string
-	fields       []searchField
-}
-
-type searchField struct {
-	name   string
-	weight float64
-	text   string
-	tokens []string
-	counts map[string]int
-}
-
 func NewSearchIndex(bundle Bundle) SearchIndex {
 	documents := make([]searchDocument, 0, len(bundle.Files))
 	for _, file := range bundle.Files {
