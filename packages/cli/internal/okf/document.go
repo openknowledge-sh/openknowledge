@@ -31,6 +31,7 @@ type parsedDocumentMetadata struct {
 	Resource    string
 	Tags        []string
 	UseWhen     []string
+	Bundle      BundleMetadata
 }
 
 type parsedBundle struct {
@@ -118,5 +119,6 @@ func parsedDocumentMetadataFromValues(values map[string]string) parsedDocumentMe
 		Resource:    values["resource"],
 		Tags:        parseFlowStringList(values["tags"]),
 		UseWhen:     parseFlowStringList(values["use_when"]),
+		Bundle:      bundleMetadataFromFrontmatter(values),
 	}
 }

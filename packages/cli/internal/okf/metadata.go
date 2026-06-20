@@ -40,10 +40,8 @@ func ReadBundleInfo(root string) (BundleInfo, error) {
 	}
 
 	info.RootTitle = firstH1(document.Body)
-	if len(document.FrontmatterValues) > 0 {
-		info.Metadata = bundleMetadataFromFrontmatter(document.FrontmatterValues)
-		info.HasMetadata = hasBundleMetadata(info.Metadata)
-	}
+	info.Metadata = document.Metadata.Bundle
+	info.HasMetadata = hasBundleMetadata(info.Metadata)
 	return info, nil
 }
 
@@ -87,9 +85,6 @@ func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, er
 	}
 	if document.FrontmatterErr != nil {
 		return info, document.FrontmatterErr
-	}
-	if len(document.FrontmatterValues) == 0 {
-		return info, nil
 	}
 	info.Type = strings.TrimSpace(document.Metadata.Type)
 	info.Title = strings.TrimSpace(document.Metadata.Title)
