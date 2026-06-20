@@ -7,23 +7,6 @@ import (
 	"strings"
 )
 
-type BundleInfo struct {
-	Root        string
-	Metadata    BundleMetadata
-	RootTitle   string
-	HasIndex    bool
-	HasMetadata bool
-}
-
-type MarkdownDocumentInfo struct {
-	Path        string
-	Type        string
-	Title       string
-	Description string
-	Tags        []string
-	UseWhen     []string
-}
-
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	info := BundleInfo{Root: root}
 	document := parseASTDocumentFile(filepath.Join(root, "index.md"), "index.md")
