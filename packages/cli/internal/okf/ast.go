@@ -14,13 +14,26 @@ type astDocument struct {
 	Reserved          bool
 	Raw               []byte
 	Content           string
-	Frontmatter       frontmatter
+	Frontmatter       astFrontmatter
+	ParsedFrontmatter frontmatter
 	FrontmatterValues map[string]string
 	Metadata          astDocumentMetadata
 	Body              string
 	Links             []Link
 	ReadErr           error
 	FrontmatterErr    error
+}
+
+type astFrontmatter struct {
+	Has      bool
+	Keys     map[string]struct{}
+	Warnings []astFrontmatterWarning
+	BodyLine int
+}
+
+type astFrontmatterWarning struct {
+	Line    int
+	Message string
 }
 
 type astDocumentMetadata struct {

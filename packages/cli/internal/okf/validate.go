@@ -109,13 +109,13 @@ func validateDocument(root string, document astDocument, result *Result) {
 	if document.FrontmatterErr == nil {
 		switch document.Kind {
 		case "index":
-			validateIndex(rel, document.Frontmatter, result)
+			validateIndex(rel, document.ParsedFrontmatter, result)
 		case "log":
-			validateLog(rel, document.Frontmatter, document.Content, result)
+			validateLog(rel, document.ParsedFrontmatter, document.Content, result)
 		default:
-			validateConcept(rel, document.Frontmatter, result)
+			validateConcept(rel, document.ParsedFrontmatter, result)
 		}
-		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.bodyLine, result)
+		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.BodyLine, result)
 	}
 	validateDocumentLinks(root, document, result)
 }
@@ -143,13 +143,13 @@ func invalidUTF8Line(content []byte) int {
 	return line
 }
 
-func validateFrontmatterFormatting(rel string, meta frontmatter, result *Result) {
-	for _, warning := range meta.warnings {
+func validateFrontmatterFormatting(rel string, meta astFrontmatter, result *Result) {
+	for _, warning := range meta.Warnings {
 		result.Warnings = append(result.Warnings, Issue{
 			Path:    rel,
-			Line:    warning.line,
+			Line:    warning.Line,
 			Rule:    "frontmatter-format",
-			Message: warning.message,
+			Message: warning.Message,
 		})
 	}
 }

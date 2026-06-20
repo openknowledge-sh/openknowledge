@@ -89,12 +89,35 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 
 	meta, body, frontmatterErr := splitFrontmatter(string(content))
 	document.Content = string(content)
-	document.Frontmatter = meta
+	document.Frontmatter = astFrontmatterFromParse(meta)
+	document.ParsedFrontmatter = meta
 	document.FrontmatterValues = frontmatterValues(meta)
 	document.Metadata = astDocumentMetadataFromValues(document.FrontmatterValues)
 	document.Body = body
 	document.FrontmatterErr = frontmatterErr
 	return document
+}
+
+func astFrontmatterFromParse(meta frontmatter) astFrontmatter {
+	keys := make(map[string]struct{}, len(meta.keys))
+	for key := range meta.keys {
+		keys[key] = struct{}{}
+	}
+
+	warnings := make([]astFrontmatterWarning, 0, len(meta.warnings))
+	for _, warning := range meta.warnings {
+		warnings = append(warnings, astFrontmatterWarning{
+			Line:    warning.line,
+			Message: warning.message,
+		})
+	}
+
+	return astFrontmatter{
+		Has:      meta.has,
+		Keys:     keys,
+		Warnings: warnings,
+		BodyLine: meta.bodyLine,
+	}
 }
 
 func frontmatterValues(meta frontmatter) map[string]string {
