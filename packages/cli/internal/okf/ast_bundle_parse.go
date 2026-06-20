@@ -13,10 +13,10 @@ func ParseAST(root string) (ASTBundle, error) {
 }
 
 func ParseASTWithVersion(root string, version string) (ASTBundle, error) {
-	return parseBundleAST(root, version)
+	return parseASTBundle(root, version)
 }
 
-func parseBundleAST(root string, version string) (ASTBundle, error) {
+func parseASTBundle(root string, version string) (ASTBundle, error) {
 	resolved, ok := ResolveSpecVersion(version)
 	if !ok {
 		return ASTBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
