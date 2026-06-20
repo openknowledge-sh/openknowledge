@@ -7,19 +7,25 @@ type astBundle struct {
 }
 
 type astDocument struct {
-	Absolute       string
-	Rel            string
-	ID             string
-	Kind           string
-	Reserved       bool
-	Raw            []byte
-	Content        string
-	Frontmatter    astFrontmatter
-	Metadata       astDocumentMetadata
-	Body           string
-	Links          []Link
-	ReadErr        error
-	FrontmatterErr error
+	Absolute              string
+	Rel                   string
+	ID                    string
+	Kind                  string
+	Reserved              bool
+	Raw                   []byte
+	Content               string
+	Frontmatter           astFrontmatter
+	Metadata              astDocumentMetadata
+	Body                  string
+	Links                 []Link
+	ReadErr               error
+	FrontmatterDiagnostic *astDiagnostic
+	FrontmatterErr        error
+}
+
+type astDiagnostic struct {
+	Line    int
+	Message string
 }
 
 type astFrontmatter struct {

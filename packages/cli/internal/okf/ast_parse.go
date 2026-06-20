@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -92,8 +93,25 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 	document.Frontmatter = astFrontmatterFromParse(meta)
 	document.Metadata = astDocumentMetadataFromValues(document.Frontmatter.Values)
 	document.Body = body
+	document.FrontmatterDiagnostic = astFrontmatterDiagnostic(frontmatterErr)
 	document.FrontmatterErr = frontmatterErr
 	return document
+}
+
+func astFrontmatterDiagnostic(err error) *astDiagnostic {
+	if err == nil {
+		return nil
+	}
+
+	line := 1
+	var parseErr frontmatterParseError
+	if errors.As(err, &parseErr) && parseErr.line > 0 {
+		line = parseErr.line
+	}
+	return &astDiagnostic{
+		Line:    line,
+		Message: err.Error(),
+	}
 }
 
 func astFrontmatterFromParse(meta frontmatter) astFrontmatter {

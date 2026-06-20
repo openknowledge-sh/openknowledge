@@ -1,7 +1,6 @@
 package okf
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -101,12 +100,12 @@ func validateDocument(root string, document astDocument, result *Result) {
 		return
 	}
 
-	if document.FrontmatterErr != nil {
-		result.Errors = append(result.Errors, Issue{Path: rel, Line: frontmatterErrorLine(document.FrontmatterErr), Rule: "frontmatter", Message: document.FrontmatterErr.Error()})
+	if document.FrontmatterDiagnostic != nil {
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: document.FrontmatterDiagnostic.Line, Rule: "frontmatter", Message: document.FrontmatterDiagnostic.Message})
 	}
 	validateFrontmatterFormatting(rel, document.Frontmatter, result)
 
-	if document.FrontmatterErr == nil {
+	if document.FrontmatterDiagnostic == nil {
 		switch document.Kind {
 		case "index":
 			validateIndex(rel, document.Frontmatter, result)
@@ -118,14 +117,6 @@ func validateDocument(root string, document astDocument, result *Result) {
 		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.BodyLine, result)
 	}
 	validateDocumentLinks(root, document, result)
-}
-
-func frontmatterErrorLine(err error) int {
-	var parseErr frontmatterParseError
-	if errors.As(err, &parseErr) && parseErr.line > 0 {
-		return parseErr.line
-	}
-	return 1
 }
 
 func invalidUTF8Line(content []byte) int {
