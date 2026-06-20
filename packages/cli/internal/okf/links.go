@@ -3,8 +3,11 @@ package okf
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var markdownLinkDetail = regexp.MustCompile(`(!?)\[([^\]]*)\]\(([^\s)]+)(?:\s+"[^"]*")?\)`)
 
 type Link struct {
 	Label      string `json:"label"`

@@ -9,7 +9,6 @@ import (
 )
 
 var logDateHeading = regexp.MustCompile(`^##\s+\d{4}-\d{2}-\d{2}\s*$`)
-var markdownLinkDetail = regexp.MustCompile(`(!?)\[([^\]]*)\]\(([^\s)]+)(?:\s+"[^"]*")?\)`)
 
 type Issue struct {
 	Path    string `json:"path"`
