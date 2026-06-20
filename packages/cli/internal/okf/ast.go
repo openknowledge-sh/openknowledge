@@ -21,9 +21,3 @@ type astDocument struct {
 	UTF8Diagnostic        *astDiagnostic
 	FrontmatterDiagnostic *astDiagnostic
 }
-
-type astDiagnostic struct {
-	Line    int
-	Message string
-	Cause   error
-}
