@@ -72,6 +72,9 @@ func bundleFiles(root string, issues []Issue) ([]BundleFile, error) {
 
 	files := make([]BundleFile, 0, len(documents))
 	for _, document := range documents {
+		if document.ReadErr != nil {
+			return nil, document.ReadErr
+		}
 		files = append(files, bundleFile(root, document, issuesByPath[document.Rel]))
 	}
 	return files, nil

@@ -10,9 +10,11 @@ import (
 type parsedDocument struct {
 	Absolute       string
 	Rel            string
+	Raw            []byte
 	Content        string
 	Frontmatter    frontmatter
 	Body           string
+	ReadErr        error
 	FrontmatterErr error
 }
 
@@ -33,18 +35,22 @@ func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
 		}
 
 		content, err := os.ReadFile(path)
+		document := parsedDocument{
+			Absolute: path,
+			Rel:      relPath(root, path),
+			Raw:      content,
+			ReadErr:  err,
+		}
 		if err != nil {
-			return err
+			documents = append(documents, document)
+			return nil
 		}
 		meta, body, frontmatterErr := splitFrontmatter(string(content))
-		documents = append(documents, parsedDocument{
-			Absolute:       path,
-			Rel:            relPath(root, path),
-			Content:        string(content),
-			Frontmatter:    meta,
-			Body:           body,
-			FrontmatterErr: frontmatterErr,
-		})
+		document.Content = string(content)
+		document.Frontmatter = meta
+		document.Body = body
+		document.FrontmatterErr = frontmatterErr
+		documents = append(documents, document)
 		return nil
 	})
 	if err != nil {

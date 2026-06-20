@@ -3,7 +3,6 @@ package okf
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -71,26 +70,13 @@ func ValidateWithVersion(root string, version string) (Result, error) {
 	}
 
 	result := Result{Root: absolute, SpecVersion: resolved}
-	err = filepath.WalkDir(absolute, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !isMarkdown(path) {
-			return nil
-		}
-
-		result.Files++
-		validateFile(absolute, path, &result)
-		return nil
-	})
+	documents, err := parseMarkdownDocuments(absolute)
 	if err != nil {
 		return Result{}, err
+	}
+	for _, document := range documents {
+		result.Files++
+		validateDocument(absolute, document, &result)
 	}
 
 	sortIssues(result.Errors)
@@ -99,9 +85,9 @@ func ValidateWithVersion(root string, version string) (Result, error) {
 	return result, nil
 }
 
-func validateFile(root, path string, result *Result) {
-	rel := relPath(root, path)
-	name := strings.ToLower(filepath.Base(path))
+func validateDocument(root string, document parsedDocument, result *Result) {
+	rel := document.Rel
+	name := strings.ToLower(filepath.Base(document.Rel))
 
 	switch name {
 	case "index.md":
@@ -112,34 +98,32 @@ func validateFile(root, path string, result *Result) {
 		result.Concepts++
 	}
 
-	content, err := os.ReadFile(path)
-	if err != nil {
-		result.Errors = append(result.Errors, Issue{Path: rel, Rule: "bundle-read", Message: err.Error()})
+	if document.ReadErr != nil {
+		result.Errors = append(result.Errors, Issue{Path: rel, Rule: "bundle-read", Message: document.ReadErr.Error()})
 		return
 	}
-	if !utf8.Valid(content) {
-		result.Errors = append(result.Errors, Issue{Path: rel, Line: invalidUTF8Line(content), Rule: "utf-8", Message: "Markdown file must be valid UTF-8"})
+	if !utf8.Valid(document.Raw) {
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: invalidUTF8Line(document.Raw), Rule: "utf-8", Message: "Markdown file must be valid UTF-8"})
 		return
 	}
 
-	meta, body, frontmatterErr := splitFrontmatter(string(content))
-	if frontmatterErr != nil {
-		result.Errors = append(result.Errors, Issue{Path: rel, Line: frontmatterErrorLine(frontmatterErr), Rule: "frontmatter", Message: frontmatterErr.Error()})
+	if document.FrontmatterErr != nil {
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: frontmatterErrorLine(document.FrontmatterErr), Rule: "frontmatter", Message: document.FrontmatterErr.Error()})
 	}
-	validateFrontmatterFormatting(rel, meta, result)
+	validateFrontmatterFormatting(rel, document.Frontmatter, result)
 
-	if frontmatterErr == nil {
+	if document.FrontmatterErr == nil {
 		switch name {
 		case "index.md":
-			validateIndex(rel, meta, result)
+			validateIndex(rel, document.Frontmatter, result)
 		case "log.md":
-			validateLog(rel, meta, string(content), result)
+			validateLog(rel, document.Frontmatter, document.Content, result)
 		default:
-			validateConcept(rel, meta, result)
+			validateConcept(rel, document.Frontmatter, result)
 		}
-		validateMarkdownSyntax(rel, body, meta.bodyLine, result)
+		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.bodyLine, result)
 	}
-	validateLinks(root, rel, string(content), result)
+	validateLinks(root, rel, document.Content, result)
 }
 
 func frontmatterErrorLine(err error) int {

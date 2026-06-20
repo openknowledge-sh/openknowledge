@@ -46,6 +46,9 @@ func listInventory(absolute string, issues []Issue) (ListResult, error) {
 
 	entries := make([]ListEntry, 0, len(documents))
 	for _, document := range documents {
+		if document.ReadErr != nil {
+			return ListResult{}, document.ReadErr
+		}
 		if isReserved(document.Rel) {
 			entries = append(entries, attachIssues(reservedEntry(document.Rel), issuesByPath))
 			continue
