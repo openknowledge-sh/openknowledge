@@ -101,12 +101,11 @@ func validateParsedBundle(bundle parsedBundle) Result {
 
 func validateDocument(root string, document parsedDocument, result *Result) {
 	rel := document.Rel
-	name := strings.ToLower(filepath.Base(document.Rel))
 
-	switch name {
-	case "index.md":
+	switch document.Kind {
+	case "index":
 		result.Indexes++
-	case "log.md":
+	case "log":
 		result.Logs++
 	default:
 		result.Concepts++
@@ -127,10 +126,10 @@ func validateDocument(root string, document parsedDocument, result *Result) {
 	validateFrontmatterFormatting(rel, document.Frontmatter, result)
 
 	if document.FrontmatterErr == nil {
-		switch name {
-		case "index.md":
+		switch document.Kind {
+		case "index":
 			validateIndex(rel, document.Frontmatter, result)
-		case "log.md":
+		case "log":
 			validateLog(rel, document.Frontmatter, document.Content, result)
 		default:
 			validateConcept(rel, document.Frontmatter, result)

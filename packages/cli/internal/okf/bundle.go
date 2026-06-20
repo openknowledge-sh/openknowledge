@@ -77,10 +77,10 @@ func bundleFilesFromParsedBundle(bundle parsedBundle, issues []Issue) ([]BundleF
 
 func bundleFile(document parsedDocument, issues []Issue) BundleFile {
 	entry := ListEntry{}
-	if isReserved(document.Rel) {
-		entry = reservedEntry(document.Rel)
+	if document.Reserved {
+		entry = reservedEntry(document)
 	} else {
-		entry = conceptEntry(document.Rel, document.Frontmatter)
+		entry = conceptEntry(document, document.Frontmatter)
 	}
 
 	return BundleFile{

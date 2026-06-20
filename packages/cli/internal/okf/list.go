@@ -44,15 +44,15 @@ func listInventoryFromParsedBundle(bundle parsedBundle, issues []Issue) (ListRes
 		if document.ReadErr != nil {
 			return ListResult{}, document.ReadErr
 		}
-		if isReserved(document.Rel) {
-			entries = append(entries, attachIssues(reservedEntry(document.Rel), issuesByPath))
+		if document.Reserved {
+			entries = append(entries, attachIssues(reservedEntry(document), issuesByPath))
 			continue
 		}
 		if document.FrontmatterErr != nil {
-			entries = append(entries, attachIssues(conceptEntry(document.Rel, frontmatter{}), issuesByPath))
+			entries = append(entries, attachIssues(conceptEntry(document, frontmatter{}), issuesByPath))
 			continue
 		}
-		entries = append(entries, attachIssues(conceptEntry(document.Rel, document.Frontmatter), issuesByPath))
+		entries = append(entries, attachIssues(conceptEntry(document, document.Frontmatter), issuesByPath))
 	}
 	return ListResult{Root: bundle.Root, Entries: entries}, nil
 }
@@ -70,16 +70,16 @@ func attachIssues(entry ListEntry, issuesByPath map[string][]Issue) ListEntry {
 	return entry
 }
 
-func conceptEntry(rel string, meta frontmatter) ListEntry {
+func conceptEntry(document parsedDocument, meta frontmatter) ListEntry {
 	title := meta.values["title"]
 	if title == "" {
-		title = deriveTitle(rel)
+		title = deriveTitle(document.Rel)
 	}
 
 	return ListEntry{
-		ID:          trimMarkdownExtension(rel),
-		Path:        rel,
-		Kind:        "concept",
+		ID:          document.ID,
+		Path:        document.Rel,
+		Kind:        document.Kind,
 		Type:        meta.values["type"],
 		Title:       title,
 		Description: meta.values["description"],
@@ -87,31 +87,38 @@ func conceptEntry(rel string, meta frontmatter) ListEntry {
 	}
 }
 
-func reservedEntry(rel string) ListEntry {
-	name := filepath.Base(rel)
-	kind := "reserved"
-	title := deriveTitle(rel)
-	if strings.EqualFold(name, "index.md") {
-		kind = "index"
+func reservedEntry(document parsedDocument) ListEntry {
+	title := deriveTitle(document.Rel)
+	if document.Kind == "index" {
 		title = "Index"
 	}
-	if strings.EqualFold(name, "log.md") {
-		kind = "log"
+	if document.Kind == "log" {
 		title = "Log"
 	}
 
 	return ListEntry{
-		ID:       trimMarkdownExtension(rel),
-		Path:     rel,
-		Kind:     kind,
-		Reserved: true,
+		ID:       document.ID,
+		Path:     document.Rel,
+		Kind:     document.Kind,
+		Reserved: document.Reserved,
 		Title:    title,
 	}
 }
 
 func isReserved(path string) bool {
-	name := filepath.Base(path)
-	return strings.EqualFold(name, "index.md") || strings.EqualFold(name, "log.md")
+	_, _, reserved := classifyDocument(path)
+	return reserved
+}
+
+func classifyDocument(rel string) (string, string, bool) {
+	name := filepath.Base(rel)
+	if strings.EqualFold(name, "index.md") {
+		return trimMarkdownExtension(rel), "index", true
+	}
+	if strings.EqualFold(name, "log.md") {
+		return trimMarkdownExtension(rel), "log", true
+	}
+	return trimMarkdownExtension(rel), "concept", false
 }
 
 func trimMarkdownExtension(path string) string {

@@ -10,6 +10,9 @@ import (
 type parsedDocument struct {
 	Absolute       string
 	Rel            string
+	ID             string
+	Kind           string
+	Reserved       bool
 	Raw            []byte
 	Content        string
 	Frontmatter    frontmatter
@@ -60,9 +63,13 @@ func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
 
 func parseMarkdownDocumentFile(path string, rel string) parsedDocument {
 	content, err := os.ReadFile(path)
+	id, kind, reserved := classifyDocument(rel)
 	document := parsedDocument{
 		Absolute: path,
 		Rel:      rel,
+		ID:       id,
+		Kind:     kind,
+		Reserved: reserved,
 		Raw:      content,
 		ReadErr:  err,
 	}
