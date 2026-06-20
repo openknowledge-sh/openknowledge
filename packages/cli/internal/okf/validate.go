@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -356,13 +355,4 @@ func looksLikeTableRow(line string) bool {
 func looksLikeTableSeparator(line string) bool {
 	cells := tableCells(line)
 	return len(cells) > 0 && isTableSeparator(cells)
-}
-
-func sortIssues(issues []Issue) {
-	sort.Slice(issues, func(i, j int) bool {
-		if issues[i].Path == issues[j].Path {
-			return issues[i].Line < issues[j].Line
-		}
-		return issues[i].Path < issues[j].Path
-	})
 }
