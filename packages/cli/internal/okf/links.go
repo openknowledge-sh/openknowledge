@@ -68,3 +68,90 @@ func linkKind(href string) string {
 	}
 	return "local"
 }
+
+func maskFencedCode(content string) string {
+	lines := strings.SplitAfter(content, "\n")
+	var builder strings.Builder
+	inFence := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+			builder.WriteString(maskLinePreservingNewline(line))
+			continue
+		}
+		if inFence {
+			builder.WriteString(maskLinePreservingNewline(line))
+			continue
+		}
+		builder.WriteString(line)
+	}
+	return builder.String()
+}
+
+func maskLinePreservingNewline(line string) string {
+	var builder strings.Builder
+	for _, r := range line {
+		if r == '\n' || r == '\r' {
+			builder.WriteRune(r)
+		} else {
+			builder.WriteByte(' ')
+		}
+	}
+	return builder.String()
+}
+
+func shouldSkipLink(href string) bool {
+	href = strings.TrimSpace(href)
+	if href == "" || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "//") {
+		return true
+	}
+	if schemeIndex := strings.Index(href, ":"); schemeIndex > 0 {
+		slashIndex := strings.Index(href, "/")
+		if slashIndex < 0 || schemeIndex < slashIndex {
+			return true
+		}
+	}
+	return false
+}
+
+func linkTargetRel(sourceRel string, href string) string {
+	target := strings.TrimSpace(href)
+	if hash := strings.Index(target, "#"); hash >= 0 {
+		target = target[:hash]
+	}
+	if query := strings.Index(target, "?"); query >= 0 {
+		target = target[:query]
+	}
+	if target == "" {
+		return ""
+	}
+
+	var clean string
+	if strings.HasPrefix(target, "/") {
+		clean = filepath.ToSlash(filepath.Clean(strings.TrimPrefix(target, "/")))
+	} else {
+		base := filepath.Dir(sourceRel)
+		if base == "." {
+			base = ""
+		}
+		clean = filepath.ToSlash(filepath.Clean(filepath.Join(base, target)))
+	}
+	if clean == "." {
+		clean = ""
+	}
+	if strings.HasSuffix(target, "/") {
+		clean = filepath.ToSlash(filepath.Join(clean, "index.md"))
+	}
+	return clean
+}
+
+func lineForOffset(content string, offset int) int {
+	line := 1
+	for index := 0; index < offset && index < len(content); index++ {
+		if content[index] == '\n' {
+			line++
+		}
+	}
+	return line
+}
