@@ -5,10 +5,10 @@ func parseAndValidateASTBundle(root string, version string) (Result, ASTBundle, 
 	if err != nil {
 		return Result{}, ASTBundle{}, err
 	}
-	return validateASTBundle(bundle), bundle, nil
+	return ValidateAST(bundle), bundle, nil
 }
 
-func validateASTBundle(bundle ASTBundle) Result {
+func ValidateAST(bundle ASTBundle) Result {
 	result := Result{Root: bundle.Root, SpecVersion: bundle.SpecVersion}
 	for _, document := range bundle.Documents {
 		result.Files++
