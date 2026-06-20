@@ -75,8 +75,9 @@ fallback redirect after checking for real static files.
 The Railway deployment workflow runs on pushes to `main`. It first verifies the
 repository with `pnpm test` and `pnpm build`, then deploys through the Railway
 CLI container with `railway up --service="${RAILWAY_SERVICE_ID}"`. Configure
-`RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as a repository
-variable before enabling the workflow.
+`RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as either a
+repository variable or repository secret before enabling the workflow. The
+repository variable takes precedence when both are present.
 
 ## Release
 

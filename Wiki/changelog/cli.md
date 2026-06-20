@@ -20,8 +20,8 @@ that were updated.
   `main`.
 * The workflow verifies the repo with `pnpm test` and `pnpm build` before
   deploying through Railway's CLI container with `railway up`.
-* Configure `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as a
-  repository variable.
+* Configure `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as
+  either a repository variable or repository secret.
 * Source anchors: `.github/workflows/deploy-railway.yml`,
   `Wiki/features/operations.md`.
 * Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
