@@ -8,6 +8,14 @@ import (
 	"sort"
 )
 
+func ParseAST(root string) (ASTBundle, error) {
+	return ParseASTWithVersion(root, LatestSpecVersion)
+}
+
+func ParseASTWithVersion(root string, version string) (ASTBundle, error) {
+	return parseBundleAST(root, version)
+}
+
 func parseBundleAST(root string, version string) (ASTBundle, error) {
 	resolved, ok := ResolveSpecVersion(version)
 	if !ok {
