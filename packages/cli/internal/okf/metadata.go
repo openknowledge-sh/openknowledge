@@ -26,23 +26,22 @@ type MarkdownDocumentInfo struct {
 
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	info := BundleInfo{Root: root}
-	content, err := os.ReadFile(filepath.Join(root, "index.md"))
-	if os.IsNotExist(err) {
+	document := parseMarkdownDocumentFile(filepath.Join(root, "index.md"), "index.md")
+	if os.IsNotExist(document.ReadErr) {
 		return info, nil
 	}
-	if err != nil {
-		return info, err
+	if document.ReadErr != nil {
+		return info, document.ReadErr
 	}
 
 	info.HasIndex = true
-	meta, body, err := splitFrontmatter(string(content))
-	if err != nil {
-		return info, err
+	if document.FrontmatterErr != nil {
+		return info, document.FrontmatterErr
 	}
 
-	info.RootTitle = firstH1(body)
-	if meta.has {
-		info.Metadata = bundleMetadataFromFrontmatter(meta.values)
+	info.RootTitle = firstH1(document.Body)
+	if document.Frontmatter.has {
+		info.Metadata = bundleMetadataFromFrontmatter(document.Frontmatter.values)
 		info.HasMetadata = hasBundleMetadata(info.Metadata)
 	}
 	return info, nil
@@ -82,22 +81,21 @@ func (info BundleInfo) EntryPath(name string) (string, bool) {
 
 func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, error) {
 	info := MarkdownDocumentInfo{Path: rel}
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return info, err
+	document := parseMarkdownDocumentFile(path, rel)
+	if document.ReadErr != nil {
+		return info, document.ReadErr
 	}
-	meta, _, err := splitFrontmatter(string(content))
-	if err != nil {
-		return info, err
+	if document.FrontmatterErr != nil {
+		return info, document.FrontmatterErr
 	}
-	if !meta.has {
+	if !document.Frontmatter.has {
 		return info, nil
 	}
-	info.Type = strings.TrimSpace(meta.values["type"])
-	info.Title = strings.TrimSpace(meta.values["title"])
-	info.Description = strings.TrimSpace(meta.values["description"])
-	info.Tags = parseFlowStringList(meta.values["tags"])
-	info.UseWhen = parseFlowStringList(meta.values["use_when"])
+	info.Type = strings.TrimSpace(document.Frontmatter.values["type"])
+	info.Title = strings.TrimSpace(document.Frontmatter.values["title"])
+	info.Description = strings.TrimSpace(document.Frontmatter.values["description"])
+	info.Tags = parseFlowStringList(document.Frontmatter.values["tags"])
+	info.UseWhen = parseFlowStringList(document.Frontmatter.values["use_when"])
 	return info, nil
 }
 

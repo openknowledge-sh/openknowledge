@@ -40,23 +40,7 @@ func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
 			return nil
 		}
 
-		content, err := os.ReadFile(path)
-		document := parsedDocument{
-			Absolute: path,
-			Rel:      relPath(root, path),
-			Raw:      content,
-			ReadErr:  err,
-		}
-		if err != nil {
-			documents = append(documents, document)
-			return nil
-		}
-		meta, body, frontmatterErr := splitFrontmatter(string(content))
-		document.Content = string(content)
-		document.Frontmatter = meta
-		document.Body = body
-		document.FrontmatterErr = frontmatterErr
-		documents = append(documents, document)
+		documents = append(documents, parseMarkdownDocumentFile(path, relPath(root, path)))
 		return nil
 	})
 	if err != nil {
@@ -67,4 +51,24 @@ func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
 		return documents[i].Rel < documents[j].Rel
 	})
 	return documents, nil
+}
+
+func parseMarkdownDocumentFile(path string, rel string) parsedDocument {
+	content, err := os.ReadFile(path)
+	document := parsedDocument{
+		Absolute: path,
+		Rel:      rel,
+		Raw:      content,
+		ReadErr:  err,
+	}
+	if err != nil {
+		return document
+	}
+
+	meta, body, frontmatterErr := splitFrontmatter(string(content))
+	document.Content = string(content)
+	document.Frontmatter = meta
+	document.Body = body
+	document.FrontmatterErr = frontmatterErr
+	return document
 }
