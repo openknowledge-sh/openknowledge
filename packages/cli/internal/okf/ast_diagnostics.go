@@ -5,6 +5,20 @@ import (
 	"unicode/utf8"
 )
 
+func (d *astDiagnostic) Error() string {
+	if d == nil {
+		return ""
+	}
+	return d.Message
+}
+
+func (d *astDiagnostic) Unwrap() error {
+	if d == nil {
+		return nil
+	}
+	return d.Cause
+}
+
 func astReadDiagnostic(err error) *astDiagnostic {
 	if err == nil {
 		return nil

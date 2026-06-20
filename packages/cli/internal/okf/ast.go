@@ -28,20 +28,6 @@ type astDiagnostic struct {
 	Cause   error
 }
 
-func (d *astDiagnostic) Error() string {
-	if d == nil {
-		return ""
-	}
-	return d.Message
-}
-
-func (d *astDiagnostic) Unwrap() error {
-	if d == nil {
-		return nil
-	}
-	return d.Cause
-}
-
 type astFrontmatter struct {
 	Has      bool
 	Values   map[string]string
