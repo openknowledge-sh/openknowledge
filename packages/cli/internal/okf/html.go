@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-type HTMLResult struct {
-	Root    string   `json:"root"`
-	Out     string   `json:"out"`
-	Written []string `json:"written"`
-}
-
-type htmlPageData struct {
-	Title string
-	Path  string
-	Body  template.HTML
-}
-
 func WriteHTML(root string, out string) (HTMLResult, error) {
 	return WriteHTMLWithVersion(root, out, LatestSpecVersion)
 }
