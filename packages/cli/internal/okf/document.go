@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -38,6 +39,36 @@ type astBundle struct {
 	Root        string
 	SpecVersion string
 	Documents   []astDocument
+}
+
+func parseBundleAST(root string, version string) (astBundle, error) {
+	resolved, ok := ResolveSpecVersion(version)
+	if !ok {
+		return astBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
+	}
+
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return astBundle{}, err
+	}
+
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return astBundle{}, err
+	}
+	if !info.IsDir() {
+		return astBundle{}, fmt.Errorf("%s is not a directory", absolute)
+	}
+
+	documents, err := parseMarkdownDocuments(absolute)
+	if err != nil {
+		return astBundle{}, err
+	}
+	return astBundle{
+		Root:        absolute,
+		SpecVersion: resolved,
+		Documents:   documents,
+	}, nil
 }
 
 func parseMarkdownDocuments(root string) ([]astDocument, error) {

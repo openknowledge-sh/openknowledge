@@ -3,7 +3,6 @@ package okf
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -56,32 +55,9 @@ func ValidateWithVersion(root string, version string) (Result, error) {
 }
 
 func parseAndValidateBundle(root string, version string) (Result, astBundle, error) {
-	resolved, ok := ResolveSpecVersion(version)
-	if !ok {
-		return Result{}, astBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
-	}
-
-	absolute, err := filepath.Abs(root)
+	bundle, err := parseBundleAST(root, version)
 	if err != nil {
 		return Result{}, astBundle{}, err
-	}
-
-	info, err := os.Stat(absolute)
-	if err != nil {
-		return Result{}, astBundle{}, err
-	}
-	if !info.IsDir() {
-		return Result{}, astBundle{}, fmt.Errorf("%s is not a directory", absolute)
-	}
-
-	documents, err := parseMarkdownDocuments(absolute)
-	if err != nil {
-		return Result{}, astBundle{}, err
-	}
-	bundle := astBundle{
-		Root:        absolute,
-		SpecVersion: resolved,
-		Documents:   documents,
 	}
 	return validateASTBundle(bundle), bundle, nil
 }
