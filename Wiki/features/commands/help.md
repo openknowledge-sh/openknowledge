@@ -52,6 +52,10 @@ help, README command tables, and this wiki.
 
 ### 2026-06-20
 
+Root help added `openknowledge use <name|path> [entry]`,
+`openknowledge use <name|path> --info`, a `use` command summary, and quick
+examples for inspecting and printing an entrypoint.
+
 Root help added `openknowledge disconnect <key|path>`, a `disconnect` command
 summary, and a quick example for removing a connection.
 

@@ -46,6 +46,8 @@ openknowledge new ./project-memory
 openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
 openknowledge connect ./project-memory --as personal
 openknowledge connect ./accessibility
+openknowledge use personal --info
+openknowledge use personal
 openknowledge where personal
 openknowledge open
 openknowledge open ./project-memory
@@ -118,10 +120,11 @@ layer.
 `openknowledge connect` stores named local paths for shared or standalone
 knowledge bases. A key is only an alias: path-based commands still work, and
 agents can use `openknowledge where <key>` to get the real folder before using
-normal filesystem tools such as `rg`. `openknowledge disconnect` removes a
-connection without deleting local files by default. `openknowledge registry`
-remains the low-level compatibility command for listing and adding named paths
-directly.
+normal filesystem tools such as `rg`. Agents can use `openknowledge use <key>`
+to print a bundle-declared entrypoint, falling back to root `index.md` when no
+default entrypoint is declared. `openknowledge disconnect` removes a connection
+without deleting local files by default. `openknowledge registry` remains the
+low-level compatibility command for listing and adding named paths directly.
 
 The local viewer opens the printed `127.0.0.1` view URL in your default
 browser. It serves registered knowledge bases under stable paths such as
@@ -142,6 +145,9 @@ changes.
 | `openknowledge connect <path> --access read\|write` | Store an access label with a connection. |
 | `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
 | `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for managed cached entries. |
+| `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
+| `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint. |
+| `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
 | `openknowledge registry list` | List named local knowledge base paths. |
 | `openknowledge registry add <name> <path>` | Register a name for a knowledge base folder. |
 | `openknowledge where <name-or-path>` | Print the absolute path for a registry name or path. |

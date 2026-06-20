@@ -34,6 +34,8 @@ func main() {
 		os.Exit(runConnect(os.Args[2:]))
 	case "disconnect":
 		os.Exit(runDisconnect(os.Args[2:]))
+	case "use":
+		os.Exit(runUse(os.Args[2:]))
 	case "registry":
 		os.Exit(runRegistry(os.Args[2:]))
 	case "where":
@@ -442,6 +444,223 @@ func printDisconnectResult(entry okf.RegistryEntry, files string) {
 	fmt.Printf("%-6s %s\n", "key", entry.Name)
 	fmt.Printf("%-6s %s\n", "path", terminal.path(entry.Path))
 	fmt.Printf("%-6s %s\n", "files", files)
+}
+
+type useOptions struct {
+	target string
+	entry  string
+	info   bool
+}
+
+type useSelection struct {
+	name string
+	rel  string
+	abs  string
+}
+
+func runUse(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, useHelpText())
+		return 0
+	}
+	options, err := parseUseOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	root, err := resolveWhereTarget(options.target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	info, err := okf.ReadBundleInfo(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	if options.info {
+		if err := printUseInfo(root, info, options.entry); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return 0
+	}
+
+	selection, err := selectUseEntrypoint(root, info, options.entry)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	content, err := os.ReadFile(selection.abs)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Print(string(content))
+	return 0
+}
+
+func parseUseOptions(args []string) (useOptions, error) {
+	options := useOptions{}
+	for _, arg := range args {
+		switch {
+		case arg == "--info":
+			options.info = true
+		case strings.HasPrefix(arg, "-"):
+			return useOptions{}, fmt.Errorf("unknown flag: %s", arg)
+		case options.target == "":
+			options.target = arg
+		case options.entry == "":
+			options.entry = arg
+		default:
+			return useOptions{}, fmt.Errorf("use accepts at most one entry")
+		}
+	}
+	if options.target == "" {
+		return useOptions{}, fmt.Errorf("usage: openknowledge use <name|path> [entry]")
+	}
+	return options, nil
+}
+
+func selectUseEntrypoint(root string, info okf.BundleInfo, entryName string) (useSelection, error) {
+	name := strings.TrimSpace(entryName)
+	rel := ""
+	if name == "" {
+		if path, ok := info.EntryPath("default"); ok {
+			name = "default"
+			rel = path
+		} else {
+			name = "index"
+			rel = "index.md"
+		}
+	} else {
+		path, ok := info.EntryPath(name)
+		if !ok {
+			available := info.EntryNames()
+			if len(available) == 0 {
+				return useSelection{}, fmt.Errorf("entrypoint %q does not exist; this bundle has no declared entrypoints", name)
+			}
+			return useSelection{}, fmt.Errorf("entrypoint %q does not exist; available entries: %s", name, strings.Join(available, ", "))
+		}
+		rel = path
+	}
+
+	abs, normalizedRel, err := resolveBundleRelativeFile(root, rel)
+	if err != nil {
+		return useSelection{}, err
+	}
+	return useSelection{name: name, rel: normalizedRel, abs: abs}, nil
+}
+
+func resolveBundleRelativeFile(root string, rel string) (string, string, error) {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return "", "", fmt.Errorf("entrypoint path is empty")
+	}
+	rel = filepath.Clean(filepath.FromSlash(rel))
+	if filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("entrypoint path must stay inside the bundle: %s", rel)
+	}
+	abs := filepath.Join(root, rel)
+	relative, err := filepath.Rel(root, abs)
+	if err != nil {
+		return "", "", err
+	}
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("entrypoint path must stay inside the bundle: %s", rel)
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return "", "", err
+	}
+	if info.IsDir() {
+		return "", "", fmt.Errorf("entrypoint path is a directory: %s", rel)
+	}
+	return abs, filepath.ToSlash(relative), nil
+}
+
+func printUseInfo(root string, info okf.BundleInfo, entryName string) error {
+	terminal.title("Open Knowledge Use", "agent entrypoint metadata")
+	fmt.Printf("%-9s %s\n", "name", info.DisplayName())
+	fmt.Printf("%-9s %s\n", "root", terminal.path(root))
+	if info.Metadata.Purpose != "" {
+		fmt.Printf("%-9s %s\n", "purpose", info.Metadata.Purpose)
+	}
+	if len(info.Metadata.Tags) > 0 {
+		fmt.Printf("%-9s %s\n", "tags", strings.Join(info.Metadata.Tags, ", "))
+	}
+	fmt.Println()
+
+	if strings.TrimSpace(entryName) != "" {
+		selection, err := selectUseEntrypoint(root, info, entryName)
+		if err != nil {
+			return err
+		}
+		document, err := okf.ReadMarkdownDocumentInfo(selection.abs, selection.rel)
+		if err != nil {
+			return err
+		}
+		printUseEntrypointInfo(selection, document)
+		return nil
+	}
+
+	if len(info.Metadata.Entries) == 0 {
+		selection, err := selectUseEntrypoint(root, info, "")
+		if err != nil {
+			return err
+		}
+		document, err := okf.ReadMarkdownDocumentInfo(selection.abs, selection.rel)
+		if err != nil {
+			return err
+		}
+		printUseEntrypointInfo(selection, document)
+		return nil
+	}
+
+	terminal.section("Entrypoints")
+	for _, entry := range info.Metadata.Entries {
+		selection, err := selectUseEntrypoint(root, info, entry.Name)
+		if err != nil {
+			return err
+		}
+		document, err := okf.ReadMarkdownDocumentInfo(selection.abs, selection.rel)
+		if err != nil {
+			return err
+		}
+		summary := document.Title
+		if summary == "" {
+			summary = document.Description
+		}
+		if summary == "" {
+			fmt.Printf("  %-12s %s\n", selection.name, selection.rel)
+		} else {
+			fmt.Printf("  %-12s %s  %s\n", selection.name, selection.rel, terminal.muted(summary))
+		}
+	}
+	return nil
+}
+
+func printUseEntrypointInfo(selection useSelection, document okf.MarkdownDocumentInfo) {
+	terminal.section("Entrypoint")
+	fmt.Printf("%-12s %s\n", "entry", selection.name)
+	fmt.Printf("%-12s %s\n", "path", selection.rel)
+	if document.Type != "" {
+		fmt.Printf("%-12s %s\n", "type", document.Type)
+	}
+	if document.Title != "" {
+		fmt.Printf("%-12s %s\n", "title", document.Title)
+	}
+	if document.Description != "" {
+		fmt.Printf("%-12s %s\n", "description", document.Description)
+	}
+	if len(document.Tags) > 0 {
+		fmt.Printf("%-12s %s\n", "tags", strings.Join(document.Tags, ", "))
+	}
+	if len(document.UseWhen) > 0 {
+		fmt.Printf("%-12s %s\n", "use_when", strings.Join(document.UseWhen, ", "))
+	}
 }
 
 func printRegistryEntries(entries []okf.RegistryEntry) {
@@ -948,6 +1167,8 @@ Usage:
   openknowledge connect <path>
   openknowledge connect <path> --as <key>
   openknowledge disconnect <key|path>
+  openknowledge use <name|path> [entry]
+  openknowledge use <name|path> --info
   openknowledge registry list
   openknowledge registry add <name> <path>
   openknowledge where <name|path>
@@ -971,6 +1192,7 @@ Commands:
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local knowledge bundle.
   disconnect Remove a knowledge bundle connection.
+  use        Print an agent entrypoint from a bundle.
   registry   Manage named knowledge base paths.
   where      Print the path for a named knowledge base or path.
   open       Start the registry or knowledge base Markdown viewer.
@@ -989,6 +1211,8 @@ Examples:
   openknowledge new ./project-memory
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
   openknowledge connect ./accessibility --as accessibility
+  openknowledge use accessibility --info
+  openknowledge use accessibility
   openknowledge disconnect accessibility
   openknowledge registry add personal ~/knowledge
   openknowledge where personal
@@ -999,6 +1223,37 @@ Examples:
   openknowledge list --json ./project-memory
   openknowledge open
   openknowledge open ./project-memory
+`
+}
+
+func useHelpText() string {
+	return `openknowledge use
+
+Print an agent-facing entrypoint from a knowledge bundle.
+
+Usage:
+  openknowledge use <name|path>
+  openknowledge use <name|path> <entry>
+  openknowledge use <name|path> --info
+  openknowledge use <name|path> <entry> --info
+  openknowledge use --help
+
+Arguments:
+  name|path      Registry key or local bundle path.
+  entry          Optional entrypoint name from okf_bundle_entry_<name>.
+
+Flags:
+  --info         Print bundle and entrypoint metadata instead of Markdown body.
+
+Behavior:
+  Without an entry, use prints okf_bundle_entry_default when declared. If no
+  default entrypoint exists, it prints the bundle root index.md. Named entries
+  must be declared in root index.md metadata.
+
+Examples:
+  openknowledge use accessibility --info
+  openknowledge use accessibility
+  openknowledge use accessibility review
 `
 }
 

@@ -76,8 +76,8 @@ content:
   validation pass.
 
 JSON output should expose the same data so generic agent skills can discover
-available knowledge packages before choosing whether to call
-`openknowledge use`.
+available knowledge packages before choosing whether to call the shipped
+`openknowledge use` entrypoint reader.
 
 ## Use Cases
 

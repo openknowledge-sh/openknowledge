@@ -65,6 +65,7 @@ Registry entries may now include optional `access` and `managed` fields. The
 current local `connect` command stores `access` as `read` or `write` and leaves
 `managed` unset. `disconnect` removes matching entries by key or absolute path,
 keeps files by default, and refuses `--delete-files` for non-managed entries.
+`use` resolves the same keys before reading bundle entrypoint metadata.
 
 ## Future Storage Candidate
 
@@ -107,6 +108,9 @@ existing `entries` storage shape.
 
 `openknowledge disconnect` shipped as the user-facing removal path for registry
 entries, with key/path resolution and guarded managed-file deletion.
+
+`openknowledge use` shipped as the registry-aware agent entrypoint reader for
+connected bundles.
 
 ## Update Notes
 

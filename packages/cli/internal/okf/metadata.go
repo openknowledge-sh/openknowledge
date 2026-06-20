@@ -15,6 +15,15 @@ type BundleInfo struct {
 	HasMetadata bool
 }
 
+type MarkdownDocumentInfo struct {
+	Path        string
+	Type        string
+	Title       string
+	Description string
+	Tags        []string
+	UseWhen     []string
+}
+
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	info := BundleInfo{Root: root}
 	content, err := os.ReadFile(filepath.Join(root, "index.md"))
@@ -60,6 +69,36 @@ func (info BundleInfo) EntryNames() []string {
 		names = append(names, entry.Name)
 	}
 	return names
+}
+
+func (info BundleInfo) EntryPath(name string) (string, bool) {
+	for _, entry := range info.Metadata.Entries {
+		if entry.Name == name {
+			return entry.Path, true
+		}
+	}
+	return "", false
+}
+
+func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, error) {
+	info := MarkdownDocumentInfo{Path: rel}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return info, err
+	}
+	meta, _, err := splitFrontmatter(string(content))
+	if err != nil {
+		return info, err
+	}
+	if !meta.has {
+		return info, nil
+	}
+	info.Type = strings.TrimSpace(meta.values["type"])
+	info.Title = strings.TrimSpace(meta.values["title"])
+	info.Description = strings.TrimSpace(meta.values["description"])
+	info.Tags = parseFlowStringList(meta.values["tags"])
+	info.UseWhen = parseFlowStringList(meta.values["use_when"])
+	return info, nil
 }
 
 func bundleMetadataFromFrontmatter(values map[string]string) BundleMetadata {

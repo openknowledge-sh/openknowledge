@@ -54,3 +54,32 @@ func TestReadBundleInfoFallsBackToFolderName(t *testing.T) {
 		t.Fatalf("unexpected display name: %s", info.DisplayName())
 	}
 }
+
+func TestReadMarkdownDocumentInfoReadsAgentEntrypointMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "agents/review.md", `---
+type: Agent Entrypoint
+title: Accessibility Review
+description: Review UI accessibility.
+tags: [accessibility, review]
+use_when: ["reviewing UI", "checking forms"]
+---
+
+# Review
+`)
+
+	path := filepath.Join(root, "agents", "review.md")
+	info, err := ReadMarkdownDocumentInfo(path, "agents/review.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Type != "Agent Entrypoint" || info.Title != "Accessibility Review" || info.Description != "Review UI accessibility." {
+		t.Fatalf("unexpected document info: %#v", info)
+	}
+	if !reflect.DeepEqual(info.Tags, []string{"accessibility", "review"}) {
+		t.Fatalf("unexpected tags: %#v", info.Tags)
+	}
+	if !reflect.DeepEqual(info.UseWhen, []string{"reviewing UI", "checking forms"}) {
+		t.Fatalf("unexpected use_when: %#v", info.UseWhen)
+	}
+}

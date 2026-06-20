@@ -11,7 +11,7 @@ anchors. Keep this index as the quick map.
 * [Connect](connect.md) - add a local OKF bundle to the local knowledge registry.
 * [Disconnect](disconnect.md) - remove a connected bundle from the local registry.
 * [Registry](registry.md) - current low-level named path registry and candidate internal storage layer.
-* [Use](use.md) - candidate agent entrypoint command for connected bundles.
+* [Use](use.md) - print agent entrypoint Markdown or metadata from a bundle.
 * [Where](where.md) - resolve names or paths to absolute bundle paths.
 * [Open](open.md) - local Markdown viewer.
 * [To](to.md) - conversion command group.
