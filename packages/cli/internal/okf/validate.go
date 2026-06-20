@@ -582,7 +582,8 @@ func hasIssueRule(issues []Issue, rules ...string) bool {
 }
 
 func isMarkdown(path string) bool {
-	return strings.EqualFold(filepath.Ext(path), ".md")
+	extension := strings.ToLower(filepath.Ext(path))
+	return extension == ".md" || extension == ".markdown"
 }
 
 func relPath(root, path string) string {

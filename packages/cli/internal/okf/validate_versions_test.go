@@ -41,6 +41,19 @@ func TestValidateConformanceBySpecVersion(t *testing.T) {
 			}
 		})
 
+		t.Run(version+"/scanner_includes_markdown_extension", func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, root, "guide.markdown", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n")
+
+			result, err := ValidateWithVersion(root, version)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Concepts != 1 || result.Files != 1 {
+				t.Fatalf("expected .markdown file to be scanned, got %#v", result)
+			}
+		})
+
 		t.Run(version+"/missing_concept_type_fails", func(t *testing.T) {
 			root := t.TempDir()
 			writeFile(t, root, "concept.md", "---\ntitle: Missing Type\n---\n")

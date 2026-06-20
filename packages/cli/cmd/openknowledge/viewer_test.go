@@ -299,6 +299,22 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 }
 
+func TestViewerRendersMarkdownExtensionFilesFromAST(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Guide](guide.markdown).\n")
+	writeViewerFile(t, root, "guide.markdown", "---\r\ntype: Guide\r\ntitle: Guide\r\n---\r\n\r\n# Guide\r\n\r\nRendered from AST.\r\n")
+
+	handler := newViewerHandler(root)
+
+	page := getViewerBody(t, handler, "/file/guide.markdown")
+	if strings.Contains(page, "type: Guide") || strings.Contains(page, "---") {
+		t.Fatalf("viewer should render .markdown files from parsed AST body, got:\n%s", page)
+	}
+	if !strings.Contains(page, "<h1>Guide</h1>") || !strings.Contains(page, "Rendered from AST.") {
+		t.Fatalf("viewer did not render .markdown body:\n%s", page)
+	}
+}
+
 func TestViewerBrandUsesKnowledgeBaseMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: \"engineering-handbook\"\nokf_bundle_title: \"Engineering Handbook\"\n---\n\n# Home\n")

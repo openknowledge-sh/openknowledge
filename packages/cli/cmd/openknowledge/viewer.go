@@ -754,57 +754,16 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	if !ok {
 		return viewerFileData{}, false, nil
 	}
-	if strings.EqualFold(filepath.Ext(cleanRel), ".md") {
-		bundle, err := okf.ParseBundle(root)
-		if err != nil {
-			return viewerFileData{}, true, err
-		}
-		file, ok := viewerBundleFileByPath(bundle.Files, cleanRel)
-		if !ok {
-			return viewerFileData{}, false, nil
-		}
-		entries := viewerEntriesFromBundleFiles(bundle.Files)
-		graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, func(path string) string {
-			return fileURLWithPrefix(linkPrefix, path)
-		})
-		theme, err := viewerThemeForServer(root, linkPrefix)
-		if err != nil {
-			return viewerFileData{}, true, err
-		}
-
-		return viewerFileData{
-			Frame:       frame,
-			Title:       titleForMarkdownFile(cleanRel),
-			BrandName:   viewerKnowledgeBaseNameFromFiles(bundle.Files, ""),
-			HomeURL:     viewerPrefixRoot(linkPrefix),
-			Root:        root,
-			Path:        cleanRel,
-			FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
-			SourceURL:   "",
-			LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
-			SearchURL:   searchURLWithPrefix(linkPrefix),
-			Theme:       theme,
-			Body:        template.HTML(okf.RenderMarkdown(file.Body, cleanRel, viewerLinkWithPrefix(linkPrefix))),
-			Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
-			EditorsJSON: viewerEditorsJSON(),
-			GraphJSON:   graphJSON,
-		}, true, nil
+	bundle, err := okf.ParseBundle(root)
+	if err != nil {
+		return viewerFileData{}, true, err
 	}
-
-	filePath, ok := safeMarkdownPath(root, cleanRel)
+	file, ok := viewerBundleFileByPath(bundle.Files, cleanRel)
 	if !ok {
 		return viewerFileData{}, false, nil
 	}
-
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return viewerFileData{}, true, err
-	}
-	listing, err := okf.List(root)
-	if err != nil {
-		return viewerFileData{}, true, err
-	}
-	graphJSON := viewerGraphJSON(root, listing.Entries, func(path string) string {
+	entries := viewerEntriesFromBundleFiles(bundle.Files)
+	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, func(path string) string {
 		return fileURLWithPrefix(linkPrefix, path)
 	})
 	theme, err := viewerThemeForServer(root, linkPrefix)
@@ -824,8 +783,8 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
 		SearchURL:   searchURLWithPrefix(linkPrefix),
 		Theme:       theme,
-		Body:        template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), cleanRel, viewerLinkWithPrefix(linkPrefix))),
-		Tree:        viewerTreeWithURL(listing.Entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
+		Body:        template.HTML(okf.RenderMarkdown(file.Body, cleanRel, viewerLinkWithPrefix(linkPrefix))),
+		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
 		GraphJSON:   graphJSON,
 	}, true, nil
@@ -2202,18 +2161,6 @@ func firstMarkdownHeading(body string) string {
 		}
 	}
 	return ""
-}
-
-func stripFrontmatter(text string) string {
-	if !strings.HasPrefix(text, "---\n") {
-		return text
-	}
-	rest := text[len("---\n"):]
-	index := strings.Index(rest, "\n---\n")
-	if index < 0 {
-		return text
-	}
-	return rest[index+len("\n---\n"):]
 }
 
 var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!doctype html>
