@@ -1,7 +1,5 @@
 package okf
 
-import "strings"
-
 type Bundle struct {
 	Root        string       `json:"root"`
 	SpecVersion string       `json:"specVersion"`
@@ -80,16 +78,4 @@ func bundleFile(document astDocument, issues []Issue) BundleFile {
 		Links:       document.Links,
 		Issues:      issues,
 	}
-}
-
-func ShouldPublish(file BundleFile) bool {
-	return shouldPublishFrontmatterValues(file.Frontmatter)
-}
-
-func shouldPublishASTDocument(document astDocument) bool {
-	return shouldPublishFrontmatterValues(document.Frontmatter.Values)
-}
-
-func shouldPublishFrontmatterValues(values map[string]string) bool {
-	return strings.TrimSpace(strings.ToLower(values["okf_publish"])) != "false"
 }
