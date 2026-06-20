@@ -18,6 +18,12 @@ type parsedDocument struct {
 	FrontmatterErr error
 }
 
+type parsedBundle struct {
+	Root        string
+	SpecVersion string
+	Documents   []parsedDocument
+}
+
 func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
 	var documents []parsedDocument
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {

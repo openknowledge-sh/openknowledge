@@ -27,20 +27,20 @@ func List(root string) (ListResult, error) {
 }
 
 func ListWithVersion(root string, version string) (ListResult, error) {
-	validation, documents, err := parseAndValidateBundleDocuments(root, version)
+	validation, parsed, err := parseAndValidateBundle(root, version)
 	if err != nil {
 		return ListResult{}, err
 	}
 
 	issues := append([]Issue{}, validation.Errors...)
 	issues = append(issues, validation.Warnings...)
-	return listInventoryFromDocuments(validation.Root, documents, issues)
+	return listInventoryFromParsedBundle(parsed, issues)
 }
 
-func listInventoryFromDocuments(absolute string, documents []parsedDocument, issues []Issue) (ListResult, error) {
+func listInventoryFromParsedBundle(bundle parsedBundle, issues []Issue) (ListResult, error) {
 	issuesByPath := groupIssuesByPath(issues)
-	entries := make([]ListEntry, 0, len(documents))
-	for _, document := range documents {
+	entries := make([]ListEntry, 0, len(bundle.Documents))
+	for _, document := range bundle.Documents {
 		if document.ReadErr != nil {
 			return ListResult{}, document.ReadErr
 		}
@@ -54,7 +54,7 @@ func listInventoryFromDocuments(absolute string, documents []parsedDocument, iss
 		}
 		entries = append(entries, attachIssues(conceptEntry(document.Rel, document.Frontmatter), issuesByPath))
 	}
-	return ListResult{Root: absolute, Entries: entries}, nil
+	return ListResult{Root: bundle.Root, Entries: entries}, nil
 }
 
 func groupIssuesByPath(issues []Issue) map[string][]Issue {

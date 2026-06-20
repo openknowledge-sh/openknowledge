@@ -51,41 +51,46 @@ func Validate(root string) (Result, error) {
 }
 
 func ValidateWithVersion(root string, version string) (Result, error) {
-	result, _, err := parseAndValidateBundleDocuments(root, version)
+	result, _, err := parseAndValidateBundle(root, version)
 	return result, err
 }
 
-func parseAndValidateBundleDocuments(root string, version string) (Result, []parsedDocument, error) {
+func parseAndValidateBundle(root string, version string) (Result, parsedBundle, error) {
 	resolved, ok := ResolveSpecVersion(version)
 	if !ok {
-		return Result{}, nil, fmt.Errorf("unsupported OKF spec version: %s", version)
+		return Result{}, parsedBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
 	}
 
 	absolute, err := filepath.Abs(root)
 	if err != nil {
-		return Result{}, nil, err
+		return Result{}, parsedBundle{}, err
 	}
 
 	info, err := os.Stat(absolute)
 	if err != nil {
-		return Result{}, nil, err
+		return Result{}, parsedBundle{}, err
 	}
 	if !info.IsDir() {
-		return Result{}, nil, fmt.Errorf("%s is not a directory", absolute)
+		return Result{}, parsedBundle{}, fmt.Errorf("%s is not a directory", absolute)
 	}
 
 	documents, err := parseMarkdownDocuments(absolute)
 	if err != nil {
-		return Result{}, nil, err
+		return Result{}, parsedBundle{}, err
 	}
-	return validateParsedDocuments(absolute, resolved, documents), documents, nil
+	bundle := parsedBundle{
+		Root:        absolute,
+		SpecVersion: resolved,
+		Documents:   documents,
+	}
+	return validateParsedBundle(bundle), bundle, nil
 }
 
-func validateParsedDocuments(root string, specVersion string, documents []parsedDocument) Result {
-	result := Result{Root: root, SpecVersion: specVersion}
-	for _, document := range documents {
+func validateParsedBundle(bundle parsedBundle) Result {
+	result := Result{Root: bundle.Root, SpecVersion: bundle.SpecVersion}
+	for _, document := range bundle.Documents {
 		result.Files++
-		validateDocument(root, document, &result)
+		validateDocument(bundle.Root, document, &result)
 	}
 
 	sortIssues(result.Errors)
