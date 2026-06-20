@@ -1,92 +1,80 @@
 ---
-type: Candidate Command Documentation
+type: Command Documentation
 title: openknowledge disconnect
-description: Candidate specification for removing connected knowledge bundles from the local registry.
-tags: [openknowledge, cli, command, registry, disconnect, candidate]
-timestamp: 2026-06-19T00:00:00Z
-status: candidate
+description: Removes a connected knowledge bundle from the local registry.
+tags: [openknowledge, cli, command, registry, disconnect]
+timestamp: 2026-06-20T00:00:00Z
 ---
 
 # `openknowledge disconnect`
 
-`openknowledge disconnect` is the candidate user-facing command for removing a
-bundle from the local Open Knowledge connections registry.
+`openknowledge disconnect` removes one knowledge bundle connection from the
+user registry. It unregisters the connection and keeps files by default.
 
-It should replace normal use of low-level registry removal commands. The
-command unregisters the connection first and only deletes files when explicitly
-asked.
+The shipped local `connect` command creates non-managed connections, so
+`disconnect --delete-files` is reserved for future managed remote-cache entries
+and refuses to delete ordinary local folders.
 
-## Candidate Usage
+## Usage
 
 ```sh
 openknowledge disconnect <key-or-path>
-openknowledge disconnect <key-or-path> --delete-files
 openknowledge disconnect <key-or-path> --keep-files
+openknowledge disconnect <key-or-path> --delete-files
 openknowledge disconnect --help
 ```
 
-## Resolution
+## Arguments And Flags
 
-`key-or-path` resolves through the same connection registry as `where`, `list`,
-`open`, and candidate `use`:
+| Name | Kind | Description |
+| --- | --- | --- |
+| `key-or-path` | argument | Connection key or connected local path. |
+| `--keep-files` | flag | Keep bundle files after removing the registry entry. This is the default. |
+| `--delete-files` | flag | Delete files only when the registry entry is marked `managed`. |
 
-* if it matches a key, disconnect that connection;
-* if it looks like a path, normalize it to an absolute path and disconnect that
-  exact path when present;
-* if no connection matches, fail clearly and print available keys.
+`--keep-files` and `--delete-files` cannot be used together.
 
-Path resolution must use absolute paths because agents may run from different
-working directories.
+## Behavior
 
-## File Deletion
+`disconnect` resolves its target against the local registry:
 
-Default behavior should be conservative:
+* a non-path value is treated as a connection key;
+* a path-like value is expanded, normalized to an absolute path, and matched
+  against stored connection paths;
+* unknown targets fail clearly and print available keys when the registry has
+  entries.
 
-* Local user-owned paths are never deleted by default.
-* Managed remote caches are not deleted unless the user passes
-  `--delete-files`.
-* `--keep-files` is explicit no-delete behavior and useful for scripts.
-* `--delete-files` is valid only for managed paths under Open Knowledge's cache
-  root, unless a future interactive confirmation deliberately supports broader
-  deletion.
+After resolution, the command removes the registry entry and prints the key,
+path, and file action. Default and `--keep-files` output uses `files kept`.
 
-## Output
+`--delete-files` fails before unregistering when the matched entry is not
+marked managed. If a future managed entry is removed but file deletion fails,
+the command leaves the registry update in place, prints a warning, and exits
+with status `1`.
 
-```text
-Disconnected knowledge bundle
-key    accessibility
-path   /Users/me/.openknowledge/bundles/accessibility
-files  kept
+## Quick Examples
+
+```sh
+openknowledge disconnect accessibility
+openknowledge disconnect ./project-memory --keep-files
 ```
 
-With deletion:
+## Source Anchors
 
-```text
-Disconnected knowledge bundle
-key    accessibility
-path   /Users/me/.openknowledge/bundles/accessibility
-files  deleted
-```
+* `packages/cli/cmd/openknowledge/main.go`
+* `packages/cli/internal/okf/registry.go`
+* `packages/cli/internal/okf/registry_test.go`
 
-## Failure Cases
+## Command Change History
 
-`disconnect` should fail when:
+### 2026-06-20
 
-* the key is unknown;
-* the path is not connected;
-* `--delete-files` targets a non-managed path;
-* files cannot be deleted after the registry update. In that case, print a
-  warning with the path so the user can clean up manually.
-
-## Relationship To Registry
-
-The internal registry store remains the persistence layer. `disconnect` is the
-user-facing command that removes one connection from it. If a compatibility
-`registry remove` command exists later, it should be an alias for unregistering
-only and should never delete files.
+`openknowledge disconnect` shipped with key/path target resolution,
+`--keep-files`, guarded `--delete-files`, unknown-target key hints, and
+non-managed deletion refusal.
 
 ## Update Notes
 
-When implemented, update root help, `README.md`, [connect](connect.md),
-[list](list.md), [where](where.md), tests, and
-[CLI changelog](/changelog/cli.md).
+Update this page when target resolution, registry removal, managed-file
+deletion, output, or exit-code behavior changes. CLI behavior changes also
+require [CLI changelog](/changelog/cli.md) updates.

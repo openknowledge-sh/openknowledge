@@ -103,3 +103,43 @@ func TestConnectRegistryEntryRejectsExplicitKeyCollision(t *testing.T) {
 		t.Fatal("expected explicit key collision to fail")
 	}
 }
+
+func TestRemoveRegistryEntryByNameAndPath(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+
+	firstRoot := t.TempDir()
+	secondRoot := t.TempDir()
+	first, _, err := ConnectRegistryEntry("first", firstRoot, "read", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, _, err := ConnectRegistryEntry("second", secondRoot, "read", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	removed, ok, err := RemoveRegistryEntry("first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || removed != first {
+		t.Fatalf("unexpected removed entry by name: ok=%v entry=%#v", ok, removed)
+	}
+
+	removed, ok, err = RemoveRegistryEntry(second.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || removed != second {
+		t.Fatalf("unexpected removed entry by path: ok=%v entry=%#v", ok, removed)
+	}
+
+	entries, err := RegistryEntries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected empty registry, got %#v", entries)
+	}
+}

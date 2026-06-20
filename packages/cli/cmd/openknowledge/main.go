@@ -32,6 +32,8 @@ func main() {
 		os.Exit(runNew(os.Args[2:]))
 	case "connect":
 		os.Exit(runConnect(os.Args[2:]))
+	case "disconnect":
+		os.Exit(runDisconnect(os.Args[2:]))
 	case "registry":
 		os.Exit(runRegistry(os.Args[2:]))
 	case "where":
@@ -357,6 +359,89 @@ func looksLikeRemoteSource(value string) bool {
 	return strings.HasPrefix(value, "http://") ||
 		strings.HasPrefix(value, "https://") ||
 		strings.HasPrefix(value, "git@")
+}
+
+func runDisconnect(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, disconnectHelpText())
+		return 0
+	}
+	fs := flag.NewFlagSet("disconnect", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	deleteFilesFlag := fs.Bool("delete-files", false, "delete managed bundle files")
+	keepFilesFlag := fs.Bool("keep-files", false, "keep bundle files")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge disconnect <key|path>")
+		return 2
+	}
+	if *deleteFilesFlag && *keepFilesFlag {
+		fmt.Fprintln(os.Stderr, "--delete-files and --keep-files cannot be used together")
+		return 2
+	}
+
+	target := fs.Arg(0)
+	entry, ok, err := okf.ResolveRegistryTarget(target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !ok {
+		printUnknownConnection(target)
+		return 1
+	}
+	if *deleteFilesFlag && !entry.Managed {
+		fmt.Fprintf(os.Stderr, "refusing to delete non-managed files: %s\n", entry.Path)
+		return 1
+	}
+
+	entry, ok, err = okf.RemoveRegistryEntry(target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !ok {
+		printUnknownConnection(target)
+		return 1
+	}
+
+	files := "kept"
+	if *deleteFilesFlag {
+		if err := os.RemoveAll(entry.Path); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: disconnected but could not delete %s: %v\n", entry.Path, err)
+			files = "delete failed"
+		} else {
+			files = "deleted"
+		}
+	}
+	printDisconnectResult(entry, files)
+	if files == "delete failed" {
+		return 1
+	}
+	return 0
+}
+
+func printUnknownConnection(target string) {
+	fmt.Fprintf(os.Stderr, "unknown knowledge bundle: %s\n", target)
+	entries, err := okf.RegistryEntries()
+	if err != nil || len(entries) == 0 {
+		return
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name)
+	}
+	sort.Strings(names)
+	fmt.Fprintf(os.Stderr, "available keys: %s\n", strings.Join(names, ", "))
+}
+
+func printDisconnectResult(entry okf.RegistryEntry, files string) {
+	terminal.success("Disconnected knowledge bundle")
+	fmt.Printf("%-6s %s\n", "key", entry.Name)
+	fmt.Printf("%-6s %s\n", "path", terminal.path(entry.Path))
+	fmt.Printf("%-6s %s\n", "files", files)
 }
 
 func printRegistryEntries(entries []okf.RegistryEntry) {
@@ -862,6 +947,7 @@ Usage:
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
   openknowledge connect <path>
   openknowledge connect <path> --as <key>
+  openknowledge disconnect <key|path>
   openknowledge registry list
   openknowledge registry add <name> <path>
   openknowledge where <name|path>
@@ -884,6 +970,7 @@ Commands:
   setup      Print an agent setup prompt.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local knowledge bundle.
+  disconnect Remove a knowledge bundle connection.
   registry   Manage named knowledge base paths.
   where      Print the path for a named knowledge base or path.
   open       Start the registry or knowledge base Markdown viewer.
@@ -902,6 +989,7 @@ Examples:
   openknowledge new ./project-memory
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
   openknowledge connect ./accessibility --as accessibility
+  openknowledge disconnect accessibility
   openknowledge registry add personal ~/knowledge
   openknowledge where personal
   openknowledge list personal
@@ -911,6 +999,33 @@ Examples:
   openknowledge list --json ./project-memory
   openknowledge open
   openknowledge open ./project-memory
+`
+}
+
+func disconnectHelpText() string {
+	return `openknowledge disconnect
+
+Remove a knowledge bundle connection from the user registry.
+
+Usage:
+  openknowledge disconnect <key|path>
+  openknowledge disconnect <key|path> --keep-files
+  openknowledge disconnect <key|path> --delete-files
+  openknowledge disconnect --help
+
+Arguments:
+  key|path        Connection key or connected local path.
+
+Flags:
+  --keep-files    Keep files after removing the connection. This is the default.
+  --delete-files  Delete files only when the connection is marked managed.
+
+The local connect command creates non-managed connections, so --delete-files is
+reserved for future managed remote-cache entries.
+
+Examples:
+  openknowledge disconnect accessibility
+  openknowledge disconnect ./project-memory --keep-files
 `
 }
 

@@ -55,6 +55,7 @@ openknowledge validate ./project-memory
 openknowledge to html --out ./project-site ./project-memory
 openknowledge to html --plain --out ./project-plain-site ./project-memory
 openknowledge to json ./project-memory
+openknowledge disconnect personal
 ```
 
 ## What Open Knowledge CLI gives you
@@ -117,8 +118,10 @@ layer.
 `openknowledge connect` stores named local paths for shared or standalone
 knowledge bases. A key is only an alias: path-based commands still work, and
 agents can use `openknowledge where <key>` to get the real folder before using
-normal filesystem tools such as `rg`. `openknowledge registry` remains the
-low-level compatibility command for listing and adding named paths directly.
+normal filesystem tools such as `rg`. `openknowledge disconnect` removes a
+connection without deleting local files by default. `openknowledge registry`
+remains the low-level compatibility command for listing and adding named paths
+directly.
 
 The local viewer opens the printed `127.0.0.1` view URL in your default
 browser. It serves registered knowledge bases under stable paths such as
@@ -137,6 +140,8 @@ changes.
 | `openknowledge connect <path>` | Connect a local knowledge bundle to the user registry. |
 | `openknowledge connect <path> --as <key>` | Connect a local bundle with an explicit key. |
 | `openknowledge connect <path> --access read\|write` | Store an access label with a connection. |
+| `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
+| `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for managed cached entries. |
 | `openknowledge registry list` | List named local knowledge base paths. |
 | `openknowledge registry add <name> <path>` | Register a name for a knowledge base folder. |
 | `openknowledge where <name-or-path>` | Print the absolute path for a registry name or path. |

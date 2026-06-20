@@ -15,6 +15,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge new --name <name> [folder]",
 		"openknowledge connect <path>",
 		"openknowledge connect <path> --as <key>",
+		"openknowledge disconnect <key|path>",
 		"openknowledge registry add <name> <path>",
 		"openknowledge where <name|path>",
 		"openknowledge open --name <alias-name> [path]",
@@ -29,6 +30,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"setup      Print an agent setup prompt.",
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local knowledge bundle.",
+		"disconnect Remove a knowledge bundle connection.",
 		"registry   Manage named knowledge base paths.",
 		"where      Print the path for a named knowledge base or path.",
 		"open       Start the registry or knowledge base Markdown viewer.",
@@ -82,6 +84,14 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"--access",
 				"--no-validate",
 				"Remote URL sources are not supported yet",
+			},
+		},
+		"disconnect": {
+			help: disconnectHelpText(),
+			required: []string{
+				"openknowledge disconnect <key|path> --keep-files",
+				"openknowledge disconnect <key|path> --delete-files",
+				"reserved for future managed remote-cache entries",
 			},
 		},
 		"registry": {

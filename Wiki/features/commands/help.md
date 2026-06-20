@@ -52,6 +52,9 @@ help, README command tables, and this wiki.
 
 ### 2026-06-20
 
+Root help added `openknowledge disconnect <key|path>`, a `disconnect` command
+summary, and a quick example for removing a connection.
+
 Root help added `openknowledge connect <path>`, `openknowledge connect <path> --as <key>`, a
 `connect` command summary, and a quick example for connecting a bundle with an
 explicit key.

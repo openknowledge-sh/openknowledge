@@ -187,6 +187,60 @@ func ResolveRegistryEntry(name string) (RegistryEntry, bool, error) {
 	return RegistryEntry{}, false, nil
 }
 
+func ResolveRegistryTarget(target string) (RegistryEntry, bool, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return RegistryEntry{}, false, fmt.Errorf("connection key or path is required")
+	}
+
+	registry, err := LoadRegistry()
+	if err != nil {
+		return RegistryEntry{}, false, err
+	}
+
+	if !LooksLikePath(target) {
+		if index := registryEntryIndexByName(registry.Entries, target); index >= 0 {
+			return registry.Entries[index], true, nil
+		}
+		return RegistryEntry{}, false, nil
+	}
+
+	expanded, err := ExpandUserPath(target)
+	if err != nil {
+		return RegistryEntry{}, false, err
+	}
+	absolute, err := filepath.Abs(expanded)
+	if err != nil {
+		return RegistryEntry{}, false, err
+	}
+	if index := registryEntryIndexByPath(registry.Entries, absolute); index >= 0 {
+		return registry.Entries[index], true, nil
+	}
+	return RegistryEntry{}, false, nil
+}
+
+func RemoveRegistryEntry(target string) (RegistryEntry, bool, error) {
+	entry, ok, err := ResolveRegistryTarget(target)
+	if err != nil || !ok {
+		return entry, ok, err
+	}
+
+	registry, err := LoadRegistry()
+	if err != nil {
+		return RegistryEntry{}, false, err
+	}
+	index := registryEntryIndexByPath(registry.Entries, entry.Path)
+	if index < 0 {
+		return RegistryEntry{}, false, nil
+	}
+	registry.Entries = append(registry.Entries[:index], registry.Entries[index+1:]...)
+	sortRegistryEntries(registry.Entries)
+	if err := saveRegistry(registry); err != nil {
+		return RegistryEntry{}, false, err
+	}
+	return entry, true, nil
+}
+
 func ResolveKnowledgeRoot(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {

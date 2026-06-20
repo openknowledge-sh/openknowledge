@@ -14,7 +14,8 @@ viewer also uses the registry as its default workspace list when
 `openknowledge open` is run without a path.
 
 This is the shipped low-level command. Normal local connection workflows should
-use [openknowledge connect](connect.md), while `registry add` remains the
+use [openknowledge connect](connect.md) and
+[openknowledge disconnect](disconnect.md), while `registry add` remains the
 internal persistence primitive and compatibility surface.
 
 ## Usage
@@ -52,7 +53,7 @@ to be an existing directory, and replaces an existing entry with the same name.
 * Let agents resolve a named wiki before reading files.
 * Keep path aliases outside the bundle content.
 
-## Relationship To Connect
+## Relationship To Connect And Disconnect
 
 `connect` accepts a local folder, derives a key from `--as`,
 `okf_bundle_name`, or the folder name, resolves the folder to an absolute path,
@@ -62,7 +63,8 @@ key was explicit and collides with another path, `connect` fails.
 
 Registry entries may now include optional `access` and `managed` fields. The
 current local `connect` command stores `access` as `read` or `write` and leaves
-`managed` unset.
+`managed` unset. `disconnect` removes matching entries by key or absolute path,
+keeps files by default, and refuses `--delete-files` for non-managed entries.
 
 ## Future Storage Candidate
 
@@ -102,6 +104,9 @@ local state as path-keyed connections with source and managed-cache metadata.
 Registry entries gained optional `access` and `managed` fields so
 `openknowledge connect` can store local connection labels while preserving the
 existing `entries` storage shape.
+
+`openknowledge disconnect` shipped as the user-facing removal path for registry
+entries, with key/path resolution and guarded managed-file deletion.
 
 ## Update Notes
 
