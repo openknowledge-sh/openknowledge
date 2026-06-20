@@ -4,9 +4,14 @@ okf_version: "0.1"
 
 # Wiki
 
-This Open Knowledge bundle is the developer wiki for the Open Knowledge CLI.
-It records CLI feature documentation, exporter behavior, and a changelog loop
-for package changes that affect the command-line tool.
+This Open Knowledge Format bundle is the developer documentation wiki for the
+Open Knowledge CLI. It records CLI feature documentation, exporter behavior,
+and a changelog for package changes that affect the CLI.
+
+The deployed docs living on [https://openknowledge.sh/wiki/](https://openknowledge.sh/wiki/)
+are an exported view of this OKF bundle using `openknowledge to html` and a
+custom theme. You can use the same viewer for your Open Knowledge bundle with
+`openknowledge open <path>`.
 
 ## Human-Oriented CLI Docs
 
