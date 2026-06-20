@@ -56,10 +56,7 @@ func parseASTDocuments(root string) ([]astDocument, error) {
 			return nil
 		}
 
-		document := parseASTDocumentFile(path, relPath(root, path))
-		if document.ReadDiagnostic == nil {
-			document.Links = ExtractLinks(root, document.Rel, document.Content)
-		}
+		document := parseASTDocumentLinks(root, parseASTDocumentFile(path, relPath(root, path)))
 		documents = append(documents, document)
 		return nil
 	})
@@ -99,6 +96,14 @@ func parseASTDocumentContent(document astDocument, content []byte) astDocument {
 	document.Metadata = astDocumentMetadataFromValues(document.Frontmatter.Values)
 	document.Body = body
 	document.FrontmatterDiagnostic = astFrontmatterDiagnostic(frontmatterErr)
+	return document
+}
+
+func parseASTDocumentLinks(root string, document astDocument) astDocument {
+	if document.ReadDiagnostic != nil {
+		return document
+	}
+	document.Links = ExtractLinks(root, document.Rel, document.Content)
 	return document
 }
 
