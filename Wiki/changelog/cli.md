@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Viewer renders rich Markdown tables
+
+* Markdown table rendering now emits stable table wrappers, `ok-table` classes,
+  `scope="col"` headers, and `data-align` metadata for Markdown alignment
+  markers.
+* `openknowledge open` and default `openknowledge to html` viewer exports now
+  progressively enhance Markdown tables with horizontal scrolling, whole-table
+  text filtering, compact dropdown column filters, sortable headers, row counts,
+  and a clear filters control inside the dropdown.
+* `openknowledge to html --plain` still omits viewer CSS and JavaScript, but it
+  receives the same semantic rendered table structure without the rich toolbar.
+* Source anchors: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/html.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/internal/okf/markdown_test.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/open.md`,
+  `Wiki/features/commands/to.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Static viewer source button replaces editor deeplinks
 
 * Default `openknowledge to html` viewer exports no longer render the local

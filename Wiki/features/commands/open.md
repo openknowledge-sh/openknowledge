@@ -13,7 +13,8 @@ it opens a registry-backed workspace selector. With a path or registry name, it
 opens that knowledge base directly. The viewer renders Markdown, strips
 frontmatter from document pages, rewrites local Markdown links, preserves inline
 formatting inside link labels such as code spans, syntax-highlights fenced code
-blocks for common languages, and shows validation issues in the index.
+blocks for common languages, formats Markdown tables with stable wrappers and
+alignment metadata, and shows validation issues in the index.
 
 The document header brand is the knowledge base display name, not the product
 name. It prefers root `index.md` metadata in this order:
@@ -77,6 +78,16 @@ of overlapping it.
 Reserved `index.md` files remain searchable but rank below comparable regular
 pages. The document viewer also keeps a small bottom-right
 `Powered by OpenKnowledge.sh` link to the project website.
+
+Markdown tables are progressively enhanced in note panels. The rendered HTML
+keeps semantic `<table>`, `<thead>`, and `<tbody>` structure, adds a scrollable
+table wrapper, preserves Markdown alignment markers as `data-align` metadata,
+and gives each header `scope="col"`. When viewer JavaScript is active, each
+table gets a compact toolbar with visible whole-table text filtering, sortable
+headers, visible sort state, row counts, and a `Filters` dropdown. The dropdown
+contains basic per-column select filters for manageable value sets plus a clear
+filters control. The same enhancement runs for the first panel, panels opened
+through stacked navigation, and static HTML viewer exports.
 
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.
@@ -159,6 +170,8 @@ as `/wiki/` or `/personal/`.
   width when reopening the same note.
 * Search the knowledge base from the top bar with pointer or keyboard result
   selection.
+* Inspect Markdown tables with horizontal scrolling, sortable headers, global
+  text filtering, dropdown column filters, and row counts.
 * Open bundled source files with syntax highlighting and bundled PDFs in the
   browser's native PDF viewer.
 * Follow the bottom-right `Powered by OpenKnowledge.sh` attribution to the

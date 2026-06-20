@@ -70,7 +70,8 @@ knowledge base. With workflows and agent instructions to help your agents mainta
 - Guided setup through an agent interview, so the wiki starts with the right
   purpose, structure, and maintenance habits and rules.
 - An agentic maintenance loop so wiki stays up to date.
-- Local markdown viewer with full-text search to inspect the wiki.
+- Local markdown viewer with full-text search and rich Markdown tables to
+  inspect the wiki.
 - Consistency against the [Open Knowledge Format v0.1][okf-spec]
   specification.
 
@@ -99,6 +100,7 @@ starts a registry-backed local viewer with a workspace selector, and
 `openknowledge validate` checks the bundle for portable OKF structure, and
 `openknowledge list` prints the bundle tree with inline validation issues.
 `openknowledge to html` writes the same static viewer app bundle by default,
+including searchable, sortable Markdown tables with basic column filters.
 `openknowledge to html --plain` writes unstyled semantic HTML, and
 `openknowledge to json` writes a normalized bundle model for tools and agents.
 The default HTML viewer export can inherit your site styling from an optional

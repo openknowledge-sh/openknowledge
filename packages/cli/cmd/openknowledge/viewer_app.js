@@ -1812,6 +1812,304 @@
     }
   }
 
+  function enhanceTables(scope) {
+    scope.querySelectorAll("table").forEach(function (table) {
+      if (table.dataset.okTableEnhanced === "true") {
+        return;
+      }
+      const headerRow = table.tHead?.rows?.[0];
+      const body = table.tBodies?.[0];
+      if (!headerRow || !body) {
+        return;
+      }
+      const headers = Array.prototype.slice.call(headerRow.cells);
+      const rows = Array.prototype.slice.call(body.rows);
+      if (!headers.length || !rows.length) {
+        return;
+      }
+
+      table.classList.add("ok-table");
+      table.dataset.okTable = "";
+      table.dataset.okTableEnhanced = "true";
+      rows.forEach(function (row, index) {
+        row.dataset.okTableOriginalIndex = String(index);
+      });
+
+      const wrapper = ensureTableWrapper(table);
+      const state = {
+        query: "",
+        filters: headers.map(function () { return ""; }),
+        sortColumn: -1,
+        sortDirection: "asc"
+      };
+      const count = document.createElement("span");
+      count.className = "ok-table-count";
+      count.dataset.okTableCount = "";
+
+      function applyTableState() {
+        let visible = 0;
+        rows.forEach(function (row) {
+          const matchesQuery = !state.query || normalizeTableText(row.textContent).includes(state.query);
+          const matchesFilters = state.filters.every(function (filter, column) {
+            return !filter || normalizeTableText(tableCellText(row.cells[column])) === filter;
+          });
+          const shown = matchesQuery && matchesFilters;
+          row.hidden = !shown;
+          if (shown) {
+            visible += 1;
+          }
+        });
+        count.textContent = visible === rows.length
+          ? rowCountLabel(rows.length)
+          : visible + " / " + rowCountLabel(rows.length);
+      }
+
+      headers.forEach(function (header, column) {
+        bindSortableTableHeader(header, body, headers, rows, state, column);
+      });
+
+      const controls = createTableControls(headers, rows, state, count, applyTableState);
+      wrapper.insertBefore(controls, wrapper.firstChild);
+      applyTableState();
+    });
+  }
+
+  function ensureTableWrapper(table) {
+    let wrapper = closestElement(table, "[data-ok-table-wrap]");
+    if (!wrapper) {
+      wrapper = document.createElement("div");
+      wrapper.className = "ok-table-wrap";
+      wrapper.dataset.okTableWrap = "";
+      const scroller = document.createElement("div");
+      scroller.className = "ok-table-scroller";
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.append(scroller);
+      scroller.append(table);
+      return wrapper;
+    }
+
+    if (!closestElement(table, ".ok-table-scroller")) {
+      const scroller = document.createElement("div");
+      scroller.className = "ok-table-scroller";
+      table.parentNode.insertBefore(scroller, table);
+      scroller.append(table);
+    }
+    return wrapper;
+  }
+
+  function createTableControls(headers, rows, state, count, applyTableState) {
+    const controls = document.createElement("div");
+    controls.className = "ok-table-tools";
+    controls.dataset.okTableControls = "";
+
+    const search = document.createElement("input");
+    search.className = "ok-table-search";
+    search.type = "search";
+    search.placeholder = "Filter table";
+    search.setAttribute("aria-label", "Filter table rows");
+    search.addEventListener("input", function () {
+      state.query = normalizeTableText(search.value);
+      applyTableState();
+    });
+    controls.append(search);
+
+    const filterList = document.createElement("div");
+    filterList.className = "ok-table-filter-list";
+    const filterSelects = [];
+    let filterLabel;
+    let clearFilters;
+
+    function updateFilterMenuState() {
+      const activeFilters = state.filters.filter(Boolean).length;
+      if (filterLabel) {
+        filterLabel.textContent = activeFilters ? "Filters (" + activeFilters + ")" : "Filters";
+      }
+      if (clearFilters) {
+        clearFilters.disabled = activeFilters === 0;
+      }
+    }
+
+    headers.forEach(function (header, column) {
+      const values = tableColumnFilterValues(rows, column);
+      if (values.length < 2 || values.length > 30) {
+        return;
+      }
+
+      const select = document.createElement("select");
+      const label = tableCellText(header) || "Column " + (column + 1);
+      select.setAttribute("aria-label", "Filter by " + label);
+      const all = document.createElement("option");
+      all.value = "";
+      all.textContent = label + ": All";
+      select.append(all);
+
+      values.forEach(function (value) {
+        const option = document.createElement("option");
+        option.value = normalizeTableText(value);
+        option.textContent = value;
+        select.append(option);
+      });
+
+      select.addEventListener("change", function () {
+        state.filters[column] = select.value;
+        updateFilterMenuState();
+        applyTableState();
+      });
+      filterSelects.push(select);
+      filterList.append(select);
+    });
+
+    if (filterList.children.length) {
+      const menu = document.createElement("details");
+      menu.className = "ok-table-filter-menu";
+      const trigger = document.createElement("summary");
+      trigger.className = "ok-table-filter-trigger";
+      trigger.setAttribute("role", "button");
+      trigger.setAttribute("aria-label", "Table filters");
+      filterLabel = document.createElement("span");
+      filterLabel.textContent = "Filters";
+      trigger.append(filterLabel);
+      const panel = document.createElement("div");
+      panel.className = "ok-table-filter-panel";
+      clearFilters = document.createElement("button");
+      clearFilters.className = "ok-table-clear";
+      clearFilters.type = "button";
+      clearFilters.textContent = "Clear filters";
+      clearFilters.addEventListener("click", function () {
+        state.filters = state.filters.map(function () { return ""; });
+        filterSelects.forEach(function (select) {
+          select.value = "";
+        });
+        updateFilterMenuState();
+        applyTableState();
+        if (filterSelects[0]) {
+          filterSelects[0].focus();
+        }
+      });
+      panel.append(filterList, clearFilters);
+      menu.append(trigger, panel);
+      menu.addEventListener("keydown", function (event) {
+        if (event.key !== "Escape") {
+          return;
+        }
+        menu.open = false;
+        trigger.focus();
+      });
+      controls.append(menu);
+      updateFilterMenuState();
+    }
+
+    controls.append(count);
+    return controls;
+  }
+
+  function bindSortableTableHeader(header, body, headers, rows, state, column) {
+    header.dataset.okTableSort = "";
+    header.tabIndex = 0;
+    header.setAttribute("aria-label", "Sort by " + (tableCellText(header) || "column " + (column + 1)));
+    if (!header.querySelector(".ok-table-sort-indicator")) {
+      const indicator = document.createElement("span");
+      indicator.className = "ok-table-sort-indicator";
+      indicator.setAttribute("aria-hidden", "true");
+      header.append(indicator);
+    }
+
+    function activate(event) {
+      if (event && closestElement(event.target, "a[href], button, input, textarea, select, [contenteditable='true']")) {
+        return;
+      }
+      sortTableRows(body, headers, rows, state, column);
+    }
+
+    header.addEventListener("click", activate);
+    header.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      activate(event);
+    });
+  }
+
+  function sortTableRows(body, headers, rows, state, column) {
+    const direction = state.sortColumn === column && state.sortDirection === "asc" ? "desc" : "asc";
+    state.sortColumn = column;
+    state.sortDirection = direction;
+
+    headers.forEach(function (header) {
+      header.removeAttribute("aria-sort");
+      header.removeAttribute("data-sort-direction");
+    });
+    headers[column].setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
+    headers[column].dataset.sortDirection = direction;
+
+    const multiplier = direction === "asc" ? 1 : -1;
+    rows.sort(function (left, right) {
+      const compared = compareTableValues(tableCellText(left.cells[column]), tableCellText(right.cells[column]));
+      if (compared !== 0) {
+        return compared * multiplier;
+      }
+      return Number(left.dataset.okTableOriginalIndex || 0) - Number(right.dataset.okTableOriginalIndex || 0);
+    });
+    rows.forEach(function (row) {
+      body.append(row);
+    });
+  }
+
+  function tableColumnFilterValues(rows, column) {
+    const seen = new Set();
+    const values = [];
+    rows.forEach(function (row) {
+      const value = tableCellText(row.cells[column]);
+      const normalized = normalizeTableText(value);
+      if (!normalized || seen.has(normalized) || value.length > 80) {
+        return;
+      }
+      seen.add(normalized);
+      values.push(value);
+    });
+    return values.sort(function (left, right) {
+      return compareTableValues(left, right);
+    });
+  }
+
+  function compareTableValues(left, right) {
+    const leftText = normalizeTableText(left);
+    const rightText = normalizeTableText(right);
+    if (!leftText && rightText) {
+      return 1;
+    }
+    if (leftText && !rightText) {
+      return -1;
+    }
+    const leftNumber = tableNumber(leftText);
+    const rightNumber = tableNumber(rightText);
+    if (leftNumber !== null && rightNumber !== null && leftNumber !== rightNumber) {
+      return leftNumber - rightNumber;
+    }
+    return leftText.localeCompare(rightText, undefined, { numeric: true, sensitivity: "base" });
+  }
+
+  function tableNumber(value) {
+    const normalized = String(value || "").replace(/,/g, "");
+    if (!/^[+-]?\d+(?:\.\d+)?%?$/.test(normalized)) {
+      return null;
+    }
+    return Number(normalized.replace(/%$/, ""));
+  }
+
+  function tableCellText(cell) {
+    return String(cell?.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function normalizeTableText(value) {
+    return tableCellText({ textContent: String(value || "") }).toLocaleLowerCase();
+  }
+
+  function rowCountLabel(count) {
+    return count + (count === 1 ? " row" : " rows");
+  }
+
   function updateActiveLinks() {
     const all = panels();
     all.forEach(function (panel, index) {
@@ -1916,6 +2214,7 @@
     applyPanelWidth(panel);
     ensurePanelResizeHandles(panel);
     panel.querySelectorAll("[data-editor-picker]").forEach(bindEditorPicker);
+    enhanceTables(panel);
 
     const closeButton = panel.querySelector("[data-close-panel]");
     if (!closeButton || closeButton.dataset.closeBound === "true") {

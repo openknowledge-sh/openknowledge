@@ -268,11 +268,13 @@ func renderTable(lines []string, start int, currentRel string, resolve LinkResol
 	if len(header) == 0 || len(separator) != len(header) || !isTableSeparator(separator) {
 		return "", start, false
 	}
+	alignments := tableAlignments(separator)
 
 	var builder strings.Builder
-	builder.WriteString("<table>\n<thead>\n<tr>")
-	for _, cell := range header {
-		builder.WriteString("<th>")
+	builder.WriteString(`<div class="ok-table-wrap" data-ok-table-wrap>`)
+	builder.WriteString("\n<div class=\"ok-table-scroller\">\n<table class=\"ok-table\" data-ok-table>\n<thead>\n<tr>")
+	for column, cell := range header {
+		writeTableCellStart(&builder, "th", alignments[column], ` scope="col"`)
 		builder.WriteString(renderInline(cell, currentRel, resolve))
 		builder.WriteString("</th>")
 	}
@@ -290,7 +292,7 @@ func renderTable(lines []string, start int, currentRel string, resolve LinkResol
 			if column < len(cells) {
 				cell = cells[column]
 			}
-			builder.WriteString("<td>")
+			writeTableCellStart(&builder, "td", alignments[column], "")
 			builder.WriteString(renderInline(cell, currentRel, resolve))
 			builder.WriteString("</td>")
 		}
@@ -298,8 +300,20 @@ func renderTable(lines []string, start int, currentRel string, resolve LinkResol
 		index++
 	}
 
-	builder.WriteString("</tbody>\n</table>\n")
+	builder.WriteString("</tbody>\n</table>\n</div>\n</div>\n")
 	return builder.String(), index, true
+}
+
+func writeTableCellStart(builder *strings.Builder, tag string, alignment string, attributes string) {
+	builder.WriteString("<")
+	builder.WriteString(tag)
+	builder.WriteString(attributes)
+	if alignment != "" {
+		builder.WriteString(` data-align="`)
+		builder.WriteString(alignment)
+		builder.WriteString(`"`)
+	}
+	builder.WriteString(">")
 }
 
 func tableCells(line string) []string {
@@ -334,6 +348,24 @@ func isTableSeparator(cells []string) bool {
 		}
 	}
 	return true
+}
+
+func tableAlignments(separator []string) []string {
+	alignments := make([]string, len(separator))
+	for index, cell := range separator {
+		cell = strings.TrimSpace(cell)
+		left := strings.HasPrefix(cell, ":")
+		right := strings.HasSuffix(cell, ":")
+		switch {
+		case left && right:
+			alignments[index] = "center"
+		case right:
+			alignments[index] = "right"
+		case left:
+			alignments[index] = "left"
+		}
+	}
+	return alignments
 }
 
 func ViewerLink(currentRel string, href string) string {

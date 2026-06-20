@@ -15,7 +15,7 @@ import (
 
 func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nSee [Workflow](workflows/docs.md) and [Concepts](concepts/).\n")
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nSee [Workflow](workflows/docs.md) and [Concepts](concepts/).\n\n| Name | Kind | Count |\n| :--- | --- | ---: |\n| `path` | argument | 1 |\n| `--spec` | flag | 2 |\n")
 	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs\n---\n\n# Docs\n\n- Update docs\n")
 	writeViewerFile(t, root, "concepts/index.md", "# Concepts\n")
 
@@ -52,6 +52,15 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `href="/file/concepts/index.md"`) {
 		t.Fatalf("viewer did not rewrite directory index link:\n%s", page)
+	}
+	if !strings.Contains(page, `class="ok-table-wrap" data-ok-table-wrap`) || !strings.Contains(page, `class="ok-table-scroller"`) || !strings.Contains(page, `class="ok-table" data-ok-table`) {
+		t.Fatalf("viewer should render markdown tables with stable table wrappers:\n%s", page)
+	}
+	if !strings.Contains(page, `<th scope="col" data-align="left">Name</th>`) || !strings.Contains(page, `<td data-align="right">2</td>`) {
+		t.Fatalf("viewer should preserve markdown table alignment metadata:\n%s", page)
+	}
+	if !strings.Contains(page, `.ok-table-tools`) || !strings.Contains(page, `.ok-table-filter-menu`) || !strings.Contains(page, `Clear filters`) || !strings.Contains(page, `function enhanceTables(scope)`) || !strings.Contains(page, `bindSortableTableHeader`) || !strings.Contains(page, `Filter table`) {
+		t.Fatalf("viewer should embed rich table styling and runtime controls:\n%s", page)
 	}
 	if !strings.Contains(page, `data-note-workspace`) || !strings.Contains(page, `data-note-path="index.md"`) {
 		t.Fatalf("viewer file page did not include stacked note layout:\n%s", page)
@@ -253,6 +262,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(api.Body, "<h1>Home</h1>") || !strings.Contains(api.Body, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer API did not render markdown body with rewritten links: %#v", api)
 	}
+	if !strings.Contains(api.Body, `class="ok-table" data-ok-table`) || !strings.Contains(api.Body, `<th scope="col" data-align="left">Name</th>`) || !strings.Contains(api.Body, `<td data-align="right">2</td>`) {
+		t.Fatalf("viewer API did not render markdown table wrappers and alignment metadata: %#v", api)
+	}
 }
 
 func TestViewerBrandUsesKnowledgeBaseMetadata(t *testing.T) {
@@ -415,7 +427,7 @@ func TestViewerEditorIconFallbackRendersSVG(t *testing.T) {
 func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md), [Agents](AGENTS.md), and [Features](features/index.md).\n")
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md), [Agents](AGENTS.md), and [Features](features/index.md).\n\n| Kind | Required |\n| --- | --- |\n| flag | no |\n| argument | yes |\n")
 	writeViewerFile(t, root, "AGENTS.md", "---\ntype: Guide\ntitle: Agents\n---\n\n# Agents\n")
 	writeViewerFile(t, root, "features/index.md", "# Features\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
@@ -431,6 +443,9 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	index := readViewerExportFile(t, out, "index.html")
 	if !strings.Contains(index, `data-note-workspace`) || !strings.Contains(index, `data-static-notes`) {
 		t.Fatalf("expected exported index to include static viewer app bundle:\n%s", index)
+	}
+	if !strings.Contains(index, `class="ok-table" data-ok-table`) || !strings.Contains(index, `function enhanceTables(scope)`) || !strings.Contains(index, `.ok-table-tools`) || !strings.Contains(index, `.ok-table-filter-panel`) {
+		t.Fatalf("expected exported viewer pages to include rich table markup and runtime:\n%s", index)
 	}
 	if !strings.Contains(index, `href="guides/setup.html"`) || !strings.Contains(index, `href="AGENTS.html"`) || !strings.Contains(index, `href="features/index.html"`) {
 		t.Fatalf("expected exported index to keep static HTML fallback link:\n%s", index)

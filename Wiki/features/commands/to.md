@@ -53,17 +53,21 @@ openknowledge to json --out ./bundle.json ./project-memory
 
 `to html` requires `--out`. Without `--plain`, it writes static viewer pages
 that include the file tree, search, stacked-panel browsing, and embedded note
-manifest. The default viewer export reads optional `[html.theme]` settings from
-`openknowledge.toml`, links the configured stylesheet after built-in viewer CSS,
-and copies local theme CSS files into the output folder. The built-in theme
-contract lives in `packages/cli/cmd/openknowledge/viewer_theme.css`, and the
-exported viewer derives colors, fonts, and viewer dimensions from its `--ok-*`
-variables. The static viewer does not render local editor deeplinks. When
+manifest. Markdown tables in the default viewer export are horizontally
+scrollable and get whole-table filtering, dropdown column filters, sortable
+headers, row counts, and a clear filters action. The default viewer export
+reads optional `[html.theme]` settings from `openknowledge.toml`, links the
+configured stylesheet after built-in viewer CSS, and copies local theme CSS
+files into the output folder.
+The built-in theme contract lives in
+`packages/cli/cmd/openknowledge/viewer_theme.css`, and the exported viewer
+derives colors, fonts, and viewer dimensions from its `--ok-*` variables. The
+static viewer does not render local editor deeplinks. When
 `openknowledge.toml` includes `[html.source]` with `github_base` and optional
 `entry`, exported Markdown panels render a single GitHub source button instead;
 without that config, no source action is shown. With `--plain`, it writes
-unstyled semantic HTML pages and does not include viewer CSS, JavaScript, or
-theme links.
+unstyled semantic HTML pages and does not include viewer CSS, JavaScript,
+theme links, or rich table controls.
 
 `to json` prints the normalized bundle model to stdout by default and writes to
 `--out <file>` when provided. `--plain` is not valid for JSON. Unknown targets
@@ -78,6 +82,8 @@ and unknown flags exit with status `2`.
   viewer export.
 * Link exported viewer panels back to GitHub source files through
   `[html.source]`.
+* Publish table-heavy command or reference docs with browser-side table
+  filtering dropdowns and sorting in the default viewer export.
 
 ## Source Anchors
 

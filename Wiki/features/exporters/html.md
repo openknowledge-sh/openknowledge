@@ -11,10 +11,14 @@ timestamp: 2026-06-18T00:00:00Z
 The HTML exporter writes one `.html` file for each Markdown file in a bundle.
 By default, those pages use the same static viewer app bundle as
 `openknowledge open`: file tree, search, stacked-panel browsing, and embedded
-note data are available without a local server. The shared viewer CSS keeps the
+note data are available without a local server. Markdown tables in the default
+viewer export keep the same rich controls as the local viewer: horizontal
+scrolling, whole-table filtering, dropdown column filters with a clear filters
+control, sortable headers, and row counts. The shared viewer CSS keeps the
 top-bar search field responsive on narrow mobile widths so it does not overlap
-the knowledge base brand. The `--plain` flag switches to unstyled semantic HTML
-without CSS, JavaScript, or viewer chrome.
+the knowledge base brand. The
+`--plain` flag switches to unstyled semantic HTML without CSS, JavaScript, or
+viewer chrome.
 
 ## Command
 
@@ -36,16 +40,19 @@ openknowledge to html --spec <version> --out <folder> [path]
 ## Behavior
 
 Both modes strip YAML frontmatter from rendered pages and rewrite local
-Markdown links to generated `.html` targets. Files with `okf_publish: false`
-frontmatter are skipped and do not get generated HTML pages. The default viewer
-export embeds a static note manifest and graph data in each generated page so
-search and panel navigation work in exported output; unpublished files are
-omitted from that manifest and graph data. The static viewer also resolves
-host-provided pretty URLs such as extensionless lowercase paths and directory
-index paths back to the embedded note manifest, so stacked-panel navigation
-continues to work on hosts that rewrite `AGENTS.html` to `/agents` or
-`features/index.html` to `/features/`. The plain export keeps only the rendered
-document structure.
+Markdown links to generated `.html` targets. Rendered Markdown tables use a
+stable `ok-table-wrap` container, an `ok-table-scroller`, `scope="col"` headers,
+and `data-align` metadata for Markdown alignment markers. Files with
+`okf_publish: false` frontmatter are skipped and do not get generated HTML
+pages. The default viewer export embeds a static note manifest and graph data
+in each generated page so search, panel navigation, and rich table controls work
+in exported output; unpublished files are omitted from that manifest and graph
+data. The static viewer also resolves host-provided pretty URLs such as
+extensionless lowercase paths and directory index paths back to the embedded
+note manifest, so stacked-panel navigation continues to work on hosts that
+rewrite `AGENTS.html` to `/agents` or `features/index.html` to `/features/`.
+The plain export keeps only the rendered document structure and does not include
+the JavaScript table toolbar.
 
 The default viewer export also reads an optional `openknowledge.toml` file from
 the bundle root. A `[html.theme]` section can set a theme name and stylesheet:
@@ -206,6 +213,9 @@ Supported theme variables are:
 * Review generated pages outside the local viewer.
 * Test Markdown rendering and local link rewriting.
 * Produce minimal HTML for systems that should not include viewer JavaScript.
+* Publish Markdown-heavy docs with usable tables that can be searched, filtered
+  through compact dropdown controls, sorted, and horizontally scrolled in the
+  default viewer export.
 * Match an exported documentation wiki to a landing page by overriding viewer
   theme variables in a deployable CSS file.
 * Link deployed static pages back to their GitHub Markdown source without

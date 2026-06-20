@@ -162,6 +162,14 @@ hr { margin: 34px 0; border: 0; border-top: 1px solid var(--line); }
 table { width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 15px; }
 th, td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
 th { background: #edf2ef; font-weight: 700; }
+.ok-table-wrap { max-width: 100%; margin: 22px 0; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.ok-table-scroller { overflow-x: auto; }
+.ok-table { min-width: max-content; margin: 0; border-collapse: separate; border-spacing: 0; }
+.ok-table th, .ok-table td { border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.ok-table th:last-child, .ok-table td:last-child { border-right: 0; }
+.ok-table tbody tr:last-child td { border-bottom: 0; }
+.ok-table [data-align="center"] { text-align: center; }
+.ok-table [data-align="right"] { text-align: right; }
 @media (max-width: 680px) {
   header { display: block; }
   header span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
