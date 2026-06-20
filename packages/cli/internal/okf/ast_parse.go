@@ -88,6 +88,10 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 		return document
 	}
 
+	return parseASTDocumentContent(document, content)
+}
+
+func parseASTDocumentContent(document astDocument, content []byte) astDocument {
 	document.UTF8Diagnostic = astUTF8Diagnostic(content)
 	meta, body, frontmatterErr := splitFrontmatter(string(content))
 	document.Content = string(content)
