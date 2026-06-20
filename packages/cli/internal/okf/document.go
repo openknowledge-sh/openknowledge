@@ -8,39 +8,6 @@ import (
 	"sort"
 )
 
-type astDocument struct {
-	Absolute          string
-	Rel               string
-	ID                string
-	Kind              string
-	Reserved          bool
-	Raw               []byte
-	Content           string
-	Frontmatter       frontmatter
-	FrontmatterValues map[string]string
-	Metadata          astDocumentMetadata
-	Body              string
-	Links             []Link
-	ReadErr           error
-	FrontmatterErr    error
-}
-
-type astDocumentMetadata struct {
-	Type        string
-	Title       string
-	Description string
-	Resource    string
-	Tags        []string
-	UseWhen     []string
-	Bundle      BundleMetadata
-}
-
-type astBundle struct {
-	Root        string
-	SpecVersion string
-	Documents   []astDocument
-}
-
 func parseBundleAST(root string, version string) (astBundle, error) {
 	resolved, ok := ResolveSpecVersion(version)
 	if !ok {
