@@ -1072,7 +1072,11 @@
     const indexed = Object.create(null);
     notes.forEach(function (note) {
       if (note && typeof note.htmlPath === "string" && typeof note.path === "string") {
-        indexed[normalizeStaticPath(note.htmlPath)] = note.path;
+        staticHTMLAliases(note.htmlPath).forEach(function (alias) {
+          if (indexed[alias] === undefined) {
+            indexed[alias] = note.path;
+          }
+        });
       }
     });
     return indexed;
@@ -1088,6 +1092,32 @@
       return normalizeStaticPath(path + "/index.html");
     }
     return normalizeStaticPath(path.slice(0, extensionIndex) + ".html");
+  }
+
+  function staticHTMLAliases(htmlPath) {
+    const normalized = normalizeStaticPath(htmlPath);
+    const aliases = [];
+    addStaticHTMLAlias(aliases, normalized);
+    if (/\.html$/i.test(normalized)) {
+      const extensionless = normalized.slice(0, -5);
+      addStaticHTMLAlias(aliases, extensionless);
+      if (/\/index\.html$/i.test(normalized)) {
+        addStaticHTMLAlias(aliases, normalized.slice(0, normalized.length - "index.html".length));
+      } else if (/^index\.html$/i.test(normalized)) {
+        addStaticHTMLAlias(aliases, "");
+      }
+    }
+    aliases.slice().forEach(function (alias) {
+      addStaticHTMLAlias(aliases, alias.toLowerCase());
+    });
+    return aliases;
+  }
+
+  function addStaticHTMLAlias(aliases, value) {
+    const normalized = normalizeStaticPath(value);
+    if (!aliases.includes(normalized)) {
+      aliases.push(normalized);
+    }
   }
 
   function staticRelativeURL(targetPath) {
@@ -1139,7 +1169,7 @@
     if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(withoutFragment) && !withoutFragment.startsWith("/")) {
       const sourceHTML = staticHTMLPath(sourcePath || currentStack()[0] || "index.md");
       const sourceDirectory = sourceHTML.includes("/") ? sourceHTML.slice(0, sourceHTML.lastIndexOf("/") + 1) : "";
-      return staticNotePathByHTML[normalizeStaticPath(sourceDirectory + withoutFragment)] || null;
+      return staticNotePathForHTMLPath(sourceDirectory + withoutFragment);
     }
 
     let url;
@@ -1152,21 +1182,41 @@
       return null;
     }
 
-    return staticNotePathByHTML[staticRelativeHTMLPathFromURL(url)] || null;
+    return staticNotePathForHTMLPath(staticRelativeHTMLPathFromURL(url));
+  }
+
+  function staticNotePathForHTMLPath(htmlPath) {
+    const normalized = normalizeStaticPath(htmlPath);
+    return staticNotePathByHTML[normalized] || staticNotePathByHTML[normalized.toLowerCase()] || null;
   }
 
   function staticRelativeHTMLPathFromURL(url) {
     const currentPath = document.querySelector("[data-note-path]")?.dataset.notePath || currentStack()[0] || "index.md";
-    const currentHTML = staticHTMLPath(currentPath);
     let currentURLPath = safeDecodePath(window.location.pathname);
     let targetURLPath = safeDecodePath(url.pathname);
-    const rootPrefix = currentURLPath.endsWith(currentHTML)
-      ? currentURLPath.slice(0, currentURLPath.length - currentHTML.length)
-      : currentURLPath.slice(0, currentURLPath.lastIndexOf("/") + 1);
-    if (rootPrefix && targetURLPath.startsWith(rootPrefix)) {
+    const rootPrefix = staticRootPrefixFromCurrentURL(currentURLPath, currentPath);
+    if (rootPrefix && targetURLPath.toLowerCase().startsWith(rootPrefix.toLowerCase())) {
       targetURLPath = targetURLPath.slice(rootPrefix.length);
     }
     return normalizeStaticPath(targetURLPath);
+  }
+
+  function staticRootPrefixFromCurrentURL(currentURLPath, currentPath) {
+    const currentPathLower = String(currentURLPath || "").toLowerCase();
+    const aliases = staticHTMLAliases(staticHTMLPath(currentPath))
+      .filter(Boolean)
+      .sort(function (a, b) {
+        return b.length - a.length;
+      });
+    for (const alias of aliases) {
+      const suffixes = ["/" + alias, "/" + alias + "/"];
+      for (const suffix of suffixes) {
+        if (currentPathLower.endsWith(suffix.toLowerCase())) {
+          return currentURLPath.slice(0, currentURLPath.length - suffix.length + 1);
+        }
+      }
+    }
+    return currentURLPath.slice(0, currentURLPath.lastIndexOf("/") + 1);
   }
 
   function safeDecodePath(value) {

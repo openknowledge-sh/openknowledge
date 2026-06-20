@@ -30,6 +30,18 @@ that were updated.
   `Wiki/features/commands/disconnect.md`, `Wiki/features/commands/help.md`,
   `Wiki/features/commands/index.md`, `Wiki/changelog/cli.md`.
 
+### 2026-06-20 - Static viewer supports hosted pretty URLs
+
+* Default `openknowledge to html` viewer exports now map extensionless,
+  lowercase, and directory-index pretty URLs back to their embedded static note
+  manifest entries.
+* This keeps stacked-panel navigation working on static hosts that rewrite
+  generated links such as `AGENTS.html` to `/agents` or
+  `features/index.html` to `/features/`.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer mobile header search no longer overlaps brand
 
 * The shared viewer CSS now lets the top-bar search field override its desktop

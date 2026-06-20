@@ -20,6 +20,10 @@
 * **Mobile viewer header**: Documented the responsive header search fix that
   lets the shared viewer app CSS shrink the search field on narrow mobile
   widths instead of overlapping the knowledge base brand.
+* **Static viewer pretty URLs**: Documented that default viewer HTML exports
+  resolve host-rewritten pretty URLs such as `/agents` and `/features/` back to
+  the embedded static note manifest so stacked-panel navigation keeps working
+  on static hosts.
 * **CLI operations migration**: Moved the remaining development and release
   notes from `docs/cli.md` into [features/operations.md](features/operations.md),
   and made the wiki the canonical home for CLI operational docs.

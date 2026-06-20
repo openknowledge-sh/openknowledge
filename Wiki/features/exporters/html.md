@@ -40,8 +40,12 @@ Markdown links to generated `.html` targets. Files with `okf_publish: false`
 frontmatter are skipped and do not get generated HTML pages. The default viewer
 export embeds a static note manifest and graph data in each generated page so
 search and panel navigation work in exported output; unpublished files are
-omitted from that manifest and graph data. The plain export keeps only the
-rendered document structure.
+omitted from that manifest and graph data. The static viewer also resolves
+host-provided pretty URLs such as extensionless lowercase paths and directory
+index paths back to the embedded note manifest, so stacked-panel navigation
+continues to work on hosts that rewrite `AGENTS.html` to `/agents` or
+`features/index.html` to `/features/`. The plain export keeps only the rendered
+document structure.
 
 The default viewer export also reads an optional `openknowledge.toml` file from
 the bundle root. A `[html.theme]` section can set a theme name and stylesheet:

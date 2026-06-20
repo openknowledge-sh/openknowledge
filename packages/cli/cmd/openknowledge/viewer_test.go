@@ -415,29 +415,34 @@ func TestViewerEditorIconFallbackRendersSVG(t *testing.T) {
 func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md), [Agents](AGENTS.md), and [Features](features/index.md).\n")
+	writeViewerFile(t, root, "AGENTS.md", "---\ntype: Guide\ntitle: Agents\n---\n\n# Agents\n")
+	writeViewerFile(t, root, "features/index.md", "# Features\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 2 {
-		t.Fatalf("expected two exported viewer files, got %#v", result.Written)
+	if len(result.Written) != 4 {
+		t.Fatalf("expected four exported viewer files, got %#v", result.Written)
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
 	if !strings.Contains(index, `data-note-workspace`) || !strings.Contains(index, `data-static-notes`) {
 		t.Fatalf("expected exported index to include static viewer app bundle:\n%s", index)
 	}
-	if !strings.Contains(index, `href="guides/setup.html"`) {
+	if !strings.Contains(index, `href="guides/setup.html"`) || !strings.Contains(index, `href="AGENTS.html"`) || !strings.Contains(index, `href="features/index.html"`) {
 		t.Fatalf("expected exported index to keep static HTML fallback link:\n%s", index)
 	}
-	if !strings.Contains(index, `"path":"guides/setup.md"`) || !strings.Contains(index, `"htmlPath":"guides/setup.html"`) {
+	if !strings.Contains(index, `"path":"guides/setup.md"`) || !strings.Contains(index, `"htmlPath":"guides/setup.html"`) || !strings.Contains(index, `"path":"AGENTS.md"`) || !strings.Contains(index, `"htmlPath":"features/index.html"`) {
 		t.Fatalf("expected exported index to embed rendered note manifest:\n%s", index)
 	}
 	if !strings.Contains(index, `function fetchNote(path)`) || !strings.Contains(index, `staticNotesByPath[path]`) {
 		t.Fatalf("expected exported index to use static note runtime:\n%s", index)
+	}
+	if !strings.Contains(index, `function staticHTMLAliases(htmlPath)`) || !strings.Contains(index, `function staticRootPrefixFromCurrentURL`) || !strings.Contains(index, `function staticNotePathForHTMLPath`) {
+		t.Fatalf("expected exported index to resolve hosted pretty URLs back to static notes:\n%s", index)
 	}
 	if !strings.Contains(index, `id="viewer-search"`) || !strings.Contains(index, `data-primary-search`) || !strings.Contains(index, `searchStaticNotes`) || !strings.Contains(index, `staticRelativeURL(item.path)`) {
 		t.Fatalf("expected exported index to include static top bar search:\n%s", index)
