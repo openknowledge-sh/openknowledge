@@ -124,6 +124,9 @@ body.is-panel-resizing, body.is-panel-resizing * { cursor: ew-resize !important;
 .note-path { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--ok-color-muted); font-family: var(--ok-font-mono); font-size: 12px; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .note-path:hover { color: var(--ok-color-accent); }
 .note-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
+.source-open { display: inline-flex; flex: 0 0 auto; width: 32px; height: 30px; align-items: center; justify-content: center; border: 1px solid var(--ok-color-editor-trigger-border); border-radius: 7px; background: var(--ok-color-editor-trigger-bg); color: var(--ok-color-editor-trigger-text); box-shadow: 0 1px 0 var(--ok-color-editor-trigger-shadow) inset; text-decoration: none; }
+.source-open:hover, .source-open:focus-visible { border-color: var(--ok-color-editor-trigger-focus-border); background: var(--ok-color-code-inline-bg); color: var(--ok-color-text); outline: 2px solid var(--ok-color-accent-focus-strong); outline-offset: 2px; }
+.source-icon { width: 17px; height: 17px; fill: currentColor; stroke: none; }
 .editor-picker { position: relative; flex: 0 0 auto; }
 .note-panel:not(.is-active-panel) .editor-picker { display: none; }
 .editor-trigger { display: inline-flex; min-width: 58px; height: 30px; align-items: stretch; justify-content: center; overflow: hidden; border: 1px solid var(--ok-color-editor-trigger-border); border-radius: 7px; background: var(--ok-color-editor-trigger-bg); color: var(--ok-color-editor-trigger-text); line-height: 1; box-shadow: 0 1px 0 var(--ok-color-editor-trigger-shadow) inset; }

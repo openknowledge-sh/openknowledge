@@ -8,22 +8,28 @@ This Open Knowledge bundle is the developer wiki for the Open Knowledge CLI.
 It records CLI feature documentation, exporter behavior, and a changelog loop
 for package changes that affect the command-line tool.
 
-## Start Here
+## Human-Oriented CLI Docs
+
+Use these pages to install, run, inspect, and operate the Open Knowledge CLI.
+
+* [Feature documentation](features/) - developer-focused pages for commands, exporters, and installation.
+* [Installation](features/installation.md) - shell installer, npm wrapper, and local install assumptions.
+* [CLI operations](features/operations.md) - development commands, workspace layout, and release workflow notes.
+* [Commands](features/commands/) - command-by-command reference pages.
+* [Exporters](features/exporters/) - bundle conversion targets and candidate exporters.
+
+## Agent Maintenance
+
+Use these pages when an agent is updating, validating, or extending this wiki.
 
 * [Agent rules](AGENTS.md) - when future agents should read and update this wiki.
-* [Feature documentation](features/) - developer-focused pages for commands, exporters, and installation.
-* [Examples](examples/) - small bundled files for testing viewer behavior.
-* [CLI changelog](changelog/cli.md) - maintained memory of CLI-facing changes.
 * [Workflows](workflows/) - repeatable update loops for docs and changelog maintenance.
+* [Feature docs workflow](workflows/feature-docs.md) - update command, exporter, setup, viewer, and README-facing docs.
+* [Changelog update workflow](workflows/changelog-updates.md) - update CLI changelog memory after release-facing changes.
+* [CLI changelog](changelog/cli.md) - maintained memory of CLI-facing changes.
+* [Examples](examples/) - viewer smoke-test files, including code and PDF assets.
 * [Spec](SPEC.md) - local pinned copy of the Open Knowledge Format spec.
 * [Log](log.md) - chronological update history.
-
-## Sections
-
-* [Features](features/) - installation, command reference, and exporters.
-* [Examples](examples/) - viewer smoke-test files, including code and PDF assets.
-* [Changelog](changelog/) - CLI package change history and update rules.
-* [Workflows](workflows/) - agent maintenance instructions.
 * [Decisions](decisions/) - setup and structure decisions for the wiki.
 
 ## Source Boundaries

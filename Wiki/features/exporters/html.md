@@ -69,6 +69,22 @@ portable static pages do not expose the local filesystem path used during the
 build. The browser-side viewer falls back to the page URL for static-only
 storage keys.
 
+Default viewer exports also suppress the local editor dropdown because deployed
+HTML cannot open the build machine's local files. To show a source action in
+exported pages, configure `[html.source]` in `openknowledge.toml`:
+
+```toml
+[html.source]
+github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
+entry = "Wiki"
+```
+
+When `github_base` is present, each exported Markdown panel shows a single
+GitHub button linking to `github_base` plus the optional repository `entry` path
+and the Markdown file path. Dynamic panels opened from the embedded note
+manifest use the same per-file source URL. When `[html.source]` is absent, the
+exported viewer renders no editor or source action.
+
 The canonical default theme source is
 `packages/cli/cmd/openknowledge/viewer_theme.css`. The local viewer and default
 HTML export derive colors, fonts, and viewer dimensions from this theme layer.
@@ -192,6 +208,8 @@ Supported theme variables are:
 * Produce minimal HTML for systems that should not include viewer JavaScript.
 * Match an exported documentation wiki to a landing page by overriding viewer
   theme variables in a deployable CSS file.
+* Link deployed static pages back to their GitHub Markdown source without
+  exposing local editor deeplinks.
 
 ## Source Anchors
 

@@ -58,8 +58,12 @@ manifest. The default viewer export reads optional `[html.theme]` settings from
 and copies local theme CSS files into the output folder. The built-in theme
 contract lives in `packages/cli/cmd/openknowledge/viewer_theme.css`, and the
 exported viewer derives colors, fonts, and viewer dimensions from its `--ok-*`
-variables. With `--plain`, it writes unstyled semantic HTML pages and does not
-include viewer CSS, JavaScript, or theme links.
+variables. The static viewer does not render local editor deeplinks. When
+`openknowledge.toml` includes `[html.source]` with `github_base` and optional
+`entry`, exported Markdown panels render a single GitHub source button instead;
+without that config, no source action is shown. With `--plain`, it writes
+unstyled semantic HTML pages and does not include viewer CSS, JavaScript, or
+theme links.
 
 `to json` prints the normalized bundle model to stdout by default and writes to
 `--out <file>` when provided. `--plain` is not valid for JSON. Unknown targets
@@ -72,6 +76,8 @@ and unknown flags exit with status `2`.
 * Keep future exporter targets grouped under one command family.
 * Deploy documentation that visually matches a landing page through a themed
   viewer export.
+* Link exported viewer panels back to GitHub source files through
+  `[html.source]`.
 
 ## Source Anchors
 

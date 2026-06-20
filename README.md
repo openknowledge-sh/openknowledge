@@ -108,6 +108,10 @@ The default HTML viewer export can inherit your site styling from an optional
 [html.theme]
 name = "landing"
 stylesheet = "assets/wiki-theme.css"
+
+[html.source]
+github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
+entry = "Wiki"
 ```
 
 The stylesheet is copied into the static export and linked from every generated
@@ -115,7 +119,9 @@ viewer page. Override the documented `--ok-*` variables to match your landing
 page. The canonical default theme lives at
 `packages/cli/cmd/openknowledge/viewer_theme.css`; the local viewer and default
 HTML export derive their colors, fonts, and viewer dimensions from that theme
-layer.
+layer. In default static viewer exports, `[html.source]` replaces local editor
+deep links with a single GitHub source button for each Markdown file. Omit that
+section when exported pages should show no source action.
 
 `openknowledge connect` stores named local paths for shared or standalone
 knowledge bases. A key is only an alias: path-based commands still work, and

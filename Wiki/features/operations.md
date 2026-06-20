@@ -53,7 +53,10 @@ exists. Run `pnpm build:web` after wiki or theme changes before checking
 The wiki export reads `Wiki/openknowledge.toml` and copies
 `Wiki/assets/openknowledge-site.css` into the generated output. Keep that theme
 CSS aligned with `packages/web/styles.css` when changing the landing page
-palette, fonts, or core spacing.
+palette, fonts, or core spacing. The same TOML also sets `[html.source]` with
+`github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"`
+and `entry = "Wiki"`, so deployed wiki panels link back to their Markdown
+source files on GitHub instead of showing local editor deeplinks.
 
 ## Release
 

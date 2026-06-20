@@ -14,6 +14,25 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Static viewer source button replaces editor deeplinks
+
+* Default `openknowledge to html` viewer exports no longer render the local
+  editor dropdown that opens build-machine file paths.
+* Bundles can configure `[html.source]` in `openknowledge.toml` with
+  `github_base` and optional `entry`; exported Markdown panels then show a
+  single GitHub source button resolved from that base plus the file path.
+* When `[html.source]` is absent, exported pages show no editor or source
+  action. The local `openknowledge open` viewer still shows the editor picker.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_theme.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `Wiki/openknowledge.toml`.
+* Docs updated: `README.md`, `Wiki/features/commands/open.md`,
+  `Wiki/features/commands/to.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Registry owns connection commands
 
 * `openknowledge registry connect`, `openknowledge registry disconnect`, and

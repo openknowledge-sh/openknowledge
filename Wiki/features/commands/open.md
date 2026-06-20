@@ -95,6 +95,12 @@ The built-in viewer app CSS and JavaScript live in normal asset files next to
 the command source (`viewer_app.css`, `viewer_app.js`, and `viewer_search.js`)
 and are embedded into the Go binary at build time.
 
+The local server viewer keeps the note-panel editor picker for opening the
+current Markdown file in installed local editors. Static `openknowledge to html`
+viewer exports do not include those local deeplinks; exported pages either show
+a single GitHub source button from `[html.source]` settings or no source action
+when that config is absent.
+
 Local links to code and text assets, such as `.go`, `.ts`, `.json`, `.yaml`, or
 `.txt` files, open lightweight asset preview pages with escaped source text and
 syntax highlighting. Local PDF, image, audio, and video references are served

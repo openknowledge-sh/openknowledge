@@ -665,6 +665,9 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if strings.Contains(index, root) || !strings.Contains(index, `data-note-root=""`) {
 		t.Fatalf("static export should not expose local bundle root:\n%s", index)
 	}
+	if strings.Contains(index, `<div class="editor-picker" data-editor-picker>`) || strings.Contains(index, `data-source-open data-direct-link`) {
+		t.Fatalf("static export without html.source should not render local editor controls or source buttons:\n%s", index)
+	}
 
 	setup := readViewerExportFile(t, out, "guides/setup.html")
 	if !strings.Contains(setup, `href="../assets/wiki-theme.css"`) {
@@ -677,6 +680,34 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	theme := readViewerExportFile(t, out, "assets/wiki-theme.css")
 	if !strings.Contains(theme, `--ok-color-accent: #3257ff`) {
 		t.Fatalf("expected export to copy theme stylesheet, got:\n%s", theme)
+	}
+}
+
+func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeViewerFile(t, root, "openknowledge.toml", "[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
+	writeViewerFile(t, root, "guides/setup.md", "# Setup\n")
+
+	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err != nil {
+		t.Fatal(err)
+	}
+
+	index := readViewerExportFile(t, out, "index.html")
+	if strings.Contains(index, `<div class="editor-picker" data-editor-picker>`) || strings.Contains(index, `<button class="editor-menu-trigger"`) {
+		t.Fatalf("static export should not render the local editor dropdown:\n%s", index)
+	}
+	if !strings.Contains(index, `class="source-open"`) || !strings.Contains(index, `href="https://github.com/openknowledge-sh/openknowledge/blob/main/Wiki/index.md"`) {
+		t.Fatalf("static export should link the current file to GitHub source:\n%s", index)
+	}
+	if !strings.Contains(index, `"sourceURL":"https://github.com/openknowledge-sh/openknowledge/blob/main/Wiki/guides/setup.md"`) {
+		t.Fatalf("static note manifest should include GitHub source URLs for dynamic panels:\n%s", index)
+	}
+
+	setup := readViewerExportFile(t, out, "guides/setup.html")
+	if !strings.Contains(setup, `href="https://github.com/openknowledge-sh/openknowledge/blob/main/Wiki/guides/setup.md"`) {
+		t.Fatalf("nested static export should link its GitHub source:\n%s", setup)
 	}
 }
 

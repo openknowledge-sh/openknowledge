@@ -23,6 +23,11 @@ type viewerThemeConfig struct {
 	External   bool
 }
 
+type viewerSourceConfig struct {
+	GitHubBase string
+	Entry      string
+}
+
 type viewerThemeData struct {
 	Name       string
 	Stylesheet string
@@ -91,6 +96,107 @@ func loadViewerThemeConfig(root string) (viewerThemeConfig, error) {
 	config.Stylesheet = stylesheet
 	config.External = external
 	return config, nil
+}
+
+func loadViewerSourceConfig(root string) (viewerSourceConfig, error) {
+	content, err := os.ReadFile(filepath.Join(root, viewerThemeConfigFile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return viewerSourceConfig{}, nil
+		}
+		return viewerSourceConfig{}, err
+	}
+
+	var config viewerSourceConfig
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+	section := ""
+	lineNumber := 0
+	for scanner.Scan() {
+		lineNumber++
+		line := strings.TrimSpace(stripTomlComment(scanner.Text()))
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
+			continue
+		}
+		if section != "html.source" {
+			continue
+		}
+
+		key, rawValue, ok := strings.Cut(line, "=")
+		if !ok {
+			return viewerSourceConfig{}, fmt.Errorf("%s:%d expected key = value in [html.source]", viewerThemeConfigFile, lineNumber)
+		}
+		value, err := parseTomlStringValue(strings.TrimSpace(rawValue))
+		if err != nil {
+			return viewerSourceConfig{}, fmt.Errorf("%s:%d %w", viewerThemeConfigFile, lineNumber, err)
+		}
+
+		switch strings.TrimSpace(key) {
+		case "github_base", "githubBase", "github_base_url", "github":
+			config.GitHubBase = strings.TrimSpace(value)
+		case "entry":
+			config.Entry = strings.TrimSpace(value)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return viewerSourceConfig{}, err
+	}
+	return normalizeViewerSourceConfig(config)
+}
+
+func normalizeViewerSourceConfig(config viewerSourceConfig) (viewerSourceConfig, error) {
+	if strings.TrimSpace(config.GitHubBase) == "" {
+		return viewerSourceConfig{}, nil
+	}
+	base := strings.TrimRight(strings.TrimSpace(config.GitHubBase), "/")
+	parsed, err := url.Parse(base)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return viewerSourceConfig{}, fmt.Errorf("html.source.github_base must be an http(s) URL")
+	}
+
+	entry := strings.TrimSpace(config.Entry)
+	if entry != "" {
+		if strings.HasPrefix(entry, "/") {
+			return viewerSourceConfig{}, fmt.Errorf("html.source.entry must be a relative repository path")
+		}
+		entry = path.Clean(strings.ReplaceAll(entry, "\\", "/"))
+		entry = strings.TrimPrefix(entry, "./")
+		if entry == "." {
+			entry = ""
+		}
+		if hasParentSegment(entry) {
+			return viewerSourceConfig{}, fmt.Errorf("html.source.entry must stay inside the repository")
+		}
+	}
+
+	return viewerSourceConfig{GitHubBase: base, Entry: entry}, nil
+}
+
+func viewerSourceURL(config viewerSourceConfig, filePath string) string {
+	if config.GitHubBase == "" {
+		return ""
+	}
+	parts := []string{strings.TrimRight(config.GitHubBase, "/")}
+	if config.Entry != "" {
+		parts = append(parts, encodeViewerSourcePath(config.Entry))
+	}
+	parts = append(parts, encodeViewerSourcePath(filePath))
+	return strings.Join(parts, "/")
+}
+
+func encodeViewerSourcePath(value string) string {
+	segments := strings.Split(strings.Trim(strings.ReplaceAll(value, "\\", "/"), "/"), "/")
+	encoded := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if segment == "" {
+			continue
+		}
+		encoded = append(encoded, url.PathEscape(segment))
+	}
+	return strings.Join(encoded, "/")
 }
 
 func stripTomlComment(line string) string {

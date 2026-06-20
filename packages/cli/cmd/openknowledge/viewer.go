@@ -520,6 +520,7 @@ type viewerFileData struct {
 	Root        string
 	Path        string
 	FileURL     string
+	SourceURL   string
 	LinkPrefix  string
 	SearchURL   string
 	Theme       viewerThemeData
@@ -551,10 +552,11 @@ type viewerFilePayload struct {
 }
 
 type viewerStaticPayload struct {
-	Title    string `json:"title"`
-	Path     string `json:"path"`
-	HTMLPath string `json:"htmlPath"`
-	Body     string `json:"body"`
+	Title     string `json:"title"`
+	Path      string `json:"path"`
+	HTMLPath  string `json:"htmlPath"`
+	SourceURL string `json:"sourceURL,omitempty"`
+	Body      string `json:"body"`
 }
 
 type viewerGraphData struct {
@@ -774,6 +776,7 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		Root:        root,
 		Path:        cleanRel,
 		FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
+		SourceURL:   "",
 		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
 		SearchURL:   searchURLWithPrefix(linkPrefix),
 		Theme:       theme,
@@ -1082,6 +1085,10 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
+	sourceConfig, err := loadViewerSourceConfig(bundle.Root)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
 
 	absoluteOut, err := filepath.Abs(out)
 	if err != nil {
@@ -1092,7 +1099,7 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 		return okf.HTMLResult{}, err
 	}
 
-	staticJSON, err := viewerStaticFilesJSON(bundle.Files)
+	staticJSON, err := viewerStaticFilesJSON(bundle.Files, sourceConfig)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
@@ -1115,6 +1122,7 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 			Root:        "",
 			Path:        file.Path,
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
+			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
 			Body:        template.HTML(viewerStaticFileBody(file)),
 			Tree:        viewerStaticTree(bundle.Files, file.Path),
 			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
@@ -1148,17 +1156,18 @@ func viewerRelPath(root string, target string) string {
 	return filepath.ToSlash(relative)
 }
 
-func viewerStaticFilesJSON(files []okf.BundleFile) (template.JS, error) {
+func viewerStaticFilesJSON(files []okf.BundleFile, sourceConfig viewerSourceConfig) (template.JS, error) {
 	payload := make([]viewerStaticPayload, 0, len(files))
 	for _, file := range files {
 		if !okf.ShouldPublish(file) {
 			continue
 		}
 		payload = append(payload, viewerStaticPayload{
-			Title:    titleForMarkdownFile(file.Path),
-			Path:     file.Path,
-			HTMLPath: viewerHTMLPath(file.Path),
-			Body:     viewerStaticFileBody(file),
+			Title:     titleForMarkdownFile(file.Path),
+			Path:      file.Path,
+			HTMLPath:  viewerHTMLPath(file.Path),
+			SourceURL: viewerSourceURL(sourceConfig, file.Path),
+			Body:      viewerStaticFileBody(file),
 		})
 	}
 
@@ -2313,6 +2322,13 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         <div class="note-chrome">
           <a class="note-path" href="{{.FileURL}}" data-direct-link="true">{{.Path}}</a>
           <div class="note-actions">
+            {{if .SourceURL}}
+            <a class="source-open" href="{{.SourceURL}}" data-source-open data-direct-link="true" target="_blank" rel="noreferrer" aria-label="Open {{.Path}} on GitHub" title="Open on GitHub">
+              <svg class="source-icon control-icon" data-icon="github" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.17c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.4 11.4 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.58A12 12 0 0 0 12 .5Z"></path>
+              </svg>
+            </a>
+            {{else if .Root}}
             <div class="editor-picker" data-editor-picker>
               <div class="editor-trigger" data-editor-trigger role="group">
                 <a class="editor-open" href="#" data-editor-open data-direct-link="true" aria-label="Open {{.Path}} in editor" title="Open in editor">
@@ -2326,6 +2342,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
               </div>
               <div class="editor-menu" data-editor-menu role="menu" hidden></div>
             </div>
+            {{end}}
             <a class="note-close" href="#" data-close-panel aria-label="Close {{.Path}}" title="Close note" role="button">
               <svg class="note-close-icon control-icon" data-icon="x" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M18 6 6 18"></path>
