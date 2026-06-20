@@ -17,7 +17,7 @@ type ASTDocument struct {
 	Metadata              ASTDocumentMetadata
 	Body                  string
 	Links                 []Link
-	ReadDiagnostic        *astDiagnostic
-	UTF8Diagnostic        *astDiagnostic
-	FrontmatterDiagnostic *astDiagnostic
+	ReadDiagnostic        *ASTDiagnostic
+	UTF8Diagnostic        *ASTDiagnostic
+	FrontmatterDiagnostic *ASTDiagnostic
 }

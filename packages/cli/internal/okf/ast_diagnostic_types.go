@@ -1,6 +1,6 @@
 package okf
 
-type astDiagnostic struct {
+type ASTDiagnostic struct {
 	Line    int
 	Message string
 	Cause   error

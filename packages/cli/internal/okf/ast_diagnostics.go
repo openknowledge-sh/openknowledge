@@ -5,35 +5,35 @@ import (
 	"unicode/utf8"
 )
 
-func (d *astDiagnostic) Error() string {
+func (d *ASTDiagnostic) Error() string {
 	if d == nil {
 		return ""
 	}
 	return d.Message
 }
 
-func (d *astDiagnostic) Unwrap() error {
+func (d *ASTDiagnostic) Unwrap() error {
 	if d == nil {
 		return nil
 	}
 	return d.Cause
 }
 
-func astReadDiagnostic(err error) *astDiagnostic {
+func astReadDiagnostic(err error) *ASTDiagnostic {
 	if err == nil {
 		return nil
 	}
-	return &astDiagnostic{
+	return &ASTDiagnostic{
 		Message: err.Error(),
 		Cause:   err,
 	}
 }
 
-func astUTF8Diagnostic(content []byte) *astDiagnostic {
+func astUTF8Diagnostic(content []byte) *ASTDiagnostic {
 	if utf8.Valid(content) {
 		return nil
 	}
-	return &astDiagnostic{
+	return &ASTDiagnostic{
 		Line:    invalidUTF8Line(content),
 		Message: "Markdown file must be valid UTF-8",
 	}
@@ -54,7 +54,7 @@ func invalidUTF8Line(content []byte) int {
 	return line
 }
 
-func astFrontmatterDiagnostic(err error) *astDiagnostic {
+func astFrontmatterDiagnostic(err error) *ASTDiagnostic {
 	if err == nil {
 		return nil
 	}
@@ -64,7 +64,7 @@ func astFrontmatterDiagnostic(err error) *astDiagnostic {
 	if errors.As(err, &parseErr) && parseErr.line > 0 {
 		line = parseErr.line
 	}
-	return &astDiagnostic{
+	return &ASTDiagnostic{
 		Line:    line,
 		Message: err.Error(),
 	}
