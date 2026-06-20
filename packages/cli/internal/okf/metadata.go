@@ -91,11 +91,11 @@ func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, er
 	if len(document.FrontmatterValues) == 0 {
 		return info, nil
 	}
-	info.Type = strings.TrimSpace(document.FrontmatterValues["type"])
-	info.Title = strings.TrimSpace(document.FrontmatterValues["title"])
-	info.Description = strings.TrimSpace(document.FrontmatterValues["description"])
-	info.Tags = parseFlowStringList(document.FrontmatterValues["tags"])
-	info.UseWhen = parseFlowStringList(document.FrontmatterValues["use_when"])
+	info.Type = strings.TrimSpace(document.Metadata.Type)
+	info.Title = strings.TrimSpace(document.Metadata.Title)
+	info.Description = strings.TrimSpace(document.Metadata.Description)
+	info.Tags = document.Metadata.Tags
+	info.UseWhen = document.Metadata.UseWhen
 	return info, nil
 }
 

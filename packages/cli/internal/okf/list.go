@@ -49,10 +49,10 @@ func listInventoryFromParsedBundle(bundle parsedBundle, issues []Issue) (ListRes
 			continue
 		}
 		if document.FrontmatterErr != nil {
-			entries = append(entries, attachIssues(conceptEntry(document, nil), issuesByPath))
+			entries = append(entries, attachIssues(conceptEntry(document, parsedDocumentMetadata{}), issuesByPath))
 			continue
 		}
-		entries = append(entries, attachIssues(conceptEntry(document, document.FrontmatterValues), issuesByPath))
+		entries = append(entries, attachIssues(conceptEntry(document, document.Metadata), issuesByPath))
 	}
 	return ListResult{Root: bundle.Root, Entries: entries}, nil
 }
@@ -70,8 +70,8 @@ func attachIssues(entry ListEntry, issuesByPath map[string][]Issue) ListEntry {
 	return entry
 }
 
-func conceptEntry(document parsedDocument, values map[string]string) ListEntry {
-	title := values["title"]
+func conceptEntry(document parsedDocument, metadata parsedDocumentMetadata) ListEntry {
+	title := metadata.Title
 	if title == "" {
 		title = deriveTitle(document.Rel)
 	}
@@ -80,10 +80,10 @@ func conceptEntry(document parsedDocument, values map[string]string) ListEntry {
 		ID:          document.ID,
 		Path:        document.Rel,
 		Kind:        document.Kind,
-		Type:        values["type"],
+		Type:        metadata.Type,
 		Title:       title,
-		Description: values["description"],
-		Resource:    values["resource"],
+		Description: metadata.Description,
+		Resource:    metadata.Resource,
 	}
 }
 

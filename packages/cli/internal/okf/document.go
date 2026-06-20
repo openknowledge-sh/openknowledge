@@ -17,10 +17,20 @@ type parsedDocument struct {
 	Content           string
 	Frontmatter       frontmatter
 	FrontmatterValues map[string]string
+	Metadata          parsedDocumentMetadata
 	Body              string
 	Links             []Link
 	ReadErr           error
 	FrontmatterErr    error
+}
+
+type parsedDocumentMetadata struct {
+	Type        string
+	Title       string
+	Description string
+	Resource    string
+	Tags        []string
+	UseWhen     []string
 }
 
 type parsedBundle struct {
@@ -82,6 +92,7 @@ func parseMarkdownDocumentFile(path string, rel string) parsedDocument {
 	document.Content = string(content)
 	document.Frontmatter = meta
 	document.FrontmatterValues = frontmatterValues(meta)
+	document.Metadata = parsedDocumentMetadataFromValues(document.FrontmatterValues)
 	document.Body = body
 	document.FrontmatterErr = frontmatterErr
 	return document
@@ -97,4 +108,15 @@ func frontmatterValues(meta frontmatter) map[string]string {
 		values[key] = value
 	}
 	return values
+}
+
+func parsedDocumentMetadataFromValues(values map[string]string) parsedDocumentMetadata {
+	return parsedDocumentMetadata{
+		Type:        values["type"],
+		Title:       values["title"],
+		Description: values["description"],
+		Resource:    values["resource"],
+		Tags:        parseFlowStringList(values["tags"]),
+		UseWhen:     parseFlowStringList(values["use_when"]),
+	}
 }

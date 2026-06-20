@@ -80,7 +80,7 @@ func bundleFile(document parsedDocument, issues []Issue) BundleFile {
 	if document.Reserved {
 		entry = reservedEntry(document)
 	} else {
-		entry = conceptEntry(document, document.FrontmatterValues)
+		entry = conceptEntry(document, document.Metadata)
 	}
 
 	return BundleFile{
