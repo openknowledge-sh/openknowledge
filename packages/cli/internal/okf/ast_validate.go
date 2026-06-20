@@ -1,7 +1,7 @@
 package okf
 
 func parseAndValidateASTBundle(root string, version string) (Result, ASTBundle, error) {
-	bundle, err := parseBundleAST(root, version)
+	bundle, err := ParseASTWithVersion(root, version)
 	if err != nil {
 		return Result{}, ASTBundle{}, err
 	}
