@@ -34,19 +34,18 @@ func ParseBundleWithVersion(root string, version string) (Bundle, error) {
 		return Bundle{}, err
 	}
 
-	return bundleFromAST(validation, ast)
+	return bundleFromAST(ast, issuesFromResult(validation))
 }
 
-func bundleFromAST(validation Result, ast astBundle) (Bundle, error) {
-	issues := issuesFromResult(validation)
+func bundleFromAST(ast astBundle, issues []Issue) (Bundle, error) {
 	files, err := bundleFilesFromAST(ast, issues)
 	if err != nil {
 		return Bundle{}, err
 	}
 
 	return Bundle{
-		Root:        validation.Root,
-		SpecVersion: validation.SpecVersion,
+		Root:        ast.Root,
+		SpecVersion: ast.SpecVersion,
 		Files:       files,
 		Issues:      issues,
 	}, nil
