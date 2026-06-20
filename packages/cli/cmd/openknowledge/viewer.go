@@ -449,6 +449,7 @@ type viewerIndexData struct {
 	Frame     viewerFrame
 	Title     string
 	BrandName string
+	HomeURL   string
 	Root      string
 	Theme     viewerThemeData
 	Error     string
@@ -464,6 +465,7 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 			Frame:     frame,
 			Title:     title,
 			BrandName: brandName,
+			HomeURL:   viewerPrefixRoot(linkPrefix),
 			Root:      root,
 			Theme:     theme,
 			Error:     themeErr.Error(),
@@ -476,6 +478,7 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 			Frame:     frame,
 			Title:     title,
 			BrandName: brandName,
+			HomeURL:   viewerPrefixRoot(linkPrefix),
 			Root:      root,
 			Theme:     theme,
 			Error:     err.Error(),
@@ -506,6 +509,7 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 		Frame:     frame,
 		Title:     title,
 		BrandName: brandName,
+		HomeURL:   viewerPrefixRoot(linkPrefix),
 		Root:      root,
 		Theme:     theme,
 		SearchURL: searchURLWithPrefix(linkPrefix),
@@ -517,6 +521,7 @@ type viewerFileData struct {
 	Frame       viewerFrame
 	Title       string
 	BrandName   string
+	HomeURL     string
 	Root        string
 	Path        string
 	FileURL     string
@@ -534,6 +539,7 @@ type viewerFileData struct {
 type viewerAssetData struct {
 	Title      string
 	BrandName  string
+	HomeURL    string
 	Root       string
 	Path       string
 	RawURL     string
@@ -669,6 +675,7 @@ func viewerAsset(root string, rel string, linkPrefix string) (viewerAssetData, b
 	data := viewerAssetData{
 		Title:      titleForAssetFile(cleanRel),
 		BrandName:  viewerKnowledgeBaseName(root, ""),
+		HomeURL:    viewerPrefixRoot(linkPrefix),
 		Root:       root,
 		Path:       cleanRel,
 		RawURL:     rawURL,
@@ -773,6 +780,7 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		Frame:       frame,
 		Title:       titleForMarkdownFile(cleanRel),
 		BrandName:   viewerKnowledgeBaseName(root, ""),
+		HomeURL:     viewerPrefixRoot(linkPrefix),
 		Root:        root,
 		Path:        cleanRel,
 		FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
@@ -946,6 +954,7 @@ func renderRegistryEmpty(response http.ResponseWriter) {
 	renderHTML(response, viewerIndexTemplate, viewerIndexData{
 		Title:     "Open Knowledge Registry",
 		BrandName: "Open Knowledge",
+		HomeURL:   "/",
 		Theme:     viewerThemeData{Name: "default"},
 		Error:     "No registered knowledge bases. Add one with openknowledge registry connect <path> --as <key>.",
 	})
@@ -1119,6 +1128,7 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 		data := viewerFileData{
 			Title:       titleForMarkdownFile(file.Path),
 			BrandName:   viewerKnowledgeBaseNameFromFiles(bundle.Files, ""),
+			HomeURL:     viewerStaticRelativeURL(file.Path, "index.md"),
 			Root:        "",
 			Path:        file.Path,
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
@@ -2150,7 +2160,7 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
 </head>
 <body>
   <header>
-    {{if .Frame.Workspaces}}<a class="brand" href="{{.Frame.ActiveURL}}">{{.BrandName}}</a>{{else}}<a class="brand" href="/">{{.BrandName}}</a>{{end}}
+    {{if .Frame.Workspaces}}<a class="brand" href="{{.Frame.ActiveURL}}">{{.BrandName}}</a>{{else}}<a class="brand" href="{{.HomeURL}}">{{.BrandName}}</a>{{end}}
     <span>{{.Root}}</span>
   </header>
   <main>
@@ -2207,7 +2217,7 @@ var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!do
 <body class="viewer-document viewer-asset-document">
   <header>
     <div class="header-left">
-      <a class="brand" href="/">{{.BrandName}}</a>
+      <a class="brand" href="{{.HomeURL}}">{{.BrandName}}</a>
     </div>
     <a class="asset-open-raw" href="{{.RawURL}}" data-direct-link="true">Open raw</a>
   </header>
@@ -2258,7 +2268,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           <path d="M6 14h.01"></path>
         </svg>
       </button>
-      <a class="brand" href="/">{{.BrandName}}</a>
+      <a class="brand" href="{{.HomeURL}}">{{.BrandName}}</a>
     </div>
     <section class="search header-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}" data-primary-search>
       <label class="sr-only" for="viewer-search">Search</label>

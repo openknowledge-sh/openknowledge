@@ -61,6 +61,9 @@ data. The static viewer also resolves host-provided pretty URLs such as
 extensionless lowercase paths and directory index paths back to the embedded
 note manifest, so stacked-panel navigation continues to work on hosts that
 rewrite `AGENTS.html` to `/agents` or `features/index.html` to `/features/`.
+The viewer header brand links back to the generated `index.html` with a
+relative URL from every exported page, so deployments under subpaths such as
+`/wiki/` stay inside the exported wiki instead of navigating to the host root.
 The plain export keeps only the rendered document structure and does not include
 the JavaScript table toolbar.
 

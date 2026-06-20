@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Static viewer brand stays inside exported wiki
+
+* Default `openknowledge to html` viewer exports now link the header brand to
+  the generated wiki `index.html` with a relative URL instead of `/`.
+* This keeps deployed wiki exports under subpaths such as `/wiki/` from sending
+  users back to the website root when they click the wiki brand.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/exporters/html.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Validator rejects invalid UTF-8 Markdown
 
 * `openknowledge validate` now reports invalid UTF-8 Markdown files as errors

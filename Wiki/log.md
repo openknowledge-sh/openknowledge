@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+* **Static viewer brand link**: Documented that default
+  `openknowledge to html` viewer exports link the header brand back to the
+  generated `index.html` with a relative URL so `/wiki/` deployments stay
+  inside the exported wiki.
 * **Website release badge**: Documented that the landing page header links to
   the latest GitHub Release and hydrates its tag plus relative publish age from
   GitHub's latest release API at runtime.

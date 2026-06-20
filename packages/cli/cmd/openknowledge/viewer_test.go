@@ -707,6 +707,9 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if !strings.Contains(index, `data-openknowledge-theme="landing"`) || !strings.Contains(index, `href="assets/wiki-theme.css"`) {
 		t.Fatalf("expected exported index to link copied theme stylesheet:\n%s", index)
 	}
+	if !strings.Contains(index, `<a class="brand" href="index.html">Home</a>`) {
+		t.Fatalf("static export brand should link to the generated wiki index:\n%s", index)
+	}
 	if strings.Contains(index, root) || !strings.Contains(index, `data-note-root=""`) {
 		t.Fatalf("static export should not expose local bundle root:\n%s", index)
 	}
@@ -717,6 +720,9 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	setup := readViewerExportFile(t, out, "guides/setup.html")
 	if !strings.Contains(setup, `href="../assets/wiki-theme.css"`) {
 		t.Fatalf("expected nested exported page to link theme stylesheet relatively:\n%s", setup)
+	}
+	if !strings.Contains(setup, `<a class="brand" href="../index.html">Home</a>`) {
+		t.Fatalf("nested static export brand should link back to the generated wiki index:\n%s", setup)
 	}
 	if strings.Contains(setup, root) || !strings.Contains(setup, `data-note-root=""`) {
 		t.Fatalf("nested static export should not expose local bundle root:\n%s", setup)
@@ -863,6 +869,9 @@ func TestViewerServesDirectAliasPath(t *testing.T) {
 	}
 
 	page := getViewerBody(t, handler, "/project-memory/file/index.md")
+	if !strings.Contains(page, `<a class="brand" href="/project-memory/">Home</a>`) {
+		t.Fatalf("viewer file brand should link to the alias root:\n%s", page)
+	}
 	if !strings.Contains(page, `href="/project-memory/file/workflows/docs.md"`) {
 		t.Fatalf("viewer file did not prefix markdown links:\n%s", page)
 	}
