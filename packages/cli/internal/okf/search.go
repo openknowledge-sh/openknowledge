@@ -17,15 +17,59 @@ func NewSearchIndex(bundle Bundle) SearchIndex {
 	return SearchIndex{documents: documents}
 }
 
+func newSearchIndexFromAST(bundle astBundle) SearchIndex {
+	documents := make([]searchDocument, 0, len(bundle.Documents))
+	for _, document := range bundle.Documents {
+		if document.ReadDiagnostic != nil || document.UTF8Diagnostic != nil {
+			continue
+		}
+		documents = append(documents, searchDocumentFromASTDocument(document))
+	}
+	return SearchIndex{documents: documents}
+}
+
+func searchDocumentFromASTDocument(document astDocument) searchDocument {
+	metadata := document.Metadata
+	frontmatter := document.Frontmatter.Values
+	if document.FrontmatterDiagnostic != nil {
+		metadata = astDocumentMetadata{}
+		frontmatter = nil
+	}
+	summary := summarizeASTDocument(document, metadata)
+	return newSearchDocument(
+		summary.Path,
+		summary.ID,
+		summary.Kind,
+		summary.Type,
+		summary.Title,
+		summary.Description,
+		document.Body,
+		frontmatter,
+	)
+}
+
 func searchDocumentFromBundleFile(file BundleFile) searchDocument {
+	return newSearchDocument(
+		file.Path,
+		file.ID,
+		file.Kind,
+		file.Type,
+		file.Title,
+		file.Description,
+		file.Body,
+		file.Frontmatter,
+	)
+}
+
+func newSearchDocument(path string, id string, kind string, documentType string, title string, description string, body string, frontmatter map[string]string) searchDocument {
 	document := searchDocument{
-		path:         file.Path,
-		id:           file.ID,
-		kind:         file.Kind,
-		documentType: file.Type,
-		title:        file.Title,
-		description:  file.Description,
-		body:         file.Body,
+		path:         path,
+		id:           id,
+		kind:         kind,
+		documentType: documentType,
+		title:        title,
+		description:  description,
+		body:         body,
 	}
 	document.fields = []searchField{
 		newSearchField("title", document.title, 14),
@@ -33,7 +77,7 @@ func searchDocumentFromBundleFile(file BundleFile) searchDocument {
 		newSearchField("type", document.documentType+" "+document.kind, 6),
 		newSearchField("description", document.description, 5),
 		newSearchField("headings", markdownHeadings(document.body), 4),
-		newSearchField("metadata", frontmatterSearchText(file.Frontmatter), 3),
+		newSearchField("metadata", frontmatterSearchText(frontmatter), 3),
 		newSearchField("body", document.body, 1.2),
 	}
 	return document

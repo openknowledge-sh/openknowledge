@@ -1,6 +1,9 @@
 package okf
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestSearchBundleRanksTitleAndBodyMatches(t *testing.T) {
 	root := t.TempDir()
@@ -22,6 +25,31 @@ func TestSearchBundleRanksTitleAndBodyMatches(t *testing.T) {
 	}
 	if results[0].Snippet == "" {
 		t.Fatalf("expected snippet in result: %#v", results[0])
+	}
+}
+
+func TestSearchIndexFromASTMatchesBundleSearch(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n\nRead the incident playbook.\n")
+	writeFile(t, root, "guides/incident.md", "---\ntype: Guide\ntitle: Incident Playbook\ndescription: Triage production alerts.\n---\n\n# Incident Response\n\nRun `openknowledge validate` before sharing updates.\n")
+
+	bundle, err := ParseBundle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ast, err := parseAndValidateASTBundle(root, LatestSpecVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	options := SearchOptions{Query: "incident playbook", Limit: 5, Fuzzy: true}
+	bundleResults := SearchBundle(bundle, options)
+	astResults := newSearchIndexFromAST(ast).Search(options)
+	if len(bundleResults) == 0 || len(astResults) == 0 {
+		t.Fatalf("expected search results from both paths, bundle=%#v ast=%#v", bundleResults, astResults)
+	}
+	if !reflect.DeepEqual(bundleResults[0], astResults[0]) {
+		t.Fatalf("expected AST search to match bundle search, bundle=%#v ast=%#v", bundleResults[0], astResults[0])
 	}
 }
 
