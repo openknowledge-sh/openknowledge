@@ -90,7 +90,6 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 	meta, body, frontmatterErr := splitFrontmatter(string(content))
 	document.Content = string(content)
 	document.Frontmatter = astFrontmatterFromParse(meta)
-	document.ParsedFrontmatter = meta
 	document.FrontmatterValues = frontmatterValues(meta)
 	document.Metadata = astDocumentMetadataFromValues(document.FrontmatterValues)
 	document.Body = body

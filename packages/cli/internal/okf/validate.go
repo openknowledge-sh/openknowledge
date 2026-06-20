@@ -109,11 +109,11 @@ func validateDocument(root string, document astDocument, result *Result) {
 	if document.FrontmatterErr == nil {
 		switch document.Kind {
 		case "index":
-			validateIndex(rel, document.ParsedFrontmatter, result)
+			validateIndex(rel, document.Frontmatter, document.FrontmatterValues, result)
 		case "log":
-			validateLog(rel, document.ParsedFrontmatter, document.Content, result)
+			validateLog(rel, document.Frontmatter, document.Content, result)
 		default:
-			validateConcept(rel, document.ParsedFrontmatter, result)
+			validateConcept(rel, document.Frontmatter, document.FrontmatterValues, result)
 		}
 		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.BodyLine, result)
 	}
@@ -154,26 +154,26 @@ func validateFrontmatterFormatting(rel string, meta astFrontmatter, result *Resu
 	}
 }
 
-func validateIndex(rel string, meta frontmatter, result *Result) {
+func validateIndex(rel string, meta astFrontmatter, values map[string]string, result *Result) {
 	if strings.EqualFold(rel, "index.md") {
-		if meta.has {
-			if version := meta.values["okf_version"]; version != "" && version != result.SpecVersion {
+		if meta.Has {
+			if version := values["okf_version"]; version != "" && version != result.SpecVersion {
 				result.Warnings = append(result.Warnings, Issue{Path: rel, Line: 1, Rule: "okf-version", Message: fmt.Sprintf("declares okf_version %q, validating against %s", version, result.SpecVersion)})
 			}
 		}
 		return
 	}
 
-	if meta.has && !hasOnlyIndexPublishMetadata(meta) {
+	if meta.Has && !hasOnlyIndexPublishMetadata(meta) {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "index-frontmatter", Message: "index.md frontmatter may only declare okf_publish metadata"})
 	}
 }
 
-func hasOnlyIndexPublishMetadata(meta frontmatter) bool {
-	if !meta.has {
+func hasOnlyIndexPublishMetadata(meta astFrontmatter) bool {
+	if !meta.Has {
 		return true
 	}
-	for key := range meta.keys {
+	for key := range meta.Keys {
 		if key != "okf_publish" {
 			return false
 		}
@@ -181,8 +181,8 @@ func hasOnlyIndexPublishMetadata(meta frontmatter) bool {
 	return true
 }
 
-func validateLog(rel string, meta frontmatter, content string, result *Result) {
-	if meta.has {
+func validateLog(rel string, meta astFrontmatter, content string, result *Result) {
+	if meta.Has {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "log-frontmatter", Message: "log.md must not use concept frontmatter"})
 	}
 
@@ -194,13 +194,13 @@ func validateLog(rel string, meta frontmatter, content string, result *Result) {
 	}
 }
 
-func validateConcept(rel string, meta frontmatter, result *Result) {
-	if !meta.has {
+func validateConcept(rel string, meta astFrontmatter, values map[string]string, result *Result) {
+	if !meta.Has {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-frontmatter", Message: "concept document is missing YAML frontmatter"})
 		return
 	}
 
-	if meta.values["type"] == "" {
+	if values["type"] == "" {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-type", Message: "concept frontmatter must include non-empty type"})
 	}
 }

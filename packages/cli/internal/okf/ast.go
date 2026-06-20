@@ -15,7 +15,6 @@ type astDocument struct {
 	Raw               []byte
 	Content           string
 	Frontmatter       astFrontmatter
-	ParsedFrontmatter frontmatter
 	FrontmatterValues map[string]string
 	Metadata          astDocumentMetadata
 	Body              string
