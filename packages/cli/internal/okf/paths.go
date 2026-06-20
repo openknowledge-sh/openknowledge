@@ -23,10 +23,23 @@ func classifyDocument(rel string) (string, string, bool) {
 
 func trimMarkdownExtension(path string) string {
 	extension := filepath.Ext(path)
-	if strings.EqualFold(extension, ".md") {
+	if isMarkdown(path) {
 		return strings.TrimSuffix(path, extension)
 	}
 	return path
+}
+
+func isMarkdown(path string) bool {
+	extension := strings.ToLower(filepath.Ext(path))
+	return extension == ".md" || extension == ".markdown"
+}
+
+func relPath(root, path string) string {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
 }
 
 func deriveTitle(path string) string {

@@ -581,19 +581,6 @@ func hasIssueRule(issues []Issue, rules ...string) bool {
 	return false
 }
 
-func isMarkdown(path string) bool {
-	extension := strings.ToLower(filepath.Ext(path))
-	return extension == ".md" || extension == ".markdown"
-}
-
-func relPath(root, path string) string {
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return filepath.ToSlash(path)
-	}
-	return filepath.ToSlash(rel)
-}
-
 func sortIssues(issues []Issue) {
 	sort.Slice(issues, func(i, j int) bool {
 		if issues[i].Path == issues[j].Path {

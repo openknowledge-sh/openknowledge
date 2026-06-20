@@ -52,6 +52,21 @@ func TestParseBundleIncludesContentLinksAndIssues(t *testing.T) {
 	}
 }
 
+func TestParseBundleTrimsMarkdownExtensionIDs(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "guide.markdown", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n")
+
+	bundle, err := ParseBundle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	guide := bundleFileByPath(t, bundle, "guide.markdown")
+	if guide.ID != "guide" {
+		t.Fatalf("expected .markdown ID to trim extension, got %q", guide.ID)
+	}
+}
+
 func TestExtractLinksMarksDirectoryIndexLinksExisting(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "guides/index.md", "# Guides\n")
