@@ -51,38 +51,47 @@ func Validate(root string) (Result, error) {
 }
 
 func ValidateWithVersion(root string, version string) (Result, error) {
+	result, _, err := parseAndValidateBundleDocuments(root, version)
+	return result, err
+}
+
+func parseAndValidateBundleDocuments(root string, version string) (Result, []parsedDocument, error) {
 	resolved, ok := ResolveSpecVersion(version)
 	if !ok {
-		return Result{}, fmt.Errorf("unsupported OKF spec version: %s", version)
+		return Result{}, nil, fmt.Errorf("unsupported OKF spec version: %s", version)
 	}
 
 	absolute, err := filepath.Abs(root)
 	if err != nil {
-		return Result{}, err
+		return Result{}, nil, err
 	}
 
 	info, err := os.Stat(absolute)
 	if err != nil {
-		return Result{}, err
+		return Result{}, nil, err
 	}
 	if !info.IsDir() {
-		return Result{}, fmt.Errorf("%s is not a directory", absolute)
+		return Result{}, nil, fmt.Errorf("%s is not a directory", absolute)
 	}
 
-	result := Result{Root: absolute, SpecVersion: resolved}
 	documents, err := parseMarkdownDocuments(absolute)
 	if err != nil {
-		return Result{}, err
+		return Result{}, nil, err
 	}
+	return validateParsedDocuments(absolute, resolved, documents), documents, nil
+}
+
+func validateParsedDocuments(root string, specVersion string, documents []parsedDocument) Result {
+	result := Result{Root: root, SpecVersion: specVersion}
 	for _, document := range documents {
 		result.Files++
-		validateDocument(absolute, document, &result)
+		validateDocument(root, document, &result)
 	}
 
 	sortIssues(result.Errors)
 	sortIssues(result.Warnings)
 	result.Checks = buildChecks(result)
-	return result, nil
+	return result
 }
 
 func validateDocument(root string, document parsedDocument, result *Result) {

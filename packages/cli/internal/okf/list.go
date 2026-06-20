@@ -27,23 +27,18 @@ func List(root string) (ListResult, error) {
 }
 
 func ListWithVersion(root string, version string) (ListResult, error) {
-	validation, err := ValidateWithVersion(root, version)
+	validation, documents, err := parseAndValidateBundleDocuments(root, version)
 	if err != nil {
 		return ListResult{}, err
 	}
 
 	issues := append([]Issue{}, validation.Errors...)
 	issues = append(issues, validation.Warnings...)
-	return listInventory(validation.Root, issues)
+	return listInventoryFromDocuments(validation.Root, documents, issues)
 }
 
-func listInventory(absolute string, issues []Issue) (ListResult, error) {
+func listInventoryFromDocuments(absolute string, documents []parsedDocument, issues []Issue) (ListResult, error) {
 	issuesByPath := groupIssuesByPath(issues)
-	documents, err := parseMarkdownDocuments(absolute)
-	if err != nil {
-		return ListResult{}, err
-	}
-
 	entries := make([]ListEntry, 0, len(documents))
 	for _, document := range documents {
 		if document.ReadErr != nil {
