@@ -11,12 +11,11 @@ func TestSearchBundleRanksTitleAndBodyMatches(t *testing.T) {
 	writeFile(t, root, "guides/incident.md", "---\ntype: Guide\ntitle: Incident Playbook\ndescription: Triage production alerts.\n---\n\n# Incident Response\n\nRun `openknowledge validate` before sharing updates.\n")
 	writeFile(t, root, "notes/release.md", "---\ntype: Note\ntitle: Release Notes\n---\n\n# Release\n\nIncident details belong in the guide.\n")
 
-	bundle, err := ParseBundle(root)
+	results, err := Search(root, SearchOptions{Query: "incident playbook", Limit: 5, Fuzzy: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	results := SearchBundle(bundle, SearchOptions{Query: "incident playbook", Limit: 5, Fuzzy: true})
 	if len(results) == 0 {
 		t.Fatal("expected search results")
 	}
@@ -79,22 +78,26 @@ func TestSearchBundleSupportsFuzzyAndDiacriticInsensitiveMatches(t *testing.T) {
 	writeFile(t, root, "index.md", "# Home\n")
 	writeFile(t, root, "guides/commands.md", "---\ntype: Guide\ntitle: Prikazy\n---\n\n# Prikazova Radka\n\nPříkazová řádka spouští validaci wiki.\n")
 
-	bundle, err := ParseBundle(root)
+	diacriticResults, err := Search(root, SearchOptions{Query: "prikazova radka", Limit: 5, Fuzzy: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	diacriticResults := SearchBundle(bundle, SearchOptions{Query: "prikazova radka", Limit: 5, Fuzzy: true})
 	if len(diacriticResults) == 0 || diacriticResults[0].Path != "guides/commands.md" {
 		t.Fatalf("expected diacritic-insensitive match, got %#v", diacriticResults)
 	}
 
-	fuzzyResults := SearchBundle(bundle, SearchOptions{Query: "validaci", Limit: 5, Fuzzy: false})
+	fuzzyResults, err := Search(root, SearchOptions{Query: "validaci", Limit: 5, Fuzzy: false})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(fuzzyResults) == 0 {
 		t.Fatal("expected exact normalized match before fuzzy check")
 	}
 
-	fuzzyResults = SearchBundle(bundle, SearchOptions{Query: "validace", Limit: 5, Fuzzy: true})
+	fuzzyResults, err = Search(root, SearchOptions{Query: "validace", Limit: 5, Fuzzy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(fuzzyResults) == 0 || fuzzyResults[0].Path != "guides/commands.md" {
 		t.Fatalf("expected fuzzy match, got %#v", fuzzyResults)
 	}
@@ -105,12 +108,11 @@ func TestSearchBundleRanksIndexMarkdownBelowRegularPages(t *testing.T) {
 	writeFile(t, root, "docs/index.md", "# Index\n\nShared ranking topic.\n")
 	writeFile(t, root, "docs/topic.md", "---\ntype: Note\ntitle: Index\n---\n\n# Index\n\nShared ranking topic.\n")
 
-	bundle, err := ParseBundle(root)
+	results, err := Search(root, SearchOptions{Query: "index", Limit: 5, Fuzzy: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	results := SearchBundle(bundle, SearchOptions{Query: "index", Limit: 5, Fuzzy: true})
 	if len(results) < 2 {
 		t.Fatalf("expected multiple search results, got %#v", results)
 	}
