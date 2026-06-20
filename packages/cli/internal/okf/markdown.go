@@ -19,6 +19,7 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
 	var builder strings.Builder
 	listTag := ""
+	var listItem []string
 	inCode := false
 	codeLanguage := ""
 	var codeLines []string
@@ -34,10 +35,20 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 		builder.WriteString("</p>\n")
 		paragraph = nil
 	}
+	flushListItem := func() {
+		if len(listItem) == 0 {
+			return
+		}
+		builder.WriteString("<li>")
+		builder.WriteString(renderInline(strings.Join(listItem, " "), currentRel, resolve))
+		builder.WriteString("</li>\n")
+		listItem = nil
+	}
 	closeList := func() {
 		if listTag == "" {
 			return
 		}
+		flushListItem()
 		fmt.Fprintf(&builder, "</%s>\n", listTag)
 		listTag = ""
 	}
@@ -48,6 +59,14 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 		closeList()
 		fmt.Fprintf(&builder, "<%s>\n", tag)
 		listTag = tag
+	}
+	startListItem := func(tag string, text string) {
+		closeParagraph()
+		if listTag == tag {
+			flushListItem()
+		}
+		openList(tag)
+		listItem = []string{text}
 	}
 	closeQuote := func() {
 		if len(quote) == 0 {
@@ -122,19 +141,15 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 			continue
 		}
 		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
-			closeParagraph()
-			openList("ul")
-			builder.WriteString("<li>")
-			builder.WriteString(renderInline(strings.TrimSpace(trimmed[2:]), currentRel, resolve))
-			builder.WriteString("</li>\n")
+			startListItem("ul", strings.TrimSpace(trimmed[2:]))
 			continue
 		}
 		if match := orderedListItem.FindStringIndex(trimmed); match != nil {
-			closeParagraph()
-			openList("ol")
-			builder.WriteString("<li>")
-			builder.WriteString(renderInline(strings.TrimSpace(trimmed[match[1]:]), currentRel, resolve))
-			builder.WriteString("</li>\n")
+			startListItem("ol", strings.TrimSpace(trimmed[match[1]:]))
+			continue
+		}
+		if listTag != "" && len(listItem) > 0 && isListContinuation(line) {
+			listItem = append(listItem, trimmed)
 			continue
 		}
 		closeList()
@@ -148,6 +163,10 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 		closeCode()
 	}
 	return builder.String()
+}
+
+func isListContinuation(line string) bool {
+	return strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")
 }
 
 func HeadingLevel(line string) int {
@@ -389,10 +408,24 @@ func StaticHTMLLink(currentRel string, href string) string {
 func RenderCodeBlock(content string, language string) string {
 	language = NormalizeCodeLanguage(language)
 	className := "code-block"
-	if language != "" {
-		className += " language-" + language
+	if classLanguage := codeLanguageClass(language); classLanguage != "" {
+		className += " language-" + classLanguage
 	}
-	return `<pre class="` + className + `"><code>` + highlightCode(content, language) + "</code></pre>\n"
+	label := language
+	if label == "" {
+		label = "code"
+	}
+	return `<pre class="` + className + `" data-language="` + html.EscapeString(label) + `"><code>` + highlightCode(content, language) + "</code></pre>\n"
+}
+
+func codeLanguageClass(language string) string {
+	var builder strings.Builder
+	for _, character := range language {
+		if (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || character == '-' {
+			builder.WriteRune(character)
+		}
+	}
+	return builder.String()
 }
 
 func CodeLanguageForPath(name string) string {
@@ -527,6 +560,10 @@ func highlightCode(content string, language string) string {
 }
 
 func highlightCodeLine(line string, language string, keywords map[string]bool) string {
+	if language == "shell" {
+		return highlightShellLine(line, keywords)
+	}
+
 	var builder strings.Builder
 	for index := 0; index < len(line); {
 		if codeLineCommentStart(line[index:], language) {
@@ -572,6 +609,236 @@ func highlightCodeLine(line string, language string, keywords map[string]bool) s
 		index++
 	}
 	return builder.String()
+}
+
+func highlightShellLine(line string, keywords map[string]bool) string {
+	var builder strings.Builder
+	expectCommand := true
+	for index := 0; index < len(line); {
+		if codeLineCommentStart(line[index:], "shell") {
+			builder.WriteString(codeToken("comment", line[index:]))
+			break
+		}
+		if isShellWhitespace(line[index]) {
+			end := index + 1
+			for end < len(line) && isShellWhitespace(line[end]) {
+				end++
+			}
+			builder.WriteString(html.EscapeString(line[index:end]))
+			index = end
+			continue
+		}
+		if end, ok := consumeShellSeparator(line, index); ok {
+			builder.WriteString(html.EscapeString(line[index:end]))
+			index = end
+			expectCommand = true
+			continue
+		}
+		if end, ok := writeShellAssignmentToken(&builder, line, index); ok {
+			index = end
+			continue
+		}
+
+		character := line[index]
+		if codeQuote(character, "shell") {
+			end := consumeCodeString(line, index, character)
+			builder.WriteString(codeToken("string", line[index:end]))
+			index = end
+			expectCommand = false
+			continue
+		}
+		if end := consumeShellVariable(line, index); end > index {
+			builder.WriteString(codeToken("variable", line[index:end]))
+			index = end
+			expectCommand = false
+			continue
+		}
+		if end := consumeShellFlag(line, index); end > index {
+			builder.WriteString(codeToken("flag", line[index:end]))
+			index = end
+			expectCommand = false
+			continue
+		}
+		if isCodeDigit(character) {
+			end := consumeCodeNumber(line, index)
+			builder.WriteString(codeToken("number", line[index:end]))
+			index = end
+			expectCommand = false
+			continue
+		}
+
+		end := consumeShellWord(line, index)
+		if end == index {
+			builder.WriteString(html.EscapeString(line[index : index+1]))
+			index++
+			continue
+		}
+
+		word := line[index:end]
+		switch {
+		case keywords[word]:
+			builder.WriteString(codeToken("keyword", word))
+		case expectCommand && shellLooksLikeCommand(word):
+			builder.WriteString(codeToken("command", word))
+		default:
+			builder.WriteString(html.EscapeString(word))
+		}
+		index = end
+		expectCommand = false
+	}
+	return builder.String()
+}
+
+func writeShellAssignmentToken(builder *strings.Builder, line string, start int) (int, bool) {
+	nameEnd := shellAssignmentNameEnd(line, start)
+	if nameEnd <= start {
+		return start, false
+	}
+	builder.WriteString(codeToken("variable", line[start:nameEnd]))
+	builder.WriteByte('=')
+	index := nameEnd + 1
+	for index < len(line) && !isShellTokenBoundary(line[index]) {
+		character := line[index]
+		if codeQuote(character, "shell") {
+			end := consumeCodeString(line, index, character)
+			builder.WriteString(codeToken("string", line[index:end]))
+			index = end
+			continue
+		}
+		if end := consumeShellVariable(line, index); end > index {
+			builder.WriteString(codeToken("variable", line[index:end]))
+			index = end
+			continue
+		}
+		end := index + 1
+		for end < len(line) && !isShellTokenBoundary(line[end]) && line[end] != '"' && line[end] != '\'' && line[end] != '`' && line[end] != '$' {
+			end++
+		}
+		builder.WriteString(html.EscapeString(line[index:end]))
+		index = end
+	}
+	return index, true
+}
+
+func shellAssignmentNameEnd(line string, start int) int {
+	if start >= len(line) || !isShellNameStart(line[start]) {
+		return -1
+	}
+	index := start + 1
+	for index < len(line) && isShellNamePart(line[index]) {
+		index++
+	}
+	if index < len(line) && line[index] == '=' {
+		return index
+	}
+	return -1
+}
+
+func consumeShellVariable(line string, start int) int {
+	if start >= len(line) || line[start] != '$' || start+1 >= len(line) {
+		return start
+	}
+	if line[start+1] == '{' {
+		index := start + 2
+		if index >= len(line) || !isShellNameStart(line[index]) {
+			return start
+		}
+		for index < len(line) && isShellNamePart(line[index]) {
+			index++
+		}
+		if index < len(line) && line[index] == '}' {
+			return index + 1
+		}
+		return start
+	}
+	if !isShellNameStart(line[start+1]) {
+		return start
+	}
+	index := start + 2
+	for index < len(line) && isShellNamePart(line[index]) {
+		index++
+	}
+	return index
+}
+
+func consumeShellFlag(line string, start int) int {
+	if start >= len(line) || line[start] != '-' || start+1 >= len(line) {
+		return start
+	}
+	next := line[start+1]
+	if next == '-' {
+		if start+2 >= len(line) || isShellTokenBoundary(line[start+2]) {
+			return start
+		}
+		return consumeShellWord(line, start)
+	}
+	if isShellFlagCharacter(next) {
+		return consumeShellWord(line, start)
+	}
+	return start
+}
+
+func consumeShellWord(line string, start int) int {
+	index := start
+	for index < len(line) && !isShellTokenBoundary(line[index]) {
+		switch line[index] {
+		case '"', '\'', '`', '$':
+			return index
+		}
+		index++
+	}
+	return index
+}
+
+func consumeShellSeparator(line string, start int) (int, bool) {
+	if start >= len(line) {
+		return start, false
+	}
+	if start+1 < len(line) {
+		switch line[start : start+2] {
+		case "&&", "||":
+			return start + 2, true
+		}
+	}
+	switch line[start] {
+	case ';', '|':
+		return start + 1, true
+	default:
+		return start, false
+	}
+}
+
+func isShellTokenBoundary(character byte) bool {
+	return isShellWhitespace(character) || character == ';' || character == '|'
+}
+
+func isShellWhitespace(character byte) bool {
+	return character == ' ' || character == '\t'
+}
+
+func isShellNameStart(character byte) bool {
+	return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_'
+}
+
+func isShellNamePart(character byte) bool {
+	return isShellNameStart(character) || isCodeDigit(character)
+}
+
+func isShellFlagCharacter(character byte) bool {
+	return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || isCodeDigit(character)
+}
+
+func shellLooksLikeCommand(word string) bool {
+	if word == "" || strings.HasPrefix(word, "-") {
+		return false
+	}
+	for index := 0; index < len(word); index++ {
+		character := word[index]
+		if (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || isCodeDigit(character) {
+			return true
+		}
+	}
+	return false
 }
 
 func codeLineCommentStart(line string, language string) bool {

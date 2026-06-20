@@ -14,7 +14,11 @@ By default, those pages use the same static viewer app bundle as
 note data are available without a local server. Markdown tables in the default
 viewer export keep the same rich controls as the local viewer: horizontal
 scrolling, whole-table filtering, dropdown column filters with a clear filters
-control, sortable headers, and row counts. The shared viewer CSS keeps the
+control, sortable headers, and row counts. Shared viewer layering keeps sticky
+note-panel chrome above those table controls while content scrolls. Fenced code
+blocks keep the same
+syntax highlighting and subtle language label as the local viewer; shell fences
+also color command names, flags, and variables. The shared viewer CSS keeps the
 top-bar search field responsive on narrow mobile widths so it does not overlap
 the knowledge base brand. The
 `--plain` flag switches to unstyled semantic HTML without CSS, JavaScript, or
@@ -40,9 +44,11 @@ openknowledge to html --spec <version> --out <folder> [path]
 ## Behavior
 
 Both modes strip YAML frontmatter from rendered pages and rewrite local
-Markdown links to generated `.html` targets. Rendered Markdown tables use a
-stable `ok-table-wrap` container, an `ok-table-scroller`, `scope="col"` headers,
-and `data-align` metadata for Markdown alignment markers. Files with
+Markdown links to generated `.html` targets. Soft-wrapped Markdown list items
+stay inside their bullet or numbered item instead of rendering continuation
+lines as standalone paragraphs. Rendered Markdown tables use a stable
+`ok-table-wrap` container, an `ok-table-scroller`, `scope="col"` headers, and
+`data-align` metadata for Markdown alignment markers. Files with
 `okf_publish: false` frontmatter are skipped and do not get generated HTML
 pages. The default viewer export embeds a static note manifest and graph data
 in each generated page so search, panel navigation, and rich table controls work

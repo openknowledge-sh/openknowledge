@@ -82,6 +82,25 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 			forbidden: []string{"- **Readable**", "2) Second"},
 		},
 		{
+			name: "wrapped list item continuations",
+			input: strings.Join([]string{
+				"* Browse local Markdown links as adjacent panels without leaving the current",
+				"  context.",
+				"* Move across multi-panel stacks with the bottom rail, rail keyboard controls,",
+				"  by dragging the workspace gaps, or by holding `Space` and dragging sideways.",
+			}, "\n"),
+			required: []string{
+				"<ul>",
+				"<li>Browse local Markdown links as adjacent panels without leaving the current context.</li>",
+				"<li>Move across multi-panel stacks with the bottom rail, rail keyboard controls, by dragging the workspace gaps, or by holding <code>Space</code> and dragging sideways.</li>",
+				"</ul>",
+			},
+			forbidden: []string{
+				"<p>context.</p>",
+				"<p>by dragging the workspace gaps",
+			},
+		},
+		{
 			name: "blockquotes and horizontal rules",
 			input: strings.Join([]string{
 				"> This is a **pinned** copy.",
@@ -109,13 +128,33 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 				"```",
 			}, "\n"),
 			required: []string{
-				`<pre class="code-block language-go"><code>`,
+				`<pre class="code-block language-go" data-language="go"><code>`,
 				`<span class="tok-keyword">package</span> main`,
 				`<span class="tok-keyword">func</span> main()`,
 				`<span class="tok-string">&#34;&lt;tag&gt;&#34;</span>`,
 				"&lt;script&gt;",
 			},
 			forbidden: []string{"<h1>Not a heading</h1>", "<script>"},
+		},
+		{
+			name: "shell highlighting",
+			input: strings.Join([]string{
+				"```sh",
+				"# Build docs",
+				"GOCACHE=/tmp/openknowledge pnpm test:cli",
+				"target=\"Wiki\"",
+				"openknowledge validate $target --strict",
+				"openknowledge to html --out ./dist ${target}",
+				"```",
+			}, "\n"),
+			required: []string{
+				`<pre class="code-block language-shell" data-language="shell"><code>`,
+				`<span class="tok-comment"># Build docs</span>`,
+				`<span class="tok-variable">GOCACHE</span>=/tmp/openknowledge <span class="tok-command">pnpm</span> test:cli`,
+				`<span class="tok-variable">target</span>=<span class="tok-string">&#34;Wiki&#34;</span>`,
+				`<span class="tok-command">openknowledge</span> validate <span class="tok-variable">$target</span> <span class="tok-flag">--strict</span>`,
+				`<span class="tok-command">openknowledge</span> to html <span class="tok-flag">--out</span> ./dist <span class="tok-variable">${target}</span>`,
+			},
 		},
 		{
 			name: "tables",

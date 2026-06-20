@@ -27,7 +27,7 @@ Use these pages when an agent is updating, validating, or extending this wiki.
 * [Feature docs workflow](workflows/feature-docs.md) - update command, exporter, setup, viewer, and README-facing docs.
 * [Changelog update workflow](workflows/changelog-updates.md) - update CLI changelog memory after release-facing changes.
 * [CLI changelog](changelog/cli.md) - maintained memory of CLI-facing changes.
-* [Examples](examples/) - viewer smoke-test files, including code and PDF assets.
+* [Examples](examples/) - viewer smoke-test files, including syntax highlighting, code, and PDF assets.
 * [Spec](SPEC.md) - local pinned copy of the Open Knowledge Format spec.
 * [Log](log.md) - chronological update history.
 * [Decisions](decisions/) - setup and structure decisions for the wiki.

@@ -13,8 +13,13 @@ it opens a registry-backed workspace selector. With a path or registry name, it
 opens that knowledge base directly. The viewer renders Markdown, strips
 frontmatter from document pages, rewrites local Markdown links, preserves inline
 formatting inside link labels such as code spans, syntax-highlights fenced code
-blocks for common languages, formats Markdown tables with stable wrappers and
-alignment metadata, and shows validation issues in the index.
+blocks for common languages, renders fenced blocks with a subtle language
+label, highlights shell command names, flags, and variables, formats Markdown
+tables with stable wrappers and alignment metadata,
+keeps soft-wrapped list continuation lines inside their bullet or numbered
+item, and shows validation issues in the index. Note-panel document typography
+uses explicit heading and list spacing so section breaks and multi-line bullets
+remain visually distinct.
 
 The document header brand is the knowledge base display name, not the product
 name. It prefers root `index.md` metadata in this order:
@@ -87,7 +92,9 @@ table gets a compact toolbar with visible whole-table text filtering, sortable
 headers, visible sort state, row counts, and a `Filters` dropdown. The dropdown
 contains basic per-column select filters for manageable value sets plus a clear
 filters control. The same enhancement runs for the first panel, panels opened
-through stacked navigation, and static HTML viewer exports.
+through stacked navigation, and static HTML viewer exports. Sticky note-panel
+chrome stays layered above the table toolbar and filter dropdown while panel
+content scrolls.
 
 Panel changes use the browser View Transitions API when it is available and a
 single CSS entry animation as a fallback when it is not.

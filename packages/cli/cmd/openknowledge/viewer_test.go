@@ -59,11 +59,26 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `<th scope="col" data-align="left">Name</th>`) || !strings.Contains(page, `<td data-align="right">2</td>`) {
 		t.Fatalf("viewer should preserve markdown table alignment metadata:\n%s", page)
 	}
+	if !strings.Contains(page, `.code-block[data-language] { padding-top: 34px; }`) || !strings.Contains(page, `content: attr(data-language)`) || !strings.Contains(page, `opacity: .78`) {
+		t.Fatalf("viewer should style code blocks with a subtle language label:\n%s", page)
+	}
+	if strings.Contains(page, `.code-block[data-language]::before { display: block; margin: -16px`) || strings.Contains(page, `radial-gradient(circle at 16px 50%`) {
+		t.Fatalf("viewer code block label should not use the heavy header strip treatment:\n%s", page)
+	}
+	if !strings.Contains(page, `.tok-command`) || !strings.Contains(page, `.tok-flag`) || !strings.Contains(page, `.tok-variable`) {
+		t.Fatalf("viewer should include shell-specific syntax token styles:\n%s", page)
+	}
 	if !strings.Contains(page, `.ok-table-tools`) || !strings.Contains(page, `.ok-table-filter-menu`) || !strings.Contains(page, `Clear filters`) || !strings.Contains(page, `function enhanceTables(scope)`) || !strings.Contains(page, `bindSortableTableHeader`) || !strings.Contains(page, `Filter table`) {
 		t.Fatalf("viewer should embed rich table styling and runtime controls:\n%s", page)
 	}
+	if !strings.Contains(page, `.note-chrome { position: sticky; top: 0; z-index: 5;`) || !strings.Contains(page, `.ok-table-tools { position: relative; z-index: 2;`) || !strings.Contains(page, `.ok-table-filter-menu[open] { z-index: 3; }`) {
+		t.Fatalf("viewer note chrome should stay layered above sticky table controls while scrolling:\n%s", page)
+	}
 	if !strings.Contains(page, `data-note-workspace`) || !strings.Contains(page, `data-note-path="index.md"`) {
 		t.Fatalf("viewer file page did not include stacked note layout:\n%s", page)
+	}
+	if !strings.Contains(page, `.document h2 { margin: 34px 0 12px;`) || !strings.Contains(page, `.document li + li { margin-top: 6px; }`) {
+		t.Fatalf("viewer document typography should distinguish sections and list items:\n%s", page)
 	}
 	if !strings.Contains(page, `is-single-panel`) || !strings.Contains(page, `justify-content: center`) {
 		t.Fatalf("viewer should center a lone open panel before additional panels are opened:\n%s", page)
@@ -317,7 +332,7 @@ func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
 	if !strings.Contains(page, `href="/file/src/tool.go"`) {
 		t.Fatalf("viewer should rewrite code links to asset preview pages:\n%s", page)
 	}
-	if !strings.Contains(page, `class="code-block language-go"`) || !strings.Contains(page, `tok-keyword">func</span>`) {
+	if !strings.Contains(page, `class="code-block language-go" data-language="go"`) || !strings.Contains(page, `tok-keyword">func</span>`) {
 		t.Fatalf("viewer should syntax-highlight fenced code blocks:\n%s", page)
 	}
 	if !strings.Contains(page, `function isMarkdownPath(path)`) {
@@ -339,7 +354,7 @@ func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
 	}
 
 	codePage := getViewerBody(t, handler, "/file/src/tool.go")
-	if !strings.Contains(codePage, `asset-code`) || !strings.Contains(codePage, `class="code-block language-go"`) || !strings.Contains(codePage, `tok-keyword">package</span>`) {
+	if !strings.Contains(codePage, `asset-code`) || !strings.Contains(codePage, `class="code-block language-go" data-language="go"`) || !strings.Contains(codePage, `tok-keyword">package</span>`) {
 		t.Fatalf("viewer should render highlighted code asset preview:\n%s", codePage)
 	}
 	if !strings.Contains(codePage, `href="/raw/src/tool.go"`) {

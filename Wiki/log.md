@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+* **Syntax highlighting examples**: Added
+  [examples/syntax-highlighting.md](examples/syntax-highlighting.md) with
+  fenced shell, Go, TypeScript, Python, JSON, YAML, CSS, and SQL blocks for
+  manually checking viewer token colors.
 * **Command change history rule**: Added a wiki maintenance rule requiring
   command pages to capture dated history entries for major command-surface
   changes such as added, removed, renamed, or behavior-changing flags,

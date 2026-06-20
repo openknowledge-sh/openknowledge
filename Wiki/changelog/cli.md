@@ -14,6 +14,55 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Viewer note chrome stays above table controls
+
+* Sticky note-panel chrome now layers above rich Markdown table search, filter,
+  and dropdown controls, so scrolling table-heavy documents no longer lets the
+  table UI cover the panel title, breadcrumbs, editor/source actions, or close
+  button.
+* The fix applies to `openknowledge open` and default `openknowledge to html`
+  viewer exports because they share `viewer_app.css`.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Markdown list continuations stay inside bullets
+
+* The shared Markdown renderer now treats indented continuation lines after
+  unordered or ordered list markers as part of the current list item, so
+  soft-wrapped docs no longer render continuation text as standalone
+  paragraphs.
+* Viewer document CSS now gives Markdown headings and lists explicit spacing,
+  making section breaks and multi-line bullets easier to distinguish in local
+  viewer panels and default HTML viewer exports.
+* Source anchors: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/markdown_test.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/commands/to.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer code blocks get language labels
+
+* Fenced Markdown code blocks now render with `data-language` metadata and the
+  shared viewer stylesheet presents the language as a subtle inline label while
+  keeping syntax highlighting prominent.
+* Shell fences now additionally color command names, flags, variable
+  assignments, and `$VARIABLE` / `${VARIABLE}` references, making CLI docs much
+  easier to scan.
+* The treatment applies to `openknowledge open`, code/text asset previews, and
+  default `openknowledge to html` viewer exports because they share the same
+  Markdown renderer and viewer CSS.
+* Source anchors: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/internal/okf/markdown_test.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/commands/to.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer renders rich Markdown tables
 
 * Markdown table rendering now emits stable table wrappers, `ok-table` classes,
@@ -93,7 +142,8 @@ that were updated.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.
 * Docs updated: `Wiki/features/commands/open.md`,
-  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+  `Wiki/features/commands/to.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/changelog/cli.md`.
 
 ### 2026-06-20 - Local viewer validates and applies theme config
 

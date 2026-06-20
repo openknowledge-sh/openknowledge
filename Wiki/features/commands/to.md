@@ -55,7 +55,10 @@ openknowledge to json --out ./bundle.json ./project-memory
 that include the file tree, search, stacked-panel browsing, and embedded note
 manifest. Markdown tables in the default viewer export are horizontally
 scrollable and get whole-table filtering, dropdown column filters, sortable
-headers, row counts, and a clear filters action. The default viewer export
+headers, row counts, and a clear filters action. Fenced code blocks use the
+same syntax-highlighted, subtly language-labeled code card treatment as the local
+viewer, and soft-wrapped list continuation lines stay inside their bullet or
+numbered item. The default viewer export
 reads optional `[html.theme]` settings from `openknowledge.toml`, links the
 configured stylesheet after built-in viewer CSS, and copies local theme CSS
 files into the output folder.
