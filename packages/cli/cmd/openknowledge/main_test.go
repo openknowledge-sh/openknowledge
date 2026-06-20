@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +24,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge disconnect <key|path>",
 		"openknowledge use <name|path> [entry]",
 		"openknowledge use <name|path> --info",
+		"openknowledge context [name|path] --query <text>",
+		"openknowledge context [name|path] --query <text> --format json",
 		"openknowledge registry connect <path>",
 		"openknowledge registry connect <path> --as <key>",
 		"openknowledge registry disconnect <key|path>",
@@ -40,6 +44,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"connect    Connect a local knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
 		"use        Print an agent entrypoint from a bundle.",
+		"context    Print query-focused bundle context for an agent.",
 		"registry   Manage local knowledge bundle connections.",
 		"open       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
@@ -51,6 +56,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"-h, --help  Show this help.",
 		"Examples:",
 		"openknowledge validate ./project-memory",
+		"openknowledge context accessibility --query \"validation workflow\"",
 		"openknowledge to html --out ./site ./project-memory",
 		"openknowledge to json ./project-memory",
 	}
@@ -135,6 +141,16 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge use <name|path> <entry> --info",
 				"okf_bundle_entry_<name>",
 				"prints the bundle root index.md",
+			},
+		},
+		"context": {
+			help: contextHelpText(),
+			required: []string{
+				"openknowledge context [name|path] --query <text>",
+				"--budget",
+				"--format",
+				"not use embeddings",
+				"generate summaries",
 			},
 		},
 		"registry": {
@@ -283,6 +299,60 @@ func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 	}
 }
 
+func TestParseContextOptionsAllowsPathAndFlags(t *testing.T) {
+	options, err := parseContextOptions([]string{"./project-memory", "--query", "validation workflow", "--budget", "1200", "--limit=5", "--format=json", "--spec", "0.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.path != "./project-memory" || options.query != "validation workflow" || options.budget != 1200 || options.limit != 5 || options.format != "json" || options.spec != "0.1" {
+		t.Fatalf("unexpected context options: %#v", options)
+	}
+	if _, err := parseContextOptions([]string{"./project-memory"}); err == nil {
+		t.Fatal("expected missing query to fail")
+	}
+	if _, err := parseContextOptions([]string{"--query", "x", "--budget", "0"}); err == nil {
+		t.Fatal("expected invalid budget to fail")
+	}
+}
+
+func TestRunContextPrintsMarkdownSections(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Home\n")
+	writeMainTestFile(t, root, "guides/validate.md", "---\ntype: Guide\ntitle: Validation Workflow\n---\n\n# Validate\n\nRun `openknowledge validate` before sharing.\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runContext([]string{root, "--query", "validation workflow", "--budget", "400"})
+	})
+	if code != 0 {
+		t.Fatalf("expected context to succeed, got exit code %d", code)
+	}
+	for _, expected := range []string{"# Open Knowledge Context", "guides/validate.md:", "Run `openknowledge validate`"} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected markdown context to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestRunContextPrintsJSON(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Home\n")
+	writeMainTestFile(t, root, "guides/release.md", "---\ntype: Guide\ntitle: Release Checklist\n---\n\n# Release\n\nShip the release notes.\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runContext([]string{"--query=release checklist", "--format", "json", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected context json to succeed, got exit code %d", code)
+	}
+	var payload okf.ContextResult
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("expected JSON context output: %v\n%s", err, output)
+	}
+	if payload.Query != "release checklist" || len(payload.Results) == 0 || payload.Results[0].Path != "guides/release.md" {
+		t.Fatalf("unexpected context payload: %#v", payload)
+	}
+}
+
 func TestParseUseOptionsAllowsInfoAfterEntry(t *testing.T) {
 	options, err := parseUseOptions([]string{"accessibility", "review", "--info"})
 	if err != nil {
@@ -351,6 +421,26 @@ okf_bundle_entry_review: "agents/review.md"
 	if selection.name != "index" || selection.rel != "index.md" {
 		t.Fatalf("unexpected root fallback selection: %#v", selection)
 	}
+}
+
+func captureMainStdout(t *testing.T, run func() int) (string, int) {
+	t.Helper()
+	original := os.Stdout
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = writer
+	code := run()
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = original
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(output), code
 }
 
 func writeMainTestFile(t *testing.T, root string, name string, content string) {
