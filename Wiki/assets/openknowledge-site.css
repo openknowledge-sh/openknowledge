@@ -115,6 +115,7 @@
   --ok-color-editor-menu-separator: #293545;
 
   --ok-color-code-inline-bg: #151b25;
+  --ok-color-code-inline-text: #9cc8e9;
   --ok-color-code-block-bg: #0d1118;
   --ok-color-code-block-text: #dce3ed;
   --ok-color-syntax-keyword: #9cc8e9;
@@ -151,4 +152,13 @@ h3,
 .workspace,
 .search-result {
   border-radius: 0;
+}
+
+code {
+  color: var(--ok-color-code-inline-text);
+}
+
+pre code,
+.code-block code {
+  color: inherit;
 }
