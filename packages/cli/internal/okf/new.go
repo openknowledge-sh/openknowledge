@@ -16,19 +16,6 @@ type NewProjectOptions struct {
 	BundleMetadata BundleMetadata
 }
 
-type BundleMetadata struct {
-	Name    string
-	Title   string
-	Purpose string
-	Tags    []string
-	Entries []BundleEntry
-}
-
-type BundleEntry struct {
-	Name string
-	Path string
-}
-
 type NewProjectResult struct {
 	Name      string
 	Root      string
