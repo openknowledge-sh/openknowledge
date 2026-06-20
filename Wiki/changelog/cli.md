@@ -14,6 +14,18 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Website dev server refreshes wiki export
+
+* `pnpm dev:web` now regenerates `packages/web/dist/wiki` on startup before
+  serving `/wiki/`, so the local website preview uses the current
+  `openknowledge to html` viewer export instead of a stale generated bundle.
+* `pnpm build:web` and `pnpm dev:web` now use the current Go CLI source by
+  default for wiki exports; `OPENKNOWLEDGE_BIN` remains an explicit override
+  for testing a specific binary.
+* Source anchors: `packages/web/scripts/wiki-export.mjs`,
+  `packages/web/scripts/build.mjs`, `packages/web/scripts/serve.mjs`.
+* Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer note chrome stays above table controls
 
 * Sticky note-panel chrome now layers above rich Markdown table search, filter,

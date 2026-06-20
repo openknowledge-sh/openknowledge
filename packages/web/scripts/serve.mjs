@@ -2,12 +2,11 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { distRoot, exportWiki, webRoot } from "./wiki-export.mjs";
 
-const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const distRoot = path.join(webRoot, "dist");
 const root = process.env.OPENKNOWLEDGE_WEB_ROOT === "dist" ? distRoot : webRoot;
 const port = Number(process.env.PORT || 4173);
+const refreshWiki = process.env.OPENKNOWLEDGE_WEB_EXPORT_WIKI !== "0";
 
 const types = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -70,6 +69,10 @@ const server = http.createServer(async (request, response) => {
   response.writeHead(404);
   response.end("Not found");
 });
+
+if (refreshWiki) {
+  await exportWiki(path.join(distRoot, "wiki"));
+}
 
 server.listen(port, "127.0.0.1", () => {
   console.log(`Open Knowledge web: http://127.0.0.1:${port}`);

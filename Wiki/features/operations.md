@@ -45,10 +45,16 @@ That makes the public website's `wiki/` path a static viewer export of the
 colocated `Wiki/` bundle. The landing page links to that output from the top
 navigation before the GitHub icon.
 
-`pnpm dev:web` serves source files from `packages/web` by default, but falls
-back to `packages/web/dist/wiki` for `/wiki/` URLs when a generated wiki export
-exists. Run `pnpm build:web` after wiki or theme changes before checking
-`http://127.0.0.1:4173/wiki/` through the dev server.
+`pnpm dev:web` serves source files from `packages/web` by default, refreshes the
+wiki export on startup, and then falls back to `packages/web/dist/wiki` for
+`/wiki/` URLs. Set `OPENKNOWLEDGE_WEB_EXPORT_WIKI=0` only when you intentionally
+want to skip that startup export.
+
+Both `pnpm build:web` and `pnpm dev:web` run the exporter through the current Go
+source by default with `go run ./packages/cli/cmd/openknowledge`, so local
+viewer changes are reflected in the exported wiki without requiring a rebuilt
+`bin/openknowledge`. Set `OPENKNOWLEDGE_BIN=/path/to/openknowledge` to test a
+specific binary intentionally.
 
 The wiki export reads `Wiki/openknowledge.toml` and copies
 `Wiki/assets/openknowledge-site.css` into the generated output. Keep that theme
@@ -111,6 +117,8 @@ npm publish --access public
 * `install`
 * `packages/npm/package.json`
 * `packages/web/scripts/build.mjs`
+* `packages/web/scripts/wiki-export.mjs`
+* `packages/web/scripts/serve.mjs`
 * `packages/web/index.html`
 * `Wiki/openknowledge.toml`
 * `Wiki/assets/openknowledge-site.css`
