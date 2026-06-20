@@ -66,6 +66,12 @@ palette, fonts, or core spacing. The same TOML also sets `[html.source]` with
 and `entry = "Wiki"`, so deployed wiki panels link back to their Markdown
 source files on GitHub instead of showing local editor deeplinks.
 
+The Netlify deployment keeps canonical generated wiki pages under their exported
+paths, such as `/wiki/features/commands/disconnect.html`, and redirects short
+top-level command aliases such as `/wiki/disconnect.html` and
+`/wiki/disconnect` to those canonical pages. `pnpm dev:web` mirrors that
+fallback redirect after checking for real static files.
+
 ## Release
 
 GitHub Releases are the source of truth for downloadable binaries. Run the
@@ -121,6 +127,7 @@ npm publish --access public
 * `packages/web/scripts/build.mjs`
 * `packages/web/scripts/wiki-export.mjs`
 * `packages/web/scripts/serve.mjs`
+* `netlify.toml`
 * `packages/web/index.html`
 * `packages/web/main.js`
 * `Wiki/openknowledge.toml`

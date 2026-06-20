@@ -9,3 +9,13 @@
   to = "https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install"
   status = 302
   force = true
+
+[[redirects]]
+  from = "/wiki/:command.html"
+  to = "/wiki/features/commands/:command.html"
+  status = 302
+
+[[redirects]]
+  from = "/wiki/:command"
+  to = "/wiki/features/commands/:command.html"
+  status = 302

@@ -38,6 +38,16 @@ function filePathsForUrl(url) {
   return candidates.filter(Boolean);
 }
 
+function commandAliasLocation(url) {
+  const parsed = new URL(url, `http://127.0.0.1:${port}`);
+  const pathname = decodeURIComponent(parsed.pathname);
+  const match = pathname.match(/^\/wiki\/([A-Za-z0-9_-]+)(?:\.html)?\/?$/);
+  if (!match) {
+    return "";
+  }
+  return `/wiki/features/commands/${match[1]}.html${parsed.search}`;
+}
+
 const server = http.createServer(async (request, response) => {
   const filePaths = filePathsForUrl(request.url || "/");
   if (filePaths.length === 0) {
@@ -64,6 +74,15 @@ const server = http.createServer(async (request, response) => {
     } catch {
       // Try the next candidate, such as the generated dist wiki in source mode.
     }
+  }
+
+  const alias = commandAliasLocation(request.url || "/");
+  if (alias) {
+    response.writeHead(302, {
+      Location: alias
+    });
+    response.end();
+    return;
   }
 
   response.writeHead(404);

@@ -14,6 +14,16 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Website redirects short wiki command URLs
+
+* The Netlify site now redirects short wiki command aliases such as
+  `/wiki/disconnect.html` and `/wiki/disconnect` to the generated canonical
+  command page under `/wiki/features/commands/`.
+* `pnpm dev:web` mirrors the same fallback after checking for existing static
+  files, so local preview matches the deployed URL behavior.
+* Source anchors: `netlify.toml`, `packages/web/scripts/serve.mjs`.
+* Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Root index frontmatter stays permissive
 
 * `openknowledge validate` now tolerates unknown root `index.md` frontmatter
