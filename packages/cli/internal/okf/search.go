@@ -99,6 +99,18 @@ func SearchBundle(bundle Bundle, options SearchOptions) []SearchResult {
 	return NewSearchIndex(bundle).Search(options)
 }
 
+func Search(root string, options SearchOptions) ([]SearchResult, error) {
+	return SearchWithVersion(root, LatestSpecVersion, options)
+}
+
+func SearchWithVersion(root string, version string, options SearchOptions) ([]SearchResult, error) {
+	index, err := buildSearchIndexWithVersion(root, version)
+	if err != nil {
+		return nil, err
+	}
+	return index.Search(options), nil
+}
+
 func (index SearchIndex) Search(options SearchOptions) []SearchResult {
 	query := strings.TrimSpace(options.Query)
 	terms := searchTerms(query)
