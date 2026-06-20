@@ -65,22 +65,17 @@ func bundleFilesFromAST(bundle astBundle, issues []Issue) ([]BundleFile, error) 
 }
 
 func bundleFile(document astDocument, issues []Issue) BundleFile {
-	entry := ListEntry{}
-	if document.Reserved {
-		entry = reservedEntry(document)
-	} else {
-		entry = conceptEntry(document, document.Metadata)
-	}
+	summary := summarizeASTDocument(document, document.Metadata)
 
 	return BundleFile{
-		ID:          entry.ID,
-		Path:        entry.Path,
-		Kind:        entry.Kind,
-		Reserved:    entry.Reserved,
-		Type:        entry.Type,
-		Title:       entry.Title,
-		Description: entry.Description,
-		Resource:    entry.Resource,
+		ID:          summary.ID,
+		Path:        summary.Path,
+		Kind:        summary.Kind,
+		Reserved:    summary.Reserved,
+		Type:        summary.Type,
+		Title:       summary.Title,
+		Description: summary.Description,
+		Resource:    summary.Resource,
 		Frontmatter: document.FrontmatterValues,
 		Body:        document.Body,
 		Links:       document.Links,

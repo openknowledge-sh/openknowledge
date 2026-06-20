@@ -42,15 +42,11 @@ func listInventoryFromAST(bundle astBundle, issues []Issue) (ListResult, error) 
 		if document.ReadErr != nil {
 			return ListResult{}, document.ReadErr
 		}
-		if document.Reserved {
-			entries = append(entries, attachIssues(reservedEntry(document), issuesByPath))
-			continue
-		}
+		metadata := document.Metadata
 		if document.FrontmatterErr != nil {
-			entries = append(entries, attachIssues(conceptEntry(document, astDocumentMetadata{}), issuesByPath))
-			continue
+			metadata = astDocumentMetadata{}
 		}
-		entries = append(entries, attachIssues(conceptEntry(document, document.Metadata), issuesByPath))
+		entries = append(entries, attachIssues(listEntryFromASTSummary(summarizeASTDocument(document, metadata)), issuesByPath))
 	}
 	return ListResult{Root: bundle.Root, Entries: entries}, nil
 }
@@ -68,38 +64,16 @@ func attachIssues(entry ListEntry, issuesByPath map[string][]Issue) ListEntry {
 	return entry
 }
 
-func conceptEntry(document astDocument, metadata astDocumentMetadata) ListEntry {
-	title := metadata.Title
-	if title == "" {
-		title = deriveTitle(document.Rel)
-	}
-
+func listEntryFromASTSummary(summary astDocumentSummary) ListEntry {
 	return ListEntry{
-		ID:          document.ID,
-		Path:        document.Rel,
-		Kind:        document.Kind,
-		Type:        metadata.Type,
-		Title:       title,
-		Description: metadata.Description,
-		Resource:    metadata.Resource,
-	}
-}
-
-func reservedEntry(document astDocument) ListEntry {
-	title := deriveTitle(document.Rel)
-	if document.Kind == "index" {
-		title = "Index"
-	}
-	if document.Kind == "log" {
-		title = "Log"
-	}
-
-	return ListEntry{
-		ID:       document.ID,
-		Path:     document.Rel,
-		Kind:     document.Kind,
-		Reserved: document.Reserved,
-		Title:    title,
+		ID:          summary.ID,
+		Path:        summary.Path,
+		Kind:        summary.Kind,
+		Reserved:    summary.Reserved,
+		Type:        summary.Type,
+		Title:       summary.Title,
+		Description: summary.Description,
+		Resource:    summary.Resource,
 	}
 }
 
