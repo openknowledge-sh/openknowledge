@@ -77,9 +77,12 @@ repository with `pnpm test` and `pnpm build`, then deploys through the Railway
 CLI container with `railway up --ci --service="$RAILWAY_SERVICE"`. Configure
 `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE` as the Railway
 service name or service ID. `RAILWAY_PROJECT_ID` is optional, but should be set
-when the token is not already scoped tightly enough to the target project. The
-workflow still accepts the older `RAILWAY_SERVICE_ID` name as a fallback, but it
-must contain a service name or service ID, not a project ID.
+when the token is not already scoped tightly enough to the target project. When
+`RAILWAY_PROJECT_ID` is set, Railway also requires an environment; the workflow
+uses `RAILWAY_ENVIRONMENT` with a default of `production`. Override it with the
+exact Railway environment name or ID if the project uses a different
+environment. The workflow still accepts the older `RAILWAY_SERVICE_ID` name as a
+fallback, but it must contain a service name or service ID, not a project ID.
 
 `railway.json` keeps Railway build and runtime settings in code. Railway builds
 the static website with `pnpm build:web`, then starts the web package with

@@ -51,6 +51,7 @@ jobs:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || secrets.RAILWAY_PROJECT_ID }}
       RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || secrets.RAILWAY_SERVICE || vars.RAILWAY_SERVICE_ID || secrets.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT || secrets.RAILWAY_ENVIRONMENT || 'production' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,7 +73,7 @@ jobs:
         shell: sh
         run: |
           if [ -n "$RAILWAY_PROJECT_ID" ]; then
-            railway up --ci --project="$RAILWAY_PROJECT_ID" --service="$RAILWAY_SERVICE"
+            railway up --ci --project="$RAILWAY_PROJECT_ID" --environment="$RAILWAY_ENVIRONMENT" --service="$RAILWAY_SERVICE"
           else
-            railway up --ci --service="$RAILWAY_SERVICE"
+            railway up --ci --environment="$RAILWAY_ENVIRONMENT" --service="$RAILWAY_SERVICE"
           fi

@@ -22,8 +22,10 @@ that were updated.
   deploying through Railway's CLI container with `railway up`.
 * Configure `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE` as the
   Railway service name or service ID; optional `RAILWAY_PROJECT_ID` can pin the
-  project. The previous `RAILWAY_SERVICE_ID` name is still accepted as a
-  fallback, but it must not contain the project ID.
+  project. The workflow sends `RAILWAY_ENVIRONMENT`, defaulting to `production`,
+  because Railway requires an environment whenever `--project` is used. The
+  previous `RAILWAY_SERVICE_ID` name is still accepted as a fallback, but it
+  must not contain the project ID.
 * Added `railway.json` and a production web `start` script so Railway builds
   `packages/web/dist` with `pnpm build:web` and serves it on `0.0.0.0`.
 * Source anchors: `.github/workflows/deploy-railway.yml`,
