@@ -28,19 +28,6 @@ type astDiagnostic struct {
 	Cause   error
 }
 
-type astFrontmatter struct {
-	Has      bool
-	Values   map[string]string
-	Keys     map[string]struct{}
-	Warnings []astFrontmatterWarning
-	BodyLine int
-}
-
-type astFrontmatterWarning struct {
-	Line    int
-	Message string
-}
-
 type astDocumentMetadata struct {
 	Type        string
 	Title       string
