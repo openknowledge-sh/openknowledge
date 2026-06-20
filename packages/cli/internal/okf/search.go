@@ -32,8 +32,14 @@ type SearchIndex struct {
 }
 
 type searchDocument struct {
-	file   BundleFile
-	fields []searchField
+	path         string
+	id           string
+	kind         string
+	documentType string
+	title        string
+	description  string
+	body         string
+	fields       []searchField
 }
 
 type searchField struct {
@@ -47,20 +53,31 @@ type searchField struct {
 func NewSearchIndex(bundle Bundle) SearchIndex {
 	documents := make([]searchDocument, 0, len(bundle.Files))
 	for _, file := range bundle.Files {
-		documents = append(documents, searchDocument{
-			file: file,
-			fields: []searchField{
-				newSearchField("title", file.Title, 14),
-				newSearchField("path", file.Path+" "+file.ID, 9),
-				newSearchField("type", file.Type+" "+file.Kind, 6),
-				newSearchField("description", file.Description, 5),
-				newSearchField("headings", markdownHeadings(file.Body), 4),
-				newSearchField("metadata", frontmatterSearchText(file.Frontmatter), 3),
-				newSearchField("body", file.Body, 1.2),
-			},
-		})
+		documents = append(documents, searchDocumentFromBundleFile(file))
 	}
 	return SearchIndex{documents: documents}
+}
+
+func searchDocumentFromBundleFile(file BundleFile) searchDocument {
+	document := searchDocument{
+		path:         file.Path,
+		id:           file.ID,
+		kind:         file.Kind,
+		documentType: file.Type,
+		title:        file.Title,
+		description:  file.Description,
+		body:         file.Body,
+	}
+	document.fields = []searchField{
+		newSearchField("title", document.title, 14),
+		newSearchField("path", document.path+" "+document.id, 9),
+		newSearchField("type", document.documentType+" "+document.kind, 6),
+		newSearchField("description", document.description, 5),
+		newSearchField("headings", markdownHeadings(document.body), 4),
+		newSearchField("metadata", frontmatterSearchText(file.Frontmatter), 3),
+		newSearchField("body", document.body, 1.2),
+	}
+	return document
 }
 
 func SearchBundle(bundle Bundle, options SearchOptions) []SearchResult {
@@ -136,23 +153,22 @@ func scoreSearchDocument(document searchDocument, terms []string, normalizedQuer
 		score *= 1.25
 	}
 
-	file := document.file
-	if isIndexMarkdownSearchResult(file.Path) {
+	if isIndexMarkdownSearchResult(document.path) {
 		score *= 0.55
 	}
 	result := SearchResult{
-		Path:        file.Path,
-		ID:          file.ID,
-		Kind:        file.Kind,
-		Type:        file.Type,
-		Title:       file.Title,
-		Description: file.Description,
-		Snippet:     searchSnippet(file, terms),
+		Path:        document.path,
+		ID:          document.id,
+		Kind:        document.kind,
+		Type:        document.documentType,
+		Title:       document.title,
+		Description: document.description,
+		Snippet:     searchSnippet(document, terms),
 		Score:       roundSearchScore(score),
 		Matches:     sortedSearchMatches(matches),
 	}
 	if result.Title == "" {
-		result.Title = deriveTitle(file.Path)
+		result.Title = deriveTitle(document.path)
 	}
 	return result, true
 }
@@ -298,9 +314,9 @@ func frontmatterSearchText(values map[string]string) string {
 	return strings.Join(parts, " ")
 }
 
-func searchSnippet(file BundleFile, terms []string) string {
-	candidates := []string{file.Description}
-	for _, line := range strings.Split(strings.ReplaceAll(file.Body, "\r\n", "\n"), "\n") {
+func searchSnippet(document searchDocument, terms []string) string {
+	candidates := []string{document.description}
+	for _, line := range strings.Split(strings.ReplaceAll(document.body, "\r\n", "\n"), "\n") {
 		line = cleanSnippetLine(line)
 		if line != "" {
 			candidates = append(candidates, line)
