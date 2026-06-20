@@ -472,14 +472,6 @@ func linkTargetRel(sourceRel string, href string) string {
 	return clean
 }
 
-func insideRoot(root string, path string) bool {
-	relative, err := filepath.Rel(root, path)
-	if err != nil {
-		return false
-	}
-	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
-}
-
 func lineForOffset(content string, offset int) int {
 	line := 1
 	for index := 0; index < offset && index < len(content); index++ {

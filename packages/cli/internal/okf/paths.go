@@ -42,6 +42,14 @@ func relPath(root, path string) string {
 	return filepath.ToSlash(rel)
 }
 
+func insideRoot(root string, path string) bool {
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
 func deriveTitle(path string) string {
 	base := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	base = strings.ReplaceAll(base, "-", " ")
