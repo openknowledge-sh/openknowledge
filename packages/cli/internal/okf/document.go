@@ -27,7 +27,7 @@ func parseBundleAST(root string, version string) (astBundle, error) {
 		return astBundle{}, fmt.Errorf("%s is not a directory", absolute)
 	}
 
-	documents, err := parseMarkdownDocuments(absolute)
+	documents, err := parseASTDocuments(absolute)
 	if err != nil {
 		return astBundle{}, err
 	}
@@ -38,7 +38,7 @@ func parseBundleAST(root string, version string) (astBundle, error) {
 	}, nil
 }
 
-func parseMarkdownDocuments(root string) ([]astDocument, error) {
+func parseASTDocuments(root string) ([]astDocument, error) {
 	var documents []astDocument
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -54,7 +54,7 @@ func parseMarkdownDocuments(root string) ([]astDocument, error) {
 			return nil
 		}
 
-		document := parseMarkdownDocumentFile(path, relPath(root, path))
+		document := parseASTDocumentFile(path, relPath(root, path))
 		if document.ReadErr == nil {
 			document.Links = ExtractLinks(root, document.Rel, document.Content)
 		}
@@ -71,7 +71,7 @@ func parseMarkdownDocuments(root string) ([]astDocument, error) {
 	return documents, nil
 }
 
-func parseMarkdownDocumentFile(path string, rel string) astDocument {
+func parseASTDocumentFile(path string, rel string) astDocument {
 	content, err := os.ReadFile(path)
 	id, kind, reserved := classifyDocument(rel)
 	document := astDocument{

@@ -26,7 +26,7 @@ type MarkdownDocumentInfo struct {
 
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	info := BundleInfo{Root: root}
-	document := parseMarkdownDocumentFile(filepath.Join(root, "index.md"), "index.md")
+	document := parseASTDocumentFile(filepath.Join(root, "index.md"), "index.md")
 	if os.IsNotExist(document.ReadErr) {
 		return info, nil
 	}
@@ -79,7 +79,7 @@ func (info BundleInfo) EntryPath(name string) (string, bool) {
 
 func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, error) {
 	info := MarkdownDocumentInfo{Path: rel}
-	document := parseMarkdownDocumentFile(path, rel)
+	document := parseASTDocumentFile(path, rel)
 	if document.ReadErr != nil {
 		return info, document.ReadErr
 	}
