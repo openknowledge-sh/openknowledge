@@ -13,7 +13,7 @@ func ParseBundleWithVersion(root string, version string) (Bundle, error) {
 	return bundleFromAST(ast, issuesFromResult(validation))
 }
 
-func bundleFromAST(ast astBundle, issues []Issue) (Bundle, error) {
+func bundleFromAST(ast ASTBundle, issues []Issue) (Bundle, error) {
 	files, err := bundleFilesFromAST(ast, issues)
 	if err != nil {
 		return Bundle{}, err
@@ -27,7 +27,7 @@ func bundleFromAST(ast astBundle, issues []Issue) (Bundle, error) {
 	}, nil
 }
 
-func bundleFilesFromAST(bundle astBundle, issues []Issue) ([]BundleFile, error) {
+func bundleFilesFromAST(bundle ASTBundle, issues []Issue) ([]BundleFile, error) {
 	issuesByPath := groupIssuesByPath(issues)
 	files := make([]BundleFile, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {

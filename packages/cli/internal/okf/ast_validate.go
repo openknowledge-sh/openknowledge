@@ -1,14 +1,14 @@
 package okf
 
-func parseAndValidateASTBundle(root string, version string) (Result, astBundle, error) {
+func parseAndValidateASTBundle(root string, version string) (Result, ASTBundle, error) {
 	bundle, err := parseBundleAST(root, version)
 	if err != nil {
-		return Result{}, astBundle{}, err
+		return Result{}, ASTBundle{}, err
 	}
 	return validateASTBundle(bundle), bundle, nil
 }
 
-func validateASTBundle(bundle astBundle) Result {
+func validateASTBundle(bundle ASTBundle) Result {
 	result := Result{Root: bundle.Root, SpecVersion: bundle.SpecVersion}
 	for _, document := range bundle.Documents {
 		result.Files++

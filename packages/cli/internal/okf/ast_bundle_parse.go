@@ -8,30 +8,30 @@ import (
 	"sort"
 )
 
-func parseBundleAST(root string, version string) (astBundle, error) {
+func parseBundleAST(root string, version string) (ASTBundle, error) {
 	resolved, ok := ResolveSpecVersion(version)
 	if !ok {
-		return astBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
+		return ASTBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
 	}
 
 	absolute, err := filepath.Abs(root)
 	if err != nil {
-		return astBundle{}, err
+		return ASTBundle{}, err
 	}
 
 	info, err := os.Stat(absolute)
 	if err != nil {
-		return astBundle{}, err
+		return ASTBundle{}, err
 	}
 	if !info.IsDir() {
-		return astBundle{}, fmt.Errorf("%s is not a directory", absolute)
+		return ASTBundle{}, fmt.Errorf("%s is not a directory", absolute)
 	}
 
 	documents, err := parseASTDocuments(absolute)
 	if err != nil {
-		return astBundle{}, err
+		return ASTBundle{}, err
 	}
-	return astBundle{
+	return ASTBundle{
 		Root:        absolute,
 		SpecVersion: resolved,
 		Documents:   documents,

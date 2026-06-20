@@ -1,6 +1,6 @@
 package okf
 
-type astBundle struct {
+type ASTBundle struct {
 	Root        string
 	SpecVersion string
 	Documents   []astDocument

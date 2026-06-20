@@ -29,7 +29,7 @@ func buildSearchIndexWithVersion(root string, version string) (SearchIndex, erro
 	return newSearchIndexFromAST(ast), nil
 }
 
-func newSearchIndexFromAST(bundle astBundle) SearchIndex {
+func newSearchIndexFromAST(bundle ASTBundle) SearchIndex {
 	documents := make([]searchDocument, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {
 		if document.ReadDiagnostic != nil || document.UTF8Diagnostic != nil {
