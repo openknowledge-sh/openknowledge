@@ -1,6 +1,6 @@
 package okf
 
-type astFrontmatter struct {
+type ASTFrontmatter struct {
 	Has      bool
 	Values   map[string]string
 	Keys     map[string]struct{}

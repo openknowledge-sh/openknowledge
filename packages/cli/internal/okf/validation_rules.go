@@ -9,7 +9,7 @@ import (
 
 var logDateHeading = regexp.MustCompile(`^##\s+\d{4}-\d{2}-\d{2}\s*$`)
 
-func validateFrontmatterFormatting(rel string, meta astFrontmatter, result *Result) {
+func validateFrontmatterFormatting(rel string, meta ASTFrontmatter, result *Result) {
 	for _, warning := range meta.Warnings {
 		result.Warnings = append(result.Warnings, Issue{
 			Path:    rel,
@@ -20,7 +20,7 @@ func validateFrontmatterFormatting(rel string, meta astFrontmatter, result *Resu
 	}
 }
 
-func validateIndex(rel string, meta astFrontmatter, result *Result) {
+func validateIndex(rel string, meta ASTFrontmatter, result *Result) {
 	if strings.EqualFold(rel, "index.md") {
 		if meta.Has {
 			if version := meta.Values["okf_version"]; version != "" && version != result.SpecVersion {
@@ -35,7 +35,7 @@ func validateIndex(rel string, meta astFrontmatter, result *Result) {
 	}
 }
 
-func hasOnlyIndexPublishMetadata(meta astFrontmatter) bool {
+func hasOnlyIndexPublishMetadata(meta ASTFrontmatter) bool {
 	if !meta.Has {
 		return true
 	}
@@ -47,7 +47,7 @@ func hasOnlyIndexPublishMetadata(meta astFrontmatter) bool {
 	return true
 }
 
-func validateLog(rel string, meta astFrontmatter, content string, result *Result) {
+func validateLog(rel string, meta ASTFrontmatter, content string, result *Result) {
 	if meta.Has {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "log-frontmatter", Message: "log.md must not use concept frontmatter"})
 	}
@@ -60,7 +60,7 @@ func validateLog(rel string, meta astFrontmatter, content string, result *Result
 	}
 }
 
-func validateConcept(rel string, meta astFrontmatter, result *Result) {
+func validateConcept(rel string, meta ASTFrontmatter, result *Result) {
 	if !meta.Has {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-frontmatter", Message: "concept document is missing YAML frontmatter"})
 		return

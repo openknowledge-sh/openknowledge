@@ -1,6 +1,6 @@
 package okf
 
-func astFrontmatterFromParse(meta frontmatter) astFrontmatter {
+func astFrontmatterFromParse(meta frontmatter) ASTFrontmatter {
 	values := frontmatterValues(meta)
 
 	keys := make(map[string]struct{}, len(meta.keys))
@@ -16,7 +16,7 @@ func astFrontmatterFromParse(meta frontmatter) astFrontmatter {
 		})
 	}
 
-	return astFrontmatter{
+	return ASTFrontmatter{
 		Has:      meta.has,
 		Values:   values,
 		Keys:     keys,

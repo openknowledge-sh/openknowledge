@@ -13,7 +13,7 @@ type ASTDocument struct {
 	Kind                  string
 	Reserved              bool
 	Content               string
-	Frontmatter           astFrontmatter
+	Frontmatter           ASTFrontmatter
 	Metadata              astDocumentMetadata
 	Body                  string
 	Links                 []Link
