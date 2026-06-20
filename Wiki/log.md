@@ -2,6 +2,9 @@
 
 ## 2026-06-20
 
+* **Website release badge**: Documented that the landing page header links to
+  the latest GitHub Release and hydrates its tag plus relative publish age from
+  GitHub's latest release API at runtime.
 * **Syntax highlighting examples**: Added
   [examples/syntax-highlighting.md](examples/syntax-highlighting.md) with
   fenced shell, Go, TypeScript, Python, JSON, YAML, CSS, and SQL blocks for

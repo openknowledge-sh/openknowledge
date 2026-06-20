@@ -76,13 +76,45 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .site-actions {
   display: inline-flex;
   align-items: center;
   gap: 14px;
+}
+
+.release-row {
+  display: flex;
+  margin-bottom: 18px;
+}
+
+.release-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(var(--accent-rgb), 0.36);
+  background: rgba(var(--accent-rgb), 0.08);
+  color: rgba(var(--secondary-rgb), 0.9);
+  font-size: 12px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.release-badge:hover,
+.release-badge:focus-visible {
+  border-color: rgba(var(--accent-rgb), 0.64);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--secondary);
+  outline: none;
+}
+
+.release-badge time {
+  color: var(--muted);
 }
 
 .wiki-link {
@@ -364,6 +396,10 @@ li code {
 @media (max-width: 760px) {
   .shell {
     padding-top: 48px;
+  }
+
+  .site-topbar {
+    align-items: flex-start;
   }
 
   h1 {

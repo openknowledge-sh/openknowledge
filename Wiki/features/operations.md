@@ -43,7 +43,9 @@ openknowledge to html --out packages/web/dist/wiki Wiki
 
 That makes the public website's `wiki/` path a static viewer export of the
 colocated `Wiki/` bundle. The landing page links to that output from the top
-navigation before the GitHub icon.
+navigation before the GitHub icon. A latest-release badge sits below that
+topbar, links to GitHub Releases, and hydrates at runtime from GitHub's latest
+release API so the displayed tag and relative publish age stay current.
 
 `pnpm dev:web` serves source files from `packages/web` by default, refreshes the
 wiki export on startup, and then falls back to `packages/web/dist/wiki` for
@@ -120,6 +122,7 @@ npm publish --access public
 * `packages/web/scripts/wiki-export.mjs`
 * `packages/web/scripts/serve.mjs`
 * `packages/web/index.html`
+* `packages/web/main.js`
 * `Wiki/openknowledge.toml`
 * `Wiki/assets/openknowledge-site.css`
 
