@@ -15,6 +15,7 @@
   }
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const mobileSidebar = window.matchMedia("(max-width: 680px)");
   const editorStorageKey = "openknowledge.viewer.editorOrder";
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
@@ -2882,6 +2883,9 @@
       event.preventDefault();
       closeSearchResults(link);
       openInitialNote(targetPath, true);
+      if (mobileSidebar.matches) {
+        setSidebarOpen(false);
+      }
     });
   }
 

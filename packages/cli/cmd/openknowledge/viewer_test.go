@@ -71,6 +71,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.ok-table-tools`) || !strings.Contains(page, `.ok-table-filter-menu`) || !strings.Contains(page, `Clear filters`) || !strings.Contains(page, `function enhanceTables(scope)`) || !strings.Contains(page, `bindSortableTableHeader`) || !strings.Contains(page, `Filter table`) {
 		t.Fatalf("viewer should embed rich table styling and runtime controls:\n%s", page)
 	}
+	if !strings.Contains(page, `.ok-table-filter-trigger { display: inline-flex; height: 30px; align-items: center; gap: 8px; padding: 0 9px; border: 1px solid transparent; border-radius: 6px; background: transparent;`) {
+		t.Fatalf("viewer table filters trigger should use a ghost button treatment:\n%s", page)
+	}
+	if !strings.Contains(page, `.ok-table code { overflow-wrap: anywhere; white-space: normal; word-break: break-word; }`) {
+		t.Fatalf("viewer table inline code should wrap long paths inside cells:\n%s", page)
+	}
 	if !strings.Contains(page, `.note-chrome { position: sticky; top: 0; z-index: 5;`) || !strings.Contains(page, `.ok-table-tools { position: relative; z-index: 2;`) || !strings.Contains(page, `.ok-table-filter-menu[open] { z-index: 3; }`) {
 		t.Fatalf("viewer note chrome should stay layered above sticky table controls while scrolling:\n%s", page)
 	}
@@ -133,6 +139,10 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `.workspace-scroll-rail`) || !strings.Contains(page, `.workspace-scroll-thumb`) || !strings.Contains(page, `.note-workspace.is-single-panel, .note-workspace.is-multi-panel { scrollbar-width: none; }`) {
 		t.Fatalf("viewer should style a custom rail and hide native workspace scrollbars around note panels:\n%s", page)
+	}
+	if !(strings.Contains(page, `body.viewer-document.is-sidebar-open > .workspace-scroll-rail,`) || strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .workspace-scroll-rail,`)) ||
+		!(strings.Contains(page, `body.viewer-document.is-sidebar-open > .powered-by-openknowledge { display: none; }`) || strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .powered-by-openknowledge { display: none; }`)) {
+		t.Fatalf("viewer mobile sidebar should hide fixed bottom chrome instead of shifting it into the drawer:\n%s", page)
 	}
 	if !strings.Contains(page, `updateWorkspaceRail`) || !strings.Contains(page, `scrollWorkspaceFromRail`) || !strings.Contains(page, `aria-valuenow`) {
 		t.Fatalf("viewer should synchronize the custom rail with workspace horizontal scroll:\n%s", page)
@@ -215,8 +225,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `--ok-color-viewer-canvas: #f0f0f0`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #f0f0f0`) || !strings.Contains(page, `--ok-color-sidebar-header: #f0f0f0`) {
 		t.Fatalf("viewer sidebar should share the document canvas surface:\n%s", page)
 	}
-	if strings.Contains(page, "openInitialNote(treeLink.dataset.treePath, true);\n      setSidebarOpen(false);") {
-		t.Fatalf("viewer file sidebar should remain open after opening a tree item:\n%s", page)
+	if !strings.Contains(page, `const mobileSidebar = window.matchMedia("(max-width: 680px)")`) ||
+		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
+		t.Fatalf("viewer file sidebar should close after opening a tree item only on mobile widths:\n%s", page)
 	}
 	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; header`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > header`) {
 		t.Fatalf("viewer file sidebar should push the page header instead of overlaying it:\n%s", page)
