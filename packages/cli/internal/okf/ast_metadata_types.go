@@ -1,11 +1,11 @@
 package okf
 
 type ASTDocumentMetadata struct {
-	Type        string
-	Title       string
-	Description string
-	Resource    string
-	Tags        []string
-	UseWhen     []string
-	Bundle      BundleMetadata
+	Type        string         `json:"type,omitempty"`
+	Title       string         `json:"title,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Resource    string         `json:"resource,omitempty"`
+	Tags        []string       `json:"tags,omitempty"`
+	UseWhen     []string       `json:"useWhen,omitempty"`
+	Bundle      BundleMetadata `json:"bundle,omitempty"`
 }

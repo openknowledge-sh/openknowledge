@@ -9,6 +9,7 @@ anchors. Keep this index as the quick map.
 * [New](new.md) - scaffold a local OKF bundle.
 * [Validate](validate.md) - validate a bundle against OKF.
 * [List](list.md) - print bundle inventory and candidate connected bundle overview.
+* [AST](ast.md) - print the parsed OKF AST as JSON.
 
 ## Connect And Resolve Bundles
 

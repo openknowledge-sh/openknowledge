@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - AST command prints parser output
+
+* Added `openknowledge ast [path]` to print the parsed OKF AST as formatted
+  JSON, with `--spec <version>` and `--out <file>` support.
+* AST JSON now uses lower-camel-case field names and omits internal diagnostic
+  causes, making parser output easier to inspect before validation or exporter
+  conversion.
+* Source anchors: `packages/cli/cmd/openknowledge/ast_command.go`,
+  `packages/cli/cmd/openknowledge/ast_command_test.go`,
+  `packages/cli/internal/okf/ast_document_types.go`,
+  `packages/cli/internal/okf/ast_frontmatter_types.go`,
+  `packages/cli/internal/okf/ast_metadata_types.go`.
+* Docs updated: `Wiki/features/commands/ast.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/commands/help.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Context command
 
 * Added `openknowledge context` as a token-bounded bundle reading path for

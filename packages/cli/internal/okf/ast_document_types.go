@@ -1,23 +1,23 @@
 package okf
 
 type ASTBundle struct {
-	Root        string
-	SpecVersion string
-	Documents   []ASTDocument
+	Root        string        `json:"root"`
+	SpecVersion string        `json:"specVersion"`
+	Documents   []ASTDocument `json:"documents"`
 }
 
 type ASTDocument struct {
-	Absolute              string
-	Rel                   string
-	ID                    string
-	Kind                  string
-	Reserved              bool
-	Content               string
-	Frontmatter           ASTFrontmatter
-	Metadata              ASTDocumentMetadata
-	Body                  string
-	Links                 []Link
-	ReadDiagnostic        *ASTDiagnostic
-	UTF8Diagnostic        *ASTDiagnostic
-	FrontmatterDiagnostic *ASTDiagnostic
+	Absolute              string              `json:"absolute"`
+	Rel                   string              `json:"rel"`
+	ID                    string              `json:"id"`
+	Kind                  string              `json:"kind"`
+	Reserved              bool                `json:"reserved,omitempty"`
+	Content               string              `json:"content,omitempty"`
+	Frontmatter           ASTFrontmatter      `json:"frontmatter"`
+	Metadata              ASTDocumentMetadata `json:"metadata"`
+	Body                  string              `json:"body,omitempty"`
+	Links                 []Link              `json:"links,omitempty"`
+	ReadDiagnostic        *ASTDiagnostic      `json:"readDiagnostic,omitempty"`
+	UTF8Diagnostic        *ASTDiagnostic      `json:"utf8Diagnostic,omitempty"`
+	FrontmatterDiagnostic *ASTDiagnostic      `json:"frontmatterDiagnostic,omitempty"`
 }

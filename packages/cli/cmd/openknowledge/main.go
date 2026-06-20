@@ -39,6 +39,8 @@ func main() {
 		os.Exit(runUse(os.Args[2:]))
 	case "context":
 		os.Exit(runContext(os.Args[2:]))
+	case "ast":
+		os.Exit(runAST(os.Args[2:]))
 	case "registry":
 		os.Exit(runRegistry(os.Args[2:]))
 	case "open":
@@ -1359,6 +1361,8 @@ Usage:
   openknowledge use <name|path> --info
   openknowledge context [name|path] --query <text>
   openknowledge context [name|path] --query <text> --format json
+  openknowledge ast [path]
+  openknowledge ast --out <file> [path]
   openknowledge registry connect <path>
   openknowledge registry connect <path> --as <key>
   openknowledge registry disconnect <key|path>
@@ -1386,6 +1390,7 @@ Commands:
   disconnect Remove a knowledge bundle connection.
   use        Print an agent entrypoint from a bundle.
   context    Print query-focused bundle context for an agent.
+  ast        Print parsed OKF AST JSON.
   registry   Manage local knowledge bundle connections.
   open       Start the registry or knowledge base Markdown viewer.
   to         Convert a bundle to another format.
@@ -1406,6 +1411,7 @@ Examples:
   openknowledge use accessibility --info
   openknowledge use accessibility
   openknowledge context accessibility --query "validation workflow"
+  openknowledge ast ./project-memory
   openknowledge disconnect accessibility
   openknowledge registry connect ./team-wiki --as team
   openknowledge registry where accessibility

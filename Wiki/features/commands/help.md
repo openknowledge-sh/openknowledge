@@ -65,6 +65,9 @@ Root help added `openknowledge context [name|path] --query <text>`, JSON output
 usage, a `context` command summary, and a quick example for query-focused bundle
 context.
 
+Root help added `openknowledge ast [path]`, file output usage, an `ast` command
+summary, and a quick example for printing parsed OKF AST JSON.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->

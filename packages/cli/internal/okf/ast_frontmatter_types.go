@@ -1,14 +1,14 @@
 package okf
 
 type ASTFrontmatter struct {
-	Has      bool
-	Values   map[string]string
-	Keys     map[string]struct{}
-	Warnings []astFrontmatterWarning
-	BodyLine int
+	Has      bool                    `json:"has"`
+	Values   map[string]string       `json:"values,omitempty"`
+	Keys     map[string]struct{}     `json:"-"`
+	Warnings []astFrontmatterWarning `json:"warnings,omitempty"`
+	BodyLine int                     `json:"bodyLine"`
 }
 
 type astFrontmatterWarning struct {
-	Line    int
-	Message string
+	Line    int    `json:"line"`
+	Message string `json:"message"`
 }
