@@ -94,7 +94,6 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 	document.Metadata = astDocumentMetadataFromValues(document.Frontmatter.Values)
 	document.Body = body
 	document.FrontmatterDiagnostic = astFrontmatterDiagnostic(frontmatterErr)
-	document.FrontmatterErr = frontmatterErr
 	return document
 }
 

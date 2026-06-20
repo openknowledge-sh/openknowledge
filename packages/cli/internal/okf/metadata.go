@@ -35,8 +35,8 @@ func ReadBundleInfo(root string) (BundleInfo, error) {
 	}
 
 	info.HasIndex = true
-	if document.FrontmatterErr != nil {
-		return info, document.FrontmatterErr
+	if document.FrontmatterDiagnostic != nil {
+		return info, document.FrontmatterDiagnostic
 	}
 
 	info.RootTitle = firstH1(document.Body)
@@ -83,8 +83,8 @@ func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, er
 	if document.ReadErr != nil {
 		return info, document.ReadErr
 	}
-	if document.FrontmatterErr != nil {
-		return info, document.FrontmatterErr
+	if document.FrontmatterDiagnostic != nil {
+		return info, document.FrontmatterDiagnostic
 	}
 	info.Type = strings.TrimSpace(document.Metadata.Type)
 	info.Title = strings.TrimSpace(document.Metadata.Title)

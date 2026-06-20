@@ -20,12 +20,15 @@ type astDocument struct {
 	Links                 []Link
 	ReadErr               error
 	FrontmatterDiagnostic *astDiagnostic
-	FrontmatterErr        error
 }
 
 type astDiagnostic struct {
 	Line    int
 	Message string
+}
+
+func (d astDiagnostic) Error() string {
+	return d.Message
 }
 
 type astFrontmatter struct {
