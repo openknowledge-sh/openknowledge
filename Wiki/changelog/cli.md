@@ -14,6 +14,19 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Validator rejects invalid UTF-8 Markdown
+
+* `openknowledge validate` now reports invalid UTF-8 Markdown files as errors
+  before frontmatter, Markdown body, or link parsing.
+* The validation report includes a dedicated `UTF-8 content` check, and concept
+  document conformance fails when a concept file is not valid UTF-8.
+* Source anchors: `packages/cli/internal/okf/validate.go`,
+  `packages/cli/internal/okf/validate_test.go`.
+* Docs updated: `README.md`,
+  `Wiki/features/commands/validate.md`,
+  `Wiki/features/spec-compliance.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer panels default to comfortable reading width
 
 * Default note panels now use a `65ch` reading measure plus horizontal panel

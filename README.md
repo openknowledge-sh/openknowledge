@@ -184,6 +184,7 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 
 - every non-reserved Markdown file has top-level YAML frontmatter
 - every concept frontmatter has a non-empty `type`
+- Markdown files are valid UTF-8 before parsing
 - YAML frontmatter parses cleanly; non-blocking formatting issues are warnings
 - Markdown bodies avoid malformed links, code spans, tables, and fences
 - `index.md` and `log.md` are reserved files, not concept documents

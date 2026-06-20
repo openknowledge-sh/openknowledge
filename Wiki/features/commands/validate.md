@@ -43,6 +43,7 @@ The report currently includes these checks:
 | Check | Severity | What it verifies |
 | --- | --- | --- |
 | Bundle scan | pass/fail setup error | Target resolves to a directory and Markdown files can be scanned. |
+| UTF-8 content | error | Markdown files are valid UTF-8 before parsing frontmatter, body Markdown, or links. |
 | Concept documents | error | Non-reserved Markdown files have parseable top-level YAML frontmatter and a non-empty `type`. |
 | Reserved files | error | `index.md` and `log.md` follow reserved-file rules instead of concept frontmatter rules. |
 | Log dates | error | Every `##` heading in `log.md` uses exactly `YYYY-MM-DD`. |
@@ -60,6 +61,7 @@ Current errors:
 
 * The target cannot be read as a bundle directory.
 * A Markdown file cannot be read.
+* A Markdown file is not valid UTF-8.
 * Frontmatter starts but cannot be parsed, for example an unclosed block, a
   malformed top-level key, missing `key: value` spacing for a scalar, unclosed
   quotes, or unclosed flow `[]` / `{}` values.

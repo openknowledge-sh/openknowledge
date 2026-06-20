@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 var logDateHeading = regexp.MustCompile(`^##\s+\d{4}-\d{2}-\d{2}\s*$`)
@@ -116,6 +117,10 @@ func validateFile(root, path string, result *Result) {
 		result.Errors = append(result.Errors, Issue{Path: rel, Rule: "bundle-read", Message: err.Error()})
 		return
 	}
+	if !utf8.Valid(content) {
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: invalidUTF8Line(content), Rule: "utf-8", Message: "Markdown file must be valid UTF-8"})
+		return
+	}
 
 	meta, body, frontmatterErr := splitFrontmatter(string(content))
 	if frontmatterErr != nil {
@@ -143,6 +148,21 @@ func frontmatterErrorLine(err error) int {
 		return parseErr.line
 	}
 	return 1
+}
+
+func invalidUTF8Line(content []byte) int {
+	line := 1
+	for len(content) > 0 {
+		r, size := utf8.DecodeRune(content)
+		if r == utf8.RuneError && size == 1 {
+			return line
+		}
+		if content[0] == '\n' {
+			line++
+		}
+		content = content[size:]
+	}
+	return line
 }
 
 func validateFrontmatterFormatting(rel string, meta frontmatter, result *Result) {
@@ -542,8 +562,13 @@ func buildChecks(result Result) []Check {
 			Message: fmt.Sprintf("%s section 3; %d Markdown files scanned", specLabel, result.Files),
 		},
 		{
+			Name:    "UTF-8 content",
+			Status:  statusForRules(result.Errors, "utf-8"),
+			Message: fmt.Sprintf("%s section 4; Markdown files must be valid UTF-8", specLabel),
+		},
+		{
 			Name:    "Concept documents",
-			Status:  statusForRules(result.Errors, "frontmatter", "concept-frontmatter", "concept-type"),
+			Status:  statusForRules(result.Errors, "utf-8", "frontmatter", "concept-frontmatter", "concept-type"),
 			Message: fmt.Sprintf("%s sections 4 and 9; %d concepts require YAML frontmatter with non-empty type", specLabel, result.Concepts),
 		},
 		{

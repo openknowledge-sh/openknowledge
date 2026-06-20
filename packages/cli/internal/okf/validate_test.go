@@ -71,6 +71,31 @@ func TestValidateConceptRequiresType(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidUTF8Markdown(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "concept.md")
+	if err := os.WriteFile(path, []byte{'-', '-', '-', '\n', 't', 'y', 'p', 'e', ':', ' ', 'C', 'o', 'n', 'c', 'e', 'p', 't', '\n', '-', '-', '-', '\n', '\n', '#', ' ', 0xff, '\n'}, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected one invalid UTF-8 error, got %#v", result.Errors)
+	}
+	if result.Errors[0].Rule != "utf-8" || result.Errors[0].Line != 5 {
+		t.Fatalf("unexpected UTF-8 error: %#v", result.Errors[0])
+	}
+	if statusForCheck(result, "UTF-8 content") != "fail" {
+		t.Fatalf("expected UTF-8 check to fail, got %#v", result.Checks)
+	}
+	if statusForCheck(result, "Concept documents") != "fail" {
+		t.Fatalf("expected concept documents check to fail, got %#v", result.Checks)
+	}
+}
+
 func TestValidateUppercaseMarkdownExtension(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "SETUP.MD", "---\ntype: Setup\ntitle: Setup\n---\n")
