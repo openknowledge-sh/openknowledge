@@ -52,11 +52,11 @@ func Validate(root string) (Result, error) {
 }
 
 func ValidateWithVersion(root string, version string) (Result, error) {
-	result, _, err := parseAndValidateBundle(root, version)
+	result, _, err := parseAndValidateASTBundle(root, version)
 	return result, err
 }
 
-func parseAndValidateBundle(root string, version string) (Result, astBundle, error) {
+func parseAndValidateASTBundle(root string, version string) (Result, astBundle, error) {
 	bundle, err := parseBundleAST(root, version)
 	if err != nil {
 		return Result{}, astBundle{}, err

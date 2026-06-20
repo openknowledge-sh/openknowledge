@@ -22,7 +22,7 @@ func List(root string) (ListResult, error) {
 }
 
 func ListWithVersion(root string, version string) (ListResult, error) {
-	validation, ast, err := parseAndValidateBundle(root, version)
+	validation, ast, err := parseAndValidateASTBundle(root, version)
 	if err != nil {
 		return ListResult{}, err
 	}

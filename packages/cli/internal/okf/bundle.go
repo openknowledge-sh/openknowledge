@@ -29,7 +29,7 @@ func ParseBundle(root string) (Bundle, error) {
 }
 
 func ParseBundleWithVersion(root string, version string) (Bundle, error) {
-	validation, ast, err := parseAndValidateBundle(root, version)
+	validation, ast, err := parseAndValidateASTBundle(root, version)
 	if err != nil {
 		return Bundle{}, err
 	}

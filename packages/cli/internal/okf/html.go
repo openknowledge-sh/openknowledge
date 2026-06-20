@@ -37,7 +37,7 @@ func WritePlainHTMLWithVersion(root string, out string, version string) (HTMLRes
 }
 
 func writeHTMLWithVersion(root string, out string, version string, pageTemplate *template.Template) (HTMLResult, error) {
-	_, ast, err := parseAndValidateBundle(root, version)
+	_, ast, err := parseAndValidateASTBundle(root, version)
 	if err != nil {
 		return HTMLResult{}, err
 	}
