@@ -21,10 +21,13 @@ those table controls while content scrolls, and long inline code values wrap
 inside table cells instead of forcing table content past the frame. Fenced code
 blocks keep the same
 syntax highlighting and subtle language label as the local viewer; shell fences
-also color command names, flags, and variables. The shared viewer CSS keeps the
-top-bar search field responsive on narrow mobile widths so it does not overlap
-the knowledge base brand, and hides fixed bottom chrome while the mobile sidebar
-is open so the rail and attribution do not overflow into the drawer. The
+also color command names, flags, and variables without adding extra command
+font weight. Fenced code blocks use body-sized monospace text so shell commands
+do not appear larger than neighboring code on iOS Safari. The shared viewer CSS
+keeps the top-bar search field responsive on narrow mobile widths so it does
+not overlap the knowledge base brand, uses the small viewport height where
+available, and hides fixed bottom chrome on mobile or touch viewports so the
+rail and attribution do not conflict with Safari's browser chrome. The
 `--plain` flag switches to unstyled semantic HTML without CSS, JavaScript, or
 viewer chrome.
 

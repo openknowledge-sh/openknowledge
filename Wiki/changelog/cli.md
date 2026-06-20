@@ -14,6 +14,20 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Mobile viewer hides fixed bottom chrome
+
+* The shared viewer CSS now uses `svh` viewport sizing where supported and
+  hides the fixed bottom scroll rail plus `Powered by OpenKnowledge.sh`
+  attribution on mobile or touch viewports, avoiding iOS Safari browser chrome
+  conflicts that do not reproduce in desktop-width emulation.
+* Fenced code blocks now use body-sized monospace text, and shell command
+  tokens no longer add extra font weight, keeping shell snippets visually
+  consistent on iOS Safari.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Website redirects short wiki command URLs
 
 * The Netlify site now redirects short wiki command aliases such as

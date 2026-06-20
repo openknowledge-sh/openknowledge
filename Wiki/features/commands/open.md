@@ -19,7 +19,9 @@ tables with stable wrappers and alignment metadata,
 keeps soft-wrapped list continuation lines inside their bullet or numbered
 item, and shows validation issues in the index. Note-panel document typography
 uses explicit heading and list spacing so section breaks and multi-line bullets
-remain visually distinct.
+remain visually distinct. Fenced code blocks use the body text size with a
+monospace family, and shell command tokens use color without extra font weight
+so commands do not appear larger than neighboring shell text on iOS Safari.
 
 The document header brand is the knowledge base display name, not the product
 name. It prefers root `index.md` metadata in this order:
@@ -83,12 +85,12 @@ in place while typing, closes after a result is activated, and supports
 `ArrowDown`, `ArrowUp`, and `Enter` keyboard selection while keeping focus in
 the search field. On narrow mobile widths, the header search field is allowed
 to shrink below its desktop minimum width so it stays beside the brand instead
-of overlapping it. When that mobile sidebar is open, the bottom rail and
-`Powered by OpenKnowledge.sh` attribution are hidden so fixed bottom chrome does
-not overflow into the drawer.
+of overlapping it. On narrow mobile or touch viewports, the bottom rail and
+`Powered by OpenKnowledge.sh` attribution are hidden so fixed bottom chrome
+does not conflict with Safari's browser chrome or overflow into the drawer.
 Reserved `index.md` files remain searchable but rank below comparable regular
-pages. The document viewer also keeps a small bottom-right
-`Powered by OpenKnowledge.sh` link to the project website.
+pages. On desktop pointer layouts, the document viewer also keeps a small
+bottom-right `Powered by OpenKnowledge.sh` link to the project website.
 
 Markdown tables are progressively enhanced in note panels. The rendered HTML
 keeps semantic `<table>`, `<thead>`, and `<tbody>` structure, adds a scrollable

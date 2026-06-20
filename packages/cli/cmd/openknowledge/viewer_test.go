@@ -37,6 +37,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-openknowledge-theme="default"`) || !strings.Contains(page, `--ok-color-accent`) || !strings.Contains(page, `--ok-font-body`) {
 		t.Fatalf("viewer file page should expose theme data and root CSS variables:\n%s", page)
 	}
+	if !strings.Contains(page, `--ok-viewport-height: 100vh`) || !strings.Contains(page, `--ok-viewport-height: 100svh`) || !strings.Contains(page, `html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }`) {
+		t.Fatalf("viewer should normalize iOS viewport height and text scaling:\n%s", page)
+	}
 	if !strings.Contains(page, `--ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));`) ||
 		!strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-default-width)", 650)`) {
 		t.Fatalf("viewer default panel width should follow a 65ch reading measure with matching resize fallback:\n%s", page)
@@ -63,14 +66,14 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `<th scope="col" data-align="left">Name</th>`) || !strings.Contains(page, `<td data-align="right">2</td>`) {
 		t.Fatalf("viewer should preserve markdown table alignment metadata:\n%s", page)
 	}
-	if !strings.Contains(page, `.code-block[data-language] { padding-top: 34px; }`) || !strings.Contains(page, `content: attr(data-language)`) || !strings.Contains(page, `opacity: .78`) {
-		t.Fatalf("viewer should style code blocks with a subtle language label:\n%s", page)
+	if !strings.Contains(page, `.code-block[data-language] { padding-top: 34px; }`) || !strings.Contains(page, `content: attr(data-language)`) || !strings.Contains(page, `opacity: .78`) || !strings.Contains(page, `font: 400 1em/1.55 var(--ok-font-mono)`) {
+		t.Fatalf("viewer should style code blocks with a subtle language label and body-sized code text:\n%s", page)
 	}
 	if strings.Contains(page, `.code-block[data-language]::before { display: block; margin: -16px`) || strings.Contains(page, `radial-gradient(circle at 16px 50%`) {
 		t.Fatalf("viewer code block label should not use the heavy header strip treatment:\n%s", page)
 	}
-	if !strings.Contains(page, `.tok-command`) || !strings.Contains(page, `.tok-flag`) || !strings.Contains(page, `.tok-variable`) {
-		t.Fatalf("viewer should include shell-specific syntax token styles:\n%s", page)
+	if !strings.Contains(page, `.tok-command { color: var(--ok-color-syntax-keyword); font-weight: inherit; }`) || !strings.Contains(page, `.tok-flag`) || !strings.Contains(page, `.tok-variable`) {
+		t.Fatalf("viewer should include shell-specific syntax token styles without oversized command text:\n%s", page)
 	}
 	if !strings.Contains(page, `.ok-table-tools`) || !strings.Contains(page, `.ok-table-filter-menu`) || !strings.Contains(page, `Clear filters`) || !strings.Contains(page, `function enhanceTables(scope)`) || !strings.Contains(page, `bindSortableTableHeader`) || !strings.Contains(page, `Filter table`) {
 		t.Fatalf("viewer should embed rich table styling and runtime controls:\n%s", page)
@@ -99,7 +102,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }`) {
 		t.Fatalf("single-panel mobile stack should keep symmetric mobile gutters around the centered panel:\n%s", page)
 	}
-	if !strings.Contains(page, `display: flex; width: 100%; height: calc(100vh - var(--ok-header-height))`) || !strings.Contains(page, `overflow: auto hidden`) {
+	if !strings.Contains(page, `display: flex; width: 100%; height: calc(var(--ok-viewport-height) - var(--ok-header-height))`) || !strings.Contains(page, `overflow: auto hidden`) {
 		t.Fatalf("viewer workspace should use an Andy-style flex horizontal scroll container:\n%s", page)
 	}
 	if !strings.Contains(page, `display: flex; flex: 0 0 auto; align-self: stretch`) || strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%`) {
@@ -108,8 +111,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 18px; min-width: max-content; min-height: 0; padding: 12px max(22px, calc((100vw - 1180px) / 2)) 22px 22px; }`) {
 		t.Fatalf("viewer note stack should use a compact top gutter so panels can extend vertically:\n%s", page)
 	}
-	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 50px; }`) || !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 46px; }`) {
-		t.Fatalf("single and multi-panel stacks should reserve a compact bottom rail gap:\n%s", page)
+	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 50px; }`) || !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 18px; }`) {
+		t.Fatalf("single and multi-panel stacks should reserve a compact bottom rail gap on desktop and reclaim it on mobile:\n%s", page)
 	}
 	if !strings.Contains(page, `min-height: 0; padding: 0 34px 34px; overflow-x: hidden; overflow-y: auto`) || strings.Contains(page, `max-width: none; height: 100%; padding: 0 34px 34px`) {
 		t.Fatalf("viewer panels should leave the horizontal scrollbar gutter to the workspace:\n%s", page)
@@ -144,9 +147,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.workspace-scroll-rail`) || !strings.Contains(page, `.workspace-scroll-thumb`) || !strings.Contains(page, `.note-workspace.is-single-panel, .note-workspace.is-multi-panel { scrollbar-width: none; }`) {
 		t.Fatalf("viewer should style a custom rail and hide native workspace scrollbars around note panels:\n%s", page)
 	}
-	if !(strings.Contains(page, `body.viewer-document.is-sidebar-open > .workspace-scroll-rail,`) || strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .workspace-scroll-rail,`)) ||
-		!(strings.Contains(page, `body.viewer-document.is-sidebar-open > .powered-by-openknowledge { display: none; }`) || strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .powered-by-openknowledge { display: none; }`)) {
-		t.Fatalf("viewer mobile sidebar should hide fixed bottom chrome instead of shifting it into the drawer:\n%s", page)
+	if !strings.Contains(page, `@media (max-width: 680px), (hover: none) and (pointer: coarse)`) || !strings.Contains(page, `.workspace-scroll-rail, .powered-by-openknowledge { display: none; }`) {
+		t.Fatalf("viewer mobile and touch layouts should hide fixed bottom chrome instead of letting it conflict with Safari chrome:\n%s", page)
 	}
 	if !strings.Contains(page, `updateWorkspaceRail`) || !strings.Contains(page, `scrollWorkspaceFromRail`) || !strings.Contains(page, `aria-valuenow`) {
 		t.Fatalf("viewer should synchronize the custom rail with workspace horizontal scroll:\n%s", page)

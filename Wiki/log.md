@@ -2,6 +2,10 @@
 
 ## 2026-06-20
 
+* **Mobile Safari viewer chrome**: Documented that the shared viewer uses
+  small viewport sizing where supported, hides fixed bottom chrome on mobile or
+  touch viewports, and keeps fenced shell code at body-sized text without extra
+  command weight.
 * **Static viewer brand link**: Documented that default
   `openknowledge to html` viewer exports link the header brand back to the
   generated `index.html` with a relative URL so `/wiki/` deployments stay
