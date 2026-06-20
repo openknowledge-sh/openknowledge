@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Deployed wiki brand title
+
+* Set the deployed wiki brand through `Wiki/index.md` `okf_bundle_title` so the
+  static viewer header shows `Open Knowledge CLI Documentation`.
+* Clarified that `[html.source].entry` is a repository path prefix for GitHub
+  source URLs, not a display title.
+* Source anchors: `Wiki/index.md`, `Wiki/openknowledge.toml`,
+  `Wiki/features/exporters/html.md`, `Wiki/features/operations.md`.
+* Docs updated: `Wiki/features/exporters/html.md`,
+  `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Landing page loads Google tag
 
 * Added the Google `gtag.js` snippet with measurement ID `G-62SWM7FC2J` to the

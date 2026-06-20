@@ -2,6 +2,11 @@
 
 ## 2026-06-20
 
+* **Deployed wiki brand title**: Set `Wiki/index.md`
+  `okf_bundle_title` to `Open Knowledge CLI Documentation` so the exported
+  viewer header brand uses the documentation title, and clarified that
+  `[html.source].entry` remains the repository path prefix for GitHub source
+  links rather than a display title.
 * **OKF, skills, and plugins**: Added
   [features/okf-skills-plugins.md](features/okf-skills-plugins.md) as a
   user-facing one-page comparison of raw OKF v0.1, agent skills, and plugins.

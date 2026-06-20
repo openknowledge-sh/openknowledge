@@ -108,6 +108,12 @@ and the Markdown file path. Dynamic panels opened from the embedded note
 manifest use the same per-file source URL. When `[html.source]` is absent, the
 exported viewer renders no editor or source action.
 
+`html.source.entry` is a repository path prefix, not the exported viewer title.
+The viewer header brand comes from the bundle root `index.md` metadata, in this
+order: `okf_bundle_title`, `okf_bundle_name`, `title`, then the first Markdown
+`#` heading. Set `okf_bundle_title` in root frontmatter to control the deployed
+wiki brand without changing source-link paths.
+
 The canonical default theme source is
 `packages/cli/cmd/openknowledge/viewer_theme.css`. The local viewer and default
 HTML export derive colors, fonts, and viewer dimensions from this theme layer.

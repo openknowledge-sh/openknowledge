@@ -74,6 +74,8 @@ palette, fonts, or core spacing. The same TOML also sets `[html.source]` with
 `github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"`
 and `entry = "Wiki"`, so deployed wiki panels link back to their Markdown
 source files on GitHub instead of showing local editor deeplinks.
+The deployed wiki brand is controlled by `Wiki/index.md` root frontmatter
+`okf_bundle_title`, currently `Open Knowledge CLI Documentation`.
 
 The web server keeps canonical generated wiki pages under their exported paths,
 such as `/wiki/features/commands/disconnect.html`, and redirects short top-level
