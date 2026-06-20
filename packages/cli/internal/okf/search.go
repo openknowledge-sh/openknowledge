@@ -17,6 +17,18 @@ func NewSearchIndex(bundle Bundle) SearchIndex {
 	return SearchIndex{documents: documents}
 }
 
+func buildSearchIndex(root string) (SearchIndex, error) {
+	return buildSearchIndexWithVersion(root, LatestSpecVersion)
+}
+
+func buildSearchIndexWithVersion(root string, version string) (SearchIndex, error) {
+	_, ast, err := parseAndValidateASTBundle(root, version)
+	if err != nil {
+		return SearchIndex{}, err
+	}
+	return newSearchIndexFromAST(ast), nil
+}
+
 func newSearchIndexFromAST(bundle astBundle) SearchIndex {
 	documents := make([]searchDocument, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {

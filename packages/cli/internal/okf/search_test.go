@@ -37,14 +37,14 @@ func TestSearchIndexFromASTMatchesBundleSearch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ast, err := parseAndValidateASTBundle(root, LatestSpecVersion)
+	astIndex, err := buildSearchIndex(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	options := SearchOptions{Query: "incident playbook", Limit: 5, Fuzzy: true}
 	bundleResults := SearchBundle(bundle, options)
-	astResults := newSearchIndexFromAST(ast).Search(options)
+	astResults := astIndex.Search(options)
 	if len(bundleResults) == 0 || len(astResults) == 0 {
 		t.Fatalf("expected search results from both paths, bundle=%#v ast=%#v", bundleResults, astResults)
 	}
