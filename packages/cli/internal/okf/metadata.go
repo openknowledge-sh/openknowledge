@@ -40,8 +40,8 @@ func ReadBundleInfo(root string) (BundleInfo, error) {
 	}
 
 	info.RootTitle = firstH1(document.Body)
-	if document.Frontmatter.has {
-		info.Metadata = bundleMetadataFromFrontmatter(document.Frontmatter.values)
+	if len(document.FrontmatterValues) > 0 {
+		info.Metadata = bundleMetadataFromFrontmatter(document.FrontmatterValues)
 		info.HasMetadata = hasBundleMetadata(info.Metadata)
 	}
 	return info, nil
@@ -88,14 +88,14 @@ func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, er
 	if document.FrontmatterErr != nil {
 		return info, document.FrontmatterErr
 	}
-	if !document.Frontmatter.has {
+	if len(document.FrontmatterValues) == 0 {
 		return info, nil
 	}
-	info.Type = strings.TrimSpace(document.Frontmatter.values["type"])
-	info.Title = strings.TrimSpace(document.Frontmatter.values["title"])
-	info.Description = strings.TrimSpace(document.Frontmatter.values["description"])
-	info.Tags = parseFlowStringList(document.Frontmatter.values["tags"])
-	info.UseWhen = parseFlowStringList(document.Frontmatter.values["use_when"])
+	info.Type = strings.TrimSpace(document.FrontmatterValues["type"])
+	info.Title = strings.TrimSpace(document.FrontmatterValues["title"])
+	info.Description = strings.TrimSpace(document.FrontmatterValues["description"])
+	info.Tags = parseFlowStringList(document.FrontmatterValues["tags"])
+	info.UseWhen = parseFlowStringList(document.FrontmatterValues["use_when"])
 	return info, nil
 }
 

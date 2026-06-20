@@ -80,7 +80,7 @@ func bundleFile(document parsedDocument, issues []Issue) BundleFile {
 	if document.Reserved {
 		entry = reservedEntry(document)
 	} else {
-		entry = conceptEntry(document, document.Frontmatter)
+		entry = conceptEntry(document, document.FrontmatterValues)
 	}
 
 	return BundleFile{
@@ -92,23 +92,11 @@ func bundleFile(document parsedDocument, issues []Issue) BundleFile {
 		Title:       entry.Title,
 		Description: entry.Description,
 		Resource:    entry.Resource,
-		Frontmatter: frontmatterValues(document.Frontmatter),
+		Frontmatter: document.FrontmatterValues,
 		Body:        document.Body,
 		Links:       document.Links,
 		Issues:      issues,
 	}
-}
-
-func frontmatterValues(meta frontmatter) map[string]string {
-	if !meta.has || len(meta.values) == 0 {
-		return nil
-	}
-
-	values := make(map[string]string, len(meta.values))
-	for key, value := range meta.values {
-		values[key] = value
-	}
-	return values
 }
 
 func ShouldPublish(file BundleFile) bool {

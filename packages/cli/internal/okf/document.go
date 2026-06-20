@@ -8,18 +8,19 @@ import (
 )
 
 type parsedDocument struct {
-	Absolute       string
-	Rel            string
-	ID             string
-	Kind           string
-	Reserved       bool
-	Raw            []byte
-	Content        string
-	Frontmatter    frontmatter
-	Body           string
-	Links          []Link
-	ReadErr        error
-	FrontmatterErr error
+	Absolute          string
+	Rel               string
+	ID                string
+	Kind              string
+	Reserved          bool
+	Raw               []byte
+	Content           string
+	Frontmatter       frontmatter
+	FrontmatterValues map[string]string
+	Body              string
+	Links             []Link
+	ReadErr           error
+	FrontmatterErr    error
 }
 
 type parsedBundle struct {
@@ -80,7 +81,20 @@ func parseMarkdownDocumentFile(path string, rel string) parsedDocument {
 	meta, body, frontmatterErr := splitFrontmatter(string(content))
 	document.Content = string(content)
 	document.Frontmatter = meta
+	document.FrontmatterValues = frontmatterValues(meta)
 	document.Body = body
 	document.FrontmatterErr = frontmatterErr
 	return document
+}
+
+func frontmatterValues(meta frontmatter) map[string]string {
+	if !meta.has || len(meta.values) == 0 {
+		return nil
+	}
+
+	values := make(map[string]string, len(meta.values))
+	for key, value := range meta.values {
+		values[key] = value
+	}
+	return values
 }
