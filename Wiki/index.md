@@ -34,6 +34,7 @@ Use these pages when an agent is updating, validating, or extending this wiki.
 * [CLI changelog](changelog/cli.md) - maintained memory of CLI-facing changes.
 * [Examples](examples/) - viewer smoke-test files, including syntax highlighting, code, and PDF assets.
 * [Spec](SPEC.md) - local pinned copy of the Open Knowledge Format spec.
+* [Spec compliance](features/spec-compliance.md) - CLI compliance matrix for the embedded OKF spec.
 * [Log](log.md) - chronological update history.
 * [Decisions](decisions/) - setup and structure decisions for the wiki.
 

@@ -7,6 +7,7 @@ update the smallest relevant page.
 
 * [Installation](installation.md) - shell installer, npm wrapper, and local install assumptions.
 * [CLI Operations](operations.md) - development commands, workspace layout, and release workflow notes.
+* [Spec compliance](spec-compliance.md) - hard-rule OKF spec compliance matrix for the CLI.
 * [Commands](commands/) - command-by-command reference pages.
 * [Exporters](exporters/) - bundle conversion targets and candidate exporters.
 
