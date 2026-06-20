@@ -46,14 +46,6 @@ func listInventoryFromAST(bundle astBundle, issues []Issue) (ListResult, error) 
 	return ListResult{Root: bundle.Root, Entries: entries}, nil
 }
 
-func groupIssuesByPath(issues []Issue) map[string][]Issue {
-	grouped := make(map[string][]Issue)
-	for _, issue := range issues {
-		grouped[issue.Path] = append(grouped[issue.Path], issue)
-	}
-	return grouped
-}
-
 func attachIssues(entry ListEntry, issuesByPath map[string][]Issue) ListEntry {
 	entry.Issues = issuesByPath[entry.Path]
 	return entry
