@@ -14,6 +14,20 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Markdown extension files use OKF AST paths
+
+* The OKF scanner now includes files ending in `.markdown` in addition to
+  case-insensitive `.md` files.
+* The local viewer renders `.markdown` files through the parsed OKF bundle AST,
+  so frontmatter stripping, body rendering, link graph data, and tree data share
+  the same document model used by validation and exporters.
+* Source anchors: `packages/cli/internal/okf/validate.go`,
+  `packages/cli/internal/okf/validate_versions_test.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/validate.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Parsed link metadata feeds validation and JSON
 
 * Parsed Markdown documents now carry extracted link metadata, so validation and

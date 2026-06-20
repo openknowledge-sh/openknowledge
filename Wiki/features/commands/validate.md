@@ -34,9 +34,9 @@ openknowledge validate --help
 ## Validation Checks
 
 The validator walks the target directory, skips `.git`, and scans Markdown files
-with a case-insensitive `.md` extension. Each scanned file is classified by file
-name: `index.md` is an index, `log.md` is a log, and all other Markdown files
-are concepts.
+with case-insensitive `.md` or `.markdown` extensions. Each scanned file is
+classified by file name: `index.md` is an index, `log.md` is a log, and all
+other Markdown files are concepts.
 
 The report currently includes these checks:
 
