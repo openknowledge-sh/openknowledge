@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"unicode/utf8"
 )
 
 func parseBundleAST(root string, version string) (astBundle, error) {
@@ -81,13 +82,13 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 		ID:       id,
 		Kind:     kind,
 		Reserved: reserved,
-		Raw:      content,
 		ReadErr:  err,
 	}
 	if err != nil {
 		return document
 	}
 
+	document.UTF8Diagnostic = astUTF8Diagnostic(content)
 	meta, body, frontmatterErr := splitFrontmatter(string(content))
 	document.Content = string(content)
 	document.Frontmatter = astFrontmatterFromParse(meta)
@@ -95,6 +96,31 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 	document.Body = body
 	document.FrontmatterDiagnostic = astFrontmatterDiagnostic(frontmatterErr)
 	return document
+}
+
+func astUTF8Diagnostic(content []byte) *astDiagnostic {
+	if utf8.Valid(content) {
+		return nil
+	}
+	return &astDiagnostic{
+		Line:    invalidUTF8Line(content),
+		Message: "Markdown file must be valid UTF-8",
+	}
+}
+
+func invalidUTF8Line(content []byte) int {
+	line := 1
+	for len(content) > 0 {
+		r, size := utf8.DecodeRune(content)
+		if r == utf8.RuneError && size == 1 {
+			return line
+		}
+		if content[0] == '\n' {
+			line++
+		}
+		content = content[size:]
+	}
+	return line
 }
 
 func astFrontmatterDiagnostic(err error) *astDiagnostic {

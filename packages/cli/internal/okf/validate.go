@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"unicode/utf8"
 )
 
 var logDateHeading = regexp.MustCompile(`^##\s+\d{4}-\d{2}-\d{2}\s*$`)
@@ -95,8 +94,8 @@ func validateDocument(root string, document astDocument, result *Result) {
 		result.Errors = append(result.Errors, Issue{Path: rel, Rule: "bundle-read", Message: document.ReadErr.Error()})
 		return
 	}
-	if !utf8.Valid(document.Raw) {
-		result.Errors = append(result.Errors, Issue{Path: rel, Line: invalidUTF8Line(document.Raw), Rule: "utf-8", Message: "Markdown file must be valid UTF-8"})
+	if document.UTF8Diagnostic != nil {
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: document.UTF8Diagnostic.Line, Rule: "utf-8", Message: document.UTF8Diagnostic.Message})
 		return
 	}
 
@@ -117,21 +116,6 @@ func validateDocument(root string, document astDocument, result *Result) {
 		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.BodyLine, result)
 	}
 	validateDocumentLinks(root, document, result)
-}
-
-func invalidUTF8Line(content []byte) int {
-	line := 1
-	for len(content) > 0 {
-		r, size := utf8.DecodeRune(content)
-		if r == utf8.RuneError && size == 1 {
-			return line
-		}
-		if content[0] == '\n' {
-			line++
-		}
-		content = content[size:]
-	}
-	return line
 }
 
 func validateFrontmatterFormatting(rel string, meta astFrontmatter, result *Result) {

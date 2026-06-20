@@ -12,13 +12,13 @@ type astDocument struct {
 	ID                    string
 	Kind                  string
 	Reserved              bool
-	Raw                   []byte
 	Content               string
 	Frontmatter           astFrontmatter
 	Metadata              astDocumentMetadata
 	Body                  string
 	Links                 []Link
 	ReadErr               error
+	UTF8Diagnostic        *astDiagnostic
 	FrontmatterDiagnostic *astDiagnostic
 }
 
