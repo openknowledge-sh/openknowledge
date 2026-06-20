@@ -13,6 +13,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge <command> --help",
 		"openknowledge setup",
 		"openknowledge new --name <name> [folder]",
+		"openknowledge connect <path>",
+		"openknowledge connect <path> --as <key>",
 		"openknowledge registry add <name> <path>",
 		"openknowledge where <name|path>",
 		"openknowledge open --name <alias-name> [path]",
@@ -26,6 +28,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"Commands:",
 		"setup      Print an agent setup prompt.",
 		"new        Scaffold a local Open Knowledge bundle.",
+		"connect    Connect a local knowledge bundle.",
 		"registry   Manage named knowledge base paths.",
 		"where      Print the path for a named knowledge base or path.",
 		"open       Start the registry or knowledge base Markdown viewer.",
@@ -70,6 +73,15 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"Arguments:",
 				"--name",
 				"--bundle-entry",
+			},
+		},
+		"connect": {
+			help: connectHelpText(),
+			required: []string{
+				"openknowledge connect <path> --as <key>",
+				"--access",
+				"--no-validate",
+				"Remote URL sources are not supported yet",
 			},
 		},
 		"registry": {

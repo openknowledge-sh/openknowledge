@@ -8,7 +8,7 @@ anchors. Keep this index as the quick map.
 * [Help](help.md) - root and command-specific help.
 * [Setup](setup.md) - agent setup prompt generation.
 * [New](new.md) - scaffold a local OKF bundle.
-* [Connect](connect.md) - candidate command for adding local or remote OKF bundles to the local knowledge registry.
+* [Connect](connect.md) - add a local OKF bundle to the local knowledge registry.
 * [Disconnect](disconnect.md) - candidate command for removing connected bundles.
 * [Registry](registry.md) - current low-level named path registry and candidate internal storage layer.
 * [Use](use.md) - candidate agent entrypoint command for connected bundles.

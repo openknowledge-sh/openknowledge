@@ -19,8 +19,10 @@ type Registry struct {
 }
 
 type RegistryEntry struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Access  string `json:"access,omitempty"`
+	Managed bool   `json:"managed,omitempty"`
 }
 
 func RegistryFile() (string, error) {
@@ -103,6 +105,75 @@ func AddRegistryEntry(name string, path string) (RegistryEntry, error) {
 	return entry, nil
 }
 
+func ConnectRegistryEntry(name string, path string, access string, explicitName bool) (RegistryEntry, string, error) {
+	name = strings.TrimSpace(name)
+	access = strings.TrimSpace(access)
+	if access == "" {
+		access = "read"
+	}
+	if access != "read" && access != "write" {
+		return RegistryEntry{}, "", fmt.Errorf("access must be read or write")
+	}
+	if explicitName {
+		if !validRegistryName(name) {
+			return RegistryEntry{}, "", fmt.Errorf("connection key must use letters, numbers, dots, underscores, or dashes and must not look like a path")
+		}
+	} else {
+		name = registryKeyFromName(name)
+	}
+
+	absolute, err := absoluteDirectory(path)
+	if err != nil {
+		return RegistryEntry{}, "", err
+	}
+
+	registry, err := LoadRegistry()
+	if err != nil {
+		return RegistryEntry{}, "", err
+	}
+
+	if index := registryEntryIndexByPath(registry.Entries, absolute); index >= 0 {
+		entry := registry.Entries[index]
+		if explicitName && entry.Name != name {
+			if existing := registryEntryIndexByName(registry.Entries, name); existing >= 0 && registry.Entries[existing].Path != absolute {
+				return RegistryEntry{}, "", fmt.Errorf("connection key %q already points to %s", name, registry.Entries[existing].Path)
+			}
+			entry.Name = name
+		}
+		entry.Access = access
+		registry.Entries[index] = entry
+		sortRegistryEntries(registry.Entries)
+		if err := saveRegistry(registry); err != nil {
+			return RegistryEntry{}, "", err
+		}
+		return entry, "", nil
+	}
+
+	warning := ""
+	if explicitName {
+		if existing := registryEntryIndexByName(registry.Entries, name); existing >= 0 {
+			return RegistryEntry{}, "", fmt.Errorf("connection key %q already points to %s", name, registry.Entries[existing].Path)
+		}
+	} else {
+		base := name
+		for suffix := 2; registryEntryIndexByName(registry.Entries, name) >= 0; suffix++ {
+			name = fmt.Sprintf("%s-%d", base, suffix)
+		}
+		if name != base {
+			warning = fmt.Sprintf("connection key %q already exists; using %q", base, name)
+		}
+	}
+
+	entry := RegistryEntry{Name: name, Path: absolute, Access: access}
+	registry.Entries = append(registry.Entries, entry)
+	sortRegistryEntries(registry.Entries)
+
+	if err := saveRegistry(registry); err != nil {
+		return RegistryEntry{}, "", err
+	}
+	return entry, warning, nil
+}
+
 func ResolveRegistryEntry(name string) (RegistryEntry, bool, error) {
 	registry, err := LoadRegistry()
 	if err != nil {
@@ -181,6 +252,50 @@ func validRegistryName(name string) bool {
 	return !LooksLikePath(name)
 }
 
+func registryKeyFromName(name string) string {
+	name = strings.TrimSpace(name)
+	if validRegistryName(name) {
+		return name
+	}
+
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(name) {
+		switch {
+		case r >= 'a' && r <= 'z':
+			builder.WriteRune(r)
+			lastDash = false
+		case r >= '0' && r <= '9':
+			builder.WriteRune(r)
+			lastDash = false
+		case r == '.' || r == '_':
+			if builder.Len() > 0 {
+				builder.WriteRune(r)
+				lastDash = false
+			}
+		case r == '-' || strings.ContainsRune(" \t\n\r", r):
+			if builder.Len() > 0 && !lastDash {
+				builder.WriteByte('-')
+				lastDash = true
+			}
+		default:
+			if builder.Len() > 0 && !lastDash {
+				builder.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
+
+	key := strings.Trim(builder.String(), ".-_")
+	if key == "" {
+		return "knowledge"
+	}
+	if !validRegistryName(key) {
+		return "knowledge"
+	}
+	return key
+}
+
 func absoluteDirectory(path string) (string, error) {
 	expanded, err := ExpandUserPath(path)
 	if err != nil {
@@ -225,4 +340,22 @@ func sortRegistryEntries(entries []RegistryEntry) {
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Name < entries[j].Name
 	})
+}
+
+func registryEntryIndexByName(entries []RegistryEntry, name string) int {
+	for index, entry := range entries {
+		if entry.Name == name {
+			return index
+		}
+	}
+	return -1
+}
+
+func registryEntryIndexByPath(entries []RegistryEntry, path string) int {
+	for index, entry := range entries {
+		if entry.Path == path {
+			return index
+		}
+	}
+	return -1
 }

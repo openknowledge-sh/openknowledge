@@ -27,8 +27,9 @@ recognizes the common Go flag help spelling after a subcommand.
 ## Behavior
 
 Root help prints the supported command surface, global help flag, examples, and
-the command-specific help convention. Its examples include both a minimal
-`openknowledge new` scaffold and a scaffold with optional bundle metadata.
+the command-specific help convention. Its examples include a minimal
+`openknowledge new` scaffold, a scaffold with optional bundle metadata, and a
+`connect` example that registers the generated bundle under a stable key.
 Unknown commands print the root usage to stderr and exit with status `2`.
 
 ## Use Cases
@@ -46,3 +47,11 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 
 When adding commands, flags, or examples, update root help, command-specific
 help, README command tables, and this wiki.
+
+## Command Change History
+
+### 2026-06-20
+
+Root help added `openknowledge connect <path>`, `openknowledge connect <path> --as <key>`, a
+`connect` command summary, and a quick example for connecting a bundle with an
+explicit key.

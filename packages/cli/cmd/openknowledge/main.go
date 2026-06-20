@@ -30,6 +30,8 @@ func main() {
 		os.Exit(runSetup(os.Args[2:]))
 	case "new":
 		os.Exit(runNew(os.Args[2:]))
+	case "connect":
+		os.Exit(runConnect(os.Args[2:]))
 	case "registry":
 		os.Exit(runRegistry(os.Args[2:]))
 	case "where":
@@ -236,6 +238,125 @@ func parseBundleEntryFlags(values []string) ([]okf.BundleEntry, error) {
 		entries = append(entries, okf.BundleEntry{Name: name, Path: path})
 	}
 	return entries, nil
+}
+
+func runConnect(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, connectHelpText())
+		return 0
+	}
+	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	keyFlag := fs.String("as", "", "connection key")
+	accessFlag := fs.String("access", "read", "connection access: read or write")
+	noValidateFlag := fs.Bool("no-validate", false, "skip validation status")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge connect <path> [--as <key>]")
+		return 2
+	}
+
+	source := fs.Arg(0)
+	if looksLikeRemoteSource(source) {
+		fmt.Fprintln(os.Stderr, "remote bundle sources are not supported yet; clone the bundle locally and connect its directory")
+		return 2
+	}
+
+	root, err := okf.ResolveKnowledgeRoot(source)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	root, err = filepath.Abs(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if info, err := os.Stat(root); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	} else if !info.IsDir() {
+		fmt.Fprintf(os.Stderr, "%s is not a directory\n", root)
+		return 1
+	}
+
+	bundleInfo, metadataErr := okf.ReadBundleInfo(root)
+	key := strings.TrimSpace(*keyFlag)
+	explicitKey := key != ""
+	if key == "" {
+		key = bundleInfo.Metadata.Name
+	}
+	if key == "" {
+		key = filepath.Base(filepath.Clean(root))
+	}
+
+	entry, warning, err := okf.ConnectRegistryEntry(key, root, *accessFlag, explicitKey)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	status := "unknown"
+	if !*noValidateFlag {
+		status = bundleValidationStatus(entry.Path)
+	}
+
+	printConnectResult(entry, bundleInfo, status)
+	if warning != "" {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", warning)
+	}
+	if metadataErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: bundle metadata could not be read: %v\n", metadataErr)
+	}
+	return 0
+}
+
+func bundleValidationStatus(root string) string {
+	result, err := okf.Validate(root)
+	if err != nil {
+		return "unknown"
+	}
+	if len(result.Errors) > 0 {
+		return "invalid"
+	}
+	if len(result.Warnings) > 0 {
+		return "warnings"
+	}
+	return "valid"
+}
+
+func printConnectResult(entry okf.RegistryEntry, info okf.BundleInfo, status string) {
+	terminal.success("Connected knowledge bundle")
+	fmt.Printf("%-8s %s\n", "key", entry.Name)
+	fmt.Printf("%-8s %s\n", "name", info.DisplayName())
+	fmt.Printf("%-8s %s\n", "path", terminal.path(entry.Path))
+	fmt.Printf("%-8s %s\n", "access", registryEntryAccess(entry))
+	fmt.Printf("%-8s %s\n", "status", status)
+	if info.Metadata.Purpose != "" {
+		fmt.Printf("%-8s %s\n", "purpose", info.Metadata.Purpose)
+	}
+	if names := info.EntryNames(); len(names) > 0 {
+		fmt.Printf("%-8s %s\n", "entries", strings.Join(names, ", "))
+	}
+	if !info.HasMetadata {
+		fmt.Printf("%-8s %s\n", "metadata", "none")
+	}
+}
+
+func registryEntryAccess(entry okf.RegistryEntry) string {
+	if entry.Access != "" {
+		return entry.Access
+	}
+	return "read"
+}
+
+func looksLikeRemoteSource(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	return strings.HasPrefix(value, "http://") ||
+		strings.HasPrefix(value, "https://") ||
+		strings.HasPrefix(value, "git@")
 }
 
 func printRegistryEntries(entries []okf.RegistryEntry) {
@@ -739,6 +860,8 @@ Usage:
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
+  openknowledge connect <path>
+  openknowledge connect <path> --as <key>
   openknowledge registry list
   openknowledge registry add <name> <path>
   openknowledge where <name|path>
@@ -760,6 +883,7 @@ Usage:
 Commands:
   setup      Print an agent setup prompt.
   new        Scaffold a local Open Knowledge bundle.
+  connect    Connect a local knowledge bundle.
   registry   Manage named knowledge base paths.
   where      Print the path for a named knowledge base or path.
   open       Start the registry or knowledge base Markdown viewer.
@@ -777,6 +901,7 @@ Run openknowledge <command> --help for command-specific help.
 Examples:
   openknowledge new ./project-memory
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
+  openknowledge connect ./accessibility --as accessibility
   openknowledge registry add personal ~/knowledge
   openknowledge where personal
   openknowledge list personal
@@ -786,6 +911,37 @@ Examples:
   openknowledge list --json ./project-memory
   openknowledge open
   openknowledge open ./project-memory
+`
+}
+
+func connectHelpText() string {
+	return `openknowledge connect
+
+Connect a local Open Knowledge bundle to the user registry.
+
+Usage:
+  openknowledge connect <path>
+  openknowledge connect <path> --as <key>
+  openknowledge connect <path> --access read|write
+  openknowledge connect <path> --no-validate
+  openknowledge connect --help
+
+Arguments:
+  path           Local knowledge base root. Registry names are also accepted
+                 and resolve to their stored local path.
+
+Flags:
+  --as           Connection key. Defaults to okf_bundle_name, then the folder name.
+  --access       Access label stored with the connection, read or write. Defaults to read.
+  --no-validate  Skip the validation status check in the success output.
+
+Remote URL sources are not supported yet. Clone remote bundles locally, then
+connect the local directory.
+
+Examples:
+  openknowledge connect ./project-memory
+  openknowledge connect ./accessibility --as accessibility
+  openknowledge connect ./team-wiki --access write
 `
 }
 

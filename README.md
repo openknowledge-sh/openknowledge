@@ -44,7 +44,8 @@ Create and inspect a minimal scaffold directly:
 ```sh
 openknowledge new ./project-memory
 openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
-openknowledge registry add personal ./project-memory
+openknowledge connect ./project-memory --as personal
+openknowledge connect ./accessibility
 openknowledge where personal
 openknowledge open
 openknowledge open ./project-memory
@@ -113,10 +114,11 @@ page. The canonical default theme lives at
 HTML export derive their colors, fonts, and viewer dimensions from that theme
 layer.
 
-`openknowledge registry` stores named local paths for shared or standalone
-knowledge bases. A name is only an alias: path-based commands still work, and
-agents can use `openknowledge where <name>` to get the real folder before using
-normal filesystem tools such as `rg`.
+`openknowledge connect` stores named local paths for shared or standalone
+knowledge bases. A key is only an alias: path-based commands still work, and
+agents can use `openknowledge where <key>` to get the real folder before using
+normal filesystem tools such as `rg`. `openknowledge registry` remains the
+low-level compatibility command for listing and adding named paths directly.
 
 The local viewer opens the printed `127.0.0.1` view URL in your default
 browser. It serves registered knowledge bases under stable paths such as
@@ -132,6 +134,9 @@ changes.
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge new --bundle-name <id> [folder]` | Scaffold with optional bundle metadata. |
+| `openknowledge connect <path>` | Connect a local knowledge bundle to the user registry. |
+| `openknowledge connect <path> --as <key>` | Connect a local bundle with an explicit key. |
+| `openknowledge connect <path> --access read\|write` | Store an access label with a connection. |
 | `openknowledge registry list` | List named local knowledge base paths. |
 | `openknowledge registry add <name> <path>` | Register a name for a knowledge base folder. |
 | `openknowledge where <name-or-path>` | Print the absolute path for a registry name or path. |

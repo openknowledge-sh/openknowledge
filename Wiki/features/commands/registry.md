@@ -13,10 +13,9 @@ are shortcuts only; commands still work with normal filesystem paths. The local
 viewer also uses the registry as its default workspace list when
 `openknowledge open` is run without a path.
 
-This is the current shipped low-level command. The candidate product direction
-is to move normal users to [openknowledge connect](connect.md) and
-[openknowledge disconnect](disconnect.md), while keeping the registry as the
-internal persistence layer and compatibility surface.
+This is the shipped low-level command. Normal local connection workflows should
+use [openknowledge connect](connect.md), while `registry add` remains the
+internal persistence primitive and compatibility surface.
 
 ## Usage
 
@@ -53,29 +52,19 @@ to be an existing directory, and replaces an existing entry with the same name.
 * Let agents resolve a named wiki before reading files.
 * Keep path aliases outside the bundle content.
 
-## Candidate Direction
+## Relationship To Connect
 
-The future user-facing model is "connected knowledge bundles" rather than a
-manual registry. In that model:
+`connect` accepts a local folder, derives a key from `--as`,
+`okf_bundle_name`, or the folder name, resolves the folder to an absolute path,
+and writes a registry entry. If the key was implicit and already points to a
+different path, `connect` chooses a suffixed key such as `project-2`. If the
+key was explicit and collides with another path, `connect` fails.
 
-* `openknowledge connect <path-or-url>` adds a local or remote OKF bundle to
-  the user's local knowledge registry.
-* The registry stores canonical absolute paths so agents can resolve bundles
-  from any working directory.
-* The canonical storage key is the normalized absolute path; the short command
-  key is a user-facing shortcut derived from `okf_bundle_name`, `--as`, or the
-  folder/repository basename.
-* `openknowledge list` with no arguments lists connected bundles.
-* `openknowledge where <key-or-path>` prints the absolute path.
-* `openknowledge disconnect <key-or-path>` removes a connection and only
-  deletes managed cached files with an explicit deletion flag.
+Registry entries may now include optional `access` and `managed` fields. The
+current local `connect` command stores `access` as `read` or `write` and leaves
+`managed` unset.
 
-`registry add` currently accepts a name and existing local folder path, resolves
-that folder to an absolute path, and writes it to the registry JSON file. That
-behavior is still useful as the primitive behind `connect`, but it should not
-remain the primary documented workflow once `connect` ships.
-
-## Candidate Storage Model
+## Future Storage Candidate
 
 Future registry storage should be path-keyed instead of name-keyed:
 
@@ -98,14 +87,21 @@ Future registry storage should be path-keyed instead of name-keyed:
 ```
 
 Bundle metadata such as purpose, tags, and entrypoints remains in bundle
-content as `okf_bundle_*` root metadata. The registry stores local state:
-absolute path, key, access, source, and whether the files are managed by Open
-Knowledge.
+content as `okf_bundle_*` root metadata. A future registry migration may store
+local state as path-keyed connections with source and managed-cache metadata.
 
 ## Source Anchors
 
 * `packages/cli/internal/okf/registry.go`
 * `packages/cli/cmd/openknowledge/main.go`
+
+## Command Change History
+
+### 2026-06-20
+
+Registry entries gained optional `access` and `managed` fields so
+`openknowledge connect` can store local connection labels while preserving the
+existing `entries` storage shape.
 
 ## Update Notes
 
