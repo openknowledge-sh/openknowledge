@@ -14,6 +14,18 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Use accepts bundle-relative entry paths
+
+* `openknowledge use <name-or-path> <entry>` now resolves the optional entry
+  argument as a declared `okf_bundle_entry_<name>` first, then as a
+  bundle-relative file path when no declared entrypoint matches.
+* This lets agents read any specific file inside a connected or local bundle
+  without requiring root index metadata for every possible entrypoint.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/use.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Markdown extension files use OKF AST paths
 
 * The OKF scanner now includes files ending in `.markdown` in addition to

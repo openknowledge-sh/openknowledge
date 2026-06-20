@@ -129,10 +129,11 @@ section when exported pages should show no source action.
 knowledge bases. A key is only an alias: path-based commands still work, and
 agents can use `openknowledge registry where <key>` to get the real folder
 before using normal filesystem tools such as `rg`. Agents can use
-`openknowledge use <key>` to print a bundle-declared entrypoint, falling back
-to root `index.md` when no default entrypoint is declared. The
-`openknowledge disconnect` alias removes a connection without deleting local
-files by default.
+`openknowledge use <key>` to print a bundle-declared entrypoint, or
+`openknowledge use <key> agents/review.md` to print a specific file inside the
+bundle, falling back to root `index.md` when no default entrypoint is declared.
+The `openknowledge disconnect` alias removes a connection without deleting
+local files by default.
 `openknowledge connect` and `openknowledge disconnect` are top-level aliases
 for `openknowledge registry connect` and `openknowledge registry disconnect`.
 
@@ -156,7 +157,7 @@ changes.
 | `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
 | `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for managed cached entries. |
 | `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
-| `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint. |
+| `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint or bundle-relative file. |
 | `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
 | `openknowledge registry connect <path>` | Connect a local knowledge bundle to the user registry. |
 | `openknowledge registry connect <path> --as <key>` | Connect a local bundle with an explicit key. |

@@ -305,6 +305,7 @@ okf_bundle_entry_review: "agents/review.md"
 `)
 	writeMainTestFile(t, root, "agents/default.md", "---\ntype: Agent Entrypoint\n---\n\n# Default\n")
 	writeMainTestFile(t, root, "agents/review.md", "---\ntype: Agent Entrypoint\n---\n\n# Review\n")
+	writeMainTestFile(t, root, "guides/manual.md", "---\ntype: Guide\n---\n\n# Manual\n")
 
 	info, err := okf.ReadBundleInfo(root)
 	if err != nil {
@@ -324,8 +325,17 @@ okf_bundle_entry_review: "agents/review.md"
 	if selection.name != "review" || selection.rel != "agents/review.md" {
 		t.Fatalf("unexpected review selection: %#v", selection)
 	}
+	selection, err = selectUseEntrypoint(root, info, "guides/manual.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection.name != "guides/manual.md" || selection.rel != "guides/manual.md" {
+		t.Fatalf("unexpected path selection: %#v", selection)
+	}
 	if _, err := selectUseEntrypoint(root, info, "missing"); err == nil {
-		t.Fatal("expected missing named entrypoint to fail")
+		t.Fatal("expected missing entrypoint path to fail")
+	} else if !strings.Contains(err.Error(), `entrypoint or path "missing" does not exist; available entries: default, review`) {
+		t.Fatalf("unexpected missing entrypoint error: %v", err)
 	}
 
 	fallbackRoot := t.TempDir()

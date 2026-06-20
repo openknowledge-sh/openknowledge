@@ -517,6 +517,7 @@ func parseUseOptions(args []string) (useOptions, error) {
 func selectUseEntrypoint(root string, info okf.BundleInfo, entryName string) (useSelection, error) {
 	name := strings.TrimSpace(entryName)
 	rel := ""
+	pathFallback := false
 	if name == "" {
 		if path, ok := info.EntryPath("default"); ok {
 			name = "default"
@@ -528,17 +529,22 @@ func selectUseEntrypoint(root string, info okf.BundleInfo, entryName string) (us
 	} else {
 		path, ok := info.EntryPath(name)
 		if !ok {
-			available := info.EntryNames()
-			if len(available) == 0 {
-				return useSelection{}, fmt.Errorf("entrypoint %q does not exist; this bundle has no declared entrypoints", name)
-			}
-			return useSelection{}, fmt.Errorf("entrypoint %q does not exist; available entries: %s", name, strings.Join(available, ", "))
+			rel = name
+			pathFallback = true
+		} else {
+			rel = path
 		}
-		rel = path
 	}
 
 	abs, normalizedRel, err := resolveBundleRelativeFile(root, rel)
 	if err != nil {
+		if pathFallback && os.IsNotExist(err) {
+			available := info.EntryNames()
+			if len(available) == 0 {
+				return useSelection{}, fmt.Errorf("entrypoint or path %q does not exist; this bundle has no declared entrypoints", name)
+			}
+			return useSelection{}, fmt.Errorf("entrypoint or path %q does not exist; available entries: %s", name, strings.Join(available, ", "))
+		}
 		return useSelection{}, err
 	}
 	return useSelection{name: name, rel: normalizedRel, abs: abs}, nil
@@ -1231,20 +1237,23 @@ Usage:
 
 Arguments:
   name|path      Registry key or local bundle path.
-  entry          Optional entrypoint name from okf_bundle_entry_<name>.
+  entry          Optional entrypoint name from okf_bundle_entry_<name> or
+                 bundle-relative file path.
 
 Flags:
   --info         Print bundle and entrypoint metadata instead of Markdown body.
 
 Behavior:
   Without an entry, use prints okf_bundle_entry_default when declared. If no
-  default entrypoint exists, it prints the bundle root index.md. Named entries
-  must be declared in root index.md metadata.
+  default entrypoint exists, it prints the bundle root index.md. With an entry,
+  use first checks root index.md metadata, then treats the value as a path
+  inside the bundle.
 
 Examples:
   openknowledge use accessibility --info
   openknowledge use accessibility
   openknowledge use accessibility review
+  openknowledge use accessibility agents/review.md
 `
 }
 
