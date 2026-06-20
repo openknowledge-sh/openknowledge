@@ -74,10 +74,18 @@ fallback redirect after checking for real static files.
 
 The Railway deployment workflow runs on pushes to `main`. It first verifies the
 repository with `pnpm test` and `pnpm build`, then deploys through the Railway
-CLI container with `railway up --service="${RAILWAY_SERVICE_ID}"`. Configure
-`RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as either a
-repository variable or repository secret before enabling the workflow. The
-repository variable takes precedence when both are present.
+CLI container with `railway up --ci --service="$RAILWAY_SERVICE"`. Configure
+`RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE` as the Railway
+service name or service ID. `RAILWAY_PROJECT_ID` is optional, but should be set
+when the token is not already scoped tightly enough to the target project. The
+workflow still accepts the older `RAILWAY_SERVICE_ID` name as a fallback, but it
+must contain a service name or service ID, not a project ID.
+
+`railway.json` keeps Railway build and runtime settings in code. Railway builds
+the static website with `pnpm build:web`, then starts the web package with
+`pnpm --filter @openknowledge-sh/web start`. The production start script serves
+`packages/web/dist` without re-exporting the wiki and binds to `0.0.0.0` so the
+Railway router can reach the container.
 
 ## Release
 
@@ -130,8 +138,10 @@ npm publish --access public
 * `.github/workflows/deploy-railway.yml`
 * `.github/workflows/release.yml`
 * `.goreleaser.yaml`
+* `railway.json`
 * `install`
 * `packages/npm/package.json`
+* `packages/web/package.json`
 * `packages/web/scripts/build.mjs`
 * `packages/web/scripts/wiki-export.mjs`
 * `packages/web/scripts/serve.mjs`

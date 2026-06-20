@@ -49,7 +49,8 @@ jobs:
     container: ghcr.io/railwayapp/cli:latest
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID || secrets.RAILWAY_SERVICE_ID }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || secrets.RAILWAY_SERVICE || vars.RAILWAY_SERVICE_ID || secrets.RAILWAY_SERVICE_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,10 +63,16 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$RAILWAY_SERVICE_ID" ]; then
-            echo "RAILWAY_SERVICE_ID repository variable or secret is required." >&2
+          if [ -z "$RAILWAY_SERVICE" ]; then
+            echo "RAILWAY_SERVICE repository variable or secret is required." >&2
             exit 1
           fi
 
       - name: Deploy
-        run: railway up --service="${RAILWAY_SERVICE_ID}"
+        shell: sh
+        run: |
+          if [ -n "$RAILWAY_PROJECT_ID" ]; then
+            railway up --ci --project="$RAILWAY_PROJECT_ID" --service="$RAILWAY_SERVICE"
+          else
+            railway up --ci --service="$RAILWAY_SERVICE"
+          fi

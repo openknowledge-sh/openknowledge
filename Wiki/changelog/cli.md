@@ -20,10 +20,15 @@ that were updated.
   `main`.
 * The workflow verifies the repo with `pnpm test` and `pnpm build` before
   deploying through Railway's CLI container with `railway up`.
-* Configure `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as
-  either a repository variable or repository secret.
+* Configure `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE` as the
+  Railway service name or service ID; optional `RAILWAY_PROJECT_ID` can pin the
+  project. The previous `RAILWAY_SERVICE_ID` name is still accepted as a
+  fallback, but it must not contain the project ID.
+* Added `railway.json` and a production web `start` script so Railway builds
+  `packages/web/dist` with `pnpm build:web` and serves it on `0.0.0.0`.
 * Source anchors: `.github/workflows/deploy-railway.yml`,
-  `Wiki/features/operations.md`.
+  `railway.json`, `packages/web/package.json`,
+  `packages/web/scripts/serve.mjs`, `Wiki/features/operations.md`.
 * Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-06-20 - Mobile viewer hides fixed bottom chrome

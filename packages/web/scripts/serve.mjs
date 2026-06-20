@@ -6,6 +6,7 @@ import { distRoot, exportWiki, webRoot } from "./wiki-export.mjs";
 
 const root = process.env.OPENKNOWLEDGE_WEB_ROOT === "dist" ? distRoot : webRoot;
 const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || "127.0.0.1";
 const refreshWiki = process.env.OPENKNOWLEDGE_WEB_EXPORT_WIKI !== "0";
 
 const types = new Map([
@@ -93,6 +94,6 @@ if (refreshWiki) {
   await exportWiki(path.join(distRoot, "wiki"));
 }
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Open Knowledge web: http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`Open Knowledge web: http://${host}:${port}`);
 });
