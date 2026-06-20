@@ -72,6 +72,12 @@ top-level command aliases such as `/wiki/disconnect.html` and
 `/wiki/disconnect` to those canonical pages. `pnpm dev:web` mirrors that
 fallback redirect after checking for real static files.
 
+The Railway deployment workflow runs on pushes to `main`. It first verifies the
+repository with `pnpm test` and `pnpm build`, then deploys through the Railway
+CLI container with `railway up --service="${RAILWAY_SERVICE_ID}"`. Configure
+`RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as a repository
+variable before enabling the workflow.
+
 ## Release
 
 GitHub Releases are the source of truth for downloadable binaries. Run the
@@ -120,6 +126,7 @@ npm publish --access public
 
 * `package.json`
 * `pnpm-workspace.yaml`
+* `.github/workflows/deploy-railway.yml`
 * `.github/workflows/release.yml`
 * `.goreleaser.yaml`
 * `install`
@@ -135,6 +142,6 @@ npm publish --access public
 
 ## Update Notes
 
-When workspace scripts, release workflow behavior, GoReleaser outputs, npm
-publish behavior, or local release testing changes, update this page and
-[CLI changelog](/changelog/cli.md).
+When workspace scripts, deployment workflow behavior, release workflow behavior,
+GoReleaser outputs, npm publish behavior, or local release testing changes,
+update this page and [CLI changelog](/changelog/cli.md).

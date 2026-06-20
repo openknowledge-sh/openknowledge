@@ -14,6 +14,18 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Main branch deploys to Railway
+
+* Added a GitHub Actions Railway deployment workflow that runs on pushes to
+  `main`.
+* The workflow verifies the repo with `pnpm test` and `pnpm build` before
+  deploying through Railway's CLI container with `railway up`.
+* Configure `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE_ID` as a
+  repository variable.
+* Source anchors: `.github/workflows/deploy-railway.yml`,
+  `Wiki/features/operations.md`.
+* Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Mobile viewer hides fixed bottom chrome
 
 * The shared viewer CSS now uses `svh` viewport sizing where supported and
