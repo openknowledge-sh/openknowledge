@@ -9,8 +9,9 @@ timestamp: 2026-06-20T00:00:00Z
 # `openknowledge connect`
 
 `openknowledge connect` adds a local Open Knowledge bundle to the user's
-registry so later commands can refer to it by a stable key. It is a top-level
-alias for `openknowledge registry connect`.
+registry so later commands can refer to it by a stable key. It is syntactic
+sugar for `openknowledge registry connect`, with the same parsing, output, and
+exit-code behavior as the registry subcommand.
 
 The shipped implementation connects existing local directories. Remote URL
 materialization is still planned work; clone a remote bundle locally before
