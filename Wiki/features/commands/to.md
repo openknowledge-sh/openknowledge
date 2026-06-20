@@ -9,7 +9,7 @@ timestamp: 2026-06-18T00:00:00Z
 # `openknowledge to`
 
 `openknowledge to` is the conversion command group. Current shipped targets are
-`html` and `json`.
+`html`, `json`, and `tar`.
 
 ## Usage
 
@@ -20,6 +20,8 @@ openknowledge to html --spec <version> --out <folder> [path]
 openknowledge to json [path]
 openknowledge to json --out <file> [path]
 openknowledge to json --spec <version> [path]
+openknowledge to tar --out <file> [path]
+openknowledge to tar --spec <version> --out <file> [path]
 openknowledge to --help
 ```
 
@@ -29,15 +31,16 @@ openknowledge to --help
 | --- | --- | --- |
 | `html` | shipped | See [HTML exporter](/features/exporters/html.md). |
 | `json` | shipped | See [JSON exporter](/features/exporters/json.md). |
+| `tar` | shipped | See [Tar exporter](/features/exporters/tar.md). |
 | `graph` | candidate | See [Graph exporter candidate](/features/exporters/graph.md). |
 
 ## Common Flags
 
 | Name | Kind | Applies To | Required | Default | Description |
 | --- | --- | --- | --- | --- | --- |
-| `path` | argument | `html`, `json` | no | current directory | Knowledge base root. |
-| `--spec` | flag | `html`, `json` | no | `latest` | OKF spec version. |
-| `--out` | flag | `html`, `json` | HTML yes, JSON no | stdout for JSON | Output folder for HTML and optional output file for JSON. |
+| `path` | argument | `html`, `json`, `tar` | no | current directory | Knowledge base root. |
+| `--spec` | flag | `html`, `json`, `tar` | no | `latest` | OKF spec version. |
+| `--out` | flag | `html`, `json`, `tar` | HTML and TAR yes, JSON no | stdout for JSON | Output folder for HTML, optional output file for JSON, and archive file for TAR. |
 | `--plain` | flag | `html` only | no | off | Write plain semantic HTML without viewer chrome, CSS, or JavaScript. |
 
 ## Quick Examples
@@ -47,59 +50,60 @@ openknowledge to html --out ./site ./project-memory
 openknowledge to html --plain --out ./plain-site ./project-memory
 openknowledge to json ./project-memory
 openknowledge to json --out ./bundle.json ./project-memory
+openknowledge to tar --out ./bundle.tar.gz ./project-memory
 ```
 
 ## Behavior
 
-`to html` requires `--out`. Without `--plain`, it writes static viewer pages
-that include the file tree, search, stacked-panel browsing, and embedded note
-manifest. Markdown tables in the default viewer export are horizontally
-scrollable and get whole-table filtering, dropdown column filters, sortable
-headers, row counts, and a clear filters action. Fenced code blocks use the
-same syntax-highlighted, subtly language-labeled code card treatment as the local
-viewer, and soft-wrapped list continuation lines stay inside their bullet or
-numbered item. The default viewer export
-reads optional `[html.theme]` settings from `openknowledge.toml`, links the
-configured stylesheet after built-in viewer CSS, and copies local theme CSS
-files into the output folder.
-The built-in theme contract lives in
-`packages/cli/cmd/openknowledge/viewer_theme.css`, and the exported viewer
-derives colors, fonts, and viewer dimensions from its `--ok-*` variables. The
-static viewer does not render local editor deeplinks. When
-`openknowledge.toml` includes `[html.source]` with `github_base` and optional
-`entry`, exported Markdown panels render a single GitHub source button instead;
-without that config, no source action is shown. With `--plain`, it writes
-unstyled semantic HTML pages and does not include viewer CSS, JavaScript,
-theme links, or rich table controls.
+`to html` requires `--out <folder>`. It has two modes:
 
-`to json` prints the normalized bundle model to stdout by default and writes to
-`--out <file>` when provided. `--plain` is not valid for JSON. Unknown targets
-and unknown flags exit with status `2`.
+* Default viewer export: static viewer pages with file browsing, search,
+  stacked-panel navigation, embedded note data, theme/source configuration, and
+  remote-connect assets.
+* Plain export: unstyled semantic HTML without viewer CSS, JavaScript, theme
+  links, source buttons, or rich table controls.
+
+Default viewer exports also write `openknowledge.json` and
+`assets/openknowledge-bundle.tar.gz`. The manifest points to the archive and
+includes its SHA-256 so `openknowledge connect <deployed-wiki-url>` can
+materialize the source bundle from the static site. See
+[HTML exporter](/features/exporters/html.md) for rendering, theme, source-link,
+and manifest details.
+
+`to json` serializes the normalized bundle model. It prints to stdout by
+default and writes to `--out <file>` when provided. `--plain` is not valid for
+JSON. See [JSON exporter](/features/exporters/json.md).
+
+`to tar` requires `--out <file>`. It writes a gzip-compressed tar archive of the
+source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
+See [Tar exporter](/features/exporters/tar.md).
+
+Unknown targets and unknown flags exit with status `2`.
 
 ## Use Cases
 
-* Publish a static HTML copy of a wiki.
+* Publish a static viewer copy of a wiki.
 * Produce a normalized JSON model for downstream tools or agents.
+* Produce a portable tarball that can be served from static hosting and
+  connected later.
 * Keep future exporter targets grouped under one command family.
-* Deploy documentation that visually matches a landing page through a themed
-  viewer export.
-* Link exported viewer panels back to GitHub source files through
-  `[html.source]`.
-* Publish table-heavy command or reference docs with browser-side table
-  filtering dropdowns and sorting in the default viewer export.
 
-## Source Anchors
+---
 
-* `packages/cli/cmd/openknowledge/main.go`
-* `packages/cli/internal/okf/html.go`
-* `packages/cli/internal/okf/bundle.go`
-* `packages/cli/cmd/openknowledge/viewer.go`
-* `packages/cli/cmd/openknowledge/viewer_theme.go`
-* `packages/cli/cmd/openknowledge/viewer_theme.css`
-* `packages/cli/internal/okf/export_test.go`
-* `packages/cli/cmd/openknowledge/viewer_test.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-When a new target is added, update this page, the exporter section, root help,
-README command tables, and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/internal/okf/html.go`
+> * `packages/cli/internal/okf/bundle.go`
+> * `packages/cli/cmd/openknowledge/viewer.go`
+> * `packages/cli/cmd/openknowledge/viewer_theme.go`
+> * `packages/cli/cmd/openknowledge/viewer_theme.css`
+> * `packages/cli/internal/okf/export_test.go`
+> * `packages/cli/cmd/openknowledge/viewer_test.go`
+>
+> **Update notes**
+>
+> When a new target is added, update this page, the exporter section, root help,
+> README command tables, and [CLI changelog](/changelog/cli.md).

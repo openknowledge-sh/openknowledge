@@ -80,8 +80,12 @@ viewer, plain semantic HTML, normalized JSON, or a tar archive.
 * [Use command](commands/use.md) - agent entrypoint selection.
 * [Open command](commands/open.md) - local Markdown viewer behavior.
 
-## Update Notes
+---
 
-Update this page when a command moves between candidate and shipped status, a
-new layer is added, remote source behavior changes, or README and index
-navigation need a new product-level explanation.
+<!-- okf-footer: agent-maintenance -->
+
+> **Update notes**
+>
+> Update this page when a command moves between candidate and shipped status, a
+> new layer is added, remote source behavior changes, or README and index
+> navigation need a new product-level explanation.

@@ -19,9 +19,13 @@ Use this skill to keep the colocated wiki at `Wiki/` in sync with CLI behavior a
    - `Wiki/features/commands/*.md` for command behavior and use cases.
    - `Wiki/features/exporters/*.md` for exporter behavior and output contracts.
    - `Wiki/changelog/cli.md` for user-visible or developer-relevant CLI changes.
-4. Keep shipped behavior separate from planned work. For example, `openknowledge to graph` belongs on the graph exporter candidate page until implemented.
-5. For bounded wiki maintenance tasks, spawn focused subagents when the current runtime supports them. Prefer lower reasoning effort for those subagents because they should inspect narrow source/doc areas, draft concise updates, or validate focused assumptions rather than own broad architecture decisions.
-6. After meaningful wiki edits, run `openknowledge validate "Wiki"` and fix errors or avoidable warnings before finishing.
+4. Keep agent-maintenance material at the end of concept pages in the footer
+   block marked `<!-- okf-footer: agent-maintenance -->`. Use that footer for
+   source anchors, update notes, and similar grounding metadata instead of
+   prominent `##` headings.
+5. Keep shipped behavior separate from planned work. For example, `openknowledge to graph` belongs on the graph exporter candidate page until implemented.
+6. For bounded wiki maintenance tasks, spawn focused subagents when the current runtime supports them. Prefer lower reasoning effort for those subagents because they should inspect narrow source/doc areas, draft concise updates, or validate focused assumptions rather than own broad architecture decisions.
+7. After meaningful wiki edits, run `openknowledge validate "Wiki"` and fix errors or avoidable warnings before finishing.
 
 ## Boundaries
 

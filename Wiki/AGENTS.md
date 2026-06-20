@@ -31,7 +31,27 @@ The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
 * For each command page, maintain a dated command change history for major command-surface changes, including added, removed, renamed, or behavior-changing arguments, flags, subcommands, frontmatter/config properties, output fields, and exit-code semantics.
 * Keep shipped behavior separate from planned work. Planned `openknowledge to graph` work belongs on [features/exporters/graph.md](features/exporters/graph.md) until implemented.
 * Preserve source paths in prose or code spans when a page depends on specific files.
-* Keep pages concise and scan-friendly. Prefer sections for purpose, usage, arguments, use cases, implementation notes, and update notes.
+* Keep pages concise and scan-friendly. Prefer sections for purpose, usage, arguments, use cases, and implementation notes.
+* Put agent-maintenance material at the end of concept pages in a footer block
+  instead of top-level Markdown headings. Use this shape for source anchors,
+  update notes, and similar grounding metadata:
+
+  ```md
+  ---
+
+  <!-- okf-footer: agent-maintenance -->
+
+  > **Source anchors**
+  >
+  > - `packages/...`
+  >
+  > **Update notes**
+  >
+  > Update this page when shipped behavior changes.
+  ```
+
+  Keep `Command Change History` as a normal section when it documents user-visible
+  command surface changes.
 * When the current agent runtime supports subagents, use focused lower-reasoning
   subagents for bounded wiki maintenance tasks such as narrow source inspection,
   targeted docs checks, or validation-focused review.

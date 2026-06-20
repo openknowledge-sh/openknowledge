@@ -167,6 +167,11 @@ pre code, .code-block code { padding: 0; background: transparent; color: inherit
 ul, ol { padding-left: 22px; }
 blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 4px solid var(--line); color: var(--muted); }
 blockquote p { color: inherit; }
+.ok-agent-footer { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; opacity: .82; }
+.ok-agent-footer blockquote { margin: 0; padding: 0; border-left: 0; color: inherit; }
+.ok-agent-footer blockquote p, .ok-agent-footer li { color: inherit; }
+.ok-agent-footer strong { color: inherit; }
+.ok-agent-footer a { color: var(--muted); text-decoration-color: var(--line); }
 hr { margin: 34px 0; border: 0; border-top: 1px solid var(--line); }
 table { width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 15px; }
 th, td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }

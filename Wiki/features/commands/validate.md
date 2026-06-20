@@ -101,12 +101,16 @@ reserved file instead of a concept document.
   frontmatter formatting warnings.
 * Surface broken local links without blocking partially written knowledge.
 
-## Source Anchors
+---
 
-* `packages/cli/internal/okf/validate.go`
-* `packages/cli/cmd/openknowledge/main.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-When validation rules, warning severity, output formatting, or exit behavior
-changes, update this page and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/validate.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+>
+> **Update notes**
+>
+> When validation rules, warning severity, output formatting, or exit behavior
+> changes, update this page and [CLI changelog](/changelog/cli.md).

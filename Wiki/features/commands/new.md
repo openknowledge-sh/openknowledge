@@ -78,12 +78,16 @@ openknowledge new --name "Accessibility Review" \
 * Generate a local pinned copy of the OKF spec.
 * Produce an agent handoff file for post-scaffold customization.
 
-## Source Anchors
+---
 
-* `packages/cli/internal/okf/new.go`
-* `packages/cli/cmd/openknowledge/main.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-When scaffold files, default frontmatter, path rules, or terminal output change,
-update this page and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/new.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+>
+> **Update notes**
+>
+> When scaffold files, default frontmatter, path rules, or terminal output change,
+> update this page and [CLI changelog](/changelog/cli.md).

@@ -45,13 +45,17 @@ to an `index.md` file in that directory.
 * Inspect parsed frontmatter and link extraction.
 * Validate output contracts in tests.
 
-## Source Anchors
+---
 
-* `packages/cli/internal/okf/bundle.go`
-* `packages/cli/internal/okf/export_test.go`
-* `packages/cli/cmd/openknowledge/main.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-When JSON fields, issue inclusion, link metadata, frontmatter handling, or
-stdout versus file behavior changes, update this page and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/bundle.go`
+> * `packages/cli/internal/okf/export_test.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+>
+> **Update notes**
+>
+> When JSON fields, issue inclusion, link metadata, frontmatter handling, or
+> stdout versus file behavior changes, update this page and [CLI changelog](/changelog/cli.md).

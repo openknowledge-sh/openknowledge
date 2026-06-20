@@ -56,8 +56,12 @@ current yellow item is a CLI-extension gap:
 * The validator intentionally accepts Open Knowledge CLI public-export metadata
   in non-root `index.md` files: `okf_publish`.
 
-## Update Notes
+---
 
-Update this page when embedded spec versions change, validation rules change,
-or tests are added that move a yellow hard-rule row to green. Keep soft spec
-guidance out of this matrix unless it becomes a hard rule in a future spec.
+<!-- okf-footer: agent-maintenance -->
+
+> **Update notes**
+>
+> Update this page when embedded spec versions change, validation rules change,
+> or tests are added that move a yellow hard-rule row to green. Keep soft spec
+> guidance out of this matrix unless it becomes a hard rule in a future spec.

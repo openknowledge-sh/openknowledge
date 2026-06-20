@@ -39,7 +39,9 @@ openknowledge to html --spec <version> --out <folder> [path]
 Both modes strip YAML frontmatter from rendered pages, rewrite local Markdown
 links to generated `.html` targets, and skip files with `okf_publish: false`.
 Rendered Markdown keeps list continuations inside their parent item and emits
-semantic tables with alignment metadata.
+semantic tables with alignment metadata. HTML comments are hidden. The
+`<!-- okf-footer: agent-maintenance -->` marker renders following content as a
+subdued maintenance footer in the default viewer export.
 
 Default viewer exports embed a static note manifest and graph data in each page
 so search, panel navigation, source links, and enhanced table controls work on a
@@ -104,17 +106,21 @@ there through a configured stylesheet instead of changing generated HTML.
 * Apply a deployable theme stylesheet without changing source Markdown.
 * Link deployed pages to GitHub source without exposing local editor deeplinks.
 
-## Source Anchors
+---
 
-* `packages/cli/internal/okf/html.go`
-* `packages/cli/internal/okf/markdown.go`
-* `packages/cli/internal/okf/export_test.go`
-* `packages/cli/cmd/openknowledge/viewer.go`
-* `packages/cli/cmd/openknowledge/viewer_theme.go`
-* `packages/cli/cmd/openknowledge/viewer_theme.css`
-* `packages/cli/cmd/openknowledge/viewer_test.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-When template structure, CSS, link rewriting, file naming, or export reporting
-changes, update this page and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/html.go`
+> * `packages/cli/internal/okf/markdown.go`
+> * `packages/cli/internal/okf/export_test.go`
+> * `packages/cli/cmd/openknowledge/viewer.go`
+> * `packages/cli/cmd/openknowledge/viewer_theme.go`
+> * `packages/cli/cmd/openknowledge/viewer_theme.css`
+> * `packages/cli/cmd/openknowledge/viewer_test.go`
+>
+> **Update notes**
+>
+> When template structure, CSS, link rewriting, file naming, or export reporting
+> changes, update this page and [CLI changelog](/changelog/cli.md).

@@ -32,8 +32,12 @@ relationships, find orphan pages, or analyze link structure.
 * Should reserved files appear as nodes?
 * Should missing local link targets become dangling nodes?
 
-## Update Notes
+---
 
-When this feature is implemented, change the status, add command usage, update
-[openknowledge to](/features/commands/to.md), root help, README command tables,
-tests, and [CLI changelog](/changelog/cli.md).
+<!-- okf-footer: agent-maintenance -->
+
+> **Update notes**
+>
+> When this feature is implemented, change the status, add command usage, update
+> [openknowledge to](/features/commands/to.md), root help, README command tables,
+> tests, and [CLI changelog](/changelog/cli.md).

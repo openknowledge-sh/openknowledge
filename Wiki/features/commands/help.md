@@ -38,16 +38,6 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 * Verify examples after adding or changing a command.
 * Give agents a stable entry point before setup.
 
-## Source Anchors
-
-* `packages/cli/cmd/openknowledge/main.go`
-* `README.md`
-
-## Update Notes
-
-When adding commands, flags, or examples, update root help, command-specific
-help, README command tables, and this wiki.
-
 ## Command Change History
 
 ### 2026-06-20
@@ -64,6 +54,23 @@ examples for inspecting and printing an entrypoint.
 Root help added `openknowledge disconnect <key|path>`, a `disconnect` command
 summary, and a quick example for removing a connection.
 
-Root help added `openknowledge connect <path>`, `openknowledge connect <path> --as <key>`, a
-`connect` command summary, and a quick example for connecting a bundle with an
-explicit key.
+Root help added `openknowledge connect <source>`,
+`openknowledge connect <source> --as <key>`, a `connect` command summary, and a
+quick example for connecting a bundle with an explicit key.
+
+Root help added `openknowledge to tar --out <file> [path]` and the `tar`
+converter target for portable bundle archives.
+
+---
+
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `README.md`
+>
+> **Update notes**
+>
+> When adding commands, flags, or examples, update root help, command-specific
+> help, README command tables, and this wiki.

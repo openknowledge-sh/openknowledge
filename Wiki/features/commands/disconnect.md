@@ -12,9 +12,9 @@ timestamp: 2026-06-20T00:00:00Z
 user registry. It unregisters the connection and keeps files by default. It is
 a top-level alias for `openknowledge registry disconnect`.
 
-The shipped local `connect` command creates non-managed connections, so
-`disconnect --delete-files` is reserved for future managed remote-cache entries
-and refuses to delete ordinary local folders.
+Local `connect` targets create non-managed connections. Remote manifest, tar,
+and Git targets create CLI-managed cache entries. `disconnect --delete-files`
+refuses to delete ordinary local folders.
 
 ## Usage
 
@@ -31,7 +31,7 @@ openknowledge disconnect --help
 | --- | --- | --- |
 | `key-or-path` | argument | Connection key or connected local path. |
 | `--keep-files` | flag | Keep bundle files after removing the registry entry. This is the default. |
-| `--delete-files` | flag | Delete files only when the registry entry is marked `managed`. |
+| `--delete-files` | flag | Delete files only for CLI-managed remote clones. |
 
 `--keep-files` and `--delete-files` cannot be used together.
 
@@ -49,9 +49,9 @@ After resolution, the command removes the registry entry and prints the key,
 path, and file action. Default and `--keep-files` output uses `files kept`.
 
 `--delete-files` fails before unregistering when the matched entry is not
-marked managed. If a future managed entry is removed but file deletion fails,
-the command leaves the registry update in place, prints a warning, and exits
-with status `1`.
+marked managed. If a CLI-managed clone is removed from the registry but file
+deletion fails, the command leaves the registry update in place, prints a
+warning, and exits with status `1`.
 
 ## Quick Examples
 
@@ -59,12 +59,6 @@ with status `1`.
 openknowledge disconnect accessibility
 openknowledge disconnect ./project-memory --keep-files
 ```
-
-## Source Anchors
-
-* `packages/cli/cmd/openknowledge/main.go`
-* `packages/cli/internal/okf/registry.go`
-* `packages/cli/internal/okf/registry_test.go`
 
 ## Command Change History
 
@@ -78,8 +72,18 @@ namespace.
 `--keep-files`, guarded `--delete-files`, unknown-target key hints, and
 non-managed deletion refusal.
 
-## Update Notes
+---
 
-Update this page when target resolution, registry removal, managed-file
-deletion, output, or exit-code behavior changes. CLI behavior changes also
-require [CLI changelog](/changelog/cli.md) updates.
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/internal/okf/registry.go`
+> * `packages/cli/internal/okf/registry_test.go`
+>
+> **Update notes**
+>
+> Update this page when target resolution, registry removal, managed-file
+> deletion, output, or exit-code behavior changes. CLI behavior changes also
+> require [CLI changelog](/changelog/cli.md) updates.

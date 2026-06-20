@@ -1,6 +1,8 @@
 package okf
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -144,5 +146,35 @@ func TestRemoveRegistryEntryByNameAndPath(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("expected empty registry, got %#v", entries)
+	}
+}
+
+func TestRegistrySavesPathKeyedConnections(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+
+	root := t.TempDir()
+	source := RegistrySource{Type: "git", URL: "https://example.com/wiki.git"}
+	entry, _, err := ConnectRegistryEntryWithSource("personal", root, "read", true, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(registryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored struct {
+		Connections map[string]RegistryConnection `json:"connections"`
+	}
+	if err := json.Unmarshal(content, &stored); err != nil {
+		t.Fatal(err)
+	}
+	connection, ok := stored.Connections[root]
+	if !ok {
+		t.Fatalf("expected path-keyed connection for %s in %#v", root, stored.Connections)
+	}
+	if connection.Name != entry.Name || connection.Source.URL != source.URL || !connection.Managed {
+		t.Fatalf("unexpected stored connection: %#v", connection)
 	}
 }

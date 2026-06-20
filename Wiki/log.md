@@ -2,6 +2,12 @@
 
 ## 2026-06-20
 
+* **CLI tooling model**: Reframed README and wiki navigation around the
+  shipped layers of authoring and validation, local registry management, agent
+  entrypoints, the local Markdown viewer, and export/publish. Added
+  [features/tooling-model.md](features/tooling-model.md) to keep the product
+  map explicit while marking GitHub or published-page remote materialization as
+  planned registry-layer work.
 * **Deployed wiki brand title**: Set `Wiki/index.md`
   `okf_bundle_title` to `Open Knowledge CLI Documentation` so the exported
   viewer header brand uses the documentation title, and clarified that

@@ -91,15 +91,7 @@ openknowledge connect https://github.com/openknowledge-sh/accessibility.git --as
 Remote archive and manifest sources require network access for non-local URLs.
 Git fallback requires `git` on `PATH`. Existing cached materializations are
 reused when they still validate. See [registry](registry.md) for storage
-compatibility details.
-
-## Source Anchors
-
-* `packages/cli/cmd/openknowledge/main.go`
-* `packages/cli/internal/okf/registry.go`
-* `packages/cli/internal/okf/metadata.go`
-* `packages/cli/internal/okf/registry_test.go`
-* `packages/cli/internal/okf/metadata_test.go`
+details.
 
 ## Command Change History
 
@@ -114,11 +106,22 @@ output, implicit key suffixing, and explicit collision failures.
 
 `openknowledge connect` now materializes Open Knowledge manifests, tar archives,
 and Git remote sources into the Open Knowledge cache, records source metadata,
-and stores registry state as path-keyed `connections` while preserving reads of
-legacy `entries` registries.
+and stores registry state as path-keyed `connections`.
 
-## Update Notes
+---
 
-Update this page when connection storage, remote-source materialization, key
-derivation, validation status semantics, or success output changes. CLI
-behavior changes also require [CLI changelog](/changelog/cli.md) updates.
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/internal/okf/registry.go`
+> * `packages/cli/internal/okf/metadata.go`
+> * `packages/cli/internal/okf/registry_test.go`
+> * `packages/cli/internal/okf/metadata_test.go`
+>
+> **Update notes**
+>
+> Update this page when connection storage, remote-source materialization, key
+> derivation, validation status semantics, or success output changes. CLI
+> behavior changes also require [CLI changelog](/changelog/cli.md) updates.

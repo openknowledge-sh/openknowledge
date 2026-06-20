@@ -14,6 +14,20 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Agent maintenance footers render quietly
+
+* Markdown rendering now hides HTML comments instead of escaping them into
+  visible text.
+* The `<!-- okf-footer: agent-maintenance -->` marker now wraps following
+  content in a subdued footer treatment for the local viewer and default HTML
+  exports.
+* Source anchors: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/markdown_test.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/internal/okf/html.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Use accepts bundle-relative entry paths
 
 * `openknowledge use <name-or-path> <entry>` now resolves the optional entry
@@ -57,6 +71,47 @@ that were updated.
   `packages/cli/internal/okf/validate_test.go`.
 * Docs updated: `Wiki/features/exporters/json.md`,
   `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Registry materializes published bundles
+
+* `openknowledge connect` and `openknowledge registry connect` now resolve
+  remote sources as Open Knowledge manifests, direct tar archives, or Git
+  repositories, materialize them into the Open Knowledge cache, validate archive
+  materializations, and register source metadata.
+* Added `openknowledge to tar --out <file>` for portable bundle archives.
+* Default viewer HTML exports now include `openknowledge.json` plus
+  `assets/openknowledge-bundle.tar.gz`, allowing deployed static wikis to be
+  connected by URL.
+* Registry storage now writes path-keyed `connections`.
+* `disconnect --delete-files` documentation now describes current CLI-managed
+  remote cache deletion behavior.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/internal/okf/archive.go`,
+  `packages/cli/internal/okf/registry.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/cli/internal/okf/archive_test.go`,
+  `packages/cli/internal/okf/registry_test.go`.
+* Docs updated: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/registry.md`,
+  `Wiki/features/commands/disconnect.md`,
+  `Wiki/features/commands/to.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/features/exporters/tar.md`, `Wiki/features/exporters/index.md`,
+  `Wiki/features/tooling-model.md`, `README.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Docs clarify CLI tooling layers
+
+* Reframed README and wiki navigation around authoring, local registry
+  management, agent entrypoints, the local Markdown viewer, and export/publish
+  layers.
+* Added a tooling model page that distinguishes shipped local connections from
+  remote source materialization.
+* Source anchors: `README.md`, `Wiki/index.md`,
+  `Wiki/features/tooling-model.md`, `Wiki/features/index.md`.
+* Docs updated: `README.md`, `Wiki/index.md`,
+  `Wiki/features/tooling-model.md`, `Wiki/features/index.md`,
+  `Wiki/changelog/cli.md`, `Wiki/log.md`.
 
 ### 2026-06-20 - Deployed wiki brand title
 

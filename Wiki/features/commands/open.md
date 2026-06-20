@@ -60,6 +60,9 @@ as `/wiki/` or `/personal/`.
 * `Command+K` on macOS or `Ctrl+K` elsewhere focuses search.
 * Markdown tables keep semantic table markup and are enhanced with scrolling,
   filtering, sorting, and row counts when viewer JavaScript is active.
+* HTML comments are not rendered as visible text. The
+  `<!-- okf-footer: agent-maintenance -->` marker turns the remaining document
+  content into a visually subdued maintenance footer.
 * Local code and text asset links open escaped syntax-highlighted previews.
   Local PDF, image, audio, and video links are served from bundle-scoped raw
   URLs for the browser's native viewer.
@@ -78,20 +81,24 @@ as `/wiki/` or `/personal/`.
 * Search files and rendered content from the top bar.
 * Preview bundled source and media assets in the browser.
 
-## Source Anchors
+---
 
-* `packages/cli/cmd/openknowledge/viewer.go`
-* `packages/cli/cmd/openknowledge/viewer_app.css`
-* `packages/cli/cmd/openknowledge/viewer_app.js`
-* `packages/cli/cmd/openknowledge/viewer_search.js`
-* `packages/cli/cmd/openknowledge/viewer_theme.go`
-* `packages/cli/cmd/openknowledge/viewer_theme.css`
-* `packages/cli/cmd/openknowledge/viewer_test.go`
-* `packages/cli/cmd/openknowledge/main.go`
-* `packages/cli/internal/okf/markdown.go`
-* `packages/cli/internal/okf/markdown_test.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-Viewer rendering, routing, validation display, or link rewriting changes should
-update this page and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/viewer.go`
+> * `packages/cli/cmd/openknowledge/viewer_app.css`
+> * `packages/cli/cmd/openknowledge/viewer_app.js`
+> * `packages/cli/cmd/openknowledge/viewer_search.js`
+> * `packages/cli/cmd/openknowledge/viewer_theme.go`
+> * `packages/cli/cmd/openknowledge/viewer_theme.css`
+> * `packages/cli/cmd/openknowledge/viewer_test.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/internal/okf/markdown.go`
+> * `packages/cli/internal/okf/markdown_test.go`
+>
+> **Update notes**
+>
+> Viewer rendering, routing, validation display, or link rewriting changes should
+> update this page and [CLI changelog](/changelog/cli.md).

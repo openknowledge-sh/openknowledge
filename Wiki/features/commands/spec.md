@@ -31,13 +31,17 @@ openknowledge spec --help
 * Generate or compare local `SPEC.md` content.
 * Confirm supported spec versions before validation or export.
 
-## Source Anchors
+---
 
-* `packages/cli/internal/okf/spec.go`
-* `packages/cli/internal/okf/assets/specs/0.1.md`
-* `packages/cli/cmd/openknowledge/main.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-Update this page when embedded spec versions, version resolution, or spec
-attribution changes.
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/spec.go`
+> * `packages/cli/internal/okf/assets/specs/0.1.md`
+> * `packages/cli/cmd/openknowledge/main.go`
+>
+> **Update notes**
+>
+> Update this page when embedded spec versions, version resolution, or spec
+> attribution changes.

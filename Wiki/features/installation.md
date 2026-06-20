@@ -39,14 +39,18 @@ binary names when release assets are available.
 `https://openknowledge.sh/install` should serve this repository's `install`
 script.
 
-## Source Anchors
+---
 
-* `install`
-* `packages/npm/install.js`
-* `packages/npm/package.json`
-* `README.md`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-When installer behavior, release asset names, npm package behavior, or
-environment variables change, update this page and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `install`
+> * `packages/npm/install.js`
+> * `packages/npm/package.json`
+> * `README.md`
+>
+> **Update notes**
+>
+> When installer behavior, release asset names, npm package behavior, or
+> environment variables change, update this page and [CLI changelog](/changelog/cli.md).

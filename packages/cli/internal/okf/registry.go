@@ -15,14 +15,29 @@ const RegistryFileEnv = "OPENKNOWLEDGE_REGISTRY_FILE"
 var registryNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 type Registry struct {
-	Entries []RegistryEntry `json:"entries"`
+	Connections map[string]RegistryConnection `json:"connections,omitempty"`
+	Entries     []RegistryEntry               `json:"-"`
 }
 
 type RegistryEntry struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Access  string `json:"access,omitempty"`
-	Managed bool   `json:"managed,omitempty"`
+	Name    string         `json:"name"`
+	Path    string         `json:"path"`
+	Access  string         `json:"access,omitempty"`
+	Managed bool           `json:"managed,omitempty"`
+	Source  RegistrySource `json:"source,omitempty"`
+}
+
+type RegistryConnection struct {
+	Name    string         `json:"key"`
+	Access  string         `json:"access,omitempty"`
+	Managed bool           `json:"managed,omitempty"`
+	Source  RegistrySource `json:"source,omitempty"`
+}
+
+type RegistrySource struct {
+	Type string `json:"type,omitempty"`
+	URL  string `json:"url,omitempty"`
+	Ref  string `json:"ref,omitempty"`
 }
 
 func RegistryFile() (string, error) {
@@ -55,6 +70,7 @@ func LoadRegistry() (Registry, error) {
 	if err := json.Unmarshal(content, &registry); err != nil {
 		return Registry{}, err
 	}
+	registry = normalizeRegistry(registry)
 	sortRegistryEntries(registry.Entries)
 	return registry, nil
 }
@@ -70,6 +86,10 @@ func RegistryEntries() ([]RegistryEntry, error) {
 }
 
 func ConnectRegistryEntry(name string, path string, access string, explicitName bool) (RegistryEntry, string, error) {
+	return ConnectRegistryEntryWithSource(name, path, access, explicitName, RegistrySource{})
+}
+
+func ConnectRegistryEntryWithSource(name string, path string, access string, explicitName bool, source RegistrySource) (RegistryEntry, string, error) {
 	name = strings.TrimSpace(name)
 	access = strings.TrimSpace(access)
 	if access == "" {
@@ -105,6 +125,8 @@ func ConnectRegistryEntry(name string, path string, access string, explicitName 
 			entry.Name = name
 		}
 		entry.Access = access
+		entry.Managed = source.URL != ""
+		entry.Source = source
 		registry.Entries[index] = entry
 		sortRegistryEntries(registry.Entries)
 		if err := saveRegistry(registry); err != nil {
@@ -128,7 +150,7 @@ func ConnectRegistryEntry(name string, path string, access string, explicitName 
 		}
 	}
 
-	entry := RegistryEntry{Name: name, Path: absolute, Access: access}
+	entry := RegistryEntry{Name: name, Path: absolute, Access: access, Managed: source.URL != "", Source: source}
 	registry.Entries = append(registry.Entries, entry)
 	sortRegistryEntries(registry.Entries)
 
@@ -314,6 +336,14 @@ func registryKeyFromName(name string) string {
 	return key
 }
 
+func RegistryKeyFromNameForCache(name string) string {
+	key := registryKeyFromName(name)
+	if key == "knowledge" && strings.TrimSpace(name) == "" {
+		return ""
+	}
+	return key
+}
+
 func absoluteDirectory(path string) (string, error) {
 	expanded, err := ExpandUserPath(path)
 	if err != nil {
@@ -346,12 +376,48 @@ func saveRegistry(registry Registry) error {
 		return err
 	}
 
+	registry = registryForStorage(registry)
 	data, err := json.MarshalIndent(registry, "", "  ")
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
 	return os.WriteFile(path, data, 0644)
+}
+
+func normalizeRegistry(registry Registry) Registry {
+	if len(registry.Connections) > 0 {
+		registry.Entries = registry.Entries[:0]
+		for path, connection := range registry.Connections {
+			registry.Entries = append(registry.Entries, RegistryEntry{
+				Name:    connection.Name,
+				Path:    path,
+				Access:  connection.Access,
+				Managed: connection.Managed,
+				Source:  connection.Source,
+			})
+		}
+	}
+	if registry.Connections == nil {
+		registry.Connections = map[string]RegistryConnection{}
+	}
+	return registry
+}
+
+func registryForStorage(registry Registry) Registry {
+	connections := make(map[string]RegistryConnection, len(registry.Entries))
+	for _, entry := range registry.Entries {
+		if strings.TrimSpace(entry.Path) == "" {
+			continue
+		}
+		connections[entry.Path] = RegistryConnection{
+			Name:    entry.Name,
+			Access:  entry.Access,
+			Managed: entry.Managed,
+			Source:  entry.Source,
+		}
+	}
+	return Registry{Connections: connections}
 }
 
 func sortRegistryEntries(entries []RegistryEntry) {

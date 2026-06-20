@@ -135,29 +135,33 @@ cd packages/npm
 npm publish --access public
 ```
 
-## Source Anchors
+---
 
-* `package.json`
-* `pnpm-workspace.yaml`
-* `.github/workflows/deploy-railway.yml`
-* `.github/workflows/release.yml`
-* `.dockerignore`
-* `Dockerfile`
-* `.goreleaser.yaml`
-* `railway.json`
-* `install`
-* `packages/npm/package.json`
-* `packages/web/package.json`
-* `packages/web/scripts/build.mjs`
-* `packages/web/scripts/wiki-export.mjs`
-* `packages/web/scripts/serve.mjs`
-* `packages/web/index.html`
-* `packages/web/main.js`
-* `Wiki/openknowledge.toml`
-* `Wiki/assets/openknowledge-site.css`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-When workspace scripts, deployment workflow behavior, release workflow behavior,
-GoReleaser outputs, npm publish behavior, or local release testing changes,
-update this page and [CLI changelog](/changelog/cli.md).
+> **Source anchors**
+>
+> * `package.json`
+> * `pnpm-workspace.yaml`
+> * `.github/workflows/deploy-railway.yml`
+> * `.github/workflows/release.yml`
+> * `.dockerignore`
+> * `Dockerfile`
+> * `.goreleaser.yaml`
+> * `railway.json`
+> * `install`
+> * `packages/npm/package.json`
+> * `packages/web/package.json`
+> * `packages/web/scripts/build.mjs`
+> * `packages/web/scripts/wiki-export.mjs`
+> * `packages/web/scripts/serve.mjs`
+> * `packages/web/index.html`
+> * `packages/web/main.js`
+> * `Wiki/openknowledge.toml`
+> * `Wiki/assets/openknowledge-site.css`
+>
+> **Update notes**
+>
+> When workspace scripts, deployment workflow behavior, release workflow behavior,
+> GoReleaser outputs, npm publish behavior, or local release testing changes,
+> update this page and [CLI changelog](/changelog/cli.md).

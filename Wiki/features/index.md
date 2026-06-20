@@ -5,6 +5,7 @@ update the smallest relevant page.
 
 ## Core Areas
 
+* [Tooling model](tooling-model.md) - product-level map of authoring, registry, entrypoint, viewer, and export layers.
 * [Installation](installation.md) - shell installer, npm wrapper, and local install assumptions.
 * [CLI Operations](operations.md) - development commands, workspace layout, and release workflow notes.
 * [OKF, skills, and plugins](okf-skills-plugins.md) - user-facing comparison of raw OKF v0.1, agent skills, and plugins.
@@ -12,7 +13,11 @@ update the smallest relevant page.
 * [Commands](commands/) - command-by-command reference pages.
 * [Exporters](exporters/) - bundle conversion targets and candidate exporters.
 
-## Maintenance
+---
 
-Use [Feature docs workflow](/workflows/feature-docs.md) when implementation or
-README changes affect these pages.
+<!-- okf-footer: agent-maintenance -->
+
+> **Maintenance**
+>
+> Use [Feature docs workflow](/workflows/feature-docs.md) when implementation or
+> README changes affect these pages.

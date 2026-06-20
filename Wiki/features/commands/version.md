@@ -23,13 +23,17 @@ openknowledge version --help
 * Compare npm wrapper and binary release expectations.
 * Keep release verification simple.
 
-## Source Anchors
+---
 
-* `packages/cli/cmd/openknowledge/main.go`
-* `.goreleaser.yaml`
-* `packages/npm/package.json`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-Update this page if version injection, release tagging, or package version
-alignment behavior changes.
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `.goreleaser.yaml`
+> * `packages/npm/package.json`
+>
+> **Update notes**
+>
+> Update this page if version injection, release tagging, or package version
+> alignment behavior changes.

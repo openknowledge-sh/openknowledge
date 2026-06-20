@@ -90,16 +90,10 @@ remote manifest, tar, and Git connections are marked managed because their
 files live in the Open Knowledge cache.
 
 Bundle metadata such as purpose, tags, and entrypoints remains in bundle
-content as `okf_bundle_*` root metadata. Legacy `entries` array registries are
-still read and are rewritten as path-keyed `connections` on the next update.
+content as `okf_bundle_*` root metadata.
 
 Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
-
-## Source Anchors
-
-* `packages/cli/internal/okf/registry.go`
-* `packages/cli/cmd/openknowledge/main.go`
 
 ## Command Change History
 
@@ -110,11 +104,19 @@ aliases outside the bundle content.
 top-level `where` surface. The top-level `connect` and `disconnect` commands
 remain as aliases.
 
-Registry storage now writes path-keyed `connections`, reads legacy `entries`
-registries for compatibility, and records access, managed-file, and source
-metadata for local or remote connections.
+Registry storage now writes path-keyed `connections` and records access,
+managed-file, and source metadata for local or remote connections.
 
-## Update Notes
+---
 
-Update this page when registry storage, key validation, output format,
-resolution behavior, or connection command aliases change.
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/registry.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+>
+> **Update notes**
+>
+> Update this page when registry storage, key validation, output format,
+> resolution behavior, or connection command aliases change.

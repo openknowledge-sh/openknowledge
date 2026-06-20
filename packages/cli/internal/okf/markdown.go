@@ -13,6 +13,8 @@ import (
 var inlineLink = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 var orderedListItem = regexp.MustCompile(`^\d+[\.)]\s+`)
 
+const agentMaintenanceFooterMarker = "<!-- okf-footer: agent-maintenance -->"
+
 type LinkResolver func(currentRel string, href string) string
 
 func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string {
@@ -25,6 +27,7 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 	var codeLines []string
 	var paragraph []string
 	var quote []string
+	inAgentFooter := false
 
 	closeParagraph := func() {
 		if len(paragraph) == 0 {
@@ -113,6 +116,22 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 			closeQuote()
 			continue
 		}
+		if isAgentMaintenanceFooterMarker(trimmed) {
+			closeParagraph()
+			closeList()
+			closeQuote()
+			if !inAgentFooter {
+				builder.WriteString(`<div class="ok-agent-footer">` + "\n")
+				inAgentFooter = true
+			}
+			continue
+		}
+		if isHTMLComment(trimmed) {
+			closeParagraph()
+			closeList()
+			closeQuote()
+			continue
+		}
 		if strings.HasPrefix(trimmed, ">") {
 			closeParagraph()
 			closeList()
@@ -123,6 +142,9 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 		if isHorizontalRule(trimmed) {
 			closeParagraph()
 			closeList()
+			if nextNonEmptyLineIsAgentFooterMarker(lines, index+1) {
+				continue
+			}
 			builder.WriteString("<hr>\n")
 			continue
 		}
@@ -162,7 +184,30 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 	if inCode {
 		closeCode()
 	}
+	if inAgentFooter {
+		builder.WriteString("</div>\n")
+	}
 	return builder.String()
+}
+
+func isAgentMaintenanceFooterMarker(line string) bool {
+	return strings.TrimSpace(line) == agentMaintenanceFooterMarker
+}
+
+func isHTMLComment(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	return strings.HasPrefix(trimmed, "<!--") && strings.HasSuffix(trimmed, "-->")
+}
+
+func nextNonEmptyLineIsAgentFooterMarker(lines []string, start int) bool {
+	for index := start; index < len(lines); index++ {
+		trimmed := strings.TrimSpace(lines[index])
+		if trimmed == "" {
+			continue
+		}
+		return isAgentMaintenanceFooterMarker(trimmed)
+	}
+	return false
 }
 
 func isListContinuation(line string) bool {

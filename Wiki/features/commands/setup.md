@@ -37,14 +37,18 @@ No arguments are accepted. `--help` prints setup-specific help.
 * Keep interactive agent stdin available by passing the prompt as an argument,
   for example `codex "$(openknowledge setup)"`.
 
-## Source Anchors
+---
 
-* `packages/cli/internal/okf/setup.go`
-* `packages/cli/cmd/openknowledge/main.go`
-* `README.md`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-The setup prompt is a product workflow, not only help text. Update
-[Feature docs workflow](/workflows/feature-docs.md) and [CLI changelog](/changelog/cli.md)
-when the interview, expected outputs, or validation loop changes.
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/setup.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `README.md`
+>
+> **Update notes**
+>
+> The setup prompt is a product workflow, not only help text. Update
+> [Feature docs workflow](/workflows/feature-docs.md) and [CLI changelog](/changelog/cli.md)
+> when the interview, expected outputs, or validation loop changes.

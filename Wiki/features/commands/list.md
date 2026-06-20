@@ -86,12 +86,16 @@ available knowledge packages before choosing whether to call the shipped
 * Give agents a compact bundle map before opening files.
 * Check validation issues in context.
 
-## Source Anchors
+---
 
-* `packages/cli/internal/okf/list.go`
-* `packages/cli/cmd/openknowledge/main.go`
+<!-- okf-footer: agent-maintenance -->
 
-## Update Notes
-
-Update this page when tree formatting, JSON fields, validation attachment, or
-sorting behavior changes.
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/list.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+>
+> **Update notes**
+>
+> Update this page when tree formatting, JSON fields, validation attachment, or
+> sorting behavior changes.

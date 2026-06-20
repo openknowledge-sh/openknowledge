@@ -117,6 +117,32 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 			forbidden: []string{"> This", "**pinned**", "*unofficial*", "<p>---</p>"},
 		},
 		{
+			name: "agent maintenance footer marker",
+			input: strings.Join([]string{
+				"# Page",
+				"",
+				"---",
+				"",
+				"<!-- okf-footer: agent-maintenance -->",
+				"",
+				"> **Source anchors**",
+				">",
+				"> - `packages/cli/main.go`",
+			}, "\n"),
+			required: []string{
+				`<div class="ok-agent-footer">`,
+				"<blockquote>",
+				"<strong>Source anchors</strong>",
+				"<li><code>packages/cli/main.go</code></li>",
+				"</div>",
+			},
+			forbidden: []string{
+				"okf-footer: agent-maintenance",
+				"&lt;!--",
+				"<hr>",
+			},
+		},
+		{
 			name: "fenced code",
 			input: strings.Join([]string{
 				"```go",

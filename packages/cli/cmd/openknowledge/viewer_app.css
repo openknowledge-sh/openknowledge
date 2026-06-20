@@ -173,6 +173,12 @@ a { color: var(--ok-color-accent); text-underline-offset: 3px; }
 strong { color: var(--ok-color-text); font-weight: 700; }
 blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--ok-color-border); color: var(--ok-color-muted); }
 blockquote p { color: var(--ok-color-muted); }
+.ok-agent-footer { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--ok-color-border); color: var(--ok-color-muted); font-size: 14px; opacity: .82; }
+.ok-agent-footer blockquote { margin: 0; padding: 0; border-left: 0; color: inherit; }
+.ok-agent-footer blockquote p, .ok-agent-footer li { color: inherit; }
+.ok-agent-footer strong { color: inherit; }
+.ok-agent-footer a { color: var(--ok-color-muted); text-decoration-color: var(--ok-color-border); }
+.ok-agent-footer a:hover { background: transparent; color: var(--ok-color-accent); }
 code { padding: 1px 4px; border-radius: 4px; background: var(--ok-color-code-inline-bg); font-family: var(--ok-font-mono); font-size: .92em; }
 pre, .code-block { overflow-x: auto; margin: 22px 0 26px; padding: 16px 18px; border: 1px solid var(--ok-color-border); background: var(--ok-color-code-block-bg); color: var(--ok-color-code-block-text); font: 400 1em/1.55 var(--ok-font-mono); box-shadow: 0 14px 32px var(--ok-color-shadow); }
 pre code, .code-block code { display: block; min-width: max-content; padding: 0; background: transparent; color: inherit; font: inherit; white-space: pre; }

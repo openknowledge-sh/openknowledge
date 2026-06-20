@@ -86,13 +86,6 @@ openknowledge use accessibility agents/accessibility-review.md
 openknowledge use ./project-memory
 ```
 
-## Source Anchors
-
-* `packages/cli/cmd/openknowledge/main.go`
-* `packages/cli/cmd/openknowledge/main_test.go`
-* `packages/cli/internal/okf/metadata.go`
-* `packages/cli/internal/okf/metadata_test.go`
-
 ## Command Change History
 
 ### 2026-06-20
@@ -104,8 +97,19 @@ frontmatter summaries, and bundle-contained path checks.
 Direct bundle-relative file paths are now accepted in the optional entry
 argument after declared entrypoint names are checked.
 
-## Update Notes
+---
 
-Update this page when entrypoint selection, supported metadata fields, `--info`
-output, fallback behavior, or path-safety checks change. CLI behavior changes
-also require [CLI changelog](/changelog/cli.md) updates.
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/cmd/openknowledge/main_test.go`
+> * `packages/cli/internal/okf/metadata.go`
+> * `packages/cli/internal/okf/metadata_test.go`
+>
+> **Update notes**
+>
+> Update this page when entrypoint selection, supported metadata fields, `--info`
+> output, fallback behavior, or path-safety checks change. CLI behavior changes
+> also require [CLI changelog](/changelog/cli.md) updates.

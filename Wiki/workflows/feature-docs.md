@@ -26,7 +26,10 @@ wiki content that explains CLI behavior.
 ## Update
 
 * Update the smallest relevant feature page.
-* Add or revise usage, arguments, flags, examples, use cases, source anchors, and update notes.
+* Add or revise usage, arguments, flags, examples, and use cases.
+* Keep source anchors, update notes, and similar agent-maintenance metadata in
+  the end-of-page footer block marked `<!-- okf-footer: agent-maintenance -->`
+  instead of rendering them as prominent `##` sections.
 * For command pages, update the command change history when a major command-surface change is made.
 * Keep candidate work clearly labeled as candidate until shipped.
 * If a new command or exporter exists, add a page and update the section index.
@@ -46,17 +49,37 @@ For command pages, prefer these sections when they add signal:
   read/written, network or process side effects, and target-specific modes.
 * `Caveats` for surprising defaults, CI/headless differences, registry/viewer
   differences, and unsupported flags.
-* `Source Anchors` with the command entrypoint and focused tests when they
-  exist.
 * `Command Change History` with dated entries for major command-surface changes:
   added, removed, renamed, or behavior-changing arguments, flags, subcommands,
   frontmatter/config properties, output fields, and exit-code semantics. Each
   entry should include the date, a concise change summary, and source anchors.
-* `Update Notes` that say when to update docs and when CLI changelog memory is
-  required.
 
 Keep short commands short. Use deeper behavior sections for complex commands
 such as `openknowledge open`, `openknowledge validate`, and `openknowledge to`.
+
+## Agent Maintenance Footer
+
+Use a footer block for grounding metadata that agents need but readers should
+not scan as primary documentation:
+
+```md
+---
+
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> - `packages/...`
+>
+> **Update notes**
+>
+> Update this page when shipped behavior changes.
+```
+
+Source anchors should name the command entrypoint and focused tests when they
+exist. Update notes should say when docs and CLI changelog memory must change.
+Do not put these labels in `##` headings unless the page is itself a workflow
+or rule document.
 
 ## Reference Patterns
 
