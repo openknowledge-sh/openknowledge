@@ -43,7 +43,11 @@ Create and inspect a minimal scaffold directly:
 
 ```sh
 openknowledge new ./project-memory
-openknowledge registry add personal ./project-memory
+openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
+openknowledge connect ./project-memory --as personal
+openknowledge connect ./accessibility
+openknowledge use personal --info
+openknowledge use personal
 openknowledge where personal
 openknowledge open
 openknowledge open ./project-memory
@@ -53,6 +57,7 @@ openknowledge validate ./project-memory
 openknowledge to html --out ./project-site ./project-memory
 openknowledge to html --plain --out ./project-plain-site ./project-memory
 openknowledge to json ./project-memory
+openknowledge disconnect personal
 ```
 
 ## What Open Knowledge CLI gives you
@@ -84,7 +89,9 @@ maintenance tasks when the runtime supports that.
 
 `openknowledge new` creates a minimal local bundle with the base OKF files: a
 setup handoff, starter agent guidance, an update log, and a pinned copy of the
-current spec. The use-case structure is intentionally left to setup.
+current spec. Optional `--bundle-*` flags can seed `okf_bundle_*` metadata in
+the root index for discovery and future agent entrypoints. The use-case
+structure is intentionally left to setup.
 
 After that, humans and agents edit normal Markdown files. `openknowledge open`
 starts a registry-backed local viewer with a workspace selector, and
@@ -94,17 +101,35 @@ starts a registry-backed local viewer with a workspace selector, and
 `openknowledge to html` writes the same static viewer app bundle by default,
 `openknowledge to html --plain` writes unstyled semantic HTML, and
 `openknowledge to json` writes a normalized bundle model for tools and agents.
+The default HTML viewer export can inherit your site styling from an optional
+`openknowledge.toml` in the bundle root:
 
-`openknowledge registry` stores named local paths for shared or standalone
-knowledge bases. A name is only an alias: path-based commands still work, and
-agents can use `openknowledge where <name>` to get the real folder before using
-normal filesystem tools such as `rg`.
+```toml
+[html.theme]
+name = "landing"
+stylesheet = "assets/wiki-theme.css"
+```
+
+The stylesheet is copied into the static export and linked from every generated
+viewer page. Override the documented `--ok-*` variables to match your landing
+page. The canonical default theme lives at
+`packages/cli/cmd/openknowledge/viewer_theme.css`; the local viewer and default
+HTML export derive their colors, fonts, and viewer dimensions from that theme
+layer.
+
+`openknowledge connect` stores named local paths for shared or standalone
+knowledge bases. A key is only an alias: path-based commands still work, and
+agents can use `openknowledge where <key>` to get the real folder before using
+normal filesystem tools such as `rg`. Agents can use `openknowledge use <key>`
+to print a bundle-declared entrypoint, falling back to root `index.md` when no
+default entrypoint is declared. `openknowledge disconnect` removes a connection
+without deleting local files by default. `openknowledge registry` remains the
+low-level compatibility command for listing and adding named paths directly.
 
 The local viewer opens the printed `127.0.0.1` view URL in your default
-browser. It also prints an optional `open.knowledge` alias URL and serves
-registered knowledge bases under paths such as `/personal/`. The alias hostname
-must be mapped to loopback through local DNS, `/etc/hosts`, or a reverse proxy;
-the CLI only serves the HTTP routes.
+browser. It serves registered knowledge bases under stable paths such as
+`/personal/`; those path aliases do not require local DNS or `/etc/hosts`
+changes.
 
 ## Commands
 
@@ -114,6 +139,15 @@ the CLI only serves the HTTP routes.
 | `openknowledge <command> --help` | Print command-specific usage, flags, and examples. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
+| `openknowledge new --bundle-name <id> [folder]` | Scaffold with optional bundle metadata. |
+| `openknowledge connect <path>` | Connect a local knowledge bundle to the user registry. |
+| `openknowledge connect <path> --as <key>` | Connect a local bundle with an explicit key. |
+| `openknowledge connect <path> --access read\|write` | Store an access label with a connection. |
+| `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
+| `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for managed cached entries. |
+| `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
+| `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint. |
+| `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
 | `openknowledge registry list` | List named local knowledge base paths. |
 | `openknowledge registry add <name> <path>` | Register a name for a knowledge base folder. |
 | `openknowledge where <name-or-path>` | Print the absolute path for a registry name or path. |
@@ -141,7 +175,9 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 - YAML frontmatter parses cleanly; non-blocking formatting issues are warnings
 - Markdown bodies avoid malformed links, code spans, tables, and fences
 - `index.md` and `log.md` are reserved files, not concept documents
-- root `index.md` may declare `okf_version: "0.1"`
+- root `index.md` may declare `okf_version: "0.1"` and optional Open Knowledge
+  CLI `okf_bundle_*` metadata
+- any `index.md` may declare `okf_publish: false` for public-view exclusion
 - `log.md` `##` headings use `YYYY-MM-DD`
 - local Markdown links resolve inside the bundle, reported as warnings
 

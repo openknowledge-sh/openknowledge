@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -33,7 +35,6 @@ func runOpen(args []string) int {
 	host := fs.String("host", "127.0.0.1", "host to bind")
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
 	name := fs.String("name", "", "local alias name for direct path mode")
-	localDomain := fs.String("local-domain", "open.knowledge", "local alias domain to print, or empty to disable")
 	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -86,12 +87,9 @@ func runOpen(args []string) int {
 	}
 
 	displayHost, displayPort := displayHostPort(listener.Addr())
-	viewURL, aliasURL := viewerDisplayURLs(displayHost, displayPort, *localDomain, aliasNames)
+	viewURL := viewerAliasDisplayURL(displayHost, displayPort, aliasNames)
 
 	fmt.Printf("Open Knowledge view: %s\n", viewURL)
-	if aliasURL != "" && aliasURL != viewURL {
-		fmt.Printf("Open Knowledge alias: %s\n", aliasURL)
-	}
 	details()
 	fmt.Println(terminal.muted("Press Ctrl+C to stop."))
 
@@ -208,6 +206,10 @@ func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 			renderViewerFileAPI(response, request, root, rel, prefix)
 			return
 		}
+		if strings.HasPrefix(rest, "raw/") {
+			renderViewerRaw(response, request, root, strings.TrimPrefix(rest, "raw/"))
+			return
+		}
 		if strings.HasPrefix(rest, "file/") {
 			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), viewerFrame{}, prefix)
 			return
@@ -221,6 +223,10 @@ func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 	mux.HandleFunc("/api/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/api/file/")
 		renderViewerFileAPI(response, request, root, rel, "")
+	})
+	mux.HandleFunc("/raw/", func(response http.ResponseWriter, request *http.Request) {
+		rel := strings.TrimPrefix(request.URL.Path, "/raw/")
+		renderViewerRaw(response, request, root, rel)
 	})
 	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
 		renderViewerSearch(response, request, searchCache, "")
@@ -264,10 +270,12 @@ func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 					frame := registryFrame(entries, entry.Name, localAliasURL)
 					if err != nil {
 						renderHTML(response, viewerIndexTemplate, viewerIndexData{
-							Frame: frame,
-							Title: entry.Name,
-							Root:  entry.Path,
-							Error: err.Error(),
+							Frame:     frame,
+							Title:     entry.Name,
+							BrandName: entry.Name,
+							Root:      entry.Path,
+							Theme:     viewerThemeData{Name: "default"},
+							Error:     err.Error(),
 						})
 						return
 					}
@@ -294,6 +302,15 @@ func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 						return
 					}
 					renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
+					return
+				}
+				if strings.HasPrefix(rest, "raw/") {
+					root, err := registryEntryRoot(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					renderViewerRaw(response, request, root, strings.TrimPrefix(rest, "raw/"))
 					return
 				}
 				if strings.HasPrefix(rest, "file/") {
@@ -352,6 +369,15 @@ func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 				return
 			}
 			renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
+			return
+		}
+		if strings.HasPrefix(rest, "raw/") {
+			root, err := registryEntryRoot(entry)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			renderViewerRaw(response, request, root, strings.TrimPrefix(rest, "raw/"))
 			return
 		}
 		if strings.HasPrefix(rest, "file/") {
@@ -422,20 +448,37 @@ type viewerFrame struct {
 type viewerIndexData struct {
 	Frame     viewerFrame
 	Title     string
+	BrandName string
 	Root      string
+	Theme     viewerThemeData
 	Error     string
 	SearchURL string
 	Entries   []viewerEntry
 }
 
 func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFrame, linkPrefix string, title string) {
+	theme, themeErr := viewerThemeForServer(root, linkPrefix)
+	brandName := viewerKnowledgeBaseName(root, title)
+	if themeErr != nil {
+		renderHTML(response, viewerIndexTemplate, viewerIndexData{
+			Frame:     frame,
+			Title:     title,
+			BrandName: brandName,
+			Root:      root,
+			Theme:     theme,
+			Error:     themeErr.Error(),
+		})
+		return
+	}
 	listing, err := okf.List(root)
 	if err != nil {
 		renderHTML(response, viewerIndexTemplate, viewerIndexData{
-			Frame: frame,
-			Title: title,
-			Root:  root,
-			Error: err.Error(),
+			Frame:     frame,
+			Title:     title,
+			BrandName: brandName,
+			Root:      root,
+			Theme:     theme,
+			Error:     err.Error(),
 		})
 		return
 	}
@@ -462,7 +505,9 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 	renderHTML(response, viewerIndexTemplate, viewerIndexData{
 		Frame:     frame,
 		Title:     title,
+		BrandName: brandName,
 		Root:      root,
+		Theme:     theme,
 		SearchURL: searchURLWithPrefix(linkPrefix),
 		Entries:   entries,
 	})
@@ -471,16 +516,32 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 type viewerFileData struct {
 	Frame       viewerFrame
 	Title       string
+	BrandName   string
 	Root        string
 	Path        string
 	FileURL     string
 	LinkPrefix  string
 	SearchURL   string
+	Theme       viewerThemeData
 	Body        template.HTML
 	Tree        []viewerTreeItem
 	EditorsJSON template.JS
 	StaticJSON  template.JS
 	GraphJSON   template.JS
+}
+
+type viewerAssetData struct {
+	Title      string
+	BrandName  string
+	Root       string
+	Path       string
+	RawURL     string
+	Theme      viewerThemeData
+	Kind       string
+	MediaType  string
+	Language   string
+	Body       template.HTML
+	PreviewURL string
 }
 
 type viewerFilePayload struct {
@@ -512,6 +573,8 @@ type viewerGraphEdge struct {
 	Target string `json:"target"`
 	Label  string `json:"label,omitempty"`
 }
+
+const maxViewerTextPreviewBytes = 1024 * 1024
 
 type viewerEditor struct {
 	ID        string `json:"id"`
@@ -546,17 +609,114 @@ type viewerTreeItem struct {
 }
 
 func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, frame viewerFrame, linkPrefix string) {
+	if cleanRel, ok := cleanViewerRel(rel, true); ok && !isMarkdownFile(cleanRel) {
+		renderViewerAsset(response, request, root, cleanRel, linkPrefix)
+		return
+	}
+
 	data, ok, err := viewerFile(root, rel, frame, linkPrefix)
 	if !ok {
 		http.NotFound(response, request)
 		return
 	}
 	if err != nil {
-		http.NotFound(response, request)
+		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	renderHTML(response, viewerFileTemplate, data)
+}
+
+func renderViewerAsset(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
+	data, ok, err := viewerAsset(root, rel, linkPrefix)
+	if !ok {
+		http.NotFound(response, request)
+		return
+	}
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	renderHTML(response, viewerAssetTemplate, data)
+}
+
+func viewerAsset(root string, rel string, linkPrefix string) (viewerAssetData, bool, error) {
+	cleanRel, ok := cleanViewerRel(rel, false)
+	if !ok || isMarkdownFile(cleanRel) {
+		return viewerAssetData{}, false, nil
+	}
+	filePath, ok := safeViewerPath(root, cleanRel)
+	if !ok {
+		return viewerAssetData{}, false, nil
+	}
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return viewerAssetData{}, true, err
+	}
+	if info.IsDir() {
+		return viewerAssetData{}, false, nil
+	}
+
+	mediaType := viewerMediaType(filePath)
+	rawURL := rawURLWithPrefix(linkPrefix, cleanRel)
+	theme, err := viewerThemeForServer(root, linkPrefix)
+	if err != nil {
+		return viewerAssetData{}, true, err
+	}
+	data := viewerAssetData{
+		Title:      titleForAssetFile(cleanRel),
+		BrandName:  viewerKnowledgeBaseName(root, ""),
+		Root:       root,
+		Path:       cleanRel,
+		RawURL:     rawURL,
+		Theme:      theme,
+		Kind:       viewerAssetKind(filePath, mediaType),
+		MediaType:  mediaType,
+		Language:   okf.CodeLanguageForPath(cleanRel),
+		PreviewURL: rawURL,
+	}
+
+	if data.Kind == "code" || data.Kind == "text" {
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return viewerAssetData{}, true, err
+		}
+		if len(content) > maxViewerTextPreviewBytes || !viewerLooksText(content) {
+			data.Kind = "download"
+			return data, true, nil
+		}
+		language := data.Language
+		if language == "" {
+			language = "text"
+		}
+		data.Body = template.HTML(okf.RenderCodeBlock(string(content), language))
+	}
+
+	return data, true, nil
+}
+
+func renderViewerRaw(response http.ResponseWriter, request *http.Request, root string, rel string) {
+	filePath, ok := safeViewerPath(root, rel)
+	if !ok {
+		http.NotFound(response, request)
+		return
+	}
+	file, err := os.Open(filePath)
+	if err != nil {
+		http.NotFound(response, request)
+		return
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || info.IsDir() {
+		http.NotFound(response, request)
+		return
+	}
+
+	response.Header().Set("X-Content-Type-Options", "nosniff")
+	response.Header().Set("Content-Type", viewerSafeRawMediaType(filePath))
+	http.ServeContent(response, request, info.Name(), info.ModTime(), file)
 }
 
 func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
@@ -602,15 +762,21 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	graphJSON := viewerGraphJSON(root, listing.Entries, func(path string) string {
 		return fileURLWithPrefix(linkPrefix, path)
 	})
+	theme, err := viewerThemeForServer(root, linkPrefix)
+	if err != nil {
+		return viewerFileData{}, true, err
+	}
 
 	return viewerFileData{
 		Frame:       frame,
 		Title:       titleForMarkdownFile(cleanRel),
+		BrandName:   viewerKnowledgeBaseName(root, ""),
 		Root:        root,
 		Path:        cleanRel,
 		FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
 		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
 		SearchURL:   searchURLWithPrefix(linkPrefix),
+		Theme:       theme,
 		Body:        template.HTML(okf.RenderMarkdown(stripFrontmatter(string(content)), cleanRel, viewerLinkWithPrefix(linkPrefix))),
 		Tree:        viewerTreeWithURL(listing.Entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
@@ -775,8 +941,10 @@ func writeViewerSearchJSON(response http.ResponseWriter, payload viewerSearchRes
 
 func renderRegistryEmpty(response http.ResponseWriter) {
 	renderHTML(response, viewerIndexTemplate, viewerIndexData{
-		Title: "Open Knowledge Registry",
-		Error: "No registered knowledge bases. Add one with openknowledge registry add <name> <path>.",
+		Title:     "Open Knowledge Registry",
+		BrandName: "Open Knowledge",
+		Theme:     viewerThemeData{Name: "default"},
+		Error:     "No registered knowledge bases. Add one with openknowledge registry add <name> <path>.",
 	})
 }
 
@@ -791,10 +959,12 @@ func renderRegistryIndex(response http.ResponseWriter, entries []okf.RegistryEnt
 	frame := registryFrame(entries, entry.Name, workspaceURL)
 	if err != nil {
 		renderHTML(response, viewerIndexTemplate, viewerIndexData{
-			Frame: frame,
-			Title: entry.Name,
-			Root:  entry.Path,
-			Error: err.Error(),
+			Frame:     frame,
+			Title:     entry.Name,
+			BrandName: entry.Name,
+			Root:      entry.Path,
+			Theme:     viewerThemeData{Name: "default"},
+			Error:     err.Error(),
 		})
 		return
 	}
@@ -908,8 +1078,16 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
+	themeConfig, err := loadViewerThemeConfig(bundle.Root)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
 
 	absoluteOut, err := filepath.Abs(out)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	themeAsset, err := copyViewerThemeStylesheet(bundle.Root, absoluteOut, themeConfig)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
@@ -923,6 +1101,9 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 
 	var written []string
 	for _, file := range bundle.Files {
+		if !okf.ShouldPublish(file) {
+			continue
+		}
 		target := filepath.Join(absoluteOut, filepath.FromSlash(viewerHTMLPath(file.Path)))
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return okf.HTMLResult{}, err
@@ -930,11 +1111,13 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 
 		data := viewerFileData{
 			Title:       titleForMarkdownFile(file.Path),
-			Root:        bundle.Root,
+			BrandName:   viewerKnowledgeBaseNameFromFiles(bundle.Files, ""),
+			Root:        "",
 			Path:        file.Path,
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
 			Body:        template.HTML(viewerStaticFileBody(file)),
 			Tree:        viewerStaticTree(bundle.Files, file.Path),
+			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
 			EditorsJSON: editorsJSON,
 			StaticJSON:  staticJSON,
 			GraphJSON:   graphJSON,
@@ -948,6 +1131,9 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 			return okf.HTMLResult{}, err
 		}
 		written = append(written, viewerRelPath(absoluteOut, target))
+	}
+	if themeAsset != "" {
+		written = append(written, themeAsset)
 	}
 
 	sort.Strings(written)
@@ -965,6 +1151,9 @@ func viewerRelPath(root string, target string) string {
 func viewerStaticFilesJSON(files []okf.BundleFile) (template.JS, error) {
 	payload := make([]viewerStaticPayload, 0, len(files))
 	for _, file := range files {
+		if !okf.ShouldPublish(file) {
+			continue
+		}
 		payload = append(payload, viewerStaticPayload{
 			Title:    titleForMarkdownFile(file.Path),
 			Path:     file.Path,
@@ -1005,6 +1194,9 @@ func viewerStaticRelativeURL(currentPath string, targetPath string) string {
 func viewerStaticTree(files []okf.BundleFile, currentPath string) []viewerTreeItem {
 	entries := make([]okf.ListEntry, 0, len(files))
 	for _, file := range files {
+		if !okf.ShouldPublish(file) {
+			continue
+		}
 		entries = append(entries, okf.ListEntry{Path: file.Path})
 	}
 	return viewerTreeWithURL(entries, func(path string) string {
@@ -1023,10 +1215,15 @@ func viewerGraphJSON(root string, entries []okf.ListEntry, fileURL func(string) 
 
 func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
 	entries := make([]okf.ListEntry, 0, len(files))
+	publishedFiles := make([]okf.BundleFile, 0, len(files))
 	for _, file := range files {
+		if !okf.ShouldPublish(file) {
+			continue
+		}
+		publishedFiles = append(publishedFiles, file)
 		entries = append(entries, okf.ListEntry{Path: file.Path, Title: file.Title})
 	}
-	graph := viewerGraphFromBundleFiles(files, entries, func(path string) string {
+	graph := viewerGraphFromBundleFiles(publishedFiles, entries, func(path string) string {
 		return viewerStaticRelativeURL("index.md", path)
 	})
 	data, err := json.Marshal(graph)
@@ -1489,6 +1686,20 @@ func renderHTML(response http.ResponseWriter, tmpl *template.Template, data any)
 	}
 }
 
+func safeViewerPath(root string, rel string) (string, bool) {
+	clean, ok := cleanViewerRel(rel, false)
+	if !ok {
+		return "", false
+	}
+
+	full := filepath.Join(root, filepath.FromSlash(clean))
+	relative, err := filepath.Rel(root, full)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return full, true
+}
+
 func safeMarkdownPath(root string, rel string) (string, bool) {
 	clean, ok := cleanMarkdownRel(rel)
 	if !ok {
@@ -1501,6 +1712,21 @@ func safeMarkdownPath(root string, rel string) (string, bool) {
 		return "", false
 	}
 	return full, true
+}
+
+func cleanViewerRel(rel string, defaultIndex bool) (string, bool) {
+	if hasParentSegment(rel) {
+		return "", false
+	}
+	clean := path.Clean("/" + rel)
+	clean = strings.TrimPrefix(clean, "/")
+	if clean == "." || clean == "" {
+		if !defaultIndex {
+			return "", false
+		}
+		clean = "index.md"
+	}
+	return clean, true
 }
 
 func cleanMarkdownRel(rel string) (string, bool) {
@@ -1523,6 +1749,76 @@ func isMarkdownFile(name string) bool {
 	return extension == ".md" || extension == ".markdown"
 }
 
+func isCodePreviewFile(name string) bool {
+	return okf.CodeLanguageForPath(name) != "" && !isMarkdownFile(name)
+}
+
+func isTextPreviewFile(name string) bool {
+	extension := strings.ToLower(filepath.Ext(name))
+	switch extension {
+	case ".txt", ".log", ".csv", ".tsv", ".ini", ".env", ".gitignore", ".dockerignore":
+		return true
+	default:
+		return false
+	}
+}
+
+func viewerAssetKind(filePath string, mediaType string) string {
+	extension := strings.ToLower(filepath.Ext(filePath))
+	if extension == ".pdf" || strings.HasPrefix(mediaType, "application/pdf") {
+		return "pdf"
+	}
+	if isCodePreviewFile(filePath) {
+		return "code"
+	}
+	if isTextPreviewFile(filePath) || strings.HasPrefix(mediaType, "text/") {
+		return "text"
+	}
+	if strings.HasPrefix(mediaType, "image/") {
+		return "image"
+	}
+	if strings.HasPrefix(mediaType, "video/") {
+		return "video"
+	}
+	if strings.HasPrefix(mediaType, "audio/") {
+		return "audio"
+	}
+	return "download"
+}
+
+func viewerMediaType(filePath string) string {
+	extension := strings.ToLower(filepath.Ext(filePath))
+	if extension == ".mov" {
+		return "video/quicktime"
+	}
+	mediaType := mime.TypeByExtension(extension)
+	if mediaType != "" {
+		return mediaType
+	}
+	return "application/octet-stream"
+}
+
+func viewerSafeRawMediaType(filePath string) string {
+	if isCodePreviewFile(filePath) || isTextPreviewFile(filePath) {
+		return "text/plain; charset=utf-8"
+	}
+	extension := strings.ToLower(filepath.Ext(filePath))
+	switch extension {
+	case ".html", ".htm", ".svg", ".js", ".mjs", ".cjs":
+		return "text/plain; charset=utf-8"
+	default:
+		return viewerMediaType(filePath)
+	}
+}
+
+func viewerLooksText(content []byte) bool {
+	sample := content
+	if len(sample) > 8192 {
+		sample = sample[:8192]
+	}
+	return !bytes.Contains(sample, []byte{0})
+}
+
 func hasParentSegment(value string) bool {
 	for _, segment := range strings.Split(value, "/") {
 		if segment == ".." {
@@ -1538,6 +1834,21 @@ func fileURL(rel string) string {
 
 func fileURLWithPrefix(prefix string, rel string) string {
 	return strings.TrimRight(prefix, "/") + fileURL(rel)
+}
+
+func rawURL(rel string) string {
+	return "/raw/" + strings.TrimPrefix(path.Clean("/"+rel), "/")
+}
+
+func rawURLWithPrefix(prefix string, rel string) string {
+	return strings.TrimRight(prefix, "/") + rawURL(rel)
+}
+
+func viewerContentURLWithPrefix(prefix string, rel string) string {
+	if isMarkdownFile(rel) || isCodePreviewFile(rel) || isTextPreviewFile(rel) {
+		return fileURLWithPrefix(prefix, rel)
+	}
+	return rawURLWithPrefix(prefix, rel)
 }
 
 func searchURLWithPrefix(prefix string) string {
@@ -1570,12 +1881,67 @@ func localAliasURL(name string) string {
 func viewerLinkWithPrefix(prefix string) okf.LinkResolver {
 	prefix = strings.TrimRight(prefix, "/")
 	return func(currentRel string, href string) string {
-		resolved := okf.ViewerLink(currentRel, href)
-		if prefix != "" && strings.HasPrefix(resolved, "/file/") {
-			return prefix + resolved
-		}
-		return resolved
+		return viewerResolveLinkWithPrefix(prefix, currentRel, href)
 	}
+}
+
+func viewerResolveLinkWithPrefix(prefix string, currentRel string, href string) string {
+	trimmed := strings.TrimSpace(href)
+	if trimmed == "" {
+		return "#"
+	}
+	parsed, err := url.Parse(trimmed)
+	if err == nil && parsed.Scheme != "" {
+		if parsed.Scheme == "http" || parsed.Scheme == "https" {
+			return trimmed
+		}
+		return "#"
+	}
+	if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
+		return trimmed
+	}
+
+	linkPath := trimmed
+	suffix := ""
+	if hash := strings.Index(linkPath, "#"); hash >= 0 {
+		suffix = linkPath[hash:] + suffix
+		linkPath = linkPath[:hash]
+	}
+	if query := strings.Index(linkPath, "?"); query >= 0 {
+		suffix = linkPath[query:] + suffix
+		linkPath = linkPath[:query]
+	}
+
+	target := viewerLinkTargetRel(currentRel, linkPath)
+	if target == "" {
+		return suffix
+	}
+	return viewerContentURLWithPrefix(prefix, target) + suffix
+}
+
+func viewerLinkTargetRel(sourceRel string, href string) string {
+	target := strings.TrimSpace(href)
+	if target == "" {
+		return ""
+	}
+
+	var clean string
+	if strings.HasPrefix(target, "/") {
+		clean = filepath.ToSlash(filepath.Clean(strings.TrimPrefix(target, "/")))
+	} else {
+		base := filepath.Dir(sourceRel)
+		if base == "." {
+			base = ""
+		}
+		clean = filepath.ToSlash(filepath.Clean(filepath.Join(base, target)))
+	}
+	if clean == "." {
+		clean = ""
+	}
+	if strings.HasSuffix(target, "/") {
+		clean = filepath.ToSlash(filepath.Join(clean, "index.md"))
+	}
+	return clean
 }
 
 func viewerAliasDisplayURL(host string, port string, aliasNames []string) string {
@@ -1583,15 +1949,6 @@ func viewerAliasDisplayURL(host string, port string, aliasNames []string) string
 		return viewerDisplayURL(host, port, localAliasPrefix(aliasNames[0]))
 	}
 	return viewerDisplayURL(host, port, "")
-}
-
-func viewerDisplayURLs(host string, port string, localDomain string, aliasNames []string) (string, string) {
-	viewURL := viewerAliasDisplayURL(host, port, aliasNames)
-	domain := strings.TrimSpace(localDomain)
-	if domain == "" {
-		return viewURL, ""
-	}
-	return viewURL, viewerAliasDisplayURL(domain, port, aliasNames)
 }
 
 func viewerDisplayURL(host string, port string, basePath string) string {
@@ -1710,6 +2067,57 @@ func titleForMarkdownFile(rel string) string {
 	return strings.Join(words, " ")
 }
 
+func titleForAssetFile(rel string) string {
+	title := titleForMarkdownFile(rel)
+	extension := strings.TrimPrefix(filepath.Ext(rel), ".")
+	if extension == "" {
+		return title
+	}
+	return title + " ." + extension
+}
+
+func viewerKnowledgeBaseName(root string, fallback string) string {
+	bundle, err := okf.ParseBundle(root)
+	if err == nil {
+		if name := viewerKnowledgeBaseNameFromFiles(bundle.Files, fallback); name != "" {
+			return name
+		}
+	}
+	if name := strings.TrimSpace(fallback); name != "" {
+		return name
+	}
+	return "Open Knowledge"
+}
+
+func viewerKnowledgeBaseNameFromFiles(files []okf.BundleFile, fallback string) string {
+	for _, file := range files {
+		if file.Path != "index.md" {
+			continue
+		}
+		for _, key := range []string{"okf_bundle_title", "okf_bundle_name", "title"} {
+			if name := strings.TrimSpace(file.Frontmatter[key]); name != "" {
+				return name
+			}
+		}
+		if name := firstMarkdownHeading(file.Body); name != "" {
+			return name
+		}
+		break
+	}
+	return strings.TrimSpace(fallback)
+}
+
+func firstMarkdownHeading(body string) string {
+	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "# ") {
+			return strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))
+		}
+	}
+	return ""
+}
+
 func stripFrontmatter(text string) string {
 	if !strings.HasPrefix(text, "---\n") {
 		return text
@@ -1723,16 +2131,17 @@ func stripFrontmatter(text string) string {
 }
 
 var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!doctype html>
-<html lang="en">
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
   <style>` + viewerCSS + `</style>
+  {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
 </head>
 <body>
   <header>
-    {{if .Frame.Workspaces}}<a class="brand" href="{{.Frame.ActiveURL}}">{{.Frame.ActiveName}}</a>{{else}}<a class="brand" href="/">Open Knowledge</a>{{end}}
+    {{if .Frame.Workspaces}}<a class="brand" href="{{.Frame.ActiveURL}}">{{.BrandName}}</a>{{else}}<a class="brand" href="/">{{.BrandName}}</a>{{end}}
     <span>{{.Root}}</span>
   </header>
   <main>
@@ -1777,13 +2186,56 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
 </body>
 </html>`))
 
-var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doctype html>
-<html lang="en">
+var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!doctype html>
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
   <style>` + viewerCSS + `</style>
+  {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
+</head>
+<body class="viewer-document viewer-asset-document">
+  <header>
+    <div class="header-left">
+      <a class="brand" href="/">{{.BrandName}}</a>
+    </div>
+    <a class="asset-open-raw" href="{{.RawURL}}" data-direct-link="true">Open raw</a>
+  </header>
+  <main class="asset-workspace">
+    <article class="document asset-panel">
+      <div class="note-chrome">
+        <a class="note-path" href="{{.RawURL}}" data-direct-link="true">{{.Path}}</a>
+        <span class="asset-kind">{{.MediaType}}</span>
+      </div>
+      <div class="asset-body asset-{{.Kind}}">
+        {{if eq .Kind "pdf"}}
+          <iframe class="asset-frame" src="{{.PreviewURL}}" title="{{.Path}}"></iframe>
+        {{else if eq .Kind "image"}}
+          <img class="asset-image" src="{{.PreviewURL}}" alt="{{.Path}}">
+        {{else if eq .Kind "video"}}
+          <video class="asset-video" src="{{.PreviewURL}}" controls preload="metadata"></video>
+        {{else if eq .Kind "audio"}}
+          <audio class="asset-audio" src="{{.PreviewURL}}" controls preload="metadata"></audio>
+        {{else if or (eq .Kind "code") (eq .Kind "text")}}
+          {{.Body}}
+        {{else}}
+          <p class="asset-download">This file type is not previewed inline. Open the raw file in the browser.</p>
+        {{end}}
+      </div>
+    </article>
+  </main>
+</body>
+</html>`))
+
+var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doctype html>
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} - Open Knowledge</title>
+  <style>` + viewerCSS + `</style>
+  {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
 </head>
 <body class="viewer-document is-stack-mode">
   <header>
@@ -1797,7 +2249,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           <path d="M6 14h.01"></path>
         </svg>
       </button>
-      <a class="brand" href="/">Open Knowledge</a>
+      <a class="brand" href="/">{{.BrandName}}</a>
     </div>
     <section class="search header-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}" data-primary-search>
       <label class="sr-only" for="viewer-search">Search</label>
@@ -1893,6 +2345,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       <button class="workspace-scroll-thumb" type="button" data-workspace-scroll-thumb aria-label="Scroll notes horizontally" aria-controls="note-workspace" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" role="scrollbar"></button>
     </div>
   </div>
+  <a class="powered-by-openknowledge" href="https://openknowledge.sh" target="_blank" rel="noreferrer">Powered by OpenKnowledge.sh</a>
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
@@ -1901,2752 +2354,4 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
 </body>
 </html>`))
 
-const viewerSearchJS = `
-(() => {
-  const searches = Array.from(document.querySelectorAll(".search"));
-  if (searches.length === 0) return;
-  const staticNotes = readStaticNotes();
-  const primarySearch = document.querySelector("[data-primary-search]") || searches[0];
-  const primaryInput = primarySearch?.querySelector(".search-input");
-
-  searches.forEach(bindSearch);
-
-  document.addEventListener("keydown", (event) => {
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      primaryInput?.focus();
-      primaryInput?.select();
-    }
-  });
-
-  function bindSearch(search) {
-    const input = search.querySelector(".search-input");
-    const results = search.querySelector(".search-results");
-    const status = search.querySelector(".search-status");
-    if (!input || !results || !status) {
-      return;
-    }
-    const searchURL = search.dataset.searchUrl || "/api/search";
-    let timer = 0;
-    let controller = null;
-    let activeIndex = -1;
-    let sequence = 0;
-
-    initializeSearchAccessibility(input, results);
-    closeSearch(false);
-
-    input.addEventListener("input", () => {
-      window.clearTimeout(timer);
-      setActiveResult(-1, false);
-      if (!input.value.trim()) {
-        renderDefaultResults(true);
-        return;
-      }
-      timer = window.setTimeout(runSearch, 140);
-    });
-    input.addEventListener("focus", () => {
-      if (!input.value.trim()) {
-        renderDefaultResults(true);
-        return;
-      }
-      if (searchResultLinks(results).length > 0) {
-        setResultsOpen(true);
-      } else {
-        runSearch();
-      }
-    });
-    input.addEventListener("keydown", (event) => {
-      const links = searchResultLinks(results);
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        if (!links.length) {
-          return;
-        }
-        event.preventDefault();
-        const direction = event.key === "ArrowDown" ? 1 : -1;
-        const nextIndex = activeIndex < 0
-          ? (direction > 0 ? 0 : links.length - 1)
-          : (activeIndex + direction + links.length) % links.length;
-        setActiveResult(nextIndex, true);
-        setResultsOpen(true);
-        return;
-      }
-      if (event.key === "Enter") {
-        const link = selectedSearchResult(results, activeIndex);
-        if (!link) {
-          return;
-        }
-        event.preventDefault();
-        link.click();
-        closeSearch(true);
-        return;
-      }
-      if (event.key === "Escape" && (!results.hidden || input.value)) {
-        event.preventDefault();
-        closeSearch(true);
-      }
-    });
-    results.addEventListener("mousemove", (event) => {
-      const link = closestSearchResult(event.target);
-      if (!link) {
-        return;
-      }
-      const index = searchResultLinks(results).indexOf(link);
-      if (index >= 0) {
-        setActiveResult(index, false);
-      }
-    });
-    results.addEventListener("focusin", (event) => {
-      const link = closestSearchResult(event.target);
-      if (!link) {
-        return;
-      }
-      const index = searchResultLinks(results).indexOf(link);
-      if (index >= 0) {
-        setActiveResult(index, false);
-      }
-    });
-    results.addEventListener("click", (event) => {
-      const link = closestSearchResult(event.target);
-      if (!link || isModifiedClick(event)) {
-        return;
-      }
-      closeSearch(true);
-    });
-
-    async function runSearch() {
-      const query = input.value.trim();
-      if (!query) {
-        renderDefaultResults(document.activeElement === input);
-        return;
-      }
-
-      const requestID = ++sequence;
-      setActiveResult(-1, false);
-
-      if (staticNotes.length > 0) {
-        renderResults(results, status, searchStaticNotes(query), query, setResultsOpen, setActiveResult);
-        return;
-      }
-
-      if (controller) controller.abort();
-      controller = new AbortController();
-      status.textContent = "Searching...";
-
-      try {
-        const response = await fetch(searchURL + "?q=" + encodeURIComponent(query) + "&limit=12", {
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error("search request failed");
-        const payload = await response.json();
-        if (requestID !== sequence || input.value.trim() !== query) {
-          return;
-        }
-        renderResults(results, status, payload.results || [], query, setResultsOpen, setActiveResult);
-      } catch (error) {
-        if (error.name === "AbortError") return;
-        status.textContent = "Search failed.";
-        setActiveResult(-1, false);
-        setResultsOpen(false);
-      }
-    }
-
-    function renderDefaultResults(open) {
-      sequence += 1;
-      window.clearTimeout(timer);
-      if (controller) {
-        controller.abort();
-        controller = null;
-      }
-      const items = defaultSearchResults();
-      status.textContent = items.length ? "Top files" : "";
-      renderResults(results, status, items, "", setResultsOpen, setActiveResult, {
-        emptyStatus: "",
-        keepOpenWhenEmpty: open,
-        statusText: items.length ? "Top files" : "",
-      });
-      setResultsOpen(open && items.length > 0);
-    }
-
-    function closeSearch(clearInput) {
-      sequence += 1;
-      window.clearTimeout(timer);
-      if (controller) {
-        controller.abort();
-        controller = null;
-      }
-      if (clearInput) {
-        input.value = "";
-      }
-      status.textContent = "";
-      results.replaceChildren();
-      setActiveResult(-1, false);
-      setResultsOpen(false);
-    }
-
-    function setResultsOpen(open) {
-      results.hidden = !open;
-      input.setAttribute("aria-expanded", open ? "true" : "false");
-      if (!open) {
-        input.removeAttribute("aria-activedescendant");
-      }
-    }
-
-    function setActiveResult(index, scroll) {
-      const links = searchResultLinks(results);
-      activeIndex = links.length ? (index + links.length) % links.length : -1;
-      links.forEach((link, linkIndex) => {
-        const selected = linkIndex === activeIndex;
-        link.classList.toggle("is-active", selected);
-        link.setAttribute("aria-selected", selected ? "true" : "false");
-        if (selected) {
-          input.setAttribute("aria-activedescendant", link.id);
-          if (scroll) {
-            link.scrollIntoView({ block: "nearest" });
-          }
-        }
-      });
-      if (activeIndex < 0) {
-        input.removeAttribute("aria-activedescendant");
-      }
-    }
-  }
-
-  function renderResults(results, status, items, query, setResultsOpen, setActiveResult, options) {
-    const config = options || {};
-    results.replaceChildren();
-    if (items.length === 0) {
-      status.textContent = config.emptyStatus ?? "No results for \"" + query + "\".";
-      setActiveResult(-1, false);
-      setResultsOpen(Boolean(config.keepOpenWhenEmpty));
-      return;
-    }
-
-    status.textContent = config.statusText || (items.length + " result" + (items.length === 1 ? "" : "s"));
-    setResultsOpen(true);
-    items.forEach((item, index) => {
-      const link = document.createElement("a");
-      link.className = "search-result";
-      link.href = item.url || staticRelativeURL(item.path);
-      link.id = results.id + "-option-" + index;
-      link.setAttribute("role", "option");
-      link.setAttribute("aria-selected", "false");
-
-      const title = document.createElement("span");
-      title.className = "search-result-title";
-      title.textContent = item.title || item.path;
-      link.append(title);
-
-      const meta = document.createElement("span");
-      meta.className = "search-result-meta";
-      meta.textContent = item.path + (item.type ? " - " + item.type : "");
-      link.append(meta);
-
-      if (item.snippet) {
-        const snippet = document.createElement("span");
-        snippet.className = "search-result-snippet";
-        snippet.textContent = item.snippet;
-        link.append(snippet);
-      }
-
-      results.append(link);
-    });
-    setActiveResult(0, false);
-  }
-
-  function defaultSearchResults() {
-    const seen = new Set();
-    const items = [];
-    const links = Array.from(document.querySelectorAll("[data-tree-path]"));
-    for (const link of links) {
-      const path = link.dataset.treePath || "";
-      if (!path || seen.has(path)) {
-        continue;
-      }
-      seen.add(path);
-      const title = link.querySelector(".tree-file-name")?.textContent?.trim() || path;
-      items.push({
-        path,
-        title,
-        url: link.getAttribute("href") || link.href,
-      });
-      if (items.length >= 12) {
-        break;
-      }
-    }
-    return items.sort(function (a, b) {
-      if (isIndexMarkdownPath(a.path) !== isIndexMarkdownPath(b.path)) {
-        return isIndexMarkdownPath(a.path) ? 1 : -1;
-      }
-      return 0;
-    });
-  }
-
-  function isIndexMarkdownPath(path) {
-    return String(path || "").split("/").pop().toLowerCase() === "index.md";
-  }
-
-  function initializeSearchAccessibility(input, results) {
-    if (!results.id) {
-      results.id = (input.id || "viewer-search") + "-results-" + Math.random().toString(36).slice(2);
-    }
-    results.setAttribute("role", "listbox");
-    input.setAttribute("role", "combobox");
-    input.setAttribute("aria-autocomplete", "list");
-    input.setAttribute("aria-controls", results.id);
-    input.setAttribute("aria-expanded", "false");
-  }
-
-  function searchResultLinks(results) {
-    return Array.from(results.querySelectorAll(".search-result[href]"));
-  }
-
-  function selectedSearchResult(results, activeIndex) {
-    const links = searchResultLinks(results);
-    if (!links.length) {
-      return null;
-    }
-    return links[activeIndex >= 0 ? activeIndex : 0] || links[0];
-  }
-
-  function closestSearchResult(target) {
-    if (!target) {
-      return null;
-    }
-    if (target.closest) {
-      return target.closest(".search-result[href]");
-    }
-    return target.parentElement ? target.parentElement.closest(".search-result[href]") : null;
-  }
-
-  function isModifiedClick(event) {
-    return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-  }
-
-  function readStaticNotes() {
-    const source = document.querySelector("[data-static-notes]");
-    if (!source) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(source.textContent || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function searchStaticNotes(query) {
-    const normalizedQuery = normalizeSearchText(query);
-    return staticNotes
-      .map(function (note) {
-        const bodyText = htmlToText(note.body || "");
-        const title = note.title || note.path || "";
-        const path = note.path || "";
-        const haystack = normalizeSearchText([title, path, bodyText].join(" "));
-        const titleMatch = normalizeSearchText(title).includes(normalizedQuery);
-        const pathMatch = normalizeSearchText(path).includes(normalizedQuery);
-        const bodyMatch = haystack.includes(normalizedQuery);
-        if (!bodyMatch) {
-          return null;
-        }
-        const baseScore = (titleMatch ? 3 : 0) + (pathMatch ? 2 : 0) + 1;
-        return {
-          path,
-          title,
-          snippet: staticSnippet(bodyText, query),
-          score: isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore,
-        };
-      })
-      .filter(Boolean)
-      .sort(function (a, b) {
-        if (b.score !== a.score) {
-          return b.score - a.score;
-        }
-        if (isIndexMarkdownPath(a.path) !== isIndexMarkdownPath(b.path)) {
-          return isIndexMarkdownPath(a.path) ? 1 : -1;
-        }
-        return a.path.localeCompare(b.path);
-      })
-      .slice(0, 12);
-  }
-
-  function normalizeSearchText(value) {
-    return String(value || "").toLowerCase();
-  }
-
-  function htmlToText(html) {
-    const element = document.createElement("div");
-    element.innerHTML = html;
-    return element.textContent || "";
-  }
-
-  function staticSnippet(text, query) {
-    const value = String(text || "").replace(/\s+/g, " ").trim();
-    if (!value) {
-      return "";
-    }
-    const index = value.toLowerCase().indexOf(String(query || "").toLowerCase());
-    const start = Math.max(0, index < 0 ? 0 : index - 48);
-    const end = Math.min(value.length, start + 140);
-    return (start > 0 ? "..." : "") + value.slice(start, end) + (end < value.length ? "..." : "");
-  }
-
-  function staticRelativeURL(targetPath) {
-    const currentPath = document.querySelector("[data-note-path]")?.dataset.notePath || "index.md";
-    const currentHTML = staticHTMLPath(currentPath);
-    const targetHTML = staticHTMLPath(targetPath);
-    const currentDirectory = currentHTML.includes("/") ? currentHTML.slice(0, currentHTML.lastIndexOf("/") + 1) : "";
-    return relativeStaticPath(currentDirectory, targetHTML);
-  }
-
-  function staticHTMLPath(path) {
-    const extensionIndex = String(path || "").lastIndexOf(".");
-    if (extensionIndex < 0) {
-      return normalizeStaticPath(path + "/index.html");
-    }
-    return normalizeStaticPath(path.slice(0, extensionIndex) + ".html");
-  }
-
-  function relativeStaticPath(fromDirectory, targetPath) {
-    const fromParts = normalizeStaticPath(fromDirectory).split("/").filter(Boolean);
-    const targetParts = normalizeStaticPath(targetPath).split("/").filter(Boolean);
-    while (fromParts.length && targetParts.length && fromParts[0] === targetParts[0]) {
-      fromParts.shift();
-      targetParts.shift();
-    }
-    const relativeParts = fromParts.map(function () { return ".."; }).concat(targetParts);
-    return relativeParts.join("/") || ".";
-  }
-
-  function normalizeStaticPath(value) {
-    const parts = String(value || "").replace(/\\/g, "/").split("/");
-    const normalized = [];
-    parts.forEach(function (part) {
-      if (!part || part === ".") {
-        return;
-      }
-      if (part === "..") {
-        normalized.pop();
-        return;
-      }
-      normalized.push(part);
-    });
-    return normalized.join("/");
-  }
-})();
-`
-
-const viewerJS = `
-(function () {
-  const workspace = document.querySelector("[data-note-workspace]");
-  const stackEl = document.querySelector("[data-note-stack]");
-  const emptyState = document.querySelector("[data-empty-state]");
-  const fileSidebar = document.querySelector("[data-file-sidebar]");
-  const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
-  const sidebarClose = document.querySelector("[data-sidebar-close]");
-  const scrollRail = document.querySelector("[data-workspace-rail]");
-  const scrollTrack = document.querySelector("[data-workspace-scroll-track]");
-  const scrollThumb = document.querySelector("[data-workspace-scroll-thumb]");
-
-  if (!workspace || !stackEl) {
-    return;
-  }
-
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const editorStorageKey = "openknowledge.viewer.editorOrder";
-  const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
-  const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
-  const editorOptions = readEditorOptions();
-  const panelWidths = readPanelWidths();
-  const staticNotes = readStaticNotes();
-  const staticNotesByPath = indexStaticNotes(staticNotes, "path");
-  const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
-  const knowledgeGraph = readKnowledgeGraph();
-
-  function panels() {
-    return Array.prototype.slice.call(stackEl.querySelectorAll("[data-note-path]"));
-  }
-
-  function closestElement(target, selector) {
-    if (!target) {
-      return null;
-    }
-    if (target.closest) {
-      return target.closest(selector);
-    }
-    return target.parentElement ? target.parentElement.closest(selector) : null;
-  }
-
-  function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-  }
-
-  function readPanelWidths() {
-    const stored = readStoredJSON(panelWidthStorageKey);
-    if (stored && typeof stored === "object" && !Array.isArray(stored)) {
-      return stored;
-    }
-    return {};
-  }
-
-  function savePanelWidths() {
-    const serialized = JSON.stringify(panelWidths);
-    try {
-      window.localStorage.setItem(panelWidthStorageKey, serialized);
-    } catch {
-      // Browser storage can be disabled in private or file-export contexts.
-    }
-    writeCookie(panelWidthStorageKey, serialized);
-  }
-
-  function readStoredJSON(key) {
-    const sources = [readLocalStorage(key), readCookie(key)];
-    for (const source of sources) {
-      if (!source) {
-        continue;
-      }
-      try {
-        return JSON.parse(source);
-      } catch {
-        // Ignore malformed storage and keep the viewer usable.
-      }
-    }
-    return null;
-  }
-
-  function readLocalStorage(key) {
-    try {
-      return window.localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  }
-
-  function readCookie(name) {
-    const prefix = encodeURIComponent(name) + "=";
-    const parts = document.cookie ? document.cookie.split("; ") : [];
-    for (const part of parts) {
-      if (part.startsWith(prefix)) {
-        try {
-          return decodeURIComponent(part.slice(prefix.length));
-        } catch {
-          return null;
-        }
-      }
-    }
-    return null;
-  }
-
-  function writeCookie(name, value) {
-    try {
-      document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + "; Max-Age=31536000; Path=/; SameSite=Lax";
-    } catch {
-      // Cookies are best-effort; localStorage still covers same-origin exports.
-    }
-  }
-
-  function minPanelWidth() {
-    return Math.min(360, Math.max(260, window.innerWidth - 24));
-  }
-
-  function maxPanelWidth() {
-    return Math.max(defaultPanelWidth(), 1180);
-  }
-
-  function defaultPanelWidth() {
-    return Math.max(minPanelWidth(), Math.min(650, window.innerWidth - 44));
-  }
-
-  function normalizePanelWidth(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) {
-      return null;
-    }
-    return Math.round(clamp(numeric, minPanelWidth(), maxPanelWidth()));
-  }
-
-  function savedPanelWidth(panel) {
-    return normalizePanelWidth(panelWidths[panel.dataset.notePath]);
-  }
-
-  function applyPanelWidth(panel) {
-    const width = savedPanelWidth(panel);
-    if (!width) {
-      panel.style.removeProperty("--note-panel-width");
-      delete panel.dataset.panelWidth;
-      return;
-    }
-    panel.style.setProperty("--note-panel-width", width + "px");
-    panel.dataset.panelWidth = String(width);
-  }
-
-  function setSidebarOpen(open) {
-    document.body.classList.toggle("is-sidebar-open", open);
-    if (fileSidebar) {
-      fileSidebar.setAttribute("aria-hidden", open ? "false" : "true");
-    }
-    if (sidebarToggle) {
-      sidebarToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-  }
-
-  function notePathFromHref(href, sourcePath) {
-    if (isStaticBundle()) {
-      return staticNotePathFromHref(href, sourcePath);
-    }
-
-    let url;
-    try {
-      url = new URL(href, window.location.href);
-    } catch {
-      return null;
-    }
-
-    const filePrefix = serverFilePrefix();
-    if (url.origin !== window.location.origin || !url.pathname.startsWith(filePrefix)) {
-      return null;
-    }
-
-    const raw = url.pathname.slice(filePrefix.length) || "index.md";
-    try {
-      return decodeURIComponent(raw);
-    } catch {
-      return raw;
-    }
-  }
-
-  function encodedNoteURL(prefix, path) {
-    return prefix + path.split("/").map(encodeURIComponent).join("/");
-  }
-
-  function fileURL(path) {
-    if (isStaticBundle()) {
-      return staticRelativeURL(path);
-    }
-    return encodedNoteURL(serverFilePrefix(), path);
-  }
-
-  function apiURL(path) {
-    return encodedNoteURL(serverAPIPrefix(), path);
-  }
-
-  function serverFilePrefix() {
-    return linkPrefix + "/file/";
-  }
-
-  function serverAPIPrefix() {
-    return linkPrefix + "/api/file/";
-  }
-
-  function normalizeLinkPrefix(value) {
-    const trimmed = String(value || "").replace(/\/+$/, "");
-    if (!trimmed) {
-      return "";
-    }
-    return trimmed.startsWith("/") ? trimmed : "/" + trimmed;
-  }
-
-  function readStaticNotes() {
-    const source = document.querySelector("[data-static-notes]");
-    if (!source) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(source.textContent || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function readKnowledgeGraph() {
-    const source = document.querySelector("[data-knowledge-graph]");
-    if (!source) {
-      return { nodes: [], edges: [] };
-    }
-    try {
-      const parsed = JSON.parse(source.textContent || "{}");
-      return {
-        nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
-        edges: Array.isArray(parsed.edges) ? parsed.edges : [],
-      };
-    } catch {
-      return { nodes: [], edges: [] };
-    }
-  }
-
-  function renderKnowledgeGraph() {
-    const graphView = document.querySelector("[data-knowledge-graph-view]");
-    if (!graphView) {
-      return;
-    }
-    graphView.replaceChildren();
-    if (!knowledgeGraph.nodes.length) {
-      const empty = document.createElement("p");
-      empty.className = "empty";
-      empty.textContent = "No Markdown files found.";
-      graphView.append(empty);
-      return;
-    }
-
-    const width = 900;
-    const height = 640;
-    const indexPath = knowledgeGraph.nodes.find(function (node) { return node.path === "index.md"; })?.path;
-    const positions = graphLayoutPositions(knowledgeGraph, width, height);
-    const labelsByPath = graphUniqueNodeLabels(knowledgeGraph.nodes);
-
-    const svg = createSVGElement("svg");
-    svg.setAttribute("class", "knowledge-graph-svg");
-    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
-    svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Connected graph of Markdown files");
-
-    const edges = createSVGElement("g");
-    edges.setAttribute("class", "knowledge-graph-edges");
-    knowledgeGraph.edges.forEach(function (edge) {
-      const source = positions[edge.source];
-      const target = positions[edge.target];
-      if (!source || !target) {
-        return;
-      }
-      const line = createSVGElement("line");
-      line.setAttribute("x1", source.x.toFixed(1));
-      line.setAttribute("y1", source.y.toFixed(1));
-      line.setAttribute("x2", target.x.toFixed(1));
-      line.setAttribute("y2", target.y.toFixed(1));
-      edges.append(line);
-    });
-    svg.append(edges);
-
-    const nodes = createSVGElement("g");
-    nodes.setAttribute("class", "knowledge-graph-nodes");
-    knowledgeGraph.nodes.forEach(function (node) {
-      const point = positions[node.path];
-      if (!point) {
-        return;
-      }
-      const group = createSVGElement("a");
-      group.setAttribute("href", fileURL(node.path));
-      group.dataset.graphPath = node.path;
-      group.setAttribute("class", "knowledge-graph-node" + (node.path === indexPath ? " is-index-node" : ""));
-
-      const title = createSVGElement("title");
-      title.textContent = node.title ? node.title + " - " + node.path : node.path;
-      group.append(title);
-
-      const circle = createSVGElement("circle");
-      circle.setAttribute("cx", point.x.toFixed(1));
-      circle.setAttribute("cy", point.y.toFixed(1));
-      circle.setAttribute("r", node.path === indexPath ? "16" : "10");
-      group.append(circle);
-
-      const label = createSVGElement("text");
-      label.setAttribute("x", point.x.toFixed(1));
-      label.setAttribute("y", (point.y + (node.path === indexPath ? 31 : 25)).toFixed(1));
-      label.textContent = graphNodeLabel(node, labelsByPath);
-      group.append(label);
-
-      nodes.append(group);
-    });
-    svg.append(nodes);
-    graphView.append(svg);
-  }
-
-  function createSVGElement(name) {
-    return document.createElementNS("http://www.w3.org/2000/svg", name);
-  }
-
-  function graphLayoutPositions(graph, width, height) {
-    const nodes = graph.nodes.filter(function (node) {
-      return node && typeof node.path === "string" && node.path.length > 0;
-    });
-    const positions = Object.create(null);
-    if (nodes.length === 0) {
-      return positions;
-    }
-    if (nodes.length === 1) {
-      positions[nodes[0].path] = { x: width / 2, y: height / 2 };
-      return positions;
-    }
-
-    const center = { x: width / 2, y: height / 2 };
-    const nodeSet = Object.create(null);
-    const degree = Object.create(null);
-    nodes.forEach(function (node) {
-      nodeSet[node.path] = true;
-      degree[node.path] = 0;
-    });
-
-    const links = [];
-    graph.edges.forEach(function (edge) {
-      if (!edge || !nodeSet[edge.source] || !nodeSet[edge.target]) {
-        return;
-      }
-      links.push(edge);
-      degree[edge.source] += 1;
-      degree[edge.target] += 1;
-    });
-
-    const groupCenters = graphGroupCenters(nodes, width, height);
-    const states = nodes.map(function (node) {
-      const group = graphPathGroup(node.path);
-      const groupCenter = groupCenters[group] || center;
-      const hash = graphHash(node.path);
-      const angle = ((hash % 360) / 360) * Math.PI * 2;
-      const spread = 26 + (hash % 74);
-      return {
-        node: node,
-        group: group,
-        x: groupCenter.x + Math.cos(angle) * spread,
-        y: groupCenter.y + Math.sin(angle) * spread,
-        vx: 0,
-        vy: 0,
-      };
-    });
-    const stateByPath = Object.create(null);
-    states.forEach(function (state) {
-      stateByPath[state.node.path] = state;
-    });
-
-    for (let iteration = 0; iteration < 220; iteration += 1) {
-      for (let i = 0; i < states.length; i += 1) {
-        for (let j = i + 1; j < states.length; j += 1) {
-          const a = states[i];
-          const b = states[j];
-          const dx = b.x - a.x || 0.01;
-          const dy = b.y - a.y || 0.01;
-          const distance = Math.max(9, Math.sqrt(dx * dx + dy * dy));
-          const force = Math.min(42, 6200 / (distance * distance));
-          const nx = dx / distance;
-          const ny = dy / distance;
-          a.vx -= nx * force;
-          a.vy -= ny * force;
-          b.vx += nx * force;
-          b.vy += ny * force;
-        }
-      }
-
-      links.forEach(function (edge) {
-        const source = stateByPath[edge.source];
-        const target = stateByPath[edge.target];
-        if (!source || !target) {
-          return;
-        }
-        const dx = target.x - source.x || 0.01;
-        const dy = target.y - source.y || 0.01;
-        const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        const linkedDegree = Math.max(1, Math.min(degree[edge.source], degree[edge.target]));
-        const desired = Math.max(90, 152 - linkedDegree * 7);
-        const force = (distance - desired) * 0.014;
-        const nx = dx / distance;
-        const ny = dy / distance;
-        source.vx += nx * force;
-        source.vy += ny * force;
-        target.vx -= nx * force;
-        target.vy -= ny * force;
-      });
-
-      states.forEach(function (state) {
-        const groupCenter = groupCenters[state.group] || center;
-        const nodeDegree = degree[state.node.path] || 0;
-        const centerPull = state.node.path === "index.md" ? 0.04 : 0.002 + Math.min(nodeDegree, 8) * 0.0008;
-        const groupPull = nodeDegree > 0 ? 0.006 : 0.018;
-        state.vx += (center.x - state.x) * centerPull;
-        state.vy += (center.y - state.y) * centerPull;
-        state.vx += (groupCenter.x - state.x) * groupPull;
-        state.vy += (groupCenter.y - state.y) * groupPull;
-        state.x += state.vx;
-        state.y += state.vy;
-        state.vx *= 0.62;
-        state.vy *= 0.62;
-      });
-    }
-
-    fitGraphLayout(states, width, height);
-    states.forEach(function (state) {
-      positions[state.node.path] = { x: state.x, y: state.y };
-    });
-    return positions;
-  }
-
-  function graphGroupCenters(nodes, width, height) {
-    const counts = Object.create(null);
-    nodes.forEach(function (node) {
-      const group = graphPathGroup(node.path);
-      counts[group] = (counts[group] || 0) + 1;
-    });
-    const groups = Object.keys(counts).sort(function (a, b) {
-      if (counts[b] === counts[a]) {
-        return a.localeCompare(b);
-      }
-      return counts[b] - counts[a];
-    });
-    const centers = Object.create(null);
-    if (groups.length === 0) {
-      return centers;
-    }
-
-    const columns = Math.max(1, Math.ceil(Math.sqrt(groups.length * (width / height))));
-    const rows = Math.max(1, Math.ceil(groups.length / columns));
-    const cellWidth = width / columns;
-    const cellHeight = height / rows;
-    groups.forEach(function (group, index) {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      const hash = graphHash(group);
-      const jitterX = ((hash % 31) - 15) * 0.9;
-      const jitterY = (((hash >> 5) % 31) - 15) * 0.9;
-      centers[group] = {
-        x: cellWidth * (column + 0.5) + jitterX,
-        y: cellHeight * (row + 0.5) + jitterY,
-      };
-    });
-    return centers;
-  }
-
-  function graphPathGroup(path) {
-    const parts = graphPathParts(path);
-    if (parts.length <= 1) {
-      return ".";
-    }
-    if (parts.length >= 3) {
-      return parts.slice(0, 2).join("/");
-    }
-    return parts[0];
-  }
-
-  function fitGraphLayout(states, width, height) {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    states.forEach(function (state) {
-      minX = Math.min(minX, state.x);
-      maxX = Math.max(maxX, state.x);
-      minY = Math.min(minY, state.y);
-      maxY = Math.max(maxY, state.y);
-    });
-    const paddingX = 74;
-    const paddingY = 58;
-    const spanX = Math.max(1, maxX - minX);
-    const spanY = Math.max(1, maxY - minY);
-    const scale = Math.min((width - paddingX * 2) / spanX, (height - paddingY * 2) / spanY, 1.28);
-    const sourceCenterX = (minX + maxX) / 2;
-    const sourceCenterY = (minY + maxY) / 2;
-    const targetCenterX = width / 2;
-    const targetCenterY = height / 2;
-    states.forEach(function (state) {
-      state.x = clamp(targetCenterX + (state.x - sourceCenterX) * scale, paddingX, width - paddingX);
-      state.y = clamp(targetCenterY + (state.y - sourceCenterY) * scale, paddingY, height - paddingY);
-    });
-  }
-
-  function graphHash(value) {
-    let hash = 2166136261;
-    const text = String(value || "");
-    for (let index = 0; index < text.length; index += 1) {
-      hash ^= text.charCodeAt(index);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-  }
-
-  function graphUniqueNodeLabels(nodes) {
-    const groups = Object.create(null);
-    nodes.forEach(function (node) {
-      if (!node || typeof node.path !== "string") {
-        return;
-      }
-      const base = graphNodeBaseLabel(node);
-      if (!groups[base]) {
-        groups[base] = [];
-      }
-      groups[base].push(node);
-    });
-
-    const labels = Object.create(null);
-    Object.keys(groups).forEach(function (base) {
-      const peers = groups[base];
-      if (peers.length === 1) {
-        labels[peers[0].path] = base;
-        return;
-      }
-      const peerPaths = peers.map(function (node) { return node.path; });
-      peers.forEach(function (node) {
-        labels[node.path] = graphShortestUniquePathSuffix(node.path, peerPaths);
-      });
-    });
-    return labels;
-  }
-
-  function graphNodeBaseLabel(node) {
-    const title = String(node.title || "").trim();
-    if (title && title.toLowerCase() !== "index") {
-      return title;
-    }
-    return graphPathDisplayName(node.path);
-  }
-
-  function graphPathDisplayName(path) {
-    const parts = graphPathParts(path);
-    if (parts.length === 0) {
-      return String(path || "");
-    }
-    const last = parts[parts.length - 1];
-    if (last.toLowerCase() === "index" && parts.length > 1) {
-      return parts.slice(-2).join("/");
-    }
-    return last;
-  }
-
-  function graphShortestUniquePathSuffix(path, peers) {
-    const parts = graphPathParts(path);
-    for (let length = 1; length <= parts.length; length += 1) {
-      const suffix = parts.slice(-length).join("/");
-      const unique = peers.every(function (peer) {
-        return peer === path || graphPathParts(peer).slice(-length).join("/") !== suffix;
-      });
-      if (unique) {
-        return suffix;
-      }
-    }
-    return parts.join("/") || String(path || "");
-  }
-
-  function graphPathParts(path) {
-    return String(path || "").replace(/\.md$/i, "").split("/").filter(Boolean);
-  }
-
-  function graphNodeLabel(node, labelsByPath) {
-    const label = labelsByPath[node.path] || graphNodeBaseLabel(node);
-    return label.length > 22 ? label.slice(0, 21) + "..." : label;
-  }
-
-  function indexStaticNotes(notes, key) {
-    const indexed = Object.create(null);
-    notes.forEach(function (note) {
-      if (note && typeof note[key] === "string") {
-        indexed[note[key]] = note;
-      }
-    });
-    return indexed;
-  }
-
-  function indexStaticNotePathsByHTML(notes) {
-    const indexed = Object.create(null);
-    notes.forEach(function (note) {
-      if (note && typeof note.htmlPath === "string" && typeof note.path === "string") {
-        indexed[normalizeStaticPath(note.htmlPath)] = note.path;
-      }
-    });
-    return indexed;
-  }
-
-  function isStaticBundle() {
-    return staticNotes.length > 0;
-  }
-
-  function staticHTMLPath(path) {
-    const extensionIndex = String(path).lastIndexOf(".");
-    if (extensionIndex < 0) {
-      return normalizeStaticPath(path + "/index.html");
-    }
-    return normalizeStaticPath(path.slice(0, extensionIndex) + ".html");
-  }
-
-  function staticRelativeURL(targetPath) {
-    const currentPath = currentStack()[0] || document.querySelector("[data-note-path]")?.dataset.notePath || "index.md";
-    const currentHTML = staticHTMLPath(currentPath);
-    const targetHTML = staticHTMLPath(targetPath);
-    const currentDirectory = currentHTML.includes("/") ? currentHTML.slice(0, currentHTML.lastIndexOf("/") + 1) : "";
-    return relativeStaticPath(currentDirectory, targetHTML);
-  }
-
-  function relativeStaticPath(fromDirectory, targetPath) {
-    const fromParts = normalizeStaticPath(fromDirectory).split("/").filter(Boolean);
-    const targetParts = normalizeStaticPath(targetPath).split("/").filter(Boolean);
-    while (fromParts.length && targetParts.length && fromParts[0] === targetParts[0]) {
-      fromParts.shift();
-      targetParts.shift();
-    }
-    const relativeParts = fromParts.map(function () { return ".."; }).concat(targetParts);
-    return relativeParts.join("/") || ".";
-  }
-
-  function normalizeStaticPath(value) {
-    const parts = String(value || "").replace(/\\/g, "/").split("/");
-    const normalized = [];
-    parts.forEach(function (part) {
-      if (!part || part === ".") {
-        return;
-      }
-      if (part === "..") {
-        normalized.pop();
-        return;
-      }
-      normalized.push(part);
-    });
-    return normalized.join("/");
-  }
-
-  function staticNotePathFromHref(href, sourcePath) {
-    const raw = String(href || "").trim();
-    if (!raw || raw.startsWith("#")) {
-      return null;
-    }
-
-    const withoutFragment = raw.split("#")[0].split("?")[0];
-    if (!withoutFragment) {
-      return sourcePath || null;
-    }
-
-    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(withoutFragment) && !withoutFragment.startsWith("/")) {
-      const sourceHTML = staticHTMLPath(sourcePath || currentStack()[0] || "index.md");
-      const sourceDirectory = sourceHTML.includes("/") ? sourceHTML.slice(0, sourceHTML.lastIndexOf("/") + 1) : "";
-      return staticNotePathByHTML[normalizeStaticPath(sourceDirectory + withoutFragment)] || null;
-    }
-
-    let url;
-    try {
-      url = new URL(withoutFragment, window.location.href);
-    } catch {
-      return null;
-    }
-    if (url.origin !== window.location.origin) {
-      return null;
-    }
-
-    return staticNotePathByHTML[staticRelativeHTMLPathFromURL(url)] || null;
-  }
-
-  function staticRelativeHTMLPathFromURL(url) {
-    const currentPath = document.querySelector("[data-note-path]")?.dataset.notePath || currentStack()[0] || "index.md";
-    const currentHTML = staticHTMLPath(currentPath);
-    let currentURLPath = safeDecodePath(window.location.pathname);
-    let targetURLPath = safeDecodePath(url.pathname);
-    const rootPrefix = currentURLPath.endsWith(currentHTML)
-      ? currentURLPath.slice(0, currentURLPath.length - currentHTML.length)
-      : currentURLPath.slice(0, currentURLPath.lastIndexOf("/") + 1);
-    if (rootPrefix && targetURLPath.startsWith(rootPrefix)) {
-      targetURLPath = targetURLPath.slice(rootPrefix.length);
-    }
-    return normalizeStaticPath(targetURLPath);
-  }
-
-  function safeDecodePath(value) {
-    try {
-      return decodeURIComponent(value || "");
-    } catch {
-      return value || "";
-    }
-  }
-
-  function absoluteNotePath(notePath) {
-    const root = workspace.dataset.noteRoot || "";
-    const separator = root.includes("\\") ? "\\" : "/";
-    const cleanRoot = root.replace(/[\\/]+$/, "");
-    const localPath = String(notePath || "").split("/").join(separator);
-    return cleanRoot ? cleanRoot + separator + localPath : localPath;
-  }
-
-  function encodedAbsolutePath(absolutePath) {
-    const normalized = String(absolutePath || "").replace(/\\/g, "/");
-    const leadingSlash = normalized.startsWith("/") ? "/" : "";
-    return leadingSlash + normalized.split("/").filter(Boolean).map(encodeURIComponent).join("/");
-  }
-
-  function fileDeepLink(absolutePath) {
-    const encoded = encodedAbsolutePath(absolutePath);
-    return "file://" + (encoded.startsWith("/") ? "" : "/") + encoded;
-  }
-
-  function editorDeepLink(editor, notePath) {
-    const absolutePath = absoluteNotePath(notePath);
-    const encodedPath = encodedAbsolutePath(absolutePath);
-    const editorPath = encodedPath.startsWith("/") ? encodedPath : "/" + encodedPath;
-    const fileLink = fileDeepLink(absolutePath);
-
-    switch (editor.id) {
-      case "code":
-        return "vscode://file" + editorPath;
-      case "cursor":
-        return "cursor://file" + editorPath;
-      case "windsurf":
-        return "windsurf://file" + editorPath;
-      case "zed":
-        return "zed://file" + editorPath;
-      case "obsidian":
-        return "obsidian://open?path=" + encodeURIComponent(absolutePath);
-      case "sublime":
-        return "sublime://open?url=" + encodeURIComponent(fileLink);
-      case "bbedit":
-        return "bbedit://open?url=" + encodeURIComponent(fileLink);
-      case "nova":
-        return "nova://open?path=" + encodeURIComponent(absolutePath);
-      case "intellij":
-        return "idea://open?file=" + encodeURIComponent(absolutePath);
-      case "webstorm":
-        return "webstorm://open?file=" + encodeURIComponent(absolutePath);
-      default:
-        return fileLink;
-    }
-  }
-
-  function readEditorOptions() {
-    const fallback = [
-      { id: "code", name: "Visual Studio Code", short: "VS", available: false },
-      { id: "cursor", name: "Cursor", short: "Cu", available: false },
-      { id: "windsurf", name: "Windsurf", short: "Ws", available: false },
-      { id: "zed", name: "Zed", short: "Zd", available: false }
-    ];
-    const source = document.querySelector("[data-editor-options]");
-    if (!source) {
-      return fallback;
-    }
-    try {
-      const parsed = JSON.parse(source.textContent || "[]");
-      return Array.isArray(parsed) && parsed.length ? parsed : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  function editorByID(editorID) {
-    return editorOptions.find(function (editor) {
-      return editor.id === editorID;
-    }) || editorOptions[0];
-  }
-
-  function editorFallbackLabel(editor) {
-    return editor.short || editor.name.slice(0, 2);
-  }
-
-  function renderEditorMark(mark, editor) {
-    mark.replaceChildren();
-    mark.dataset.hasIcon = editor.icon ? "true" : "false";
-
-    if (!editor.icon) {
-      mark.textContent = editorFallbackLabel(editor);
-      return;
-    }
-
-    const image = document.createElement("img");
-    image.className = "editor-icon";
-    image.src = editor.icon;
-    image.alt = "";
-    image.decoding = "async";
-    image.draggable = false;
-    image.addEventListener("error", function () {
-      mark.dataset.hasIcon = "false";
-      mark.replaceChildren();
-      mark.textContent = editorFallbackLabel(editor);
-    }, { once: true });
-    mark.append(image);
-  }
-
-  function controlIcon(name, className) {
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("class", className + " control-icon");
-    svg.setAttribute("data-icon", name);
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("aria-hidden", "true");
-
-    if (name === "chevron-down") {
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", "m6 9 6 6 6-6");
-      svg.append(path);
-      return svg;
-    }
-
-    const first = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    first.setAttribute("d", "M18 6 6 18");
-    const second = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    second.setAttribute("d", "m6 6 12 12");
-    svg.append(first, second);
-    return svg;
-  }
-
-  function readEditorOrder() {
-    let stored = [];
-    try {
-      stored = JSON.parse(window.localStorage.getItem(editorStorageKey) || "[]");
-    } catch {
-      stored = [];
-    }
-    if (!Array.isArray(stored)) {
-      stored = [];
-    }
-
-    const known = new Set(editorOptions.map(function (editor) {
-      return editor.id;
-    }));
-    const ordered = stored.filter(function (editorID, index) {
-      return typeof editorID === "string" && known.has(editorID) && stored.indexOf(editorID) === index;
-    });
-    editorOptions.forEach(function (editor) {
-      if (!ordered.includes(editor.id)) {
-        ordered.push(editor.id);
-      }
-    });
-    return ordered;
-  }
-
-  function orderedEditors() {
-    return readEditorOrder().map(editorByID).filter(Boolean);
-  }
-
-  function activeEditor() {
-    return orderedEditors()[0] || editorOptions[0];
-  }
-
-  function savePrimaryEditor(editorID) {
-    const nextOrder = [editorID].concat(readEditorOrder().filter(function (candidateID) {
-      return candidateID !== editorID;
-    }));
-    try {
-      window.localStorage.setItem(editorStorageKey, JSON.stringify(nextOrder));
-    } catch {
-      return;
-    }
-  }
-
-  function createEditorPicker() {
-    const picker = document.createElement("div");
-    picker.className = "editor-picker";
-    picker.dataset.editorPicker = "";
-
-    const trigger = document.createElement("div");
-    trigger.className = "editor-trigger";
-    trigger.dataset.editorTrigger = "";
-    trigger.setAttribute("role", "group");
-
-    const openLink = document.createElement("a");
-    openLink.className = "editor-open";
-    openLink.href = "#";
-    openLink.dataset.editorOpen = "";
-    openLink.dataset.directLink = "true";
-    openLink.title = "Open in editor";
-
-    const mark = document.createElement("span");
-    mark.className = "editor-mark";
-    mark.dataset.editorMark = "";
-    mark.setAttribute("aria-hidden", "true");
-    mark.textContent = "--";
-    openLink.append(mark);
-
-    const menuButton = document.createElement("button");
-    menuButton.className = "editor-menu-trigger";
-    menuButton.type = "button";
-    menuButton.dataset.editorMenuTrigger = "";
-    menuButton.setAttribute("aria-haspopup", "menu");
-    menuButton.setAttribute("aria-expanded", "false");
-    menuButton.setAttribute("aria-label", "Choose editor");
-    menuButton.title = "Choose editor";
-    menuButton.append(controlIcon("chevron-down", "editor-caret"));
-
-    trigger.append(openLink, menuButton);
-
-    const menu = document.createElement("div");
-    menu.className = "editor-menu";
-    menu.dataset.editorMenu = "";
-    menu.hidden = true;
-    menu.setAttribute("role", "menu");
-
-    picker.append(trigger, menu);
-    return picker;
-  }
-
-  function renderEditorPicker(picker) {
-    const trigger = picker.querySelector("[data-editor-trigger]");
-    const openLink = picker.querySelector("[data-editor-open]");
-    const menuButton = picker.querySelector("[data-editor-menu-trigger]");
-    const mark = picker.querySelector("[data-editor-mark]");
-    const menu = picker.querySelector("[data-editor-menu]");
-    const ordered = orderedEditors();
-    const selected = ordered[0];
-    const panel = picker.closest("[data-note-path]");
-    const notePath = panel?.dataset.notePath || "";
-    if (!trigger || !openLink || !menuButton || !mark || !menu || !selected || !notePath) {
-      return;
-    }
-
-    renderEditorMark(mark, selected);
-    trigger.setAttribute("aria-label", "Editor: " + selected.name);
-    openLink.href = editorDeepLink(selected, notePath);
-    openLink.title = "Open " + notePath + " in " + selected.name;
-    openLink.setAttribute("aria-label", "Open " + notePath + " in " + selected.name);
-    menuButton.title = "Choose editor";
-    menuButton.setAttribute("aria-label", "Choose editor for " + notePath);
-    picker.dataset.primaryEditor = selected.id;
-
-    menu.replaceChildren();
-    appendEditorMenuItem(menu, selected, true);
-    if (ordered.length > 1) {
-      const separator = document.createElement("div");
-      separator.className = "editor-menu-separator";
-      separator.setAttribute("role", "separator");
-      menu.append(separator);
-    }
-    ordered.slice(1).forEach(function (editor) {
-      appendEditorMenuItem(menu, editor, false);
-    });
-  }
-
-  function appendEditorMenuItem(menu, editor, selected) {
-    const item = document.createElement("button");
-    item.className = "editor-menu-item" + (selected ? " is-selected" : "");
-    item.type = "button";
-    item.dataset.editorOption = editor.id;
-    item.setAttribute("role", "menuitemradio");
-    item.setAttribute("aria-checked", selected ? "true" : "false");
-
-    const mark = document.createElement("span");
-    mark.className = "editor-option-mark";
-    renderEditorMark(mark, editor);
-
-    const label = document.createElement("span");
-    label.className = "editor-option-label";
-    label.textContent = editor.name;
-
-    item.append(mark, label);
-    menu.append(item);
-  }
-
-  function renderAllEditorPickers() {
-    document.querySelectorAll("[data-editor-picker]").forEach(renderEditorPicker);
-  }
-
-  function setEditorMenuOpen(picker, open) {
-    const menuButton = picker.querySelector("[data-editor-menu-trigger]");
-    const menu = picker.querySelector("[data-editor-menu]");
-    if (!menuButton || !menu) {
-      return;
-    }
-    if (open) {
-      closeEditorMenus(picker);
-      renderEditorPicker(picker);
-    }
-    menu.hidden = !open;
-    menuButton.setAttribute("aria-expanded", open ? "true" : "false");
-  }
-
-  function closeEditorMenus(exceptPicker) {
-    document.querySelectorAll("[data-editor-picker]").forEach(function (picker) {
-      if (picker === exceptPicker) {
-        return;
-      }
-      setEditorMenuOpen(picker, false);
-    });
-  }
-
-  function activePanel() {
-    return stackEl.querySelector(".note-panel.is-active-panel");
-  }
-
-  function setActivePanel(panel) {
-    if (!panel || !stackEl.contains(panel)) {
-      return;
-    }
-
-    panels().forEach(function (item) {
-      const active = item === panel;
-      item.classList.toggle("is-active-panel", active);
-      item.dataset.activePanel = active ? "true" : "false";
-      if (!active) {
-        item.querySelectorAll("[data-editor-picker]").forEach(function (picker) {
-          setEditorMenuOpen(picker, false);
-        });
-      }
-    });
-    updateTitle();
-  }
-
-  function ensureActivePanel() {
-    const all = panels();
-    if (!all.length) {
-      return;
-    }
-    if (!activePanel()) {
-      setActivePanel(all[all.length - 1]);
-    }
-  }
-
-  function ensurePanelResizeHandles(panel) {
-    if (!panel || panel.dataset.resizeHandlesBound === "true") {
-      return;
-    }
-    panel.dataset.resizeHandlesBound = "true";
-    ["left", "right"].forEach(function (edge) {
-      const handle = document.createElement("button");
-      handle.type = "button";
-      handle.className = "note-resize-handle note-resize-handle-" + edge;
-      handle.dataset.panelResizeHandle = edge;
-      handle.setAttribute("aria-label", "Resize note panel from the " + edge);
-      handle.title = "Resize panel";
-      handle.addEventListener("pointerdown", startPanelResize);
-      handle.addEventListener("keydown", function (event) {
-        resizePanelWithKeyboard(panel, edge, event);
-      });
-      panel.append(handle);
-    });
-  }
-
-  function bindEditorPicker(picker) {
-    if (!picker || picker.dataset.editorBound === "true") {
-      return;
-    }
-    picker.dataset.editorBound = "true";
-    renderEditorPicker(picker);
-
-    const menuButton = picker.querySelector("[data-editor-menu-trigger]");
-    const menu = picker.querySelector("[data-editor-menu]");
-    if (!menuButton || !menu) {
-      return;
-    }
-
-    menuButton.addEventListener("click", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      setEditorMenuOpen(picker, menu.hidden);
-    });
-    menuButton.addEventListener("keydown", function (event) {
-      if (event.key !== "ArrowDown" && event.key !== "Enter" && event.key !== " ") {
-        return;
-      }
-      event.preventDefault();
-      setEditorMenuOpen(picker, true);
-      const firstItem = menu.querySelector("[data-editor-option]");
-      if (firstItem) {
-        firstItem.focus();
-      }
-    });
-
-    menu.addEventListener("click", function (event) {
-      const item = closestElement(event.target, "[data-editor-option]");
-      if (!item) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      savePrimaryEditor(item.dataset.editorOption);
-      renderAllEditorPickers();
-      closeEditorMenus();
-    });
-    menu.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setEditorMenuOpen(picker, false);
-        menuButton.focus();
-        return;
-      }
-      if (event.key !== "Enter" && event.key !== " ") {
-        return;
-      }
-      const item = closestElement(event.target, "[data-editor-option]");
-      if (!item) {
-        return;
-      }
-      event.preventDefault();
-      savePrimaryEditor(item.dataset.editorOption);
-      renderAllEditorPickers();
-      closeEditorMenus();
-      menuButton.focus();
-    });
-  }
-
-  function currentStack() {
-    return panels().map(function (panel) {
-      return panel.dataset.notePath;
-    });
-  }
-
-  function stackFromLocation() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("empty") === "1") {
-      return [];
-    }
-    const base = notePathFromHref(window.location.href) || currentStack()[0] || "index.md";
-    return [base].concat(params.getAll("stack").filter(Boolean));
-  }
-
-  function stackURL(paths) {
-    if (!paths.length) {
-      const emptyURL = new URL(fileURL("index.md"), window.location.href);
-      emptyURL.searchParams.set("empty", "1");
-      return emptyURL;
-    }
-
-    const url = new URL(fileURL(paths[0] || "index.md"), window.location.href);
-    paths.slice(1).forEach(function (path) {
-      url.searchParams.append("stack", path);
-    });
-    return url;
-  }
-
-  function updateWorkspaceState() {
-    const panelCount = panels().length;
-    const isEmpty = panelCount === 0;
-    workspace.classList.toggle("is-empty", isEmpty);
-    workspace.classList.toggle("is-single-panel", panelCount === 1);
-    workspace.classList.toggle("is-multi-panel", panelCount > 1);
-    if (emptyState) {
-      emptyState.hidden = !isEmpty;
-    }
-    ensureActivePanel();
-    updateCloseLinks();
-    updateSpacePanState();
-    queueWorkspaceRailUpdate();
-  }
-
-  function updateCloseLinks() {
-    const paths = currentStack();
-    panels().forEach(function (panel, index) {
-      const closeLink = panel.querySelector("[data-close-panel]");
-      if (!closeLink) {
-        return;
-      }
-      const nextPaths = paths.filter(function (_path, pathIndex) {
-        return pathIndex !== index;
-      });
-      closeLink.href = stackURL(nextPaths).href;
-    });
-  }
-
-  function maxWorkspaceScroll() {
-    return Math.max(0, workspace.scrollWidth - workspace.clientWidth);
-  }
-
-  function canShowWorkspaceRail() {
-    return Boolean(scrollRail && scrollTrack && scrollThumb && panels().length > 1 && maxWorkspaceScroll() > 1 && !workspace.classList.contains("is-empty"));
-  }
-
-  function queueWorkspaceRailUpdate() {
-    window.requestAnimationFrame(updateWorkspaceRail);
-  }
-
-  function updateWorkspaceRail() {
-    if (!scrollRail || !scrollTrack || !scrollThumb) {
-      return;
-    }
-
-    if (!canShowWorkspaceRail()) {
-      scrollRail.hidden = true;
-      scrollRail.setAttribute("aria-hidden", "true");
-      scrollThumb.style.width = "";
-      scrollThumb.style.setProperty("--thumb-x", "0px");
-      scrollThumb.setAttribute("aria-valuemax", "0");
-      scrollThumb.setAttribute("aria-valuenow", "0");
-      return;
-    }
-
-    scrollRail.hidden = false;
-    scrollRail.setAttribute("aria-hidden", "false");
-
-    const trackWidth = scrollTrack.getBoundingClientRect().width;
-    if (trackWidth <= 0) {
-      return;
-    }
-    const maxScroll = maxWorkspaceScroll();
-    const thumbWidth = clamp(trackWidth * (workspace.clientWidth / workspace.scrollWidth), 44, trackWidth);
-    const maxThumbX = Math.max(0, trackWidth - thumbWidth);
-    const thumbX = maxScroll > 0 ? (workspace.scrollLeft / maxScroll) * maxThumbX : 0;
-
-    scrollThumb.style.width = thumbWidth + "px";
-    scrollThumb.style.setProperty("--thumb-x", clamp(thumbX, 0, maxThumbX) + "px");
-    scrollThumb.setAttribute("aria-valuemax", String(Math.round(maxScroll)));
-    scrollThumb.setAttribute("aria-valuenow", String(Math.round(workspace.scrollLeft)));
-  }
-
-  function scrollWorkspaceFromRail(clientX, thumbOffset) {
-    if (!canShowWorkspaceRail()) {
-      return;
-    }
-    const trackRect = scrollTrack.getBoundingClientRect();
-    const thumbRect = scrollThumb.getBoundingClientRect();
-    const maxThumbX = Math.max(0, trackRect.width - thumbRect.width);
-    const maxScroll = maxWorkspaceScroll();
-    const thumbX = clamp(clientX - trackRect.left - thumbOffset, 0, maxThumbX);
-    workspace.scrollLeft = maxThumbX > 0 ? (thumbX / maxThumbX) * maxScroll : 0;
-  }
-
-  function updateTitle() {
-    const all = panels();
-    const currentPanel = activePanel() || all[all.length - 1];
-    if (!currentPanel) {
-      document.title = "Knowledge base - Open Knowledge";
-      return;
-    }
-    const title = currentPanel?.dataset.noteTitle || currentPanel?.dataset.notePath || "Open Knowledge";
-    document.title = title + " - Open Knowledge";
-  }
-
-  function updateHistory(paths, pushHistory) {
-    const nextURL = stackURL(paths);
-    const state = { stack: paths };
-    if (pushHistory) {
-      window.history.pushState(state, "", nextURL);
-    } else {
-      window.history.replaceState(state, "", nextURL);
-    }
-  }
-
-  function updateActiveLinks() {
-    const all = panels();
-    all.forEach(function (panel, index) {
-      panel.querySelectorAll(".note-body a.is-active-note").forEach(function (link) {
-        link.classList.remove("is-active-note");
-        link.removeAttribute("aria-current");
-      });
-    });
-
-    all.forEach(function (panel, index) {
-      const nextPath = all[index + 1]?.dataset.notePath;
-      if (!nextPath) {
-        return;
-      }
-
-      panel.querySelectorAll(".note-body a[href]").forEach(function (link) {
-        if (notePathFromHref(link.getAttribute("href") || link.href, panel.dataset.notePath) === nextPath) {
-          link.classList.add("is-active-note");
-          link.setAttribute("aria-current", "true");
-        }
-      });
-    });
-  }
-
-  function scrollToPanel(panel) {
-    setActivePanel(panel);
-    window.requestAnimationFrame(function () {
-      panel.scrollIntoView({
-        block: "nearest",
-        inline: "end",
-        behavior: reduceMotion.matches ? "auto" : "smooth"
-      });
-      panel.focus({ preventScroll: true });
-    });
-  }
-
-  async function fetchNote(path) {
-    if (isStaticBundle()) {
-      const note = staticNotesByPath[path];
-      if (!note) {
-        throw new Error("Could not open " + path);
-      }
-      return note;
-    }
-
-    const response = await fetch(apiURL(path), {
-      headers: { "Accept": "application/json" }
-    });
-    if (!response.ok) {
-      throw new Error("Could not open " + path);
-    }
-    return response.json();
-  }
-
-  function createPanel(data, animate) {
-    const panel = document.createElement("article");
-    panel.className = "document note-panel" + (animate ? " is-entering" : "");
-    panel.dataset.notePath = data.path;
-    panel.dataset.noteTitle = data.title || data.path;
-    panel.tabIndex = -1;
-
-    const chrome = document.createElement("div");
-    chrome.className = "note-chrome";
-
-    const pathLink = document.createElement("a");
-    pathLink.className = "note-path";
-    pathLink.href = fileURL(data.path);
-    pathLink.dataset.directLink = "true";
-    pathLink.textContent = data.path;
-    chrome.append(pathLink);
-
-    const actions = document.createElement("div");
-    actions.className = "note-actions";
-    actions.append(createEditorPicker());
-
-    const closeButton = document.createElement("a");
-    closeButton.className = "note-close";
-    closeButton.href = "#";
-    closeButton.dataset.closePanel = "";
-    closeButton.setAttribute("role", "button");
-    closeButton.setAttribute("aria-label", "Close " + data.path);
-    closeButton.title = "Close note";
-    closeButton.append(controlIcon("x", "note-close-icon"));
-    actions.append(closeButton);
-    chrome.append(actions);
-
-    const body = document.createElement("div");
-    body.className = "note-body";
-    body.innerHTML = data.body;
-
-    panel.append(chrome, body);
-    bindPanel(panel);
-    return panel;
-  }
-
-  function bindPanel(panel) {
-    applyPanelWidth(panel);
-    ensurePanelResizeHandles(panel);
-    panel.querySelectorAll("[data-editor-picker]").forEach(bindEditorPicker);
-
-    const closeButton = panel.querySelector("[data-close-panel]");
-    if (!closeButton || closeButton.dataset.closeBound === "true") {
-      return;
-    }
-    closeButton.dataset.closeBound = "true";
-    closeButton.addEventListener("click", function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      closePanel(panel, true);
-    });
-    closeButton.addEventListener("keydown", function (event) {
-      if (event.key !== " " && event.key !== "Enter") {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      closePanel(panel, true);
-    });
-  }
-
-  function createErrorPanel(path, error) {
-    const message = document.createElement("p");
-    message.className = "note-error";
-    const detail = error instanceof Error ? error.message : "";
-    message.textContent = detail === "Failed to fetch"
-      ? "Could not reach the local viewer server while opening " + path + ". Restart openknowledge open and refresh this page."
-      : detail || "Could not open " + path;
-    return createPanel({
-      title: "Not found",
-      path,
-      body: message.outerHTML
-    }, true);
-  }
-
-  async function panelForPath(path, animate) {
-    try {
-      return createPanel(await fetchNote(path), animate);
-    } catch (error) {
-      return createErrorPanel(path, error);
-    }
-  }
-
-  function appendPanel(panel) {
-    stackEl.append(panel);
-    setActivePanel(panel);
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
-    scrollToPanel(panel);
-  }
-
-  async function appendNote(path, animate) {
-    appendPanel(await panelForPath(path, animate));
-  }
-
-  function canUseStackTransition() {
-    return !reduceMotion.matches && typeof document.startViewTransition === "function";
-  }
-
-  function clearEnteringPanels() {
-    stackEl.querySelectorAll(".note-panel.is-entering").forEach(function (panel) {
-      panel.classList.remove("is-entering");
-    });
-  }
-
-  async function runStackTransition(mutator) {
-    if (!canUseStackTransition()) {
-      return mutator();
-    }
-
-    document.body.classList.add("is-view-transitioning");
-    try {
-      const transition = document.startViewTransition(mutator);
-      if (transition.updateCallbackDone) {
-        await transition.updateCallbackDone;
-      }
-      try {
-        await transition.finished;
-      } catch {
-        // Browser-driven transition aborts should not surface as app errors.
-      }
-    } finally {
-      clearEnteringPanels();
-      document.body.classList.remove("is-view-transitioning");
-    }
-  }
-
-  function clearStack() {
-    panels().forEach(function (panel) {
-      panel.remove();
-    });
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
-  }
-
-  function trimAfter(index) {
-    panels().slice(index + 1).forEach(function (panel) {
-      panel.remove();
-    });
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
-  }
-
-  async function openInitialNote(targetPath, pushHistory) {
-    const panel = await panelForPath(targetPath, true);
-    await runStackTransition(function () {
-      clearStack();
-      appendPanel(panel);
-      updateHistory(currentStack(), pushHistory);
-    });
-  }
-
-  async function closePanel(panel, pushHistory) {
-    const before = panels();
-    const index = before.indexOf(panel);
-    let nextPanel;
-
-    await runStackTransition(function () {
-      panel.remove();
-
-      const remaining = panels();
-      updateWorkspaceState();
-      updateActiveLinks();
-      updateTitle();
-      updateHistory(currentStack(), pushHistory);
-
-      if (!remaining.length) {
-        return;
-      }
-
-      nextPanel = remaining[Math.min(Math.max(index, 0), remaining.length - 1)];
-      setActivePanel(nextPanel);
-    });
-
-    if (!nextPanel) {
-      return;
-    }
-    scrollToPanel(nextPanel);
-  }
-
-  async function openFromPanel(sourcePanel, targetPath, pushHistory) {
-    const panel = await panelForPath(targetPath, true);
-    await runStackTransition(function () {
-      const all = panels();
-      let sourceIndex = all.indexOf(sourcePanel);
-      if (sourceIndex < 0) {
-        sourceIndex = all.length - 1;
-      }
-
-      trimAfter(sourceIndex);
-      appendPanel(panel);
-
-      updateHistory(currentStack(), pushHistory);
-    });
-  }
-
-  async function restoreStack(paths) {
-    const loadedPanels = [];
-    for (const path of paths) {
-      loadedPanels.push(await panelForPath(path, false));
-    }
-
-    await runStackTransition(function () {
-      clearStack();
-      loadedPanels.forEach(function (panel) {
-        stackEl.append(panel);
-      });
-      ensureActivePanel();
-      updateWorkspaceState();
-      updateActiveLinks();
-      updateTitle();
-      const active = activePanel();
-      if (active) {
-        scrollToPanel(active);
-      }
-    });
-  }
-
-  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
-  let workspaceDrag = null;
-  let railDrag = null;
-  let panelResize = null;
-  let spacePanPressed = false;
-  let suppressWorkspaceClickUntil = 0;
-
-  function isSpacePanKey(event) {
-    return event.code === "Space" || event.key === " " || event.key === "Spacebar";
-  }
-
-  function isEditableTarget(target) {
-    return Boolean(closestElement(target, "input, textarea, select, [contenteditable='true']"));
-  }
-
-  function isInteractiveShortcutTarget(target) {
-    return Boolean(closestElement(target, "a[href], button, input, textarea, select, [contenteditable='true'], [role='button']"));
-  }
-
-  function canUseSpacePanShortcut() {
-    return finePointer.matches && panels().length > 1 && !workspace.classList.contains("is-empty");
-  }
-
-  function isSpacePanActive() {
-    return spacePanPressed && canUseSpacePanShortcut();
-  }
-
-  function updateSpacePanState() {
-    workspace.classList.toggle("is-space-panning", isSpacePanActive());
-  }
-
-  function startSpacePan(event) {
-    if (!isSpacePanKey(event) || event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || isInteractiveShortcutTarget(event.target)) {
-      return;
-    }
-    if (!canUseSpacePanShortcut()) {
-      return;
-    }
-    spacePanPressed = true;
-    updateSpacePanState();
-    event.preventDefault();
-  }
-
-  function stopSpacePan(event) {
-    if (!isSpacePanKey(event) || !spacePanPressed) {
-      return;
-    }
-    spacePanPressed = false;
-    updateSpacePanState();
-    event.preventDefault();
-  }
-
-  function cancelSpacePan() {
-    spacePanPressed = false;
-    updateSpacePanState();
-  }
-
-  function suppressNextWorkspaceClick() {
-    suppressWorkspaceClickUntil = Date.now() + 350;
-    window.setTimeout(function () {
-      if (Date.now() >= suppressWorkspaceClickUntil) {
-        suppressWorkspaceClickUntil = 0;
-      }
-    }, 360);
-  }
-
-  function consumeSuppressedWorkspaceClick(event) {
-    if (!suppressWorkspaceClickUntil || Date.now() > suppressWorkspaceClickUntil) {
-      return false;
-    }
-    suppressWorkspaceClickUntil = 0;
-    event.preventDefault();
-    event.stopPropagation();
-    return true;
-  }
-
-  function currentPanelWidth(panel) {
-    return panel.getBoundingClientRect().width || savedPanelWidth(panel) || defaultPanelWidth();
-  }
-
-  function setPanelWidth(panel, width) {
-    const nextWidth = normalizePanelWidth(width);
-    if (!nextWidth || !panel) {
-      return null;
-    }
-    panel.style.setProperty("--note-panel-width", nextWidth + "px");
-    panel.dataset.panelWidth = String(nextWidth);
-    if (panel.dataset.notePath) {
-      panelWidths[panel.dataset.notePath] = nextWidth;
-    }
-    queueWorkspaceRailUpdate();
-    return nextWidth;
-  }
-
-  function resizePanelWithKeyboard(panel, edge, event) {
-    const key = (event.key || "").toLowerCase();
-    const currentWidth = currentPanelWidth(panel);
-    const step = event.shiftKey ? 64 : 24;
-    let nextWidth = currentWidth;
-    if (key === "arrowleft") {
-      nextWidth += edge === "left" ? step : -step;
-    } else if (key === "arrowright") {
-      nextWidth += edge === "right" ? step : -step;
-    } else if (key === "home") {
-      nextWidth = minPanelWidth();
-    } else if (key === "end") {
-      nextWidth = maxPanelWidth();
-    } else {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    const storedWidth = setPanelWidth(panel, nextWidth);
-    if (!storedWidth) {
-      return;
-    }
-    if (edge === "left") {
-      workspace.scrollLeft += storedWidth - currentWidth;
-    }
-    savePanelWidths();
-  }
-
-  function startPanelResize(event) {
-    const handle = closestElement(event.target, "[data-panel-resize-handle]");
-    const panel = handle?.closest("[data-note-path]");
-    if (!handle || !panel || event.button !== 0) {
-      return;
-    }
-    panelResize = {
-      pointerId: event.pointerId,
-      panel: panel,
-      handle: handle,
-      edge: handle.dataset.panelResizeHandle === "left" ? "left" : "right",
-      startX: event.clientX,
-      startWidth: currentPanelWidth(panel),
-      startScrollLeft: workspace.scrollLeft,
-      moved: false
-    };
-    setActivePanel(panel);
-    panel.classList.add("is-panel-resizing");
-    document.body.classList.add("is-panel-resizing");
-    window.addEventListener("pointermove", updatePanelResize);
-    window.addEventListener("pointerup", stopPanelResize);
-    window.addEventListener("pointercancel", stopPanelResize);
-    window.addEventListener("blur", cancelPanelResize);
-    event.preventDefault();
-    event.stopPropagation();
-    try {
-      handle.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture can fail if the pointer is already released.
-    }
-  }
-
-  function updatePanelResize(event) {
-    if (!panelResize || event.pointerId !== panelResize.pointerId) {
-      return;
-    }
-    const deltaX = event.clientX - panelResize.startX;
-    if (Math.abs(deltaX) > 2) {
-      panelResize.moved = true;
-    }
-    const requestedWidth = panelResize.startWidth + (panelResize.edge === "left" ? -deltaX : deltaX);
-    const nextWidth = setPanelWidth(panelResize.panel, requestedWidth);
-    if (!nextWidth) {
-      return;
-    }
-    if (panelResize.edge === "left") {
-      workspace.scrollLeft = panelResize.startScrollLeft + (nextWidth - panelResize.startWidth);
-    }
-    event.preventDefault();
-  }
-
-  function finishPanelResize(pointerId) {
-    if (!panelResize) {
-      return;
-    }
-    const resized = panelResize.moved;
-    panelResize.panel.classList.remove("is-panel-resizing");
-    try {
-      if (pointerId !== undefined) {
-        panelResize.handle.releasePointerCapture(pointerId);
-      }
-    } catch {
-      // Pointer capture can already be released by the browser.
-    }
-    panelResize = null;
-    document.body.classList.remove("is-panel-resizing");
-    window.removeEventListener("pointermove", updatePanelResize);
-    window.removeEventListener("pointerup", stopPanelResize);
-    window.removeEventListener("pointercancel", stopPanelResize);
-    window.removeEventListener("blur", cancelPanelResize);
-    if (resized) {
-      savePanelWidths();
-      suppressNextWorkspaceClick();
-    }
-  }
-
-  function stopPanelResize(event) {
-    if (!panelResize || event.pointerId !== panelResize.pointerId) {
-      return;
-    }
-    finishPanelResize(event.pointerId);
-  }
-
-  function cancelPanelResize() {
-    finishPanelResize();
-  }
-
-  function canStartWorkspaceDrag(event) {
-    const pointerType = event.pointerType || "mouse";
-    if (pointerType !== "mouse" || !finePointer.matches || event.button !== 0 || panels().length < 2) {
-      return false;
-    }
-    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return false;
-    }
-    if (isSpacePanActive()) {
-      return !isEditableTarget(event.target);
-    }
-    return !closestElement(event.target, "[data-note-path], a, button, input, textarea, select, [contenteditable='true'], [role='button']");
-  }
-
-  function startWorkspaceDrag(event) {
-    if (!canStartWorkspaceDrag(event)) {
-      return;
-    }
-    const fromSpacePan = isSpacePanActive();
-    workspaceDrag = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startScrollLeft: workspace.scrollLeft,
-      moved: false,
-      fromSpacePan: fromSpacePan
-    };
-    workspace.classList.add("is-drag-scrolling");
-    if (fromSpacePan) {
-      event.preventDefault();
-    }
-    try {
-      workspace.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture can fail if the pointer is already released.
-    }
-  }
-
-  function updateWorkspaceDrag(event) {
-    if (!workspaceDrag || event.pointerId !== workspaceDrag.pointerId) {
-      return;
-    }
-    const deltaX = event.clientX - workspaceDrag.startX;
-    if (Math.abs(deltaX) < 3 && !workspaceDrag.moved) {
-      return;
-    }
-    workspaceDrag.moved = true;
-    workspace.scrollLeft = workspaceDrag.startScrollLeft - deltaX;
-    event.preventDefault();
-  }
-
-  function stopWorkspaceDrag(event) {
-    if (!workspaceDrag || event.pointerId !== workspaceDrag.pointerId) {
-      return;
-    }
-    const drag = workspaceDrag;
-    try {
-      workspace.releasePointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture can already be released by the browser.
-    }
-    if (drag.moved || drag.fromSpacePan) {
-      suppressNextWorkspaceClick();
-    }
-    workspaceDrag = null;
-    workspace.classList.remove("is-drag-scrolling");
-  }
-
-  function startRailDrag(event) {
-    if (!canShowWorkspaceRail() || event.button !== 0) {
-      return;
-    }
-    const thumbRect = scrollThumb.getBoundingClientRect();
-    railDrag = {
-      pointerId: event.pointerId,
-      thumbOffset: clamp(event.clientX - thumbRect.left, 0, thumbRect.width)
-    };
-    scrollRail.classList.add("is-rail-dragging");
-    window.addEventListener("pointermove", updateRailDrag);
-    window.addEventListener("pointerup", stopRailDrag);
-    window.addEventListener("pointercancel", stopRailDrag);
-    window.addEventListener("blur", cancelRailDrag);
-    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset);
-    event.preventDefault();
-    try {
-      scrollThumb.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture can fail if the pointer is already released.
-    }
-  }
-
-  function startRailTrackJump(event) {
-    if (!canShowWorkspaceRail() || event.button !== 0 || closestElement(event.target, "[data-workspace-scroll-thumb]")) {
-      return;
-    }
-    const thumbRect = scrollThumb.getBoundingClientRect();
-    scrollWorkspaceFromRail(event.clientX, thumbRect.width / 2);
-    event.preventDefault();
-  }
-
-  function updateRailDrag(event) {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) {
-      return;
-    }
-    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset);
-    event.preventDefault();
-  }
-
-  function finishRailDrag(pointerId) {
-    const releasedPointerId = pointerId ?? railDrag.pointerId;
-    try {
-      scrollThumb.releasePointerCapture(releasedPointerId);
-    } catch {
-      // Pointer capture can already be released by the browser.
-    }
-    railDrag = null;
-    scrollRail.classList.remove("is-rail-dragging");
-    window.removeEventListener("pointermove", updateRailDrag);
-    window.removeEventListener("pointerup", stopRailDrag);
-    window.removeEventListener("pointercancel", stopRailDrag);
-    window.removeEventListener("blur", cancelRailDrag);
-  }
-
-  function stopRailDrag(event) {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) {
-      return;
-    }
-    finishRailDrag(event.pointerId);
-  }
-
-  function cancelRailDrag() {
-    if (!railDrag) {
-      return;
-    }
-    finishRailDrag();
-  }
-
-  function scrollRailWithKeyboard(event) {
-    if (!canShowWorkspaceRail()) {
-      return;
-    }
-    const smallStep = Math.max(48, workspace.clientWidth * 0.12);
-    const largeStep = Math.max(120, workspace.clientWidth * 0.72);
-    let nextScroll = workspace.scrollLeft;
-    const key = (event.key || "").toLowerCase();
-    if (key === "arrowleft") {
-      nextScroll -= smallStep;
-    } else if (key === "arrowright") {
-      nextScroll += smallStep;
-    } else if (key === "pageup") {
-      nextScroll -= largeStep;
-    } else if (key === "pagedown") {
-      nextScroll += largeStep;
-    } else if (key === "home") {
-      nextScroll = 0;
-    } else if (key === "end") {
-      nextScroll = maxWorkspaceScroll();
-    } else {
-      return;
-    }
-    event.preventDefault();
-    workspace.scrollLeft = clamp(nextScroll, 0, maxWorkspaceScroll());
-  }
-
-  workspace.addEventListener("pointerdown", startWorkspaceDrag);
-  workspace.addEventListener("pointermove", updateWorkspaceDrag);
-  workspace.addEventListener("pointerup", stopWorkspaceDrag);
-  workspace.addEventListener("pointercancel", stopWorkspaceDrag);
-  workspace.addEventListener("scroll", queueWorkspaceRailUpdate);
-  window.addEventListener("keydown", startSpacePan, true);
-  window.addEventListener("keyup", stopSpacePan, true);
-  window.addEventListener("blur", cancelSpacePan);
-  window.addEventListener("resize", queueWorkspaceRailUpdate);
-
-  if (scrollTrack && scrollThumb) {
-    scrollTrack.addEventListener("pointerdown", startRailTrackJump);
-    scrollThumb.addEventListener("pointerdown", startRailDrag);
-    scrollThumb.addEventListener("pointermove", updateRailDrag);
-    scrollThumb.addEventListener("pointerup", stopRailDrag);
-    scrollThumb.addEventListener("pointercancel", stopRailDrag);
-    scrollThumb.addEventListener("keydown", scrollRailWithKeyboard);
-  }
-
-  workspace.addEventListener("click", function (event) {
-    if (consumeSuppressedWorkspaceClick(event)) {
-      return;
-    }
-
-    const clickedPanel = closestElement(event.target, "[data-note-path]");
-    if (clickedPanel) {
-      setActivePanel(clickedPanel);
-    }
-
-    const closeButton = closestElement(event.target, "[data-close-panel]");
-    if (closeButton) {
-      const panel = closeButton.closest("[data-note-path]");
-      if (!panel) {
-        return;
-      }
-      event.preventDefault();
-      closePanel(panel, true);
-      return;
-    }
-
-    const treeLink = closestElement(event.target, "[data-tree-path]");
-    const graphLink = closestElement(event.target, "[data-graph-path]");
-    if (treeLink || graphLink) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      event.preventDefault();
-      openInitialNote(treeLink?.dataset.treePath || graphLink.dataset.graphPath, true);
-      return;
-    }
-
-    const link = closestElement(event.target, "a[href]");
-    if (!link || link.dataset.directLink === "true") {
-      return;
-    }
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
-
-    const sourcePanel = link.closest("[data-note-path]");
-    if (!sourcePanel) {
-      return;
-    }
-
-    const targetPath = notePathFromHref(link.getAttribute("href") || link.href, sourcePanel.dataset.notePath);
-    if (!targetPath) {
-      return;
-    }
-
-    event.preventDefault();
-    openFromPanel(sourcePanel, targetPath, true);
-  });
-
-  workspace.addEventListener("focusin", function (event) {
-    const focusedPanel = closestElement(event.target, "[data-note-path]");
-    if (focusedPanel) {
-      setActivePanel(focusedPanel);
-    }
-  });
-
-  if (sidebarToggle) {
-    sidebarToggle.addEventListener("click", function () {
-      setSidebarOpen(!document.body.classList.contains("is-sidebar-open"));
-    });
-  }
-  if (sidebarClose) {
-    sidebarClose.addEventListener("click", function () {
-      setSidebarOpen(false);
-      sidebarToggle?.focus();
-    });
-  }
-  if (fileSidebar) {
-    fileSidebar.addEventListener("click", function (event) {
-      const treeLink = closestElement(event.target, "[data-tree-path]");
-      const link = treeLink || closestElement(event.target, "a[href]");
-      if (!link) {
-        return;
-      }
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      const targetPath = treeLink?.dataset.treePath || notePathFromHref(link.getAttribute("href") || link.href);
-      if (!targetPath) {
-        return;
-      }
-      event.preventDefault();
-      closeSearchResults(link);
-      openInitialNote(targetPath, true);
-    });
-  }
-
-  function closeSearchResults(source) {
-    const search = closestElement(source, ".search");
-    if (!search) {
-      return;
-    }
-    const input = search.querySelector(".search-input");
-    const results = search.querySelector(".search-results");
-    const status = search.querySelector(".search-status");
-    if (input) {
-      input.value = "";
-    }
-    if (status) {
-      status.textContent = "";
-    }
-    if (results) {
-      results.hidden = true;
-      results.replaceChildren();
-    }
-  }
-
-  window.addEventListener("popstate", function () {
-    const paths = stackFromLocation();
-    restoreStack(paths);
-  });
-
-  document.addEventListener("click", function (event) {
-    const searchResult = closestElement(event.target, ".search-result[href]");
-    if (searchResult) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      const targetPath = notePathFromHref(searchResult.getAttribute("href") || searchResult.href);
-      if (targetPath) {
-        event.preventDefault();
-        closeSearchResults(searchResult);
-        openInitialNote(targetPath, true);
-        return;
-      }
-    }
-
-    if (!closestElement(event.target, "[data-editor-picker]")) {
-      closeEditorMenus();
-    }
-  });
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") {
-      closeEditorMenus();
-      setSidebarOpen(false);
-    }
-  });
-
-  const requestedStack = stackFromLocation();
-  renderKnowledgeGraph();
-  panels().forEach(bindPanel);
-  ensureActivePanel();
-  if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
-    window.history.replaceState({ stack: requestedStack }, "", window.location.href);
-    restoreStack(requestedStack);
-  } else {
-    window.history.replaceState({ stack: requestedStack }, "", window.location.href);
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
-  }
-})();
-`
-
-const viewerCSS = `
-:root {
-  color-scheme: light;
-  --ink: #1f2724;
-  --muted: #65736d;
-  --line: #dfe5e1;
-  --paper: #f8faf8;
-  --panel: #ffffff;
-  --accent: #0f7a4d;
-  --accent-rgb: 15, 122, 77;
-  --shadow: rgba(24, 34, 30, .12);
-  --header-height: 52px;
-  --sidebar-width: min(340px, calc(100vw - 36px));
-  --sidebar-bg: #e2e2e2;
-  --sidebar-head-bg: #d8d8d8;
-  --sidebar-row-bg: #d0d0d0;
-  --note-panel-default-width: min(650px, calc(100vw - 44px));
-  --note-panel-min-width: min(360px, calc(100vw - 24px));
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-* { box-sizing: border-box; }
-body { margin: 0; color: var(--ink); background: var(--paper); line-height: 1.55; }
-body.viewer-document { height: 100vh; overflow: hidden; }
-header { display: flex; min-height: var(--header-height); justify-content: space-between; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .92); color: var(--muted); font-size: 13px; }
-body.viewer-document > header { position: relative; justify-content: center; border-bottom: 0; background: #f0f0f0; transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
-body.viewer-document.is-sidebar-open > header { transform: translateX(var(--sidebar-width)); }
-.header-left { position: absolute; left: 22px; top: 50%; display: inline-flex; min-width: 0; align-items: center; gap: 10px; transform: translateY(-50%); }
-.brand { color: var(--ink); font-weight: 700; text-decoration: none; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.sidebar-toggle { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #666666; cursor: pointer; }
-.sidebar-toggle:hover, .sidebar-toggle:focus-visible, body.is-sidebar-open .sidebar-toggle { border-color: #cdcdcd; background: #e4e4e4; color: #2f2f2f; outline: none; }
-.sidebar-toggle-icon { width: 19px; height: 19px; }
-.control-icon { display: block; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
-.file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; display: flex; width: var(--sidebar-width); flex-direction: column; border-right: 1px solid #c7c7c7; background: var(--sidebar-bg); box-shadow: none; transform: translateX(-100%); transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
-body.is-sidebar-open .file-sidebar { transform: translateX(0); }
-.file-sidebar-head { display: flex; min-height: var(--header-height); align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 18px; border-bottom: 1px solid #c7c7c7; background: var(--sidebar-head-bg); color: #4f4f4f; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.file-sidebar-close { display: inline-flex; flex: 0 0 auto; width: 30px; height: 30px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #707070; cursor: pointer; }
-.file-sidebar-close:hover, .file-sidebar-close:focus-visible { border-color: #c4c4c4; background: #e5e5e5; color: #2f2f2f; outline: none; }
-.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }
-.search-field { position: relative; display: flex; align-items: center; }
-.header-search .search-input { min-height: 34px; padding: 6px 48px 6px 11px; border-color: #c9c9c9; border-radius: 7px; background: #f9f9f9; font-size: 13px; }
-.header-search .search-shortcut { position: absolute; right: 7px; display: inline-flex; min-width: 32px; height: 22px; align-items: center; justify-content: center; border: 1px solid #d1d1d1; border-radius: 5px; background: #eeeeee; color: #666666; font: 600 11px/1 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; pointer-events: none; }
-.header-search .search-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.header-search .search-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 7; gap: 5px; max-height: min(430px, 58vh); overflow: auto; padding: 6px; border: 1px solid #d4d4d4; border-radius: 8px; background: #ffffff; box-shadow: 0 18px 42px rgba(30, 30, 30, .16); }
-.header-search .search-result { padding: 8px 9px; border-color: #e0e0e0; border-radius: 6px; }
-.header-search .search-result:hover, .header-search .search-result:focus-visible, .header-search .search-result.is-active { border-color: #c7c7c7; background: #f0f0f0; }
-.file-sidebar-tree { flex: 1 1 auto; width: 100%; overflow: auto; padding: 4px 10px 18px 8px; }
-main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56px; }
-.workspaces { margin: 0 0 28px; }
-.sidebar-label { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.workspace-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 9px; }
-.workspace { display: grid; gap: 2px; min-width: 0; padding: 10px 11px; border: 1px solid #dce4df; border-radius: 6px; background: #fff; color: inherit; text-decoration: none; }
-.workspace:hover, .workspace:focus-visible, .workspace.active { border-color: rgba(var(--accent-rgb), .36); background: #f2f7f4; outline: none; }
-.workspace-name { overflow: hidden; color: var(--ink); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-root { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.note-workspace { position: relative; display: flex; width: 100%; height: calc(100vh - var(--header-height)); margin: 0; padding: 0; overflow: auto hidden; background: #f0f0f0; scroll-behavior: smooth; overscroll-behavior-x: contain; transition: transform .22s cubic-bezier(.22, .8, .2, 1); }
-body.viewer-document.is-sidebar-open > .note-workspace { transform: translateX(var(--sidebar-width)); }
-.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 18px; min-width: max-content; min-height: 0; padding: 22px max(22px, calc((100vw - 1180px) / 2)) 26px 22px; }
-.note-workspace.is-single-panel .note-stack { min-width: 100%; justify-content: center; padding-right: 22px; }
-.note-workspace.is-multi-panel { scrollbar-width: none; }
-.note-workspace.is-multi-panel::-webkit-scrollbar { width: 0; height: 0; }
-.note-workspace.is-multi-panel .note-stack { padding-bottom: 64px; }
-.note-workspace.is-space-panning, .note-workspace.is-drag-scrolling { scroll-behavior: auto; }
-.note-workspace.is-empty { overflow-x: hidden; overflow-y: auto; }
-.note-workspace.is-empty .note-stack { display: none; }
-.workspace-scroll-rail { position: fixed; right: max(22px, calc((100vw - 1180px) / 2)); bottom: 11px; left: 22px; z-index: 4; display: flex; height: 18px; align-items: center; padding: 7px 0; opacity: .58; transition: transform .22s cubic-bezier(.22, .8, .2, 1), opacity .16s ease; }
-.workspace-scroll-rail[hidden] { display: none; }
-body.viewer-document.is-sidebar-open > .workspace-scroll-rail { transform: translateX(var(--sidebar-width)); }
-.workspace-scroll-rail:hover, .workspace-scroll-rail:focus-within, .workspace-scroll-rail.is-rail-dragging { opacity: 1; }
-.workspace-scroll-track { position: relative; flex: 1 1 auto; height: 1px; border-radius: 999px; background: rgba(95, 95, 95, .12); cursor: pointer; }
-.workspace-scroll-thumb { position: absolute; top: 50%; left: 0; min-width: 44px; height: 3px; border: 0; border-radius: 999px; background: rgba(74, 74, 74, .34); cursor: grab; transform: translate(var(--thumb-x, 0px), -50%); transition: height .14s ease, background-color .14s ease; }
-.workspace-scroll-thumb:hover, .workspace-scroll-thumb:focus-visible, .workspace-scroll-rail.is-rail-dragging .workspace-scroll-thumb { height: 5px; background: rgba(54, 54, 54, .62); outline: none; }
-.workspace-scroll-rail.is-rail-dragging .workspace-scroll-thumb { cursor: grabbing; }
-.knowledge-empty { position: absolute; inset: 0; z-index: 0; overflow: auto; background: #f0f0f0; }
-.knowledge-empty[hidden] { display: none; }
-.knowledge-empty-inner { display: grid; min-height: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; padding: 32px max(24px, calc((100vw - 1420px) / 2)) 42px; }
-.knowledge-empty-pane { min-width: 0; min-height: 0; }
-.knowledge-empty-tree { overflow: auto; }
-.knowledge-empty-tree .knowledge-tree { width: 100%; }
-.knowledge-empty-graph { position: sticky; top: 26px; align-self: start; min-height: min(640px, calc(100vh - 132px)); overflow: hidden; }
-.knowledge-graph-svg { display: block; width: 100%; height: min(640px, calc(100vh - 132px)); min-height: 440px; }
-.knowledge-graph-edges line { stroke: #c8c8c8; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
-.knowledge-graph-node { color: #5b6661; cursor: pointer; text-decoration: none; }
-.knowledge-graph-node circle { fill: #f8f8f8; stroke: #aeb8b2; stroke-width: 1.6; vector-effect: non-scaling-stroke; transition: fill .16s ease, stroke .16s ease, transform .16s ease; transform-box: fill-box; transform-origin: center; }
-.knowledge-graph-node text { fill: #5f6b66; stroke: #f0f0f0; stroke-linejoin: round; stroke-width: 4px; paint-order: stroke; font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-anchor: middle; pointer-events: none; }
-.knowledge-graph-node:hover circle, .knowledge-graph-node:focus-visible circle { fill: #ffffff; stroke: var(--accent); transform: scale(1.16); }
-.knowledge-graph-node:hover text, .knowledge-graph-node:focus-visible text { fill: #26302c; }
-.knowledge-graph-node.is-index-node circle { fill: #ffffff; stroke: #89958f; stroke-width: 2; }
-.knowledge-tree { width: min(720px, 100%); color: #51605a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
-.tree-row { display: flex; min-height: 30px; align-items: center; gap: 12px; padding: 4px 10px 4px var(--indent); border-radius: 6px; color: inherit; text-decoration: none; }
-.tree-directory { margin: 7px 0 2px; background: #e1e6e2; color: #56645f; font-weight: 700; }
-.file-sidebar .tree-directory { background: var(--sidebar-row-bg); color: #4f4f4f; }
-.tree-directory::before { color: #82908a; content: "/"; }
-.tree-file:hover { background: rgba(var(--accent-rgb), .09); color: var(--accent); }
-.file-sidebar .tree-file:hover { background: #d6d6d6; }
-.tree-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tree-file-system { margin-left: auto; flex: 0 0 auto; padding: 1px 5px; border: 1px solid #cad4ce; border-radius: 4px; color: #708078; font-size: 10px; line-height: 1.2; text-transform: lowercase; }
-h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.15; }
-h2 { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); }
-h3 { margin-top: 26px; }
-hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
-.lede { margin: 0 0 26px; color: var(--muted); }
-.error { color: #a44b28; }
-.search { position: relative; margin: 0 0 22px; }
-.search-label { display: block; margin: 0 0 7px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.search-input { width: 100%; min-height: 42px; border: 1px solid #ced8d2; border-radius: 6px; background: #fff; color: var(--ink); font: inherit; padding: 8px 11px; }
-.search-input:focus { border-color: rgba(var(--accent-rgb), .5); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .12); outline: none; }
-.search-status { min-height: 20px; margin-top: 8px; color: var(--muted); font-size: 13px; }
-.search-results { display: grid; gap: 7px; margin-top: 8px; }
-.search-results[hidden] { display: none; }
-.search-result { display: grid; gap: 2px; padding: 10px 11px; border: 1px solid #dce4df; border-radius: 6px; background: #fff; color: inherit; text-decoration: none; }
-.search-result:hover, .search-result:focus-visible, .search-result.is-active { border-color: rgba(var(--accent-rgb), .35); background: #f2f7f4; outline: none; }
-.search-result-title { color: var(--ink); font-weight: 700; }
-.search-result-meta, .search-result-snippet { color: var(--muted); font-size: 13px; }
-.list { border-top: 1px solid var(--line); }
-.row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(160px, .7fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
-.row:hover .path { color: var(--accent); }
-.path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; }
-.meta, .issue { color: var(--muted); font-size: 13px; }
-.issue { grid-column: 1 / -1; color: #a44b28; }
-.document { max-width: 780px; }
-.note-panel.document { position: relative; flex: 0 0 var(--note-panel-width, var(--note-panel-default-width)); max-width: none; min-width: var(--note-panel-min-width); min-height: 0; padding: 0 34px 34px; overflow-y: auto; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 46px var(--shadow); outline: none; scroll-padding-top: 62px; }
-.note-panel:focus { border-color: rgba(var(--accent-rgb), .45); }
-.note-panel.is-entering { animation: note-enter .28s cubic-bezier(.22, .8, .2, 1); }
-body.is-view-transitioning .note-panel.is-entering { animation: none; }
-.note-resize-handle { position: absolute; top: 0; bottom: 0; z-index: 3; width: 14px; padding: 0; border: 0; background: transparent; color: transparent; cursor: ew-resize; touch-action: none; }
-.note-resize-handle-left { left: -7px; }
-.note-resize-handle-right { right: -7px; }
-.note-resize-handle::after { position: absolute; top: 10px; bottom: 10px; left: 6px; width: 2px; border-radius: 999px; background: transparent; content: ""; transition: background-color .12s ease; }
-.note-resize-handle:hover::after, .note-resize-handle:focus-visible::after, .note-panel.is-panel-resizing .note-resize-handle::after { background: rgba(var(--accent-rgb), .38); }
-.note-resize-handle:focus-visible { outline: none; }
-body.is-panel-resizing, body.is-panel-resizing * { cursor: ew-resize !important; user-select: none; }
-.note-chrome { position: sticky; top: 0; z-index: 1; display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 14px; margin: 0 -34px 24px; padding: 0 12px 0 34px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .96); }
-.note-path { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
-.note-path:hover { color: var(--accent); }
-.note-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
-.editor-picker { position: relative; flex: 0 0 auto; }
-.note-panel:not(.is-active-panel) .editor-picker { display: none; }
-.editor-trigger { display: inline-flex; min-width: 58px; height: 30px; align-items: stretch; justify-content: center; overflow: hidden; border: 1px solid #cbd6d0; border-radius: 7px; background: #f8faf8; color: #52615b; line-height: 1; box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset; }
-.editor-open, .editor-menu-trigger { display: inline-flex; height: 100%; align-items: center; justify-content: center; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; line-height: 1; text-decoration: none; }
-.editor-open { min-width: 32px; padding: 0 6px; }
-.editor-menu-trigger { width: 25px; padding: 0; border-left: 1px solid #dde6e1; }
-.editor-open:hover, .editor-open:focus-visible, .editor-menu-trigger:hover, .editor-menu-trigger:focus-visible { background: #edf2ef; color: #1f2724; outline: none; }
-.editor-trigger:focus-within { border-color: #b8c7bf; outline: 2px solid rgba(var(--accent-rgb), .18); outline-offset: 2px; }
-.editor-mark { display: inline-flex; min-width: 20px; height: 20px; align-items: center; justify-content: center; border: 1px solid #dde6e1; border-radius: 5px; background: #ffffff; color: #1f2724; font-size: 10px; font-weight: 700; line-height: 1; }
-.editor-mark[data-has-icon="true"] { min-width: 22px; height: 22px; background: #ffffff; }
-.editor-icon { display: block; width: 18px; height: 18px; border-radius: 4px; object-fit: contain; }
-.editor-caret { width: 14px; height: 14px; color: #5f6d67; }
-.editor-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 4; width: max-content; min-width: 210px; max-width: min(280px, calc(100vw - 36px)); padding: 6px; border: 1px solid #d8e0db; border-radius: 8px; background: #ffffff; box-shadow: 0 16px 38px rgba(24, 34, 30, .18); }
-.editor-menu[hidden] { display: none; }
-.editor-menu-item { display: flex; width: 100%; min-height: 34px; align-items: center; gap: 10px; padding: 6px 9px; border: 0; border-radius: 6px; background: transparent; color: #25302b; cursor: pointer; font: inherit; text-align: left; }
-.editor-menu-item:hover, .editor-menu-item:focus-visible { background: #eef3f0; outline: none; }
-.editor-menu-item.is-selected { background: rgba(var(--accent-rgb), .1); color: #075e39; }
-.editor-option-mark { display: inline-flex; flex: 0 0 24px; height: 22px; align-items: center; justify-content: center; border: 1px solid #d6dfda; border-radius: 5px; background: #f7faf8; color: #46534e; font-size: 10px; font-weight: 700; line-height: 1; }
-.editor-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.editor-menu-separator { height: 1px; margin: 6px 4px; background: #e2e8e4; }
-.note-close { display: inline-flex; flex: 0 0 auto; width: 28px; height: 28px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #7c8a84; cursor: pointer; font: inherit; line-height: 1; text-decoration: none; }
-.note-close:hover, .note-close:focus-visible { border-color: #cad4ce; background: #edf2ef; color: #26302c; outline: none; }
-.note-close-icon { width: 16px; height: 16px; }
-.note-body { padding-bottom: 10vh; }
-.document p, .document li { color: #2f3834; }
-a { color: var(--accent); text-underline-offset: 3px; }
-.note-body a { border-radius: 4px; transition: background-color .16s ease, color .16s ease; }
-.note-body a:hover, .note-body a.is-active-note { background: rgba(var(--accent-rgb), .13); }
-.note-body a.is-active-note { color: #075e39; }
-strong { color: var(--ink); font-weight: 700; }
-blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--line); color: var(--muted); }
-blockquote p { color: var(--muted); }
-code { padding: 1px 4px; border-radius: 4px; background: #edf2ef; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
-pre { overflow-x: auto; padding: 14px; border: 1px solid var(--line); background: #111714; color: #f3f7f4; }
-pre code { padding: 0; background: transparent; color: inherit; }
-ul, ol { padding-left: 22px; }
-.empty { color: var(--muted); }
-.note-error { color: #a44b28; }
-@keyframes note-enter {
-  from { opacity: .001; transform: translateX(34px) scale(.985); }
-  to { opacity: 1; transform: translateX(0) scale(1); }
-}
-@keyframes stack-view-old {
-  from { opacity: 1; transform: translateX(0) scale(1); }
-  to { opacity: .72; transform: translateX(-18px) scale(.992); }
-}
-@keyframes stack-view-new {
-  from { opacity: .001; transform: translateX(22px) scale(.992); }
-  to { opacity: 1; transform: translateX(0) scale(1); }
-}
-@supports (view-transition-name: none) {
-  .note-workspace { view-transition-name: note-workspace; }
-  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
-  ::view-transition-old(note-workspace), ::view-transition-new(note-workspace) {
-    animation-duration: .24s;
-    animation-timing-function: cubic-bezier(.22, .8, .2, 1);
-    mix-blend-mode: normal;
-  }
-  ::view-transition-old(note-workspace) { animation-name: stack-view-old; }
-  ::view-transition-new(note-workspace) { animation-name: stack-view-new; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .note-workspace { scroll-behavior: auto; }
-  .note-panel.is-entering { animation: none; }
-  .note-body a { transition: none; }
-}
-@media (hover: hover) and (pointer: fine) {
-  .note-workspace.is-multi-panel { cursor: grab; }
-  .note-workspace.is-multi-panel .note-panel { cursor: auto; }
-  .note-workspace.is-multi-panel.is-space-panning, .note-workspace.is-multi-panel.is-space-panning * { cursor: grab; }
-  .note-workspace.is-multi-panel.is-drag-scrolling, .note-workspace.is-multi-panel.is-drag-scrolling * { cursor: grabbing; user-select: none; }
-}
-@media (max-width: 680px) {
-  header { display: block; }
-  body:not(.viewer-document) header span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
-  .row { grid-template-columns: 1fr; }
-  body.viewer-document header { display: flex; min-height: 68px; justify-content: flex-end; padding: 12px; }
-  .header-left { left: 12px; max-width: 42%; }
-  .brand { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .header-search { width: min(52vw, 320px); min-width: 0; }
-  .header-search .search-shortcut { display: none; }
-  .header-search .search-input { padding-right: 10px; }
-  .header-search .search-results { left: auto; width: min(320px, calc(100vw - 24px)); }
-  .note-workspace { height: calc(100vh - 68px); }
-  .note-stack { gap: 12px; padding: 12px; }
-  .note-workspace.is-multi-panel .note-stack { padding-bottom: 44px; }
-  .workspace-scroll-rail { right: 12px; bottom: 8px; left: 12px; }
-  .knowledge-empty-inner { grid-template-columns: 1fr; gap: 22px; padding: 28px 14px 44px; }
-  .knowledge-empty-graph { position: relative; top: auto; min-height: 380px; }
-  .knowledge-graph-svg { height: 380px; min-height: 380px; }
-  .note-panel.document { --note-panel-default-width: calc(100vw - 24px); --note-panel-min-width: min(360px, calc(100vw - 24px)); padding: 0 22px 28px; }
-  .note-chrome { margin: 0 -22px 22px; padding: 0 10px 0 22px; }
-}
-`
+var viewerCSS = viewerDefaultThemeCSS + "\n" + viewerAppCSS

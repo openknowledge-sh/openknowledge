@@ -6,6 +6,7 @@ update the smallest relevant page.
 ## Core Areas
 
 * [Installation](installation.md) - shell installer, npm wrapper, and local install assumptions.
+* [CLI Operations](operations.md) - development commands, workspace layout, and release workflow notes.
 * [Commands](commands/) - command-by-command reference pages.
 * [Exporters](exporters/) - bundle conversion targets and candidate exporters.
 

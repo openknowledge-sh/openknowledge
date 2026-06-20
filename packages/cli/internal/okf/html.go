@@ -49,6 +49,9 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 
 	var written []string
 	for _, file := range bundle.Files {
+		if !ShouldPublish(file) {
+			continue
+		}
 		target := filepath.Join(absoluteOut, filepath.FromSlash(htmlPath(file.Path)))
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return HTMLResult{}, err
@@ -145,8 +148,13 @@ h3 { margin-top: 26px; }
 .document p, .document li { color: #2f3834; }
 a { color: var(--accent); text-underline-offset: 3px; }
 code { padding: 1px 4px; border-radius: 4px; background: #edf2ef; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
-pre { overflow-x: auto; padding: 14px; border: 1px solid var(--line); background: #111714; color: #f3f7f4; }
-pre code { padding: 0; background: transparent; color: inherit; }
+pre, .code-block { overflow-x: auto; padding: 14px; border: 1px solid var(--line); background: #111714; color: #f3f7f4; }
+pre code, .code-block code { padding: 0; background: transparent; color: inherit; }
+.code-block { border-radius: 6px; line-height: 1.6; tab-size: 2; }
+.tok-keyword { color: #8fd3ff; font-weight: 700; }
+.tok-string { color: #a7e08f; }
+.tok-number { color: #ffd479; }
+.tok-comment { color: #8c9a93; font-style: italic; }
 ul, ol { padding-left: 22px; }
 blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 4px solid var(--line); color: var(--muted); }
 blockquote p { color: inherit; }

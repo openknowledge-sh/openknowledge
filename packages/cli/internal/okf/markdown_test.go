@@ -48,6 +48,19 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 			forbidden: []string{"[Setup]", "(guides/setup.md)"},
 		},
 		{
+			name:  "links with inline code labels",
+			input: "See [React `useEffect`](https://react.dev/reference/react/useEffect) and `[literal](skip.md)`.",
+			required: []string{
+				`<a href="/resolved/https://react.dev/reference/react/useEffect">React <code>useEffect</code></a>`,
+				`<code>[literal](skip.md)</code>`,
+			},
+			forbidden: []string{
+				"[React",
+				`](https://react.dev/reference/react/useEffect)`,
+				`href="/resolved/skip.md"`,
+			},
+		},
+		{
 			name: "unordered and ordered lists",
 			input: strings.Join([]string{
 				"- **Readable** by humans.",
@@ -87,16 +100,22 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 		{
 			name: "fenced code",
 			input: strings.Join([]string{
-				"```markdown",
-				"# Not a heading",
-				"**not bold**",
+				"```go",
+				"package main",
+				"func main() {",
+				"  println(\"<tag>\")",
+				"}",
 				"<script>",
 				"```",
 			}, "\n"),
 			required: []string{
-				"<pre><code># Not a heading\n**not bold**\n&lt;script&gt;\n</code></pre>",
+				`<pre class="code-block language-go"><code>`,
+				`<span class="tok-keyword">package</span> main`,
+				`<span class="tok-keyword">func</span> main()`,
+				`<span class="tok-string">&#34;&lt;tag&gt;&#34;</span>`,
+				"&lt;script&gt;",
 			},
-			forbidden: []string{"<h1>Not a heading</h1>", "<strong>not bold</strong>", "<script>"},
+			forbidden: []string{"<h1>Not a heading</h1>", "<script>"},
 		},
 		{
 			name: "tables",
@@ -201,7 +220,8 @@ func TestRenderMarkdownEmbeddedSpecDoesNotLeakCommonMarkdownSyntax(t *testing.T)
 		"<table>",
 		"<th>Filename</th>",
 		"<td><code>index.md</code></td>",
-		"<pre><code>---",
+		`<pre class="code-block`,
+		`<span class="tok-comment"># REQUIRED</span>`,
 	})
 	assertContainsNone(t, html, []string{
 		"&gt; This is a pinned upstream copy",

@@ -1,8 +1,12 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
@@ -13,11 +17,15 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge <command> --help",
 		"openknowledge setup",
 		"openknowledge new --name <name> [folder]",
+		"openknowledge connect <path>",
+		"openknowledge connect <path> --as <key>",
+		"openknowledge disconnect <key|path>",
+		"openknowledge use <name|path> [entry]",
+		"openknowledge use <name|path> --info",
 		"openknowledge registry add <name> <path>",
 		"openknowledge where <name|path>",
 		"openknowledge open --name <alias-name> [path]",
 		"openknowledge open --host <host> --port <port> [path]",
-		"openknowledge open --local-domain <domain> [path]",
 		"openknowledge open --no-browser [path]",
 		"openknowledge to html --out <folder> [path]",
 		"openknowledge to json --out <file> [path]",
@@ -27,6 +35,9 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"Commands:",
 		"setup      Print an agent setup prompt.",
 		"new        Scaffold a local Open Knowledge bundle.",
+		"connect    Connect a local knowledge bundle.",
+		"disconnect Remove a knowledge bundle connection.",
+		"use        Print an agent entrypoint from a bundle.",
 		"registry   Manage named knowledge base paths.",
 		"where      Print the path for a named knowledge base or path.",
 		"open       Start the registry or knowledge base Markdown viewer.",
@@ -67,8 +78,35 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: newHelpText(),
 			required: []string{
 				"openknowledge new --name <name> [folder]",
+				"openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]",
 				"Arguments:",
 				"--name",
+				"--bundle-entry",
+			},
+		},
+		"connect": {
+			help: connectHelpText(),
+			required: []string{
+				"openknowledge connect <path> --as <key>",
+				"--access",
+				"--no-validate",
+				"Remote URL sources are not supported yet",
+			},
+		},
+		"disconnect": {
+			help: disconnectHelpText(),
+			required: []string{
+				"openknowledge disconnect <key|path> --keep-files",
+				"openknowledge disconnect <key|path> --delete-files",
+				"reserved for future managed remote-cache entries",
+			},
+		},
+		"use": {
+			help: useHelpText(),
+			required: []string{
+				"openknowledge use <name|path> <entry> --info",
+				"okf_bundle_entry_<name>",
+				"prints the bundle root index.md",
 			},
 		},
 		"registry": {
@@ -91,14 +129,12 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge open --host <host> --port <port> [path]",
 				"openknowledge open --name <alias-name> [path]",
-				"openknowledge open --local-domain <domain> [path]",
 				"openknowledge open --no-browser [path]",
 				"Open Knowledge Registry workspace selector",
 				"openknowledge open personal",
 				"--host",
 				"--port",
 				"--name",
-				"--local-domain",
 				"--no-browser",
 			},
 		},
@@ -126,6 +162,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge to html --spec <version> --out <folder> [path]",
 				"Output folder for generated HTML files. Required.",
 				"Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.",
+				"Default viewer exports read [html.theme] from openknowledge.toml",
+				"Built-in variables are defined in viewer_theme.css",
 			},
 		},
 		"to json": {
@@ -188,6 +226,23 @@ func TestHasHelpFlagRecognizesCommonHelpForms(t *testing.T) {
 	}
 }
 
+func TestParseBundleEntryFlags(t *testing.T) {
+	entries, err := parseBundleEntryFlags([]string{
+		"default=agents/checker.md",
+		"review=agents/review.md",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 || entries[0].Name != "default" || entries[0].Path != "agents/checker.md" || entries[1].Name != "review" || entries[1].Path != "agents/review.md" {
+		t.Fatalf("unexpected entries: %#v", entries)
+	}
+
+	if _, err := parseBundleEntryFlags([]string{"missing-separator"}); err == nil {
+		t.Fatal("expected missing separator to fail")
+	}
+}
+
 func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 	options, err := parseToOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1", "--plain"})
 	if err != nil {
@@ -195,5 +250,76 @@ func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 	}
 	if options.path != "./project-memory" || options.out != "./site" || options.spec != "0.1" || !options.plain {
 		t.Fatalf("unexpected options: %#v", options)
+	}
+}
+
+func TestParseUseOptionsAllowsInfoAfterEntry(t *testing.T) {
+	options, err := parseUseOptions([]string{"accessibility", "review", "--info"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.target != "accessibility" || options.entry != "review" || !options.info {
+		t.Fatalf("unexpected options: %#v", options)
+	}
+}
+
+func TestSelectUseEntrypointUsesDefaultNamedAndRootFallback(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", `---
+okf_version: "0.1"
+okf_bundle_entry_default: "agents/default.md"
+okf_bundle_entry_review: "agents/review.md"
+---
+
+# Bundle
+`)
+	writeMainTestFile(t, root, "agents/default.md", "---\ntype: Agent Entrypoint\n---\n\n# Default\n")
+	writeMainTestFile(t, root, "agents/review.md", "---\ntype: Agent Entrypoint\n---\n\n# Review\n")
+
+	info, err := okf.ReadBundleInfo(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection, err := selectUseEntrypoint(root, info, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection.name != "default" || selection.rel != "agents/default.md" {
+		t.Fatalf("unexpected default selection: %#v", selection)
+	}
+	selection, err = selectUseEntrypoint(root, info, "review")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection.name != "review" || selection.rel != "agents/review.md" {
+		t.Fatalf("unexpected review selection: %#v", selection)
+	}
+	if _, err := selectUseEntrypoint(root, info, "missing"); err == nil {
+		t.Fatal("expected missing named entrypoint to fail")
+	}
+
+	fallbackRoot := t.TempDir()
+	writeMainTestFile(t, fallbackRoot, "index.md", "# Root\n")
+	fallbackInfo, err := okf.ReadBundleInfo(fallbackRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection, err = selectUseEntrypoint(fallbackRoot, fallbackInfo, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection.name != "index" || selection.rel != "index.md" {
+		t.Fatalf("unexpected root fallback selection: %#v", selection)
+	}
+}
+
+func writeMainTestFile(t *testing.T, root string, name string, content string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
 	}
 }

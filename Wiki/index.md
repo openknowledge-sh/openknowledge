@@ -12,6 +12,7 @@ for package changes that affect the command-line tool.
 
 * [Agent rules](AGENTS.md) - when future agents should read and update this wiki.
 * [Feature documentation](features/) - developer-focused pages for commands, exporters, and installation.
+* [Examples](examples/) - small bundled files for testing viewer behavior.
 * [CLI changelog](changelog/cli.md) - maintained memory of CLI-facing changes.
 * [Workflows](workflows/) - repeatable update loops for docs and changelog maintenance.
 * [Spec](SPEC.md) - local pinned copy of the Open Knowledge Format spec.
@@ -20,6 +21,7 @@ for package changes that affect the command-line tool.
 ## Sections
 
 * [Features](features/) - installation, command reference, and exporters.
+* [Examples](examples/) - viewer smoke-test files, including code and PDF assets.
 * [Changelog](changelog/) - CLI package change history and update rules.
 * [Workflows](workflows/) - agent maintenance instructions.
 * [Decisions](decisions/) - setup and structure decisions for the wiki.

@@ -14,14 +14,350 @@ that were updated.
 
 ## Unreleased
 
-### 2026-06-19 - Viewer resizable panels
+### 2026-06-20 - Viewer mobile header search no longer overlaps brand
 
-* Note panels in the local viewer can now be resized horizontally from either
+* The shared viewer CSS now lets the top-bar search field override its desktop
+  minimum width on narrow mobile screens, so the search control stays beside
+  the file explorer button and knowledge base brand instead of covering them.
+* The fix applies to both `openknowledge open` and default
+  `openknowledge to html` viewer exports because they share the same embedded
+  viewer app stylesheet.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Local viewer validates and applies theme config
+
+* `openknowledge open` now treats `[html.theme]` in `openknowledge.toml` like
+  the default HTML viewer export does: listing pages, Markdown file pages,
+  asset previews, and alias-prefixed pages set `data-openknowledge-theme` and
+  link the configured stylesheet through the raw endpoint.
+* Local theme CSS paths are validated before rendering, so missing, directory,
+  or otherwise invalid local stylesheet paths surface as viewer errors instead
+  of silently falling back to the default theme.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_theme.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Static HTML export hides local root path
+
+* Default viewer HTML exports no longer write the local bundle root into
+  `data-note-root`, so deployed static sites do not expose the build machine's
+  filesystem path.
+* The static viewer still keeps stable per-page storage behavior by falling
+  back to the page URL when no note root is present.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Website publishes wiki export
+
+* The static website build now runs `openknowledge to html --out packages/web/dist/wiki Wiki`,
+  so the deployed landing page can link to the repository wiki at `/wiki/`.
+* The landing top navigation now includes a `Wiki` link before the GitHub icon,
+  and the generated wiki uses `Wiki/openknowledge.toml` plus
+  `Wiki/assets/openknowledge-site.css` to match the landing page theme.
+* `pnpm dev:web` now falls back to `packages/web/dist/wiki` for `/wiki/` URLs,
+  so `http://127.0.0.1:4173/wiki/` works after `pnpm build:web` even when the
+  dev server is serving source files from `packages/web`.
+* Source anchors: `packages/web/scripts/build.mjs`, `packages/web/index.html`,
+  `packages/web/scripts/serve.mjs`, `packages/web/styles.css`,
+  `Wiki/openknowledge.toml`, `Wiki/assets/openknowledge-site.css`.
+* Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer hostname alias output removed
+
+* `openknowledge open` no longer prints the secondary `Open Knowledge alias`
+  URL or accepts `--local-domain`; the printed `Open Knowledge view` loopback
+  URL remains the browser target.
+* Stable knowledge base names still appear as served path segments such as
+  `/wiki/` or `/personal/`, which work without local DNS or `/etc/hosts`
+  changes.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Connected bundle commands shipped
+
+* `openknowledge connect`, `openknowledge disconnect`, and
+  `openknowledge use` now implement the previously documented connected bundle
+  command surface for local bundles.
+* `connect` stores local bundle connections with metadata-derived keys,
+  validation status output, `--as`, `--access`, and `--no-validate`.
+* `disconnect` removes connections by key or path while keeping files by
+  default and refusing deletion for non-managed local entries.
+* `use` prints default or named agent entrypoint Markdown, falls back to root
+  `index.md`, and supports `--info` metadata output.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/registry.go`,
+  `packages/cli/internal/okf/metadata.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/disconnect.md`, `Wiki/features/commands/use.md`,
+  `Wiki/features/commands/registry.md`, `Wiki/features/commands/help.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer panels use taller canvas
+
+* `openknowledge open` now uses smaller vertical stack gutters around note
+  panels, letting panels extend farther within the slimmer top chrome.
+* Single-panel and multi-panel layouts keep matching vertical gaps while still
+  reserving a compact bottom gap for the custom horizontal rail.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer sidebar surface flattened
+
+* `openknowledge open` now renders the file explorer sidebar on the same
+  neutral canvas color as the document workspace.
+* The sidebar no longer draws a vertical border between itself and the shifted
+  page content, making the open drawer feel seamless with the wiki background.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer attribution reduced
+
+* `openknowledge open` now renders the bottom-right
+  `Powered by OpenKnowledge.sh` attribution at a smaller size so it reads as
+  secondary viewer chrome.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer top bar height tightened
+
+* `openknowledge open` document pages now render the top bar at the configured
+  viewer header height instead of adding vertical padding on top of it.
+* Header controls, the knowledge base brand, and the primary search field stay
+  vertically centered in the slimmer chrome.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer app assets split from Go source
+
+* The built-in `openknowledge open` viewer app CSS and JavaScript now live in
+  normal source files (`viewer_app.css`, `viewer_app.js`, and
+  `viewer_search.js`) instead of large raw string constants in `viewer.go`.
+* The files are still embedded into the Go binary at build time, preserving the
+  existing single-binary viewer behavior while making syntax highlighting and
+  editing practical.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_assets.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_search.js`,
+  `packages/cli/cmd/openknowledge/viewer.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer website attribution
+
+* `openknowledge open` document pages and default viewer HTML exports now show
+  a bottom-right `Powered by OpenKnowledge.sh` link to the project website.
+* The attribution sits alongside the viewer's bottom chrome and shifts with the
+  file sidebar so it remains visible without covering the panel scroll rail.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer overview graph spacing
+
+* `openknowledge open` now gives the empty-workspace file tree roughly 30% of
+  the desktop overview width, leaving more room for the knowledge graph.
+* Knowledge graph labels now use smaller sans-serif typography instead of the
+  heavier monospace style, making labels under nodes read more quietly.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer resize handles follow panel scroll
+
+* `openknowledge open` now keeps note panel resize handles aligned with the
+  visible panel edges when the note content is scrolled vertically.
+* This prevents the resize bars from disappearing at the top of long notes
+  after a user scrolls inside a panel.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer knowledge base brand
+
+* `openknowledge open` document and asset pages now show the knowledge base
+  display name in the header instead of always showing `Open Knowledge`.
+* The viewer prefers root `index.md` metadata in this order:
+  `okf_bundle_title`, `okf_bundle_name`, root index title metadata, then the
+  first root index H1, with `Open Knowledge` reserved as the final fallback.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - CLI docs moved into wiki
+
+* The remaining operational notes from `docs/cli.md` now live in
+  `Wiki/features/operations.md`, with install deployment notes kept in
+  `Wiki/features/installation.md`.
+* The wiki feature-docs workflow now points future docs work at the canonical
+  wiki pages instead of the retired `docs/cli.md` file.
+* Source anchors: `Wiki/features/operations.md`,
+  `Wiki/features/installation.md`, `Wiki/workflows/feature-docs.md`.
+* Docs updated: `Wiki/features/index.md`, `Wiki/log.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Export publish metadata
+
+* `openknowledge validate` now accepts `okf_publish` metadata on `index.md`
+  files, so public-view-only exclusions such as `okf_publish: false` do not
+  make reserved index files invalid.
+* `openknowledge to html` and `openknowledge to html --plain` now skip files
+  whose frontmatter declares `okf_publish: false`; the default viewer export
+  also omits unpublished files from its static note manifest and graph data.
+* Nested `index.md` files still reject concept-style frontmatter such as
+  `type: Index`.
+* Source anchors: `packages/cli/internal/okf/validate.go`,
+  `packages/cli/internal/okf/bundle.go`,
+  `packages/cli/internal/okf/html.go`,
+  `packages/cli/internal/okf/export_test.go`,
+  `packages/cli/internal/okf/validate_test.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `README.md`,
+  `Wiki/features/commands/validate.md`,
+  `Wiki/features/exporters/html.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Viewer single-panel centering and resize
+
+* A lone open note panel now uses symmetric viewport gutters so its center
+  aligns exactly with the workspace center instead of drifting from asymmetric
+  stack padding.
+* Resizing a lone panel now expands or shrinks it around that center, so the
+  dragged edge follows the pointer and the opposite edge moves the same amount
+  in the opposite direction.
+* Multi-panel resize behavior keeps the existing edge-anchored scroll handling
+  for left-to-right pane browsing.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - HTML viewer export theming
+
+* `openknowledge to html` default viewer exports now read optional
+  `[html.theme]` settings from `openknowledge.toml` in the bundle root.
+* Theme config supports `name` for `data-openknowledge-theme` and `stylesheet`
+  (or `css`) for a deployable theme CSS file. Local stylesheets are constrained
+  to the bundle, copied into the output folder, and linked relatively from every
+  generated page; external `http` and `https` stylesheets are linked as-is.
+* The default theme now lives in
+  `packages/cli/cmd/openknowledge/viewer_theme.css`, which is embedded into
+  the viewer app. The local viewer and default HTML export derive colors, fonts,
+  graph colors, syntax colors, and viewer dimensions from its documented
+  `--ok-*` variables.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_theme.go`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `README.md`,
+  `Wiki/features/commands/open.md`, `Wiki/features/commands/to.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer resizable panels restored
+
+* Note panels in the local viewer can be resized horizontally from either
   vertical edge, with a minimum width to keep notes readable.
 * Panel widths are stored per note and restored when that note is opened again;
   notes without a saved width keep the existing default panel size.
+* Right-edge resize handles now stay aligned with the panel edge after resizing
+  instead of drifting into the note body when the panel has a vertical scrollbar.
+* Single-panel workspaces now use the same bottom rail gap as multi-panel
+  workspaces and no longer show a native horizontal scrollbar from one-sided
+  stack padding.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer asset links and syntax highlighting
+
+* `openknowledge open` now syntax-highlights fenced code blocks in rendered
+  Markdown and highlights common code/text files opened through the local
+  viewer.
+* Local links to code/text assets open escaped source preview pages, while local
+  PDF, image, audio, and video references resolve to bundle-scoped raw URLs so
+  the browser can use native PDF and media viewers.
+* Raw asset responses are constrained to files under the knowledge root and set
+  `X-Content-Type-Options: nosniff`; active code-like raw types are served as
+  plain text.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/markdown_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - New bundle metadata flags
+
+* `openknowledge new` now accepts optional `--bundle-name`, `--bundle-title`,
+  `--bundle-purpose`, repeatable `--bundle-tag`, and repeatable
+  `--bundle-entry name=path` flags.
+* The scaffold writes those values into root `index.md` as flat
+  `okf_bundle_*` metadata while preserving the default minimal scaffold when no
+  metadata flags are provided.
+* Validation now accepts `okf_bundle_*` keys in the bundle-root `index.md` as
+  an Open Knowledge CLI metadata layer; plain OKF bundles with only
+  `okf_version: "0.1"` remain valid, and nested `index.md` files still cannot
+  use frontmatter.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/internal/okf/validate.go`.
+* Docs updated: `README.md`,
+  `Wiki/features/commands/new.md`,
+  `Wiki/features/commands/validate.md`,
+  `Wiki/features/commands/help.md`,
+  `Wiki/features/commands/use.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer knowledge graph canvas physics
+
+* The empty-state knowledge graph now renders as an animated canvas graph
+  instead of static SVG, allowing lightweight physics to keep nodes responsive
+  after the deterministic initial layout.
+* Hover and keyboard focus now ease the active node label and separation forces
+  in and out, with velocity clamping and damping to reduce jitter in displaced
+  nodes.
+* Non-active nodes keep their default visual style during hover; the emphasis is
+  on the active node and its direct connections.
+* Default graph lines are visually lighter so the connected-edge highlight is
+  the main emphasis during graph exploration.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-19 - Viewer markdown links with code labels
+
+* Markdown links whose labels contain inline code spans, for example a React
+  docs link whose visible label includes `useEffect` as code, now render as
+  clickable anchors in `openknowledge open` instead of leaking the raw Markdown
+  syntax.
+* Inline code spans that contain link-looking text remain literal code and are
+  not converted into anchors.
+* Source anchors: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/markdown_test.go`.
 * Docs updated: `Wiki/features/commands/open.md`,
   `Wiki/changelog/cli.md`.
 
@@ -29,6 +365,8 @@ that were updated.
 
 * The empty-state knowledge graph now uses a deterministic force-style layout
   so linked notes cluster together instead of being arranged in a fixed circle.
+* The graph layout now runs collision passes against node and label bounds to
+  reduce overlapping note names when the graph has enough room to separate them.
 * Generic `index` graph labels now include path suffix context, such as
   `commands/index`, to distinguish nested index files.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
@@ -63,7 +401,7 @@ that were updated.
 * Source anchors: `packages/cli/internal/okf/setup.go`,
   `packages/cli/internal/okf/new.go`,
   `packages/cli/internal/okf/setup_test.go`.
-* Docs updated: `README.md`, `docs/cli.md`,
+* Docs updated: `README.md`,
   `Wiki/features/commands/setup.md`,
   `Wiki/changelog/cli.md`.
 
@@ -160,11 +498,9 @@ that were updated.
 * `openknowledge open` now prints and opens the actual listener URL as the
   `Open Knowledge view` line, defaulting to `127.0.0.1`, so direct path aliases
   such as `/wiki/` remain reachable without local DNS setup.
-* The optional local-domain URL is still printed as `Open Knowledge alias` for
-  environments that map names such as `open.knowledge` to loopback.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/main.go`.
-* Docs updated: `README.md`, `docs/cli.md`,
+* Docs updated: `README.md`,
   `Wiki/features/commands/open.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-06-18 - Markdown and frontmatter validation warnings
@@ -176,7 +512,7 @@ that were updated.
   remains an error.
 * Source anchors: `packages/cli/internal/okf/validate.go`,
   `packages/cli/internal/okf/frontmatter.go`.
-* Docs updated: `README.md`, `docs/cli.md`,
+* Docs updated: `README.md`,
   `Wiki/features/commands/validate.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-06-18 - Registry-backed local viewer
@@ -188,7 +524,7 @@ that were updated.
   knowledge base.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/main.go`.
-* Docs updated: `README.md`, `docs/cli.md`,
+* Docs updated: `README.md`,
   `Wiki/features/commands/open.md`, `Wiki/features/commands/registry.md`.
 
 ### 2026-06-18 - Context-aware setup interview prompt
@@ -199,7 +535,7 @@ that were updated.
   context-specific questions instead of repeating a fixed questionnaire.
 * Source anchors: `packages/cli/internal/okf/setup.go`,
   `packages/cli/internal/okf/new.go`, `packages/cli/cmd/openknowledge/main.go`.
-* Docs updated: `README.md`, `docs/cli.md`, `packages/web/index.html`,
+* Docs updated: `README.md`, `packages/web/index.html`,
   `Wiki/features/commands/setup.md`.
 
 ### 2026-06-18 - Wiki maintenance loop initialized

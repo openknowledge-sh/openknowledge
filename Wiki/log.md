@@ -1,7 +1,48 @@
 # Bundle Update Log
 
+## 2026-06-20
+
+* **Command change history rule**: Added a wiki maintenance rule requiring
+  command pages to capture dated history entries for major command-surface
+  changes such as added, removed, renamed, or behavior-changing flags,
+  properties, output fields, and exit-code semantics.
+* **Website wiki export**: Documented that `pnpm build:web` publishes the
+  colocated `Wiki/` bundle to `packages/web/dist/wiki` with
+  `openknowledge to html`, and added the landing-matched
+  `Wiki/assets/openknowledge-site.css` theme configuration. The web dev server
+  now falls back to that generated `dist/wiki` output for `/wiki/` URLs.
+* **Static export path hygiene**: Documented that default viewer HTML exports
+  leave `data-note-root` empty so public static sites do not expose the local
+  build machine's bundle path.
+* **Local viewer theme parity**: Documented that `openknowledge open` applies
+  `[html.theme]` to listing, file, asset preview, and alias-prefixed pages, and
+  validates local theme CSS paths before rendering.
+* **Mobile viewer header**: Documented the responsive header search fix that
+  lets the shared viewer app CSS shrink the search field on narrow mobile
+  widths instead of overlapping the knowledge base brand.
+* **CLI operations migration**: Moved the remaining development and release
+  notes from `docs/cli.md` into [features/operations.md](features/operations.md),
+  and made the wiki the canonical home for CLI operational docs.
+
 ## 2026-06-19
 
+* **Viewer examples**: Added `examples/` with a small Markdown page, Go source
+  file, and PDF asset for manually testing code highlighting and browser PDF
+  viewing in `openknowledge open Wiki`.
+* **Viewer asset links and syntax highlighting**: Documented that
+  `openknowledge open` highlights fenced code and code/text asset previews, and
+  serves PDF/media references through raw bundle URLs for browser-native
+  viewing.
+* **Connected bundle command candidates**: Added candidate specifications for
+  `openknowledge connect` and `openknowledge disconnect`, and aligned
+  `list`, `where`, `registry`, and `use` docs around a path-keyed local
+  knowledge registry for agent discovery.
+* **New bundle metadata flags**: Updated `openknowledge new` documentation for
+  optional `okf_bundle_*` root metadata flags and recorded that root validation
+  accepts this Open Knowledge CLI layer while plain OKF bundles remain valid.
+* **Use command candidate**: Recorded the candidate `openknowledge use`
+  contract for optional `okf_bundle_*` root metadata, entrypoint frontmatter
+  with `use_when`, `--info`, and fallback behavior for plain OKF bundles.
 * **Repo skill subagents**: Updated the active repo-local wiki skill and agent
   rules to prefer focused lower-reasoning subagents for bounded wiki maintenance
   tasks when the runtime supports them.

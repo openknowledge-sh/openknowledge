@@ -4,7 +4,9 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const distRoot = path.join(webRoot, "dist");
+const root = process.env.OPENKNOWLEDGE_WEB_ROOT === "dist" ? distRoot : webRoot;
 const port = Number(process.env.PORT || 4173);
 
 const types = new Map([
@@ -15,42 +17,58 @@ const types = new Map([
   [".png", "image/png"]
 ]);
 
-function filePathForUrl(url) {
+function isInsideRoot(rootDir, target) {
+  const relative = path.relative(rootDir, target);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function candidatePath(rootDir, pathname) {
+  const target = path.normalize(path.join(rootDir, pathname === "/" ? "index.html" : pathname));
+  return isInsideRoot(rootDir, target) ? target : null;
+}
+
+function filePathsForUrl(url) {
   const parsed = new URL(url, `http://127.0.0.1:${port}`);
   const pathname = decodeURIComponent(parsed.pathname);
-  const target = path.normalize(path.join(root, pathname === "/" ? "index.html" : pathname));
+  const candidates = [candidatePath(root, pathname)];
 
-  if (!target.startsWith(root)) {
-    return null;
+  if (root !== distRoot && (pathname === "/wiki" || pathname.startsWith("/wiki/"))) {
+    candidates.push(candidatePath(distRoot, pathname));
   }
 
-  return target;
+  return candidates.filter(Boolean);
 }
 
 const server = http.createServer(async (request, response) => {
-  const filePath = filePathForUrl(request.url || "/");
-  if (!filePath) {
+  const filePaths = filePathsForUrl(request.url || "/");
+  if (filePaths.length === 0) {
     response.writeHead(403);
     response.end("Forbidden");
     return;
   }
 
-  try {
-    const info = await stat(filePath);
-    if (!info.isFile()) {
-      response.writeHead(404);
-      response.end("Not found");
-      return;
-    }
+  for (const filePath of filePaths) {
+    try {
+      const info = await stat(filePath);
+      const target = info.isDirectory() ? path.join(filePath, "index.html") : filePath;
+      const targetInfo = info.isDirectory() ? await stat(target) : info;
 
-    response.writeHead(200, {
-      "Content-Type": types.get(path.extname(filePath)) || "application/octet-stream"
-    });
-    createReadStream(filePath).pipe(response);
-  } catch {
-    response.writeHead(404);
-    response.end("Not found");
+      if (!targetInfo.isFile()) {
+        continue;
+      }
+
+      response.writeHead(200, {
+        "Content-Type": types.get(path.extname(target)) || "application/octet-stream"
+      });
+      createReadStream(target).pipe(response);
+      return;
+    } catch {
+      // Try the next candidate, such as the generated dist wiki in source mode.
+    }
   }
+
+  response.writeHead(404);
+  response.end("Not found");
 });
 
 server.listen(port, "127.0.0.1", () => {

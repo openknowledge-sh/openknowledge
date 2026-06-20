@@ -1,0 +1,3 @@
+[html.theme]
+name = "openknowledge-site"
+stylesheet = "assets/openknowledge-site.css"

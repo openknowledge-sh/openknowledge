@@ -30,6 +30,12 @@ func main() {
 		os.Exit(runSetup(os.Args[2:]))
 	case "new":
 		os.Exit(runNew(os.Args[2:]))
+	case "connect":
+		os.Exit(runConnect(os.Args[2:]))
+	case "disconnect":
+		os.Exit(runDisconnect(os.Args[2:]))
+	case "use":
+		os.Exit(runUse(os.Args[2:]))
 	case "registry":
 		os.Exit(runRegistry(os.Args[2:]))
 	case "where":
@@ -99,6 +105,13 @@ func runNew(args []string) int {
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	nameFlag := fs.String("name", "", "knowledge base name")
+	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
+	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
+	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for root okf_bundle_purpose metadata")
+	var bundleTags stringListFlag
+	var bundleEntries stringListFlag
+	fs.Var(&bundleTags, "bundle-tag", "bundle tag for root okf_bundle_tags metadata; repeatable")
+	fs.Var(&bundleEntries, "bundle-entry", "bundle entrypoint as name=path; repeatable")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -128,7 +141,23 @@ func runNew(args []string) int {
 		}
 	}
 
-	result, err := okf.NewProject(okf.NewProjectOptions{Name: name, Path: path})
+	entries, err := parseBundleEntryFlags(bundleEntries)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	result, err := okf.NewProject(okf.NewProjectOptions{
+		Name: name,
+		Path: path,
+		BundleMetadata: okf.BundleMetadata{
+			Name:    *bundleNameFlag,
+			Title:   *bundleTitleFlag,
+			Purpose: *bundlePurposeFlag,
+			Tags:    []string(bundleTags),
+			Entries: entries,
+		},
+	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -189,6 +218,448 @@ func runRegistry(args []string) int {
 		fmt.Fprintf(os.Stderr, "unknown registry command: %s\n\n", args[0])
 		fmt.Fprint(os.Stderr, registryHelpText())
 		return 2
+	}
+}
+
+type stringListFlag []string
+
+func (flag *stringListFlag) String() string {
+	return strings.Join(*flag, ",")
+}
+
+func (flag *stringListFlag) Set(value string) error {
+	*flag = append(*flag, value)
+	return nil
+}
+
+func parseBundleEntryFlags(values []string) ([]okf.BundleEntry, error) {
+	entries := make([]okf.BundleEntry, 0, len(values))
+	for _, value := range values {
+		name, path, ok := strings.Cut(value, "=")
+		if !ok {
+			return nil, fmt.Errorf("bundle entry must use name=path: %s", value)
+		}
+		entries = append(entries, okf.BundleEntry{Name: name, Path: path})
+	}
+	return entries, nil
+}
+
+func runConnect(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, connectHelpText())
+		return 0
+	}
+	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	keyFlag := fs.String("as", "", "connection key")
+	accessFlag := fs.String("access", "read", "connection access: read or write")
+	noValidateFlag := fs.Bool("no-validate", false, "skip validation status")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge connect <path> [--as <key>]")
+		return 2
+	}
+
+	source := fs.Arg(0)
+	if looksLikeRemoteSource(source) {
+		fmt.Fprintln(os.Stderr, "remote bundle sources are not supported yet; clone the bundle locally and connect its directory")
+		return 2
+	}
+
+	root, err := okf.ResolveKnowledgeRoot(source)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	root, err = filepath.Abs(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if info, err := os.Stat(root); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	} else if !info.IsDir() {
+		fmt.Fprintf(os.Stderr, "%s is not a directory\n", root)
+		return 1
+	}
+
+	bundleInfo, metadataErr := okf.ReadBundleInfo(root)
+	key := strings.TrimSpace(*keyFlag)
+	explicitKey := key != ""
+	if key == "" {
+		key = bundleInfo.Metadata.Name
+	}
+	if key == "" {
+		key = filepath.Base(filepath.Clean(root))
+	}
+
+	entry, warning, err := okf.ConnectRegistryEntry(key, root, *accessFlag, explicitKey)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	status := "unknown"
+	if !*noValidateFlag {
+		status = bundleValidationStatus(entry.Path)
+	}
+
+	printConnectResult(entry, bundleInfo, status)
+	if warning != "" {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", warning)
+	}
+	if metadataErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: bundle metadata could not be read: %v\n", metadataErr)
+	}
+	return 0
+}
+
+func bundleValidationStatus(root string) string {
+	result, err := okf.Validate(root)
+	if err != nil {
+		return "unknown"
+	}
+	if len(result.Errors) > 0 {
+		return "invalid"
+	}
+	if len(result.Warnings) > 0 {
+		return "warnings"
+	}
+	return "valid"
+}
+
+func printConnectResult(entry okf.RegistryEntry, info okf.BundleInfo, status string) {
+	terminal.success("Connected knowledge bundle")
+	fmt.Printf("%-8s %s\n", "key", entry.Name)
+	fmt.Printf("%-8s %s\n", "name", info.DisplayName())
+	fmt.Printf("%-8s %s\n", "path", terminal.path(entry.Path))
+	fmt.Printf("%-8s %s\n", "access", registryEntryAccess(entry))
+	fmt.Printf("%-8s %s\n", "status", status)
+	if info.Metadata.Purpose != "" {
+		fmt.Printf("%-8s %s\n", "purpose", info.Metadata.Purpose)
+	}
+	if names := info.EntryNames(); len(names) > 0 {
+		fmt.Printf("%-8s %s\n", "entries", strings.Join(names, ", "))
+	}
+	if !info.HasMetadata {
+		fmt.Printf("%-8s %s\n", "metadata", "none")
+	}
+}
+
+func registryEntryAccess(entry okf.RegistryEntry) string {
+	if entry.Access != "" {
+		return entry.Access
+	}
+	return "read"
+}
+
+func looksLikeRemoteSource(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	return strings.HasPrefix(value, "http://") ||
+		strings.HasPrefix(value, "https://") ||
+		strings.HasPrefix(value, "git@")
+}
+
+func runDisconnect(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, disconnectHelpText())
+		return 0
+	}
+	fs := flag.NewFlagSet("disconnect", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	deleteFilesFlag := fs.Bool("delete-files", false, "delete managed bundle files")
+	keepFilesFlag := fs.Bool("keep-files", false, "keep bundle files")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge disconnect <key|path>")
+		return 2
+	}
+	if *deleteFilesFlag && *keepFilesFlag {
+		fmt.Fprintln(os.Stderr, "--delete-files and --keep-files cannot be used together")
+		return 2
+	}
+
+	target := fs.Arg(0)
+	entry, ok, err := okf.ResolveRegistryTarget(target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !ok {
+		printUnknownConnection(target)
+		return 1
+	}
+	if *deleteFilesFlag && !entry.Managed {
+		fmt.Fprintf(os.Stderr, "refusing to delete non-managed files: %s\n", entry.Path)
+		return 1
+	}
+
+	entry, ok, err = okf.RemoveRegistryEntry(target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !ok {
+		printUnknownConnection(target)
+		return 1
+	}
+
+	files := "kept"
+	if *deleteFilesFlag {
+		if err := os.RemoveAll(entry.Path); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: disconnected but could not delete %s: %v\n", entry.Path, err)
+			files = "delete failed"
+		} else {
+			files = "deleted"
+		}
+	}
+	printDisconnectResult(entry, files)
+	if files == "delete failed" {
+		return 1
+	}
+	return 0
+}
+
+func printUnknownConnection(target string) {
+	fmt.Fprintf(os.Stderr, "unknown knowledge bundle: %s\n", target)
+	entries, err := okf.RegistryEntries()
+	if err != nil || len(entries) == 0 {
+		return
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name)
+	}
+	sort.Strings(names)
+	fmt.Fprintf(os.Stderr, "available keys: %s\n", strings.Join(names, ", "))
+}
+
+func printDisconnectResult(entry okf.RegistryEntry, files string) {
+	terminal.success("Disconnected knowledge bundle")
+	fmt.Printf("%-6s %s\n", "key", entry.Name)
+	fmt.Printf("%-6s %s\n", "path", terminal.path(entry.Path))
+	fmt.Printf("%-6s %s\n", "files", files)
+}
+
+type useOptions struct {
+	target string
+	entry  string
+	info   bool
+}
+
+type useSelection struct {
+	name string
+	rel  string
+	abs  string
+}
+
+func runUse(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, useHelpText())
+		return 0
+	}
+	options, err := parseUseOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	root, err := resolveWhereTarget(options.target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	info, err := okf.ReadBundleInfo(root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	if options.info {
+		if err := printUseInfo(root, info, options.entry); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return 0
+	}
+
+	selection, err := selectUseEntrypoint(root, info, options.entry)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	content, err := os.ReadFile(selection.abs)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Print(string(content))
+	return 0
+}
+
+func parseUseOptions(args []string) (useOptions, error) {
+	options := useOptions{}
+	for _, arg := range args {
+		switch {
+		case arg == "--info":
+			options.info = true
+		case strings.HasPrefix(arg, "-"):
+			return useOptions{}, fmt.Errorf("unknown flag: %s", arg)
+		case options.target == "":
+			options.target = arg
+		case options.entry == "":
+			options.entry = arg
+		default:
+			return useOptions{}, fmt.Errorf("use accepts at most one entry")
+		}
+	}
+	if options.target == "" {
+		return useOptions{}, fmt.Errorf("usage: openknowledge use <name|path> [entry]")
+	}
+	return options, nil
+}
+
+func selectUseEntrypoint(root string, info okf.BundleInfo, entryName string) (useSelection, error) {
+	name := strings.TrimSpace(entryName)
+	rel := ""
+	if name == "" {
+		if path, ok := info.EntryPath("default"); ok {
+			name = "default"
+			rel = path
+		} else {
+			name = "index"
+			rel = "index.md"
+		}
+	} else {
+		path, ok := info.EntryPath(name)
+		if !ok {
+			available := info.EntryNames()
+			if len(available) == 0 {
+				return useSelection{}, fmt.Errorf("entrypoint %q does not exist; this bundle has no declared entrypoints", name)
+			}
+			return useSelection{}, fmt.Errorf("entrypoint %q does not exist; available entries: %s", name, strings.Join(available, ", "))
+		}
+		rel = path
+	}
+
+	abs, normalizedRel, err := resolveBundleRelativeFile(root, rel)
+	if err != nil {
+		return useSelection{}, err
+	}
+	return useSelection{name: name, rel: normalizedRel, abs: abs}, nil
+}
+
+func resolveBundleRelativeFile(root string, rel string) (string, string, error) {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return "", "", fmt.Errorf("entrypoint path is empty")
+	}
+	rel = filepath.Clean(filepath.FromSlash(rel))
+	if filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("entrypoint path must stay inside the bundle: %s", rel)
+	}
+	abs := filepath.Join(root, rel)
+	relative, err := filepath.Rel(root, abs)
+	if err != nil {
+		return "", "", err
+	}
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("entrypoint path must stay inside the bundle: %s", rel)
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return "", "", err
+	}
+	if info.IsDir() {
+		return "", "", fmt.Errorf("entrypoint path is a directory: %s", rel)
+	}
+	return abs, filepath.ToSlash(relative), nil
+}
+
+func printUseInfo(root string, info okf.BundleInfo, entryName string) error {
+	terminal.title("Open Knowledge Use", "agent entrypoint metadata")
+	fmt.Printf("%-9s %s\n", "name", info.DisplayName())
+	fmt.Printf("%-9s %s\n", "root", terminal.path(root))
+	if info.Metadata.Purpose != "" {
+		fmt.Printf("%-9s %s\n", "purpose", info.Metadata.Purpose)
+	}
+	if len(info.Metadata.Tags) > 0 {
+		fmt.Printf("%-9s %s\n", "tags", strings.Join(info.Metadata.Tags, ", "))
+	}
+	fmt.Println()
+
+	if strings.TrimSpace(entryName) != "" {
+		selection, err := selectUseEntrypoint(root, info, entryName)
+		if err != nil {
+			return err
+		}
+		document, err := okf.ReadMarkdownDocumentInfo(selection.abs, selection.rel)
+		if err != nil {
+			return err
+		}
+		printUseEntrypointInfo(selection, document)
+		return nil
+	}
+
+	if len(info.Metadata.Entries) == 0 {
+		selection, err := selectUseEntrypoint(root, info, "")
+		if err != nil {
+			return err
+		}
+		document, err := okf.ReadMarkdownDocumentInfo(selection.abs, selection.rel)
+		if err != nil {
+			return err
+		}
+		printUseEntrypointInfo(selection, document)
+		return nil
+	}
+
+	terminal.section("Entrypoints")
+	for _, entry := range info.Metadata.Entries {
+		selection, err := selectUseEntrypoint(root, info, entry.Name)
+		if err != nil {
+			return err
+		}
+		document, err := okf.ReadMarkdownDocumentInfo(selection.abs, selection.rel)
+		if err != nil {
+			return err
+		}
+		summary := document.Title
+		if summary == "" {
+			summary = document.Description
+		}
+		if summary == "" {
+			fmt.Printf("  %-12s %s\n", selection.name, selection.rel)
+		} else {
+			fmt.Printf("  %-12s %s  %s\n", selection.name, selection.rel, terminal.muted(summary))
+		}
+	}
+	return nil
+}
+
+func printUseEntrypointInfo(selection useSelection, document okf.MarkdownDocumentInfo) {
+	terminal.section("Entrypoint")
+	fmt.Printf("%-12s %s\n", "entry", selection.name)
+	fmt.Printf("%-12s %s\n", "path", selection.rel)
+	if document.Type != "" {
+		fmt.Printf("%-12s %s\n", "type", document.Type)
+	}
+	if document.Title != "" {
+		fmt.Printf("%-12s %s\n", "title", document.Title)
+	}
+	if document.Description != "" {
+		fmt.Printf("%-12s %s\n", "description", document.Description)
+	}
+	if len(document.Tags) > 0 {
+		fmt.Printf("%-12s %s\n", "tags", strings.Join(document.Tags, ", "))
+	}
+	if len(document.UseWhen) > 0 {
+		fmt.Printf("%-12s %s\n", "use_when", strings.Join(document.UseWhen, ", "))
 	}
 }
 
@@ -692,13 +1163,18 @@ Usage:
   openknowledge setup
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
+  openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
+  openknowledge connect <path>
+  openknowledge connect <path> --as <key>
+  openknowledge disconnect <key|path>
+  openknowledge use <name|path> [entry]
+  openknowledge use <name|path> --info
   openknowledge registry list
   openknowledge registry add <name> <path>
   openknowledge where <name|path>
   openknowledge open [path]
   openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
-  openknowledge open --local-domain <domain> [path]
   openknowledge open --no-browser [path]
   openknowledge to html --out <folder> [path]
   openknowledge to json [path]
@@ -714,6 +1190,9 @@ Usage:
 Commands:
   setup      Print an agent setup prompt.
   new        Scaffold a local Open Knowledge bundle.
+  connect    Connect a local knowledge bundle.
+  disconnect Remove a knowledge bundle connection.
+  use        Print an agent entrypoint from a bundle.
   registry   Manage named knowledge base paths.
   where      Print the path for a named knowledge base or path.
   open       Start the registry or knowledge base Markdown viewer.
@@ -730,6 +1209,11 @@ Run openknowledge <command> --help for command-specific help.
 
 Examples:
   openknowledge new ./project-memory
+  openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
+  openknowledge connect ./accessibility --as accessibility
+  openknowledge use accessibility --info
+  openknowledge use accessibility
+  openknowledge disconnect accessibility
   openknowledge registry add personal ~/knowledge
   openknowledge where personal
   openknowledge list personal
@@ -739,6 +1223,95 @@ Examples:
   openknowledge list --json ./project-memory
   openknowledge open
   openknowledge open ./project-memory
+`
+}
+
+func useHelpText() string {
+	return `openknowledge use
+
+Print an agent-facing entrypoint from a knowledge bundle.
+
+Usage:
+  openknowledge use <name|path>
+  openknowledge use <name|path> <entry>
+  openknowledge use <name|path> --info
+  openknowledge use <name|path> <entry> --info
+  openknowledge use --help
+
+Arguments:
+  name|path      Registry key or local bundle path.
+  entry          Optional entrypoint name from okf_bundle_entry_<name>.
+
+Flags:
+  --info         Print bundle and entrypoint metadata instead of Markdown body.
+
+Behavior:
+  Without an entry, use prints okf_bundle_entry_default when declared. If no
+  default entrypoint exists, it prints the bundle root index.md. Named entries
+  must be declared in root index.md metadata.
+
+Examples:
+  openknowledge use accessibility --info
+  openknowledge use accessibility
+  openknowledge use accessibility review
+`
+}
+
+func disconnectHelpText() string {
+	return `openknowledge disconnect
+
+Remove a knowledge bundle connection from the user registry.
+
+Usage:
+  openknowledge disconnect <key|path>
+  openknowledge disconnect <key|path> --keep-files
+  openknowledge disconnect <key|path> --delete-files
+  openknowledge disconnect --help
+
+Arguments:
+  key|path        Connection key or connected local path.
+
+Flags:
+  --keep-files    Keep files after removing the connection. This is the default.
+  --delete-files  Delete files only when the connection is marked managed.
+
+The local connect command creates non-managed connections, so --delete-files is
+reserved for future managed remote-cache entries.
+
+Examples:
+  openknowledge disconnect accessibility
+  openknowledge disconnect ./project-memory --keep-files
+`
+}
+
+func connectHelpText() string {
+	return `openknowledge connect
+
+Connect a local Open Knowledge bundle to the user registry.
+
+Usage:
+  openknowledge connect <path>
+  openknowledge connect <path> --as <key>
+  openknowledge connect <path> --access read|write
+  openknowledge connect <path> --no-validate
+  openknowledge connect --help
+
+Arguments:
+  path           Local knowledge base root. Registry names are also accepted
+                 and resolve to their stored local path.
+
+Flags:
+  --as           Connection key. Defaults to okf_bundle_name, then the folder name.
+  --access       Access label stored with the connection, read or write. Defaults to read.
+  --no-validate  Skip the validation status check in the success output.
+
+Remote URL sources are not supported yet. Clone remote bundles locally, then
+connect the local directory.
+
+Examples:
+  openknowledge connect ./project-memory
+  openknowledge connect ./accessibility --as accessibility
+  openknowledge connect ./team-wiki --access write
 `
 }
 
@@ -821,6 +1394,11 @@ Flags:
   --plain     Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.
   --spec      OKF spec version. Defaults to latest.
 
+Theme:
+  Default viewer exports read [html.theme] from openknowledge.toml in the
+  bundle root. Set stylesheet = "assets/wiki-theme.css" to link theme CSS.
+  Built-in variables are defined in viewer_theme.css as --ok-* tokens.
+
 Versions:
   %s
 `, supportedSpecVersionsText())
@@ -872,6 +1450,7 @@ Scaffold a local Open Knowledge bundle.
 Usage:
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
+  openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
   openknowledge new --help
 
 Arguments:
@@ -879,10 +1458,22 @@ Arguments:
 
 Flags:
   --name       Knowledge base name. If omitted, the CLI prompts for one.
+  --bundle-name
+               Optional stable bundle id written as okf_bundle_name.
+  --bundle-title
+               Optional display title written as okf_bundle_title.
+  --bundle-purpose
+               Optional purpose written as okf_bundle_purpose.
+  --bundle-tag
+               Optional tag written into okf_bundle_tags. Repeatable.
+  --bundle-entry
+               Optional entrypoint as name=path, for example
+               default=agents/checker.md. Repeatable.
 
 Examples:
   openknowledge new ./project-memory
   openknowledge new --name "Project Memory" ./project-memory
+  openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility
 `
 }
 
@@ -895,7 +1486,6 @@ Usage:
   openknowledge open [path]
   openknowledge open --name <alias-name> [path]
   openknowledge open --host <host> --port <port> [path]
-  openknowledge open --local-domain <domain> [path]
   openknowledge open --no-browser [path]
   openknowledge open --help
 
@@ -908,9 +1498,6 @@ Flags:
   --port       Port to bind. Defaults to 0, which selects a free port.
   --name       Alias name for direct path mode. Defaults to the registry name
                or folder name.
-  --local-domain
-               Local alias domain to print. Defaults to open.knowledge.
-               Set to an empty string to hide the alias URL.
   --no-browser
                Print URLs without opening the default browser.
 

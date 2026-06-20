@@ -8,13 +8,16 @@ anchors. Keep this index as the quick map.
 * [Help](help.md) - root and command-specific help.
 * [Setup](setup.md) - agent setup prompt generation.
 * [New](new.md) - scaffold a local OKF bundle.
-* [Registry](registry.md) - manage named knowledge base paths.
+* [Connect](connect.md) - add a local OKF bundle to the local knowledge registry.
+* [Disconnect](disconnect.md) - remove a connected bundle from the local registry.
+* [Registry](registry.md) - current low-level named path registry and candidate internal storage layer.
+* [Use](use.md) - print agent entrypoint Markdown or metadata from a bundle.
 * [Where](where.md) - resolve names or paths to absolute bundle paths.
 * [Open](open.md) - local Markdown viewer.
 * [To](to.md) - conversion command group.
 * [Spec](spec.md) - print embedded OKF specs.
 * [Validate](validate.md) - validate a bundle against OKF.
-* [List](list.md) - print bundle inventory.
+* [List](list.md) - print bundle inventory and candidate connected bundle overview.
 * [Version](version.md) - print CLI version.
 
 ## Exporter Details

@@ -79,6 +79,28 @@ body {
   margin-bottom: 30px;
 }
 
+.site-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.wiki-link {
+  color: rgba(var(--secondary-rgb), 0.86);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.wiki-link:hover,
+.wiki-link:focus-visible {
+  color: var(--accent);
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--accent-rgb), 0.42);
+}
+
 .site-logo {
   display: inline-flex;
   align-items: center;

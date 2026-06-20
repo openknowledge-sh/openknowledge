@@ -36,13 +36,20 @@ the matching tarball plus `checksums.txt`, verifies the archive checksum, and
 installs the `openknowledge` binary. The npm installer also supports Windows
 binary names when release assets are available.
 
+`https://openknowledge.sh/install` should serve this repository's `install`
+script. The simplest deployment is a redirect to the latest GitHub Release
+asset:
+
+```text
+https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install
+```
+
 ## Source Anchors
 
 * `install`
 * `packages/npm/install.js`
 * `packages/npm/package.json`
 * `README.md`
-* `docs/cli.md`
 
 ## Update Notes
 

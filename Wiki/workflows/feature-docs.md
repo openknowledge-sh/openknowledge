@@ -12,19 +12,22 @@ timestamp: 2026-06-18T00:00:00Z
 
 Use this workflow when touching CLI commands, flags, help text, exporters,
 validation, setup, registry behavior, the local viewer, README content, or
-`docs/cli.md` content that explains CLI behavior.
+wiki content that explains CLI behavior.
 
 ## Inspect
 
 * Read [Agent Rules](/AGENTS.md).
 * Read the relevant page under [commands](/features/commands/) or [exporters](/features/exporters/).
 * Inspect source files and tests for the changed behavior.
-* Check `README.md` and `docs/cli.md` when user-facing examples or operational docs are involved.
+* Check `README.md`, [installation](/features/installation.md), and
+  [CLI operations](/features/operations.md) when user-facing examples or
+  operational docs are involved.
 
 ## Update
 
 * Update the smallest relevant feature page.
 * Add or revise usage, arguments, flags, examples, use cases, source anchors, and update notes.
+* For command pages, update the command change history when a major command-surface change is made.
 * Keep candidate work clearly labeled as candidate until shipped.
 * If a new command or exporter exists, add a page and update the section index.
 
@@ -45,6 +48,10 @@ For command pages, prefer these sections when they add signal:
   differences, and unsupported flags.
 * `Source Anchors` with the command entrypoint and focused tests when they
   exist.
+* `Command Change History` with dated entries for major command-surface changes:
+  added, removed, renamed, or behavior-changing arguments, flags, subcommands,
+  frontmatter/config properties, output fields, and exit-code semantics. Each
+  entry should include the date, a concise change summary, and source anchors.
 * `Update Notes` that say when to update docs and when CLI changelog memory is
   required.
 

@@ -42,7 +42,6 @@ No arguments are accepted. `--help` prints setup-specific help.
 * `packages/cli/internal/okf/setup.go`
 * `packages/cli/cmd/openknowledge/main.go`
 * `README.md`
-* `docs/cli.md`
 
 ## Update Notes
 
