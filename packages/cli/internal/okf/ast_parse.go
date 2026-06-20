@@ -57,7 +57,7 @@ func parseASTDocuments(root string) ([]astDocument, error) {
 		}
 
 		document := parseASTDocumentFile(path, relPath(root, path))
-		if document.ReadErr == nil {
+		if document.ReadDiagnostic == nil {
 			document.Links = ExtractLinks(root, document.Rel, document.Content)
 		}
 		documents = append(documents, document)
@@ -77,12 +77,12 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 	content, err := os.ReadFile(path)
 	id, kind, reserved := classifyDocument(rel)
 	document := astDocument{
-		Absolute: path,
-		Rel:      rel,
-		ID:       id,
-		Kind:     kind,
-		Reserved: reserved,
-		ReadErr:  err,
+		Absolute:       path,
+		Rel:            rel,
+		ID:             id,
+		Kind:           kind,
+		Reserved:       reserved,
+		ReadDiagnostic: astReadDiagnostic(err),
 	}
 	if err != nil {
 		return document
@@ -96,6 +96,16 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 	document.Body = body
 	document.FrontmatterDiagnostic = astFrontmatterDiagnostic(frontmatterErr)
 	return document
+}
+
+func astReadDiagnostic(err error) *astDiagnostic {
+	if err == nil {
+		return nil
+	}
+	return &astDiagnostic{
+		Message: err.Error(),
+		Cause:   err,
+	}
 }
 
 func astUTF8Diagnostic(content []byte) *astDiagnostic {

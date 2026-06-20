@@ -90,8 +90,8 @@ func validateDocument(root string, document astDocument, result *Result) {
 		result.Concepts++
 	}
 
-	if document.ReadErr != nil {
-		result.Errors = append(result.Errors, Issue{Path: rel, Rule: "bundle-read", Message: document.ReadErr.Error()})
+	if document.ReadDiagnostic != nil {
+		result.Errors = append(result.Errors, Issue{Path: rel, Rule: "bundle-read", Message: document.ReadDiagnostic.Message})
 		return
 	}
 	if document.UTF8Diagnostic != nil {

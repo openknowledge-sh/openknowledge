@@ -34,8 +34,8 @@ func listInventoryFromAST(bundle astBundle, issues []Issue) (ListResult, error) 
 	issuesByPath := groupIssuesByPath(issues)
 	entries := make([]ListEntry, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {
-		if document.ReadErr != nil {
-			return ListResult{}, document.ReadErr
+		if document.ReadDiagnostic != nil {
+			return ListResult{}, document.ReadDiagnostic
 		}
 		metadata := document.Metadata
 		if document.FrontmatterDiagnostic != nil {

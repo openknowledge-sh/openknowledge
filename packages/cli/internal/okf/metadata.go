@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,11 +28,11 @@ type MarkdownDocumentInfo struct {
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	info := BundleInfo{Root: root}
 	document := parseASTDocumentFile(filepath.Join(root, "index.md"), "index.md")
-	if os.IsNotExist(document.ReadErr) {
+	if document.ReadDiagnostic != nil && errors.Is(document.ReadDiagnostic, os.ErrNotExist) {
 		return info, nil
 	}
-	if document.ReadErr != nil {
-		return info, document.ReadErr
+	if document.ReadDiagnostic != nil {
+		return info, document.ReadDiagnostic
 	}
 
 	info.HasIndex = true
@@ -80,8 +81,8 @@ func (info BundleInfo) EntryPath(name string) (string, bool) {
 func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, error) {
 	info := MarkdownDocumentInfo{Path: rel}
 	document := parseASTDocumentFile(path, rel)
-	if document.ReadErr != nil {
-		return info, document.ReadErr
+	if document.ReadDiagnostic != nil {
+		return info, document.ReadDiagnostic
 	}
 	if document.FrontmatterDiagnostic != nil {
 		return info, document.FrontmatterDiagnostic

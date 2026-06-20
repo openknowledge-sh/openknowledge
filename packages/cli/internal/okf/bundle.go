@@ -56,8 +56,8 @@ func bundleFilesFromAST(bundle astBundle, issues []Issue) ([]BundleFile, error) 
 	issuesByPath := groupIssuesByPath(issues)
 	files := make([]BundleFile, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {
-		if document.ReadErr != nil {
-			return nil, document.ReadErr
+		if document.ReadDiagnostic != nil {
+			return nil, document.ReadDiagnostic
 		}
 		files = append(files, bundleFile(document, issuesByPath[document.Rel]))
 	}

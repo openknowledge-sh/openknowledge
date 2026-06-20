@@ -17,7 +17,7 @@ type astDocument struct {
 	Metadata              astDocumentMetadata
 	Body                  string
 	Links                 []Link
-	ReadErr               error
+	ReadDiagnostic        *astDiagnostic
 	UTF8Diagnostic        *astDiagnostic
 	FrontmatterDiagnostic *astDiagnostic
 }
@@ -25,10 +25,21 @@ type astDocument struct {
 type astDiagnostic struct {
 	Line    int
 	Message string
+	Cause   error
 }
 
-func (d astDiagnostic) Error() string {
+func (d *astDiagnostic) Error() string {
+	if d == nil {
+		return ""
+	}
 	return d.Message
+}
+
+func (d *astDiagnostic) Unwrap() error {
+	if d == nil {
+		return nil
+	}
+	return d.Cause
 }
 
 type astFrontmatter struct {
