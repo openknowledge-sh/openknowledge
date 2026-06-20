@@ -1245,15 +1245,6 @@ func viewerStaticTree(files []okf.BundleFile, currentPath string) []viewerTreeIt
 	})
 }
 
-func viewerGraphJSON(root string, entries []okf.ListEntry, fileURL func(string) string) template.JS {
-	graph := viewerGraphFromEntries(root, entries, fileURL)
-	data, err := json.Marshal(graph)
-	if err != nil {
-		return `{"nodes":[],"edges":[]}`
-	}
-	return template.JS(data)
-}
-
 func viewerGraphJSONFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, fileURL func(string) string) template.JS {
 	graph := viewerGraphFromBundleFiles(files, entries, fileURL)
 	data, err := json.Marshal(graph)
@@ -1276,26 +1267,6 @@ func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
 	return viewerGraphJSONFromBundleFiles(publishedFiles, entries, func(path string) string {
 		return viewerStaticRelativeURL("index.md", path)
 	})
-}
-
-func viewerGraphFromEntries(root string, entries []okf.ListEntry, fileURL func(string) string) viewerGraphData {
-	files := make([]okf.BundleFile, 0, len(entries))
-	for _, entry := range entries {
-		contentPath, ok := safeMarkdownPath(root, entry.Path)
-		if !ok {
-			continue
-		}
-		content, err := os.ReadFile(contentPath)
-		if err != nil {
-			continue
-		}
-		files = append(files, okf.BundleFile{
-			Path:  entry.Path,
-			Title: entry.Title,
-			Links: okf.ExtractLinks(root, entry.Path, string(content)),
-		})
-	}
-	return viewerGraphFromBundleFiles(files, entries, fileURL)
 }
 
 func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, fileURL func(string) string) viewerGraphData {
