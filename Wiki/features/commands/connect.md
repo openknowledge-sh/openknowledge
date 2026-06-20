@@ -1,29 +1,30 @@
 ---
 type: Command Documentation
 title: openknowledge connect
-description: Connects a local OKF bundle to the user's local knowledge registry.
+description: Connects a local or remote OKF bundle to the user's local knowledge registry.
 tags: [openknowledge, cli, command, registry, connect, agent]
 timestamp: 2026-06-20T00:00:00Z
 ---
 
 # `openknowledge connect`
 
-`openknowledge connect` adds a local Open Knowledge bundle to the user's
+`openknowledge connect` adds an Open Knowledge bundle to the user's
 registry so later commands can refer to it by a stable key. It is syntactic
 sugar for `openknowledge registry connect`, with the same parsing, output, and
 exit-code behavior as the registry subcommand.
 
-The shipped implementation connects existing local directories. Remote URL
-materialization is still planned work; clone a remote bundle locally before
-connecting it.
+The command connects existing local directories directly. Remote sources are
+materialized into the Open Knowledge cache before registration. Resolution order
+for HTTP(S) sources is Open Knowledge manifest, direct tar archive, then Git
+fallback.
 
 ## Usage
 
 ```sh
-openknowledge connect <path>
-openknowledge connect <path> --as <key>
-openknowledge connect <path> --access read|write
-openknowledge connect <path> --no-validate
+openknowledge connect <source>
+openknowledge connect <source> --as <key>
+openknowledge connect <source> --access read|write
+openknowledge connect <source> --no-validate
 openknowledge connect --help
 ```
 
@@ -31,7 +32,7 @@ openknowledge connect --help
 
 | Name | Kind | Description |
 | --- | --- | --- |
-| `path` | argument | Local bundle root. Existing registry names are accepted and resolve to their stored path. |
+| `source` | argument | Local bundle root, existing registry key, Open Knowledge manifest URL, tar archive URL, or Git URL. Registry keys resolve to their stored path. |
 | `--as` | flag | Explicit connection key. Defaults to root `okf_bundle_name`, then the folder name. |
 | `--access` | flag | Access label stored with the connection, `read` or `write`. Defaults to `read`. |
 | `--no-validate` | flag | Skip the validation status check in success output. |
@@ -46,33 +47,33 @@ are normalized when needed.
 root `index.md` metadata, writes or updates the registry entry, then prints a
 validation status unless `--no-validate` is set.
 
-Root metadata keys used by `connect`:
+Remote source handling:
 
-| Key | Meaning |
-| --- | --- |
-| `okf_bundle_name` | Preferred default key when `--as` is omitted. |
-| `okf_bundle_title` | Display name in success output. |
-| `okf_bundle_purpose` | Purpose shown in success output. |
-| `okf_bundle_tags` | Discovery tags parsed from a YAML flow list. |
-| `okf_bundle_entry_<name>` | Entrypoint names listed in success output. |
+* Open Knowledge manifest URLs are JSON documents with type
+  `openknowledge.bundle`, an archive path, and optional `archiveSha256`.
+* Website URLs try `openknowledge.json` under the URL path, then
+  `/.well-known/openknowledge.json`.
+* Direct `.tar`, `.tar.gz`, and `.tgz` URLs are downloaded and extracted.
+* HTTP(S) URLs that are neither manifests nor archives fall back to shallow
+  `git clone`.
 
-Missing metadata does not block connection. Display names fall back to the root
-`index.md` H1, then the folder name. Without metadata, `connect` still stores
-the key, absolute path, and access label.
+Downloaded archives are extracted into the Open Knowledge cache using safe path
+checks, then validated as Open Knowledge bundles before registration.
+
+`connect` uses root metadata when present: `okf_bundle_name` can provide the
+default key, `okf_bundle_title` and `okf_bundle_purpose` appear in success
+output, and `okf_bundle_entry_<name>` values are listed as entrypoints. Missing
+metadata does not block connection; display names fall back to the root
+`index.md` H1, then the folder name.
 
 Connecting the same absolute path updates the existing connection. If an
 implicit key collides with another path, `connect` chooses the next available
 suffix such as `project-2` and prints a warning. If an explicit `--as <key>`
 collides with another path, the command fails.
 
-Validation is a status signal, not a connection gate:
-
-| Status | Meaning |
-| --- | --- |
-| `valid` | No validation errors or warnings. |
-| `warnings` | Validation warnings were found. |
-| `invalid` | Validation errors were found. |
-| `unknown` | Validation was skipped or could not run. |
+Validation is a status signal, not a connection gate. Success output reports
+`valid`, `warnings`, `invalid`, or `unknown` depending on whether validation
+ran and what it found.
 
 ## Quick Examples
 
@@ -80,19 +81,17 @@ Validation is a status signal, not a connection gate:
 openknowledge connect ./project-memory
 openknowledge connect ./accessibility --as accessibility
 openknowledge connect ./team-wiki --access write
-openknowledge registry where accessibility
-openknowledge use accessibility --info
+openknowledge connect https://openknowledge.sh/wiki/
+openknowledge connect https://example.com/openknowledge-bundle.tar.gz
+openknowledge connect https://github.com/openknowledge-sh/accessibility.git --as accessibility
 ```
 
 ## Caveats
 
-Remote URL sources are not supported yet. `connect` rejects `http://`,
-`https://`, and `git@` inputs with a message telling the user to connect a local
-clone.
-
-The registry storage remains the existing `entries` JSON array, with optional
-`access` and `managed` fields on entries. A path-keyed storage model remains a
-future migration candidate.
+Remote archive and manifest sources require network access for non-local URLs.
+Git fallback requires `git` on `PATH`. Existing cached materializations are
+reused when they still validate. See [registry](registry.md) for storage
+compatibility details.
 
 ## Source Anchors
 
@@ -112,6 +111,11 @@ subcommand after connection management moved under the registry namespace.
 `openknowledge connect` shipped for local directories with `--as`,
 `--access`, and `--no-validate`, metadata-derived keys, validation status
 output, implicit key suffixing, and explicit collision failures.
+
+`openknowledge connect` now materializes Open Knowledge manifests, tar archives,
+and Git remote sources into the Open Knowledge cache, records source metadata,
+and stores registry state as path-keyed `connections` while preserving reads of
+legacy `entries` registries.
 
 ## Update Notes
 

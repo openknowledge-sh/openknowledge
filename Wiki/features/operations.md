@@ -42,19 +42,12 @@ openknowledge to html --out packages/web/dist/wiki Wiki
 ```
 
 That makes the public website's `wiki/` path a static viewer export of the
-colocated `Wiki/` bundle. The landing page links to that output from the top
-navigation before the GitHub icon. A latest-release badge sits below that
-topbar, links to GitHub Releases, and hydrates at runtime from GitHub's latest
-release API so the displayed tag and relative publish age stay current.
+colocated `Wiki/` bundle.
 
 The web server redirects `/install` and `/install/` to
 `https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install`.
 Keep this redirect in `packages/web/scripts/serve.mjs` because Railway serves
 the site through the Node server.
-
-The landing page includes Google Analytics through `gtag.js` with measurement
-ID `G-62SWM7FC2J`. Keep the tag in `packages/web/index.html` so `pnpm build:web`
-copies it into `packages/web/dist/index.html`.
 
 `pnpm dev:web` serves source files from `packages/web` by default, refreshes the
 wiki export on startup, and then falls back to `packages/web/dist/wiki` for
@@ -77,10 +70,9 @@ source files on GitHub instead of showing local editor deeplinks.
 The deployed wiki brand is controlled by `Wiki/index.md` root frontmatter
 `okf_bundle_title`, currently `Open Knowledge CLI Documentation`.
 
-The web server keeps canonical generated wiki pages under their exported paths,
-such as `/wiki/features/commands/disconnect.html`, and redirects short top-level
-command aliases such as `/wiki/disconnect.html` and `/wiki/disconnect` to those
-canonical pages after checking for real static files.
+The web server keeps canonical generated wiki pages under their exported paths
+and redirects short top-level command aliases to those canonical pages after
+checking for real static files.
 
 The Railway deployment workflow runs on pushes to `main`. It first verifies the
 repository with `pnpm test` and `pnpm build`, then deploys through the Railway
@@ -120,16 +112,13 @@ GoReleaser uploads the installer, checksums, license files, third-party
 notices, and platform archives to GitHub Releases.
 
 The npm publishing job is present in the workflow as commented YAML, but it is
-disabled while the GitHub Release artifact flow is validated first. When
-re-enabling npm publishing:
+disabled while the GitHub Release artifact flow is validated first. Before
+re-enabling it:
 
 * set `packages/npm/package.json` `version` to match the tag without the
   leading `v`;
 * configure the repository `NPM_TOKEN` secret with permission to publish
   `@openknowledge-sh/openknowledge`.
-
-The commented npm publish job is designed to fail fast when the package version
-does not match the tag or `NPM_TOKEN` is missing.
 
 Local installer test against a directory of release assets:
 

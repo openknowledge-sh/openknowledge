@@ -37,11 +37,9 @@ Use a skill when you want the agent to follow a repeatable procedure. It is best
 for checklists, task recipes, review flows, generation patterns, or any workflow
 you do not want to explain from scratch every time.
 
-For example, this repository ships a wiki maintenance skill at
-`.codex/skills/openknowledge-wiki/SKILL.md`. The skill tells Codex when to
-update the wiki, which wiki workflows to read first, how to keep CLI docs and
-changelog memory consistent, and when to run validation. The knowledge lives in
-the OKF bundle; the skill is the repeatable procedure for maintaining it.
+In this repository, the wiki content is the OKF bundle and
+`.codex/skills/openknowledge-wiki/SKILL.md` is the maintenance workflow for
+agents editing it.
 
 ## Plugins: Packaged Capabilities
 
@@ -65,16 +63,6 @@ functionality across projects, teams, or marketplaces.
 
 ## How They Fit Together
 
-These concepts can work together.
-
-An OKF bundle can hold the knowledge. A skill can tell the agent how to use that
-knowledge. A plugin can package the skill and any tools needed to distribute it.
-
-```text
-OKF bundle  = what the agent can know
-Skill       = what the agent should do
-Plugin      = what the agent can install and use
-```
-
-In short: **OKF is knowledge, skills are workflows, and plugins are packaged
-capabilities.**
+These concepts can work together: an OKF bundle holds the knowledge, a skill
+tells the agent how to use it, and a plugin packages the skill or tools for
+distribution.

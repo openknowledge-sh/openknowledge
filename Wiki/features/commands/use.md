@@ -46,8 +46,6 @@ Bundle metadata lives in the bundle-root `index.md` frontmatter as flat
 okf_version: "0.1"
 okf_bundle_name: accessibility
 okf_bundle_title: Accessibility Review
-okf_bundle_purpose: Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems.
-okf_bundle_tags: [accessibility, ui, review]
 okf_bundle_entry_default: agents/accessibility-checker.md
 okf_bundle_entry_review: agents/accessibility-review.md
 ---
@@ -55,9 +53,9 @@ okf_bundle_entry_review: agents/accessibility-review.md
 # Accessibility Review
 ```
 
-Entrypoints are ordinary Markdown files. Their own frontmatter may include
-`type`, `title`, `description`, `tags`, and `use_when`; `use --info` reads those
-fields when present.
+Entrypoints are ordinary Markdown files. Their frontmatter may include `type`,
+`title`, `description`, `tags`, and `use_when`; `use --info` reads those fields
+when present.
 
 ## Behavior
 
@@ -84,20 +82,6 @@ openknowledge use accessibility
 openknowledge use accessibility review
 openknowledge use ./project-memory
 ```
-
-## Agent Flow
-
-A runtime skill can stay small:
-
-```text
-When asked to review accessibility, run:
-  openknowledge use accessibility
-
-Then follow the printed entrypoint instructions.
-```
-
-The skill does not need to know where the bundle lives. `use` resolves the
-local key through the registry and prints the bundle's own entrypoint.
 
 ## Source Anchors
 

@@ -8,28 +8,14 @@ timestamp: 2026-06-18T00:00:00Z
 
 # HTML Exporter
 
-The HTML exporter writes one `.html` file for each Markdown file in a bundle.
-By default, those pages use the same static viewer app bundle as
-`openknowledge open`: file tree, search, stacked-panel browsing, and embedded
-note data are available without a local server. Markdown tables in the default
-viewer export keep the same rich controls as the local viewer: horizontal
-scrolling, whole-table filtering, dropdown column filters with a clear filters
-control, a ghost `Filters` trigger button, sortable headers, and row counts. On
-narrow mobile widths, selecting a file from the sidebar closes the drawer after
-opening that note. Shared viewer layering keeps sticky note-panel chrome above
-those table controls while content scrolls, and long inline code values wrap
-inside table cells instead of forcing table content past the frame. Fenced code
-blocks keep the same
-syntax highlighting and subtle language label as the local viewer; shell fences
-also color command names, flags, and variables without adding extra command
-font weight. Fenced code blocks use body-sized monospace text so shell commands
-do not appear larger than neighboring code on iOS Safari. The shared viewer CSS
-keeps the top-bar search field responsive on narrow mobile widths so it does
-not overlap the knowledge base brand, uses the small viewport height where
-available, and hides fixed bottom chrome on mobile or touch viewports so the
-rail and attribution do not conflict with Safari's browser chrome. The
-`--plain` flag switches to unstyled semantic HTML without CSS, JavaScript, or
-viewer chrome.
+The HTML exporter turns an OKF bundle into static pages. The default mode ships
+the same viewer used by `openknowledge open`, so exported docs keep file
+browsing, search, stacked panels, graph data, table controls, syntax
+highlighting, and mobile layout behavior without a local server. It also writes
+connection assets so a deployed wiki can be added back to the local registry.
+
+Use `--plain` when the output should be only semantic HTML without viewer CSS,
+JavaScript, search, graph data, or table controls.
 
 ## Command
 
@@ -50,28 +36,32 @@ openknowledge to html --spec <version> --out <folder> [path]
 
 ## Behavior
 
-Both modes strip YAML frontmatter from rendered pages and rewrite local
-Markdown links to generated `.html` targets. Soft-wrapped Markdown list items
-stay inside their bullet or numbered item instead of rendering continuation
-lines as standalone paragraphs. Rendered Markdown tables use a stable
-`ok-table-wrap` container, an `ok-table-scroller`, `scope="col"` headers, and
-`data-align` metadata for Markdown alignment markers. Files with
-`okf_publish: false` frontmatter are skipped and do not get generated HTML
-pages. The default viewer export embeds a static note manifest and graph data
-in each generated page so search, panel navigation, and rich table controls work
-in exported output; unpublished files are omitted from that manifest and graph
-data. The static viewer also resolves host-provided pretty URLs such as
-extensionless lowercase paths and directory index paths back to the embedded
-note manifest, so stacked-panel navigation continues to work on hosts that
-rewrite `AGENTS.html` to `/agents` or `features/index.html` to `/features/`.
-The viewer header brand links back to the generated `index.html` with a
-relative URL from every exported page, so deployments under subpaths such as
-`/wiki/` stay inside the exported wiki instead of navigating to the host root.
-The plain export keeps only the rendered document structure and does not include
-the JavaScript table toolbar.
+Both modes strip YAML frontmatter from rendered pages, rewrite local Markdown
+links to generated `.html` targets, and skip files with `okf_publish: false`.
+Rendered Markdown keeps list continuations inside their parent item and emits
+semantic tables with alignment metadata.
 
-The default viewer export also reads an optional `openknowledge.toml` file from
-the bundle root. A `[html.theme]` section can set a theme name and stylesheet:
+Default viewer exports embed a static note manifest and graph data in each page
+so search, panel navigation, source links, and enhanced table controls work on a
+static host. The viewer can resolve pretty URLs such as `/agents` or
+`/features/` back to generated notes, and the header brand links to the exported
+`index.html` with a relative URL for subpath deployments. Portable static pages
+do not expose the local filesystem path used during the build.
+
+Default viewer exports include remote-connect assets:
+
+* `openknowledge.json` - an Open Knowledge manifest with type
+  `openknowledge.bundle`, archive path, archive format, spec version, bundle
+  name/title metadata when present, and archive SHA-256.
+* `assets/openknowledge-bundle.tar.gz` - a portable source bundle archive
+  generated with the same writer as `openknowledge to tar`.
+
+`openknowledge connect <deployed-wiki-url>` discovers the manifest, verifies the
+archive hash when present, extracts the archive safely, validates the extracted
+bundle, and registers the materialized bundle in the local registry.
+
+Default viewer exports read optional settings from `openknowledge.toml`.
+`[html.theme]` sets a theme name and stylesheet:
 
 ```toml
 [html.theme]
@@ -79,18 +69,10 @@ name = "landing"
 stylesheet = "assets/wiki-theme.css"
 ```
 
-The exported pages include `data-openknowledge-theme="<name>"` on `<html>` and
-link the configured stylesheet after the built-in viewer CSS. Local stylesheets
-must stay inside the bundle; they are copied into the output folder and linked
-relatively from every generated page. External `http` and `https` stylesheet
-URLs are linked as-is. `openknowledge open` serves the same local stylesheet
-through the raw file endpoint for local preview, applies the same theme name on
-viewer HTML, and validates local stylesheet paths before rendering.
-
-Default viewer exports leave the internal `data-note-root` attribute empty, so
-portable static pages do not expose the local filesystem path used during the
-build. The browser-side viewer falls back to the page URL for static-only
-storage keys.
+Exported pages include `data-openknowledge-theme="<name>"` on `<html>` and link
+the stylesheet after the built-in viewer CSS. Local stylesheets must stay inside
+the bundle; they are copied into the output and linked relatively from every
+page. External `http` and `https` stylesheet URLs are linked as-is.
 
 Default viewer exports also suppress the local editor dropdown because deployed
 HTML cannot open the build machine's local files. To show a source action in
@@ -102,148 +84,25 @@ github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"
 ```
 
-When `github_base` is present, each exported Markdown panel shows a single
-GitHub button linking to `github_base` plus the optional repository `entry` path
-and the Markdown file path. Dynamic panels opened from the embedded note
-manifest use the same per-file source URL. When `[html.source]` is absent, the
-exported viewer renders no editor or source action.
+When `github_base` is present, each exported Markdown panel shows a GitHub
+source button built from `github_base`, optional `entry`, and the Markdown file
+path. When `[html.source]` is absent, exported pages render no local editor or
+source action. `html.source.entry` is a repository path prefix, not the viewer
+title.
 
-`html.source.entry` is a repository path prefix, not the exported viewer title.
-The viewer header brand comes from the bundle root `index.md` metadata, in this
-order: `okf_bundle_title`, `okf_bundle_name`, `title`, then the first Markdown
-`#` heading. Set `okf_bundle_title` in root frontmatter to control the deployed
-wiki brand without changing source-link paths.
-
-The canonical default theme source is
-`packages/cli/cmd/openknowledge/viewer_theme.css`. The local viewer and default
-HTML export derive colors, fonts, and viewer dimensions from this theme layer.
-The default note panel width uses a comfortable `65ch` reading measure plus the
-panel's horizontal padding, capped to the viewport on narrow screens.
-Supported theme variables are:
-
-```css
---ok-font-body
---ok-font-mono
---ok-header-height
---ok-mobile-header-height
---ok-sidebar-width
---ok-note-panel-default-width
---ok-note-panel-min-width
---ok-color-text
---ok-color-document-text
---ok-color-muted
---ok-color-border
---ok-color-page
---ok-color-surface
---ok-color-accent
---ok-color-accent-rgb
---ok-color-accent-strong
---ok-color-accent-soft
---ok-color-accent-softer
---ok-color-accent-selected
---ok-color-accent-focus
---ok-color-accent-focus-strong
---ok-color-accent-border
---ok-color-accent-border-strong
---ok-color-shadow
---ok-color-danger
---ok-color-header-bg
---ok-color-viewer-canvas
---ok-color-viewer-header-bg
---ok-color-control-text
---ok-color-control-hover-text
---ok-color-control-hover-border
---ok-color-control-hover-bg
---ok-color-close-text
---ok-color-close-hover-border
---ok-color-close-hover-bg
---ok-color-sidebar
---ok-color-sidebar-header
---ok-color-sidebar-row
---ok-color-sidebar-border
---ok-color-sidebar-text
---ok-color-sidebar-tree-hover-bg
---ok-color-search-input-border
---ok-color-search-input-bg
---ok-color-search-shortcut-border
---ok-color-search-shortcut-bg
---ok-color-search-shortcut-text
---ok-color-search-popover-border
---ok-color-search-popover-bg
---ok-color-search-popover-shadow
---ok-color-search-result-border
---ok-color-search-result-hover-border
---ok-color-search-result-hover-bg
---ok-color-card-border
---ok-color-card-bg
---ok-color-card-hover-bg
---ok-color-rail-track
---ok-color-rail-thumb
---ok-color-rail-thumb-hover
---ok-color-tree-text
---ok-color-tree-directory-bg
---ok-color-tree-directory-text
---ok-color-tree-directory-marker
---ok-color-tree-badge-border
---ok-color-tree-badge-text
---ok-color-note-resize-hitarea
---ok-color-note-resize-active
---ok-color-note-chrome-bg
---ok-color-note-close-text
---ok-color-note-close-hover-border
---ok-color-note-close-hover-text
---ok-color-editor-trigger-border
---ok-color-editor-trigger-bg
---ok-color-editor-trigger-text
---ok-color-editor-trigger-shadow
---ok-color-editor-trigger-separator
---ok-color-editor-trigger-focus-border
---ok-color-editor-mark-border
---ok-color-editor-mark-bg
---ok-color-editor-mark-text
---ok-color-editor-caret
---ok-color-editor-menu-border
---ok-color-editor-menu-bg
---ok-color-editor-menu-shadow
---ok-color-editor-menu-item-text
---ok-color-editor-menu-item-hover-bg
---ok-color-editor-option-border
---ok-color-editor-option-bg
---ok-color-editor-option-text
---ok-color-editor-menu-separator
---ok-color-code-inline-bg
---ok-color-code-block-bg
---ok-color-code-block-text
---ok-color-syntax-keyword
---ok-color-syntax-string
---ok-color-syntax-number
---ok-color-syntax-comment
---ok-color-graph-edge
---ok-color-graph-edge-muted
---ok-color-graph-edge-active
---ok-color-graph-node-bg
---ok-color-graph-node-border
---ok-color-graph-node-active-border
---ok-color-graph-node-shadow
---ok-color-graph-node-active-shadow
---ok-color-graph-label-halo
---ok-color-graph-label
---ok-color-graph-label-active
-```
+The deployed viewer brand comes from root `index.md` metadata in this order:
+`okf_bundle_title`, `okf_bundle_name`, `title`, then the first Markdown `#`
+heading. The built-in theme contract lives in
+`packages/cli/cmd/openknowledge/viewer_theme.css`; override `--ok-*` variables
+there through a configured stylesheet instead of changing generated HTML.
 
 ## Use Cases
 
-* Publish a portable static copy of a wiki.
-* Review generated pages outside the local viewer.
-* Test Markdown rendering and local link rewriting.
+* Publish a portable static wiki.
+* Connect a deployed wiki back into a local registry.
 * Produce minimal HTML for systems that should not include viewer JavaScript.
-* Publish Markdown-heavy docs with usable tables that can be searched, filtered
-  through compact dropdown controls, sorted, and horizontally scrolled in the
-  default viewer export.
-* Match an exported documentation wiki to a landing page by overriding viewer
-  theme variables in a deployable CSS file.
-* Link deployed static pages back to their GitHub Markdown source without
-  exposing local editor deeplinks.
+* Apply a deployable theme stylesheet without changing source Markdown.
+* Link deployed pages to GitHub source without exposing local editor deeplinks.
 
 ## Source Anchors
 
