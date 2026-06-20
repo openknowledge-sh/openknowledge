@@ -19,6 +19,7 @@ Use these pages to install, run, inspect, and operate the Open Knowledge CLI.
 
 * [Feature documentation](features/) - developer-focused pages for commands, exporters, and installation.
 * [Installation](features/installation.md) - shell installer, npm wrapper, and local install assumptions.
+* [OKF, skills, and plugins](features/okf-skills-plugins.md) - simple comparison of raw OKF v0.1, agent skills, and plugins.
 * [CLI operations](features/operations.md) - development commands, workspace layout, and release workflow notes.
 * [Commands](features/commands/) - command-by-command reference pages.
 * [Exporters](features/exporters/) - bundle conversion targets and candidate exporters.

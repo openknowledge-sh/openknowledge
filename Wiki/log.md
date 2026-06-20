@@ -2,6 +2,9 @@
 
 ## 2026-06-20
 
+* **OKF, skills, and plugins**: Added
+  [features/okf-skills-plugins.md](features/okf-skills-plugins.md) as a
+  user-facing one-page comparison of raw OKF v0.1, agent skills, and plugins.
 * **Mobile Safari viewer chrome**: Documented that the shared viewer uses
   small viewport sizing where supported, hides fixed bottom chrome on mobile or
   touch viewports, and keeps fenced shell code at body-sized text without extra
