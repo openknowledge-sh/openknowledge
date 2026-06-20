@@ -64,7 +64,7 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 }
 
 func htmlPageFromASTDocument(document ASTDocument) htmlPageData {
-	summary := summarizeASTDocument(document, document.Metadata)
+	summary := SummarizeASTDocument(document, document.Metadata)
 	title := summary.Title
 	if title == "" {
 		title = deriveTitle(document.Rel)

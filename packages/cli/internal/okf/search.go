@@ -47,7 +47,7 @@ func searchDocumentFromASTDocument(document ASTDocument) searchDocument {
 		metadata = ASTDocumentMetadata{}
 		frontmatter = nil
 	}
-	summary := summarizeASTDocument(document, metadata)
+	summary := SummarizeASTDocument(document, metadata)
 	return newSearchDocument(
 		summary.Path,
 		summary.ID,

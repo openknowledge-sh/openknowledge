@@ -24,7 +24,7 @@ func listInventoryFromAST(bundle ASTBundle, issues []Issue) (ListResult, error) 
 		if document.FrontmatterDiagnostic != nil {
 			metadata = ASTDocumentMetadata{}
 		}
-		entries = append(entries, attachIssues(listEntryFromASTSummary(summarizeASTDocument(document, metadata)), issuesByPath))
+		entries = append(entries, attachIssues(listEntryFromASTSummary(SummarizeASTDocument(document, metadata)), issuesByPath))
 	}
 	return ListResult{Root: bundle.Root, Entries: entries}, nil
 }
@@ -34,7 +34,7 @@ func attachIssues(entry ListEntry, issuesByPath map[string][]Issue) ListEntry {
 	return entry
 }
 
-func listEntryFromASTSummary(summary astDocumentSummary) ListEntry {
+func listEntryFromASTSummary(summary ASTDocumentSummary) ListEntry {
 	return ListEntry{
 		ID:          summary.ID,
 		Path:        summary.Path,

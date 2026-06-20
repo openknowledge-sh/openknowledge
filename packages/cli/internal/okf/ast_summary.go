@@ -1,6 +1,6 @@
 package okf
 
-type astDocumentSummary struct {
+type ASTDocumentSummary struct {
 	ID          string
 	Path        string
 	Kind        string
@@ -11,7 +11,7 @@ type astDocumentSummary struct {
 	Resource    string
 }
 
-func summarizeASTDocument(document ASTDocument, metadata ASTDocumentMetadata) astDocumentSummary {
+func SummarizeASTDocument(document ASTDocument, metadata ASTDocumentMetadata) ASTDocumentSummary {
 	if document.Reserved {
 		title := deriveTitle(document.Rel)
 		if document.Kind == "index" {
@@ -21,7 +21,7 @@ func summarizeASTDocument(document ASTDocument, metadata ASTDocumentMetadata) as
 			title = "Log"
 		}
 
-		return astDocumentSummary{
+		return ASTDocumentSummary{
 			ID:       document.ID,
 			Path:     document.Rel,
 			Kind:     document.Kind,
@@ -35,7 +35,7 @@ func summarizeASTDocument(document ASTDocument, metadata ASTDocumentMetadata) as
 		title = deriveTitle(document.Rel)
 	}
 
-	return astDocumentSummary{
+	return ASTDocumentSummary{
 		ID:          document.ID,
 		Path:        document.Rel,
 		Kind:        document.Kind,
