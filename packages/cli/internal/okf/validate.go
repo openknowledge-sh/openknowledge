@@ -45,6 +45,11 @@ type Check struct {
 	Message string `json:"message"`
 }
 
+func issuesFromResult(result Result) []Issue {
+	issues := append([]Issue{}, result.Errors...)
+	return append(issues, result.Warnings...)
+}
+
 func Validate(root string) (Result, error) {
 	return ValidateWithVersion(root, LatestSpecVersion)
 }

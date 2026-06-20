@@ -32,9 +32,7 @@ func ListWithVersion(root string, version string) (ListResult, error) {
 		return ListResult{}, err
 	}
 
-	issues := append([]Issue{}, validation.Errors...)
-	issues = append(issues, validation.Warnings...)
-	return listInventoryFromAST(ast, issues)
+	return listInventoryFromAST(ast, issuesFromResult(validation))
 }
 
 func listInventoryFromAST(bundle astBundle, issues []Issue) (ListResult, error) {
