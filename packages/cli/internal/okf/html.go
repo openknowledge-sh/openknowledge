@@ -37,11 +37,7 @@ func WritePlainHTMLWithVersion(root string, out string, version string) (HTMLRes
 }
 
 func writeHTMLWithVersion(root string, out string, version string, pageTemplate *template.Template) (HTMLResult, error) {
-	validation, ast, err := parseAndValidateBundle(root, version)
-	if err != nil {
-		return HTMLResult{}, err
-	}
-	bundle, err := bundleFromAST(validation, ast)
+	_, ast, err := parseAndValidateBundle(root, version)
 	if err != nil {
 		return HTMLResult{}, err
 	}
@@ -52,24 +48,19 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 	}
 
 	var written []string
-	for _, file := range bundle.Files {
-		if !ShouldPublish(file) {
+	for _, document := range ast.Documents {
+		if document.ReadDiagnostic != nil {
+			return HTMLResult{}, document.ReadDiagnostic
+		}
+		if !shouldPublishASTDocument(document) {
 			continue
 		}
-		target := filepath.Join(absoluteOut, filepath.FromSlash(htmlPath(file.Path)))
+		target := filepath.Join(absoluteOut, filepath.FromSlash(htmlPath(document.Rel)))
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return HTMLResult{}, err
 		}
 
-		page := htmlPageData{
-			Title: file.Title,
-			Path:  file.Path,
-			Body:  template.HTML(RenderMarkdown(file.Body, file.Path, StaticHTMLLink)),
-		}
-		if page.Title == "" {
-			page.Title = deriveTitle(file.Path)
-		}
-
+		page := htmlPageFromASTDocument(document)
 		var builder strings.Builder
 		if err := pageTemplate.Execute(&builder, page); err != nil {
 			return HTMLResult{}, err
@@ -81,7 +72,21 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 	}
 
 	sort.Strings(written)
-	return HTMLResult{Root: bundle.Root, Out: absoluteOut, Written: written}, nil
+	return HTMLResult{Root: ast.Root, Out: absoluteOut, Written: written}, nil
+}
+
+func htmlPageFromASTDocument(document astDocument) htmlPageData {
+	summary := summarizeASTDocument(document, document.Metadata)
+	title := summary.Title
+	if title == "" {
+		title = deriveTitle(document.Rel)
+	}
+
+	return htmlPageData{
+		Title: title,
+		Path:  document.Rel,
+		Body:  template.HTML(RenderMarkdown(document.Body, document.Rel, StaticHTMLLink)),
+	}
 }
 
 var staticPageTemplate = template.Must(template.New("static-page").Funcs(template.FuncMap{
