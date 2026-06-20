@@ -39,7 +39,7 @@ func bundleFilesFromAST(bundle ASTBundle, issues []Issue) ([]BundleFile, error) 
 	return files, nil
 }
 
-func bundleFile(document astDocument, issues []Issue) BundleFile {
+func bundleFile(document ASTDocument, issues []Issue) BundleFile {
 	summary := summarizeASTDocument(document, document.Metadata)
 
 	return BundleFile{

@@ -1,6 +1,6 @@
 package okf
 
-func parseASTDocumentLinks(root string, document astDocument) astDocument {
+func parseASTDocumentLinks(root string, document ASTDocument) ASTDocument {
 	if document.ReadDiagnostic != nil {
 		return document
 	}

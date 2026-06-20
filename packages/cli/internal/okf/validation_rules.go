@@ -71,7 +71,7 @@ func validateConcept(rel string, meta astFrontmatter, result *Result) {
 	}
 }
 
-func validateDocumentLinks(root string, document astDocument, result *Result) {
+func validateDocumentLinks(root string, document ASTDocument, result *Result) {
 	for _, link := range document.Links {
 		if link.Kind != "local" || link.TargetPath == "" {
 			continue

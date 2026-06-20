@@ -21,7 +21,7 @@ func validateASTBundle(bundle ASTBundle) Result {
 	return result
 }
 
-func validateDocument(root string, document astDocument, result *Result) {
+func validateDocument(root string, document ASTDocument, result *Result) {
 	rel := document.Rel
 
 	switch document.Kind {

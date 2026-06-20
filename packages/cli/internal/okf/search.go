@@ -40,7 +40,7 @@ func newSearchIndexFromAST(bundle ASTBundle) SearchIndex {
 	return SearchIndex{documents: documents}
 }
 
-func searchDocumentFromASTDocument(document astDocument) searchDocument {
+func searchDocumentFromASTDocument(document ASTDocument) searchDocument {
 	metadata := document.Metadata
 	frontmatter := document.Frontmatter.Values
 	if document.FrontmatterDiagnostic != nil {

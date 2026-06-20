@@ -3,10 +3,10 @@ package okf
 type ASTBundle struct {
 	Root        string
 	SpecVersion string
-	Documents   []astDocument
+	Documents   []ASTDocument
 }
 
-type astDocument struct {
+type ASTDocument struct {
 	Absolute              string
 	Rel                   string
 	ID                    string

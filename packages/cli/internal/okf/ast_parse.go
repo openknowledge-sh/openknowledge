@@ -4,10 +4,10 @@ import (
 	"os"
 )
 
-func parseASTDocumentFile(path string, rel string) astDocument {
+func parseASTDocumentFile(path string, rel string) ASTDocument {
 	content, err := os.ReadFile(path)
 	id, kind, reserved := classifyDocument(rel)
-	document := astDocument{
+	document := ASTDocument{
 		Absolute:       path,
 		Rel:            rel,
 		ID:             id,
@@ -22,7 +22,7 @@ func parseASTDocumentFile(path string, rel string) astDocument {
 	return parseASTDocumentContent(document, content)
 }
 
-func parseASTDocumentContent(document astDocument, content []byte) astDocument {
+func parseASTDocumentContent(document ASTDocument, content []byte) ASTDocument {
 	document.UTF8Diagnostic = astUTF8Diagnostic(content)
 	meta, body, frontmatterErr := splitFrontmatter(string(content))
 	document.Content = string(content)

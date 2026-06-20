@@ -63,7 +63,7 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 	return HTMLResult{Root: ast.Root, Out: absoluteOut, Written: written}, nil
 }
 
-func htmlPageFromASTDocument(document astDocument) htmlPageData {
+func htmlPageFromASTDocument(document ASTDocument) htmlPageData {
 	summary := summarizeASTDocument(document, document.Metadata)
 	title := summary.Title
 	if title == "" {

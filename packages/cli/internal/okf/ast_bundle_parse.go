@@ -38,8 +38,8 @@ func parseBundleAST(root string, version string) (ASTBundle, error) {
 	}, nil
 }
 
-func parseASTDocuments(root string) ([]astDocument, error) {
-	var documents []astDocument
+func parseASTDocuments(root string) ([]ASTDocument, error) {
+	var documents []ASTDocument
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr

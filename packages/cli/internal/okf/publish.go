@@ -6,7 +6,7 @@ func ShouldPublish(file BundleFile) bool {
 	return shouldPublishFrontmatterValues(file.Frontmatter)
 }
 
-func shouldPublishASTDocument(document astDocument) bool {
+func shouldPublishASTDocument(document ASTDocument) bool {
 	return shouldPublishFrontmatterValues(document.Frontmatter.Values)
 }
 
