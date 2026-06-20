@@ -109,11 +109,11 @@ func validateDocument(root string, document astDocument, result *Result) {
 	if document.FrontmatterErr == nil {
 		switch document.Kind {
 		case "index":
-			validateIndex(rel, document.Frontmatter, document.FrontmatterValues, result)
+			validateIndex(rel, document.Frontmatter, result)
 		case "log":
 			validateLog(rel, document.Frontmatter, document.Content, result)
 		default:
-			validateConcept(rel, document.Frontmatter, document.FrontmatterValues, result)
+			validateConcept(rel, document.Frontmatter, result)
 		}
 		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.BodyLine, result)
 	}
@@ -154,10 +154,10 @@ func validateFrontmatterFormatting(rel string, meta astFrontmatter, result *Resu
 	}
 }
 
-func validateIndex(rel string, meta astFrontmatter, values map[string]string, result *Result) {
+func validateIndex(rel string, meta astFrontmatter, result *Result) {
 	if strings.EqualFold(rel, "index.md") {
 		if meta.Has {
-			if version := values["okf_version"]; version != "" && version != result.SpecVersion {
+			if version := meta.Values["okf_version"]; version != "" && version != result.SpecVersion {
 				result.Warnings = append(result.Warnings, Issue{Path: rel, Line: 1, Rule: "okf-version", Message: fmt.Sprintf("declares okf_version %q, validating against %s", version, result.SpecVersion)})
 			}
 		}
@@ -194,13 +194,13 @@ func validateLog(rel string, meta astFrontmatter, content string, result *Result
 	}
 }
 
-func validateConcept(rel string, meta astFrontmatter, values map[string]string, result *Result) {
+func validateConcept(rel string, meta astFrontmatter, result *Result) {
 	if !meta.Has {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-frontmatter", Message: "concept document is missing YAML frontmatter"})
 		return
 	}
 
-	if values["type"] == "" {
+	if meta.Values["type"] == "" {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-type", Message: "concept frontmatter must include non-empty type"})
 	}
 }

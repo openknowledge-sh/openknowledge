@@ -76,7 +76,7 @@ func bundleFile(document astDocument, issues []Issue) BundleFile {
 		Title:       summary.Title,
 		Description: summary.Description,
 		Resource:    summary.Resource,
-		Frontmatter: document.FrontmatterValues,
+		Frontmatter: document.Frontmatter.Values,
 		Body:        document.Body,
 		Links:       document.Links,
 		Issues:      issues,
