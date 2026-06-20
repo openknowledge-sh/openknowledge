@@ -299,24 +299,22 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 
 func TestViewerBrandUsesKnowledgeBaseMetadata(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[bundle]\nname = \"engineering-handbook\"\ntitle = \"Engineering Handbook\"\n")
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: \"engineering-handbook\"\nokf_bundle_title: \"Engineering Handbook\"\n---\n\n# Home\n")
 
 	page := getViewerBody(t, newViewerHandler(root), "/file/index.md")
 	if !strings.Contains(page, `<a class="brand" href="/">Engineering Handbook</a>`) {
-		t.Fatalf("viewer should use bundle title as the document brand:\n%s", page)
+		t.Fatalf("viewer should use root okf_bundle_title as the document brand:\n%s", page)
 	}
 	if strings.Contains(page, `<a class="brand" href="/">Open Knowledge</a>`) {
 		t.Fatalf("viewer should not use the product fallback when bundle metadata exists:\n%s", page)
 	}
 
-	writeViewerFile(t, root, "openknowledge.toml", "[bundle]\nname = \"engineering-handbook\"\n")
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: \"engineering-handbook\"\n---\n\n# Home\n")
 	page = getViewerBody(t, newViewerHandler(root), "/file/index.md")
 	if !strings.Contains(page, `<a class="brand" href="/">engineering-handbook</a>`) {
-		t.Fatalf("viewer should fall back to bundle name when title is absent:\n%s", page)
+		t.Fatalf("viewer should fall back to root okf_bundle_name when title is absent:\n%s", page)
 	}
 
-	writeViewerFile(t, root, "openknowledge.toml", "")
 	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Team Wiki\n")
 	page = getViewerBody(t, newViewerHandler(root), "/file/index.md")
 	if !strings.Contains(page, `<a class="brand" href="/">Team Wiki</a>`) {
@@ -514,10 +512,9 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Public](public.md) and [Draft](draft.md).\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nexclude = [\"examples/index.md\"]\n")
 	writeViewerFile(t, root, "public.md", "---\ntype: Guide\n---\n\n# Public\n")
 	writeViewerFile(t, root, "draft.md", "---\ntype: Draft\nokf_publish: false\n---\n\n# Draft\n")
-	writeViewerFile(t, root, "examples/index.md", "# Examples\n")
+	writeViewerFile(t, root, "examples/index.md", "---\nokf_publish: false\n---\n\n# Examples\n")
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
 	if err != nil {

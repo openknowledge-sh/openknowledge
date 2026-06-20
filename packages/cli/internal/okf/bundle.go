@@ -141,13 +141,6 @@ func ShouldPublish(file BundleFile) bool {
 	return strings.TrimSpace(strings.ToLower(file.Frontmatter["okf_publish"])) != "false"
 }
 
-func ShouldPublishWithConfig(file BundleFile, config Config) bool {
-	if _, excluded := config.PublishExclude[file.Path]; excluded {
-		return false
-	}
-	return ShouldPublish(file)
-}
-
 func ExtractLinks(root string, rel string, content string) []Link {
 	linkContent := maskFencedCode(content)
 	var links []Link

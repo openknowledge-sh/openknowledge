@@ -120,10 +120,9 @@ func TestWriteHTMLSkipsUnpublishedPages(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
 	writeFile(t, root, "index.md", "# Home\n\nRead [Public](public.md) and [Draft](draft.md).\n")
-	writeFile(t, root, ConfigFile, "[publish]\nexclude = [\"examples/index.md\"]\n")
 	writeFile(t, root, "public.md", "---\ntype: Guide\n---\n\n# Public\n")
 	writeFile(t, root, "draft.md", "---\ntype: Draft\nokf_publish: false\n---\n\n# Draft\n")
-	writeFile(t, root, "examples/index.md", "# Examples\n")
+	writeFile(t, root, "examples/index.md", "---\nokf_publish: false\n---\n\n# Examples\n")
 
 	result, err := WriteHTML(root, out)
 	if err != nil {

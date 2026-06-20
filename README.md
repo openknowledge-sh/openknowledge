@@ -90,8 +90,8 @@ maintenance tasks when the runtime supports that.
 
 `openknowledge new` creates a minimal local bundle with the base OKF files: a
 setup handoff, starter agent guidance, an update log, and a pinned copy of the
-current spec. Optional `--bundle-*` flags can seed `[bundle]` metadata in
-`openknowledge.toml` for discovery and future agent entrypoints. The use-case
+current spec. Optional `--bundle-*` flags can seed `okf_bundle_*` metadata in
+the root index for discovery and future agent entrypoints. The use-case
 structure is intentionally left to setup.
 
 After that, humans and agents edit normal Markdown files. `openknowledge open`
@@ -114,13 +114,6 @@ stylesheet = "assets/wiki-theme.css"
 [html.source]
 github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"
-
-[bundle]
-name = "project-memory"
-title = "Project Memory"
-
-[bundle.entries]
-default = "agents/default.md"
 ```
 
 The stylesheet is copied into the static export and linked from every generated
@@ -195,10 +188,9 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 - YAML frontmatter parses cleanly; non-blocking formatting issues are warnings
 - Markdown bodies avoid malformed links, code spans, tables, and fences
 - `index.md` and `log.md` are reserved files, not concept documents
-- root `index.md` may only declare `okf_version: "0.1"` frontmatter
-- concept documents may declare `okf_publish: false` for public-view exclusion;
-  indexes and other files can be excluded with `[publish] exclude` in
-  `openknowledge.toml`
+- root `index.md` may declare `okf_version: "0.1"` and optional Open Knowledge
+  CLI `okf_bundle_*` metadata; unknown root frontmatter keys are tolerated
+- any `index.md` may declare `okf_publish: false` for public-view exclusion
 - `log.md` `##` headings use `YYYY-MM-DD`
 - local Markdown links resolve inside the bundle, reported as warnings
 

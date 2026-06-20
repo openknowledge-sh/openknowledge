@@ -1090,10 +1090,6 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
-	config, err := okf.ReadConfig(bundle.Root)
-	if err != nil {
-		return okf.HTMLResult{}, err
-	}
 	themeConfig, err := loadViewerThemeConfig(bundle.Root)
 	if err != nil {
 		return okf.HTMLResult{}, err
@@ -1112,17 +1108,16 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 		return okf.HTMLResult{}, err
 	}
 
-	staticJSON, err := viewerStaticFilesJSON(bundle.Files, sourceConfig, config)
+	staticJSON, err := viewerStaticFilesJSON(bundle.Files, sourceConfig)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
 	editorsJSON := viewerEditorsStaticJSON()
-	graphJSON := viewerStaticGraphJSON(bundle.Files, config)
-	brandName := viewerKnowledgeBaseName(bundle.Root, "")
+	graphJSON := viewerStaticGraphJSON(bundle.Files)
 
 	var written []string
 	for _, file := range bundle.Files {
-		if !okf.ShouldPublishWithConfig(file, config) {
+		if !okf.ShouldPublish(file) {
 			continue
 		}
 		target := filepath.Join(absoluteOut, filepath.FromSlash(viewerHTMLPath(file.Path)))
@@ -1132,14 +1127,14 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 
 		data := viewerFileData{
 			Title:       titleForMarkdownFile(file.Path),
-			BrandName:   brandName,
+			BrandName:   viewerKnowledgeBaseNameFromFiles(bundle.Files, ""),
 			HomeURL:     viewerStaticRelativeURL(file.Path, "index.md"),
 			Root:        "",
 			Path:        file.Path,
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
 			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
 			Body:        template.HTML(viewerStaticFileBody(file)),
-			Tree:        viewerStaticTree(bundle.Files, file.Path, config),
+			Tree:        viewerStaticTree(bundle.Files, file.Path),
 			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
 			EditorsJSON: editorsJSON,
 			StaticJSON:  staticJSON,
@@ -1171,10 +1166,10 @@ func viewerRelPath(root string, target string) string {
 	return filepath.ToSlash(relative)
 }
 
-func viewerStaticFilesJSON(files []okf.BundleFile, sourceConfig viewerSourceConfig, config okf.Config) (template.JS, error) {
+func viewerStaticFilesJSON(files []okf.BundleFile, sourceConfig viewerSourceConfig) (template.JS, error) {
 	payload := make([]viewerStaticPayload, 0, len(files))
 	for _, file := range files {
-		if !okf.ShouldPublishWithConfig(file, config) {
+		if !okf.ShouldPublish(file) {
 			continue
 		}
 		payload = append(payload, viewerStaticPayload{
@@ -1215,10 +1210,10 @@ func viewerStaticRelativeURL(currentPath string, targetPath string) string {
 	return filepath.ToSlash(relative)
 }
 
-func viewerStaticTree(files []okf.BundleFile, currentPath string, config okf.Config) []viewerTreeItem {
+func viewerStaticTree(files []okf.BundleFile, currentPath string) []viewerTreeItem {
 	entries := make([]okf.ListEntry, 0, len(files))
 	for _, file := range files {
-		if !okf.ShouldPublishWithConfig(file, config) {
+		if !okf.ShouldPublish(file) {
 			continue
 		}
 		entries = append(entries, okf.ListEntry{Path: file.Path})
@@ -1237,11 +1232,11 @@ func viewerGraphJSON(root string, entries []okf.ListEntry, fileURL func(string) 
 	return template.JS(data)
 }
 
-func viewerStaticGraphJSON(files []okf.BundleFile, config okf.Config) template.JS {
+func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
 	entries := make([]okf.ListEntry, 0, len(files))
 	publishedFiles := make([]okf.BundleFile, 0, len(files))
 	for _, file := range files {
-		if !okf.ShouldPublishWithConfig(file, config) {
+		if !okf.ShouldPublish(file) {
 			continue
 		}
 		publishedFiles = append(publishedFiles, file)
@@ -2101,18 +2096,34 @@ func titleForAssetFile(rel string) string {
 }
 
 func viewerKnowledgeBaseName(root string, fallback string) string {
-	info, err := okf.ReadBundleInfo(root)
+	bundle, err := okf.ParseBundle(root)
 	if err == nil {
-		for _, value := range []string{info.Metadata.Title, info.Metadata.Name, info.RootTitle} {
-			if name := strings.TrimSpace(value); name != "" {
-				return name
-			}
+		if name := viewerKnowledgeBaseNameFromFiles(bundle.Files, fallback); name != "" {
+			return name
 		}
 	}
 	if name := strings.TrimSpace(fallback); name != "" {
 		return name
 	}
 	return "Open Knowledge"
+}
+
+func viewerKnowledgeBaseNameFromFiles(files []okf.BundleFile, fallback string) string {
+	for _, file := range files {
+		if file.Path != "index.md" {
+			continue
+		}
+		for _, key := range []string{"okf_bundle_title", "okf_bundle_name", "title"} {
+			if name := strings.TrimSpace(file.Frontmatter[key]); name != "" {
+				return name
+			}
+		}
+		if name := firstMarkdownHeading(file.Body); name != "" {
+			return name
+		}
+		break
+	}
+	return strings.TrimSpace(fallback)
 }
 
 func firstMarkdownHeading(body string) string {

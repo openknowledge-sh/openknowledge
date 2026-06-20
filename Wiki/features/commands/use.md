@@ -10,8 +10,8 @@ timestamp: 2026-06-20T00:00:00Z
 
 `openknowledge use` prints an agent-facing entrypoint from a local or connected
 Open Knowledge bundle. It resolves a registry key or path, reads optional root
-`openknowledge.toml` bundle metadata, and prints either the selected Markdown
-body or entrypoint metadata.
+`okf_bundle_*` metadata, and prints either the selected Markdown body or
+entrypoint metadata.
 
 The metadata layer is optional. Plain OKF bundles without declared entrypoints
 fall back to root `index.md`.
@@ -31,25 +31,28 @@ openknowledge use --help
 | Name | Kind | Description |
 | --- | --- | --- |
 | `name-or-path` | argument | Registry key or local bundle path. |
-| `entry` | argument | Optional entrypoint name declared under `[bundle.entries]` in `openknowledge.toml`. |
+| `entry` | argument | Optional entrypoint name declared as `okf_bundle_entry_<name>` in the root index. |
 | `--info` | flag | Print bundle and entrypoint metadata instead of the Markdown body. |
 
 `--info` can appear after the target or after a named entry.
 
 ## Bundle Metadata Layer
 
-Bundle metadata lives in `openknowledge.toml`:
+Bundle metadata lives in the bundle-root `index.md` frontmatter as flat
+`okf_bundle_*` keys:
 
-```toml
-[bundle]
-name = "accessibility"
-title = "Accessibility Review"
-purpose = "Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems."
-tags = ["accessibility", "ui", "review"]
+```md
+---
+okf_version: "0.1"
+okf_bundle_name: accessibility
+okf_bundle_title: Accessibility Review
+okf_bundle_purpose: Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems.
+okf_bundle_tags: [accessibility, ui, review]
+okf_bundle_entry_default: agents/accessibility-checker.md
+okf_bundle_entry_review: agents/accessibility-review.md
+---
 
-[bundle.entries]
-default = "agents/accessibility-checker.md"
-review = "agents/accessibility-review.md"
+# Accessibility Review
 ```
 
 Entrypoints are ordinary Markdown files. Their own frontmatter may include
@@ -58,11 +61,10 @@ fields when present.
 
 ## Behavior
 
-Without an entry argument, `use` prints the `default` entrypoint when it is
-declared under `[bundle.entries]`. If no default entrypoint exists, it prints
-root `index.md`.
+Without an entry argument, `use` prints `okf_bundle_entry_default` when it is
+declared. If no default entrypoint exists, it prints root `index.md`.
 
-With an entry argument, `use` requires a matching `[bundle.entries]` key.
+With an entry argument, `use` requires a matching `okf_bundle_entry_<name>`.
 Missing named entries fail and print available entry names when any exist.
 
 Entrypoint paths must stay inside the bundle. Missing files, directories, and

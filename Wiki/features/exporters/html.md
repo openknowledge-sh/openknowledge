@@ -52,14 +52,12 @@ Markdown links to generated `.html` targets. Soft-wrapped Markdown list items
 stay inside their bullet or numbered item instead of rendering continuation
 lines as standalone paragraphs. Rendered Markdown tables use a stable
 `ok-table-wrap` container, an `ok-table-scroller`, `scope="col"` headers, and
-`data-align` metadata for Markdown alignment markers. Concept documents with
+`data-align` metadata for Markdown alignment markers. Files with
 `okf_publish: false` frontmatter are skipped and do not get generated HTML
-pages. Files listed in `openknowledge.toml` under `[publish] exclude` are also
-skipped, which is the supported way to exclude reserved `index.md` files from a
-public export. The default viewer export embeds a static note manifest and graph
-data in each generated page so search, panel navigation, and rich table controls
-work in exported output; unpublished files are omitted from that manifest and
-graph data. The static viewer also resolves host-provided pretty URLs such as
+pages. The default viewer export embeds a static note manifest and graph data
+in each generated page so search, panel navigation, and rich table controls work
+in exported output; unpublished files are omitted from that manifest and graph
+data. The static viewer also resolves host-provided pretty URLs such as
 extensionless lowercase paths and directory index paths back to the embedded
 note manifest, so stacked-panel navigation continues to work on hosts that
 rewrite `AGENTS.html` to `/agents` or `features/index.html` to `/features/`.

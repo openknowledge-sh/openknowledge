@@ -103,12 +103,12 @@ func runNew(args []string) int {
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	nameFlag := fs.String("name", "", "knowledge base name")
-	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for [bundle].name metadata")
-	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for [bundle].title metadata")
-	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for [bundle].purpose metadata")
+	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
+	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
+	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for root okf_bundle_purpose metadata")
 	var bundleTags stringListFlag
 	var bundleEntries stringListFlag
-	fs.Var(&bundleTags, "bundle-tag", "bundle tag for [bundle].tags metadata; repeatable")
+	fs.Var(&bundleTags, "bundle-tag", "bundle tag for root okf_bundle_tags metadata; repeatable")
 	fs.Var(&bundleEntries, "bundle-entry", "bundle entrypoint as name=path; repeatable")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -1231,15 +1231,15 @@ Usage:
 
 Arguments:
   name|path      Registry key or local bundle path.
-  entry          Optional entrypoint name from [bundle.entries].
+  entry          Optional entrypoint name from okf_bundle_entry_<name>.
 
 Flags:
   --info         Print bundle and entrypoint metadata instead of Markdown body.
 
 Behavior:
-  Without an entry, use prints the default [bundle.entries] path when declared. If no
+  Without an entry, use prints okf_bundle_entry_default when declared. If no
   default entrypoint exists, it prints the bundle root index.md. Named entries
-  must be declared in openknowledge.toml [bundle.entries].
+  must be declared in root index.md metadata.
 
 Examples:
   openknowledge use accessibility --info
@@ -1292,7 +1292,7 @@ Arguments:
                  and resolve to their stored local path.
 
 Flags:
-  --as           Connection key. Defaults to [bundle].name, then the folder name.
+  --as           Connection key. Defaults to okf_bundle_name, then the folder name.
   --access       Access label stored with the connection, read or write. Defaults to read.
   --no-validate  Skip the validation status check in the success output.
 
@@ -1459,13 +1459,13 @@ Arguments:
 Flags:
   --name       Knowledge base name. If omitted, the CLI prompts for one.
   --bundle-name
-               Optional stable bundle id written to openknowledge.toml [bundle].name.
+               Optional stable bundle id written as okf_bundle_name.
   --bundle-title
-               Optional display title written to openknowledge.toml [bundle].title.
+               Optional display title written as okf_bundle_title.
   --bundle-purpose
-               Optional purpose written to openknowledge.toml [bundle].purpose.
+               Optional purpose written as okf_bundle_purpose.
   --bundle-tag
-               Optional tag written into openknowledge.toml [bundle].tags. Repeatable.
+               Optional tag written into okf_bundle_tags. Repeatable.
   --bundle-entry
                Optional entrypoint as name=path, for example
                default=agents/checker.md. Repeatable.
