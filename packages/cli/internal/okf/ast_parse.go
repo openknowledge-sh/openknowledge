@@ -32,11 +32,3 @@ func parseASTDocumentContent(document astDocument, content []byte) astDocument {
 	document.FrontmatterDiagnostic = astFrontmatterDiagnostic(frontmatterErr)
 	return document
 }
-
-func parseASTDocumentLinks(root string, document astDocument) astDocument {
-	if document.ReadDiagnostic != nil {
-		return document
-	}
-	document.Links = ExtractLinks(root, document.Rel, document.Content)
-	return document
-}
