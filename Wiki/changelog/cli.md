@@ -14,6 +14,21 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Context command
+
+* Added `openknowledge context` as a token-bounded bundle reading path for
+  agents. It resolves a path or registry key, builds section-level Markdown
+  context from headings, scores sections with lexical metadata/path/heading/body
+  matches, and prints original excerpts that fit an approximate token budget.
+* The command supports Markdown output by default and structured JSON with
+  `--format json`; it does not use embeddings or generated summaries.
+* Source anchors: `packages/cli/internal/okf/context.go`,
+  `packages/cli/internal/okf/context_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/context.md`,
+  `Wiki/features/commands/index.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Agent maintenance footers render quietly
 
 * Markdown rendering now hides HTML comments instead of escaping them into

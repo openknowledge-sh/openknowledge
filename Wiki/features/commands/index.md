@@ -19,6 +19,7 @@ anchors. Keep this index as the quick map.
 ## Use And Browse Knowledge
 
 * [Use](use.md) - print agent entrypoint Markdown or metadata from a bundle.
+* [Context](context.md) - print query-focused, token-bounded bundle excerpts.
 * [Open](open.md) - local Markdown viewer.
 
 ## Export And Publish

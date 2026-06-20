@@ -159,6 +159,8 @@ changes.
 | `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
 | `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint or bundle-relative file. |
 | `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
+| `openknowledge context <name-or-path> --query <text>` | Print query-focused Markdown sections within a token budget. |
+| `openknowledge context <name-or-path> --query <text> --format json` | Print the same context result as structured JSON. |
 | `openknowledge registry connect <path>` | Connect a local knowledge bundle to the user registry. |
 | `openknowledge registry connect <path> --as <key>` | Connect a local bundle with an explicit key. |
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |

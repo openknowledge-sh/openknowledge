@@ -18,7 +18,7 @@ a different user or agent need.
 | --- | --- | --- |
 | Authoring and OKF hygiene | `setup`, `new`, `validate`, `list`, `spec` | Create a bundle, seed maintenance instructions, inspect the file tree, and keep Markdown portable against OKF v0.1. |
 | Local registry management | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry list`, `registry where` | Give local, published, archive, or Git bundles stable names and resolve those names back to filesystem paths. |
-| Agent entrypoints | `use` | Print bundle-declared instructions or root `index.md` so an agent can load the right knowledge without hardcoding paths. |
+| Agent entrypoints and context | `use`, `context` | Print bundle-declared instructions, root `index.md`, or query-focused excerpts so an agent can load the right knowledge without hardcoding paths. |
 | Local Markdown viewer | `open` | Browse connected or direct bundles with search, stacked Markdown panels, validation context, graph overview, and rich table rendering. |
 | Export and publish | `to html`, `to html --plain`, `to json`, `to tar` | Publish a static viewer, emit plain semantic HTML, produce normalized JSON, or package a portable bundle archive. |
 
@@ -47,11 +47,13 @@ The intended agent loop is path-light:
 openknowledge connect ./accessibility --as accessibility
 openknowledge use accessibility --info
 openknowledge use accessibility
+openknowledge context accessibility --query "validation workflow"
 openknowledge open accessibility
 ```
 
 The agent can read `use` output as its task-specific entrypoint. When it needs
-source files, it can resolve the bundle with:
+focused source excerpts, it can ask `context` for token-bounded sections. When
+it needs raw files, it can resolve the bundle with:
 
 ```sh
 openknowledge registry where accessibility
