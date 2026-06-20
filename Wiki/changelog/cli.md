@@ -28,6 +28,25 @@ that were updated.
 * Docs updated: `README.md`, `Wiki/features/commands/open.md`,
   `Wiki/changelog/cli.md`.
 
+### 2026-06-20 - Connected bundle commands shipped
+
+* `openknowledge connect`, `openknowledge disconnect`, and
+  `openknowledge use` now implement the previously documented connected bundle
+  command surface for local bundles.
+* `connect` stores local bundle connections with metadata-derived keys,
+  validation status output, `--as`, `--access`, and `--no-validate`.
+* `disconnect` removes connections by key or path while keeping files by
+  default and refusing deletion for non-managed local entries.
+* `use` prints default or named agent entrypoint Markdown, falls back to root
+  `index.md`, and supports `--info` metadata output.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/registry.go`,
+  `packages/cli/internal/okf/metadata.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/disconnect.md`, `Wiki/features/commands/use.md`,
+  `Wiki/features/commands/registry.md`, `Wiki/features/commands/help.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Viewer panels use taller canvas
 
 * `openknowledge open` now uses smaller vertical stack gutters around note
