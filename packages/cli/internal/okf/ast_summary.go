@@ -11,7 +11,7 @@ type astDocumentSummary struct {
 	Resource    string
 }
 
-func summarizeASTDocument(document ASTDocument, metadata astDocumentMetadata) astDocumentSummary {
+func summarizeASTDocument(document ASTDocument, metadata ASTDocumentMetadata) astDocumentSummary {
 	if document.Reserved {
 		title := deriveTitle(document.Rel)
 		if document.Kind == "index" {

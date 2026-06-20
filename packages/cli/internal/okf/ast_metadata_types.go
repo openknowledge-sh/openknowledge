@@ -1,6 +1,6 @@
 package okf
 
-type astDocumentMetadata struct {
+type ASTDocumentMetadata struct {
 	Type        string
 	Title       string
 	Description string

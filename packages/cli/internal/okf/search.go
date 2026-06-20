@@ -44,7 +44,7 @@ func searchDocumentFromASTDocument(document ASTDocument) searchDocument {
 	metadata := document.Metadata
 	frontmatter := document.Frontmatter.Values
 	if document.FrontmatterDiagnostic != nil {
-		metadata = astDocumentMetadata{}
+		metadata = ASTDocumentMetadata{}
 		frontmatter = nil
 	}
 	summary := summarizeASTDocument(document, metadata)

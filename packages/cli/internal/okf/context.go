@@ -26,7 +26,7 @@ func BuildContextIndexWithVersion(root string, version string) (ContextIndex, er
 		}
 		metadata := document.Metadata
 		if document.FrontmatterDiagnostic != nil {
-			metadata = astDocumentMetadata{}
+			metadata = ASTDocumentMetadata{}
 		}
 		entry := listEntryFromASTSummary(summarizeASTDocument(document, metadata))
 		sections = append(sections, splitContextSections(entry, document.Frontmatter.Values, document.Body, document.Links, document.Frontmatter.BodyLine)...)

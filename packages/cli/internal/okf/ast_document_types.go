@@ -14,7 +14,7 @@ type ASTDocument struct {
 	Reserved              bool
 	Content               string
 	Frontmatter           ASTFrontmatter
-	Metadata              astDocumentMetadata
+	Metadata              ASTDocumentMetadata
 	Body                  string
 	Links                 []Link
 	ReadDiagnostic        *astDiagnostic

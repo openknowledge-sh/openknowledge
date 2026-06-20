@@ -1,7 +1,7 @@
 package okf
 
-func astDocumentMetadataFromValues(values map[string]string) astDocumentMetadata {
-	return astDocumentMetadata{
+func astDocumentMetadataFromValues(values map[string]string) ASTDocumentMetadata {
+	return ASTDocumentMetadata{
 		Type:        values["type"],
 		Title:       values["title"],
 		Description: values["description"],
