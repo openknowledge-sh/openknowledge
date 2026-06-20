@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-type parsedDocument struct {
+type astDocument struct {
 	Absolute          string
 	Rel               string
 	ID                string
@@ -17,14 +17,14 @@ type parsedDocument struct {
 	Content           string
 	Frontmatter       frontmatter
 	FrontmatterValues map[string]string
-	Metadata          parsedDocumentMetadata
+	Metadata          astDocumentMetadata
 	Body              string
 	Links             []Link
 	ReadErr           error
 	FrontmatterErr    error
 }
 
-type parsedDocumentMetadata struct {
+type astDocumentMetadata struct {
 	Type        string
 	Title       string
 	Description string
@@ -34,14 +34,14 @@ type parsedDocumentMetadata struct {
 	Bundle      BundleMetadata
 }
 
-type parsedBundle struct {
+type astBundle struct {
 	Root        string
 	SpecVersion string
-	Documents   []parsedDocument
+	Documents   []astDocument
 }
 
-func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
-	var documents []parsedDocument
+func parseMarkdownDocuments(root string) ([]astDocument, error) {
+	var documents []astDocument
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -73,10 +73,10 @@ func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
 	return documents, nil
 }
 
-func parseMarkdownDocumentFile(path string, rel string) parsedDocument {
+func parseMarkdownDocumentFile(path string, rel string) astDocument {
 	content, err := os.ReadFile(path)
 	id, kind, reserved := classifyDocument(rel)
-	document := parsedDocument{
+	document := astDocument{
 		Absolute: path,
 		Rel:      rel,
 		ID:       id,
@@ -93,7 +93,7 @@ func parseMarkdownDocumentFile(path string, rel string) parsedDocument {
 	document.Content = string(content)
 	document.Frontmatter = meta
 	document.FrontmatterValues = frontmatterValues(meta)
-	document.Metadata = parsedDocumentMetadataFromValues(document.FrontmatterValues)
+	document.Metadata = astDocumentMetadataFromValues(document.FrontmatterValues)
 	document.Body = body
 	document.FrontmatterErr = frontmatterErr
 	return document
@@ -111,8 +111,8 @@ func frontmatterValues(meta frontmatter) map[string]string {
 	return values
 }
 
-func parsedDocumentMetadataFromValues(values map[string]string) parsedDocumentMetadata {
-	return parsedDocumentMetadata{
+func astDocumentMetadataFromValues(values map[string]string) astDocumentMetadata {
+	return astDocumentMetadata{
 		Type:        values["type"],
 		Title:       values["title"],
 		Description: values["description"],

@@ -55,38 +55,38 @@ func ValidateWithVersion(root string, version string) (Result, error) {
 	return result, err
 }
 
-func parseAndValidateBundle(root string, version string) (Result, parsedBundle, error) {
+func parseAndValidateBundle(root string, version string) (Result, astBundle, error) {
 	resolved, ok := ResolveSpecVersion(version)
 	if !ok {
-		return Result{}, parsedBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
+		return Result{}, astBundle{}, fmt.Errorf("unsupported OKF spec version: %s", version)
 	}
 
 	absolute, err := filepath.Abs(root)
 	if err != nil {
-		return Result{}, parsedBundle{}, err
+		return Result{}, astBundle{}, err
 	}
 
 	info, err := os.Stat(absolute)
 	if err != nil {
-		return Result{}, parsedBundle{}, err
+		return Result{}, astBundle{}, err
 	}
 	if !info.IsDir() {
-		return Result{}, parsedBundle{}, fmt.Errorf("%s is not a directory", absolute)
+		return Result{}, astBundle{}, fmt.Errorf("%s is not a directory", absolute)
 	}
 
 	documents, err := parseMarkdownDocuments(absolute)
 	if err != nil {
-		return Result{}, parsedBundle{}, err
+		return Result{}, astBundle{}, err
 	}
-	bundle := parsedBundle{
+	bundle := astBundle{
 		Root:        absolute,
 		SpecVersion: resolved,
 		Documents:   documents,
 	}
-	return validateParsedBundle(bundle), bundle, nil
+	return validateASTBundle(bundle), bundle, nil
 }
 
-func validateParsedBundle(bundle parsedBundle) Result {
+func validateASTBundle(bundle astBundle) Result {
 	result := Result{Root: bundle.Root, SpecVersion: bundle.SpecVersion}
 	for _, document := range bundle.Documents {
 		result.Files++
@@ -99,7 +99,7 @@ func validateParsedBundle(bundle parsedBundle) Result {
 	return result
 }
 
-func validateDocument(root string, document parsedDocument, result *Result) {
+func validateDocument(root string, document astDocument, result *Result) {
 	rel := document.Rel
 
 	switch document.Kind {
@@ -224,7 +224,7 @@ func validateConcept(rel string, meta frontmatter, result *Result) {
 	}
 }
 
-func validateDocumentLinks(root string, document parsedDocument, result *Result) {
+func validateDocumentLinks(root string, document astDocument, result *Result) {
 	for _, link := range document.Links {
 		if link.Kind != "local" || link.TargetPath == "" {
 			continue

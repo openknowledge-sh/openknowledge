@@ -27,17 +27,17 @@ func List(root string) (ListResult, error) {
 }
 
 func ListWithVersion(root string, version string) (ListResult, error) {
-	validation, parsed, err := parseAndValidateBundle(root, version)
+	validation, ast, err := parseAndValidateBundle(root, version)
 	if err != nil {
 		return ListResult{}, err
 	}
 
 	issues := append([]Issue{}, validation.Errors...)
 	issues = append(issues, validation.Warnings...)
-	return listInventoryFromParsedBundle(parsed, issues)
+	return listInventoryFromAST(ast, issues)
 }
 
-func listInventoryFromParsedBundle(bundle parsedBundle, issues []Issue) (ListResult, error) {
+func listInventoryFromAST(bundle astBundle, issues []Issue) (ListResult, error) {
 	issuesByPath := groupIssuesByPath(issues)
 	entries := make([]ListEntry, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {
@@ -49,7 +49,7 @@ func listInventoryFromParsedBundle(bundle parsedBundle, issues []Issue) (ListRes
 			continue
 		}
 		if document.FrontmatterErr != nil {
-			entries = append(entries, attachIssues(conceptEntry(document, parsedDocumentMetadata{}), issuesByPath))
+			entries = append(entries, attachIssues(conceptEntry(document, astDocumentMetadata{}), issuesByPath))
 			continue
 		}
 		entries = append(entries, attachIssues(conceptEntry(document, document.Metadata), issuesByPath))
@@ -70,7 +70,7 @@ func attachIssues(entry ListEntry, issuesByPath map[string][]Issue) ListEntry {
 	return entry
 }
 
-func conceptEntry(document parsedDocument, metadata parsedDocumentMetadata) ListEntry {
+func conceptEntry(document astDocument, metadata astDocumentMetadata) ListEntry {
 	title := metadata.Title
 	if title == "" {
 		title = deriveTitle(document.Rel)
@@ -87,7 +87,7 @@ func conceptEntry(document parsedDocument, metadata parsedDocumentMetadata) List
 	}
 }
 
-func reservedEntry(document parsedDocument) ListEntry {
+func reservedEntry(document astDocument) ListEntry {
 	title := deriveTitle(document.Rel)
 	if document.Kind == "index" {
 		title = "Index"

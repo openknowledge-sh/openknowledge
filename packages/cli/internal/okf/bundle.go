@@ -43,14 +43,14 @@ func ParseBundle(root string) (Bundle, error) {
 }
 
 func ParseBundleWithVersion(root string, version string) (Bundle, error) {
-	validation, parsed, err := parseAndValidateBundle(root, version)
+	validation, ast, err := parseAndValidateBundle(root, version)
 	if err != nil {
 		return Bundle{}, err
 	}
 
 	issues := append([]Issue{}, validation.Errors...)
 	issues = append(issues, validation.Warnings...)
-	files, err := bundleFilesFromParsedBundle(parsed, issues)
+	files, err := bundleFilesFromAST(ast, issues)
 	if err != nil {
 		return Bundle{}, err
 	}
@@ -63,7 +63,7 @@ func ParseBundleWithVersion(root string, version string) (Bundle, error) {
 	}, nil
 }
 
-func bundleFilesFromParsedBundle(bundle parsedBundle, issues []Issue) ([]BundleFile, error) {
+func bundleFilesFromAST(bundle astBundle, issues []Issue) ([]BundleFile, error) {
 	issuesByPath := groupIssuesByPath(issues)
 	files := make([]BundleFile, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {
@@ -75,7 +75,7 @@ func bundleFilesFromParsedBundle(bundle parsedBundle, issues []Issue) ([]BundleF
 	return files, nil
 }
 
-func bundleFile(document parsedDocument, issues []Issue) BundleFile {
+func bundleFile(document astDocument, issues []Issue) BundleFile {
 	entry := ListEntry{}
 	if document.Reserved {
 		entry = reservedEntry(document)
