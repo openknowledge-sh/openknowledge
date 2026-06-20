@@ -10,19 +10,6 @@ import (
 	"unicode"
 )
 
-type NewProjectOptions struct {
-	Name           string
-	Path           string
-	BundleMetadata BundleMetadata
-}
-
-type NewProjectResult struct {
-	Name      string
-	Root      string
-	SetupPath string
-	Created   []string
-}
-
 func NewProject(options NewProjectOptions) (NewProjectResult, error) {
 	name := strings.TrimSpace(options.Name)
 	if name == "" {
