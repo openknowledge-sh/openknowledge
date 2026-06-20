@@ -18,10 +18,14 @@ that were updated.
 
 * The OKF scanner now includes files ending in `.markdown` in addition to
   case-insensitive `.md` files.
+* `.markdown` files now derive extensionless document IDs in the normalized
+  JSON bundle model, matching `.md` behavior.
 * The local viewer renders `.markdown` files through the parsed OKF bundle AST,
   so frontmatter stripping, body rendering, link graph data, and tree data share
   the same document model used by validation and exporters.
 * Source anchors: `packages/cli/internal/okf/validate.go`,
+  `packages/cli/internal/okf/paths.go`,
+  `packages/cli/internal/okf/export_test.go`,
   `packages/cli/internal/okf/validate_versions_test.go`,
   `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.
