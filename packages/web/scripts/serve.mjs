@@ -17,6 +17,14 @@ const types = new Map([
   [".png", "image/png"]
 ]);
 
+function installRedirectLocation(url) {
+  const parsed = new URL(url, `http://127.0.0.1:${port}`);
+  if (parsed.pathname !== "/install" && parsed.pathname !== "/install/") {
+    return "";
+  }
+  return "https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install";
+}
+
 function isInsideRoot(rootDir, target) {
   const relative = path.relative(rootDir, target);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
@@ -50,6 +58,15 @@ function commandAliasLocation(url) {
 }
 
 const server = http.createServer(async (request, response) => {
+  const installLocation = installRedirectLocation(request.url || "/");
+  if (installLocation) {
+    response.writeHead(302, {
+      Location: installLocation
+    });
+    response.end();
+    return;
+  }
+
   const filePaths = filePathsForUrl(request.url || "/");
   if (filePaths.length === 0) {
     response.writeHead(403);

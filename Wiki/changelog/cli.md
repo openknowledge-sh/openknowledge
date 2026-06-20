@@ -14,6 +14,16 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Railway serves install redirect
+
+* The website server now redirects `/install` and `/install/` to the latest
+  GitHub Release installer asset directly from `packages/web/scripts/serve.mjs`.
+* This restores `https://openknowledge.sh/install` on Railway, where Netlify
+  redirect rules are no longer in the request path.
+* Source anchors: `packages/web/scripts/serve.mjs`,
+  `Wiki/features/operations.md`.
+* Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Main branch deploys to Railway
 
 * Added a GitHub Actions Railway deployment workflow that runs on pushes to

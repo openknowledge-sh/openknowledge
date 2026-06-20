@@ -47,6 +47,11 @@ navigation before the GitHub icon. A latest-release badge sits below that
 topbar, links to GitHub Releases, and hydrates at runtime from GitHub's latest
 release API so the displayed tag and relative publish age stay current.
 
+The web server redirects `/install` and `/install/` to
+`https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install`.
+Keep this redirect in `packages/web/scripts/serve.mjs` because Railway serves
+the site through the Node server rather than through Netlify redirects.
+
 `pnpm dev:web` serves source files from `packages/web` by default, refreshes the
 wiki export on startup, and then falls back to `packages/web/dist/wiki` for
 `/wiki/` URLs. Set `OPENKNOWLEDGE_WEB_EXPORT_WIKI=0` only when you intentionally
