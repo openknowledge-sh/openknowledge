@@ -52,6 +52,22 @@ func TestParseBundleIncludesContentLinksAndIssues(t *testing.T) {
 	}
 }
 
+func TestExtractLinksMarksDirectoryIndexLinksExisting(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "guides/index.md", "# Guides\n")
+
+	links := ExtractLinks(root, "index.md", "[Guides](guides) and [Guides index](guides/).\n")
+	if len(links) != 2 {
+		t.Fatalf("expected two links, got %#v", links)
+	}
+	if links[0].TargetPath != "guides" || !links[0].Exists {
+		t.Fatalf("expected directory link to resolve through index.md, got %#v", links[0])
+	}
+	if links[1].TargetPath != "guides/index.md" || !links[1].Exists {
+		t.Fatalf("expected trailing-slash directory link to resolve to index.md, got %#v", links[1])
+	}
+}
+
 func TestWriteHTMLRendersPagesAndRewritesMarkdownLinks(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")

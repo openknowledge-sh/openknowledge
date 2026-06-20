@@ -35,6 +35,10 @@ errors and warnings are included in the top-level `issues` array and attached to
 matching files. When `--out` is omitted, the JSON is printed to stdout. The
 HTML-only `--plain` flag is rejected for JSON.
 
+Link entries include their kind, source line, local target path and ID, and
+whether the target exists. Directory links are marked existing when they resolve
+to an `index.md` file in that directory.
+
 ## Use Cases
 
 * Feed bundle content to tools and agents.

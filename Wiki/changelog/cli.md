@@ -14,6 +14,20 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-20 - Parsed link metadata feeds validation and JSON
+
+* Parsed Markdown documents now carry extracted link metadata, so validation and
+  the normalized JSON bundle model share the same local link resolution data.
+* Directory links are marked existing when they resolve through an `index.md`
+  file in the target directory, matching validator behavior.
+* Source anchors: `packages/cli/internal/okf/document.go`,
+  `packages/cli/internal/okf/bundle.go`,
+  `packages/cli/internal/okf/validate.go`,
+  `packages/cli/internal/okf/export_test.go`,
+  `packages/cli/internal/okf/validate_test.go`.
+* Docs updated: `Wiki/features/exporters/json.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Deployed wiki brand title
 
 * Set the deployed wiki brand through `Wiki/index.md` `okf_bundle_title` so the

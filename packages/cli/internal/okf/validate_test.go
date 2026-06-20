@@ -216,6 +216,24 @@ func TestValidateWarnsForBrokenLocalLinks(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsDirectoryLinksToIndex(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n\n[Guides](guides) and [Guides index](guides/).\n")
+	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
+	writeFile(t, root, "guides/index.md", "# Guides\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("expected no warnings for directory links with index.md, got %#v", result.Warnings)
+	}
+	if statusForCheck(result, "Link targets") != "pass" {
+		t.Fatalf("expected link targets check to pass, got %#v", result.Checks)
+	}
+}
+
 func TestValidateIgnoresLinksInsideFencedCode(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Index\n\n```markdown\n[Example](missing.md)\n```\n")

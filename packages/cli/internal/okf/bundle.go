@@ -70,12 +70,12 @@ func bundleFilesFromParsedBundle(bundle parsedBundle, issues []Issue) ([]BundleF
 		if document.ReadErr != nil {
 			return nil, document.ReadErr
 		}
-		files = append(files, bundleFile(bundle.Root, document, issuesByPath[document.Rel]))
+		files = append(files, bundleFile(document, issuesByPath[document.Rel]))
 	}
 	return files, nil
 }
 
-func bundleFile(root string, document parsedDocument, issues []Issue) BundleFile {
+func bundleFile(document parsedDocument, issues []Issue) BundleFile {
 	entry := ListEntry{}
 	if isReserved(document.Rel) {
 		entry = reservedEntry(document.Rel)
@@ -94,7 +94,7 @@ func bundleFile(root string, document parsedDocument, issues []Issue) BundleFile
 		Resource:    entry.Resource,
 		Frontmatter: frontmatterValues(document.Frontmatter),
 		Body:        document.Body,
-		Links:       ExtractLinks(root, document.Rel, document.Content),
+		Links:       document.Links,
 		Issues:      issues,
 	}
 }
@@ -139,7 +139,12 @@ func ExtractLinks(root string, rel string, content string) []Link {
 			targetPath := filepath.Join(root, filepath.FromSlash(targetRel))
 			if insideRoot(root, targetPath) {
 				if info, err := os.Stat(targetPath); err == nil {
-					link.Exists = !info.IsDir()
+					if info.IsDir() {
+						_, err = os.Stat(filepath.Join(targetPath, "index.md"))
+						link.Exists = err == nil
+					} else {
+						link.Exists = true
+					}
 				}
 			}
 		}

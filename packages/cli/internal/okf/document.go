@@ -14,6 +14,7 @@ type parsedDocument struct {
 	Content        string
 	Frontmatter    frontmatter
 	Body           string
+	Links          []Link
 	ReadErr        error
 	FrontmatterErr error
 }
@@ -40,7 +41,11 @@ func parseMarkdownDocuments(root string) ([]parsedDocument, error) {
 			return nil
 		}
 
-		documents = append(documents, parseMarkdownDocumentFile(path, relPath(root, path)))
+		document := parseMarkdownDocumentFile(path, relPath(root, path))
+		if document.ReadErr == nil {
+			document.Links = ExtractLinks(root, document.Rel, document.Content)
+		}
+		documents = append(documents, document)
 		return nil
 	})
 	if err != nil {

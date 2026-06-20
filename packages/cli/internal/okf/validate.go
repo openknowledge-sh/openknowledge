@@ -137,7 +137,7 @@ func validateDocument(root string, document parsedDocument, result *Result) {
 		}
 		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.bodyLine, result)
 	}
-	validateLinks(root, rel, document.Content, result)
+	validateDocumentLinks(root, document, result)
 }
 
 func frontmatterErrorLine(err error) int {
@@ -225,39 +225,29 @@ func validateConcept(rel string, meta frontmatter, result *Result) {
 	}
 }
 
-func validateLinks(root string, rel string, content string, result *Result) {
-	linkContent := maskFencedCode(content)
-	for _, match := range markdownLinkDetail.FindAllStringSubmatchIndex(linkContent, -1) {
-		href := linkContent[match[6]:match[7]]
-		if shouldSkipLink(href) {
+func validateDocumentLinks(root string, document parsedDocument, result *Result) {
+	for _, link := range document.Links {
+		if link.Kind != "local" || link.TargetPath == "" {
 			continue
 		}
 
-		targetRel := linkTargetRel(rel, href)
-		if targetRel == "" {
-			continue
-		}
-		targetPath := filepath.Join(root, filepath.FromSlash(targetRel))
+		targetPath := filepath.Join(root, filepath.FromSlash(link.TargetPath))
 		if !insideRoot(root, targetPath) {
 			result.Warnings = append(result.Warnings, Issue{
-				Path:    rel,
-				Line:    lineForOffset(content, match[0]),
+				Path:    document.Rel,
+				Line:    link.Line,
 				Rule:    "link-target",
-				Message: fmt.Sprintf("link target escapes bundle root: %s", href),
+				Message: fmt.Sprintf("link target escapes bundle root: %s", link.Href),
 			})
 			continue
 		}
 
-		info, err := os.Stat(targetPath)
-		if err == nil && info.IsDir() {
-			_, err = os.Stat(filepath.Join(targetPath, "index.md"))
-		}
-		if err != nil {
+		if !link.Exists {
 			result.Warnings = append(result.Warnings, Issue{
-				Path:    rel,
-				Line:    lineForOffset(content, match[0]),
+				Path:    document.Rel,
+				Line:    link.Line,
 				Rule:    "link-target",
-				Message: fmt.Sprintf("link target does not exist: %s", href),
+				Message: fmt.Sprintf("link target does not exist: %s", link.Href),
 			})
 		}
 	}
