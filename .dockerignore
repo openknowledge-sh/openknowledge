@@ -1,0 +1,8 @@
+.git
+.github
+bin
+node_modules
+packages/web/dist
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*

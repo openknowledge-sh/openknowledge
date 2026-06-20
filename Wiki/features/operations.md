@@ -84,11 +84,13 @@ exact Railway environment name or ID if the project uses a different
 environment. The workflow still accepts the older `RAILWAY_SERVICE_ID` name as a
 fallback, but it must contain a service name or service ID, not a project ID.
 
-`railway.json` keeps Railway build and runtime settings in code. Railway builds
-the static website with `pnpm build:web`, then starts the web package with
-`pnpm --filter @openknowledge-sh/web start`. The production start script serves
-`packages/web/dist` without re-exporting the wiki and binds to `0.0.0.0` so the
-Railway router can reach the container.
+`railway.json` keeps Railway build and runtime settings in code and tells
+Railway to use the repository `Dockerfile`. The Docker build installs both Go
+and Node/pnpm because `pnpm build:web` exports the wiki by running the current
+Go CLI source. The runtime image copies only `packages/web/dist` and the web
+server script, then starts `node packages/web/scripts/serve.mjs`. Runtime env in
+the Dockerfile serves `packages/web/dist` without re-exporting the wiki and
+binds to `0.0.0.0` so the Railway router can reach the container.
 
 ## Release
 
@@ -140,6 +142,8 @@ npm publish --access public
 * `pnpm-workspace.yaml`
 * `.github/workflows/deploy-railway.yml`
 * `.github/workflows/release.yml`
+* `.dockerignore`
+* `Dockerfile`
 * `.goreleaser.yaml`
 * `railway.json`
 * `install`

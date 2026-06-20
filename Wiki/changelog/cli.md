@@ -26,11 +26,13 @@ that were updated.
   because Railway requires an environment whenever `--project` is used. The
   previous `RAILWAY_SERVICE_ID` name is still accepted as a fallback, but it
   must not contain the project ID.
-* Added `railway.json` and a production web `start` script so Railway builds
-  `packages/web/dist` with `pnpm build:web` and serves it on `0.0.0.0`.
+* Added `railway.json`, a production web `start` script, and a Dockerfile so
+  Railway builds `packages/web/dist` with both Go and Node/pnpm available, then
+  serves the generated static site on `0.0.0.0`.
 * Source anchors: `.github/workflows/deploy-railway.yml`,
-  `railway.json`, `packages/web/package.json`,
-  `packages/web/scripts/serve.mjs`, `Wiki/features/operations.md`.
+  `railway.json`, `Dockerfile`, `.dockerignore`,
+  `packages/web/package.json`, `packages/web/scripts/serve.mjs`,
+  `Wiki/features/operations.md`.
 * Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-06-20 - Mobile viewer hides fixed bottom chrome
