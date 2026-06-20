@@ -17,6 +17,10 @@ func BuildContextIndexWithVersion(root string, version string) (ContextIndex, er
 		return ContextIndex{}, err
 	}
 
+	return contextIndexFromAST(validation, ast), nil
+}
+
+func contextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 	issues := append([]Issue{}, validation.Errors...)
 	issues = append(issues, validation.Warnings...)
 	var sections []ContextSection
@@ -38,7 +42,7 @@ func BuildContextIndexWithVersion(root string, version string) (ContextIndex, er
 		}
 		return sections[i].LineStart < sections[j].LineStart
 	})
-	return ContextIndex{Root: validation.Root, Sections: sections, Issues: issues}, nil
+	return ContextIndex{Root: validation.Root, Sections: sections, Issues: issues}
 }
 
 func ResolveContext(root string, options ContextOptions) (ContextResult, error) {

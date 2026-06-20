@@ -30,6 +30,10 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 		return HTMLResult{}, err
 	}
 
+	return writeHTMLFromAST(ast, out, pageTemplate)
+}
+
+func writeHTMLFromAST(ast ASTBundle, out string, pageTemplate *template.Template) (HTMLResult, error) {
 	absoluteOut, err := filepath.Abs(out)
 	if err != nil {
 		return HTMLResult{}, err

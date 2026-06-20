@@ -8,10 +8,16 @@ import (
 	"sort"
 )
 
+// ParseAST returns the parsed OKF document model used as the source of truth
+// for validation, linting, and exporter projections inside the CLI. This Go
+// API is internal to the CLI package; normalized exporter DTOs and command
+// output remain the stable external contracts.
 func ParseAST(root string) (ASTBundle, error) {
 	return ParseASTWithVersion(root, LatestSpecVersion)
 }
 
+// ParseASTWithVersion returns the parsed OKF document model for a specific
+// supported spec version.
 func ParseASTWithVersion(root string, version string) (ASTBundle, error) {
 	return parseASTBundle(root, version)
 }
