@@ -17,9 +17,9 @@ that cannot be parsed is an error.
 ## Usage
 
 ```sh
-openknowledge validate [path]
-openknowledge validate --spec <version> [path]
-openknowledge validate --quiet [path]
+openknowledge validate [key-or-path]
+openknowledge validate --spec <version> [key-or-path]
+openknowledge validate --quiet [key-or-path]
 openknowledge validate --help
 ```
 
@@ -27,16 +27,17 @@ openknowledge validate --help
 
 | Name | Kind | Description |
 | --- | --- | --- |
-| `path` | argument | Knowledge base root. Defaults to the current directory. |
+| `key-or-path` | argument | Registry key or knowledge base root. Defaults to the current directory. |
 | `--spec` | flag | OKF spec version. Defaults to latest. |
 | `--quiet` | flag | Print only errors and exit with status. |
 
 ## Validation Checks
 
-The validator walks the target directory, skips `.git`, and scans Markdown files
-with case-insensitive `.md` or `.markdown` extensions. Each scanned file is
-classified by file name: `index.md` is an index, `log.md` is a log, and all
-other Markdown files are concepts.
+The validator resolves the optional target through the registry-aware
+key-or-path model, walks the resulting directory, skips `.git`, and scans
+Markdown files with case-insensitive `.md` or `.markdown` extensions. Each
+scanned file is classified by file name: `index.md` is an index, `log.md` is a
+log, and all other Markdown files are concepts.
 
 The report currently includes these checks:
 
@@ -96,6 +97,7 @@ reserved file instead of a concept document.
 ## Use Cases
 
 * Verify a wiki after setup or maintenance.
+* Validate a connected bundle by registry key without hardcoding its path.
 * Catch missing concept frontmatter and invalid log headings.
 * Distinguish fatal frontmatter parse errors from non-blocking Markdown and
   frontmatter formatting warnings.

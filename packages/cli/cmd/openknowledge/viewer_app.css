@@ -106,9 +106,9 @@ body.viewer-document.is-sidebar-open > .powered-by-openknowledge { transform: tr
 .knowledge-graph-canvas:focus-visible { outline: 2px solid var(--ok-color-accent-border-strong); outline-offset: -3px; }
 .knowledge-tree { width: min(720px, 100%); color: var(--ok-color-tree-text); font-family: var(--ok-font-mono); font-size: 13px; }
 .tree-row { display: flex; min-height: 30px; align-items: center; gap: 12px; padding: 4px 10px 4px var(--indent); border-radius: 6px; color: inherit; text-decoration: none; }
-.tree-directory { margin: 7px 0 2px; background: var(--ok-color-tree-directory-bg); color: var(--ok-color-tree-directory-text); font-weight: 700; }
-.file-sidebar .tree-directory { background: var(--ok-color-sidebar-row); color: var(--ok-color-sidebar-text); }
-.tree-directory::before { color: var(--ok-color-tree-directory-marker); content: "/"; }
+.tree-directory { margin: 6px 0 1px; background: transparent; color: var(--ok-color-tree-directory-text); font-weight: 700; }
+.file-sidebar .tree-directory { background: transparent; color: var(--ok-color-sidebar-text); }
+.tree-directory::before { content: none; }
 .tree-file:hover { background: var(--ok-color-accent-softer); color: var(--ok-color-accent); }
 .file-sidebar .tree-file:hover { background: var(--ok-color-sidebar-tree-hover-bg); }
 .tree-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -194,7 +194,7 @@ a { color: var(--ok-color-accent); text-underline-offset: 3px; }
 .note-body a { border-radius: 4px; transition: background-color .16s ease, color .16s ease; }
 .note-body a:hover, .note-body a.is-active-note { background: var(--ok-color-accent-soft); }
 .note-body a.is-active-note { color: var(--ok-color-accent-strong); }
-.ok-search-highlight { border-radius: 4px; background: var(--ok-color-accent-soft); box-shadow: 0 0 0 2px var(--ok-color-accent-soft); color: inherit; }
+.ok-search-highlight { border-radius: 4px; background: rgba(245, 158, 11, .34); box-shadow: 0 0 0 2px rgba(245, 158, 11, .44); color: inherit; }
 strong { color: var(--ok-color-text); font-weight: 700; }
 blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--ok-color-border); color: var(--ok-color-muted); }
 blockquote p { color: var(--ok-color-muted); }

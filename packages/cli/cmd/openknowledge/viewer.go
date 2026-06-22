@@ -1325,6 +1325,7 @@ func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
 }
 
 func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, fileURL func(string) string) viewerGraphData {
+	graph := okf.GraphFromBundle(okf.Bundle{Files: files})
 	titles := make(map[string]string, len(entries))
 	paths := make(map[string]bool, len(entries))
 	for _, entry := range entries {
@@ -1347,22 +1348,20 @@ func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry,
 
 	seenEdges := map[string]bool{}
 	var edges []viewerGraphEdge
-	for _, file := range files {
-		for _, link := range file.Links {
-			if link.Kind != "local" || !paths[link.TargetPath] || link.TargetPath == file.Path {
-				continue
-			}
-			key := file.Path + "\x00" + link.TargetPath
-			if seenEdges[key] {
-				continue
-			}
-			seenEdges[key] = true
-			edges = append(edges, viewerGraphEdge{
-				Source: file.Path,
-				Target: link.TargetPath,
-				Label:  link.Label,
-			})
+	for _, edge := range graph.Edges {
+		if !paths[edge.Source] || !paths[edge.Target] {
+			continue
 		}
+		key := edge.Source + "\x00" + edge.Target
+		if seenEdges[key] {
+			continue
+		}
+		seenEdges[key] = true
+		edges = append(edges, viewerGraphEdge{
+			Source: edge.Source,
+			Target: edge.Target,
+			Label:  edge.Label,
+		})
 	}
 
 	sort.Slice(edges, func(i, j int) bool {

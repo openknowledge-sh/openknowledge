@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+No uncategorized changes are currently tracked here. Next-release work is
+classified under [v0.4.0 Candidate](#v040-candidate) until a release tag is
+cut.
+
+## v0.4.0 Candidate
+
+Candidate V4 changes are commits after the `v0.3.0` release tag. Keep new
+entries in this section until they are released.
+
+### 2026-06-22 - Validate and list key-or-path docs
+
+* Updated `openknowledge validate` and `openknowledge list` help/docs to use
+  `[key-or-path]` because both commands resolve registry keys through the
+  shared knowledge-root resolver.
+* Removed stale candidate text that described a no-argument connected-bundle
+  overview for `openknowledge list`; the shipped no-argument behavior still
+  lists the current directory.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/validate.md`,
+  `Wiki/features/commands/list.md`, `Wiki/features/commands/index.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-22 - Website changelog link and product summary
 
 * Added a `Changelog` link to the landing page navigation beside `Wiki`.
@@ -24,6 +47,43 @@ that were updated.
 * Source anchors: `packages/web/index.html`, `packages/web/styles.css`,
   `Wiki/features/tooling-model.md`, `Wiki/index.md`, `README.md`.
 * Docs updated: `Wiki/changelog/cli.md`, `Wiki/log.md`.
+
+### 2026-06-22 - Graph exporter target
+
+* Added `openknowledge to graph` to export AST-backed node and edge JSON for
+  bundle files and existing local Markdown links.
+* Reused the same graph construction path for the local/static viewer knowledge
+  graph so viewer graph data and CLI graph export stay aligned.
+* Source anchors: `packages/cli/internal/okf/graph.go`,
+  `packages/cli/internal/okf/graph_types.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/to.md`,
+  `Wiki/features/exporters/graph.md`, `Wiki/features/exporters/index.md`,
+  `Wiki/features/commands/help.md`, `Wiki/features/tooling-model.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-22 - Minimal viewer sidebar folders
+
+* Simplified local and static viewer file tree folder rows so directories render
+  as lightweight bold text instead of filled blocks with marker prefixes.
+* This makes nested folder groups less visually heavy while preserving file row
+  hover states and the existing sidebar structure.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-22 - Viewer graph hover presentation
+
+* Removed canvas graph node shadows and label halo strokes from the local and
+  static viewer graph presentation.
+* Active graph nodes now rely on a stronger border instead of shadow effects,
+  making graph hover states quieter and theme output simpler.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/changelog/cli.md`.
 
 ### 2026-06-22 - Viewer shortcut registry and sidebar toggle
 
@@ -308,6 +368,21 @@ that were updated.
   files, so local preview matches the deployed URL behavior.
 * Source anchors: `packages/web/scripts/serve.mjs`.
 * Docs updated: `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
+
+### 2026-06-20 - Website robots and text MIME handling
+
+* Added `robots.txt` to the website build output and allowed all crawlers.
+* The website server now serves `.txt` assets as `text/plain; charset=utf-8`,
+  so generated static text files get the expected content type.
+* Source anchors: `packages/web/robots.txt`,
+  `packages/web/scripts/build.mjs`, `packages/web/scripts/serve.mjs`.
+* Docs updated: `Wiki/changelog/cli.md`.
+
+## v0.3.0 - 2026-06-20
+
+Released as Git tag `v0.3.0` from commit `0a136ac`. These entries were still
+stored under `Unreleased` at tag time and are now classified as V3 release
+contents.
 
 ### 2026-06-20 - Root index frontmatter stays permissive
 

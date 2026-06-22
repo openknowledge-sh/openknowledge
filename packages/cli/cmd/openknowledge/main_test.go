@@ -37,9 +37,10 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge to html --out <folder> [path]",
 		"openknowledge to json --out <file> [path]",
 		"openknowledge to tar --out <file> [path]",
-		"openknowledge validate --spec <version> [path]",
-		"openknowledge list --spec <version> [path]",
-		"openknowledge list --json [path]",
+		"openknowledge to graph --out <file> [path]",
+		"openknowledge validate --spec <version> [key-or-path]",
+		"openknowledge list --spec <version> [key-or-path]",
+		"openknowledge list --json [key-or-path]",
 		"Commands:",
 		"setup      Print an agent setup prompt.",
 		"new        Scaffold a local Open Knowledge bundle.",
@@ -60,6 +61,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge use accessibility --query \"validation workflow\"",
 		"openknowledge to html --out ./site ./project-memory",
 		"openknowledge to json ./project-memory",
+		"openknowledge to graph ./project-memory",
 	}
 
 	for _, expected := range required {
@@ -196,6 +198,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge to html --plain --out <folder> [path]",
 				"openknowledge to json --out <file> [path]",
 				"openknowledge to tar --out <file> [path]",
+				"openknowledge to graph --out <file> [path]",
 				"Targets:",
 			},
 		},
@@ -227,10 +230,18 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"Output archive file. Required.",
 			},
 		},
+		"to graph": {
+			help: toGraphHelpText(),
+			required: []string{
+				"openknowledge to graph --out <file> [path]",
+				"Write node and edge graph JSON",
+				"AST-backed parser",
+			},
+		},
 		"validate": {
 			help: validateHelpText(),
 			required: []string{
-				"openknowledge validate --quiet [path]",
+				"openknowledge validate --quiet [key-or-path]",
 				"Exit codes:",
 				"Validation found errors.",
 			},
@@ -238,7 +249,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"list": {
 			help: listHelpText(),
 			required: []string{
-				"openknowledge list --json [path]",
+				"openknowledge list --json [key-or-path]",
 				"Print machine-readable inventory JSON.",
 			},
 		},
@@ -326,6 +337,43 @@ func TestParseUseOptionsAllowsQueryFlags(t *testing.T) {
 	}
 }
 
+func TestRunValidateAcceptsRegistryKey(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Bundle\n")
+	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+	if _, _, err := okf.ConnectRegistryEntry("personal", root, "read", true); err != nil {
+		t.Fatal(err)
+	}
+
+	_, code := captureMainStdout(t, func() int {
+		return runValidate([]string{"--quiet", "personal"})
+	})
+	if code != 0 {
+		t.Fatalf("expected validate registry key to succeed, got exit code %d", code)
+	}
+}
+
+func TestRunListAcceptsRegistryKey(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n")
+	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+	if _, _, err := okf.ConnectRegistryEntry("personal", root, "read", true); err != nil {
+		t.Fatal(err)
+	}
+
+	output, code := captureMainStdout(t, func() int {
+		return runList([]string{"personal"})
+	})
+	if code != 0 {
+		t.Fatalf("expected list registry key to succeed, got exit code %d", code)
+	}
+	if !strings.Contains(output, "topic.md") {
+		t.Fatalf("expected list output to include bundle file:\n%s", output)
+	}
+}
+
 func TestRunUseQueryPrintsMarkdownSections(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Home\n")
@@ -387,6 +435,29 @@ func TestRunToTarWritesPortableArchive(t *testing.T) {
 	}
 	if len(validation.Errors) != 0 {
 		t.Fatalf("expected extracted archive to validate, got %#v", validation.Errors)
+	}
+}
+
+func TestRunToGraphPrintsGraphJSON(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Home\n\nRead [Topic](notes/topic.md).\n")
+	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\ntitle: Topic\n---\n\n# Topic\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runToGraph([]string{root})
+	})
+	if code != 0 {
+		t.Fatalf("expected to graph to succeed, got exit code %d", code)
+	}
+	var graph okf.Graph
+	if err := json.Unmarshal([]byte(output), &graph); err != nil {
+		t.Fatalf("expected graph JSON output: %v\n%s", err, output)
+	}
+	if len(graph.Nodes) != 2 || len(graph.Edges) != 1 {
+		t.Fatalf("unexpected graph output: %#v", graph)
+	}
+	if graph.Edges[0].Source != "index.md" || graph.Edges[0].Target != "notes/topic.md" || graph.Edges[0].Label != "Topic" {
+		t.Fatalf("unexpected graph edge: %#v", graph.Edges[0])
 	}
 }
 

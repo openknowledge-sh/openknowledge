@@ -17,8 +17,8 @@ custom theme.
 * [Installation](features/installation.md) - install the CLI through the shell
   installer, npm wrapper, or local development flow.
 * [Commands](features/commands/) - command-by-command reference.
-* [Exporters](features/exporters/) - HTML, JSON, tar, and candidate graph
-  exporter behavior.
+* [Exporters](features/exporters/) - HTML, JSON, tar, and graph exporter
+  behavior.
 
 ## Commands
 
@@ -26,8 +26,10 @@ custom theme.
 
 * [setup](features/commands/setup.md) - generate setup instructions for agents.
 * [new](features/commands/new.md) - scaffold a local OKF bundle.
+
+### Validate Bundles
+
 * [validate](features/commands/validate.md) - validate a bundle against OKF.
-* [list](features/commands/list.md) - print bundle inventory.
 
 ### Connect And Resolve Bundles
 
@@ -39,26 +41,26 @@ custom theme.
 
 ### Use And Browse Knowledge
 
-* [use](features/commands/use.md) - print bundle entrypoint Markdown or
-  metadata.
+* [list](features/commands/list.md) - print bundle inventory.
+* [use](features/commands/use.md) - print an entrypoint, bundle file, metadata,
+  or query excerpts.
 * [open](features/commands/open.md) - browse a bundle in the local Markdown
   viewer.
 
-### Export And Inspect CLI Behavior
+### Export And Inspect
 
+* [ast](features/commands/ast.md) - print the parsed OKF AST as JSON.
 * [to](features/commands/to.md) - export a bundle to HTML, JSON, or tar.
-* [help](features/commands/help.md) - inspect root and command-specific help.
-* [spec](features/commands/spec.md) - print embedded OKF specs.
-* [version](features/commands/version.md) - print the CLI version.
-
-## Exporters
-
 * [HTML exporter](features/exporters/html.md) - default static viewer export
   and plain semantic HTML mode.
 * [JSON exporter](features/exporters/json.md) - normalized bundle model.
 * [Tar exporter](features/exporters/tar.md) - portable source bundle archive.
-* [Graph exporter candidate](features/exporters/graph.md) - planned graph
-  output notes.
+
+### Help And Version
+
+* [help](features/commands/help.md) - inspect root and command-specific help.
+* [spec](features/commands/spec.md) - print embedded OKF specs.
+* [version](features/commands/version.md) - print the CLI version.
 
 ## Further Reading
 

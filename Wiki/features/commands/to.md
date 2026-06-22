@@ -9,7 +9,7 @@ timestamp: 2026-06-18T00:00:00Z
 # `openknowledge to`
 
 `openknowledge to` is the conversion command group. Current shipped targets are
-`html`, `json`, and `tar`.
+`html`, `json`, `tar`, and `graph`.
 
 ## Usage
 
@@ -22,6 +22,9 @@ openknowledge to json --out <file> [path]
 openknowledge to json --spec <version> [path]
 openknowledge to tar --out <file> [path]
 openknowledge to tar --spec <version> --out <file> [path]
+openknowledge to graph [path]
+openknowledge to graph --out <file> [path]
+openknowledge to graph --spec <version> [path]
 openknowledge to --help
 ```
 
@@ -32,15 +35,15 @@ openknowledge to --help
 | `html` | shipped | See [HTML exporter](/features/exporters/html.md). |
 | `json` | shipped | See [JSON exporter](/features/exporters/json.md). |
 | `tar` | shipped | See [Tar exporter](/features/exporters/tar.md). |
-| `graph` | candidate | See [Graph exporter candidate](/features/exporters/graph.md). |
+| `graph` | shipped | See [Graph exporter](/features/exporters/graph.md). |
 
 ## Common Flags
 
 | Name | Kind | Applies To | Required | Default | Description |
 | --- | --- | --- | --- | --- | --- |
-| `path` | argument | `html`, `json`, `tar` | no | current directory | Knowledge base root. |
-| `--spec` | flag | `html`, `json`, `tar` | no | `latest` | OKF spec version. |
-| `--out` | flag | `html`, `json`, `tar` | HTML and TAR yes, JSON no | stdout for JSON | Output folder for HTML, optional output file for JSON, and archive file for TAR. |
+| `path` | argument | `html`, `json`, `tar`, `graph` | no | current directory | Knowledge base root. |
+| `--spec` | flag | `html`, `json`, `tar`, `graph` | no | `latest` | OKF spec version. |
+| `--out` | flag | `html`, `json`, `tar`, `graph` | HTML and TAR yes, JSON/graph no | stdout for JSON and graph | Output folder for HTML, optional output file for JSON and graph, and archive file for TAR. |
 | `--plain` | flag | `html` only | no | off | Write plain semantic HTML without viewer chrome, CSS, or JavaScript. |
 
 ## Quick Examples
@@ -51,6 +54,8 @@ openknowledge to html --plain --out ./plain-site ./project-memory
 openknowledge to json ./project-memory
 openknowledge to json --out ./bundle.json ./project-memory
 openknowledge to tar --out ./bundle.tar.gz ./project-memory
+openknowledge to graph ./project-memory
+openknowledge to graph --out ./graph.json ./project-memory
 ```
 
 ## Behavior
@@ -78,6 +83,11 @@ JSON. See [JSON exporter](/features/exporters/json.md).
 source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
 See [Tar exporter](/features/exporters/tar.md).
 
+`to graph` serializes an AST-backed node and edge graph. Nodes come from bundle
+files, and edges are deduplicated existing local Markdown links. It prints to
+stdout by default and writes to `--out <file>` when provided. `--plain` is not
+valid for graph output. See [Graph exporter](/features/exporters/graph.md).
+
 Unknown targets and unknown flags exit with status `2`.
 
 ## Use Cases
@@ -86,7 +96,8 @@ Unknown targets and unknown flags exit with status `2`.
 * Produce a normalized JSON model for downstream tools or agents.
 * Produce a portable tarball that can be served from static hosting and
   connected later.
-* Keep future exporter targets grouped under one command family.
+* Produce a link graph for visualization, orphan detection, or relationship
+  analysis.
 
 ---
 
@@ -97,6 +108,8 @@ Unknown targets and unknown flags exit with status `2`.
 > * `packages/cli/cmd/openknowledge/main.go`
 > * `packages/cli/internal/okf/html.go`
 > * `packages/cli/internal/okf/bundle.go`
+> * `packages/cli/internal/okf/graph.go`
+> * `packages/cli/internal/okf/graph_types.go`
 > * `packages/cli/cmd/openknowledge/viewer.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.css`

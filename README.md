@@ -18,7 +18,7 @@ Open Knowledge is a small tooling stack around Markdown knowledge bases:
 | Local registry management | `connect`, `disconnect`, `registry` | Give local, published, archive, or Git knowledge bases stable names that humans, agents, and the viewer can resolve. |
 | Agent entrypoints | `use` | Print a bundle-declared instruction file, a bundle-relative file path, or fall back to the bundle root `index.md`, so an agent can load the right knowledge on demand. |
 | Local Markdown viewer | `open` | Browse, search, inspect validation issues, and review linked Markdown in a local browser UI. |
-| Export and publish | `to html`, `to html --plain`, `to json` | Publish a static viewer, emit plain semantic HTML, or hand a normalized bundle model to other tools and agents. |
+| Export and publish | `to html`, `to html --plain`, `to json`, `to graph` | Publish a static viewer, emit plain semantic HTML, hand a normalized bundle model to tools, or export link graph JSON. |
 
 The registry layer works with existing bundle folders, Open Knowledge manifests,
 tar archives, and Git remote sources. Published Open Knowledge HTML exports
@@ -75,6 +75,7 @@ openknowledge open ./project-memory
 openknowledge list ./project-memory
 openknowledge list personal
 openknowledge validate ./project-memory
+openknowledge validate personal
 openknowledge to html --out ./project-site ./project-memory
 openknowledge to html --plain --out ./project-plain-site ./project-memory
 openknowledge to json ./project-memory
@@ -103,12 +104,16 @@ structure is intentionally left to setup.
 After that, humans and agents edit normal Markdown files. `openknowledge open`
 starts a registry-backed local viewer with a workspace selector, and
 `openknowledge open <path-or-name>` opens one knowledge base directly.
-`openknowledge validate` checks the bundle for portable OKF structure, and
-`openknowledge list` prints the bundle tree with inline validation issues.
+`openknowledge validate [key-or-path]` checks the bundle for portable OKF
+structure, and `openknowledge list [key-or-path]` prints the bundle tree with
+inline validation issues. Without an argument, both commands use the current
+directory.
 `openknowledge to html` writes the same static viewer app bundle by default,
 including searchable, sortable Markdown tables with basic column filters.
 `openknowledge to html --plain` writes unstyled semantic HTML, and
 `openknowledge to json` writes a normalized bundle model for tools and agents.
+`openknowledge to graph` writes AST-backed node and edge JSON for local
+Markdown link structure.
 The default HTML viewer export can inherit your site styling from an optional
 `openknowledge.toml` in the bundle root:
 
@@ -181,13 +186,15 @@ changes.
 | `openknowledge to json [path]` | Print normalized bundle JSON. |
 | `openknowledge to json --out <file> [path]` | Write normalized bundle JSON to a file. |
 | `openknowledge to tar --out <file> [path]` | Write a portable bundle tar.gz archive. |
+| `openknowledge to graph [path]` | Print AST-backed graph JSON. |
+| `openknowledge to graph --out <file> [path]` | Write AST-backed graph JSON to a file. |
 | `openknowledge spec latest` | Print the latest embedded OKF spec. |
 | `openknowledge spec 0.1` | Print a specific embedded spec version. |
-| `openknowledge validate [path]` | Validate a bundle against the latest spec. |
-| `openknowledge validate --spec 0.1 [path]` | Validate against a specific spec version. |
-| `openknowledge list [path]` | Print a bundle tree with inline validation issues. |
-| `openknowledge list --spec 0.1 [path]` | List while validating against a specific spec version. |
-| `openknowledge list --json [path]` | Print machine-readable inventory output. |
+| `openknowledge validate [key-or-path]` | Validate a bundle against the latest spec. |
+| `openknowledge validate --spec 0.1 [key-or-path]` | Validate against a specific spec version. |
+| `openknowledge list [key-or-path]` | Print a bundle tree with inline validation issues. |
+| `openknowledge list --spec 0.1 [key-or-path]` | List while validating against a specific spec version. |
+| `openknowledge list --json [key-or-path]` | Print machine-readable inventory output. |
 | `openknowledge version` | Print the CLI version. |
 
 ## What validation checks

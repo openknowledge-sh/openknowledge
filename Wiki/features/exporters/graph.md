@@ -1,43 +1,64 @@
 ---
-type: Candidate Feature
+type: Exporter Documentation
 title: Graph Exporter
-description: Candidate requirements page for a future graph export target.
-tags: [openknowledge, cli, exporter, graph, candidate]
+description: JSON graph export target for Open Knowledge bundle link structure.
+tags: [openknowledge, cli, exporter, graph]
 timestamp: 2026-06-18T00:00:00Z
-status: candidate
+status: shipped
 ---
 
 # Graph Exporter
 
-`openknowledge to graph` is not currently part of the shipped command surface.
-This page is a requirements and design landing page for future graph export
-work.
+`openknowledge to graph` writes an AST-backed node and edge graph for an Open
+Knowledge bundle.
 
-## Candidate Goal
+## Usage
 
-Expose the wiki as nodes and edges so downstream tools can visualize concept
-relationships, find orphan pages, or analyze link structure.
+```sh
+openknowledge to graph [path]
+openknowledge to graph --out <file> [path]
+openknowledge to graph --spec <version> [path]
+openknowledge to graph --help
+```
 
-## Likely Inputs
+## Output
 
-* Bundle files and metadata from the same parse path used by the JSON exporter.
-* Local links extracted from Markdown pages.
-* Reserved file kinds such as `index.md` and `log.md`.
-* Validation issues when graph consumers need quality signals.
+The graph JSON includes:
 
-## Open Questions
+* `root` and `specVersion` for bundle context.
+* `nodes` for every parsed bundle file, including reserved files such as
+  `index.md` and `log.md`.
+* `edges` for deduplicated, existing, non-self local Markdown links.
+* bundle and node `issues` when validation produced warnings or errors.
 
-* Should output be JSON graph, DOT, GraphML, Mermaid, or multiple targets?
-* Should edges be typed only by link context, or remain untyped as OKF v0.1 suggests?
-* Should reserved files appear as nodes?
-* Should missing local link targets become dangling nodes?
+Edges use source and target Markdown paths, include source and target document
+IDs, and preserve link labels, hrefs, and line numbers when available. Missing
+local link targets remain validation issues instead of becoming dangling graph
+nodes.
+
+## Behavior
+
+`to graph` uses the same AST-backed bundle parser as `to json` and the viewer
+knowledge graph. Markdown links inside fenced code blocks are ignored by the
+AST parser and therefore do not become graph edges.
+
+The command prints graph JSON to stdout by default. `--out <file>` writes the
+same JSON to disk. `--plain` is not valid for graph output.
 
 ---
 
 <!-- okf-footer: agent-maintenance -->
 
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/graph.go`
+> * `packages/cli/internal/okf/graph_types.go`
+> * `packages/cli/internal/okf/bundle.go`
+> * `packages/cli/internal/okf/ast_links.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/cmd/openknowledge/viewer.go`
+>
 > **Update notes**
 >
-> When this feature is implemented, change the status, add command usage, update
-> [openknowledge to](/features/commands/to.md), root help, README command tables,
-> tests, and [CLI changelog](/changelog/cli.md).
+> Graph output changes should update [openknowledge to](/features/commands/to.md),
+> README command tables, root help, and [CLI changelog](/changelog/cli.md).

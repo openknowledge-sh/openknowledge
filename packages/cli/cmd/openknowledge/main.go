@@ -1397,7 +1397,7 @@ func runValidate(args []string) int {
 
 	root := "."
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "validate accepts at most one path")
+		fmt.Fprintln(os.Stderr, "validate accepts at most one key or path")
 		return 2
 	}
 	if fs.NArg() == 1 {
@@ -1488,7 +1488,7 @@ func runList(args []string) int {
 
 	root := "."
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "list accepts at most one path")
+		fmt.Fprintln(os.Stderr, "list accepts at most one key or path")
 		return 2
 	}
 	if fs.NArg() == 1 {
@@ -1534,6 +1534,8 @@ func runTo(args []string) int {
 		return runToJSON(args[1:])
 	case "tar":
 		return runToTar(args[1:])
+	case "graph":
+		return runToGraph(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown to target: %s\n\n", args[0])
 		fmt.Fprint(os.Stderr, toHelpText())
@@ -1669,6 +1671,55 @@ func runToTar(args []string) int {
 	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
 	fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(result.Out))
 	fmt.Printf("%s %s\n", terminal.muted("sha256"), result.SHA256)
+	return 0
+}
+
+func runToGraph(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, toGraphHelpText())
+		return 0
+	}
+	options, err := parseToOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if options.plain {
+		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		return 2
+	}
+
+	root, err := okf.ResolveKnowledgeRoot(options.path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	graph, err := okf.BuildGraphWithVersion(root, options.spec)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	data, err := json.MarshalIndent(graph, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	data = append(data, '\n')
+
+	if options.out != "" {
+		if err := os.WriteFile(options.out, data, 0644); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		terminal.success("Exported graph")
+		fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(graph.Root))
+		fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(options.out))
+		return 0
+	}
+
+	fmt.Print(string(data))
 	return 0
 }
 
@@ -1880,12 +1931,14 @@ Usage:
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
   openknowledge to tar --out <file> [path]
+  openknowledge to graph [path]
+  openknowledge to graph --out <file> [path]
   openknowledge spec latest|<version>
-  openknowledge validate [path]
-  openknowledge validate --spec <version> [path]
-  openknowledge list [path]
-  openknowledge list --spec <version> [path]
-  openknowledge list --json [path]
+  openknowledge validate [key-or-path]
+  openknowledge validate --spec <version> [key-or-path]
+  openknowledge list [key-or-path]
+  openknowledge list --spec <version> [key-or-path]
+  openknowledge list --json [key-or-path]
   openknowledge version
 
 Commands:
@@ -1924,6 +1977,7 @@ Examples:
   openknowledge to html --out ./site ./project-memory
   openknowledge to json ./project-memory
   openknowledge to tar --out ./bundle.tar.gz ./project-memory
+  openknowledge to graph ./project-memory
   openknowledge list --json ./project-memory
   openknowledge open
   openknowledge open ./project-memory
@@ -2093,16 +2147,19 @@ Usage:
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
   openknowledge to tar --out <file> [path]
+  openknowledge to graph [path]
+  openknowledge to graph --out <file> [path]
   openknowledge to --help
 
 Targets:
   html       Write a static HTML site. Defaults to the viewer app bundle.
   json       Write normalized bundle JSON.
   tar        Write a portable bundle tar.gz archive.
+  graph      Write node and edge graph JSON from local Markdown links.
 
 Flags:
   --spec     OKF spec version. Defaults to latest.
-  --out      Output folder for html, optional output file for json, archive file for tar.
+  --out      Output folder for html, optional output file for json/graph, archive file for tar.
 
 Versions:
   %s
@@ -2181,6 +2238,33 @@ Arguments:
 Flags:
   --out       Output archive file. Required.
   --spec      OKF spec version. Defaults to latest.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func toGraphHelpText() string {
+	return fmt.Sprintf(`openknowledge to graph
+
+Write node and edge graph JSON for an Open Knowledge bundle.
+
+Usage:
+  openknowledge to graph [path]
+  openknowledge to graph --out <file> [path]
+  openknowledge to graph --spec <version> [path]
+  openknowledge to graph --help
+
+Arguments:
+  path        Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --out       Output file. Defaults to stdout.
+  --spec      OKF spec version. Defaults to latest.
+
+Behavior:
+  Nodes come from parsed bundle files. Edges are deduplicated existing local
+  Markdown links and are sourced from the AST-backed parser.
 
 Versions:
   %s
@@ -2294,13 +2378,13 @@ func validateHelpText() string {
 Validate a bundle against an Open Knowledge Format spec.
 
 Usage:
-  openknowledge validate [path]
-  openknowledge validate --spec <version> [path]
-  openknowledge validate --quiet [path]
+  openknowledge validate [key-or-path]
+  openknowledge validate --spec <version> [key-or-path]
+  openknowledge validate --quiet [key-or-path]
   openknowledge validate --help
 
 Arguments:
-  path         Knowledge base root. Defaults to the current directory.
+  key-or-path  Registry key or knowledge base root. Defaults to the current directory.
 
 Flags:
   --spec       OKF spec version. Defaults to latest.
@@ -2322,13 +2406,13 @@ func listHelpText() string {
 Print a bundle tree with inline validation issues.
 
 Usage:
-  openknowledge list [path]
-  openknowledge list --spec <version> [path]
-  openknowledge list --json [path]
+  openknowledge list [key-or-path]
+  openknowledge list --spec <version> [key-or-path]
+  openknowledge list --json [key-or-path]
   openknowledge list --help
 
 Arguments:
-  path         Knowledge base root. Defaults to the current directory.
+  key-or-path  Registry key or knowledge base root. Defaults to the current directory.
 
 Flags:
   --spec       OKF spec version. Defaults to latest.

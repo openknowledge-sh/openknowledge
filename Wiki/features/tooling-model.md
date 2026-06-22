@@ -20,7 +20,7 @@ a different user or agent need.
 | Local registry management | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry list`, `registry where` | Give local, published, archive, or Git bundles stable names and resolve those names back to filesystem paths. |
 | Agent entrypoints and query context | `use` | Print bundle-declared instructions, root `index.md`, bundle-relative files, or query-focused excerpts so an agent can load the right knowledge without hardcoding paths. |
 | Local Markdown viewer | `open` | Browse connected or direct bundles with search, stacked Markdown panels, validation context, graph overview, and rich table rendering. |
-| Export and publish | `to html`, `to html --plain`, `to json`, `to tar` | Publish a static viewer, emit plain semantic HTML, produce normalized JSON, or package a portable bundle archive. |
+| Export and publish | `to html`, `to html --plain`, `to json`, `to tar`, `to graph` | Publish a static viewer, emit plain semantic HTML, produce normalized JSON, package a portable bundle archive, or export link graph JSON. |
 
 ## Current Boundaries
 
@@ -35,9 +35,9 @@ Default HTML viewer exports publish a portable bundle archive at
 points to it. A deployed static wiki can therefore be connected by URL without
 requiring Git access.
 
-`to graph` is also planned work. Keep graph-export design notes on the
-[graph exporter candidate](exporters/graph.md) page until the command is
-implemented.
+`to graph` exports AST-backed node and edge JSON for local Markdown link
+structure. The local and static viewer knowledge graph uses the same graph
+construction path.
 
 ## Agent Flow
 

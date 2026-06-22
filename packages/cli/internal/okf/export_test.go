@@ -84,6 +84,32 @@ func TestLinksFromASTMarkdownMarksDirectoryIndexLinksExisting(t *testing.T) {
 	}
 }
 
+func TestBuildGraphUsesASTBackedLocalLinks(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n\nRead [Guide](guides/setup.md), [Missing](missing.md), and [Self](index.md).\n\n```md\n[Code](guides/setup.md)\n```\n")
+	writeFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
+
+	graph, err := BuildGraph(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if graph.SpecVersion != LatestSpecVersion || len(graph.Nodes) != 2 {
+		t.Fatalf("unexpected graph metadata or nodes: %#v", graph)
+	}
+	if len(graph.Edges) != 2 {
+		t.Fatalf("expected two existing non-self local edges, got %#v", graph.Edges)
+	}
+	if graph.Edges[0].Source != "guides/setup.md" || graph.Edges[0].Target != "index.md" {
+		t.Fatalf("expected sorted setup-to-index edge first, got %#v", graph.Edges)
+	}
+	if graph.Edges[1].Source != "index.md" || graph.Edges[1].Target != "guides/setup.md" || graph.Edges[1].Label != "Guide" {
+		t.Fatalf("expected index-to-guide edge from Markdown AST, got %#v", graph.Edges)
+	}
+	if strings.Contains(graph.Edges[1].Href, "Code") {
+		t.Fatalf("expected graph links to ignore fenced-code links, got %#v", graph.Edges)
+	}
+}
+
 func TestWriteHTMLRendersPagesAndRewritesMarkdownLinks(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")

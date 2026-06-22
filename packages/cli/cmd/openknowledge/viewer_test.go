@@ -298,6 +298,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
 		t.Fatalf("viewer file page did not include knowledge tree empty state:\n%s", page)
 	}
+	if !strings.Contains(page, `.tree-directory { margin: 6px 0 1px; background: transparent;`) ||
+		!strings.Contains(page, `.file-sidebar .tree-directory { background: transparent;`) ||
+		!strings.Contains(page, `.tree-directory::before { content: none; }`) {
+		t.Fatalf("viewer file tree should render directories as lightweight text rows:\n%s", page)
+	}
 	if strings.Contains(page, `tree-file-path`) || strings.Contains(page, `tree-file::before`) {
 		t.Fatalf("viewer file tree should show file names without duplicate path text or md pseudo badges:\n%s", page)
 	}

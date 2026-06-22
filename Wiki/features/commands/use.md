@@ -1,18 +1,17 @@
 ---
 type: Command Documentation
 title: openknowledge use
-description: Prints agent entrypoint, bundle-relative Markdown, or query-focused excerpts from a local or connected OKF bundle.
+description: Prints an entrypoint, bundle file, metadata, or query excerpts from a local or connected OKF bundle.
 tags: [openknowledge, cli, command, registry, agent]
 timestamp: 2026-06-20T00:00:00Z
 ---
 
 # `openknowledge use`
 
-`openknowledge use` prints an agent-facing entrypoint, bundle-relative file, or
+`openknowledge use` prints an entrypoint, a bundle-relative file, metadata, or
 query-focused excerpts from a local or connected Open Knowledge bundle. It
-resolves a registry key or path, reads optional root `okf_bundle_*` metadata,
-and prints either the selected Markdown body, entrypoint metadata, or
-token-bounded original excerpts.
+resolves a registry key or path, then prints the selected Markdown body,
+metadata, or token-bounded original excerpts.
 
 The metadata layer is optional. Plain OKF bundles without declared entrypoints
 fall back to root `index.md`.

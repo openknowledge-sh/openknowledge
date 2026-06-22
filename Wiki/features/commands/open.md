@@ -82,6 +82,9 @@ as `/wiki/` or `/personal/`.
 * The local viewer includes editor deeplinks for opening Markdown files in
   installed local editors. Static HTML exports replace that behavior with
   optional GitHub source links.
+* The file explorer sidebar renders folder rows as lightweight bold text
+  without filled row blocks, keeping the tree visually quiet while preserving
+  file hover states.
 * The file viewer header includes a settings menu with five built-in visual
   themes plus a custom theme editor for page, surface, text, muted, accent, and
   border colors. Theme choices are browser-local and persist through

@@ -7,9 +7,12 @@ anchors. Keep this index as the quick map.
 
 * [Setup](setup.md) - agent setup prompt generation.
 * [New](new.md) - scaffold a local OKF bundle.
-* [Validate](validate.md) - validate a bundle against OKF.
-* [List](list.md) - print bundle inventory and candidate connected bundle overview.
+* [List](list.md) - print bundle inventory with optional JSON output.
 * [AST](ast.md) - print the parsed OKF AST as JSON.
+
+## Validate Bundles
+
+* [Validate](validate.md) - validate a bundle against OKF.
 
 ## Connect And Resolve Bundles
 
@@ -19,22 +22,19 @@ anchors. Keep this index as the quick map.
 
 ## Use And Browse Knowledge
 
-* [Use](use.md) - print agent entrypoint Markdown, metadata, or query-focused excerpts from a bundle.
+* [Use](use.md) - print an entrypoint, bundle file, metadata, or query excerpts.
 * [Open](open.md) - local Markdown viewer.
 
 ## Export And Publish
 
 * [To](to.md) - conversion command group.
+* [HTML exporter](/features/exporters/html.md)
+* [JSON exporter](/features/exporters/json.md)
+* [Tar exporter](/features/exporters/tar.md)
+* [Graph exporter](/features/exporters/graph.md)
 
-## Reference And Diagnostics
+## Help And Version
 
 * [Help](help.md) - root and command-specific help.
 * [Spec](spec.md) - print embedded OKF specs.
 * [Version](version.md) - print CLI version.
-
-## Exporter Details
-
-* [HTML exporter](/features/exporters/html.md)
-* [JSON exporter](/features/exporters/json.md)
-* [Tar exporter](/features/exporters/tar.md)
-* [Graph exporter candidate](/features/exporters/graph.md)
