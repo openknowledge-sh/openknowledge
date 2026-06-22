@@ -23,6 +23,8 @@ that were updated.
   shared shortcut registry. The file explorer sidebar can now be toggled with
   `Command+Option+S` on macOS or `Ctrl+Alt+S` elsewhere, and the sidebar
   shortcut is ignored while typing in editable controls.
+* The file explorer button now shows the formatted sidebar shortcut next to the
+  icon, matching the visible search shortcut badge.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer_shortcuts.js`,
   `packages/cli/cmd/openknowledge/viewer_app.js`,
   `packages/cli/cmd/openknowledge/viewer_search.js`,

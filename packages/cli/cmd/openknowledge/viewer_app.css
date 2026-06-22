@@ -19,6 +19,7 @@ body.viewer-document.is-sidebar-open > header { transform: translateX(var(--ok-s
 .sidebar-toggle { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ok-color-control-text); cursor: pointer; }
 .sidebar-toggle:hover, .sidebar-toggle:focus-visible, body.is-sidebar-open .sidebar-toggle { border-color: var(--ok-color-control-hover-border); background: var(--ok-color-control-hover-bg); color: var(--ok-color-control-hover-text); outline: none; }
 .sidebar-toggle-icon { width: 19px; height: 19px; }
+.sidebar-shortcut { display: inline-flex; min-width: 44px; height: 22px; align-items: center; justify-content: center; border: 1px solid var(--ok-color-search-shortcut-border); border-radius: 5px; background: var(--ok-color-search-shortcut-bg); color: var(--ok-color-search-shortcut-text); font: 600 11px/1 var(--ok-font-body); pointer-events: none; }
 .control-icon { display: block; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .viewer-settings { position: absolute; top: 50%; right: 22px; z-index: 8; transform: translateY(-50%); }
 .viewer-settings-trigger { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ok-color-control-text); cursor: pointer; }
@@ -302,6 +303,7 @@ ul, ol { padding-left: 22px; }
   body.viewer-document header { display: flex; height: var(--ok-mobile-header-height); justify-content: flex-end; padding: 0 12px; }
   .header-left { left: 12px; max-width: 42%; }
   .brand { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-shortcut { display: none; }
   .viewer-settings { right: 12px; }
   .search.header-search { width: min(52vw, 320px); min-width: 0; }
   .header-search .search-shortcut { display: none; }

@@ -2308,6 +2308,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           <path d="M6 14h.01"></path>
         </svg>
       </button>
+      <kbd class="sidebar-shortcut" data-sidebar-shortcut aria-hidden="true">⌘⌥S</kbd>
       <a class="brand" href="{{.HomeURL}}">{{.BrandName}}</a>
     </div>
     <section class="search header-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}" data-primary-search>

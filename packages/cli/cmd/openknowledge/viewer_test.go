@@ -278,6 +278,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `sidebarToggle.setAttribute("aria-keyshortcuts"`) {
 		t.Fatalf("viewer file sidebar should register a primary-alt-s keyboard shortcut:\n%s", page)
 	}
+	if !strings.Contains(page, `class="sidebar-shortcut" data-sidebar-shortcut`) ||
+		!strings.Contains(page, `document.querySelectorAll("[data-sidebar-shortcut]")`) ||
+		!strings.Contains(page, `.sidebar-shortcut { display: inline-flex; min-width: 44px; height: 22px;`) ||
+		!strings.Contains(page, `.sidebar-shortcut { display: none; }`) {
+		t.Fatalf("viewer file sidebar should show a visible shortcut badge:\n%s", page)
+	}
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
 	}

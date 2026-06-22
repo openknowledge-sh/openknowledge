@@ -3270,6 +3270,9 @@
       const label = shortcutSystem.format(sidebarShortcut);
       sidebarToggle.title = "File explorer (" + label + ")";
       sidebarToggle.setAttribute("aria-keyshortcuts", shortcutSystem.ariaKeyShortcut(sidebarShortcut));
+      document.querySelectorAll("[data-sidebar-shortcut]").forEach(function (element) {
+        element.textContent = label;
+      });
     }
   }
   if (sidebarClose) {

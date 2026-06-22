@@ -59,8 +59,8 @@ as `/wiki/` or `/personal/`.
   key-or-path model used by other commands.
 * `Command+K` on macOS or `Ctrl+K` elsewhere focuses search.
 * `Command+Option+S` on macOS or `Ctrl+Alt+S` elsewhere toggles the file
-  explorer sidebar. The sidebar shortcut is ignored while focus is in editable
-  controls.
+  explorer sidebar. The shortcut is shown beside the file explorer button and is
+  ignored while focus is in editable controls.
 * The local search API returns `highlightText` and `highlightURL` when a result
   has a reliable visible text match. `highlightURL` points at the Markdown file
   with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the
