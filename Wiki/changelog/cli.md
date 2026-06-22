@@ -17,11 +17,12 @@ that were updated.
 ### 2026-06-22 - AST parser includes Markdown structure
 
 * The OKF AST parser now adds a `markdown` tree to each parsed document,
-  including block order, headings with anchors and source lines, Markdown
-  links/images, fenced code blocks, and Mermaid detection.
+  including block order, a nested section tree, headings with anchors and source
+  lines, Markdown links/images, fenced code blocks, and Mermaid detection.
 * AST-backed search now indexes headings from the parsed Markdown tree, context
-  section boundaries come from parsed heading nodes, and resolved document links
-  are derived from Markdown AST links instead of a separate raw-content pass.
+  section boundaries come from parsed Markdown sections, and resolved document
+  links are derived from Markdown AST links instead of a separate raw-content
+  pass.
 * Source anchors: `packages/cli/internal/okf/ast_markdown.go`,
   `packages/cli/internal/okf/ast_markdown_types.go`,
   `packages/cli/internal/okf/ast_links.go`,
