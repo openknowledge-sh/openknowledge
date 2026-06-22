@@ -16,6 +16,7 @@ type ASTDocument struct {
 	Frontmatter           ASTFrontmatter      `json:"frontmatter"`
 	Metadata              ASTDocumentMetadata `json:"metadata"`
 	Body                  string              `json:"body,omitempty"`
+	Markdown              ASTMarkdown         `json:"markdown"`
 	Links                 []Link              `json:"links,omitempty"`
 	ReadDiagnostic        *ASTDiagnostic      `json:"readDiagnostic,omitempty"`
 	UTF8Diagnostic        *ASTDiagnostic      `json:"utf8Diagnostic,omitempty"`

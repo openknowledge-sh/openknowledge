@@ -29,6 +29,7 @@ func parseASTDocumentContent(document ASTDocument, content []byte) ASTDocument {
 	document.Frontmatter = astFrontmatterFromParse(meta)
 	document.Metadata = astDocumentMetadataFromValues(document.Frontmatter.Values)
 	document.Body = body
+	document.Markdown = ParseASTMarkdown(body, document.Frontmatter.BodyLine)
 	document.FrontmatterDiagnostic = astFrontmatterDiagnostic(frontmatterErr)
 	return document
 }
