@@ -223,7 +223,7 @@
     items.forEach((item, index) => {
       const link = document.createElement("a");
       link.className = "search-result";
-      link.href = item.url || staticRelativeURL(item.path);
+      link.href = item.highlightURL || item.url || staticRelativeURL(item.path);
       link.id = results.id + "-option-" + index;
       link.setAttribute("role", "option");
       link.setAttribute("aria-selected", "false");

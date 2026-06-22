@@ -240,6 +240,13 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `results.addEventListener("click"`) || !strings.Contains(page, `closeSearch(true)`) || !strings.Contains(page, `.search-result.is-active`) {
 		t.Fatalf("viewer search dropdown should close on result activation and style keyboard selection:\n%s", page)
 	}
+	if !strings.Contains(page, `item.highlightURL || item.url`) ||
+		!strings.Contains(page, `ok-highlight`) ||
+		!strings.Contains(page, `applySearchHighlight`) ||
+		!strings.Contains(page, `mark.ok-search-highlight`) ||
+		!strings.Contains(page, `.ok-search-highlight`) {
+		t.Fatalf("viewer should support search result deep-link highlighting:\n%s", page)
+	}
 	if !strings.Contains(page, `search-shortcut`) || !strings.Contains(page, `event.metaKey || event.ctrlKey`) || !strings.Contains(page, `primaryInput?.focus()`) {
 		t.Fatalf("viewer file page did not include command-k search shortcut:\n%s", page)
 	}
@@ -913,6 +920,9 @@ func TestViewerSearchAPI(t *testing.T) {
 	if payload.Results[0].Path != "workflows/docs.md" || payload.Results[0].URL != "/file/workflows/docs.md" {
 		t.Fatalf("unexpected search result: %#v", payload.Results[0])
 	}
+	if payload.Results[0].HighlightText != "validation" || payload.Results[0].HighlightURL != "/file/workflows/docs.md?ok-highlight=validation" {
+		t.Fatalf("expected search result to include highlight deep link, got %#v", payload.Results[0])
+	}
 }
 
 func TestViewerServesDirectAliasPath(t *testing.T) {
@@ -963,6 +973,9 @@ func TestViewerServesDirectAliasPath(t *testing.T) {
 	payload := getViewerSearch(t, handler, "/project-memory/api/search?q=validation")
 	if len(payload.Results) == 0 || payload.Results[0].URL != "/project-memory/file/workflows/docs.md" {
 		t.Fatalf("unexpected prefixed search result: %#v", payload)
+	}
+	if payload.Results[0].HighlightURL != "/project-memory/file/workflows/docs.md?ok-highlight=validation" {
+		t.Fatalf("unexpected prefixed highlight URL: %#v", payload.Results[0])
 	}
 }
 

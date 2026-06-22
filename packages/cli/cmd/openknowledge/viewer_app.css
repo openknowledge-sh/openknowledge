@@ -193,6 +193,7 @@ a { color: var(--ok-color-accent); text-underline-offset: 3px; }
 .note-body a { border-radius: 4px; transition: background-color .16s ease, color .16s ease; }
 .note-body a:hover, .note-body a.is-active-note { background: var(--ok-color-accent-soft); }
 .note-body a.is-active-note { color: var(--ok-color-accent-strong); }
+.ok-search-highlight { border-radius: 4px; background: var(--ok-color-accent-soft); box-shadow: 0 0 0 2px var(--ok-color-accent-soft); color: inherit; }
 strong { color: var(--ok-color-text); font-weight: 700; }
 blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--ok-color-border); color: var(--ok-color-muted); }
 blockquote p { color: var(--ok-color-muted); }

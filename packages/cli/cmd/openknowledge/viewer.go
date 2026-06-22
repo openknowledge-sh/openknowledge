@@ -823,16 +823,18 @@ type viewerSearchResponse struct {
 }
 
 type viewerSearchResult struct {
-	Path        string   `json:"path"`
-	URL         string   `json:"url"`
-	ID          string   `json:"id"`
-	Kind        string   `json:"kind"`
-	Type        string   `json:"type,omitempty"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Snippet     string   `json:"snippet,omitempty"`
-	Score       float64  `json:"score"`
-	Matches     []string `json:"matches,omitempty"`
+	Path          string   `json:"path"`
+	URL           string   `json:"url"`
+	ID            string   `json:"id"`
+	Kind          string   `json:"kind"`
+	Type          string   `json:"type,omitempty"`
+	Title         string   `json:"title"`
+	Description   string   `json:"description,omitempty"`
+	Snippet       string   `json:"snippet,omitempty"`
+	HighlightText string   `json:"highlightText,omitempty"`
+	HighlightURL  string   `json:"highlightURL,omitempty"`
+	Score         float64  `json:"score"`
+	Matches       []string `json:"matches,omitempty"`
 }
 
 type viewerSearchCache struct {
@@ -946,17 +948,20 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 		Results: make([]viewerSearchResult, 0, len(results)),
 	}
 	for _, result := range results {
+		resultURL := fileURLWithPrefix(linkPrefix, result.Path)
 		payload.Results = append(payload.Results, viewerSearchResult{
-			Path:        result.Path,
-			URL:         fileURLWithPrefix(linkPrefix, result.Path),
-			ID:          result.ID,
-			Kind:        result.Kind,
-			Type:        result.Type,
-			Title:       result.Title,
-			Description: result.Description,
-			Snippet:     result.Snippet,
-			Score:       result.Score,
-			Matches:     result.Matches,
+			Path:          result.Path,
+			URL:           resultURL,
+			ID:            result.ID,
+			Kind:          result.Kind,
+			Type:          result.Type,
+			Title:         result.Title,
+			Description:   result.Description,
+			Snippet:       result.Snippet,
+			HighlightText: result.HighlightText,
+			HighlightURL:  viewerHighlightURL(resultURL, result.HighlightText),
+			Score:         result.Score,
+			Matches:       result.Matches,
 		})
 	}
 
@@ -970,6 +975,20 @@ func writeViewerSearchJSON(response http.ResponseWriter, payload viewerSearchRes
 	if err := encoder.Encode(payload); err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func viewerHighlightURL(base string, highlightText string) string {
+	if strings.TrimSpace(highlightText) == "" {
+		return ""
+	}
+	parsed, err := url.Parse(base)
+	if err != nil {
+		return ""
+	}
+	query := parsed.Query()
+	query.Set("ok-highlight", highlightText)
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
 }
 
 func renderRegistryEmpty(response http.ResponseWriter) {

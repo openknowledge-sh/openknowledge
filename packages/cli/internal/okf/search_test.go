@@ -25,6 +25,9 @@ func TestSearchBundleRanksTitleAndBodyMatches(t *testing.T) {
 	if results[0].Snippet == "" {
 		t.Fatalf("expected snippet in result: %#v", results[0])
 	}
+	if results[0].HighlightText != "Incident Playbook" {
+		t.Fatalf("expected exact phrase highlight from title, got %#v", results[0])
+	}
 }
 
 func TestSearchIndexFromASTMatchesBundleSearch(t *testing.T) {
@@ -100,6 +103,41 @@ func TestSearchBundleSupportsFuzzyAndDiacriticInsensitiveMatches(t *testing.T) {
 	}
 	if len(fuzzyResults) == 0 || fuzzyResults[0].Path != "guides/commands.md" {
 		t.Fatalf("expected fuzzy match, got %#v", fuzzyResults)
+	}
+	if fuzzyResults[0].HighlightText != "validaci" {
+		t.Fatalf("expected fuzzy highlight to use the visible matched token, got %#v", fuzzyResults[0])
+	}
+}
+
+func TestSearchHighlightFallsBackToMatchedVisibleToken(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "customers/acme.md", "---\ntype: Customer\ntitle: ACME Account\n---\n\n# ACME\n\nThe onboarding playbook names the decision owner.\n")
+
+	results, err := Search(root, SearchOptions{Query: "playbook decision", Limit: 5, Fuzzy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected search result")
+	}
+	if results[0].HighlightText != "playbook" {
+		t.Fatalf("expected first visible matched token as fallback highlight, got %#v", results[0])
+	}
+}
+
+func TestSearchHighlightOmitsPathOnlyMatch(t *testing.T) {
+	bundle := Bundle{Files: []BundleFile{{
+		Path: "customers/acme.md",
+		Kind: "concept",
+	}}}
+
+	results := SearchBundle(bundle, SearchOptions{Query: "acme", Limit: 5, Fuzzy: true})
+	if len(results) == 0 {
+		t.Fatal("expected path-only result")
+	}
+	if results[0].HighlightText != "" {
+		t.Fatalf("expected path-only match to omit highlight text, got %#v", results[0])
 	}
 }
 

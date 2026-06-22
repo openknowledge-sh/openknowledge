@@ -7,15 +7,16 @@ type SearchOptions struct {
 }
 
 type SearchResult struct {
-	Path        string   `json:"path"`
-	ID          string   `json:"id"`
-	Kind        string   `json:"kind"`
-	Type        string   `json:"type,omitempty"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Snippet     string   `json:"snippet,omitempty"`
-	Score       float64  `json:"score"`
-	Matches     []string `json:"matches,omitempty"`
+	Path          string   `json:"path"`
+	ID            string   `json:"id"`
+	Kind          string   `json:"kind"`
+	Type          string   `json:"type,omitempty"`
+	Title         string   `json:"title"`
+	Description   string   `json:"description,omitempty"`
+	Snippet       string   `json:"snippet,omitempty"`
+	HighlightText string   `json:"highlightText,omitempty"`
+	Score         float64  `json:"score"`
+	Matches       []string `json:"matches,omitempty"`
 }
 
 type SearchIndex struct {

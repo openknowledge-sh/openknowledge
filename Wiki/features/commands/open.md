@@ -58,6 +58,11 @@ as `/wiki/` or `/personal/`.
 * Registry names and normal filesystem paths resolve through the same
   key-or-path model used by other commands.
 * `Command+K` on macOS or `Ctrl+K` elsewhere focuses search.
+* The local search API returns `highlightText` and `highlightURL` when a result
+  has a reliable visible text match. `highlightURL` points at the Markdown file
+  with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the
+  first matching text in the active note panel. This deep-link contract is for
+  the local viewer; static HTML exports keep their existing search links.
 * Markdown tables keep semantic table markup and are enhanced with scrolling,
   filtering, sorting, and row counts when viewer JavaScript is active.
 * HTML comments are not rendered as visible text. The
@@ -83,6 +88,8 @@ as `/wiki/` or `/personal/`.
 * Inspect validation warnings next to the bundle tree.
 * Follow local Markdown links without leaving the current context.
 * Search files and rendered content from the top bar.
+* Let an agent search `/api/search`, navigate a browser to `highlightURL`, and
+  show the exact matched text in context.
 * Preview bundled source and media assets in the browser.
 
 ---
@@ -99,6 +106,8 @@ as `/wiki/` or `/personal/`.
 > * `packages/cli/cmd/openknowledge/viewer_theme.css`
 > * `packages/cli/cmd/openknowledge/viewer_test.go`
 > * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/internal/okf/search.go`
+> * `packages/cli/internal/okf/search_types.go`
 > * `packages/cli/internal/okf/markdown.go`
 > * `packages/cli/internal/okf/markdown_test.go`
 >

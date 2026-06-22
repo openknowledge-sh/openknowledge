@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-22 - Local viewer search deep-link highlights
+
+* The local viewer search API now returns `highlightText` and `highlightURL`
+  for reliable visible text matches while preserving the existing `url` field.
+* Navigating to a local viewer file URL with `?ok-highlight=<text>` opens the
+  note panel, scrolls to the first matching rendered text, and marks it in the
+  document.
+* Source anchors: `packages/cli/internal/okf/search.go`,
+  `packages/cli/internal/okf/search_types.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_search.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - AST command prints parser output
 
 * Added `openknowledge ast [path]` to print the parsed OKF AST as formatted

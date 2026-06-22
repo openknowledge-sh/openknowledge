@@ -1950,7 +1950,21 @@
     return [base].concat(params.getAll("stack").filter(Boolean));
   }
 
-  function stackURL(paths) {
+  function highlightFromLocation() {
+    return highlightFromHref(window.location.href);
+  }
+
+  function highlightFromHref(href) {
+    let url;
+    try {
+      url = new URL(href, window.location.href);
+    } catch {
+      return "";
+    }
+    return (url.searchParams.get("ok-highlight") || "").trim();
+  }
+
+  function stackURL(paths, highlightText) {
     if (!paths.length) {
       const emptyURL = new URL(fileURL("index.md"), window.location.href);
       emptyURL.searchParams.set("empty", "1");
@@ -1961,6 +1975,9 @@
     paths.slice(1).forEach(function (path) {
       url.searchParams.append("stack", path);
     });
+    if (highlightText) {
+      url.searchParams.set("ok-highlight", highlightText);
+    }
     return url;
   }
 
@@ -2062,8 +2079,8 @@
     document.title = title + " - Open Knowledge";
   }
 
-  function updateHistory(paths, pushHistory) {
-    const nextURL = stackURL(paths);
+  function updateHistory(paths, pushHistory, highlightText) {
+    const nextURL = stackURL(paths, highlightText);
     const state = { stack: paths };
     if (pushHistory) {
       window.history.pushState(state, "", nextURL);
@@ -2406,6 +2423,129 @@
     });
   }
 
+  function clearSearchHighlights(scope) {
+    const root = scope || document;
+    root.querySelectorAll("mark.ok-search-highlight").forEach(function (mark) {
+      const parent = mark.parentNode;
+      if (!parent) {
+        return;
+      }
+      mark.replaceWith.apply(mark, Array.prototype.slice.call(mark.childNodes));
+      parent.normalize();
+    });
+  }
+
+  function applySearchHighlight(panel, highlightText) {
+    clearSearchHighlights(stackEl);
+    const text = String(highlightText || "").trim();
+    const body = panel?.querySelector(".note-body");
+    if (!body || !text) {
+      return;
+    }
+    window.requestAnimationFrame(function () {
+      const range = searchHighlightRange(body, text);
+      if (!range) {
+        return;
+      }
+      const mark = document.createElement("mark");
+      mark.className = "ok-search-highlight";
+      mark.dataset.searchHighlight = "";
+      mark.append(range.extractContents());
+      range.insertNode(mark);
+      mark.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: reduceMotion.matches ? "auto" : "smooth"
+      });
+      panel.focus({ preventScroll: true });
+    });
+  }
+
+  function searchHighlightRange(root, text) {
+    const needle = normalizeHighlightText(text);
+    if (!needle) {
+      return null;
+    }
+    const haystack = normalizedTextPositions(root);
+    const index = haystack.text.indexOf(needle);
+    if (index < 0) {
+      return null;
+    }
+    let start = index;
+    let end = index + needle.length;
+    while (start < end && haystack.text[start] === " ") {
+      start++;
+    }
+    while (end > start && haystack.text[end - 1] === " ") {
+      end--;
+    }
+    const first = haystack.positions[start];
+    const last = haystack.positions[end - 1];
+    if (!first || !last) {
+      return null;
+    }
+    const range = document.createRange();
+    range.setStart(first.node, first.start);
+    range.setEnd(last.node, last.end);
+    return range;
+  }
+
+  function normalizedTextPositions(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const parts = [];
+    const positions = [];
+    let previousSpace = true;
+    let node;
+    while ((node = walker.nextNode())) {
+      const value = node.nodeValue || "";
+      for (let index = 0; index < value.length; index += 1) {
+        const normalized = normalizeHighlightCharacter(value[index]);
+        if (normalized) {
+          parts.push(normalized);
+          positions.push({ node: node, start: index, end: index + 1 });
+          previousSpace = false;
+          continue;
+        }
+        if (!previousSpace) {
+          parts.push(" ");
+          positions.push({ node: node, start: index, end: index + 1 });
+        }
+        previousSpace = true;
+      }
+    }
+    while (parts.length && parts[parts.length - 1] === " ") {
+      parts.pop();
+      positions.pop();
+    }
+    return { text: parts.join(""), positions: positions };
+  }
+
+  function normalizeHighlightText(value) {
+    const parts = [];
+    let previousSpace = true;
+    Array.from(String(value || "")).forEach(function (character) {
+      const normalized = normalizeHighlightCharacter(character);
+      if (normalized) {
+        parts.push(normalized);
+        previousSpace = false;
+        return;
+      }
+      if (!previousSpace) {
+        parts.push(" ");
+      }
+      previousSpace = true;
+    });
+    while (parts.length && parts[parts.length - 1] === " ") {
+      parts.pop();
+    }
+    return parts.join("");
+  }
+
+  function normalizeHighlightCharacter(character) {
+    const normalized = String(character || "").toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return /^[\p{Letter}\p{Number}]$/u.test(normalized) ? normalized : "";
+  }
+
   async function fetchNote(path) {
     if (isStaticBundle()) {
       const note = staticNotesByPath[path];
@@ -2581,13 +2721,14 @@
     updateTitle();
   }
 
-  async function openInitialNote(targetPath, pushHistory) {
+  async function openInitialNote(targetPath, pushHistory, highlightText) {
     const panel = await panelForPath(targetPath, true);
     await runStackTransition(function () {
       clearStack();
       appendPanel(panel);
-      updateHistory(currentStack(), pushHistory);
+      updateHistory(currentStack(), pushHistory, highlightText);
     });
+    applySearchHighlight(panel, highlightText);
   }
 
   async function closePanel(panel, pushHistory) {
@@ -2620,6 +2761,7 @@
 
   async function openFromPanel(sourcePanel, targetPath, pushHistory) {
     const panel = await panelForPath(targetPath, true);
+    clearSearchHighlights(stackEl);
     await runStackTransition(function () {
       const all = panels();
       let sourceIndex = all.indexOf(sourcePanel);
@@ -2634,7 +2776,7 @@
     });
   }
 
-  async function restoreStack(paths) {
+  async function restoreStack(paths, highlightText) {
     const loadedPanels = [];
     for (const path of paths) {
       loadedPanels.push(await panelForPath(path, false));
@@ -2654,6 +2796,7 @@
         scrollToPanel(active);
       }
     });
+    applySearchHighlight(activePanel(), highlightText);
   }
 
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
@@ -3170,7 +3313,7 @@
 
   window.addEventListener("popstate", function () {
     const paths = stackFromLocation();
-    restoreStack(paths);
+    restoreStack(paths, highlightFromLocation());
   });
 
   document.addEventListener("click", function (event) {
@@ -3183,7 +3326,7 @@
       if (targetPath) {
         event.preventDefault();
         closeSearchResults(searchResult);
-        openInitialNote(targetPath, true);
+        openInitialNote(targetPath, true, highlightFromHref(searchResult.getAttribute("href") || searchResult.href));
         return;
       }
     }
@@ -3204,17 +3347,19 @@
   });
 
   const requestedStack = stackFromLocation();
+  const requestedHighlight = highlightFromLocation();
   bindViewerSettings();
   renderKnowledgeGraph();
   panels().forEach(bindPanel);
   ensureActivePanel();
   if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
     window.history.replaceState({ stack: requestedStack }, "", window.location.href);
-    restoreStack(requestedStack);
+    restoreStack(requestedStack, requestedHighlight);
   } else {
     window.history.replaceState({ stack: requestedStack }, "", window.location.href);
     updateWorkspaceState();
     updateActiveLinks();
     updateTitle();
+    applySearchHighlight(activePanel(), requestedHighlight);
   }
 })();

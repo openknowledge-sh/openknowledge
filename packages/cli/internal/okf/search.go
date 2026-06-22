@@ -184,15 +184,16 @@ func scoreSearchDocument(document searchDocument, terms []string, normalizedQuer
 		score *= 0.55
 	}
 	result := SearchResult{
-		Path:        document.path,
-		ID:          document.id,
-		Kind:        document.kind,
-		Type:        document.documentType,
-		Title:       document.title,
-		Description: document.description,
-		Snippet:     searchSnippet(document, terms),
-		Score:       roundSearchScore(score),
-		Matches:     sortedSearchMatches(matches),
+		Path:          document.path,
+		ID:            document.id,
+		Kind:          document.kind,
+		Type:          document.documentType,
+		Title:         document.title,
+		Description:   document.description,
+		Snippet:       searchSnippet(document, terms),
+		HighlightText: searchHighlightText(document, normalizedQuery, terms, fuzzy),
+		Score:         roundSearchScore(score),
+		Matches:       sortedSearchMatches(matches),
 	}
 	if result.Title == "" {
 		result.Title = deriveTitle(document.path)
@@ -364,6 +365,148 @@ func searchSnippet(document searchDocument, terms []string) string {
 		}
 	}
 	return ""
+}
+
+func searchHighlightText(document searchDocument, normalizedQuery string, terms []string, fuzzy bool) string {
+	candidates := searchHighlightCandidates(document)
+	if normalizedQuery != "" {
+		for _, candidate := range candidates {
+			if text := exactSearchHighlight(candidate, normalizedQuery); text != "" {
+				return text
+			}
+		}
+	}
+	for _, candidate := range candidates {
+		for _, term := range terms {
+			if text := tokenSearchHighlight(candidate, term, fuzzy); text != "" {
+				return text
+			}
+		}
+	}
+	return ""
+}
+
+func searchHighlightCandidates(document searchDocument) []string {
+	candidates := []string{document.title, document.description}
+	for _, line := range strings.Split(strings.ReplaceAll(document.body, "\r\n", "\n"), "\n") {
+		line = cleanSnippetLine(line)
+		if line != "" {
+			candidates = append(candidates, line)
+		}
+	}
+	return candidates
+}
+
+func exactSearchHighlight(value string, normalizedQuery string) string {
+	if normalizedQuery == "" {
+		return ""
+	}
+	normalized, spans := normalizedSearchSpans(value)
+	index := strings.Index(normalized, normalizedQuery)
+	if index < 0 {
+		return ""
+	}
+	start := index
+	end := index + len(normalizedQuery)
+	for start < end && normalized[start] == ' ' {
+		start++
+	}
+	for end > start && normalized[end-1] == ' ' {
+		end--
+	}
+	if start >= end || start >= len(spans) || end-1 >= len(spans) {
+		return ""
+	}
+	return strings.TrimSpace(value[spans[start].start:spans[end-1].end])
+}
+
+func tokenSearchHighlight(value string, term string, fuzzy bool) string {
+	if utf8.RuneCountInString(term) <= 1 {
+		return ""
+	}
+	for _, token := range searchVisibleTokens(value) {
+		if token.normalized == "" {
+			continue
+		}
+		if token.normalized == term || strings.HasPrefix(token.normalized, term) {
+			return token.text
+		}
+		if fuzzy {
+			distance := maxSearchDistance(term)
+			if distance > 0 &&
+				absInt(utf8.RuneCountInString(token.normalized)-utf8.RuneCountInString(term)) <= distance &&
+				editDistanceWithin(token.normalized, term, distance) {
+				return token.text
+			}
+		}
+	}
+	return ""
+}
+
+type searchSpan struct {
+	start int
+	end   int
+}
+
+type searchVisibleToken struct {
+	text       string
+	normalized string
+}
+
+func normalizedSearchSpans(value string) (string, []searchSpan) {
+	var builder strings.Builder
+	spans := make([]searchSpan, 0, len(value))
+	previousSpace := true
+	for index, raw := range value {
+		end := index + len(string(raw))
+		r := foldSearchRune(unicode.ToLower(raw))
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			builder.WriteRune(r)
+			spans = append(spans, searchSpan{start: index, end: end})
+			previousSpace = false
+			continue
+		}
+		if !previousSpace {
+			builder.WriteByte(' ')
+			spans = append(spans, searchSpan{start: index, end: end})
+		}
+		previousSpace = true
+	}
+	normalized := strings.TrimSpace(builder.String())
+	for len(spans) > len(normalized) {
+		spans = spans[:len(spans)-1]
+	}
+	return normalized, spans
+}
+
+func searchVisibleTokens(value string) []searchVisibleToken {
+	var tokens []searchVisibleToken
+	tokenStart := -1
+	var normalized strings.Builder
+	flush := func(end int) {
+		if tokenStart < 0 {
+			return
+		}
+		text := strings.TrimSpace(value[tokenStart:end])
+		if text != "" {
+			tokens = append(tokens, searchVisibleToken{text: text, normalized: normalized.String()})
+		}
+		tokenStart = -1
+		normalized.Reset()
+	}
+	for index, raw := range value {
+		r := foldSearchRune(unicode.ToLower(raw))
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			if tokenStart < 0 {
+				tokenStart = index
+			}
+			normalized.WriteRune(r)
+			continue
+		}
+		flush(index)
+	}
+	flush(len(value))
+	return tokens
 }
 
 func snippetMatchesTerm(normalized string, term string) bool {
