@@ -23,7 +23,7 @@ func TestASTBackedOutputsMatchPublicAPIs(t *testing.T) {
 	validation := ValidateAST(parsed)
 	issues := issuesFromResult(validation)
 
-	directBundle, err := bundleFromAST(parsed, issues)
+	directBundle, err := BundleFromAST(parsed, issues)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestValidateASTMatchesValidateForMalformedDocuments(t *testing.T) {
 func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 	files := map[string][]string{
 		"validate.go": {"parseAndValidateASTBundle"},
-		"bundle.go":   {"parseAndValidateASTBundle", "bundleFromAST"},
+		"bundle.go":   {"parseAndValidateASTBundle", "BundleFromAST"},
 		"list.go":     {"parseAndValidateASTBundle", "listInventoryFromAST"},
 		"search.go":   {"parseAndValidateASTBundle", "newSearchIndexFromAST"},
 		"html.go":     {"parseAndValidateASTBundle", "writeHTMLFromAST"},

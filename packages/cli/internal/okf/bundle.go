@@ -10,10 +10,10 @@ func ParseBundleWithVersion(root string, version string) (Bundle, error) {
 		return Bundle{}, err
 	}
 
-	return bundleFromAST(ast, issuesFromResult(validation))
+	return BundleFromAST(ast, issuesFromResult(validation))
 }
 
-func bundleFromAST(ast ASTBundle, issues []Issue) (Bundle, error) {
+func BundleFromAST(ast ASTBundle, issues []Issue) (Bundle, error) {
 	files, err := bundleFilesFromAST(ast, issues)
 	if err != nil {
 		return Bundle{}, err
