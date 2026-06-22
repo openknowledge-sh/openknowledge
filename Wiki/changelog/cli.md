@@ -45,6 +45,19 @@ that were updated.
 * Docs updated: `README.md`, `Wiki/features/commands/context.md`,
   `Wiki/features/commands/index.md`, `Wiki/changelog/cli.md`.
 
+### 2026-06-20 - Viewer theme selector
+
+* The local and static file viewer header now has a settings button with theme
+  choices for Default, Night, Paper, Ocean, Rose, and Custom.
+* Custom themes let users set page, surface, text, muted, accent, and border
+  colors; the preference persists in browser storage with a cookie fallback.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-20 - Agent maintenance footers render quietly
 
 * Markdown rendering now hides HTML comments instead of escaping them into

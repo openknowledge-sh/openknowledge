@@ -6,6 +6,10 @@
   const fileSidebar = document.querySelector("[data-file-sidebar]");
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
   const sidebarClose = document.querySelector("[data-sidebar-close]");
+  const settings = document.querySelector("[data-viewer-settings]");
+  const settingsTrigger = document.querySelector("[data-viewer-settings-trigger]");
+  const settingsMenu = document.querySelector("[data-viewer-settings-menu]");
+  const customThemeFields = document.querySelector("[data-theme-custom-fields]");
   const scrollRail = document.querySelector("[data-workspace-rail]");
   const scrollTrack = document.querySelector("[data-workspace-scroll-track]");
   const scrollThumb = document.querySelector("[data-workspace-scroll-thumb]");
@@ -17,6 +21,7 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const mobileSidebar = window.matchMedia("(max-width: 680px)");
   const editorStorageKey = "openknowledge.viewer.editorOrder";
+  const themeStorageKey = "openknowledge.viewer.theme";
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
   const editorOptions = readEditorOptions();
@@ -25,6 +30,23 @@
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
   const knowledgeGraph = readKnowledgeGraph();
+  const themePresets = ["default", "night", "paper", "ocean", "rose", "custom"];
+  const customThemeDefaults = {
+    page: "#f0f0f0",
+    surface: "#ffffff",
+    text: "#1f2724",
+    muted: "#65736d",
+    accent: "#0f7a4d",
+    border: "#dfe5e1"
+  };
+  const customThemeVariables = {
+    page: ["--ok-color-page", "--ok-color-viewer-canvas", "--ok-color-viewer-header-bg", "--ok-color-sidebar", "--ok-color-sidebar-header", "--ok-color-search-input-bg", "--ok-color-editor-trigger-bg"],
+    surface: ["--ok-color-surface", "--ok-color-note-chrome-bg", "--ok-color-search-popover-bg", "--ok-color-editor-menu-bg", "--ok-color-card-bg", "--ok-color-editor-mark-bg"],
+    text: ["--ok-color-text", "--ok-color-document-text", "--ok-color-control-hover-text", "--ok-color-editor-mark-text", "--ok-color-code-block-bg"],
+    muted: ["--ok-color-muted", "--ok-color-control-text", "--ok-color-sidebar-text", "--ok-color-tree-text", "--ok-color-editor-trigger-text"],
+    accent: ["--ok-color-accent", "--ok-color-accent-strong", "--ok-color-graph-node-active-border"],
+    border: ["--ok-color-border", "--ok-color-search-input-border", "--ok-color-card-border", "--ok-color-editor-trigger-border", "--ok-color-editor-menu-border"]
+  };
 
   function panels() {
     return Array.prototype.slice.call(stackEl.querySelectorAll("[data-note-path]"));
@@ -105,6 +127,151 @@
       document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + "; Max-Age=31536000; Path=/; SameSite=Lax";
     } catch {
       // Cookies are best-effort; localStorage still covers same-origin exports.
+    }
+  }
+
+  function readThemePreference() {
+    const stored = readStoredJSON(themeStorageKey);
+    if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+      return normalizeThemePreference(stored);
+    }
+    return normalizeThemePreference({ preset: "default", custom: customThemeDefaults });
+  }
+
+  function normalizeThemePreference(value) {
+    const preset = themePresets.includes(value.preset) ? value.preset : "default";
+    const custom = Object.assign({}, customThemeDefaults);
+    Object.keys(customThemeDefaults).forEach(function (key) {
+      if (isHexColor(value.custom && value.custom[key])) {
+        custom[key] = value.custom[key].toLowerCase();
+      }
+    });
+    return { preset: preset, custom: custom };
+  }
+
+  function saveThemePreference(preference) {
+    const normalized = normalizeThemePreference(preference);
+    const serialized = JSON.stringify(normalized);
+    try {
+      window.localStorage.setItem(themeStorageKey, serialized);
+    } catch {
+      // Browser storage can be disabled in private or file-export contexts.
+    }
+    writeCookie(themeStorageKey, serialized);
+  }
+
+  function isHexColor(value) {
+    return /^#[0-9a-f]{6}$/i.test(String(value || ""));
+  }
+
+  function hexToRGB(value) {
+    const hex = isHexColor(value) ? value.slice(1) : customThemeDefaults.accent.slice(1);
+    return [
+      parseInt(hex.slice(0, 2), 16),
+      parseInt(hex.slice(2, 4), 16),
+      parseInt(hex.slice(4, 6), 16)
+    ];
+  }
+
+  function colorMix(hex, otherHex, amount) {
+    const base = hexToRGB(hex);
+    const other = hexToRGB(otherHex);
+    const next = base.map(function (component, index) {
+      return Math.round(component + (other[index] - component) * amount);
+    });
+    return "#" + next.map(function (component) {
+      return component.toString(16).padStart(2, "0");
+    }).join("");
+  }
+
+  function readableCodeBlockText(background) {
+    const rgb = hexToRGB(background);
+    const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+    return luminance > 0.48 ? "#121715" : "#f3f7f4";
+  }
+
+  function applyThemePreference(preference) {
+    const normalized = normalizeThemePreference(preference);
+    document.documentElement.dataset.viewerTheme = normalized.preset;
+    document.documentElement.style.colorScheme = normalized.preset === "night" ? "dark" : "light";
+    clearCustomThemeVariables();
+    if (normalized.preset === "custom") {
+      applyCustomThemeVariables(normalized.custom);
+    }
+    syncThemeControls(normalized);
+  }
+
+  function clearCustomThemeVariables() {
+    Object.keys(customThemeVariables).forEach(function (key) {
+      customThemeVariables[key].forEach(function (name) {
+        document.documentElement.style.removeProperty(name);
+      });
+    });
+    [
+      "--ok-color-accent-rgb",
+      "--ok-color-accent-soft",
+      "--ok-color-accent-softer",
+      "--ok-color-accent-selected",
+      "--ok-color-accent-focus",
+      "--ok-color-accent-focus-strong",
+      "--ok-color-accent-border",
+      "--ok-color-accent-border-strong",
+      "--ok-color-shadow",
+      "--ok-color-code-inline-bg",
+      "--ok-color-code-block-text",
+      "--ok-color-control-hover-bg",
+      "--ok-color-sidebar-row",
+      "--ok-color-sidebar-tree-hover-bg",
+      "--ok-color-search-result-hover-bg",
+      "--ok-color-editor-menu-item-hover-bg",
+      "--ok-color-graph-edge-active",
+      "--ok-color-graph-node-active-shadow"
+    ].forEach(function (name) {
+      document.documentElement.style.removeProperty(name);
+    });
+  }
+
+  function applyCustomThemeVariables(custom) {
+    Object.keys(customThemeVariables).forEach(function (key) {
+      customThemeVariables[key].forEach(function (name) {
+        document.documentElement.style.setProperty(name, custom[key]);
+      });
+    });
+    const accentRGB = hexToRGB(custom.accent).join(", ");
+    document.documentElement.style.setProperty("--ok-color-accent-rgb", accentRGB);
+    document.documentElement.style.setProperty("--ok-color-accent-soft", "rgba(" + accentRGB + ", .13)");
+    document.documentElement.style.setProperty("--ok-color-accent-softer", "rgba(" + accentRGB + ", .09)");
+    document.documentElement.style.setProperty("--ok-color-accent-selected", "rgba(" + accentRGB + ", .1)");
+    document.documentElement.style.setProperty("--ok-color-accent-focus", "rgba(" + accentRGB + ", .12)");
+    document.documentElement.style.setProperty("--ok-color-accent-focus-strong", "rgba(" + accentRGB + ", .18)");
+    document.documentElement.style.setProperty("--ok-color-accent-border", "rgba(" + accentRGB + ", .35)");
+    document.documentElement.style.setProperty("--ok-color-accent-border-strong", "rgba(" + accentRGB + ", .5)");
+    document.documentElement.style.setProperty("--ok-color-shadow", "rgba(" + hexToRGB(custom.text).join(", ") + ", .14)");
+    document.documentElement.style.setProperty("--ok-color-code-inline-bg", colorMix(custom.surface, custom.accent, 0.1));
+    document.documentElement.style.setProperty("--ok-color-code-block-text", readableCodeBlockText(custom.text));
+    document.documentElement.style.setProperty("--ok-color-control-hover-bg", colorMix(custom.page, custom.text, 0.08));
+    document.documentElement.style.setProperty("--ok-color-sidebar-row", colorMix(custom.page, custom.text, 0.11));
+    document.documentElement.style.setProperty("--ok-color-sidebar-tree-hover-bg", colorMix(custom.page, custom.accent, 0.13));
+    document.documentElement.style.setProperty("--ok-color-search-result-hover-bg", colorMix(custom.surface, custom.accent, 0.08));
+    document.documentElement.style.setProperty("--ok-color-editor-menu-item-hover-bg", colorMix(custom.surface, custom.accent, 0.08));
+    document.documentElement.style.setProperty("--ok-color-graph-edge-active", "rgba(" + accentRGB + ", .78)");
+    document.documentElement.style.setProperty("--ok-color-graph-node-active-shadow", "rgba(" + accentRGB + ", .24)");
+  }
+
+  function syncThemeControls(preference) {
+    document.querySelectorAll("[data-theme-option]").forEach(function (button) {
+      const selected = button.dataset.themeOption === preference.preset;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-checked", selected ? "true" : "false");
+    });
+    if (customThemeFields) {
+      customThemeFields.hidden = preference.preset !== "custom";
+      customThemeFields.querySelectorAll("[data-theme-custom-value]").forEach(function (input) {
+        const key = input.dataset.themeCustomValue;
+        if (preference.custom[key]) {
+          input.value = preference.custom[key];
+        }
+      });
     }
   }
 
@@ -1564,6 +1731,84 @@
     });
   }
 
+  function setSettingsOpen(open) {
+    if (!settingsTrigger || !settingsMenu) {
+      return;
+    }
+    settingsMenu.hidden = !open;
+    settingsTrigger.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function bindViewerSettings() {
+    if (!settings || !settingsTrigger || !settingsMenu || settings.dataset.settingsBound === "true") {
+      return;
+    }
+    settings.dataset.settingsBound = "true";
+    let preference = readThemePreference();
+    applyThemePreference(preference);
+
+    settingsTrigger.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      setSettingsOpen(settingsMenu.hidden);
+    });
+    settingsTrigger.addEventListener("keydown", function (event) {
+      if (event.key !== "ArrowDown" && event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      setSettingsOpen(true);
+      const selected = settingsMenu.querySelector("[data-theme-option].is-selected") || settingsMenu.querySelector("[data-theme-option]");
+      if (selected) {
+        selected.focus();
+      }
+    });
+
+    settingsMenu.addEventListener("click", function (event) {
+      const option = closestElement(event.target, "[data-theme-option]");
+      if (!option) {
+        return;
+      }
+      event.preventDefault();
+      preference = normalizeThemePreference({ preset: option.dataset.themeOption, custom: preference.custom });
+      saveThemePreference(preference);
+      applyThemePreference(preference);
+    });
+    settingsMenu.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSettingsOpen(false);
+        settingsTrigger.focus();
+        return;
+      }
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      const option = closestElement(event.target, "[data-theme-option]");
+      if (!option) {
+        return;
+      }
+      event.preventDefault();
+      preference = normalizeThemePreference({ preset: option.dataset.themeOption, custom: preference.custom });
+      saveThemePreference(preference);
+      applyThemePreference(preference);
+    });
+
+    settingsMenu.querySelectorAll("[data-theme-custom-value]").forEach(function (input) {
+      input.addEventListener("input", function () {
+        const key = input.dataset.themeCustomValue;
+        if (!customThemeDefaults[key] || !isHexColor(input.value)) {
+          return;
+        }
+        const custom = Object.assign({}, preference.custom);
+        custom[key] = input.value.toLowerCase();
+        preference = normalizeThemePreference({ preset: "custom", custom: custom });
+        saveThemePreference(preference);
+        applyThemePreference(preference);
+      });
+    });
+  }
+
   function activePanel() {
     return stackEl.querySelector(".note-panel.is-active-panel");
   }
@@ -2946,15 +3191,20 @@
     if (!closestElement(event.target, "[data-editor-picker]")) {
       closeEditorMenus();
     }
+    if (!closestElement(event.target, "[data-viewer-settings]")) {
+      setSettingsOpen(false);
+    }
   });
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
       closeEditorMenus();
+      setSettingsOpen(false);
       setSidebarOpen(false);
     }
   });
 
   const requestedStack = stackFromLocation();
+  bindViewerSettings();
   renderKnowledgeGraph();
   panels().forEach(bindPanel);
   ensureActivePanel();

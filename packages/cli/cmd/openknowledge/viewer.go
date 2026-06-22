@@ -2300,6 +2300,51 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       <div class="search-status" aria-live="polite"></div>
       <div class="search-results" hidden></div>
     </section>
+    <div class="viewer-settings" data-viewer-settings>
+      <button class="viewer-settings-trigger" type="button" data-viewer-settings-trigger aria-haspopup="dialog" aria-expanded="false" aria-label="Viewer settings" title="Settings">
+        <svg class="viewer-settings-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+          <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.65V21.3a2.1 2.1 0 0 1-4.2 0v-.06a1.8 1.8 0 0 0-1.1-1.65 1.8 1.8 0 0 0-1.98.36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04A1.8 1.8 0 0 0 3.8 15a1.8 1.8 0 0 0-1.65-1.1H2.1a2.1 2.1 0 0 1 0-4.2h.06A1.8 1.8 0 0 0 3.8 8a1.8 1.8 0 0 0-.36-1.98l-.04-.04A2.1 2.1 0 0 1 6.37 3l.04.04A1.8 1.8 0 0 0 8.4 3.4a1.8 1.8 0 0 0 1.1-1.65V1.7a2.1 2.1 0 0 1 4.2 0v.06a1.8 1.8 0 0 0 1.1 1.65 1.8 1.8 0 0 0 1.98-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04A1.8 1.8 0 0 0 19.4 8a1.8 1.8 0 0 0 1.65 1.1h.06a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"></path>
+        </svg>
+      </button>
+      <div class="viewer-settings-menu" data-viewer-settings-menu role="dialog" aria-label="Theme settings" hidden>
+        <div class="viewer-settings-title">Theme</div>
+        <div class="theme-options" role="radiogroup" aria-label="Theme">
+          <button class="theme-option" type="button" data-theme-option="default" role="radio" aria-checked="false">
+            <span class="theme-swatch theme-swatch-default" aria-hidden="true"></span>
+            <span>Default</span>
+          </button>
+          <button class="theme-option" type="button" data-theme-option="night" role="radio" aria-checked="false">
+            <span class="theme-swatch theme-swatch-night" aria-hidden="true"></span>
+            <span>Night</span>
+          </button>
+          <button class="theme-option" type="button" data-theme-option="paper" role="radio" aria-checked="false">
+            <span class="theme-swatch theme-swatch-paper" aria-hidden="true"></span>
+            <span>Paper</span>
+          </button>
+          <button class="theme-option" type="button" data-theme-option="ocean" role="radio" aria-checked="false">
+            <span class="theme-swatch theme-swatch-ocean" aria-hidden="true"></span>
+            <span>Ocean</span>
+          </button>
+          <button class="theme-option" type="button" data-theme-option="rose" role="radio" aria-checked="false">
+            <span class="theme-swatch theme-swatch-rose" aria-hidden="true"></span>
+            <span>Rose</span>
+          </button>
+          <button class="theme-option" type="button" data-theme-option="custom" role="radio" aria-checked="false">
+            <span class="theme-swatch theme-swatch-custom" aria-hidden="true"></span>
+            <span>Custom</span>
+          </button>
+        </div>
+        <div class="theme-custom-fields" data-theme-custom-fields hidden>
+          <label>Page <input type="color" data-theme-custom-value="page"></label>
+          <label>Surface <input type="color" data-theme-custom-value="surface"></label>
+          <label>Text <input type="color" data-theme-custom-value="text"></label>
+          <label>Muted <input type="color" data-theme-custom-value="muted"></label>
+          <label>Accent <input type="color" data-theme-custom-value="accent"></label>
+          <label>Border <input type="color" data-theme-custom-value="border"></label>
+        </div>
+      </div>
+    </div>
   </header>
   <aside class="file-sidebar" data-file-sidebar aria-label="File explorer" aria-hidden="true">
     <div class="file-sidebar-head">

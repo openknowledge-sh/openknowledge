@@ -54,6 +54,24 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.search.header-search { width: min(52vw, 320px); min-width: 0; }`) {
 		t.Fatalf("viewer mobile header search should override the desktop minimum width:\n%s", page)
 	}
+	if !strings.Contains(page, `data-viewer-settings-trigger`) ||
+		!strings.Contains(page, `data-theme-option="default"`) ||
+		!strings.Contains(page, `data-theme-option="night"`) ||
+		!strings.Contains(page, `data-theme-option="paper"`) ||
+		!strings.Contains(page, `data-theme-option="ocean"`) ||
+		!strings.Contains(page, `data-theme-option="rose"`) ||
+		!strings.Contains(page, `data-theme-option="custom"`) {
+		t.Fatalf("viewer should render the settings theme selector with built-in and custom themes:\n%s", page)
+	}
+	if !strings.Contains(page, `openknowledge.viewer.theme`) ||
+		!strings.Contains(page, `data-theme-custom-value="page"`) ||
+		!strings.Contains(page, `data-theme-custom-value="surface"`) ||
+		!strings.Contains(page, `data-theme-custom-value="text"`) ||
+		!strings.Contains(page, `data-theme-custom-value="muted"`) ||
+		!strings.Contains(page, `data-theme-custom-value="accent"`) ||
+		!strings.Contains(page, `data-theme-custom-value="border"`) {
+		t.Fatalf("viewer should persist theme choices and expose custom theme controls:\n%s", page)
+	}
 	if !strings.Contains(page, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer did not rewrite relative markdown link:\n%s", page)
 	}
