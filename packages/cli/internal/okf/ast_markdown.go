@@ -40,14 +40,14 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 				Text:      text,
 				Links:     parseASTMarkdownLinks(text, lineStart),
 			}
-			markdown.Blocks = append(markdown.Blocks, block)
-			markdown.Links = append(markdown.Links, block.Links...)
+			appendASTMarkdownBlock(&markdown, block)
 		}
 		paragraphStart = -1
 		paragraphLines = nil
 	}
 
-	for index, line := range lines {
+	for index := 0; index < len(lines); index++ {
+		line := lines[index]
 		lineNumber := bodyLine + index
 		trimmed := strings.TrimSpace(line)
 
@@ -65,7 +65,7 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 			if marker == fence.marker && length >= fence.length {
 				codeBlock := astMarkdownCodeBlock(fence, bodyLine, lineNumber)
 				markdown.CodeBlocks = append(markdown.CodeBlocks, codeBlock)
-				markdown.Blocks = append(markdown.Blocks, ASTMarkdownBlock{
+				appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
 					Kind:      "code",
 					LineStart: codeBlock.LineStart,
 					LineEnd:   codeBlock.LineEnd,
@@ -89,6 +89,54 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 			continue
 		}
 
+		if isAgentMaintenanceFooterMarker(trimmed) {
+			flushParagraph(index - 1)
+			appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
+				Kind:      "agent-footer",
+				LineStart: lineNumber,
+				LineEnd:   lineNumber,
+				Text:      trimmed,
+			})
+			continue
+		}
+
+		if isHTMLComment(trimmed) {
+			flushParagraph(index - 1)
+			appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
+				Kind:      "html-comment",
+				LineStart: lineNumber,
+				LineEnd:   lineNumber,
+				Text:      trimmed,
+			})
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, ">") {
+			flushParagraph(index - 1)
+			block, next := astMarkdownBlockquote(lines, index, bodyLine)
+			appendASTMarkdownBlock(&markdown, block)
+			index = next - 1
+			continue
+		}
+
+		if isHorizontalRule(trimmed) {
+			flushParagraph(index - 1)
+			appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
+				Kind:      "thematic-break",
+				LineStart: lineNumber,
+				LineEnd:   lineNumber,
+				Text:      trimmed,
+			})
+			continue
+		}
+
+		if block, next, ok := astMarkdownTableBlock(lines, index, bodyLine); ok {
+			flushParagraph(index - 1)
+			appendASTMarkdownBlock(&markdown, block)
+			index = next - 1
+			continue
+		}
+
 		if level := HeadingLevel(trimmed); level > 0 {
 			flushParagraph(index - 1)
 			text := strings.TrimSpace(trimmed[level:])
@@ -100,8 +148,7 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 			}
 			links := parseASTMarkdownLinks(text, lineNumber)
 			markdown.Headings = append(markdown.Headings, heading)
-			markdown.Links = append(markdown.Links, links...)
-			markdown.Blocks = append(markdown.Blocks, ASTMarkdownBlock{
+			appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
 				Kind:      "heading",
 				LineStart: lineNumber,
 				LineEnd:   lineNumber,
@@ -109,6 +156,13 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 				Heading:   &heading,
 				Links:     links,
 			})
+			continue
+		}
+
+		if block, next, ok := astMarkdownListBlock(lines, index, bodyLine); ok {
+			flushParagraph(index - 1)
+			appendASTMarkdownBlock(&markdown, block)
+			index = next - 1
 			continue
 		}
 
@@ -125,7 +179,7 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 		})
 		codeBlock := astMarkdownCodeBlock(fence, bodyLine, bodyLine+len(lines)-1)
 		markdown.CodeBlocks = append(markdown.CodeBlocks, codeBlock)
-		markdown.Blocks = append(markdown.Blocks, ASTMarkdownBlock{
+		appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
 			Kind:      "code",
 			LineStart: codeBlock.LineStart,
 			LineEnd:   codeBlock.LineEnd,
@@ -136,6 +190,11 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 	flushParagraph(len(lines) - 1)
 	markdown.Sections = astMarkdownSections(markdown.Blocks)
 	return markdown
+}
+
+func appendASTMarkdownBlock(markdown *ASTMarkdown, block ASTMarkdownBlock) {
+	markdown.Blocks = append(markdown.Blocks, block)
+	markdown.Links = append(markdown.Links, block.Links...)
 }
 
 func astMarkdownCodeBlock(fence *astMarkdownFenceState, bodyLine int, lineEnd int) ASTMarkdownCodeBlock {
@@ -172,6 +231,137 @@ func astMarkdownHeadingText(markdown ASTMarkdown) string {
 		headings = append(headings, heading.Text)
 	}
 	return strings.Join(headings, "\n")
+}
+
+func astMarkdownBlockquote(lines []string, start int, bodyLine int) (ASTMarkdownBlock, int) {
+	index := start
+	var quoteLines []string
+	for index < len(lines) {
+		trimmed := strings.TrimSpace(lines[index])
+		if !strings.HasPrefix(trimmed, ">") {
+			break
+		}
+		quoteLines = append(quoteLines, strings.TrimSpace(strings.TrimPrefix(trimmed, ">")))
+		index++
+	}
+	text := strings.Join(quoteLines, "\n")
+	nested := ParseASTMarkdown(text, bodyLine+start)
+	return ASTMarkdownBlock{
+		Kind:      "blockquote",
+		LineStart: bodyLine + start,
+		LineEnd:   bodyLine + index - 1,
+		Text:      text,
+		Links:     nested.Links,
+		Children:  nested.Blocks,
+	}, index
+}
+
+type astMarkdownListMarker struct {
+	ordered bool
+	text    string
+}
+
+func astMarkdownListBlock(lines []string, start int, bodyLine int) (ASTMarkdownBlock, int, bool) {
+	marker, ok := astMarkdownListItemMarker(strings.TrimSpace(lines[start]))
+	if !ok {
+		return ASTMarkdownBlock{}, start, false
+	}
+
+	index := start
+	ordered := marker.ordered
+	list := ASTMarkdownList{Ordered: ordered}
+	var links []ASTMarkdownLink
+	for index < len(lines) {
+		marker, ok := astMarkdownListItemMarker(strings.TrimSpace(lines[index]))
+		if !ok || marker.ordered != ordered {
+			break
+		}
+
+		itemStart := index
+		itemEnd := index
+		itemLines := []string{marker.text}
+		index++
+		for index < len(lines) && isListContinuation(lines[index]) {
+			trimmed := strings.TrimSpace(lines[index])
+			if trimmed == "" {
+				break
+			}
+			itemLines = append(itemLines, trimmed)
+			itemEnd = index
+			index++
+		}
+
+		text := strings.Join(itemLines, " ")
+		itemLinks := parseASTMarkdownLinks(text, bodyLine+itemStart)
+		links = append(links, itemLinks...)
+		list.Items = append(list.Items, ASTMarkdownListItem{
+			Text:      text,
+			LineStart: bodyLine + itemStart,
+			LineEnd:   bodyLine + itemEnd,
+			Links:     itemLinks,
+		})
+	}
+
+	return ASTMarkdownBlock{
+		Kind:      "list",
+		LineStart: bodyLine + start,
+		LineEnd:   bodyLine + index - 1,
+		List:      &list,
+		Links:     links,
+	}, index, true
+}
+
+func astMarkdownListItemMarker(trimmed string) (astMarkdownListMarker, bool) {
+	if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
+		return astMarkdownListMarker{text: strings.TrimSpace(trimmed[2:])}, true
+	}
+	if match := orderedListItem.FindStringIndex(trimmed); match != nil {
+		return astMarkdownListMarker{ordered: true, text: strings.TrimSpace(trimmed[match[1]:])}, true
+	}
+	return astMarkdownListMarker{}, false
+}
+
+func astMarkdownTableBlock(lines []string, start int, bodyLine int) (ASTMarkdownBlock, int, bool) {
+	if start+1 >= len(lines) {
+		return ASTMarkdownBlock{}, start, false
+	}
+	header := tableCells(lines[start])
+	separator := tableCells(lines[start+1])
+	if len(header) == 0 || len(separator) != len(header) || !isTableSeparator(separator) {
+		return ASTMarkdownBlock{}, start, false
+	}
+
+	table := ASTMarkdownTable{
+		Header:     header,
+		Alignments: tableAlignments(separator),
+	}
+	var links []ASTMarkdownLink
+	links = append(links, parseASTMarkdownLinks(strings.Join(header, " "), bodyLine+start)...)
+
+	index := start + 2
+	for index < len(lines) {
+		cells := tableCells(lines[index])
+		if len(cells) == 0 {
+			break
+		}
+		rowLinks := parseASTMarkdownLinks(strings.Join(cells, " "), bodyLine+index)
+		links = append(links, rowLinks...)
+		table.Rows = append(table.Rows, ASTMarkdownTableRow{
+			Cells: cells,
+			Line:  bodyLine + index,
+			Links: rowLinks,
+		})
+		index++
+	}
+
+	return ASTMarkdownBlock{
+		Kind:      "table",
+		LineStart: bodyLine + start,
+		LineEnd:   bodyLine + index - 1,
+		Text:      strings.Join(lines[start:index], "\n"),
+		Table:     &table,
+		Links:     links,
+	}, index, true
 }
 
 func astMarkdownSections(blocks []ASTMarkdownBlock) []ASTMarkdownSection {

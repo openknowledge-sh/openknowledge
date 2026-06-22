@@ -16,7 +16,10 @@ type ASTMarkdownBlock struct {
 	Text      string                `json:"text,omitempty"`
 	Heading   *ASTMarkdownHeading   `json:"heading,omitempty"`
 	CodeBlock *ASTMarkdownCodeBlock `json:"codeBlock,omitempty"`
+	List      *ASTMarkdownList      `json:"list,omitempty"`
+	Table     *ASTMarkdownTable     `json:"table,omitempty"`
 	Links     []ASTMarkdownLink     `json:"links,omitempty"`
+	Children  []ASTMarkdownBlock    `json:"children,omitempty"`
 }
 
 type ASTMarkdownHeading struct {
@@ -51,4 +54,28 @@ type ASTMarkdownCodeBlock struct {
 	LineStart int    `json:"lineStart"`
 	LineEnd   int    `json:"lineEnd"`
 	Mermaid   bool   `json:"mermaid,omitempty"`
+}
+
+type ASTMarkdownList struct {
+	Ordered bool                  `json:"ordered,omitempty"`
+	Items   []ASTMarkdownListItem `json:"items"`
+}
+
+type ASTMarkdownListItem struct {
+	Text      string            `json:"text"`
+	LineStart int               `json:"lineStart"`
+	LineEnd   int               `json:"lineEnd"`
+	Links     []ASTMarkdownLink `json:"links,omitempty"`
+}
+
+type ASTMarkdownTable struct {
+	Header     []string              `json:"header"`
+	Alignments []string              `json:"alignments,omitempty"`
+	Rows       []ASTMarkdownTableRow `json:"rows"`
+}
+
+type ASTMarkdownTableRow struct {
+	Cells []string          `json:"cells"`
+	Line  int               `json:"line"`
+	Links []ASTMarkdownLink `json:"links,omitempty"`
 }

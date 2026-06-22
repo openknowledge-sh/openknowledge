@@ -116,6 +116,63 @@ func TestParseASTMarkdownBuildsNestedSections(t *testing.T) {
 	}
 }
 
+func TestParseASTMarkdownBuildsCommonBlockNodes(t *testing.T) {
+	markdown := ParseASTMarkdown(strings.Join([]string{
+		"> Read [Quote](quote.md).",
+		"> - Nested item",
+		"",
+		"---",
+		"",
+		"<!-- hidden -->",
+		"<!-- okf-footer: agent-maintenance -->",
+		"",
+		"- Read [List](list.md)",
+		"  continuation text.",
+		"- Plain item",
+		"",
+		"| Name | Link |",
+		"| --- | ---: |",
+		"| Row | [Table](table.md) |",
+	}, "\n"), 10)
+
+	kinds := make([]string, 0, len(markdown.Blocks))
+	for _, block := range markdown.Blocks {
+		kinds = append(kinds, block.Kind)
+	}
+	expectedKinds := []string{"blockquote", "thematic-break", "html-comment", "agent-footer", "list", "table"}
+	if strings.Join(kinds, ",") != strings.Join(expectedKinds, ",") {
+		t.Fatalf("unexpected block kinds: %#v", kinds)
+	}
+
+	quote := markdown.Blocks[0]
+	if quote.LineStart != 10 || quote.LineEnd != 11 || len(quote.Children) != 2 || len(quote.Links) != 1 {
+		t.Fatalf("unexpected blockquote AST: %#v", quote)
+	}
+	list := markdown.Blocks[4]
+	if list.List == nil || list.List.Ordered || len(list.List.Items) != 2 {
+		t.Fatalf("unexpected list AST: %#v", list)
+	}
+	if list.List.Items[0].Text != "Read [List](list.md) continuation text." || list.List.Items[0].LineStart != 18 || list.List.Items[0].LineEnd != 19 {
+		t.Fatalf("unexpected wrapped list item AST: %#v", list.List.Items[0])
+	}
+	table := markdown.Blocks[5]
+	if table.Table == nil || strings.Join(table.Table.Header, ",") != "Name,Link" || len(table.Table.Rows) != 1 {
+		t.Fatalf("unexpected table AST: %#v", table)
+	}
+	if len(table.Table.Alignments) != 2 || table.Table.Alignments[1] != "right" {
+		t.Fatalf("unexpected table alignments: %#v", table.Table.Alignments)
+	}
+
+	if len(markdown.Links) != 3 {
+		t.Fatalf("expected links from quote, list, and table blocks, got %#v", markdown.Links)
+	}
+	for index, label := range []string{"Quote", "List", "Table"} {
+		if markdown.Links[index].Label != label {
+			t.Fatalf("expected link %d label %q, got %#v", index, label, markdown.Links[index])
+		}
+	}
+}
+
 func TestParseASTMarkdownUsesDocumentLineNumbersAfterFrontmatter(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "guide.md", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n\nSee [Home](index.md).\n")
