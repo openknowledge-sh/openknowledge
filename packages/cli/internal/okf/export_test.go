@@ -118,6 +118,39 @@ func TestWriteHTMLRendersPagesAndRewritesMarkdownLinks(t *testing.T) {
 	}
 }
 
+func TestWriteHTMLFromASTRendersParsedMarkdownTree(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "site")
+	ast := ASTBundle{
+		Root:        t.TempDir(),
+		SpecVersion: LatestSpecVersion,
+		Documents: []ASTDocument{{
+			Rel:  "index.md",
+			ID:   "index",
+			Kind: "index",
+			Body: "# Raw Body\n",
+			Markdown: ASTMarkdown{
+				Blocks: []ASTMarkdownBlock{{
+					Kind:      "paragraph",
+					LineStart: 1,
+					LineEnd:   1,
+					Text:      "Parsed **tree** body.",
+				}},
+			},
+		}},
+	}
+
+	if _, err := WriteHTMLFromAST(ast, out, staticPageTemplate); err != nil {
+		t.Fatal(err)
+	}
+	index := readExportFile(t, out, "index.html")
+	if !strings.Contains(index, "<p>Parsed <strong>tree</strong> body.</p>") {
+		t.Fatalf("expected HTML to render parsed Markdown tree:\n%s", index)
+	}
+	if strings.Contains(index, "<h1>Raw Body</h1>") {
+		t.Fatalf("expected HTML not to render raw body:\n%s", index)
+	}
+}
+
 func TestWritePlainHTMLRendersUnstyledPages(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "plain-site")

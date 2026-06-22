@@ -116,7 +116,7 @@ func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 		"bundle.go":       {"parseAndValidateASTBundle", "BundleFromAST"},
 		"list.go":         {"parseAndValidateASTBundle", "ListFromAST"},
 		"search.go":       {"parseAndValidateASTBundle", "SearchIndexFromAST"},
-		"html.go":         {"parseAndValidateASTBundle", "WriteHTMLFromAST"},
+		"html.go":         {"parseAndValidateASTBundle", "WriteHTMLFromAST", "RenderASTMarkdown"},
 		"context.go":      {"parseAndValidateASTBundle", "ContextIndexFromAST"},
 		"ast_validate.go": {"validateMarkdownDiagnostics"},
 	}
@@ -126,6 +126,7 @@ func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 		"parseASTDocumentFile",
 		"parseASTDocumentLinks",
 		"splitFrontmatter",
+		"RenderMarkdown",
 		"validateMarkdownSyntax",
 	}
 

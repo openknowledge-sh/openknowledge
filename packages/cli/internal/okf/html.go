@@ -77,7 +77,7 @@ func htmlPageFromASTDocument(document ASTDocument) htmlPageData {
 	return htmlPageData{
 		Title: title,
 		Path:  document.Rel,
-		Body:  template.HTML(RenderMarkdown(document.Body, document.Rel, StaticHTMLLink)),
+		Body:  template.HTML(RenderASTMarkdown(document.Markdown, document.Rel, StaticHTMLLink)),
 	}
 }
 

@@ -18,176 +18,147 @@ const agentMaintenanceFooterMarker = "<!-- okf-footer: agent-maintenance -->"
 type LinkResolver func(currentRel string, href string) string
 
 func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string {
-	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
+	return RenderASTMarkdown(ParseASTMarkdown(body, 1), currentRel, resolve)
+}
+
+func RenderASTMarkdown(markdown ASTMarkdown, currentRel string, resolve LinkResolver) string {
+	return renderASTMarkdownBlocks(markdown.Blocks, currentRel, resolve)
+}
+
+func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resolve LinkResolver) string {
 	var builder strings.Builder
-	listTag := ""
-	var listItem []string
-	inCode := false
-	codeLanguage := ""
-	var codeLines []string
-	var paragraph []string
-	var quote []string
 	inAgentFooter := false
 
-	closeParagraph := func() {
-		if len(paragraph) == 0 {
-			return
-		}
-		builder.WriteString("<p>")
-		builder.WriteString(renderInline(strings.Join(paragraph, " "), currentRel, resolve))
-		builder.WriteString("</p>\n")
-		paragraph = nil
-	}
-	flushListItem := func() {
-		if len(listItem) == 0 {
-			return
-		}
-		builder.WriteString("<li>")
-		builder.WriteString(renderInline(strings.Join(listItem, " "), currentRel, resolve))
-		builder.WriteString("</li>\n")
-		listItem = nil
-	}
-	closeList := func() {
-		if listTag == "" {
-			return
-		}
-		flushListItem()
-		fmt.Fprintf(&builder, "</%s>\n", listTag)
-		listTag = ""
-	}
-	openList := func(tag string) {
-		if listTag == tag {
-			return
-		}
-		closeList()
-		fmt.Fprintf(&builder, "<%s>\n", tag)
-		listTag = tag
-	}
-	startListItem := func(tag string, text string) {
-		closeParagraph()
-		if listTag == tag {
-			flushListItem()
-		}
-		openList(tag)
-		listItem = []string{text}
-	}
-	closeQuote := func() {
-		if len(quote) == 0 {
-			return
-		}
-		builder.WriteString("<blockquote>\n")
-		builder.WriteString(RenderMarkdown(strings.Join(quote, "\n"), currentRel, resolve))
-		builder.WriteString("</blockquote>\n")
-		quote = nil
-	}
-	closeCode := func() {
-		if !inCode {
-			return
-		}
-		builder.WriteString(RenderCodeBlock(strings.Join(codeLines, "\n"), codeLanguage))
-		inCode = false
-		codeLanguage = ""
-		codeLines = nil
-	}
-
-	for index := 0; index < len(lines); index++ {
-		line := lines[index]
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "```") {
-			closeParagraph()
-			closeList()
-			closeQuote()
-			if inCode {
-				closeCode()
-			} else {
-				inCode = true
-				codeLanguage = codeFenceLanguage(trimmed)
-				codeLines = nil
-			}
-			continue
-		}
-		if inCode {
-			codeLines = append(codeLines, line)
-			continue
-		}
-		if trimmed == "" {
-			closeParagraph()
-			closeList()
-			closeQuote()
-			continue
-		}
-		if isAgentMaintenanceFooterMarker(trimmed) {
-			closeParagraph()
-			closeList()
-			closeQuote()
+	for index, block := range blocks {
+		switch block.Kind {
+		case "agent-footer":
 			if !inAgentFooter {
 				builder.WriteString(`<div class="ok-agent-footer">` + "\n")
 				inAgentFooter = true
 			}
+		case "html-comment":
 			continue
-		}
-		if isHTMLComment(trimmed) {
-			closeParagraph()
-			closeList()
-			closeQuote()
-			continue
-		}
-		if strings.HasPrefix(trimmed, ">") {
-			closeParagraph()
-			closeList()
-			quote = append(quote, strings.TrimSpace(strings.TrimPrefix(trimmed, ">")))
-			continue
-		}
-		closeQuote()
-		if isHorizontalRule(trimmed) {
-			closeParagraph()
-			closeList()
-			if nextNonEmptyLineIsAgentFooterMarker(lines, index+1) {
+		case "thematic-break":
+			if nextASTMarkdownBlockIsAgentFooter(blocks, index+1) {
 				continue
 			}
 			builder.WriteString("<hr>\n")
-			continue
-		}
-		if tableHTML, next, ok := renderTable(lines, index, currentRel, resolve); ok {
-			closeParagraph()
-			closeList()
-			builder.WriteString(tableHTML)
-			index = next - 1
-			continue
-		}
-		if level := HeadingLevel(trimmed); level > 0 {
-			closeParagraph()
-			closeList()
-			content := strings.TrimSpace(trimmed[level:])
+		case "heading":
+			level := 1
+			content := block.Text
+			if block.Heading != nil {
+				level = block.Heading.Level
+				content = block.Heading.Text
+			}
 			fmt.Fprintf(&builder, "<h%d>%s</h%d>\n", level, renderInline(content, currentRel, resolve), level)
-			continue
+		case "paragraph":
+			builder.WriteString("<p>")
+			builder.WriteString(renderInline(astMarkdownParagraphText(block.Text), currentRel, resolve))
+			builder.WriteString("</p>\n")
+		case "code":
+			language := ""
+			text := block.Text
+			if block.CodeBlock != nil {
+				language = block.CodeBlock.Language
+				text = block.CodeBlock.Text
+			}
+			builder.WriteString(RenderCodeBlock(text, language))
+		case "blockquote":
+			builder.WriteString("<blockquote>\n")
+			builder.WriteString(renderASTMarkdownBlocks(block.Children, currentRel, resolve))
+			builder.WriteString("</blockquote>\n")
+		case "list":
+			builder.WriteString(renderASTMarkdownList(block, currentRel, resolve))
+		case "table":
+			builder.WriteString(renderASTMarkdownTable(block, currentRel, resolve))
+		default:
+			if strings.TrimSpace(block.Text) != "" {
+				builder.WriteString("<p>")
+				builder.WriteString(renderInline(astMarkdownParagraphText(block.Text), currentRel, resolve))
+				builder.WriteString("</p>\n")
+			}
 		}
-		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
-			startListItem("ul", strings.TrimSpace(trimmed[2:]))
-			continue
-		}
-		if match := orderedListItem.FindStringIndex(trimmed); match != nil {
-			startListItem("ol", strings.TrimSpace(trimmed[match[1]:]))
-			continue
-		}
-		if listTag != "" && len(listItem) > 0 && isListContinuation(line) {
-			listItem = append(listItem, trimmed)
-			continue
-		}
-		closeList()
-		paragraph = append(paragraph, trimmed)
 	}
 
-	closeParagraph()
-	closeList()
-	closeQuote()
-	if inCode {
-		closeCode()
-	}
 	if inAgentFooter {
 		builder.WriteString("</div>\n")
 	}
 	return builder.String()
+}
+
+func astMarkdownParagraphText(text string) string {
+	parts := strings.Split(strings.TrimSpace(text), "\n")
+	for index, part := range parts {
+		parts[index] = strings.TrimSpace(part)
+	}
+	return strings.Join(parts, " ")
+}
+
+func nextASTMarkdownBlockIsAgentFooter(blocks []ASTMarkdownBlock, start int) bool {
+	for index := start; index < len(blocks); index++ {
+		if blocks[index].Kind == "html-comment" {
+			continue
+		}
+		return blocks[index].Kind == "agent-footer"
+	}
+	return false
+}
+
+func renderASTMarkdownList(block ASTMarkdownBlock, currentRel string, resolve LinkResolver) string {
+	if block.List == nil {
+		return ""
+	}
+	tag := "ul"
+	if block.List.Ordered {
+		tag = "ol"
+	}
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "<%s>\n", tag)
+	for _, item := range block.List.Items {
+		builder.WriteString("<li>")
+		builder.WriteString(renderInline(item.Text, currentRel, resolve))
+		builder.WriteString("</li>\n")
+	}
+	fmt.Fprintf(&builder, "</%s>\n", tag)
+	return builder.String()
+}
+
+func renderASTMarkdownTable(block ASTMarkdownBlock, currentRel string, resolve LinkResolver) string {
+	if block.Table == nil || len(block.Table.Header) == 0 {
+		return ""
+	}
+	table := block.Table
+	var builder strings.Builder
+	builder.WriteString(`<div class="ok-table-wrap" data-ok-table-wrap>`)
+	builder.WriteString("\n<div class=\"ok-table-scroller\">\n<table class=\"ok-table\" data-ok-table>\n<thead>\n<tr>")
+	for column, cell := range table.Header {
+		writeTableCellStart(&builder, "th", astMarkdownTableAlignment(table.Alignments, column), ` scope="col"`)
+		builder.WriteString(renderInline(cell, currentRel, resolve))
+		builder.WriteString("</th>")
+	}
+	builder.WriteString("</tr>\n</thead>\n<tbody>\n")
+	for _, row := range table.Rows {
+		builder.WriteString("<tr>")
+		for column := range table.Header {
+			cell := ""
+			if column < len(row.Cells) {
+				cell = row.Cells[column]
+			}
+			writeTableCellStart(&builder, "td", astMarkdownTableAlignment(table.Alignments, column), "")
+			builder.WriteString(renderInline(cell, currentRel, resolve))
+			builder.WriteString("</td>")
+		}
+		builder.WriteString("</tr>\n")
+	}
+	builder.WriteString("</tbody>\n</table>\n</div>\n</div>\n")
+	return builder.String()
+}
+
+func astMarkdownTableAlignment(alignments []string, column int) string {
+	if column < 0 || column >= len(alignments) {
+		return ""
+	}
+	return alignments[column]
 }
 
 func isAgentMaintenanceFooterMarker(line string) bool {
@@ -197,17 +168,6 @@ func isAgentMaintenanceFooterMarker(line string) bool {
 func isHTMLComment(line string) bool {
 	trimmed := strings.TrimSpace(line)
 	return strings.HasPrefix(trimmed, "<!--") && strings.HasSuffix(trimmed, "-->")
-}
-
-func nextNonEmptyLineIsAgentFooterMarker(lines []string, start int) bool {
-	for index := start; index < len(lines); index++ {
-		trimmed := strings.TrimSpace(lines[index])
-		if trimmed == "" {
-			continue
-		}
-		return isAgentMaintenanceFooterMarker(trimmed)
-	}
-	return false
 }
 
 func isListContinuation(line string) bool {
@@ -321,51 +281,6 @@ func isHorizontalRule(line string) bool {
 		}
 	}
 	return true
-}
-
-func renderTable(lines []string, start int, currentRel string, resolve LinkResolver) (string, int, bool) {
-	if start+1 >= len(lines) {
-		return "", start, false
-	}
-	header := tableCells(lines[start])
-	separator := tableCells(lines[start+1])
-	if len(header) == 0 || len(separator) != len(header) || !isTableSeparator(separator) {
-		return "", start, false
-	}
-	alignments := tableAlignments(separator)
-
-	var builder strings.Builder
-	builder.WriteString(`<div class="ok-table-wrap" data-ok-table-wrap>`)
-	builder.WriteString("\n<div class=\"ok-table-scroller\">\n<table class=\"ok-table\" data-ok-table>\n<thead>\n<tr>")
-	for column, cell := range header {
-		writeTableCellStart(&builder, "th", alignments[column], ` scope="col"`)
-		builder.WriteString(renderInline(cell, currentRel, resolve))
-		builder.WriteString("</th>")
-	}
-	builder.WriteString("</tr>\n</thead>\n<tbody>\n")
-
-	index := start + 2
-	for index < len(lines) {
-		cells := tableCells(lines[index])
-		if len(cells) == 0 {
-			break
-		}
-		builder.WriteString("<tr>")
-		for column := range header {
-			cell := ""
-			if column < len(cells) {
-				cell = cells[column]
-			}
-			writeTableCellStart(&builder, "td", alignments[column], "")
-			builder.WriteString(renderInline(cell, currentRel, resolve))
-			builder.WriteString("</td>")
-		}
-		builder.WriteString("</tr>\n")
-		index++
-	}
-
-	builder.WriteString("</tbody>\n</table>\n</div>\n</div>\n")
-	return builder.String(), index, true
 }
 
 func writeTableCellStart(builder *strings.Builder, tag string, alignment string, attributes string) {
@@ -547,10 +462,6 @@ func NormalizeCodeLanguage(language string) string {
 	default:
 		return language
 	}
-}
-
-func codeFenceLanguage(fence string) string {
-	return NormalizeCodeLanguage(strings.TrimSpace(strings.TrimPrefix(fence, "```")))
 }
 
 func rewriteMarkdownLink(currentRel string, href string, targetURL func(target string) string) string {
