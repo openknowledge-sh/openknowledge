@@ -72,7 +72,7 @@ func TestASTBackedOutputsMatchPublicAPIs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	directHTML, err := writeHTMLFromAST(parsed, directOut, staticPageTemplate)
+	directHTML, err := WriteHTMLFromAST(parsed, directOut, staticPageTemplate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 		"bundle.go":   {"parseAndValidateASTBundle", "BundleFromAST"},
 		"list.go":     {"parseAndValidateASTBundle", "ListFromAST"},
 		"search.go":   {"parseAndValidateASTBundle", "newSearchIndexFromAST"},
-		"html.go":     {"parseAndValidateASTBundle", "writeHTMLFromAST"},
+		"html.go":     {"parseAndValidateASTBundle", "WriteHTMLFromAST"},
 		"context.go":  {"parseAndValidateASTBundle", "ContextIndexFromAST"},
 	}
 	forbidden := []string{
