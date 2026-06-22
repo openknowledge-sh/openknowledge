@@ -26,10 +26,10 @@ func buildSearchIndexWithVersion(root string, version string) (SearchIndex, erro
 	if err != nil {
 		return SearchIndex{}, err
 	}
-	return newSearchIndexFromAST(ast), nil
+	return SearchIndexFromAST(ast), nil
 }
 
-func newSearchIndexFromAST(bundle ASTBundle) SearchIndex {
+func SearchIndexFromAST(bundle ASTBundle) SearchIndex {
 	documents := make([]searchDocument, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {
 		if document.ReadDiagnostic != nil || document.UTF8Diagnostic != nil {
@@ -56,6 +56,7 @@ func searchDocumentFromASTDocument(document ASTDocument) searchDocument {
 		summary.Title,
 		summary.Description,
 		document.Body,
+		astMarkdownHeadingText(document.Markdown),
 		frontmatter,
 	)
 }
@@ -69,11 +70,12 @@ func searchDocumentFromBundleFile(file BundleFile) searchDocument {
 		file.Title,
 		file.Description,
 		file.Body,
+		markdownHeadings(file.Body),
 		file.Frontmatter,
 	)
 }
 
-func newSearchDocument(path string, id string, kind string, documentType string, title string, description string, body string, frontmatter map[string]string) searchDocument {
+func newSearchDocument(path string, id string, kind string, documentType string, title string, description string, body string, headings string, frontmatter map[string]string) searchDocument {
 	document := searchDocument{
 		path:         path,
 		id:           id,
@@ -82,13 +84,14 @@ func newSearchDocument(path string, id string, kind string, documentType string,
 		title:        title,
 		description:  description,
 		body:         body,
+		headings:     headings,
 	}
 	document.fields = []searchField{
 		newSearchField("title", document.title, 14),
 		newSearchField("path", document.path+" "+document.id, 9),
 		newSearchField("type", document.documentType+" "+document.kind, 6),
 		newSearchField("description", document.description, 5),
-		newSearchField("headings", markdownHeadings(document.body), 4),
+		newSearchField("headings", document.headings, 4),
 		newSearchField("metadata", frontmatterSearchText(frontmatter), 3),
 		newSearchField("body", document.body, 1.2),
 	}

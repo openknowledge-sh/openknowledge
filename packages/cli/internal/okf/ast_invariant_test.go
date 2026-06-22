@@ -48,7 +48,7 @@ func TestASTBackedOutputsMatchPublicAPIs(t *testing.T) {
 	}
 
 	searchOptions := SearchOptions{Query: "setup validate", Limit: 5, Fuzzy: true}
-	directSearch := newSearchIndexFromAST(parsed).Search(searchOptions)
+	directSearch := SearchIndexFromAST(parsed).Search(searchOptions)
 	publicSearch, err := Search(root, searchOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +115,7 @@ func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 		"validate.go": {"parseAndValidateASTBundle"},
 		"bundle.go":   {"parseAndValidateASTBundle", "BundleFromAST"},
 		"list.go":     {"parseAndValidateASTBundle", "ListFromAST"},
-		"search.go":   {"parseAndValidateASTBundle", "newSearchIndexFromAST"},
+		"search.go":   {"parseAndValidateASTBundle", "SearchIndexFromAST"},
 		"html.go":     {"parseAndValidateASTBundle", "WriteHTMLFromAST"},
 		"context.go":  {"parseAndValidateASTBundle", "ContextIndexFromAST"},
 	}

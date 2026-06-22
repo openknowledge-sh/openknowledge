@@ -31,6 +31,7 @@ type searchDocument struct {
 	title        string
 	description  string
 	body         string
+	headings     string
 	fields       []searchField
 }
 

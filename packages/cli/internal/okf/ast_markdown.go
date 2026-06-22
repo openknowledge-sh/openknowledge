@@ -159,6 +159,14 @@ func astMarkdownAnchor(text string, used map[string]int) string {
 	return slug + "-" + strconv.Itoa(used[slug])
 }
 
+func astMarkdownHeadingText(markdown ASTMarkdown) string {
+	headings := make([]string, 0, len(markdown.Headings))
+	for _, heading := range markdown.Headings {
+		headings = append(headings, heading.Text)
+	}
+	return strings.Join(headings, "\n")
+}
+
 func parseASTMarkdownLinks(text string, line int) []ASTMarkdownLink {
 	var links []ASTMarkdownLink
 	for _, match := range markdownLinkDetail.FindAllStringSubmatchIndex(text, -1) {
