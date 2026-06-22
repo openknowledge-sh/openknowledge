@@ -2241,6 +2241,7 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
       </section>
     {{end}}
   </main>
+  <script>` + viewerShortcutsJS + `</script>
   <script>` + viewerSearchJS + `</script>
 </body>
 </html>`))
@@ -2314,7 +2315,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       <label class="sr-only" for="viewer-search">Search</label>
       <div class="search-field">
         <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search">
-        <kbd class="search-shortcut">⌘K</kbd>
+        <kbd class="search-shortcut" data-search-shortcut>⌘K</kbd>
       </div>
       <div class="search-status" aria-live="polite"></div>
       <div class="search-results" hidden></div>
@@ -2461,6 +2462,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
+  <script>` + viewerShortcutsJS + `</script>
   <script>` + viewerJS + `</script>
   <script>` + viewerSearchJS + `</script>
 </body>

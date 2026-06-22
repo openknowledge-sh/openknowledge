@@ -5,16 +5,34 @@
   const staticNotes = readStaticNotes();
   const primarySearch = document.querySelector("[data-primary-search]") || searches[0];
   const primaryInput = primarySearch?.querySelector(".search-input");
-
-  searches.forEach(bindSearch);
-
-  document.addEventListener("keydown", (event) => {
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
-      event.preventDefault();
+  const shortcutSystem = window.OpenKnowledgeShortcuts;
+  const searchShortcut = {
+    id: "viewer.search.focus",
+    key: "k",
+    metaOrCtrlKey: true,
+    allowEditable: true,
+    run: () => {
       primaryInput?.focus();
       primaryInput?.select();
     }
-  });
+  };
+
+  searches.forEach(bindSearch);
+
+  if (shortcutSystem) {
+    shortcutSystem.register(searchShortcut);
+    document.querySelectorAll("[data-search-shortcut]").forEach((element) => {
+      element.textContent = shortcutSystem.format(searchShortcut);
+    });
+  } else {
+    document.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        primaryInput?.focus();
+        primaryInput?.select();
+      }
+    });
+  }
 
   function bindSearch(search) {
     const input = search.querySelector(".search-input");

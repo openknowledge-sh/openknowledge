@@ -346,6 +346,10 @@
     }
   }
 
+  function toggleSidebar() {
+    setSidebarOpen(!document.body.classList.contains("is-sidebar-open"));
+  }
+
   function notePathFromHref(href, sourcePath) {
     if (isStaticBundle()) {
       return staticNotePathFromHref(href, sourcePath);
@@ -3258,9 +3262,15 @@
   });
 
   if (sidebarToggle) {
-    sidebarToggle.addEventListener("click", function () {
-      setSidebarOpen(!document.body.classList.contains("is-sidebar-open"));
-    });
+    const sidebarShortcut = { id: "viewer.sidebar.toggle", code: "KeyS", primaryKey: true, altKey: true, run: toggleSidebar };
+    const shortcutSystem = window.OpenKnowledgeShortcuts;
+    sidebarToggle.addEventListener("click", toggleSidebar);
+    if (shortcutSystem) {
+      shortcutSystem.register(sidebarShortcut);
+      const label = shortcutSystem.format(sidebarShortcut);
+      sidebarToggle.title = "File explorer (" + label + ")";
+      sidebarToggle.setAttribute("aria-keyshortcuts", shortcutSystem.ariaKeyShortcut(sidebarShortcut));
+    }
   }
   if (sidebarClose) {
     sidebarClose.addEventListener("click", function () {

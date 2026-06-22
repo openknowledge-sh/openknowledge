@@ -250,6 +250,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `search-shortcut`) || !strings.Contains(page, `event.metaKey || event.ctrlKey`) || !strings.Contains(page, `primaryInput?.focus()`) {
 		t.Fatalf("viewer file page did not include command-k search shortcut:\n%s", page)
 	}
+	if !strings.Contains(page, `window.OpenKnowledgeShortcuts`) ||
+		!strings.Contains(page, `register: register`) ||
+		!strings.Contains(page, `document.addEventListener("keydown", handleKeydown)`) ||
+		!strings.Contains(page, `id: "viewer.search.focus"`) {
+		t.Fatalf("viewer file page did not include the shared shortcut registry:\n%s", page)
+	}
 	if !strings.Contains(page, `.file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; display: flex; width: var(--ok-sidebar-width); flex-direction: column; border-right: 0; background: var(--ok-color-sidebar);`) {
 		t.Fatalf("viewer file sidebar should not draw a vertical divider against the document canvas:\n%s", page)
 	}
@@ -265,6 +271,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .note-workspace`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > .note-workspace`) {
 		t.Fatalf("viewer file sidebar should push the workspace instead of overlaying it:\n%s", page)
+	}
+	if !strings.Contains(page, `id: "viewer.sidebar.toggle"`) ||
+		!strings.Contains(page, `code: "KeyS"`) ||
+		!strings.Contains(page, `primaryKey: true`) ||
+		!strings.Contains(page, `sidebarToggle.setAttribute("aria-keyshortcuts"`) {
+		t.Fatalf("viewer file sidebar should register a primary-alt-s keyboard shortcut:\n%s", page)
 	}
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
@@ -898,6 +910,9 @@ func TestViewerIndexFallsBackToListWithoutIndexMarkdown(t *testing.T) {
 	}
 	if !strings.Contains(index, `id="viewer-search"`) {
 		t.Fatalf("viewer index fallback did not include search input:\n%s", index)
+	}
+	if !strings.Contains(index, `window.OpenKnowledgeShortcuts`) || !strings.Contains(index, `id: "viewer.search.focus"`) {
+		t.Fatalf("viewer index fallback should load the shared shortcut registry before search:\n%s", index)
 	}
 	if startPath := viewerStartPath(root); startPath != "/" {
 		t.Fatalf("expected viewer start path to fall back to list, got %q", startPath)

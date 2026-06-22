@@ -14,6 +14,23 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-22 - Viewer shortcut registry and sidebar toggle
+
+* Added a lightweight local viewer shortcut registry so viewer commands can
+  register keyboard shortcuts through one shared handler instead of separate
+  document-level listeners.
+* Search still uses `Command+K` on macOS or `Ctrl+K` elsewhere, now via the
+  shared shortcut registry. The file explorer sidebar can now be toggled with
+  `Command+Option+S` on macOS or `Ctrl+Alt+S` elsewhere, and the sidebar
+  shortcut is ignored while typing in editable controls.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_shortcuts.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_search.js`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-22 - AST parser includes Markdown structure
 
 * The OKF AST parser now adds a `markdown` tree to each parsed document,
