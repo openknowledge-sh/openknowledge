@@ -1,5 +1,13 @@
 # Bundle Update Log
 
+## 2026-06-22
+
+* **Website product summary**: Added a landing page `Changelog` navigation link
+  to the exported CLI changelog and tightened the final product section around
+  the primary use case: a local Markdown wiki that lives with a project, gives
+  agents durable context through fast search and related-context discovery, and
+  stays current through a maintenance loop.
+
 ## 2026-06-20
 
 * **CLI tooling model**: Reframed README and wiki navigation around the

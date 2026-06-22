@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-22 - Website changelog link and product summary
+
+* Added a `Changelog` link to the landing page navigation beside `Wiki`.
+* Reworded the final landing page product summary around the primary use case:
+  a local Markdown wiki that lives with a project, gives agents durable context,
+  and stays useful through fast search, related-context discovery, and
+  maintenance loops.
+* Source anchors: `packages/web/index.html`, `packages/web/styles.css`,
+  `Wiki/features/tooling-model.md`, `Wiki/index.md`, `README.md`.
+* Docs updated: `Wiki/changelog/cli.md`, `Wiki/log.md`.
+
 ### 2026-06-22 - Viewer shortcut registry and sidebar toggle
 
 * Added a lightweight local viewer shortcut registry so viewer commands can
