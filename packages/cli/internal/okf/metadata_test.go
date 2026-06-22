@@ -55,6 +55,19 @@ func TestReadBundleInfoFallsBackToFolderName(t *testing.T) {
 	}
 }
 
+func TestReadBundleInfoUsesParsedMarkdownHeading(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "```md\n# Fenced Heading\n```\n\n# Real Heading\n")
+
+	info, err := ReadBundleInfo(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.RootTitle != "Real Heading" {
+		t.Fatalf("expected parsed Markdown heading, got %#v", info)
+	}
+}
+
 func TestReadMarkdownDocumentInfoReadsAgentEntrypointMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "agents/review.md", `---

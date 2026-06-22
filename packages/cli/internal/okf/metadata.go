@@ -22,7 +22,7 @@ func ReadBundleInfo(root string) (BundleInfo, error) {
 		return info, document.FrontmatterDiagnostic
 	}
 
-	info.RootTitle = firstH1(document.Body)
+	info.RootTitle = firstASTMarkdownH1(document.Markdown)
 	info.Metadata = document.Metadata.Bundle
 	info.HasMetadata = hasBundleMetadata(info.Metadata)
 	return info, nil
@@ -77,13 +77,11 @@ func ReadMarkdownDocumentInfo(path string, rel string) (MarkdownDocumentInfo, er
 	return info, nil
 }
 
-func firstH1(markdown string) string {
-	for _, line := range strings.Split(markdown, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "# ") {
-			continue
+func firstASTMarkdownH1(markdown ASTMarkdown) string {
+	for _, heading := range markdown.Headings {
+		if heading.Level == 1 {
+			return strings.TrimSpace(heading.Text)
 		}
-		return strings.TrimSpace(strings.TrimPrefix(line, "# "))
 	}
 	return ""
 }
