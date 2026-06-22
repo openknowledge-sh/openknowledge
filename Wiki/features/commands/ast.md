@@ -46,14 +46,19 @@ when present. Validation errors and warnings remain available through
 The `markdown` field is the parser-owned Markdown structure for a document. It
 currently includes ordered block nodes, a nested section tree, headings with
 source lines and anchors, Markdown links/images, and fenced code blocks with
-Mermaid detection. The raw `body` field remains available for debugging and
-compatibility while linter and exporter paths migrate onto the structural tree.
+Mermaid detection. It also includes parser diagnostics for malformed Markdown
+syntax such as unclosed code spans, malformed links, table separator mismatch,
+and unclosed fenced code blocks. The raw `body` field remains available for
+debugging and compatibility while linter and exporter paths migrate onto the
+structural tree.
 
 `markdown.sections` groups blocks into source-ordered document sections. A
 leading preamble, when present, is represented as a level `0` `Top` section;
 heading-backed sections carry `heading`, `level`, `anchor`, `lineStart`,
 `lineEnd`, owned `blocks`, and nested `children`. Context export uses this
 section tree for heading boundaries instead of reparsing raw body text.
+Validation reports Markdown syntax warnings from `markdown.diagnostics` instead
+of running a separate body parser.
 
 ## Use Cases
 
