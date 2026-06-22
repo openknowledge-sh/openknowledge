@@ -247,11 +247,15 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `.ok-search-highlight`) {
 		t.Fatalf("viewer should support search result deep-link highlighting:\n%s", page)
 	}
-	if !strings.Contains(page, `search-shortcut`) || !strings.Contains(page, `event.metaKey || event.ctrlKey`) || !strings.Contains(page, `primaryInput?.focus()`) {
+	if !strings.Contains(page, `search-shortcut`) ||
+		!strings.Contains(page, `label: "⌘K"`) ||
+		!strings.Contains(page, `event.metaKey || event.ctrlKey`) ||
+		!strings.Contains(page, `primaryInput?.focus()`) {
 		t.Fatalf("viewer file page did not include command-k search shortcut:\n%s", page)
 	}
 	if !strings.Contains(page, `window.OpenKnowledgeShortcuts`) ||
 		!strings.Contains(page, `register: register`) ||
+		!strings.Contains(page, `if (shortcut.label)`) ||
 		!strings.Contains(page, `document.addEventListener("keydown", handleKeydown)`) ||
 		!strings.Contains(page, `id: "viewer.search.focus"`) {
 		t.Fatalf("viewer file page did not include the shared shortcut registry:\n%s", page)
@@ -274,7 +278,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `id: "viewer.sidebar.toggle"`) ||
 		!strings.Contains(page, `code: "KeyS"`) ||
-		!strings.Contains(page, `primaryKey: true`) ||
+		!strings.Contains(page, `metaOrCtrlKey: true`) ||
+		!strings.Contains(page, `label: "⌘⌥S"`) ||
 		!strings.Contains(page, `sidebarToggle.setAttribute("aria-keyshortcuts"`) {
 		t.Fatalf("viewer file sidebar should register a primary-alt-s keyboard shortcut:\n%s", page)
 	}

@@ -88,6 +88,9 @@
   }
 
   function format(shortcut) {
+    if (shortcut.label) {
+      return shortcut.label;
+    }
     const parts = [];
     if (shortcut.primaryKey || shortcut.metaOrCtrlKey) {
       parts.push(isMacPlatform ? "⌘" : "Ctrl");
@@ -110,6 +113,9 @@
   }
 
   function ariaKeyShortcut(shortcut) {
+    if (shortcut.ariaKeyShortcut) {
+      return shortcut.ariaKeyShortcut;
+    }
     const parts = [];
     if (shortcut.primaryKey) {
       parts.push(isMacPlatform ? "Meta" : "Control");

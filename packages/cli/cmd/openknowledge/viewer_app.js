@@ -3250,7 +3250,7 @@
   });
 
   if (sidebarToggle) {
-    const sidebarShortcut = { id: "viewer.sidebar.toggle", code: "KeyS", primaryKey: true, altKey: true, run: toggleSidebar };
+    const sidebarShortcut = { id: "viewer.sidebar.toggle", code: "KeyS", metaOrCtrlKey: true, altKey: true, label: "⌘⌥S", ariaKeyShortcut: "Meta+Alt+S", run: toggleSidebar };
     const shortcutSystem = window.OpenKnowledgeShortcuts;
     sidebarToggle.addEventListener("click", toggleSidebar);
     if (shortcutSystem) {

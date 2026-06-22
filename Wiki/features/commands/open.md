@@ -57,10 +57,12 @@ as `/wiki/` or `/personal/`.
 
 * Registry names and normal filesystem paths resolve through the same
   key-or-path model used by other commands.
-* `Command+K` on macOS or `Ctrl+K` elsewhere focuses search.
-* `Command+Option+S` on macOS or `Ctrl+Alt+S` elsewhere toggles the file
-  explorer sidebar. The shortcut is shown beside the file explorer button and is
-  ignored while focus is in editable controls.
+* `Command+K` focuses search. `Ctrl+K` is still accepted as a non-macOS
+  fallback, but the visible search shortcut stays `⌘K`.
+* `Command+Option+S` toggles the file explorer sidebar. `Ctrl+Alt+S` is still
+  accepted as a non-macOS fallback, but the shortcut shown beside the file
+  explorer button stays `⌘⌥S`. The sidebar shortcut is ignored while focus is in
+  editable controls.
 * The local search API returns `highlightText` and `highlightURL` when a result
   has a reliable visible text match. `highlightURL` points at the Markdown file
   with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the

@@ -19,12 +19,12 @@ that were updated.
 * Added a lightweight local viewer shortcut registry so viewer commands can
   register keyboard shortcuts through one shared handler instead of separate
   document-level listeners.
-* Search still uses `Command+K` on macOS or `Ctrl+K` elsewhere, now via the
-  shared shortcut registry. The file explorer sidebar can now be toggled with
-  `Command+Option+S` on macOS or `Ctrl+Alt+S` elsewhere, and the sidebar
-  shortcut is ignored while typing in editable controls.
+* Search uses `Command+K` as its visible shortcut while still accepting
+  `Ctrl+K` as a non-macOS fallback. The file explorer sidebar can now be toggled
+  with `Command+Option+S`, still accepts `Ctrl+Alt+S` as a fallback, and ignores
+  the shortcut while typing in editable controls.
 * The file explorer button now shows the formatted sidebar shortcut next to the
-  icon, matching the visible search shortcut badge.
+  icon as `⌘⌥S`, matching the visible `⌘K` search shortcut badge.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer_shortcuts.js`,
   `packages/cli/cmd/openknowledge/viewer_app.js`,
   `packages/cli/cmd/openknowledge/viewer_search.js`,

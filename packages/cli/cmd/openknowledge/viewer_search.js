@@ -10,6 +10,7 @@
     id: "viewer.search.focus",
     key: "k",
     metaOrCtrlKey: true,
+    label: "⌘K",
     allowEditable: true,
     run: () => {
       primaryInput?.focus();
