@@ -44,13 +44,15 @@ when present. Validation errors and warnings remain available through
 `openknowledge validate`.
 
 The `markdown` field is the parser-owned Markdown structure for a document. It
-currently includes ordered block nodes, a nested section tree, headings with
-source lines and anchors, Markdown links/images, and fenced code blocks with
-Mermaid detection. It also includes parser diagnostics for malformed Markdown
+currently includes ordered block nodes for paragraphs, headings, fenced code,
+blockquotes, lists, tables, thematic breaks, HTML comments, and the
+agent-maintenance footer marker. It also includes a nested section tree,
+headings with source lines and anchors, Markdown links/images, fenced code
+blocks with Mermaid detection, and parser diagnostics for malformed Markdown
 syntax such as unclosed code spans, malformed links, table separator mismatch,
 and unclosed fenced code blocks. The raw `body` field remains available for
-debugging and compatibility while linter and exporter paths migrate onto the
-structural tree.
+debugging and compatibility; validation, search, context, link resolution, and
+HTML rendering now consume the parsed Markdown tree.
 
 `markdown.sections` groups blocks into source-ordered document sections. A
 leading preamble, when present, is represented as a level `0` `Top` section;
@@ -59,6 +61,11 @@ heading-backed sections carry `heading`, `level`, `anchor`, `lineStart`,
 section tree for heading boundaries instead of reparsing raw body text.
 Validation reports Markdown syntax warnings from `markdown.diagnostics` instead
 of running a separate body parser.
+
+`markdown.blocks` carries block-specific payloads where needed: `list` contains
+ordered/list-item metadata, `table` contains headers, alignments, and rows, and
+`children` contains nested blockquote content. HTML export renders from these
+blocks through the AST renderer.
 
 ## Use Cases
 

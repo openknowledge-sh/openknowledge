@@ -38,7 +38,8 @@ openknowledge to html --spec <version> --out <folder> [path]
 
 Both modes strip YAML frontmatter from rendered pages, rewrite local Markdown
 links to generated `.html` targets, and skip files with `okf_publish: false`.
-Rendered Markdown keeps list continuations inside their parent item and emits
+Rendered Markdown comes from the parsed Markdown AST rather than a separate
+body scan. It keeps list continuations inside their parent item and emits
 semantic tables with alignment metadata. HTML comments are hidden. The
 `<!-- okf-footer: agent-maintenance -->` marker renders following content as a
 subdued maintenance footer in the default viewer export.

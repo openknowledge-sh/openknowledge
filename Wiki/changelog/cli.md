@@ -34,21 +34,27 @@ that were updated.
 ### 2026-06-22 - AST parser includes Markdown structure
 
 * The OKF AST parser now adds a `markdown` tree to each parsed document,
-  including block order, a nested section tree, headings with anchors and source
-  lines, Markdown links/images, fenced code blocks, Mermaid detection, and
-  Markdown syntax diagnostics.
+  including block order for paragraphs, headings, code, blockquotes, lists,
+  tables, thematic breaks, comments, and maintenance footer markers; a nested
+  section tree; headings with anchors and source lines; Markdown links/images;
+  fenced code blocks; Mermaid detection; and Markdown syntax diagnostics.
 * AST-backed search now indexes headings from the parsed Markdown tree, context
   section boundaries come from parsed Markdown sections, and resolved document
   links are derived from Markdown AST links instead of a separate raw-content
   pass. Validation now reports Markdown syntax warnings from AST diagnostics
-  instead of scanning raw body content separately.
+  instead of scanning raw body content separately. HTML export now renders from
+  Markdown AST blocks, and compatibility render/search adapters use the AST
+  parser instead of separate Markdown scans.
 * Source anchors: `packages/cli/internal/okf/ast_markdown.go`,
   `packages/cli/internal/okf/ast_markdown_types.go`,
+  `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/html.go`,
   `packages/cli/internal/okf/ast_validate.go`,
   `packages/cli/internal/okf/ast_links.go`,
   `packages/cli/internal/okf/search.go`,
   `packages/cli/internal/okf/context_sections.go`.
 * Docs updated: `Wiki/features/commands/ast.md`,
+  `Wiki/features/exporters/html.md`,
   `Wiki/changelog/cli.md`.
 
 ### 2026-06-22 - Local viewer search deep-link highlights
