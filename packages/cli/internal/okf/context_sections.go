@@ -6,6 +6,36 @@ import (
 	"strings"
 )
 
+type contextSectionBoundary struct {
+	start int
+	level int
+	title string
+}
+
+func splitContextSectionsFromASTDocument(entry ListEntry, document ASTDocument) []ContextSection {
+	bodyLine := document.Frontmatter.BodyLine
+	if bodyLine <= 0 {
+		bodyLine = 1
+	}
+
+	boundaries := make([]contextSectionBoundary, 0, len(document.Markdown.Headings))
+	for _, heading := range document.Markdown.Headings {
+		if heading.Level <= 0 || heading.Level > 3 {
+			continue
+		}
+		start := heading.Line - bodyLine
+		if start < 0 {
+			continue
+		}
+		boundaries = append(boundaries, contextSectionBoundary{
+			start: start,
+			level: heading.Level,
+			title: heading.Text,
+		})
+	}
+	return contextSectionsFromBoundaries(entry, document.Frontmatter.Values, document.Body, document.Links, bodyLine, boundaries)
+}
+
 func splitContextSections(entry ListEntry, frontmatter map[string]string, body string, links []Link, bodyLine int) []ContextSection {
 	normalized := strings.ReplaceAll(body, "\r\n", "\n")
 	lines := strings.Split(normalized, "\n")
@@ -13,12 +43,7 @@ func splitContextSections(entry ListEntry, frontmatter map[string]string, body s
 		bodyLine = 1
 	}
 
-	type boundary struct {
-		start int
-		level int
-		title string
-	}
-	var boundaries []boundary
+	var boundaries []contextSectionBoundary
 	inCode := false
 	for index, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -33,11 +58,20 @@ func splitContextSections(entry ListEntry, frontmatter map[string]string, body s
 		if level <= 0 || level > 3 {
 			continue
 		}
-		boundaries = append(boundaries, boundary{
+		boundaries = append(boundaries, contextSectionBoundary{
 			start: index,
 			level: level,
 			title: strings.TrimSpace(trimmed[level:]),
 		})
+	}
+	return contextSectionsFromBoundaries(entry, frontmatter, body, links, bodyLine, boundaries)
+}
+
+func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]string, body string, links []Link, bodyLine int, boundaries []contextSectionBoundary) []ContextSection {
+	normalized := strings.ReplaceAll(body, "\r\n", "\n")
+	lines := strings.Split(normalized, "\n")
+	if bodyLine <= 0 {
+		bodyLine = 1
 	}
 
 	if len(boundaries) == 0 {

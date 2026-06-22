@@ -48,6 +48,29 @@ func TestBuildContextIndexSplitsMarkdownSectionsWithLineRanges(t *testing.T) {
 	}
 }
 
+func TestContextIndexUsesParsedMarkdownHeadingBoundaries(t *testing.T) {
+	document := ASTDocument{
+		Rel:   "guide.md",
+		ID:    "guide",
+		Kind:  "concept",
+		Body:  "# Raw Heading\n\nBody text.\n",
+		Links: nil,
+		Frontmatter: ASTFrontmatter{
+			BodyLine: 1,
+		},
+		Markdown: ASTMarkdown{},
+	}
+
+	index := ContextIndexFromAST(Result{Root: "root"}, ASTBundle{Root: "root", Documents: []ASTDocument{document}})
+
+	if len(index.Sections) != 1 {
+		t.Fatalf("expected one top section from empty Markdown headings, got %#v", index.Sections)
+	}
+	if index.Sections[0].Heading != "Top" || index.Sections[0].HeadingLevel != 0 {
+		t.Fatalf("expected context to trust parsed Markdown headings, got %#v", index.Sections[0])
+	}
+}
+
 func TestResolveContextRanksHeadingMetadataAndBodyMatches(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n\nIncident material lives in the guide.\n")

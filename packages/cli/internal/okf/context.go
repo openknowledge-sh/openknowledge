@@ -33,7 +33,7 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 			metadata = ASTDocumentMetadata{}
 		}
 		entry := listEntryFromASTSummary(SummarizeASTDocument(document, metadata))
-		sections = append(sections, splitContextSections(entry, document.Frontmatter.Values, document.Body, document.Links, document.Frontmatter.BodyLine)...)
+		sections = append(sections, splitContextSectionsFromASTDocument(entry, document)...)
 	}
 
 	sort.SliceStable(sections, func(i, j int) bool {
