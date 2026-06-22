@@ -62,6 +62,7 @@ func searchDocumentFromASTDocument(document ASTDocument) searchDocument {
 }
 
 func searchDocumentFromBundleFile(file BundleFile) searchDocument {
+	markdown := ParseASTMarkdown(file.Body, 1)
 	return newSearchDocument(
 		file.Path,
 		file.ID,
@@ -70,7 +71,7 @@ func searchDocumentFromBundleFile(file BundleFile) searchDocument {
 		file.Title,
 		file.Description,
 		file.Body,
-		markdownHeadings(file.Body),
+		astMarkdownHeadingText(markdown),
 		file.Frontmatter,
 	)
 }
@@ -314,18 +315,6 @@ func foldSearchRune(r rune) rune {
 		return 'z'
 	}
 	return r
-}
-
-func markdownHeadings(body string) string {
-	var headings []string
-	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if level := HeadingLevel(trimmed); level > 0 {
-			headings = append(headings, strings.TrimSpace(trimmed[level:]))
-		}
-	}
-	return strings.Join(headings, "\n")
 }
 
 func frontmatterSearchText(values map[string]string) string {
