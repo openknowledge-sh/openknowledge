@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-06-22 - AST parser includes Markdown structure
+
+* The OKF AST parser now adds a `markdown` tree to each parsed document,
+  including block order, headings with anchors and source lines, Markdown
+  links/images, fenced code blocks, and Mermaid detection.
+* AST-backed search now indexes headings from the parsed Markdown tree, context
+  section boundaries come from parsed heading nodes, and resolved document links
+  are derived from Markdown AST links instead of a separate raw-content pass.
+* Source anchors: `packages/cli/internal/okf/ast_markdown.go`,
+  `packages/cli/internal/okf/ast_markdown_types.go`,
+  `packages/cli/internal/okf/ast_links.go`,
+  `packages/cli/internal/okf/search.go`,
+  `packages/cli/internal/okf/context_sections.go`.
+* Docs updated: `Wiki/features/commands/ast.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-22 - Local viewer search deep-link highlights
 
 * The local viewer search API now returns `highlightText` and `highlightURL`

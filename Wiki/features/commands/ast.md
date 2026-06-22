@@ -38,9 +38,16 @@ prints the parsed `ASTBundle` as lower-camel-case JSON.
 
 The output is a diagnostics surface, not the normalized JSON exporter contract.
 For each document, it includes bundle-relative identity, parser classification,
-raw content, parsed frontmatter values, derived metadata, Markdown body, parsed
-links, and read/UTF-8/frontmatter diagnostics when present. Validation errors
-and warnings remain available through `openknowledge validate`.
+raw content, parsed frontmatter values, derived metadata, Markdown body, a
+structural Markdown tree, resolved links, and read/UTF-8/frontmatter diagnostics
+when present. Validation errors and warnings remain available through
+`openknowledge validate`.
+
+The `markdown` field is the parser-owned Markdown structure for a document. It
+currently includes ordered block nodes, headings with source lines and anchors,
+Markdown links/images, and fenced code blocks with Mermaid detection. The raw
+`body` field remains available for debugging and compatibility while linter and
+exporter paths migrate onto the structural tree.
 
 ## Use Cases
 
@@ -58,6 +65,7 @@ and warnings remain available through `openknowledge validate`.
 > * `packages/cli/cmd/openknowledge/ast_command.go`
 > * `packages/cli/internal/okf/ast_bundle_parse.go`
 > * `packages/cli/internal/okf/ast_document_types.go`
+> * `packages/cli/internal/okf/ast_markdown_types.go`
 >
 > **Update notes**
 >
