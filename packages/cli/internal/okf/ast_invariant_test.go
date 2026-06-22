@@ -35,7 +35,7 @@ func TestASTBackedOutputsMatchPublicAPIs(t *testing.T) {
 		t.Fatalf("expected public bundle to match direct AST bundle\npublic=%#v\ndirect=%#v", publicBundle, directBundle)
 	}
 
-	directList, err := listInventoryFromAST(parsed, issues)
+	directList, err := ListFromAST(parsed, issues)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 	files := map[string][]string{
 		"validate.go": {"parseAndValidateASTBundle"},
 		"bundle.go":   {"parseAndValidateASTBundle", "BundleFromAST"},
-		"list.go":     {"parseAndValidateASTBundle", "listInventoryFromAST"},
+		"list.go":     {"parseAndValidateASTBundle", "ListFromAST"},
 		"search.go":   {"parseAndValidateASTBundle", "newSearchIndexFromAST"},
 		"html.go":     {"parseAndValidateASTBundle", "writeHTMLFromAST"},
 		"context.go":  {"parseAndValidateASTBundle", "contextIndexFromAST"},

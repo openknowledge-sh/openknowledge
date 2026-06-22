@@ -10,10 +10,10 @@ func ListWithVersion(root string, version string) (ListResult, error) {
 		return ListResult{}, err
 	}
 
-	return listInventoryFromAST(ast, issuesFromResult(validation))
+	return ListFromAST(ast, issuesFromResult(validation))
 }
 
-func listInventoryFromAST(bundle ASTBundle, issues []Issue) (ListResult, error) {
+func ListFromAST(bundle ASTBundle, issues []Issue) (ListResult, error) {
 	issuesByPath := groupIssuesByPath(issues)
 	entries := make([]ListEntry, 0, len(bundle.Documents))
 	for _, document := range bundle.Documents {
