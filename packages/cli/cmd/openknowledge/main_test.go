@@ -25,8 +25,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge disconnect <key|path>",
 		"openknowledge use <name|path> [entry]",
 		"openknowledge use <name|path> --info",
-		"openknowledge context [name|path] --query <text>",
-		"openknowledge context [name|path] --query <text> --format json",
+		"openknowledge use <name|path> --query <text>",
+		"openknowledge use <name|path> --query <text> --format json",
 		"openknowledge registry connect <source>",
 		"openknowledge registry connect <source> --as <key>",
 		"openknowledge registry disconnect <key|path>",
@@ -45,8 +45,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
-		"use        Print an agent entrypoint from a bundle.",
-		"context    Print query-focused bundle context for an agent.",
+		"use        Print an agent entrypoint or query-focused excerpts from a bundle.",
 		"registry   Manage knowledge bundle connections.",
 		"open       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
@@ -58,7 +57,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"-h, --help  Show this help.",
 		"Examples:",
 		"openknowledge validate ./project-memory",
-		"openknowledge context accessibility --query \"validation workflow\"",
+		"openknowledge use accessibility --query \"validation workflow\"",
 		"openknowledge to html --out ./site ./project-memory",
 		"openknowledge to json ./project-memory",
 	}
@@ -72,6 +71,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 	forbidden := []string{
 		"openknowledge registry add <name> <path>",
 		"openknowledge where <name|path>",
+		"openknowledge context",
 		"where      Print the path for a named knowledge base or path.",
 	}
 	for _, unexpected := range forbidden {
@@ -141,16 +141,11 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: useHelpText(),
 			required: []string{
 				"openknowledge use <name|path> <entry> --info",
-				"okf_bundle_entry_<name>",
-				"prints the bundle root index.md",
-			},
-		},
-		"context": {
-			help: contextHelpText(),
-			required: []string{
-				"openknowledge context [name|path] --query <text>",
+				"openknowledge use <name|path> --query <text>",
 				"--budget",
 				"--format",
+				"okf_bundle_entry_<name>",
+				"prints the bundle root index.md",
 				"not use embeddings",
 				"generate summaries",
 			},
@@ -312,57 +307,60 @@ func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 	}
 }
 
-func TestParseContextOptionsAllowsPathAndFlags(t *testing.T) {
-	options, err := parseContextOptions([]string{"./project-memory", "--query", "validation workflow", "--budget", "1200", "--limit=5", "--format=json", "--spec", "0.1"})
+func TestParseUseOptionsAllowsQueryFlags(t *testing.T) {
+	options, err := parseUseOptions([]string{"./project-memory", "--query", "validation workflow", "--budget", "1200", "--limit=5", "--format=json", "--spec", "0.1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.path != "./project-memory" || options.query != "validation workflow" || options.budget != 1200 || options.limit != 5 || options.format != "json" || options.spec != "0.1" {
-		t.Fatalf("unexpected context options: %#v", options)
+	if options.target != "./project-memory" || !options.queryMode || options.query != "validation workflow" || options.budget != 1200 || options.limit != 5 || options.format != "json" || options.spec != "0.1" {
+		t.Fatalf("unexpected use query options: %#v", options)
 	}
-	if _, err := parseContextOptions([]string{"./project-memory"}); err == nil {
-		t.Fatal("expected missing query to fail")
+	if _, err := parseUseOptions([]string{"./project-memory", "--budget", "1200"}); err == nil {
+		t.Fatal("expected query-only flag without query to fail")
 	}
-	if _, err := parseContextOptions([]string{"--query", "x", "--budget", "0"}); err == nil {
+	if _, err := parseUseOptions([]string{"./project-memory", "--query", "x", "--budget", "0"}); err == nil {
 		t.Fatal("expected invalid budget to fail")
+	}
+	if _, err := parseUseOptions([]string{"./project-memory", "review", "--query", "x"}); err == nil {
+		t.Fatal("expected query mode with entry to fail")
 	}
 }
 
-func TestRunContextPrintsMarkdownSections(t *testing.T) {
+func TestRunUseQueryPrintsMarkdownSections(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Home\n")
 	writeMainTestFile(t, root, "guides/validate.md", "---\ntype: Guide\ntitle: Validation Workflow\n---\n\n# Validate\n\nRun `openknowledge validate` before sharing.\n")
 
 	output, code := captureMainStdout(t, func() int {
-		return runContext([]string{root, "--query", "validation workflow", "--budget", "400"})
+		return runUse([]string{root, "--query", "validation workflow", "--budget", "400"})
 	})
 	if code != 0 {
-		t.Fatalf("expected context to succeed, got exit code %d", code)
+		t.Fatalf("expected use query to succeed, got exit code %d", code)
 	}
-	for _, expected := range []string{"# Open Knowledge Context", "guides/validate.md:", "Run `openknowledge validate`"} {
+	for _, expected := range []string{"# Open Knowledge Query", "guides/validate.md:", "Run `openknowledge validate`"} {
 		if !strings.Contains(output, expected) {
-			t.Fatalf("expected markdown context to include %q:\n%s", expected, output)
+			t.Fatalf("expected markdown use query to include %q:\n%s", expected, output)
 		}
 	}
 }
 
-func TestRunContextPrintsJSON(t *testing.T) {
+func TestRunUseQueryPrintsJSON(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Home\n")
 	writeMainTestFile(t, root, "guides/release.md", "---\ntype: Guide\ntitle: Release Checklist\n---\n\n# Release\n\nShip the release notes.\n")
 
 	output, code := captureMainStdout(t, func() int {
-		return runContext([]string{"--query=release checklist", "--format", "json", root})
+		return runUse([]string{"--query=release checklist", "--format", "json", root})
 	})
 	if code != 0 {
-		t.Fatalf("expected context json to succeed, got exit code %d", code)
+		t.Fatalf("expected use query json to succeed, got exit code %d", code)
 	}
 	var payload okf.ContextResult
 	if err := json.Unmarshal([]byte(output), &payload); err != nil {
-		t.Fatalf("expected JSON context output: %v\n%s", err, output)
+		t.Fatalf("expected JSON use query output: %v\n%s", err, output)
 	}
 	if payload.Query != "release checklist" || len(payload.Results) == 0 || payload.Results[0].Path != "guides/release.md" {
-		t.Fatalf("unexpected context payload: %#v", payload)
+		t.Fatalf("unexpected use query payload: %#v", payload)
 	}
 }
 

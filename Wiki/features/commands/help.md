@@ -61,9 +61,9 @@ quick example for connecting a bundle with an explicit key.
 Root help added `openknowledge to tar --out <file> [path]` and the `tar`
 converter target for portable bundle archives.
 
-Root help added `openknowledge context [name|path] --query <text>`, JSON output
-usage, a `context` command summary, and a quick example for query-focused bundle
-context.
+Root help added `openknowledge use <name|path> --query <text>`, JSON output
+usage, and a quick example for query-focused bundle excerpts under the existing
+`use` command.
 
 Root help added `openknowledge ast [path]`, file output usage, an `ast` command
 summary, and a quick example for printing parsed OKF AST JSON.

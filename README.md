@@ -138,6 +138,8 @@ before using normal filesystem tools such as `rg`. Agents can use
 `openknowledge use <key>` to print a bundle-declared entrypoint, or
 `openknowledge use <key> agents/review.md` to print a specific file inside the
 bundle, falling back to root `index.md` when no default entrypoint is declared.
+Agents can use `openknowledge use <key> --query <text>` when they need
+query-focused excerpts without loading the whole bundle.
 The `openknowledge disconnect` alias removes a connection without deleting
 local files by default.
 `openknowledge connect` and `openknowledge disconnect` are top-level aliases
@@ -165,8 +167,8 @@ changes.
 | `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
 | `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint or bundle-relative file. |
 | `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
-| `openknowledge context <name-or-path> --query <text>` | Print query-focused Markdown sections within a token budget. |
-| `openknowledge context <name-or-path> --query <text> --format json` | Print the same context result as structured JSON. |
+| `openknowledge use <name-or-path> --query <text>` | Print query-focused Markdown sections within a token budget. |
+| `openknowledge use <name-or-path> --query <text> --format json` | Print the same query result as structured JSON. |
 | `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
 | `openknowledge registry connect <source> --as <key>` | Connect a bundle with an explicit key. |
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |

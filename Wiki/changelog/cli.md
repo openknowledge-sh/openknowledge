@@ -96,20 +96,22 @@ that were updated.
   `Wiki/features/commands/index.md`, `Wiki/features/commands/help.md`,
   `Wiki/changelog/cli.md`.
 
-### 2026-06-20 - Context command
+### 2026-06-20 - Use query mode
 
-* Added `openknowledge context` as a token-bounded bundle reading path for
-  agents. It resolves a path or registry key, builds section-level Markdown
-  context from headings, scores sections with lexical metadata/path/heading/body
-  matches, and prints original excerpts that fit an approximate token budget.
-* The command supports Markdown output by default and structured JSON with
+* Added `openknowledge use <name-or-path> --query <text>` as the token-bounded
+  bundle reading path for agents.
+* Query mode builds section-level Markdown context from headings, scores
+  sections with lexical metadata/path/heading/body matches, and prints original
+  excerpts that fit an approximate token budget.
+* The mode supports Markdown output by default and structured JSON with
   `--format json`; it does not use embeddings or generated summaries.
 * Source anchors: `packages/cli/internal/okf/context.go`,
   `packages/cli/internal/okf/context_test.go`,
   `packages/cli/cmd/openknowledge/main.go`,
   `packages/cli/cmd/openknowledge/main_test.go`.
-* Docs updated: `README.md`, `Wiki/features/commands/context.md`,
-  `Wiki/features/commands/index.md`, `Wiki/changelog/cli.md`.
+* Docs updated: `README.md`, `Wiki/features/commands/use.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/commands/help.md`,
+  `Wiki/features/tooling-model.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-06-20 - Viewer theme selector
 

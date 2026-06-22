@@ -45,8 +45,6 @@ func main() {
 		os.Exit(runDisconnect(os.Args[2:], "openknowledge disconnect"))
 	case "use":
 		os.Exit(runUse(os.Args[2:]))
-	case "context":
-		os.Exit(runContext(os.Args[2:]))
 	case "ast":
 		os.Exit(runAST(os.Args[2:]))
 	case "registry":
@@ -906,9 +904,15 @@ func printDisconnectResult(entry okf.RegistryEntry, files string) {
 }
 
 type useOptions struct {
-	target string
-	entry  string
-	info   bool
+	target    string
+	entry     string
+	info      bool
+	query     string
+	queryMode bool
+	format    string
+	spec      string
+	budget    int
+	limit     int
 }
 
 type useSelection struct {
@@ -926,6 +930,10 @@ func runUse(args []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
+	}
+
+	if options.queryMode {
+		return runUseQuery(options)
 	}
 
 	root, err := resolveWhereTarget(options.target)
@@ -961,30 +969,11 @@ func runUse(args []string) int {
 	return 0
 }
 
-type contextCommandOptions struct {
-	path   string
-	query  string
-	format string
-	spec   string
-	budget int
-	limit  int
-}
-
-func runContext(args []string) int {
-	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, contextHelpText())
-		return 0
-	}
-	options, err := parseContextOptions(args)
+func runUseQuery(options useOptions) int {
+	root, err := resolveWhereTarget(options.target)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return 2
-	}
-
-	root, err := okf.ResolveKnowledgeRoot(options.path)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 2
+		return 1
 	}
 	result, err := okf.ResolveContextWithVersion(root, options.spec, okf.ContextOptions{
 		Query:  options.query,
@@ -995,111 +984,11 @@ func runContext(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-
-	switch options.format {
-	case "json":
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
-		fmt.Println(string(data))
-	case "markdown":
-		fmt.Print(renderContextMarkdown(result))
-	default:
-		fmt.Fprintf(os.Stderr, "unsupported context format: %s\n", options.format)
-		return 2
+	if err := printUseQueryResult(result, options.format); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
 	return 0
-}
-
-func parseContextOptions(args []string) (contextCommandOptions, error) {
-	options := contextCommandOptions{
-		path:   ".",
-		format: "markdown",
-		spec:   "latest",
-		budget: okf.DefaultContextBudget,
-		limit:  12,
-	}
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--query":
-			value, next, err := nextFlagValue(args, index, "--query")
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			options.query = value
-			index = next
-		case strings.HasPrefix(arg, "--query="):
-			options.query = strings.TrimPrefix(arg, "--query=")
-		case arg == "--budget":
-			value, next, err := nextFlagValue(args, index, "--budget")
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			budget, err := parsePositiveIntFlag("--budget", value)
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			options.budget = budget
-			index = next
-		case strings.HasPrefix(arg, "--budget="):
-			budget, err := parsePositiveIntFlag("--budget", strings.TrimPrefix(arg, "--budget="))
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			options.budget = budget
-		case arg == "--limit":
-			value, next, err := nextFlagValue(args, index, "--limit")
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			limit, err := parsePositiveIntFlag("--limit", value)
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			options.limit = limit
-			index = next
-		case strings.HasPrefix(arg, "--limit="):
-			limit, err := parsePositiveIntFlag("--limit", strings.TrimPrefix(arg, "--limit="))
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			options.limit = limit
-		case arg == "--format":
-			value, next, err := nextFlagValue(args, index, "--format")
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			options.format = strings.TrimSpace(value)
-			index = next
-		case strings.HasPrefix(arg, "--format="):
-			options.format = strings.TrimSpace(strings.TrimPrefix(arg, "--format="))
-		case arg == "--spec":
-			value, next, err := nextFlagValue(args, index, "--spec")
-			if err != nil {
-				return contextCommandOptions{}, err
-			}
-			options.spec = value
-			index = next
-		case strings.HasPrefix(arg, "--spec="):
-			options.spec = strings.TrimPrefix(arg, "--spec=")
-		case strings.HasPrefix(arg, "-"):
-			return contextCommandOptions{}, fmt.Errorf("unknown flag: %s", arg)
-		case options.path == ".":
-			options.path = arg
-		default:
-			return contextCommandOptions{}, fmt.Errorf("context accepts at most one path")
-		}
-	}
-	if strings.TrimSpace(options.query) == "" {
-		return contextCommandOptions{}, fmt.Errorf("openknowledge context requires --query <text>")
-	}
-	if options.format != "markdown" && options.format != "json" {
-		return contextCommandOptions{}, fmt.Errorf("unsupported context format: %s", options.format)
-	}
-	return options, nil
 }
 
 func nextFlagValue(args []string, index int, flag string) (string, int, error) {
@@ -1121,9 +1010,25 @@ func parsePositiveIntFlag(flag string, value string) (int, error) {
 	return parsed, nil
 }
 
-func renderContextMarkdown(result okf.ContextResult) string {
+func printUseQueryResult(result okf.ContextResult, format string) error {
+	switch format {
+	case "json":
+		data, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
+	case "markdown":
+		fmt.Print(renderUseQueryMarkdown(result))
+	default:
+		return fmt.Errorf("unsupported use query format: %s", format)
+	}
+	return nil
+}
+
+func renderUseQueryMarkdown(result okf.ContextResult) string {
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "# Open Knowledge Context\n\n")
+	fmt.Fprintf(&builder, "# Open Knowledge Query\n\n")
 	fmt.Fprintf(&builder, "- Query: %s\n", result.Query)
 	fmt.Fprintf(&builder, "- Budget: %d tokens\n", result.Budget)
 	fmt.Fprintf(&builder, "- Estimated: %d tokens\n\n", result.EstimatedTokens)
@@ -1151,11 +1056,91 @@ func renderContextMarkdown(result okf.ContextResult) string {
 }
 
 func parseUseOptions(args []string) (useOptions, error) {
-	options := useOptions{}
-	for _, arg := range args {
+	options := useOptions{
+		format: "markdown",
+		spec:   "latest",
+		budget: okf.DefaultContextBudget,
+		limit:  12,
+	}
+	queryFlagUsed := false
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
 		switch {
 		case arg == "--info":
 			options.info = true
+		case arg == "--query":
+			value, next, err := nextFlagValue(args, index, "--query")
+			if err != nil {
+				return useOptions{}, err
+			}
+			options.query = value
+			options.queryMode = true
+			queryFlagUsed = true
+			index = next
+		case strings.HasPrefix(arg, "--query="):
+			options.query = strings.TrimPrefix(arg, "--query=")
+			options.queryMode = true
+			queryFlagUsed = true
+		case arg == "--budget":
+			value, next, err := nextFlagValue(args, index, "--budget")
+			if err != nil {
+				return useOptions{}, err
+			}
+			budget, err := parsePositiveIntFlag("--budget", value)
+			if err != nil {
+				return useOptions{}, err
+			}
+			options.budget = budget
+			queryFlagUsed = true
+			index = next
+		case strings.HasPrefix(arg, "--budget="):
+			budget, err := parsePositiveIntFlag("--budget", strings.TrimPrefix(arg, "--budget="))
+			if err != nil {
+				return useOptions{}, err
+			}
+			options.budget = budget
+			queryFlagUsed = true
+		case arg == "--limit":
+			value, next, err := nextFlagValue(args, index, "--limit")
+			if err != nil {
+				return useOptions{}, err
+			}
+			limit, err := parsePositiveIntFlag("--limit", value)
+			if err != nil {
+				return useOptions{}, err
+			}
+			options.limit = limit
+			queryFlagUsed = true
+			index = next
+		case strings.HasPrefix(arg, "--limit="):
+			limit, err := parsePositiveIntFlag("--limit", strings.TrimPrefix(arg, "--limit="))
+			if err != nil {
+				return useOptions{}, err
+			}
+			options.limit = limit
+			queryFlagUsed = true
+		case arg == "--format":
+			value, next, err := nextFlagValue(args, index, "--format")
+			if err != nil {
+				return useOptions{}, err
+			}
+			options.format = strings.TrimSpace(value)
+			queryFlagUsed = true
+			index = next
+		case strings.HasPrefix(arg, "--format="):
+			options.format = strings.TrimSpace(strings.TrimPrefix(arg, "--format="))
+			queryFlagUsed = true
+		case arg == "--spec":
+			value, next, err := nextFlagValue(args, index, "--spec")
+			if err != nil {
+				return useOptions{}, err
+			}
+			options.spec = value
+			queryFlagUsed = true
+			index = next
+		case strings.HasPrefix(arg, "--spec="):
+			options.spec = strings.TrimPrefix(arg, "--spec=")
+			queryFlagUsed = true
 		case strings.HasPrefix(arg, "-"):
 			return useOptions{}, fmt.Errorf("unknown flag: %s", arg)
 		case options.target == "":
@@ -1168,6 +1153,22 @@ func parseUseOptions(args []string) (useOptions, error) {
 	}
 	if options.target == "" {
 		return useOptions{}, fmt.Errorf("usage: openknowledge use <name|path> [entry]")
+	}
+	if options.queryMode {
+		if strings.TrimSpace(options.query) == "" {
+			return useOptions{}, fmt.Errorf("openknowledge use --query requires <text>")
+		}
+		if options.info {
+			return useOptions{}, fmt.Errorf("openknowledge use --query cannot be combined with --info")
+		}
+		if options.entry != "" {
+			return useOptions{}, fmt.Errorf("openknowledge use --query does not accept an entry")
+		}
+		if options.format != "markdown" && options.format != "json" {
+			return useOptions{}, fmt.Errorf("unsupported use query format: %s", options.format)
+		}
+	} else if queryFlagUsed {
+		return useOptions{}, fmt.Errorf("--budget, --limit, --format, and --spec require --query")
 	}
 	return options, nil
 }
@@ -1862,8 +1863,8 @@ Usage:
   openknowledge disconnect <key|path>
   openknowledge use <name|path> [entry]
   openknowledge use <name|path> --info
-  openknowledge context [name|path] --query <text>
-  openknowledge context [name|path] --query <text> --format json
+  openknowledge use <name|path> --query <text>
+  openknowledge use <name|path> --query <text> --format json
   openknowledge ast [path]
   openknowledge ast --out <file> [path]
   openknowledge registry connect <source>
@@ -1892,8 +1893,7 @@ Commands:
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
-  use        Print an agent entrypoint from a bundle.
-  context    Print query-focused bundle context for an agent.
+  use        Print an agent entrypoint or query-focused excerpts from a bundle.
   ast        Print parsed OKF AST JSON.
   registry   Manage knowledge bundle connections.
   open       Start the registry or knowledge base Markdown viewer.
@@ -1914,7 +1914,7 @@ Examples:
   openknowledge connect ./accessibility --as accessibility
   openknowledge use accessibility --info
   openknowledge use accessibility
-  openknowledge context accessibility --query "validation workflow"
+  openknowledge use accessibility --query "validation workflow"
   openknowledge ast ./project-memory
   openknowledge disconnect accessibility
   openknowledge registry connect ./team-wiki --as team
@@ -1931,15 +1931,18 @@ Examples:
 }
 
 func useHelpText() string {
-	return `openknowledge use
+	return fmt.Sprintf(`openknowledge use
 
-Print an agent-facing entrypoint from a knowledge bundle.
+Print an agent-facing entrypoint or query-focused excerpts from a knowledge bundle.
 
 Usage:
   openknowledge use <name|path>
   openknowledge use <name|path> <entry>
   openknowledge use <name|path> --info
   openknowledge use <name|path> <entry> --info
+  openknowledge use <name|path> --query <text>
+  openknowledge use <name|path> --query <text> --budget <tokens>
+  openknowledge use <name|path> --query <text> --format json
   openknowledge use --help
 
 Arguments:
@@ -1949,6 +1952,11 @@ Arguments:
 
 Flags:
   --info         Print bundle and entrypoint metadata instead of Markdown body.
+  --query        Select relevant bundle sections with a lexical query.
+  --budget       Approximate query output token budget. Defaults to %d.
+  --limit        Maximum number of query sections. Defaults to 12.
+  --format       Query output format: markdown or json. Defaults to markdown.
+  --spec         OKF spec version for query mode. Defaults to latest.
 
 Behavior:
   Without an entry, use prints okf_bundle_entry_default when declared. If no
@@ -1956,46 +1964,19 @@ Behavior:
   use first checks root index.md metadata, then treats the value as a path
   inside the bundle.
 
+  With --query, use builds a section-level index from Markdown headings, scores
+  sections using lexical matches across metadata, paths, headings, and body
+  text, then prints only the highest-scoring original excerpts that fit the
+  budget. Query mode does not use embeddings or generate summaries.
+
 Examples:
   openknowledge use accessibility --info
   openknowledge use accessibility
   openknowledge use accessibility review
   openknowledge use accessibility agents/review.md
-`
-}
-
-func contextHelpText() string {
-	return fmt.Sprintf(`openknowledge context
-
-Print query-focused Markdown sections from a knowledge bundle.
-
-Usage:
-  openknowledge context --query <text>
-  openknowledge context [name|path] --query <text>
-  openknowledge context [name|path] --query <text> --budget <tokens>
-  openknowledge context [name|path] --query <text> --format json
-  openknowledge context --help
-
-Arguments:
-  name|path      Registry key or local bundle path. Defaults to the current directory.
-
-Flags:
-  --query        Required search query.
-  --budget       Approximate output token budget. Defaults to %d.
-  --limit        Maximum number of sections. Defaults to 12.
-  --format       Output format: markdown or json. Defaults to markdown.
-  --spec         OKF spec version. Defaults to latest.
-
-Behavior:
-  Context builds a section-level index from Markdown headings, scores sections
-  using lexical matches across metadata, paths, headings, and body text, then
-  prints only the highest-scoring original excerpts that fit the budget. It does
-  not use embeddings or generate summaries.
-
-Examples:
-  openknowledge context Wiki --query "validation workflow"
-  openknowledge context personal --query "release checklist" --budget 1200
-  openknowledge context personal --query "release checklist" --format json
+  openknowledge use Wiki --query "validation workflow"
+  openknowledge use personal --query "release checklist" --budget 1200
+  openknowledge use personal --query "release checklist" --format json
 `, okf.DefaultContextBudget)
 }
 
