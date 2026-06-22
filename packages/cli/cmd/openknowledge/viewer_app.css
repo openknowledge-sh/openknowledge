@@ -111,8 +111,8 @@ body.viewer-document.is-sidebar-open > .powered-by-openknowledge { transform: tr
 .tree-directory::before { content: none; }
 .tree-file:hover { background: var(--ok-color-accent-softer); color: var(--ok-color-accent); }
 .file-sidebar .tree-file:hover { background: var(--ok-color-sidebar-tree-hover-bg); }
-.tree-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tree-file-system { margin-left: auto; flex: 0 0 auto; padding: 1px 5px; border: 1px solid var(--ok-color-tree-badge-border); border-radius: 4px; color: var(--ok-color-tree-badge-text); font-size: 10px; line-height: 1.2; text-transform: lowercase; }
+.tree-file-name { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-file-system { flex: 0 0 auto; padding: 1px 5px; border: 1px solid var(--ok-color-tree-badge-border); border-radius: 4px; color: var(--ok-color-tree-badge-text); font-size: 10px; line-height: 1.2; text-transform: lowercase; }
 h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.15; }
 h2 { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--ok-color-border); }
 h3 { margin-top: 26px; }
@@ -176,6 +176,8 @@ body.is-panel-resizing, body.is-panel-resizing * { cursor: ew-resize !important;
 .editor-option-mark { display: inline-flex; flex: 0 0 24px; height: 22px; align-items: center; justify-content: center; border: 1px solid var(--ok-color-editor-option-border); border-radius: 5px; background: var(--ok-color-editor-option-bg); color: var(--ok-color-editor-option-text); font-size: 10px; font-weight: 700; line-height: 1; }
 .editor-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-menu-separator { height: 1px; margin: 6px 4px; background: var(--ok-color-editor-menu-separator); }
+.note-close-shortcut { display: inline-flex; height: 22px; align-items: center; justify-content: center; padding: 0 2px; color: var(--ok-color-note-close-text); font: 600 10px/1 var(--ok-font-body); opacity: .72; pointer-events: none; }
+.note-panel:not(.is-active-panel) .note-close-shortcut { display: none; }
 .note-close { display: inline-flex; flex: 0 0 auto; width: 28px; height: 28px; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--ok-color-note-close-text); cursor: pointer; font: inherit; line-height: 1; text-decoration: none; }
 .note-close:hover, .note-close:focus-visible { border-color: var(--ok-color-note-close-hover-border); background: var(--ok-color-code-inline-bg); color: var(--ok-color-note-close-hover-text); outline: none; }
 .note-close-icon { width: 16px; height: 16px; }
@@ -323,6 +325,7 @@ ul, ol { padding-left: 22px; }
   .knowledge-graph-canvas { height: 380px; min-height: 380px; }
   .note-panel.document { --ok-note-panel-default-width: calc(100vw - 24px); --ok-note-panel-min-width: min(360px, calc(100vw - 24px)); padding: 0 22px 28px; }
   .note-chrome { margin: 0 -22px 22px; padding: 0 10px 0 22px; }
+  .note-close-shortcut { display: none; }
   .ok-table-tools { gap: 6px; padding: 6px; }
   .ok-table-search { flex-basis: 110px; }
   .ok-table-filter-trigger { padding: 0 8px; }

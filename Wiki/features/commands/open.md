@@ -63,6 +63,10 @@ as `/wiki/` or `/personal/`.
   accepted as a non-macOS fallback, but the shortcut shown beside the file
   explorer button stays `⌘⌥S`. The sidebar shortcut is ignored while focus is in
   editable controls.
+* `Command+Option+W` closes the focused note panel. `Ctrl+Alt+W` is still
+  accepted as a non-macOS fallback. The active panel shows a minimal shortcut
+  hint to the left of the close button, and after a panel closes, focus moves to
+  the previous panel when one exists.
 * The local search API returns `highlightText` and `highlightURL` when a result
   has a reliable visible text match. `highlightURL` points at the Markdown file
   with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the
@@ -85,6 +89,9 @@ as `/wiki/` or `/personal/`.
 * The file explorer sidebar renders folder rows as lightweight bold text
   without filled row blocks, keeping the tree visually quiet while preserving
   file hover states.
+* Reserved `index.md` and `log.md` entries show their `system` badge directly
+  beside the file name instead of pinning the badge to the far edge of the tree
+  row.
 * The file viewer header includes a settings menu with five built-in visual
   themes plus a custom theme editor for page, surface, text, muted, accent, and
   border colors. Theme choices are browser-local and persist through

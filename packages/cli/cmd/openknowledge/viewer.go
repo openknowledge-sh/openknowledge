@@ -2438,6 +2438,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
               <div class="editor-menu" data-editor-menu role="menu" hidden></div>
             </div>
             {{end}}
+            <kbd class="note-close-shortcut" data-panel-close-shortcut aria-hidden="true">⌘⌥W</kbd>
             <a class="note-close" href="#" data-close-panel aria-label="Close {{.Path}}" title="Close note" role="button">
               <svg class="note-close-icon control-icon" data-icon="x" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M18 6 6 18"></path>

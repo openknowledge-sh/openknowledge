@@ -23,6 +23,32 @@ cut.
 Candidate V4 changes are commits after the `v0.3.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-06-23 - Viewer system badge spacing
+
+* Adjusted local and static viewer file tree layout so reserved file `system`
+  badges sit directly beside file names instead of being pushed to the far
+  right of the row.
+* This keeps short reserved entries such as `index.md` visually grouped with
+  their badge while preserving ellipsis behavior for long file names.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-06-23 - Viewer panel close shortcut
+
+* Added `Command+Option+W` / `Ctrl+Alt+W` as a local viewer shortcut for
+  closing the focused note panel.
+* The active note panel now shows a minimal formatted close shortcut hint to the
+  left of the close button, and closing a panel moves focus to the previous
+  panel when one exists.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/open.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-22 - Validate and list key-or-path docs
 
 * Updated `openknowledge validate` and `openknowledge list` help/docs to use

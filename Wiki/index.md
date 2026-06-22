@@ -20,6 +20,10 @@ custom theme.
 * [Exporters](features/exporters/) - HTML, JSON, tar, and graph exporter
   behavior.
 
+## Changelog
+
+* [CLI changelog](changelog/cli.md) - release-facing CLI changes.
+
 ## Commands
 
 ### Create And Inspect Bundles

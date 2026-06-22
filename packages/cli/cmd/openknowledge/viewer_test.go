@@ -201,6 +201,21 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-close-panel`) {
 		t.Fatalf("viewer file page did not include panel close control:\n%s", page)
 	}
+	if !strings.Contains(page, `id: "viewer.panel.close"`) ||
+		!strings.Contains(page, `code: "KeyW"`) ||
+		!strings.Contains(page, `label: "⌘⌥W"`) ||
+		!strings.Contains(page, `closeablePanel()`) ||
+		!strings.Contains(page, `ariaKeyShortcut(panelCloseShortcut)`) ||
+		!strings.Contains(page, `remaining[Math.min(Math.max(index - 1, 0), remaining.length - 1)]`) {
+		t.Fatalf("viewer file page should close the focused panel with a primary-alt-w shortcut and focus the previous panel:\n%s", page)
+	}
+	if !strings.Contains(page, `class="note-close-shortcut" data-panel-close-shortcut`) ||
+		!strings.Contains(page, `document.createElement("kbd")`) ||
+		!strings.Contains(page, `.note-close-shortcut { display: inline-flex; height: 22px;`) ||
+		!strings.Contains(page, `.note-panel:not(.is-active-panel) .note-close-shortcut { display: none; }`) ||
+		!strings.Contains(page, `.note-close-shortcut { display: none; }`) {
+		t.Fatalf("viewer file page should show a minimal panel close shortcut badge only on the active panel:\n%s", page)
+	}
 	if !strings.Contains(page, `data-editor-picker`) || !strings.Contains(page, `data-editor-options`) {
 		t.Fatalf("viewer file page did not include editor picker:\n%s", page)
 	}
@@ -308,6 +323,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `tree-file-system`) || !strings.Contains(page, `>system</span>`) {
 		t.Fatalf("viewer file tree should mark reserved markdown files with a system badge:\n%s", page)
+	}
+	if !strings.Contains(page, `.tree-file-name { flex: 0 1 auto;`) ||
+		!strings.Contains(page, `.tree-file-system { flex: 0 0 auto;`) ||
+		strings.Contains(page, `.tree-file-system { margin-left: auto;`) {
+		t.Fatalf("viewer file tree should keep system badges adjacent to file names:\n%s", page)
 	}
 	if !strings.Contains(page, `data-knowledge-graph`) || !strings.Contains(page, `data-knowledge-graph-view`) || !strings.Contains(page, `"source":"index.md"`) || !strings.Contains(page, `"target":"workflows/docs.md"`) {
 		t.Fatalf("viewer file page did not include connected knowledge graph data:\n%s", page)

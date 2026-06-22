@@ -47,6 +47,23 @@
     accent: ["--ok-color-accent", "--ok-color-accent-strong", "--ok-color-graph-node-active-border"],
     border: ["--ok-color-border", "--ok-color-search-input-border", "--ok-color-card-border", "--ok-color-editor-trigger-border", "--ok-color-editor-menu-border"]
   };
+  const panelCloseShortcut = {
+    id: "viewer.panel.close",
+    code: "KeyW",
+    metaOrCtrlKey: true,
+    altKey: true,
+    label: "⌘⌥W",
+    ariaKeyShortcut: "Meta+Alt+W",
+    when: function () {
+      return Boolean(closeablePanel());
+    },
+    run: function () {
+      const panel = closeablePanel();
+      if (panel) {
+        closePanel(panel, true);
+      }
+    }
+  };
 
   function panels() {
     return Array.prototype.slice.call(stackEl.querySelectorAll("[data-note-path]"));
@@ -1805,6 +1822,14 @@
     return stackEl.querySelector(".note-panel.is-active-panel");
   }
 
+  function focusedPanel() {
+    return closestElement(document.activeElement, "[data-note-path]");
+  }
+
+  function closeablePanel() {
+    return focusedPanel() || activePanel();
+  }
+
   function setActivePanel(panel) {
     if (!panel || !stackEl.contains(panel)) {
       return;
@@ -2590,6 +2615,12 @@
     closeButton.setAttribute("aria-label", "Close " + data.path);
     closeButton.title = "Close note";
     closeButton.append(controlIcon("x", "note-close-icon"));
+    const closeShortcut = document.createElement("kbd");
+    closeShortcut.className = "note-close-shortcut";
+    closeShortcut.dataset.panelCloseShortcut = "";
+    closeShortcut.setAttribute("aria-hidden", "true");
+    closeShortcut.textContent = panelCloseShortcut.label;
+    actions.append(closeShortcut);
     actions.append(closeButton);
     chrome.append(actions);
 
@@ -2605,6 +2636,7 @@
   function bindPanel(panel) {
     applyPanelWidth(panel);
     ensurePanelResizeHandles(panel);
+    syncPanelCloseShortcut(panel);
     panel.querySelectorAll("[data-editor-picker]").forEach(bindEditorPicker);
     enhanceTables(panel);
 
@@ -2625,6 +2657,20 @@
       event.preventDefault();
       event.stopPropagation();
       closePanel(panel, true);
+    });
+  }
+
+  function syncPanelCloseShortcut(panel) {
+    const shortcutSystem = window.OpenKnowledgeShortcuts;
+    const closeButton = panel.querySelector("[data-close-panel]");
+    if (!shortcutSystem || !closeButton) {
+      return;
+    }
+    const label = shortcutSystem.format(panelCloseShortcut);
+    closeButton.title = "Close note (" + label + ")";
+    closeButton.setAttribute("aria-keyshortcuts", shortcutSystem.ariaKeyShortcut(panelCloseShortcut));
+    panel.querySelectorAll("[data-panel-close-shortcut]").forEach(function (element) {
+      element.textContent = label;
     });
   }
 
@@ -2741,7 +2787,7 @@
         return;
       }
 
-      nextPanel = remaining[Math.min(Math.max(index, 0), remaining.length - 1)];
+      nextPanel = remaining[Math.min(Math.max(index - 1, 0), remaining.length - 1)];
       setActivePanel(nextPanel);
     });
 
@@ -3248,6 +3294,10 @@
       setActivePanel(focusedPanel);
     }
   });
+
+  if (window.OpenKnowledgeShortcuts) {
+    window.OpenKnowledgeShortcuts.register(panelCloseShortcut);
+  }
 
   if (sidebarToggle) {
     const sidebarShortcut = { id: "viewer.sidebar.toggle", code: "KeyS", metaOrCtrlKey: true, altKey: true, label: "⌘⌥S", ariaKeyShortcut: "Meta+Alt+S", run: toggleSidebar };

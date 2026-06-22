@@ -58,7 +58,7 @@ The report currently includes these checks:
 Errors make `openknowledge validate` exit with status `1`. Warnings are printed
 but still exit with status `0`.
 
-Current errors:
+### ❌ Current errors
 
 * The target cannot be read as a bundle directory.
 * A Markdown file cannot be read.
@@ -72,7 +72,7 @@ Current errors:
 * `log.md` uses frontmatter.
 * A `log.md` `##` heading is not exactly `## YYYY-MM-DD`.
 
-Current warnings:
+### ⚠️ Current warnings
 
 * Root `index.md` declares an `okf_version` that differs from the selected spec.
 * A local Markdown link points outside the bundle root or to a missing target.
