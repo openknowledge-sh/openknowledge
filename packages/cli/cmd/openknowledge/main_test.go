@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,15 +20,15 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge <command> --help",
 		"openknowledge setup",
 		"openknowledge new --name <name> [folder]",
-		"openknowledge connect <path>",
-		"openknowledge connect <path> --as <key>",
+		"openknowledge connect <source>",
+		"openknowledge connect <source> --as <key>",
 		"openknowledge disconnect <key|path>",
 		"openknowledge use <name|path> [entry]",
 		"openknowledge use <name|path> --info",
 		"openknowledge context [name|path] --query <text>",
 		"openknowledge context [name|path] --query <text> --format json",
-		"openknowledge registry connect <path>",
-		"openknowledge registry connect <path> --as <key>",
+		"openknowledge registry connect <source>",
+		"openknowledge registry connect <source> --as <key>",
 		"openknowledge registry disconnect <key|path>",
 		"openknowledge registry where <name|path>",
 		"openknowledge open --name <alias-name> [path]",
@@ -35,17 +36,18 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge open --no-browser [path]",
 		"openknowledge to html --out <folder> [path]",
 		"openknowledge to json --out <file> [path]",
+		"openknowledge to tar --out <file> [path]",
 		"openknowledge validate --spec <version> [path]",
 		"openknowledge list --spec <version> [path]",
 		"openknowledge list --json [path]",
 		"Commands:",
 		"setup      Print an agent setup prompt.",
 		"new        Scaffold a local Open Knowledge bundle.",
-		"connect    Connect a local knowledge bundle.",
+		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
 		"use        Print an agent entrypoint from a bundle.",
 		"context    Print query-focused bundle context for an agent.",
-		"registry   Manage local knowledge bundle connections.",
+		"registry   Manage knowledge bundle connections.",
 		"open       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
 		"spec       Print an embedded OKF spec.",
@@ -105,17 +107,17 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"connect": {
 			help: connectHelpText("openknowledge connect"),
 			required: []string{
-				"openknowledge connect <path> --as <key>",
+				"openknowledge connect <source> --as <key>",
 				"--access",
 				"--no-validate",
-				"Remote URL sources are not supported yet",
+				"manifest URL, tar archive URL, or Git URL",
 			},
 		},
 		"registry connect": {
 			help: connectHelpText("openknowledge registry connect"),
 			required: []string{
-				"openknowledge registry connect <path> --as <key>",
-				"openknowledge registry connect <path> --access read|write",
+				"openknowledge registry connect <source> --as <key>",
+				"openknowledge registry connect <source> --access read|write",
 				"openknowledge registry connect --help",
 			},
 		},
@@ -124,7 +126,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge disconnect <key|path> --keep-files",
 				"openknowledge disconnect <key|path> --delete-files",
-				"reserved for future managed remote-cache entries",
+				"Delete files only for CLI-managed remote clones",
 			},
 		},
 		"registry disconnect": {
@@ -156,7 +158,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"registry": {
 			help: registryHelpText(),
 			required: []string{
-				"openknowledge registry connect <path> --as <key>",
+				"openknowledge registry connect <source> --as <key>",
 				"openknowledge registry disconnect <key|path> --keep-files",
 				"openknowledge registry where <name|path>",
 				"Registry keys are shortcuts",
@@ -198,6 +200,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge to html --out <folder> [path]",
 				"openknowledge to html --plain --out <folder> [path]",
 				"openknowledge to json --out <file> [path]",
+				"openknowledge to tar --out <file> [path]",
 				"Targets:",
 			},
 		},
@@ -208,6 +211,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge to html --spec <version> --out <folder> [path]",
 				"Output folder for generated HTML files. Required.",
 				"Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.",
+				"openknowledge.json",
+				"assets/openknowledge-bundle.tar.gz",
 				"Default viewer exports read [html.theme] from openknowledge.toml",
 				"Built-in variables are defined in viewer_theme.css",
 			},
@@ -217,6 +222,14 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge to json --out <file> [path]",
 				"Output file. Defaults to stdout.",
+			},
+		},
+		"to tar": {
+			help: toTarHelpText(),
+			required: []string{
+				"openknowledge to tar --out <file> [path]",
+				"Write a portable tar.gz archive",
+				"Output archive file. Required.",
 			},
 		},
 		"validate": {
@@ -353,6 +366,32 @@ func TestRunContextPrintsJSON(t *testing.T) {
 	}
 }
 
+func TestRunToTarWritesPortableArchive(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Bundle\n")
+	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
+	out := filepath.Join(t.TempDir(), "bundle.tar.gz")
+
+	code := runToTar([]string{"--out", out, root})
+	if code != 0 {
+		t.Fatalf("expected to tar to succeed, got exit code %d", code)
+	}
+	extracted := filepath.Join(t.TempDir(), "extracted")
+	if err := okf.ExtractBundleArchive(out, extracted); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(extracted, "index.md")); err != nil {
+		t.Fatalf("expected extracted index.md: %v", err)
+	}
+	validation, err := okf.Validate(extracted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(validation.Errors) != 0 {
+		t.Fatalf("expected extracted archive to validate, got %#v", validation.Errors)
+	}
+}
+
 func TestParseUseOptionsAllowsInfoAfterEntry(t *testing.T) {
 	options, err := parseUseOptions([]string{"accessibility", "review", "--info"})
 	if err != nil {
@@ -420,6 +459,103 @@ okf_bundle_entry_review: "agents/review.md"
 	}
 	if selection.name != "index" || selection.rel != "index.md" {
 		t.Fatalf("unexpected root fallback selection: %#v", selection)
+	}
+}
+
+func TestRunConnectClonesRemoteSource(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for remote connect test")
+	}
+	base := t.TempDir()
+	remote := filepath.Join(base, "remote")
+	runGit(t, base, "init", remote)
+	runGit(t, remote, "config", "user.email", "test@example.com")
+	runGit(t, remote, "config", "user.name", "Test User")
+	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Remote\n")
+	runGit(t, remote, "add", "index.md")
+	runGit(t, remote, "commit", "-m", "init")
+
+	registryFile := filepath.Join(base, "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(base, "config"))
+
+	code := runConnect([]string{"--as", "remote", "--no-validate", "file://" + remote}, "openknowledge connect")
+	if code != 0 {
+		t.Fatalf("expected remote connect to succeed, got exit code %d", code)
+	}
+	entry, ok, err := okf.ResolveRegistryEntry("remote")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected remote registry entry")
+	}
+	if !entry.Managed || entry.Source.Type != "git" || entry.Source.URL != "file://"+remote {
+		t.Fatalf("unexpected remote registry entry: %#v", entry)
+	}
+	if _, err := os.Stat(filepath.Join(entry.Path, "index.md")); err != nil {
+		t.Fatalf("expected cloned index.md: %v", err)
+	}
+}
+
+func TestRunConnectUsesRemoteOpenKnowledgeManifest(t *testing.T) {
+	base := t.TempDir()
+	bundle := filepath.Join(base, "bundle")
+	writeMainTestFile(t, bundle, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: hosted\n---\n\n# Hosted\n")
+	hosted := filepath.Join(base, "hosted")
+	archive := filepath.Join(hosted, "assets", "openknowledge-bundle.tar.gz")
+	archiveResult, err := okf.WriteBundleTarGzipWithVersion(bundle, archive, "0.1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := okf.BundleManifest{
+		Type:          okf.BundleManifestType,
+		Version:       1,
+		Spec:          "0.1",
+		Name:          "hosted",
+		Title:         "Hosted",
+		Archive:       "assets/openknowledge-bundle.tar.gz",
+		ArchiveSHA256: archiveResult.SHA256,
+		ArchiveFormat: okf.BundleArchiveFormat,
+	}
+	manifestData, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hosted, okf.BundleManifestRelPath), manifestData, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	registryFile := filepath.Join(base, "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	manifestURL := "file://" + filepath.Join(hosted, okf.BundleManifestRelPath)
+	code := runConnect([]string{"--no-validate", manifestURL}, "openknowledge connect")
+	if code != 0 {
+		t.Fatalf("expected manifest connect to succeed, got exit code %d", code)
+	}
+	entry, ok, err := okf.ResolveRegistryEntry("hosted")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected hosted registry entry")
+	}
+	expectedArchiveURL := "file://" + filepath.Join(hosted, "assets", "openknowledge-bundle.tar.gz")
+	if entry.Source.Type != "manifest" || entry.Source.URL != manifestURL || entry.Source.Ref != expectedArchiveURL {
+		t.Fatalf("unexpected manifest source: %#v", entry.Source)
+	}
+	if _, err := os.Stat(filepath.Join(entry.Path, "index.md")); err != nil {
+		t.Fatalf("expected materialized index.md: %v", err)
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(output))
 	}
 }
 

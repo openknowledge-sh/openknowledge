@@ -2,10 +2,31 @@
   <img src="docs/assets/openknowledge-readme-logo.png" alt="Open Knowledge CLI" width="140">
 
 
-Open Knowledge CLI helps you create local LLM wikis that are readable for both
-humans and agents, then keep them up to date using a maintenance loop.
+Open Knowledge CLI helps you create, connect, inspect, and publish local LLM
+wikis that are readable for both humans and agents, then keep them up to date
+using a maintenance loop.
 
 Implements the [Open Knowledge Format v0.1][okf-spec] specification.
+
+## What the CLI is for
+
+Open Knowledge is a small tooling stack around Markdown knowledge bases:
+
+| Layer | Commands | Use it for |
+| --- | --- | --- |
+| Authoring and OKF hygiene | `setup`, `new`, `validate`, `list`, `spec` | Create a bundle, seed agent maintenance rules, and keep the Markdown valid. |
+| Local registry management | `connect`, `disconnect`, `registry` | Give local, published, archive, or Git knowledge bases stable names that humans, agents, and the viewer can resolve. |
+| Agent entrypoints | `use` | Print a bundle-declared instruction file, a bundle-relative file path, or fall back to the bundle root `index.md`, so an agent can load the right knowledge on demand. |
+| Local Markdown viewer | `open` | Browse, search, inspect validation issues, and review linked Markdown in a local browser UI. |
+| Export and publish | `to html`, `to html --plain`, `to json` | Publish a static viewer, emit plain semantic HTML, or hand a normalized bundle model to other tools and agents. |
+
+The registry layer works with existing bundle folders, Open Knowledge manifests,
+tar archives, and Git remote sources. Published Open Knowledge HTML exports
+include an `openknowledge.json` manifest and `assets/openknowledge-bundle.tar.gz`
+archive by default, so `openknowledge connect https://example.com/wiki/` can
+materialize the bundle into the local cache. After registration, `use`, `open`,
+`validate`, and `to` resolve remote materializations through the same key-or-path
+flow as local bundles.
 
 ## Start with an agent
 
@@ -59,21 +80,6 @@ openknowledge to html --plain --out ./project-plain-site ./project-memory
 openknowledge to json ./project-memory
 openknowledge disconnect personal
 ```
-
-## What Open Knowledge CLI gives you
-
-An agentic wiki that lives inside a project repo or stand alone as your private
-knowledge base. With workflows and agent instructions to help your agents maintain it.
-
-- Turn a project, research folder, or private knowledge dump into a wiki that
-  agents can use effectively.
-- Guided setup through an agent interview, so the wiki starts with the right
-  purpose, structure, and maintenance habits and rules.
-- An agentic maintenance loop so wiki stays up to date.
-- Local markdown viewer with full-text search and rich Markdown tables to
-  inspect the wiki.
-- Consistency against the [Open Knowledge Format v0.1][okf-spec]
-  specification.
 
 ## How it works
 
@@ -151,27 +157,28 @@ changes.
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge new --bundle-name <id> [folder]` | Scaffold with optional bundle metadata. |
-| `openknowledge connect <path>` | Connect a local knowledge bundle to the user registry. |
-| `openknowledge connect <path> --as <key>` | Connect a local bundle with an explicit key. |
-| `openknowledge connect <path> --access read\|write` | Store an access label with a connection. |
+| `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
+| `openknowledge connect <source> --as <key>` | Connect a bundle with an explicit key. |
+| `openknowledge connect <source> --access read\|write` | Store an access label with a connection. |
 | `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
-| `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for managed cached entries. |
+| `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for CLI-managed remote clones. |
 | `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
 | `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint or bundle-relative file. |
 | `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
 | `openknowledge context <name-or-path> --query <text>` | Print query-focused Markdown sections within a token budget. |
 | `openknowledge context <name-or-path> --query <text> --format json` | Print the same context result as structured JSON. |
-| `openknowledge registry connect <path>` | Connect a local knowledge bundle to the user registry. |
-| `openknowledge registry connect <path> --as <key>` | Connect a local bundle with an explicit key. |
+| `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
+| `openknowledge registry connect <source> --as <key>` | Connect a bundle with an explicit key. |
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |
-| `openknowledge registry list` | List connected local knowledge base paths. |
+| `openknowledge registry list` | List connected knowledge base paths. |
 | `openknowledge registry where <name-or-path>` | Print the absolute path for a registry name or path. |
 | `openknowledge open [path]` | Start the registry or knowledge base Markdown viewer. |
 | `openknowledge open --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
-| `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle. |
+| `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle plus connect manifest and tar archive. |
 | `openknowledge to html --plain --out <folder> [path]` | Write unstyled semantic HTML files. |
 | `openknowledge to json [path]` | Print normalized bundle JSON. |
 | `openknowledge to json --out <file> [path]` | Write normalized bundle JSON to a file. |
+| `openknowledge to tar --out <file> [path]` | Write a portable bundle tar.gz archive. |
 | `openknowledge spec latest` | Print the latest embedded OKF spec. |
 | `openknowledge spec 0.1` | Print a specific embedded spec version. |
 | `openknowledge validate [path]` | Validate a bundle against the latest spec. |

@@ -1175,9 +1175,45 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 	if themeAsset != "" {
 		written = append(written, themeAsset)
 	}
+	archiveResult, err := writeViewerExportBundleAssets(bundle.Root, absoluteOut, version)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	written = append(written, archiveResult...)
 
 	sort.Strings(written)
 	return okf.HTMLResult{Root: bundle.Root, Out: absoluteOut, Written: written}, nil
+}
+
+func writeViewerExportBundleAssets(root string, out string, version string) ([]string, error) {
+	archiveRel := okf.BundleArchiveRelPath
+	archivePath := filepath.Join(out, filepath.FromSlash(archiveRel))
+	archive, err := okf.WriteBundleTarGzipWithVersion(root, archivePath, version, []string{out})
+	if err != nil {
+		return nil, err
+	}
+
+	manifest, err := okf.BundleManifestForArchive(root, version, archiveRel, archive.SHA256)
+	if err != nil {
+		return nil, err
+	}
+	manifestData, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	manifestData = append(manifestData, '\n')
+	manifestPath := filepath.Join(out, filepath.FromSlash(okf.BundleManifestRelPath))
+	if err := os.MkdirAll(filepath.Dir(manifestPath), 0755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+		return nil, err
+	}
+
+	return []string{
+		filepath.ToSlash(okf.BundleArchiveRelPath),
+		filepath.ToSlash(okf.BundleManifestRelPath),
+	}, nil
 }
 
 func viewerRelPath(root string, target string) string {

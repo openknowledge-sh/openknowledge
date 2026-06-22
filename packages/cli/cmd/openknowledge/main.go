@@ -2,14 +2,22 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
@@ -253,14 +261,21 @@ func runConnect(args []string, command string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "usage: %s <path> [--as <key>]\n", command)
+		fmt.Fprintf(os.Stderr, "usage: %s <source> [--as <key>]\n", command)
 		return 2
 	}
 
 	source := fs.Arg(0)
+	sourceInfo := okf.RegistrySource{}
 	if looksLikeRemoteSource(source) {
-		fmt.Fprintln(os.Stderr, "remote bundle sources are not supported yet; clone the bundle locally and connect its directory")
-		return 2
+		var err error
+		var materializedRoot string
+		materializedRoot, sourceInfo, err = materializeRemoteSource(source, strings.TrimSpace(*keyFlag))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		source = materializedRoot
 	}
 
 	root, err := okf.ResolveKnowledgeRoot(source)
@@ -291,7 +306,7 @@ func runConnect(args []string, command string) int {
 		key = filepath.Base(filepath.Clean(root))
 	}
 
-	entry, warning, err := okf.ConnectRegistryEntry(key, root, *accessFlag, explicitKey)
+	entry, warning, err := okf.ConnectRegistryEntryWithSource(key, root, *accessFlag, explicitKey, sourceInfo)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -355,7 +370,456 @@ func looksLikeRemoteSource(value string) bool {
 	value = strings.TrimSpace(strings.ToLower(value))
 	return strings.HasPrefix(value, "http://") ||
 		strings.HasPrefix(value, "https://") ||
+		strings.HasPrefix(value, "file://") ||
+		strings.HasPrefix(value, "git://") ||
+		strings.HasPrefix(value, "ssh://") ||
 		strings.HasPrefix(value, "git@")
+}
+
+func materializeRemoteSource(source string, key string) (string, okf.RegistrySource, error) {
+	source = strings.TrimSpace(source)
+	cacheRoot, err := remoteBundleCacheRoot()
+	if err != nil {
+		return "", okf.RegistrySource{}, err
+	}
+	name := registryCacheName(source, key)
+	target := filepath.Join(cacheRoot, name)
+	if root, ok := cachedBundleRoot(target); ok {
+		return root, okf.RegistrySource{Type: remoteSourceType(source), URL: source}, nil
+	}
+	if err := os.MkdirAll(cacheRoot, 0755); err != nil {
+		return "", okf.RegistrySource{}, err
+	}
+
+	if looksLikeManifestSource(source) {
+		root, archiveURL, err := materializeManifestSource(source, target)
+		if err != nil {
+			return "", okf.RegistrySource{}, err
+		}
+		return root, okf.RegistrySource{Type: "manifest", URL: source, Ref: archiveURL}, nil
+	}
+	if looksLikeArchiveSource(source) {
+		root, err := materializeArchiveSource(source, target, "")
+		if err != nil {
+			return "", okf.RegistrySource{}, err
+		}
+		return root, okf.RegistrySource{Type: "tar", URL: source}, nil
+	}
+	if isHTTPSource(source) {
+		for _, candidate := range manifestCandidateURLs(source) {
+			manifest, ok, err := fetchBundleManifest(candidate)
+			if err != nil {
+				return "", okf.RegistrySource{}, err
+			}
+			if !ok {
+				continue
+			}
+			archiveURL, err := resolveManifestArchiveURL(candidate, manifest.Archive)
+			if err != nil {
+				return "", okf.RegistrySource{}, err
+			}
+			root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256)
+			if err != nil {
+				return "", okf.RegistrySource{}, err
+			}
+			return root, okf.RegistrySource{Type: "manifest", URL: candidate, Ref: archiveURL}, nil
+		}
+		if root, ok, err := tryMaterializeDirectArchive(source, target); err != nil {
+			return "", okf.RegistrySource{}, err
+		} else if ok {
+			return root, okf.RegistrySource{Type: "tar", URL: source}, nil
+		}
+	}
+
+	cmd := exec.Command("git", "clone", "--depth", "1", source, target)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		detail := strings.TrimSpace(string(output))
+		if detail == "" {
+			detail = err.Error()
+		}
+		return "", okf.RegistrySource{}, fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
+	}
+	return target, okf.RegistrySource{Type: "git", URL: source}, nil
+}
+
+type remoteBundleManifest struct {
+	Type          string `json:"type"`
+	Version       int    `json:"version"`
+	Spec          string `json:"spec"`
+	Name          string `json:"name"`
+	Title         string `json:"title"`
+	Archive       string `json:"archive"`
+	ArchiveSHA256 string `json:"archiveSha256"`
+	ArchiveFormat string `json:"archiveFormat"`
+}
+
+func materializeManifestSource(source string, target string) (string, string, error) {
+	manifest, ok, err := fetchBundleManifest(source)
+	if err != nil {
+		return "", "", err
+	}
+	if !ok {
+		return "", "", fmt.Errorf("Open Knowledge manifest not found: %s", source)
+	}
+	archiveURL, err := resolveManifestArchiveURL(source, manifest.Archive)
+	if err != nil {
+		return "", "", err
+	}
+	root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256)
+	if err != nil {
+		return "", "", err
+	}
+	return root, archiveURL, nil
+}
+
+func materializeArchiveSource(source string, target string, expectedSHA256 string) (string, error) {
+	tempDir, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-source-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(tempDir)
+
+	archivePath := filepath.Join(tempDir, "bundle.tar.gz")
+	contentType, err := downloadRemoteFile(source, archivePath)
+	if err != nil {
+		return "", err
+	}
+	if !looksLikeArchiveSource(source) && !downloadedFileLooksLikeArchive(archivePath, contentType) {
+		return "", fmt.Errorf("remote source is not a tar archive: %s", source)
+	}
+	if strings.TrimSpace(expectedSHA256) != "" {
+		actual, err := okf.SHA256File(archivePath)
+		if err != nil {
+			return "", err
+		}
+		if !strings.EqualFold(actual, strings.TrimSpace(expectedSHA256)) {
+			return "", fmt.Errorf("archive checksum mismatch for %s", source)
+		}
+	}
+
+	extractRoot := filepath.Join(tempDir, "extract")
+	if err := okf.ExtractBundleArchive(archivePath, extractRoot); err != nil {
+		return "", err
+	}
+	bundleRoot, err := validatedExtractedBundleRoot(extractRoot)
+	if err != nil {
+		return "", err
+	}
+	if err := os.RemoveAll(target); err != nil {
+		return "", err
+	}
+	if err := os.Rename(extractRoot, target); err != nil {
+		return "", err
+	}
+	if bundleRoot == extractRoot {
+		return target, nil
+	}
+	rel, err := filepath.Rel(extractRoot, bundleRoot)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(target, rel), nil
+}
+
+func tryMaterializeDirectArchive(source string, target string) (string, bool, error) {
+	tempDir, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-probe-*")
+	if err != nil {
+		return "", false, err
+	}
+	defer os.RemoveAll(tempDir)
+
+	archivePath := filepath.Join(tempDir, "probe")
+	contentType, err := downloadRemoteFile(source, archivePath)
+	if err != nil {
+		return "", false, nil
+	}
+	if !downloadedFileLooksLikeArchive(archivePath, contentType) {
+		return "", false, nil
+	}
+	root, err := materializeArchiveFile(archivePath, target, "")
+	if err != nil {
+		return "", false, err
+	}
+	return root, true, nil
+}
+
+func materializeArchiveFile(archivePath string, target string, expectedSHA256 string) (string, error) {
+	if strings.TrimSpace(expectedSHA256) != "" {
+		actual, err := okf.SHA256File(archivePath)
+		if err != nil {
+			return "", err
+		}
+		if !strings.EqualFold(actual, strings.TrimSpace(expectedSHA256)) {
+			return "", fmt.Errorf("archive checksum mismatch")
+		}
+	}
+	tempDir, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-extract-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(tempDir)
+	extractRoot := filepath.Join(tempDir, "extract")
+	if err := okf.ExtractBundleArchive(archivePath, extractRoot); err != nil {
+		return "", err
+	}
+	bundleRoot, err := validatedExtractedBundleRoot(extractRoot)
+	if err != nil {
+		return "", err
+	}
+	if err := os.RemoveAll(target); err != nil {
+		return "", err
+	}
+	if err := os.Rename(extractRoot, target); err != nil {
+		return "", err
+	}
+	if bundleRoot == extractRoot {
+		return target, nil
+	}
+	rel, err := filepath.Rel(extractRoot, bundleRoot)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(target, rel), nil
+}
+
+func fetchBundleManifest(source string) (remoteBundleManifest, bool, error) {
+	tempDir, err := os.MkdirTemp("", "openknowledge-manifest-*")
+	if err != nil {
+		return remoteBundleManifest{}, false, err
+	}
+	defer os.RemoveAll(tempDir)
+	manifestPath := filepath.Join(tempDir, "openknowledge.json")
+	if _, err := downloadRemoteFile(source, manifestPath); err != nil {
+		return remoteBundleManifest{}, false, nil
+	}
+	content, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return remoteBundleManifest{}, false, err
+	}
+	var manifest remoteBundleManifest
+	if err := json.Unmarshal(content, &manifest); err != nil {
+		return remoteBundleManifest{}, false, err
+	}
+	if manifest.Type != okf.BundleManifestType {
+		return remoteBundleManifest{}, false, fmt.Errorf("unsupported Open Knowledge manifest type: %s", manifest.Type)
+	}
+	if strings.TrimSpace(manifest.Archive) == "" {
+		return remoteBundleManifest{}, false, fmt.Errorf("Open Knowledge manifest is missing archive")
+	}
+	return manifest, true, nil
+}
+
+func downloadRemoteFile(source string, target string) (string, error) {
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return "", err
+	}
+	if parsed.Scheme == "file" {
+		inputPath, err := url.PathUnescape(parsed.Path)
+		if err != nil {
+			return "", err
+		}
+		return "", copyFile(inputPath, target)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("unsupported archive URL scheme: %s", parsed.Scheme)
+	}
+	client := http.Client{Timeout: 30 * time.Second}
+	response, err := client.Get(source)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		return "", fmt.Errorf("GET %s returned %s", source, response.Status)
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		return "", err
+	}
+	output, err := os.Create(target)
+	if err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(output, response.Body); err != nil {
+		_ = output.Close()
+		return "", err
+	}
+	if err := output.Close(); err != nil {
+		return "", err
+	}
+	return response.Header.Get("Content-Type"), nil
+}
+
+func copyFile(source string, target string) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+		return err
+	}
+	output, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(output, input); err != nil {
+		_ = output.Close()
+		return err
+	}
+	return output.Close()
+}
+
+func validatedExtractedBundleRoot(root string) (string, error) {
+	if result, err := okf.Validate(root); err == nil && len(result.Errors) == 0 {
+		return result.Root, nil
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+	var directories []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			directories = append(directories, filepath.Join(root, entry.Name()))
+		}
+	}
+	if len(directories) == 1 {
+		if result, err := okf.Validate(directories[0]); err == nil && len(result.Errors) == 0 {
+			return result.Root, nil
+		}
+	}
+	return "", fmt.Errorf("archive does not contain a valid Open Knowledge bundle")
+}
+
+func cachedBundleRoot(target string) (string, bool) {
+	info, err := os.Stat(target)
+	if err != nil || !info.IsDir() {
+		return "", false
+	}
+	root, err := validatedExtractedBundleRoot(target)
+	if err != nil {
+		_ = os.RemoveAll(target)
+		return "", false
+	}
+	return root, true
+}
+
+func resolveManifestArchiveURL(manifestURL string, archive string) (string, error) {
+	base, err := url.Parse(manifestURL)
+	if err != nil {
+		return "", err
+	}
+	relative, err := url.Parse(archive)
+	if err != nil {
+		return "", err
+	}
+	return base.ResolveReference(relative).String(), nil
+}
+
+func manifestCandidateURLs(source string) []string {
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return nil
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil
+	}
+	var candidates []string
+	withPath := *parsed
+	withPath.Path = path.Join(withPath.Path, okf.BundleManifestRelPath)
+	if !strings.HasPrefix(withPath.Path, "/") {
+		withPath.Path = "/" + withPath.Path
+	}
+	candidates = append(candidates, withPath.String())
+
+	wellKnown := *parsed
+	wellKnown.RawQuery = ""
+	wellKnown.Fragment = ""
+	wellKnown.Path = "/.well-known/openknowledge.json"
+	if wellKnown.String() != candidates[0] {
+		candidates = append(candidates, wellKnown.String())
+	}
+	return candidates
+}
+
+func downloadedFileLooksLikeArchive(file string, contentType string) bool {
+	contentType = strings.ToLower(contentType)
+	if strings.Contains(contentType, "gzip") || strings.Contains(contentType, "x-tar") || strings.Contains(contentType, "tar") {
+		return true
+	}
+	input, err := os.Open(file)
+	if err != nil {
+		return false
+	}
+	defer input.Close()
+	buffer := make([]byte, 265)
+	n, _ := io.ReadFull(input, buffer)
+	if n >= 2 && buffer[0] == 0x1f && buffer[1] == 0x8b {
+		return true
+	}
+	return n >= 263 && string(buffer[257:262]) == "ustar"
+}
+
+func looksLikeManifestSource(source string) bool {
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(path.Base(parsed.Path), okf.BundleManifestRelPath)
+}
+
+func looksLikeArchiveSource(source string) bool {
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return false
+	}
+	lower := strings.ToLower(parsed.Path)
+	return strings.HasSuffix(lower, ".tar") || strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".tgz")
+}
+
+func isHTTPSource(source string) bool {
+	lower := strings.ToLower(strings.TrimSpace(source))
+	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://")
+}
+
+func remoteSourceType(source string) string {
+	if looksLikeManifestSource(source) {
+		return "manifest"
+	}
+	if looksLikeArchiveSource(source) {
+		return "tar"
+	}
+	return "git"
+}
+
+func remoteBundleCacheRoot() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv(okf.RegistryFileEnv)); configured != "" {
+		registryFile, err := okf.ExpandUserPath(configured)
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(filepath.Dir(registryFile), "bundles"), nil
+	}
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, "openknowledge", "bundles"), nil
+}
+
+func registryCacheName(source string, key string) string {
+	base := okf.RegistryKeyFromNameForCache(key)
+	if base == "" {
+		trimmed := strings.TrimRight(source, "/")
+		base = okf.RegistryKeyFromNameForCache(filepath.Base(trimmed))
+	}
+	if base == "" {
+		base = "bundle"
+	}
+	sum := sha256.Sum256([]byte(source))
+	return base + "-" + hex.EncodeToString(sum[:])[:12]
 }
 
 func runDisconnect(args []string, command string) int {
@@ -365,7 +829,7 @@ func runDisconnect(args []string, command string) int {
 	}
 	fs := flag.NewFlagSet("disconnect", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	deleteFilesFlag := fs.Bool("delete-files", false, "delete managed bundle files")
+	deleteFilesFlag := fs.Bool("delete-files", false, "delete CLI-managed bundle files")
 	keepFilesFlag := fs.Bool("keep-files", false, "keep bundle files")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -1067,6 +1531,8 @@ func runTo(args []string) int {
 		return runToHTML(args[1:])
 	case "json":
 		return runToJSON(args[1:])
+	case "tar":
+		return runToTar(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown to target: %s\n\n", args[0])
 		fmt.Fprint(os.Stderr, toHelpText())
@@ -1165,6 +1631,43 @@ func runToJSON(args []string) int {
 	}
 
 	fmt.Print(string(data))
+	return 0
+}
+
+func runToTar(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, toTarHelpText())
+		return 0
+	}
+	options, err := parseToOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if options.plain {
+		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		return 2
+	}
+	if options.out == "" {
+		fmt.Fprintln(os.Stderr, "openknowledge to tar requires --out <file>")
+		return 2
+	}
+
+	root, err := okf.ResolveKnowledgeRoot(options.path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	result, err := okf.WriteBundleTarGzipWithVersion(root, options.out, options.spec, nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	terminal.success("Exported TAR")
+	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
+	fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(result.Out))
+	fmt.Printf("%s %s\n", terminal.muted("sha256"), result.SHA256)
 	return 0
 }
 
@@ -1354,8 +1857,8 @@ Usage:
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
-  openknowledge connect <path>
-  openknowledge connect <path> --as <key>
+  openknowledge connect <source>
+  openknowledge connect <source> --as <key>
   openknowledge disconnect <key|path>
   openknowledge use <name|path> [entry]
   openknowledge use <name|path> --info
@@ -1363,8 +1866,8 @@ Usage:
   openknowledge context [name|path] --query <text> --format json
   openknowledge ast [path]
   openknowledge ast --out <file> [path]
-  openknowledge registry connect <path>
-  openknowledge registry connect <path> --as <key>
+  openknowledge registry connect <source>
+  openknowledge registry connect <source> --as <key>
   openknowledge registry disconnect <key|path>
   openknowledge registry list
   openknowledge registry where <name|path>
@@ -1375,6 +1878,7 @@ Usage:
   openknowledge to html --out <folder> [path]
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
+  openknowledge to tar --out <file> [path]
   openknowledge spec latest|<version>
   openknowledge validate [path]
   openknowledge validate --spec <version> [path]
@@ -1386,12 +1890,12 @@ Usage:
 Commands:
   setup      Print an agent setup prompt.
   new        Scaffold a local Open Knowledge bundle.
-  connect    Connect a local knowledge bundle.
+  connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
   use        Print an agent entrypoint from a bundle.
   context    Print query-focused bundle context for an agent.
   ast        Print parsed OKF AST JSON.
-  registry   Manage local knowledge bundle connections.
+  registry   Manage knowledge bundle connections.
   open       Start the registry or knowledge base Markdown viewer.
   to         Convert a bundle to another format.
   spec       Print an embedded OKF spec.
@@ -1419,6 +1923,7 @@ Examples:
   openknowledge validate ./project-memory
   openknowledge to html --out ./site ./project-memory
   openknowledge to json ./project-memory
+  openknowledge to tar --out ./bundle.tar.gz ./project-memory
   openknowledge list --json ./project-memory
   openknowledge open
   openknowledge open ./project-memory
@@ -1510,10 +2015,7 @@ Arguments:
 
 Flags:
   --keep-files    Keep files after removing the connection. This is the default.
-  --delete-files  Delete files only when the connection is marked managed.
-
-The local connect command creates non-managed connections, so --delete-files is
-reserved for future managed remote-cache entries.
+  --delete-files  Delete files only for CLI-managed remote clones.
 
 Examples:
   %[1]s accessibility
@@ -1524,30 +2026,33 @@ Examples:
 func connectHelpText(command string) string {
 	return fmt.Sprintf(`%s
 
-Connect a local Open Knowledge bundle to the user registry.
+Connect an Open Knowledge bundle to the user registry.
 
 Usage:
-  %[1]s <path>
-  %[1]s <path> --as <key>
-  %[1]s <path> --access read|write
-  %[1]s <path> --no-validate
+  %[1]s <source>
+  %[1]s <source> --as <key>
+  %[1]s <source> --access read|write
+  %[1]s <source> --no-validate
   %[1]s --help
 
 Arguments:
-  path           Local knowledge base root. Registry names are also accepted
-                 and resolve to their stored local path.
+  source         Local knowledge base root, registry key, Open Knowledge
+                 manifest URL, tar archive URL, or Git URL.
 
 Flags:
   --as           Connection key. Defaults to okf_bundle_name, then the folder name.
   --access       Access label stored with the connection, read or write. Defaults to read.
   --no-validate  Skip the validation status check in the success output.
 
-Remote URL sources are not supported yet. Clone remote bundles locally, then
-connect the local directory.
+Remote manifests and tar archives are downloaded into the Open Knowledge cache.
+Git sources are cloned into the same cache before registration.
 
 Examples:
   %[1]s ./project-memory
   %[1]s ./accessibility --as accessibility
+  %[1]s https://openknowledge.sh/wiki/
+  %[1]s https://example.com/openknowledge-bundle.tar.gz
+  %[1]s https://github.com/openknowledge-sh/accessibility.git --as accessibility
   %[1]s ./team-wiki --access write
 `, command)
 }
@@ -1555,19 +2060,19 @@ Examples:
 func registryHelpText() string {
 	return `openknowledge registry
 
-Manage local knowledge bundle connections.
+Manage knowledge bundle connections.
 
 Usage:
-  openknowledge registry connect <path>
-  openknowledge registry connect <path> --as <key>
+  openknowledge registry connect <source>
+  openknowledge registry connect <source> --as <key>
   openknowledge registry disconnect <key|path>
   openknowledge registry disconnect <key|path> --keep-files
   openknowledge registry list
   openknowledge registry where <name|path>
   openknowledge registry --help
 
-Registry keys are shortcuts for local knowledge bundle paths. Path-based
-commands continue to work directly, for example openknowledge list
+Registry keys are shortcuts for local or cached knowledge bundle paths.
+Path-based commands continue to work directly, for example openknowledge list
 ./project-memory.
 
 Top-level openknowledge connect and openknowledge disconnect are aliases for
@@ -1606,15 +2111,17 @@ Usage:
   openknowledge to html --plain --out <folder> [path]
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
+  openknowledge to tar --out <file> [path]
   openknowledge to --help
 
 Targets:
   html       Write a static HTML site. Defaults to the viewer app bundle.
   json       Write normalized bundle JSON.
+  tar        Write a portable bundle tar.gz archive.
 
 Flags:
   --spec     OKF spec version. Defaults to latest.
-  --out      Output folder for html, optional output file for json.
+  --out      Output folder for html, optional output file for json, archive file for tar.
 
 Versions:
   %s
@@ -1639,6 +2146,10 @@ Flags:
   --out       Output folder for generated HTML files. Required.
   --plain     Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.
   --spec      OKF spec version. Defaults to latest.
+
+Connect:
+  Default viewer exports include openknowledge.json and
+  assets/openknowledge-bundle.tar.gz for remote openknowledge connect.
 
 Theme:
   Default viewer exports read [html.theme] from openknowledge.toml in the
@@ -1666,6 +2177,28 @@ Arguments:
 
 Flags:
   --out       Output file. Defaults to stdout.
+  --spec      OKF spec version. Defaults to latest.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func toTarHelpText() string {
+	return fmt.Sprintf(`openknowledge to tar
+
+Write a portable tar.gz archive for an Open Knowledge bundle.
+
+Usage:
+  openknowledge to tar --out <file> [path]
+  openknowledge to tar --spec <version> --out <file> [path]
+  openknowledge to tar --help
+
+Arguments:
+  path        Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --out       Output archive file. Required.
   --spec      OKF spec version. Defaults to latest.
 
 Versions:

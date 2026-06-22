@@ -484,8 +484,8 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 4 {
-		t.Fatalf("expected four exported viewer files, got %#v", result.Written)
+	if len(result.Written) != 6 {
+		t.Fatalf("expected exported viewer files plus bundle manifest and archive, got %#v", result.Written)
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
@@ -524,6 +524,34 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if !strings.Contains(setup, `href="../index.html"`) {
 		t.Fatalf("expected nested exported page to keep relative static fallback link:\n%s", setup)
 	}
+
+	manifestContent := readViewerExportFile(t, out, okf.BundleManifestRelPath)
+	var manifest okf.BundleManifest
+	if err := json.Unmarshal([]byte(manifestContent), &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Type != okf.BundleManifestType || manifest.Archive != okf.BundleArchiveRelPath || manifest.ArchiveFormat != okf.BundleArchiveFormat {
+		t.Fatalf("unexpected export manifest: %#v", manifest)
+	}
+	archivePath := filepath.Join(out, filepath.FromSlash(okf.BundleArchiveRelPath))
+	hash, err := okf.SHA256File(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.ArchiveSHA256 != hash {
+		t.Fatalf("expected manifest hash %s to match archive hash %s", manifest.ArchiveSHA256, hash)
+	}
+	extracted := filepath.Join(t.TempDir(), "bundle")
+	if err := okf.ExtractBundleArchive(archivePath, extracted); err != nil {
+		t.Fatal(err)
+	}
+	validation, err := okf.Validate(extracted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(validation.Errors) != 0 {
+		t.Fatalf("expected exported archive to validate, got %#v", validation.Errors)
+	}
 }
 
 func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
@@ -538,7 +566,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(result.Written, ",") != "index.html,public.html" {
+	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,index.html,openknowledge.json,public.html" {
 		t.Fatalf("expected only published viewer files, got %#v", result.Written)
 	}
 
@@ -717,8 +745,8 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 3 {
-		t.Fatalf("expected exported pages plus theme stylesheet, got %#v", result.Written)
+	if len(result.Written) != 5 {
+		t.Fatalf("expected exported pages plus theme stylesheet, manifest, and archive, got %#v", result.Written)
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
