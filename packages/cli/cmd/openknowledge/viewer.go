@@ -2179,11 +2179,10 @@ func viewerKnowledgeBaseNameFromFiles(files []okf.BundleFile, fallback string) s
 }
 
 func firstMarkdownHeading(body string) string {
-	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "# ") {
-			return strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))
+	markdown := okf.ParseASTMarkdown(body, 1)
+	for _, heading := range markdown.Headings {
+		if heading.Level == 1 {
+			return strings.TrimSpace(heading.Text)
 		}
 	}
 	return ""
