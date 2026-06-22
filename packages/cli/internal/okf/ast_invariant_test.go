@@ -57,7 +57,7 @@ func TestASTBackedOutputsMatchPublicAPIs(t *testing.T) {
 		t.Fatalf("expected public search to match direct AST search\npublic=%#v\ndirect=%#v", publicSearch, directSearch)
 	}
 
-	directContext := contextIndexFromAST(validation, parsed)
+	directContext := ContextIndexFromAST(validation, parsed)
 	publicContext, err := BuildContextIndex(root)
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 		"list.go":     {"parseAndValidateASTBundle", "ListFromAST"},
 		"search.go":   {"parseAndValidateASTBundle", "newSearchIndexFromAST"},
 		"html.go":     {"parseAndValidateASTBundle", "writeHTMLFromAST"},
-		"context.go":  {"parseAndValidateASTBundle", "contextIndexFromAST"},
+		"context.go":  {"parseAndValidateASTBundle", "ContextIndexFromAST"},
 	}
 	forbidden := []string{
 		"ExtractLinks",

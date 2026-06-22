@@ -17,10 +17,10 @@ func BuildContextIndexWithVersion(root string, version string) (ContextIndex, er
 		return ContextIndex{}, err
 	}
 
-	return contextIndexFromAST(validation, ast), nil
+	return ContextIndexFromAST(validation, ast), nil
 }
 
-func contextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
+func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 	issues := append([]Issue{}, validation.Errors...)
 	issues = append(issues, validation.Warnings...)
 	var sections []ContextSection
