@@ -1,6 +1,9 @@
 package okf
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseASTMarkdownBuildsStructuralMarkdownTree(t *testing.T) {
 	root := t.TempDir()
@@ -49,6 +52,67 @@ func TestParseASTMarkdownBuildsStructuralMarkdownTree(t *testing.T) {
 		if markdown.Blocks[index].Kind != kind {
 			t.Fatalf("expected block %d to be %q, got %#v", index, kind, markdown.Blocks[index])
 		}
+	}
+
+	if len(markdown.Sections) != 1 {
+		t.Fatalf("expected one section, got %#v", markdown.Sections)
+	}
+	section := markdown.Sections[0]
+	if section.Heading != "Home" || section.Level != 1 || section.Anchor != "home" || section.LineStart != 1 || section.LineEnd != 10 {
+		t.Fatalf("unexpected Markdown section AST: %#v", section)
+	}
+	if len(section.Blocks) != 4 || len(section.Children) != 0 {
+		t.Fatalf("expected section to own all blocks without children, got %#v", section)
+	}
+}
+
+func TestParseASTMarkdownBuildsNestedSections(t *testing.T) {
+	markdown := ParseASTMarkdown(strings.Join([]string{
+		"Opening paragraph.",
+		"",
+		"# Guide",
+		"Intro.",
+		"",
+		"## Install",
+		"Install text.",
+		"",
+		"### CLI",
+		"CLI text.",
+		"",
+		"# Reference",
+		"Reference text.",
+	}, "\n"), 1)
+
+	if len(markdown.Sections) != 3 {
+		t.Fatalf("expected top preamble and two h1 sections, got %#v", markdown.Sections)
+	}
+	top := markdown.Sections[0]
+	if top.Heading != "Top" || top.Level != 0 || top.LineStart != 1 || top.LineEnd != 1 || len(top.Blocks) != 1 {
+		t.Fatalf("unexpected top preamble section: %#v", top)
+	}
+
+	guide := markdown.Sections[1]
+	if guide.Heading != "Guide" || guide.Level != 1 || guide.LineStart != 3 || guide.LineEnd != 4 {
+		t.Fatalf("unexpected guide section: %#v", guide)
+	}
+	if len(guide.Children) != 1 {
+		t.Fatalf("expected guide to have install child, got %#v", guide.Children)
+	}
+	install := guide.Children[0]
+	if install.Heading != "Install" || install.Level != 2 || install.LineStart != 6 || install.LineEnd != 7 {
+		t.Fatalf("unexpected install section: %#v", install)
+	}
+	if len(install.Children) != 1 {
+		t.Fatalf("expected install to have CLI child, got %#v", install.Children)
+	}
+	cli := install.Children[0]
+	if cli.Heading != "CLI" || cli.Level != 3 || cli.LineStart != 9 || cli.LineEnd != 10 {
+		t.Fatalf("unexpected CLI section: %#v", cli)
+	}
+
+	reference := markdown.Sections[2]
+	if reference.Heading != "Reference" || reference.Level != 1 || reference.LineStart != 12 || reference.LineEnd != 13 || len(reference.Children) != 0 {
+		t.Fatalf("unexpected reference section: %#v", reference)
 	}
 }
 

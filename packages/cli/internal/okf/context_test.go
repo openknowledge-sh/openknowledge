@@ -48,7 +48,7 @@ func TestBuildContextIndexSplitsMarkdownSectionsWithLineRanges(t *testing.T) {
 	}
 }
 
-func TestContextIndexUsesParsedMarkdownHeadingBoundaries(t *testing.T) {
+func TestContextIndexUsesParsedMarkdownSections(t *testing.T) {
 	document := ASTDocument{
 		Rel:   "guide.md",
 		ID:    "guide",
@@ -58,16 +58,20 @@ func TestContextIndexUsesParsedMarkdownHeadingBoundaries(t *testing.T) {
 		Frontmatter: ASTFrontmatter{
 			BodyLine: 1,
 		},
-		Markdown: ASTMarkdown{},
+		Markdown: ASTMarkdown{
+			Headings: []ASTMarkdownHeading{
+				{Level: 1, Text: "Raw Heading", Anchor: "raw-heading", Line: 1},
+			},
+		},
 	}
 
 	index := ContextIndexFromAST(Result{Root: "root"}, ASTBundle{Root: "root", Documents: []ASTDocument{document}})
 
 	if len(index.Sections) != 1 {
-		t.Fatalf("expected one top section from empty Markdown headings, got %#v", index.Sections)
+		t.Fatalf("expected one top section from empty Markdown sections, got %#v", index.Sections)
 	}
 	if index.Sections[0].Heading != "Top" || index.Sections[0].HeadingLevel != 0 {
-		t.Fatalf("expected context to trust parsed Markdown headings, got %#v", index.Sections[0])
+		t.Fatalf("expected context to trust parsed Markdown sections, got %#v", index.Sections[0])
 	}
 }
 

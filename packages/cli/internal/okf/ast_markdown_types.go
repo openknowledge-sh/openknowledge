@@ -2,6 +2,7 @@ package okf
 
 type ASTMarkdown struct {
 	Blocks     []ASTMarkdownBlock     `json:"blocks,omitempty"`
+	Sections   []ASTMarkdownSection   `json:"sections,omitempty"`
 	Headings   []ASTMarkdownHeading   `json:"headings,omitempty"`
 	Links      []ASTMarkdownLink      `json:"links,omitempty"`
 	CodeBlocks []ASTMarkdownCodeBlock `json:"codeBlocks,omitempty"`
@@ -22,6 +23,16 @@ type ASTMarkdownHeading struct {
 	Text   string `json:"text"`
 	Anchor string `json:"anchor"`
 	Line   int    `json:"line"`
+}
+
+type ASTMarkdownSection struct {
+	Heading   string               `json:"heading"`
+	Level     int                  `json:"level"`
+	Anchor    string               `json:"anchor"`
+	LineStart int                  `json:"lineStart"`
+	LineEnd   int                  `json:"lineEnd"`
+	Blocks    []ASTMarkdownBlock   `json:"blocks,omitempty"`
+	Children  []ASTMarkdownSection `json:"children,omitempty"`
 }
 
 type ASTMarkdownLink struct {

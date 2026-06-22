@@ -18,22 +18,36 @@ func splitContextSectionsFromASTDocument(entry ListEntry, document ASTDocument) 
 		bodyLine = 1
 	}
 
-	boundaries := make([]contextSectionBoundary, 0, len(document.Markdown.Headings))
-	for _, heading := range document.Markdown.Headings {
-		if heading.Level <= 0 || heading.Level > 3 {
+	sections := flattenASTMarkdownSections(document.Markdown.Sections)
+	boundaries := make([]contextSectionBoundary, 0, len(sections))
+	for _, section := range sections {
+		if section.Level <= 0 || section.Level > 3 {
 			continue
 		}
-		start := heading.Line - bodyLine
+		start := section.LineStart - bodyLine
 		if start < 0 {
 			continue
 		}
 		boundaries = append(boundaries, contextSectionBoundary{
 			start: start,
-			level: heading.Level,
-			title: heading.Text,
+			level: section.Level,
+			title: section.Heading,
 		})
 	}
 	return contextSectionsFromBoundaries(entry, document.Frontmatter.Values, document.Body, document.Links, bodyLine, boundaries)
+}
+
+func flattenASTMarkdownSections(sections []ASTMarkdownSection) []ASTMarkdownSection {
+	var flattened []ASTMarkdownSection
+	var walk func([]ASTMarkdownSection)
+	walk = func(nodes []ASTMarkdownSection) {
+		for _, section := range nodes {
+			flattened = append(flattened, section)
+			walk(section.Children)
+		}
+	}
+	walk(sections)
+	return flattened
 }
 
 func splitContextSections(entry ListEntry, frontmatter map[string]string, body string, links []Link, bodyLine int) []ContextSection {

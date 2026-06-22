@@ -128,6 +128,7 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 		})
 	}
 	flushParagraph(len(lines) - 1)
+	markdown.Sections = astMarkdownSections(markdown.Blocks)
 	return markdown
 }
 
@@ -165,6 +166,83 @@ func astMarkdownHeadingText(markdown ASTMarkdown) string {
 		headings = append(headings, heading.Text)
 	}
 	return strings.Join(headings, "\n")
+}
+
+func astMarkdownSections(blocks []ASTMarkdownBlock) []ASTMarkdownSection {
+	flat := astMarkdownFlatSections(blocks)
+	return astMarkdownSectionTree(flat)
+}
+
+func astMarkdownFlatSections(blocks []ASTMarkdownBlock) []ASTMarkdownSection {
+	var sections []ASTMarkdownSection
+	current := ASTMarkdownSection{
+		Heading: "Top",
+		Level:   0,
+		Anchor:  "top",
+	}
+	flush := func() {
+		if len(current.Blocks) == 0 {
+			return
+		}
+		current.LineStart = current.Blocks[0].LineStart
+		current.LineEnd = current.Blocks[len(current.Blocks)-1].LineEnd
+		sections = append(sections, current)
+		current = ASTMarkdownSection{
+			Heading: "Top",
+			Level:   0,
+			Anchor:  "top",
+		}
+	}
+
+	for _, block := range blocks {
+		if block.Heading != nil {
+			flush()
+			current = ASTMarkdownSection{
+				Heading: block.Heading.Text,
+				Level:   block.Heading.Level,
+				Anchor:  block.Heading.Anchor,
+				Blocks:  []ASTMarkdownBlock{block},
+			}
+			continue
+		}
+		current.Blocks = append(current.Blocks, block)
+	}
+	flush()
+	return sections
+}
+
+type astMarkdownSectionNode struct {
+	section  ASTMarkdownSection
+	children []*astMarkdownSectionNode
+}
+
+func astMarkdownSectionTree(flat []ASTMarkdownSection) []ASTMarkdownSection {
+	root := &astMarkdownSectionNode{}
+	stack := []*astMarkdownSectionNode{root}
+	for _, section := range flat {
+		node := &astMarkdownSectionNode{section: section}
+		if section.Level == 0 {
+			root.children = append(root.children, node)
+			continue
+		}
+		for len(stack) > 1 && stack[len(stack)-1].section.Level >= section.Level {
+			stack = stack[:len(stack)-1]
+		}
+		parent := stack[len(stack)-1]
+		parent.children = append(parent.children, node)
+		stack = append(stack, node)
+	}
+	return astMarkdownSectionNodes(root.children)
+}
+
+func astMarkdownSectionNodes(nodes []*astMarkdownSectionNode) []ASTMarkdownSection {
+	sections := make([]ASTMarkdownSection, 0, len(nodes))
+	for _, node := range nodes {
+		section := node.section
+		section.Children = astMarkdownSectionNodes(node.children)
+		sections = append(sections, section)
+	}
+	return sections
 }
 
 func parseASTMarkdownLinks(text string, line int) []ASTMarkdownLink {
