@@ -67,11 +67,12 @@ func TestParseBundleTrimsMarkdownExtensionIDs(t *testing.T) {
 	}
 }
 
-func TestExtractLinksMarksDirectoryIndexLinksExisting(t *testing.T) {
+func TestLinksFromASTMarkdownMarksDirectoryIndexLinksExisting(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "guides/index.md", "# Guides\n")
 
-	links := ExtractLinks(root, "index.md", "[Guides](guides) and [Guides index](guides/).\n")
+	markdown := ParseASTMarkdown("[Guides](guides) and [Guides index](guides/).\n", 1)
+	links := LinksFromASTMarkdown(root, "index.md", markdown)
 	if len(links) != 2 {
 		t.Fatalf("expected two links, got %#v", links)
 	}
