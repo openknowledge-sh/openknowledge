@@ -224,8 +224,7 @@
       "--ok-color-sidebar-tree-hover-bg",
       "--ok-color-search-result-hover-bg",
       "--ok-color-editor-menu-item-hover-bg",
-      "--ok-color-graph-edge-active",
-      "--ok-color-graph-node-active-shadow"
+      "--ok-color-graph-edge-active"
     ].forEach(function (name) {
       document.documentElement.style.removeProperty(name);
     });
@@ -255,7 +254,6 @@
     document.documentElement.style.setProperty("--ok-color-search-result-hover-bg", colorMix(custom.surface, custom.accent, 0.08));
     document.documentElement.style.setProperty("--ok-color-editor-menu-item-hover-bg", colorMix(custom.surface, custom.accent, 0.08));
     document.documentElement.style.setProperty("--ok-color-graph-edge-active", "rgba(" + accentRGB + ", .78)");
-    document.documentElement.style.setProperty("--ok-color-graph-node-active-shadow", "rgba(" + accentRGB + ", .24)");
   }
 
   function syncThemeControls(preference) {
@@ -764,16 +762,12 @@
       const label = activeNode ? state.fullLabel : state.label;
       context.save();
       context.globalAlpha = 1;
-      context.shadowColor = activeNode ? theme.nodeActiveShadow : theme.nodeShadow;
-      context.shadowBlur = activeNode ? 18 : 5;
-      context.shadowOffsetY = activeNode ? 7 : 2;
       context.beginPath();
       context.arc(state.x, state.y - state.z * 6, radius, 0, Math.PI * 2);
       context.fillStyle = theme.nodeBg;
       context.fill();
-      context.shadowBlur = 0;
       context.strokeStyle = activeNode ? theme.nodeActiveBorder : theme.nodeBorder;
-      context.lineWidth = activeNode ? 2.35 : state.path === "index.md" ? 2 : 1.55;
+      context.lineWidth = activeNode ? 3 : state.path === "index.md" ? 2 : 1.55;
       context.stroke();
 
       context.font = (activeNode ? "600 13px" : "400 12px") + " " + theme.fontBody;
@@ -781,9 +775,6 @@
       context.textAlign = graphCanvasTextAlign(state.x, graphLabelWidth(label), width);
       const labelX = context.textAlign === "start" ? Math.max(16, state.x - graphLabelWidth(label) / 2) : context.textAlign === "end" ? Math.min(width - 16, state.x + graphLabelWidth(label) / 2) : state.x;
       const labelY = state.y + state.labelOffset + state.z * 4;
-      context.lineWidth = 4;
-      context.strokeStyle = theme.labelHalo;
-      context.strokeText(label, labelX, labelY);
       context.fillStyle = activeNode ? theme.labelActive : theme.label;
       context.fillText(label, labelX, labelY);
       context.restore();
@@ -799,9 +790,6 @@
       nodeBg: themeValue("--ok-color-graph-node-bg", "#f8f8f8"),
       nodeBorder: themeValue("--ok-color-graph-node-border", "#aeb8b2"),
       nodeActiveBorder: themeValue("--ok-color-graph-node-active-border", "#0f7a4d"),
-      nodeShadow: themeValue("--ok-color-graph-node-shadow", "rgba(42, 52, 48, .08)"),
-      nodeActiveShadow: themeValue("--ok-color-graph-node-active-shadow", "rgba(15, 122, 77, .24)"),
-      labelHalo: themeValue("--ok-color-graph-label-halo", "#f0f0f0"),
       label: themeValue("--ok-color-graph-label", "#5f6b66"),
       labelActive: themeValue("--ok-color-graph-label-active", "#26302c"),
     };

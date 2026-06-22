@@ -317,6 +317,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `graphEaseInOut`) || !strings.Contains(page, `graphLimitVelocity`) || !strings.Contains(page, `context.globalAlpha = 1`) {
 		t.Fatalf("viewer canvas graph should damp hover physics without dimming inactive nodes:\n%s", page)
 	}
+	if strings.Contains(page, `context.shadowBlur`) || strings.Contains(page, `context.strokeText(label`) || strings.Contains(page, `--ok-color-graph-label-halo`) {
+		t.Fatalf("viewer canvas graph hover should avoid node shadows and label halo text:\n%s", page)
+	}
 	if !strings.Contains(page, `graphUniqueNodeLabels`) || !strings.Contains(page, `graphShortestUniquePathSuffix`) || !strings.Contains(page, `parts.slice(-2).join("/")`) {
 		t.Fatalf("viewer knowledge graph should disambiguate generic node labels with path suffixes:\n%s", page)
 	}
@@ -731,9 +734,6 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 		"--ok-color-graph-node-bg",
 		"--ok-color-graph-node-border",
 		"--ok-color-graph-node-active-border",
-		"--ok-color-graph-node-shadow",
-		"--ok-color-graph-node-active-shadow",
-		"--ok-color-graph-label-halo",
 		"--ok-color-graph-label",
 		"--ok-color-graph-label-active",
 	}

@@ -116,9 +116,6 @@
   --ok-color-graph-node-bg: #f8f8f8;
   --ok-color-graph-node-border: #aeb8b2;
   --ok-color-graph-node-active-border: var(--ok-color-accent);
-  --ok-color-graph-node-shadow: rgba(42, 52, 48, .08);
-  --ok-color-graph-node-active-shadow: rgba(var(--ok-color-accent-rgb), .24);
-  --ok-color-graph-label-halo: #f0f0f0;
   --ok-color-graph-label: #5f6b66;
   --ok-color-graph-label-active: #26302c;
 }
@@ -208,9 +205,6 @@
   --ok-color-graph-node-bg: #151b18;
   --ok-color-graph-node-border: #53625a;
   --ok-color-graph-node-active-border: var(--ok-color-accent);
-  --ok-color-graph-node-shadow: rgba(0, 0, 0, .24);
-  --ok-color-graph-node-active-shadow: rgba(var(--ok-color-accent-rgb), .28);
-  --ok-color-graph-label-halo: #0d1110;
   --ok-color-graph-label: #b2beb8;
   --ok-color-graph-label-active: #eff6f2;
 }
@@ -240,7 +234,6 @@
   --ok-color-note-chrome-bg: rgba(255, 250, 240, .96);
   --ok-color-code-inline-bg: #efe3cf;
   --ok-color-code-block-bg: #201915;
-  --ok-color-graph-label-halo: #eee6d8;
 }
 
 :root[data-viewer-theme="ocean"] {
@@ -266,7 +259,6 @@
   --ok-color-note-chrome-bg: rgba(251, 254, 255, .96);
   --ok-color-code-inline-bg: #dcecf0;
   --ok-color-code-block-bg: #07161b;
-  --ok-color-graph-label-halo: #e6f0f3;
 }
 
 :root[data-viewer-theme="rose"] {
@@ -292,5 +284,4 @@
   --ok-color-note-chrome-bg: rgba(255, 250, 253, .96);
   --ok-color-code-inline-bg: #f0e1e7;
   --ok-color-code-block-bg: #201217;
-  --ok-color-graph-label-halo: #f2e8ed;
 }
