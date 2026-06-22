@@ -50,37 +50,6 @@ func flattenASTMarkdownSections(sections []ASTMarkdownSection) []ASTMarkdownSect
 	return flattened
 }
 
-func splitContextSections(entry ListEntry, frontmatter map[string]string, body string, links []Link, bodyLine int) []ContextSection {
-	normalized := strings.ReplaceAll(body, "\r\n", "\n")
-	lines := strings.Split(normalized, "\n")
-	if bodyLine <= 0 {
-		bodyLine = 1
-	}
-
-	var boundaries []contextSectionBoundary
-	inCode := false
-	for index, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "```") {
-			inCode = !inCode
-			continue
-		}
-		if inCode {
-			continue
-		}
-		level := HeadingLevel(trimmed)
-		if level <= 0 || level > 3 {
-			continue
-		}
-		boundaries = append(boundaries, contextSectionBoundary{
-			start: index,
-			level: level,
-			title: strings.TrimSpace(trimmed[level:]),
-		})
-	}
-	return contextSectionsFromBoundaries(entry, frontmatter, body, links, bodyLine, boundaries)
-}
-
 func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]string, body string, links []Link, bodyLine int, boundaries []contextSectionBoundary) []ContextSection {
 	normalized := strings.ReplaceAll(body, "\r\n", "\n")
 	lines := strings.Split(normalized, "\n")
