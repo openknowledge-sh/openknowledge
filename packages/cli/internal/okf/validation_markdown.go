@@ -2,76 +2,45 @@ package okf
 
 import "strings"
 
-func validateMarkdownSyntax(rel string, content string, startLine int, result *Result) {
-	if startLine < 1 {
-		startLine = 1
-	}
-	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
-	var fence *markdownFence
-	for index := 0; index < len(lines); index++ {
-		line := lines[index]
-		lineNumber := startLine + index
-		trimmed := strings.TrimSpace(line)
-		if marker, length, ok := markdownFenceMarker(trimmed); ok {
-			if fence == nil {
-				fence = &markdownFence{marker: marker, length: length, line: lineNumber}
-				continue
-			}
-			if marker == fence.marker && length >= fence.length {
-				fence = nil
-			}
-			continue
-		}
-		if fence != nil {
-			continue
-		}
-
-		if countUnescapedByte(line, '`')%2 == 1 {
-			result.Warnings = append(result.Warnings, Issue{
-				Path:    rel,
-				Line:    lineNumber,
-				Rule:    "markdown-syntax",
-				Message: "inline code span is not closed",
-			})
-		}
-
-		for _, message := range markdownLinkSyntaxWarnings(line) {
-			result.Warnings = append(result.Warnings, Issue{
-				Path:    rel,
-				Line:    lineNumber,
-				Rule:    "markdown-syntax",
-				Message: message,
-			})
-		}
-
-		if index+1 < len(lines) && looksLikeTableRow(line) && looksLikeTableSeparator(lines[index+1]) {
-			header := tableCells(line)
-			separator := tableCells(lines[index+1])
-			if len(header) != len(separator) {
-				result.Warnings = append(result.Warnings, Issue{
-					Path:    rel,
-					Line:    lineNumber + 1,
-					Rule:    "markdown-syntax",
-					Message: "table separator column count does not match the header",
-				})
-			}
-		}
-	}
-
-	if fence != nil {
+func validateMarkdownDiagnostics(rel string, markdown ASTMarkdown, result *Result) {
+	for _, diagnostic := range markdown.Diagnostics {
 		result.Warnings = append(result.Warnings, Issue{
 			Path:    rel,
-			Line:    fence.line,
+			Line:    diagnostic.Line,
 			Rule:    "markdown-syntax",
-			Message: "fenced code block is not closed",
+			Message: diagnostic.Message,
 		})
 	}
 }
 
-type markdownFence struct {
-	marker byte
-	length int
-	line   int
+func astMarkdownSyntaxDiagnostics(lines []string, index int, lineNumber int) []ASTDiagnostic {
+	line := lines[index]
+	var diagnostics []ASTDiagnostic
+	if countUnescapedByte(line, '`')%2 == 1 {
+		diagnostics = append(diagnostics, ASTDiagnostic{
+			Line:    lineNumber,
+			Message: "inline code span is not closed",
+		})
+	}
+
+	for _, message := range markdownLinkSyntaxWarnings(line) {
+		diagnostics = append(diagnostics, ASTDiagnostic{
+			Line:    lineNumber,
+			Message: message,
+		})
+	}
+
+	if index+1 < len(lines) && looksLikeTableRow(line) && looksLikeTableSeparator(lines[index+1]) {
+		header := tableCells(line)
+		separator := tableCells(lines[index+1])
+		if len(header) != len(separator) {
+			diagnostics = append(diagnostics, ASTDiagnostic{
+				Line:    lineNumber + 1,
+				Message: "table separator column count does not match the header",
+			})
+		}
+	}
+	return diagnostics
 }
 
 func markdownFenceMarker(line string) (byte, int, bool) {

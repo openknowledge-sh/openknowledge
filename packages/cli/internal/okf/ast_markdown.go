@@ -82,6 +82,8 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 			continue
 		}
 
+		markdown.Diagnostics = append(markdown.Diagnostics, astMarkdownSyntaxDiagnostics(lines, index, lineNumber)...)
+
 		if trimmed == "" {
 			flushParagraph(index - 1)
 			continue
@@ -117,6 +119,10 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 	}
 
 	if fence != nil {
+		markdown.Diagnostics = append(markdown.Diagnostics, ASTDiagnostic{
+			Line:    bodyLine + fence.start,
+			Message: "fenced code block is not closed",
+		})
 		codeBlock := astMarkdownCodeBlock(fence, bodyLine, bodyLine+len(lines)-1)
 		markdown.CodeBlocks = append(markdown.CodeBlocks, codeBlock)
 		markdown.Blocks = append(markdown.Blocks, ASTMarkdownBlock{

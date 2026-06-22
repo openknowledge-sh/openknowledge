@@ -56,7 +56,7 @@ func validateDocument(root string, document ASTDocument, result *Result) {
 		default:
 			validateConcept(rel, document.Frontmatter, result)
 		}
-		validateMarkdownSyntax(rel, document.Body, document.Frontmatter.BodyLine, result)
+		validateMarkdownDiagnostics(rel, document.Markdown, result)
 	}
 	validateDocumentLinks(root, document, result)
 }

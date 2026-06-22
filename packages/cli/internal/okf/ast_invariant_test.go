@@ -112,12 +112,13 @@ func TestValidateASTMatchesValidateForMalformedDocuments(t *testing.T) {
 
 func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 	files := map[string][]string{
-		"validate.go": {"parseAndValidateASTBundle"},
-		"bundle.go":   {"parseAndValidateASTBundle", "BundleFromAST"},
-		"list.go":     {"parseAndValidateASTBundle", "ListFromAST"},
-		"search.go":   {"parseAndValidateASTBundle", "SearchIndexFromAST"},
-		"html.go":     {"parseAndValidateASTBundle", "WriteHTMLFromAST"},
-		"context.go":  {"parseAndValidateASTBundle", "ContextIndexFromAST"},
+		"validate.go":     {"parseAndValidateASTBundle"},
+		"bundle.go":       {"parseAndValidateASTBundle", "BundleFromAST"},
+		"list.go":         {"parseAndValidateASTBundle", "ListFromAST"},
+		"search.go":       {"parseAndValidateASTBundle", "SearchIndexFromAST"},
+		"html.go":         {"parseAndValidateASTBundle", "WriteHTMLFromAST"},
+		"context.go":      {"parseAndValidateASTBundle", "ContextIndexFromAST"},
+		"ast_validate.go": {"validateMarkdownDiagnostics"},
 	}
 	forbidden := []string{
 		"ExtractLinks",
@@ -125,6 +126,7 @@ func TestValidationAndExporterEntrypointsParseThroughAST(t *testing.T) {
 		"parseASTDocumentFile",
 		"parseASTDocumentLinks",
 		"splitFrontmatter",
+		"validateMarkdownSyntax",
 	}
 
 	for name, required := range files {

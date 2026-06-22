@@ -134,6 +134,22 @@ func TestParseASTMarkdownUsesDocumentLineNumbersAfterFrontmatter(t *testing.T) {
 	}
 }
 
+func TestParseASTMarkdownRecordsSyntaxDiagnostics(t *testing.T) {
+	markdown := ParseASTMarkdown("[Broken](missing.md\n\n```sh\necho ok", 4)
+
+	if len(markdown.Diagnostics) != 2 {
+		t.Fatalf("expected link and fence diagnostics, got %#v", markdown.Diagnostics)
+	}
+	link := markdown.Diagnostics[0]
+	if link.Line != 4 || link.Message != "Markdown link is missing closing ')'" {
+		t.Fatalf("unexpected link diagnostic: %#v", link)
+	}
+	fence := markdown.Diagnostics[1]
+	if fence.Line != 6 || fence.Message != "fenced code block is not closed" {
+		t.Fatalf("unexpected fence diagnostic: %#v", fence)
+	}
+}
+
 func TestParseASTPopulatesResolvedLinksFromMarkdownAST(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n\nRead [Guide](guide.md).\n\n```markdown\n[Ignored](missing.md)\n```\n")
