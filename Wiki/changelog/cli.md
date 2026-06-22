@@ -44,7 +44,8 @@ that were updated.
   pass. Validation now reports Markdown syntax warnings from AST diagnostics
   instead of scanning raw body content separately. HTML export now renders from
   Markdown AST blocks, and compatibility render/search adapters use the AST
-  parser instead of separate Markdown scans.
+  parser instead of separate Markdown scans. Bundle display-title fallback now
+  reads the first parsed H1 from the Markdown AST.
 * Source anchors: `packages/cli/internal/okf/ast_markdown.go`,
   `packages/cli/internal/okf/ast_markdown_types.go`,
   `packages/cli/internal/okf/markdown.go`,
@@ -52,6 +53,7 @@ that were updated.
   `packages/cli/internal/okf/ast_validate.go`,
   `packages/cli/internal/okf/ast_links.go`,
   `packages/cli/internal/okf/search.go`,
+  `packages/cli/internal/okf/metadata.go`,
   `packages/cli/internal/okf/context_sections.go`.
 * Docs updated: `Wiki/features/commands/ast.md`,
   `Wiki/features/exporters/html.md`,
