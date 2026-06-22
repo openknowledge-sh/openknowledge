@@ -16,8 +16,8 @@ The viewer renders Markdown without frontmatter, rewrites local Markdown links,
 shows validation context, supports search, opens linked notes in a horizontal
 panel stack, and provides a graph overview when no note panels are open. The
 header brand comes from root `index.md` metadata in this order:
-`okf_bundle_title`, `okf_bundle_name`, `title`, then the first Markdown `#`
-heading.
+`okf_bundle_title`, `okf_bundle_name`, `title`, then the first parsed Markdown
+`#` heading.
 
 ## Usage
 
