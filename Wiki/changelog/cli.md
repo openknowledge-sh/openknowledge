@@ -39,6 +39,22 @@ entries in this section until they are released.
 * Docs updated: `Wiki/features/commands/open.md`,
   `Wiki/features/operations.md`, `Wiki/changelog/cli.md`.
 
+### 2026-06-28 - Use query answer-ready briefing
+
+* `openknowledge use <name-or-path> --query <text>` now prints a deterministic
+  source-grounded briefing before original excerpts in Markdown output.
+* Structured JSON output now includes an additive `briefing` object with a
+  summary, cited key points, linked-neighbor context, gaps, and validation issue
+  count.
+* This keeps query mode file-native and non-generative while making the output
+  easier for agents to answer from directly.
+* Source anchors: `packages/cli/internal/okf/context.go`,
+  `packages/cli/internal/okf/context_briefing.go`,
+  `packages/cli/internal/okf/context_types.go`,
+  `packages/cli/cmd/openknowledge/main.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/use.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-23 - Viewer system badge spacing
 
 * Adjusted local and static viewer file tree layout so reserved file `system`

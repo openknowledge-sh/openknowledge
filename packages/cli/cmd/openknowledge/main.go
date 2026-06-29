@@ -1032,6 +1032,7 @@ func renderUseQueryMarkdown(result okf.ContextResult) string {
 	fmt.Fprintf(&builder, "- Query: %s\n", result.Query)
 	fmt.Fprintf(&builder, "- Budget: %d tokens\n", result.Budget)
 	fmt.Fprintf(&builder, "- Estimated: %d tokens\n\n", result.EstimatedTokens)
+	renderUseQueryBriefing(&builder, result.Briefing)
 	if len(result.Results) == 0 {
 		builder.WriteString("No matching sections found.\n")
 		return builder.String()
@@ -1053,6 +1054,39 @@ func renderUseQueryMarkdown(result okf.ContextResult) string {
 		builder.WriteString("\n\n")
 	}
 	return builder.String()
+}
+
+func renderUseQueryBriefing(builder *strings.Builder, briefing okf.ContextBriefing) {
+	builder.WriteString("## Briefing\n\n")
+	if strings.TrimSpace(briefing.Summary) != "" {
+		builder.WriteString(briefing.Summary)
+		builder.WriteString("\n\n")
+	}
+	if len(briefing.KeyPoints) > 0 {
+		builder.WriteString("### Key Points\n\n")
+		for _, point := range briefing.KeyPoints {
+			neighbor := ""
+			if point.Neighbor {
+				neighbor = " neighbor"
+			}
+			fmt.Fprintf(builder, "- %s (`%s:%d`%s)\n", point.Text, point.Path, point.Line, neighbor)
+		}
+		builder.WriteString("\n")
+	}
+	if len(briefing.Related) > 0 {
+		builder.WriteString("### Related Context\n\n")
+		for _, source := range briefing.Related {
+			fmt.Fprintf(builder, "- `%s:%d-%d` - %s / %s\n", source.Path, source.LineStart, source.LineEnd, source.Title, source.Heading)
+		}
+		builder.WriteString("\n")
+	}
+	if len(briefing.Gaps) > 0 {
+		builder.WriteString("### Gaps\n\n")
+		for _, gap := range briefing.Gaps {
+			fmt.Fprintf(builder, "- %s\n", gap)
+		}
+		builder.WriteString("\n")
+	}
 }
 
 func parseUseOptions(args []string) (useOptions, error) {
@@ -1948,7 +1982,7 @@ Commands:
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
-  use        Print an agent entrypoint or query-focused excerpts from a bundle.
+  use        Print an agent entrypoint or query briefing from a bundle.
   ast        Print parsed OKF AST JSON.
   registry   Manage knowledge bundle connections.
   open       Start the registry or knowledge base Markdown viewer.
@@ -1989,7 +2023,7 @@ Examples:
 func useHelpText() string {
 	return fmt.Sprintf(`openknowledge use
 
-Print an agent-facing entrypoint or query-focused excerpts from a knowledge bundle.
+Print an agent-facing entrypoint or query briefing from a knowledge bundle.
 
 Usage:
   openknowledge use <name|path>
@@ -2008,7 +2042,7 @@ Arguments:
 
 Flags:
   --info         Print bundle and entrypoint metadata instead of Markdown body.
-  --query        Select relevant bundle sections with a lexical query.
+  --query        Select relevant bundle sections and print a source-grounded briefing.
   --budget       Approximate query output token budget. Defaults to %d.
   --limit        Maximum number of query sections. Defaults to 12.
   --format       Query output format: markdown or json. Defaults to markdown.
@@ -2022,8 +2056,9 @@ Behavior:
 
   With --query, use builds a section-level index from Markdown headings, scores
   sections using lexical matches across metadata, paths, headings, and body
-  text, then prints only the highest-scoring original excerpts that fit the
-  budget. Query mode does not use embeddings or generate summaries.
+  text, then prints a source-grounded briefing with key points, related linked
+  context, gaps, source ranges, and original excerpts that fit the budget.
+  Query mode does not use embeddings or generate summaries.
 
 Examples:
   openknowledge use accessibility --info

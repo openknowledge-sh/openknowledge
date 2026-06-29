@@ -75,6 +75,7 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 		Issues: index.Issues,
 	}
 	if query == "" {
+		result.Briefing = buildContextBriefing(result)
 		return result, nil
 	}
 
@@ -85,5 +86,6 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 		result.EstimatedTokens += match.EstimatedTokens
 	}
 	result.Results = selected
+	result.Briefing = buildContextBriefing(result)
 	return result, nil
 }

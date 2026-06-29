@@ -94,6 +94,12 @@ func TestResolveContextRanksHeadingMetadataAndBodyMatches(t *testing.T) {
 	if result.EstimatedTokens <= 0 || result.EstimatedTokens > result.Budget {
 		t.Fatalf("unexpected token accounting: %#v", result)
 	}
+	if result.Briefing.Summary == "" || len(result.Briefing.KeyPoints) == 0 {
+		t.Fatalf("expected answer-ready briefing, got %#v", result.Briefing)
+	}
+	if result.Briefing.KeyPoints[0].Path != "guides/incident.md" || !strings.Contains(result.Briefing.KeyPoints[0].Text, "escalation checklist") {
+		t.Fatalf("expected source-grounded key point, got %#v", result.Briefing.KeyPoints)
+	}
 }
 
 func TestResolveContextTrimsOversizedTopMatchToBudget(t *testing.T) {
@@ -129,5 +135,8 @@ func TestResolveContextIncludesLinkedNeighborWithinBudget(t *testing.T) {
 	}
 	if result.Results[1].Path != "rollback.md" || !result.Results[1].Neighbor {
 		t.Fatalf("expected rollback neighbor second, got %#v", result.Results)
+	}
+	if len(result.Briefing.Related) != 1 || result.Briefing.Related[0].Path != "rollback.md" {
+		t.Fatalf("expected neighbor in briefing related context, got %#v", result.Briefing)
 	}
 }

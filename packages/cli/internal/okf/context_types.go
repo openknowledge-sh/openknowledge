@@ -7,12 +7,38 @@ type ContextOptions struct {
 }
 
 type ContextResult struct {
-	Root            string         `json:"root"`
-	Query           string         `json:"query"`
-	Budget          int            `json:"budget"`
-	EstimatedTokens int            `json:"estimatedTokens"`
-	Results         []ContextMatch `json:"results"`
-	Issues          []Issue        `json:"issues,omitempty"`
+	Root            string          `json:"root"`
+	Query           string          `json:"query"`
+	Budget          int             `json:"budget"`
+	EstimatedTokens int             `json:"estimatedTokens"`
+	Briefing        ContextBriefing `json:"briefing"`
+	Results         []ContextMatch  `json:"results"`
+	Issues          []Issue         `json:"issues,omitempty"`
+}
+
+type ContextBriefing struct {
+	Summary          string                  `json:"summary"`
+	KeyPoints        []ContextKeyPoint       `json:"keyPoints,omitempty"`
+	Related          []ContextBriefingSource `json:"related,omitempty"`
+	Gaps             []string                `json:"gaps,omitempty"`
+	ValidationIssues int                     `json:"validationIssues,omitempty"`
+}
+
+type ContextKeyPoint struct {
+	Text     string `json:"text"`
+	Path     string `json:"path"`
+	Line     int    `json:"line"`
+	Heading  string `json:"heading,omitempty"`
+	Neighbor bool   `json:"neighbor,omitempty"`
+}
+
+type ContextBriefingSource struct {
+	Path      string `json:"path"`
+	LineStart int    `json:"lineStart"`
+	LineEnd   int    `json:"lineEnd"`
+	Title     string `json:"title"`
+	Heading   string `json:"heading"`
+	Neighbor  bool   `json:"neighbor,omitempty"`
 }
 
 type ContextMatch struct {
