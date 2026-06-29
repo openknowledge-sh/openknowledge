@@ -1,0 +1,79 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/cli/go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    container: ghcr.io/railwayapp/cli:latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || secrets.RAILWAY_SERVICE || vars.RAILWAY_SERVICE_ID || secrets.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT || secrets.RAILWAY_ENVIRONMENT || 'production' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require Railway configuration
+        shell: sh
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN repository secret is required." >&2
+            exit 1
+          fi
+
+          if [ -z "$RAILWAY_SERVICE" ]; then
+            echo "RAILWAY_SERVICE repository variable or secret is required." >&2
+            exit 1
+          fi
+
+      - name: Deploy
+        shell: sh
+        run: |
+          if [ -n "$RAILWAY_PROJECT_ID" ]; then
+            railway up --ci --project="$RAILWAY_PROJECT_ID" --environment="$RAILWAY_ENVIRONMENT" --service="$RAILWAY_SERVICE"
+          else
+            railway up --ci --environment="$RAILWAY_ENVIRONMENT" --service="$RAILWAY_SERVICE"
+          fi

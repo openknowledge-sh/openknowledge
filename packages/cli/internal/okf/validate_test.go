@@ -3,6 +3,7 @@ package okf
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -25,6 +26,35 @@ func TestValidateMinimalBundle(t *testing.T) {
 	}
 }
 
+func TestValidateRootIndexAllowsBundleMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: \"accessibility\"\nokf_bundle_title: \"Accessibility Review\"\nokf_bundle_tags: [\"accessibility\", \"review\"]\nokf_bundle_entry_default: \"agents/checker.md\"\ncustom_root_key: \"allowed\"\n---\n\n# Bundle\n")
+	writeFile(t, root, "concept.md", "---\ntype: Concept\n---\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected root bundle metadata to validate, got %#v", result.Errors)
+	}
+}
+
+func TestValidateIndexAllowsPublishMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Bundle\n")
+	writeFile(t, root, "docs/index.md", "---\nokf_publish: false\n---\n\n# Docs\n")
+	writeFile(t, root, "concept.md", "---\ntype: Concept\n---\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected index publish metadata to validate, got %#v", result.Errors)
+	}
+}
+
 func TestValidateConceptRequiresType(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "concept.md", "---\ntitle: Missing Type\n---\n")
@@ -35,6 +65,31 @@ func TestValidateConceptRequiresType(t *testing.T) {
 	}
 	if len(result.Errors) != 1 {
 		t.Fatalf("expected one error, got %#v", result.Errors)
+	}
+	if statusForCheck(result, "Concept documents") != "fail" {
+		t.Fatalf("expected concept documents check to fail, got %#v", result.Checks)
+	}
+}
+
+func TestValidateRejectsInvalidUTF8Markdown(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "concept.md")
+	if err := os.WriteFile(path, []byte{'-', '-', '-', '\n', 't', 'y', 'p', 'e', ':', ' ', 'C', 'o', 'n', 'c', 'e', 'p', 't', '\n', '-', '-', '-', '\n', '\n', '#', ' ', 0xff, '\n'}, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected one invalid UTF-8 error, got %#v", result.Errors)
+	}
+	if result.Errors[0].Rule != "utf-8" || result.Errors[0].Line != 5 {
+		t.Fatalf("unexpected UTF-8 error: %#v", result.Errors[0])
+	}
+	if statusForCheck(result, "UTF-8 content") != "fail" {
+		t.Fatalf("expected UTF-8 check to fail, got %#v", result.Checks)
 	}
 	if statusForCheck(result, "Concept documents") != "fail" {
 		t.Fatalf("expected concept documents check to fail, got %#v", result.Checks)
@@ -161,6 +216,24 @@ func TestValidateWarnsForBrokenLocalLinks(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsDirectoryLinksToIndex(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n\n[Guides](guides) and [Guides index](guides/).\n")
+	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
+	writeFile(t, root, "guides/index.md", "# Guides\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("expected no warnings for directory links with index.md, got %#v", result.Warnings)
+	}
+	if statusForCheck(result, "Link targets") != "pass" {
+		t.Fatalf("expected link targets check to pass, got %#v", result.Checks)
+	}
+}
+
 func TestValidateIgnoresLinksInsideFencedCode(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Index\n\n```markdown\n[Example](missing.md)\n```\n")
@@ -175,6 +248,74 @@ func TestValidateIgnoresLinksInsideFencedCode(t *testing.T) {
 	}
 	if statusForCheck(result, "Link targets") != "pass" {
 		t.Fatalf("expected link targets check to pass, got %#v", result.Checks)
+	}
+}
+
+func TestValidateWarnsForMarkdownSyntax(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n\n[Broken](missing.md\n\n```sh\necho ok\n")
+	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected markdown syntax issues to be warnings, got errors %#v", result.Errors)
+	}
+	if statusForCheck(result, "Markdown syntax") != "warn" {
+		t.Fatalf("expected markdown syntax check to warn, got %#v", result.Checks)
+	}
+	if countRule(result.Warnings, "markdown-syntax") != 2 {
+		t.Fatalf("expected two markdown syntax warnings, got %#v", result.Warnings)
+	}
+}
+
+func TestValidateMarkdownSyntaxIgnoresFrontmatterValues(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "concept.md", "---\ntype: Concept\ntitle: \"Use `code\"\n---\n\n# Concept\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countRule(result.Warnings, "markdown-syntax") != 0 {
+		t.Fatalf("expected no markdown syntax warnings from frontmatter values, got %#v", result.Warnings)
+	}
+}
+
+func TestValidateWarnsForFrontmatterFormatting(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "concept.md", " ---\ntype: Concept\ntype: Duplicate\n--- \n\n# Concept\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected frontmatter formatting issues to be warnings, got errors %#v", result.Errors)
+	}
+	if statusForCheck(result, "Frontmatter formatting") != "warn" {
+		t.Fatalf("expected frontmatter formatting check to warn, got %#v", result.Checks)
+	}
+	if countRule(result.Warnings, "frontmatter-format") != 3 {
+		t.Fatalf("expected three frontmatter formatting warnings, got %#v", result.Warnings)
+	}
+}
+
+func TestValidateErrorsForUnparseableFrontmatter(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "concept.md", "---\ntype:Concept\n---\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected one frontmatter parse error, got %#v", result.Errors)
+	}
+	if result.Errors[0].Rule != "frontmatter" || result.Errors[0].Line != 2 {
+		t.Fatalf("unexpected frontmatter parse error: %#v", result.Errors[0])
 	}
 }
 
@@ -193,37 +334,42 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 		t.Fatalf("unexpected setup path: %s", result.SetupPath)
 	}
 
+	expectedCreated := []string{
+		"index.md",
+		"log.md",
+		"AGENTS.md",
+		"SETUP.MD",
+		"SPEC.md",
+	}
+	if !reflect.DeepEqual(result.Created, expectedCreated) {
+		t.Fatalf("unexpected created paths: %#v", result.Created)
+	}
+
 	for _, name := range []string{
 		"index.md",
 		"log.md",
 		"AGENTS.md",
 		"SETUP.MD",
 		"SPEC.md",
-		"concepts/index.md",
-		"projects/index.md",
-		"workflows/index.md",
-		"skills/index.md",
-		"automations/index.md",
-		"wiki/index.md",
-		"raw/index.md",
 	} {
 		if _, err := os.Stat(filepath.Join(target, name)); err != nil {
 			t.Fatalf("expected %s to exist: %v", name, err)
 		}
 	}
-	agents, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(agents), "type: Agent Rules") || !strings.Contains(string(agents), "Open Knowledge wiki") {
-		t.Fatalf("generated AGENTS.md does not contain expected starter rules")
-	}
-	spec, err := os.ReadFile(filepath.Join(target, "SPEC.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(spec), "type: Specification") || !strings.Contains(string(spec), "Open Knowledge Format") {
-		t.Fatalf("generated SPEC.md does not contain expected spec content")
+	for _, name := range []string{
+		"concepts",
+		"projects",
+		"workflows",
+		"skills",
+		"automations",
+		"references",
+		"decisions",
+		"wiki",
+		"raw",
+	} {
+		if _, err := os.Stat(filepath.Join(target, name)); !os.IsNotExist(err) {
+			t.Fatalf("expected optional scaffold path %s not to exist, got err=%v", name, err)
+		}
 	}
 
 	validation, err := Validate(target)
@@ -235,6 +381,56 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 	}
 	if validation.Concepts != 3 {
 		t.Fatalf("expected AGENTS.md, SETUP.MD and SPEC.md to count as concepts, got %#v", validation)
+	}
+}
+
+func TestNewProjectWritesOptionalBundleMetadata(t *testing.T) {
+	parent := t.TempDir()
+	target := filepath.Join(parent, "accessibility")
+
+	_, err := NewProject(NewProjectOptions{
+		Name: "Accessibility Review",
+		Path: target,
+		BundleMetadata: BundleMetadata{
+			Name:    "accessibility",
+			Title:   "Accessibility Review",
+			Purpose: "Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems.",
+			Tags:    []string{"accessibility", "ui", "review", "ui"},
+			Entries: []BundleEntry{
+				{Name: "review", Path: "agents/accessibility-review.md"},
+				{Name: "default", Path: "agents/accessibility-checker.md"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(target, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := string(content)
+	required := []string{
+		`okf_bundle_name: "accessibility"`,
+		`okf_bundle_title: "Accessibility Review"`,
+		`okf_bundle_purpose: "Accessibility review guidance for UI, HTML, ARIA, keyboard navigation, and design systems."`,
+		`okf_bundle_tags: ["accessibility", "ui", "review"]`,
+		`okf_bundle_entry_default: "agents/accessibility-checker.md"`,
+		`okf_bundle_entry_review: "agents/accessibility-review.md"`,
+	}
+	for _, expected := range required {
+		if !strings.Contains(index, expected) {
+			t.Fatalf("expected generated index.md to include %q:\n%s", expected, index)
+		}
+	}
+
+	validation, err := Validate(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(validation.Errors) != 0 {
+		t.Fatalf("expected generated project with bundle metadata to validate, got %#v", validation.Errors)
 	}
 }
 
@@ -267,6 +463,16 @@ func statusForCheck(result Result, name string) string {
 		}
 	}
 	return ""
+}
+
+func countRule(issues []Issue, rule string) int {
+	count := 0
+	for _, issue := range issues {
+		if issue.Rule == rule {
+			count++
+		}
+	}
+	return count
 }
 
 func writeFile(t *testing.T, root, name, content string) {

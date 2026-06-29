@@ -1,0 +1,7 @@
+[html.theme]
+name = "openknowledge-site"
+stylesheet = "assets/openknowledge-site.css"
+
+[html.source]
+github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
+entry = "Wiki"

@@ -1,0 +1,56 @@
+---
+type: Exporter Documentation
+title: Tar Exporter
+description: Portable tar.gz bundle export behavior.
+tags: [openknowledge, cli, exporter, tar, archive]
+timestamp: 2026-06-20T00:00:00Z
+---
+
+# Tar Exporter
+
+`openknowledge to tar` writes a portable `tar.gz` archive of an Open Knowledge
+bundle. The archive is the transport format used by published HTML exports and
+remote `connect` materialization.
+
+## Command
+
+```sh
+openknowledge to tar --out <file> [path]
+openknowledge to tar --spec <version> --out <file> [path]
+openknowledge to tar --help
+```
+
+## Behavior
+
+The exporter validates the bundle root for the selected spec version, walks the
+source bundle, skips `.git`, and writes source files with relative paths into a
+gzip-compressed tar archive. The command prints the archive SHA-256 so callers
+can publish or verify it.
+
+Default viewer HTML exports call the same archive writer and place the archive
+at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
+manifest points to that archive and includes the archive SHA-256.
+
+Remote `openknowledge connect` downloads archives from manifests or direct
+`.tar`, `.tar.gz`, and `.tgz` URLs, rejects unsafe archive entries such as path
+traversal or symlinks, validates the extracted bundle, then stores the
+materialized bundle in the Open Knowledge cache.
+
+---
+
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/internal/okf/archive.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/cmd/openknowledge/viewer.go`
+> * `packages/cli/internal/okf/archive_test.go`
+> * `packages/cli/cmd/openknowledge/main_test.go`
+> * `packages/cli/cmd/openknowledge/viewer_test.go`
+>
+> **Update notes**
+>
+> Update this page when archive layout, manifest fields, remote extraction safety,
+> or `to tar` command output changes. CLI behavior changes also require
+> [CLI changelog](/changelog/cli.md) updates.

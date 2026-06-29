@@ -1,36 +1,55 @@
 package okf
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestSetupPromptGuidesAgentSetupFlow(t *testing.T) {
+func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 	prompt := SetupPrompt()
-	if strings.TrimSpace(prompt) == "" {
-		t.Fatal("expected setup prompt to be non-empty")
+	required := []string{
+		"Inspect the current workspace or folder you were spawned into",
+		"relevant user or project memories",
+		"Do not ask a fixed questionnaire",
+		"Use these seed questions only when context cannot answer them",
+		"context-specific questions",
+		"spawn focused subagents with lower reasoning effort",
 	}
 
-	for _, expected := range []string{
-		"meant to be executed by an AI coding agent",
-		`codex "$(openknowledge setup)"`,
-		"interactive Codex needs stdin",
-		"If you are an agent",
-		"openknowledge new --name",
-		"SETUP.MD",
-		"AGENTS.md",
-		"SPEC.md",
-		"workflows/index.md",
-		"skills/index.md",
-		"automations/index.md",
-		"docs updates",
-		"changelog updates",
-		"openknowledge validate",
-		"openknowledge list",
-		"openknowledge open",
-	} {
+	for _, expected := range required {
 		if !strings.Contains(prompt, expected) {
-			t.Fatalf("expected setup prompt to contain %q", expected)
+			t.Fatalf("expected setup prompt to include %q:\n%s", expected, prompt)
+		}
+	}
+}
+
+func TestGeneratedSetupHandoffRequiresContextFirstInterview(t *testing.T) {
+	parent := t.TempDir()
+	target := filepath.Join(parent, "contextual-memory")
+
+	if _, err := NewProject(NewProjectOptions{Name: "Contextual Memory", Path: target}); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(target, "SETUP.MD"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	setup := string(content)
+
+	required := []string{
+		"the current folder, and any surrounding project context",
+		"relevant user or project memories",
+		"Do not ask a\nfixed generic questionnaire",
+		"context-specific questions only for missing or ambiguous details",
+		"spawn focused subagents with lower reasoning effort",
+	}
+
+	for _, expected := range required {
+		if !strings.Contains(setup, expected) {
+			t.Fatalf("expected generated SETUP.MD to include %q:\n%s", expected, setup)
 		}
 	}
 }

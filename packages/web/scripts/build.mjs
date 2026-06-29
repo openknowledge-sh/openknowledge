@@ -1,23 +1,21 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { distRoot as dist, exportWiki, webRoot } from "./wiki-export.mjs";
 
-const root = path.dirname(fileURLToPath(import.meta.url));
-const webRoot = path.resolve(root, "..");
-const dist = path.join(webRoot, "dist");
 const headMarker = "<!-- OPENKNOWLEDGE_HEAD -->";
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
-await writeFile(
-  path.join(dist, "index.html"),
-  await injectHeadHTML(await readFile(path.join(webRoot, "index.html"), "utf8")),
-);
-await cp(path.join(webRoot, "main.js"), path.join(dist, "main.js"));
-await cp(path.join(webRoot, "favicon.png"), path.join(dist, "favicon.png"));
-await cp(path.join(webRoot, "apple-touch-icon.png"), path.join(dist, "apple-touch-icon.png"));
-await cp(path.join(webRoot, "og.png"), path.join(dist, "og.png"));
-await cp(path.join(webRoot, "styles.css"), path.join(dist, "styles.css"));
+
+for (const asset of ["index.html", "main.js", "favicon.png", "apple-touch-icon.png", "og.png", "styles.css", "robots.txt"]) {
+  if (asset === "index.html") {
+    await writeFile(path.join(dist, asset), await injectHeadHTML(await readFile(path.join(webRoot, asset), "utf8")));
+  } else {
+    await cp(path.join(webRoot, asset), path.join(dist, asset));
+  }
+}
+
+await exportWiki(path.join(dist, "wiki"), { clean: false });
 
 console.log(`Built ${dist}`);
 

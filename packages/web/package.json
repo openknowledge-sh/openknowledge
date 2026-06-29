@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/serve.mjs",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "start": "OPENKNOWLEDGE_WEB_ROOT=dist OPENKNOWLEDGE_WEB_EXPORT_WIKI=0 HOST=0.0.0.0 node scripts/serve.mjs"
   },
   "engines": {
     "node": ">=18"

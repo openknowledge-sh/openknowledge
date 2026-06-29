@@ -7,3 +7,4 @@
 node_modules/
 *.test
 coverage.out
+.DS_Store

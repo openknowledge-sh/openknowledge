@@ -73,10 +73,65 @@ body {
 
 .site-topbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+}
+
+.site-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.release-row {
+  display: flex;
+  margin-bottom: 18px;
+}
+
+.release-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(var(--accent-rgb), 0.36);
+  background: rgba(var(--accent-rgb), 0.08);
+  color: rgba(var(--secondary-rgb), 0.9);
+  font-size: 12px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.release-badge:hover,
+.release-badge:focus-visible {
+  border-color: rgba(var(--accent-rgb), 0.64);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--secondary);
+  outline: none;
+}
+
+.release-badge time {
+  color: var(--muted);
+}
+
+.wiki-link {
+  color: rgba(var(--secondary-rgb), 0.86);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.wiki-link:hover,
+.wiki-link:focus-visible {
+  color: var(--accent);
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--accent-rgb), 0.42);
 }
 
 .site-logo {
@@ -162,26 +217,18 @@ h1 {
 }
 
 .setup-terminal {
-  margin-top: 35px;
+  margin-top: 50px;
   max-width: 820px;
 }
 
 .terminal-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--panel-strong);
-}
-
-.terminal-header h2 {
-  margin: 0;
-  color: var(--ink);
-  font-family: var(--body-font);
-  font-size: 16px;
-  line-height: 1.15;
 }
 
 .copy-command {
@@ -322,7 +369,7 @@ li code {
 
 .setup-note {
   max-width: 820px;
-  margin: 12px 0 0;
+  margin: 12px 0 50px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -352,20 +399,16 @@ li code {
     padding-top: 48px;
   }
 
+  .site-topbar {
+    align-items: flex-start;
+  }
+
   h1 {
     font-size: 38px;
   }
 
   .lede {
     font-size: 17px;
-  }
-
-  .terminal-header {
-    align-items: flex-start;
-  }
-
-  .copy-command span {
-    display: none;
   }
 
   .readme {
