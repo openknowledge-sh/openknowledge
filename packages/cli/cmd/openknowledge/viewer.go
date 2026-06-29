@@ -27,11 +27,25 @@ func runOpen(args []string) int {
 	fs.SetOutput(os.Stderr)
 	host := fs.String("host", "127.0.0.1", "host to bind")
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
+	headHTML := fs.String("head-html", os.Getenv("OPENKNOWLEDGE_HEAD_HTML"), "trusted HTML fragment to inject into <head>")
+	headFile := fs.String("head-file", os.Getenv("OPENKNOWLEDGE_HEAD_FILE"), "trusted HTML fragment file to inject into <head>")
+	scriptSrcs := stringListFlag(splitHeadList(os.Getenv("OPENKNOWLEDGE_SCRIPT_SRC")))
+	fs.Var(&scriptSrcs, "script-src", "script src to inject into <head>; may be repeated")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() > 1 {
 		fmt.Fprintln(os.Stderr, "open accepts at most one path")
+		return 2
+	}
+
+	headInjection, err := loadHeadInjection(headInjectionOptions{
+		HTML:       *headHTML,
+		File:       *headFile,
+		ScriptSrcs: []string(scriptSrcs),
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
 
@@ -70,7 +84,9 @@ func runOpen(args []string) int {
 	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(absolute))
 	fmt.Println(terminal.muted("Press Ctrl+C to stop."))
 
-	if err := http.Serve(listener, newViewerHandler(absolute)); err != nil {
+	if err := http.Serve(listener, newViewerHandlerWithOptions(absolute, viewerOptions{
+		HeadHTML: headInjection,
+	})); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
@@ -78,17 +94,25 @@ func runOpen(args []string) int {
 }
 
 func newViewerHandler(root string) http.Handler {
+	return newViewerHandlerWithOptions(root, viewerOptions{})
+}
+
+type viewerOptions struct {
+	HeadHTML template.HTML
+}
+
+func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/" {
 			http.NotFound(response, request)
 			return
 		}
-		renderViewerIndex(response, root)
+		renderViewerIndex(response, root, options)
 	})
 	mux.HandleFunc("/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/file/")
-		renderViewerFile(response, request, root, rel)
+		renderViewerFile(response, request, root, rel, options)
 	})
 	return mux
 }
@@ -103,12 +127,13 @@ type viewerEntry struct {
 }
 
 type viewerIndexData struct {
-	Title   string
-	Root    string
-	Entries []viewerEntry
+	Title    string
+	Root     string
+	Entries  []viewerEntry
+	HeadHTML template.HTML
 }
 
-func renderViewerIndex(response http.ResponseWriter, root string) {
+func renderViewerIndex(response http.ResponseWriter, root string, options viewerOptions) {
 	listing, err := okf.List(root)
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
@@ -135,20 +160,22 @@ func renderViewerIndex(response http.ResponseWriter, root string) {
 	}
 
 	renderHTML(response, viewerIndexTemplate, viewerIndexData{
-		Title:   filepath.Base(root),
-		Root:    root,
-		Entries: entries,
+		Title:    filepath.Base(root),
+		Root:     root,
+		Entries:  entries,
+		HeadHTML: options.HeadHTML,
 	})
 }
 
 type viewerFileData struct {
-	Title string
-	Root  string
-	Path  string
-	Body  template.HTML
+	Title    string
+	Root     string
+	Path     string
+	Body     template.HTML
+	HeadHTML template.HTML
 }
 
-func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string) {
+func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, options viewerOptions) {
 	filePath, ok := safeMarkdownPath(root, rel)
 	if !ok {
 		http.NotFound(response, request)
@@ -162,10 +189,11 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 	}
 
 	renderHTML(response, viewerFileTemplate, viewerFileData{
-		Title: titleForMarkdownFile(rel),
-		Root:  root,
-		Path:  rel,
-		Body:  renderMarkdown(content, rel),
+		Title:    titleForMarkdownFile(rel),
+		Root:     root,
+		Path:     rel,
+		Body:     renderMarkdown(content, rel),
+		HeadHTML: options.HeadHTML,
 	})
 }
 
@@ -233,6 +261,77 @@ func titleForMarkdownFile(rel string) string {
 }
 
 var linkPattern = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+
+type stringListFlag []string
+
+func (values *stringListFlag) String() string {
+	return strings.Join(*values, ",")
+}
+
+func (values *stringListFlag) Set(value string) error {
+	*values = append(*values, value)
+	return nil
+}
+
+type headInjectionOptions struct {
+	HTML       string
+	File       string
+	ScriptSrcs []string
+}
+
+func loadHeadInjection(options headInjectionOptions) (template.HTML, error) {
+	var snippets []string
+	if file := strings.TrimSpace(options.File); file != "" {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return "", fmt.Errorf("read head file: %w", err)
+		}
+		snippets = append(snippets, string(content))
+	}
+	if fragment := strings.TrimSpace(options.HTML); fragment != "" {
+		snippets = append(snippets, fragment)
+	}
+	for _, src := range options.ScriptSrcs {
+		script, err := scriptTag(src)
+		if err != nil {
+			return "", err
+		}
+		snippets = append(snippets, script)
+	}
+	return template.HTML(strings.Join(snippets, "\n  ")), nil
+}
+
+func splitHeadList(value string) []string {
+	var result []string
+	for _, part := range strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	}) {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+func scriptTag(src string) (string, error) {
+	trimmed := strings.TrimSpace(src)
+	if !validScriptSrc(trimmed) {
+		return "", fmt.Errorf("unsupported script src: %s", src)
+	}
+	return `<script src="` + html.EscapeString(trimmed) + `"></script>`, nil
+}
+
+func validScriptSrc(src string) bool {
+	if src == "" {
+		return false
+	}
+	parsed, err := url.Parse(src)
+	if err != nil {
+		return false
+	}
+	return parsed.Scheme == "" || parsed.Scheme == "http" || parsed.Scheme == "https"
+}
 
 func renderMarkdown(content []byte, currentRel string) template.HTML {
 	text := stripFrontmatter(string(content))
@@ -412,6 +511,7 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
   <style>` + viewerCSS + `</style>
+  {{.HeadHTML}}
 </head>
 <body>
   <header>
@@ -443,6 +543,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
   <style>` + viewerCSS + `</style>
+  {{.HeadHTML}}
 </head>
 <body>
   <header>

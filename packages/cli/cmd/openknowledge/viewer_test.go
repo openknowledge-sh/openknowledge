@@ -60,6 +60,63 @@ func TestViewerRejectsTraversalAndNonMarkdown(t *testing.T) {
 	}
 }
 
+func TestViewerInjectsHeadHTMLWhenConfigured(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n")
+
+	defaultBody := getViewerBody(t, newViewerHandler(root), "/")
+	if strings.Contains(defaultBody, "ok-head-test") {
+		t.Fatalf("viewer should not include custom head HTML by default:\n%s", defaultBody)
+	}
+
+	headHTML, err := loadHeadInjection(headInjectionOptions{
+		HTML:       `<meta name="ok-head-test" content="inline">`,
+		ScriptSrcs: []string{"/analytics.js"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newViewerHandlerWithOptions(root, viewerOptions{HeadHTML: headHTML})
+	index := getViewerBody(t, handler, "/")
+	if !strings.Contains(index, `<meta name="ok-head-test" content="inline">`) {
+		t.Fatalf("viewer index did not include custom head HTML:\n%s", index)
+	}
+	if !strings.Contains(index, `<script src="/analytics.js"></script>`) {
+		t.Fatalf("viewer index did not include script src:\n%s", index)
+	}
+
+	page := getViewerBody(t, handler, "/file/index.md")
+	if !strings.Contains(page, `<meta name="ok-head-test" content="inline">`) {
+		t.Fatalf("viewer page did not include custom head HTML:\n%s", page)
+	}
+}
+
+func TestLoadHeadInjectionReadsFragmentFile(t *testing.T) {
+	root := t.TempDir()
+	headFile := filepath.Join(root, "head.html")
+	if err := os.WriteFile(headFile, []byte(`<meta name="ok-head-file" content="1">`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	headHTML, err := loadHeadInjection(headInjectionOptions{File: headFile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(headHTML), `name="ok-head-file"`) {
+		t.Fatalf("expected head file content to be included, got %s", headHTML)
+	}
+}
+
+func TestLoadHeadInjectionRejectsUnsupportedScriptScheme(t *testing.T) {
+	_, err := loadHeadInjection(headInjectionOptions{
+		ScriptSrcs: []string{"javascript:alert(1)"},
+	})
+	if err == nil {
+		t.Fatal("expected unsupported script scheme to be rejected")
+	}
+}
+
 func writeViewerFile(t *testing.T, root string, name string, content string) {
 	t.Helper()
 	path := filepath.Join(root, name)

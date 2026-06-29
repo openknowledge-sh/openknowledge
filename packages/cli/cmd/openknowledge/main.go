@@ -417,6 +417,8 @@ Usage:
   openknowledge new --name <name> [folder]
   openknowledge open [path]
   openknowledge open --host <host> --port <port> [path]
+  openknowledge open --head-file <file> [path]
+  openknowledge open --script-src <src> [path]
   openknowledge spec latest|<version>
   openknowledge validate [path]
   openknowledge validate --spec <version> [path]
@@ -491,6 +493,8 @@ Start a local HTTP Markdown viewer for a knowledge base.
 Usage:
   openknowledge open [path]
   openknowledge open --host <host> --port <port> [path]
+  openknowledge open --head-file <file> [path]
+  openknowledge open --script-src <src> [path]
   openknowledge open --help
 
 Arguments:
@@ -499,9 +503,17 @@ Arguments:
 Flags:
   --host       Host to bind. Defaults to 127.0.0.1.
   --port       Port to bind. Defaults to 0, which selects a free port.
+  --head-file  Trusted HTML fragment file to inject into <head>. Defaults to
+               OPENKNOWLEDGE_HEAD_FILE when set.
+  --head-html  Trusted HTML fragment to inject into <head>. Defaults to
+               OPENKNOWLEDGE_HEAD_HTML when set.
+  --script-src Script src to inject into <head>. May be repeated. Defaults to
+               comma- or newline-separated OPENKNOWLEDGE_SCRIPT_SRC when set.
 
 Examples:
   openknowledge open ./project-memory
+  openknowledge open --head-file ./head.html ./project-memory
+  openknowledge open --script-src /analytics.js ./project-memory
   openknowledge open --port 8080 ./project-memory
 `
 }

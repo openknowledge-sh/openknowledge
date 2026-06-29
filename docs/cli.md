@@ -38,6 +38,24 @@ pnpm build:web
 pnpm dev:web
 ```
 
+## Web deploy head injection
+
+`pnpm build:web` can inject trusted HTML into the generated site `<head>`.
+Use this for analytics, verification meta tags, or small loader scripts without
+hard-coding a provider into the repository.
+
+- `OPENKNOWLEDGE_HEAD_FILE=./head.html` inserts an HTML fragment file.
+- `OPENKNOWLEDGE_HEAD_HTML='<meta name="..." content="...">'` inserts an inline
+  HTML fragment.
+- `OPENKNOWLEDGE_SCRIPT_SRC=/analytics.js` inserts one or more script tags. Use
+  comma or newline separation for multiple sources.
+
+For Google Analytics, put the provider snippet in `head.html` and build with:
+
+```sh
+OPENKNOWLEDGE_HEAD_FILE=./head.html pnpm build:web
+```
+
 ## Setup prompt
 
 `openknowledge setup` prints only an agent prompt to stdout. With interactive
@@ -84,6 +102,18 @@ process is stopped. Use `--host` or `--port` when a fixed address is needed.
 The viewer renders Markdown files, strips YAML frontmatter from document pages,
 rewrites relative Markdown links between `.md` files, and shows inline
 validation issues from the bundle listing.
+
+The viewer can also inject trusted custom `<head>` HTML, matching the web deploy
+contract:
+
+```sh
+openknowledge open --head-file ./head.html ./project-memory
+openknowledge open --script-src /analytics.js ./project-memory
+```
+
+The same values can be supplied with `OPENKNOWLEDGE_HEAD_FILE`,
+`OPENKNOWLEDGE_HEAD_HTML`, and comma- or newline-separated
+`OPENKNOWLEDGE_SCRIPT_SRC`.
 
 `openknowledge validate` reports broken local Markdown links as warnings. It
 does not fail the bundle for link warnings because OKF v0.1 keeps link targets

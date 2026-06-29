@@ -14,6 +14,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge setup",
 		"openknowledge new --name <name> [folder]",
 		"openknowledge open --host <host> --port <port> [path]",
+		"openknowledge open --head-file <file> [path]",
+		"openknowledge open --script-src <src> [path]",
 		"openknowledge validate --spec <version> [path]",
 		"openknowledge list --spec <version> [path]",
 		"openknowledge list --json [path]",
@@ -63,8 +65,11 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: openHelpText(),
 			required: []string{
 				"openknowledge open --host <host> --port <port> [path]",
+				"openknowledge open --head-file <file> [path]",
 				"--host",
 				"--port",
+				"--head-html",
+				"--script-src",
 			},
 		},
 		"spec": {
