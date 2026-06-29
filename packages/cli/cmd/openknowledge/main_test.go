@@ -46,7 +46,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
-		"use        Print an agent entrypoint or query-focused excerpts from a bundle.",
+		"use        Print an agent entrypoint or query briefing from a bundle.",
 		"registry   Manage knowledge bundle connections.",
 		"open       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
@@ -385,7 +385,7 @@ func TestRunUseQueryPrintsMarkdownSections(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected use query to succeed, got exit code %d", code)
 	}
-	for _, expected := range []string{"# Open Knowledge Query", "guides/validate.md:", "Run `openknowledge validate`"} {
+	for _, expected := range []string{"# Open Knowledge Query", "## Briefing", "### Key Points", "guides/validate.md:", "Run `openknowledge validate`"} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected markdown use query to include %q:\n%s", expected, output)
 		}
@@ -409,6 +409,9 @@ func TestRunUseQueryPrintsJSON(t *testing.T) {
 	}
 	if payload.Query != "release checklist" || len(payload.Results) == 0 || payload.Results[0].Path != "guides/release.md" {
 		t.Fatalf("unexpected use query payload: %#v", payload)
+	}
+	if len(payload.Briefing.KeyPoints) == 0 || payload.Briefing.KeyPoints[0].Path != "guides/release.md" {
+		t.Fatalf("expected JSON use query briefing key points: %#v", payload.Briefing)
 	}
 }
 

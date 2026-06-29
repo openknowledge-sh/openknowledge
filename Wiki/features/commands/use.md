@@ -1,7 +1,7 @@
 ---
 type: Command Documentation
 title: openknowledge use
-description: Prints an entrypoint, bundle file, metadata, or query excerpts from a local or connected OKF bundle.
+description: Prints an entrypoint, bundle file, metadata, or query briefing from a local or connected OKF bundle.
 tags: [openknowledge, cli, command, registry, agent]
 timestamp: 2026-06-20T00:00:00Z
 ---
@@ -9,9 +9,9 @@ timestamp: 2026-06-20T00:00:00Z
 # `openknowledge use`
 
 `openknowledge use` prints an entrypoint, a bundle-relative file, metadata, or
-query-focused excerpts from a local or connected Open Knowledge bundle. It
+a source-grounded query briefing from a local or connected Open Knowledge bundle. It
 resolves a registry key or path, then prints the selected Markdown body,
-metadata, or token-bounded original excerpts.
+metadata, or token-bounded briefing plus original excerpts.
 
 The metadata layer is optional. Plain OKF bundles without declared entrypoints
 fall back to root `index.md`.
@@ -36,7 +36,7 @@ openknowledge use --help
 | `name-or-path` | argument | Registry key or local bundle path. |
 | `entry` | argument | Optional entrypoint name declared as `okf_bundle_entry_<name>` in the root index, or a bundle-relative file path. |
 | `--info` | flag | Print bundle and entrypoint metadata instead of the Markdown body. |
-| `--query` | flag | Select relevant bundle sections with a lexical query. |
+| `--query` | flag | Select relevant bundle sections and print a source-grounded briefing. |
 | `--budget` | flag | Approximate query output token budget. Defaults to `2400`. |
 | `--limit` | flag | Maximum number of query sections. Defaults to `12`. |
 | `--format` | flag | Query output format, `markdown` or `json`. Defaults to `markdown`. |
@@ -83,15 +83,17 @@ that entrypoint's path and frontmatter summary. Without a named entry, it lists
 all declared entrypoints; when none are declared, it prints the root `index.md`
 fallback metadata.
 
-`--query` switches `use` into token-bounded excerpt mode. It builds a
+`--query` switches `use` into token-bounded briefing mode. It builds a
 section-level index from Markdown headings, scores original sections with
 lexical matches over metadata, paths, headings, and body text, then packs the
 highest-scoring excerpts into an approximate token budget.
 
 Query mode does not use embeddings and does not generate summaries. Markdown
-output starts with query and budget metadata, then lists source ranges before
-printing excerpts. JSON output returns the same result model for tools that
-want to pack or inspect context themselves.
+output starts with query and budget metadata, then prints a deterministic
+briefing with selected key points, linked-neighbor context, gaps, source ranges,
+and original excerpts for verification. JSON output returns the same result
+model plus a `briefing` object for tools that want to pack or inspect context
+themselves.
 
 When a selected section links to another local Markdown file and budget remains,
 query mode may include that target's first section as a neighbor result.
@@ -112,6 +114,13 @@ openknowledge use personal --query "release checklist" --format json
 ```
 
 ## Command Change History
+
+### 2026-06-28
+
+Query mode now prints answer-ready, source-grounded briefing metadata before
+the original excerpts. Markdown output includes key points with citations,
+related linked-neighbor context, and gaps; JSON output includes the same data in
+the additive `briefing` field.
 
 ### 2026-06-20
 
@@ -136,6 +145,7 @@ flags.
 > * `packages/cli/cmd/openknowledge/main.go`
 > * `packages/cli/cmd/openknowledge/main_test.go`
 > * `packages/cli/internal/okf/context.go`
+> * `packages/cli/internal/okf/context_briefing.go`
 > * `packages/cli/internal/okf/context_test.go`
 > * `packages/cli/internal/okf/metadata.go`
 > * `packages/cli/internal/okf/metadata_test.go`

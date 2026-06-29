@@ -40,6 +40,11 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 
 ## Command Change History
 
+### 2026-06-28
+
+Root and command-specific help now describe `openknowledge use --query` as a
+source-grounded query briefing instead of an excerpt-only mode.
+
 ### 2026-06-20
 
 Root help removed top-level `where` and the `registry add` subcommand, added

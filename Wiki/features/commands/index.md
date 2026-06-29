@@ -22,7 +22,7 @@ anchors. Keep this index as the quick map.
 
 ## Use And Browse Knowledge
 
-* [Use](use.md) - print an entrypoint, bundle file, metadata, or query excerpts.
+* [Use](use.md) - print an entrypoint, bundle file, metadata, or query briefing.
 * [Open](open.md) - local Markdown viewer.
 
 ## Export And Publish
