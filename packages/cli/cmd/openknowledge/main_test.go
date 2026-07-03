@@ -390,7 +390,7 @@ func TestRunUseQueryPrintsMarkdownSections(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected use query to succeed, got exit code %d", code)
 	}
-	for _, expected := range []string{"# Open Knowledge Query", "## Briefing", "### Key Points", "guides/validate.md:", "Run `openknowledge validate`"} {
+	for _, expected := range []string{"# Open Knowledge Query", "## Briefing", "### Key Points", "Source: `guides/validate.md:", "## Found Entries", "Origin: `guides/validate.md:", "Type: Guide", "Run `openknowledge validate`"} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected markdown use query to include %q:\n%s", expected, output)
 		}

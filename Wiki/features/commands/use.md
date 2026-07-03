@@ -95,9 +95,14 @@ and original excerpts for verification. JSON output returns the same result
 model plus a `briefing` object for tools that want to pack or inspect context
 themselves.
 
+Markdown output labels every found entry with an explicit origin range before
+the excerpt, formatted as `Origin: path:line-line`. Key points and related
+context also include `Source: path:line` citations so an agent can trace each
+answer-ready claim back to the Markdown file it came from.
+
 When a selected section links to another local Markdown file and budget remains,
 query mode may include that target's first section as a neighbor result.
-Neighbor sections are marked in JSON and in the Markdown source list.
+Neighbor sections are marked in JSON and as `linked neighbor` in Markdown.
 
 ## Quick Examples
 
@@ -119,8 +124,8 @@ openknowledge use personal --query "release checklist" --format json
 
 Query mode now prints answer-ready, source-grounded briefing metadata before
 the original excerpts. Markdown output includes key points with citations,
-related linked-neighbor context, and gaps; JSON output includes the same data in
-the additive `briefing` field.
+related linked-neighbor context, explicit found-entry origins, and gaps; JSON
+output includes the same data in the additive `briefing` field.
 
 ### 2026-06-20
 

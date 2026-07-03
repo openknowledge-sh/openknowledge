@@ -1038,22 +1038,49 @@ func renderUseQueryMarkdown(result okf.ContextResult) string {
 		return builder.String()
 	}
 
-	builder.WriteString("## Sources\n\n")
+	builder.WriteString("## Found Entries\n\n")
 	for _, match := range result.Results {
-		neighbor := ""
+		originKind := "direct match"
 		if match.Neighbor {
-			neighbor = " neighbor"
+			originKind = "linked neighbor"
 		}
-		fmt.Fprintf(&builder, "- `%s:%d-%d` - %s / %s (score %.2f%s)\n", match.Path, match.LineStart, match.LineEnd, match.Title, match.Heading, match.Score, neighbor)
+		fmt.Fprintf(&builder, "- Origin: `%s:%d-%d` (%s)\n", match.Path, match.LineStart, match.LineEnd, originKind)
+		if strings.TrimSpace(match.Title) != "" {
+			fmt.Fprintf(&builder, "  Title: %s\n", match.Title)
+		}
+		if strings.TrimSpace(match.Heading) != "" {
+			fmt.Fprintf(&builder, "  Heading: %s\n", match.Heading)
+		}
+		if strings.TrimSpace(match.Type) != "" {
+			fmt.Fprintf(&builder, "  Type: %s\n", match.Type)
+		} else if strings.TrimSpace(match.Kind) != "" {
+			fmt.Fprintf(&builder, "  Type: %s\n", match.Kind)
+		}
+		fmt.Fprintf(&builder, "  Score: %.2f\n", match.Score)
 	}
 	builder.WriteString("\n")
 
 	for _, match := range result.Results {
-		fmt.Fprintf(&builder, "## %s:%d-%d - %s\n\n", match.Path, match.LineStart, match.LineEnd, match.Heading)
+		fmt.Fprintf(&builder, "## %s\n\n", useQueryExcerptHeading(match))
+		fmt.Fprintf(&builder, "Origin: `%s:%d-%d`\n\n", match.Path, match.LineStart, match.LineEnd)
 		builder.WriteString(strings.TrimSpace(match.Text))
 		builder.WriteString("\n\n")
 	}
 	return builder.String()
+}
+
+func useQueryExcerptHeading(match okf.ContextMatch) string {
+	heading := strings.TrimSpace(match.Heading)
+	if heading == "" {
+		heading = strings.TrimSpace(match.Title)
+	}
+	if heading == "" {
+		heading = match.Path
+	}
+	if match.Neighbor {
+		return heading + " (linked neighbor)"
+	}
+	return heading
 }
 
 func renderUseQueryBriefing(builder *strings.Builder, briefing okf.ContextBriefing) {
@@ -1065,18 +1092,24 @@ func renderUseQueryBriefing(builder *strings.Builder, briefing okf.ContextBriefi
 	if len(briefing.KeyPoints) > 0 {
 		builder.WriteString("### Key Points\n\n")
 		for _, point := range briefing.KeyPoints {
-			neighbor := ""
+			originKind := "direct match"
 			if point.Neighbor {
-				neighbor = " neighbor"
+				originKind = "linked neighbor"
 			}
-			fmt.Fprintf(builder, "- %s (`%s:%d`%s)\n", point.Text, point.Path, point.Line, neighbor)
+			fmt.Fprintf(builder, "- %s\n  Source: `%s:%d` (%s)\n", point.Text, point.Path, point.Line, originKind)
 		}
 		builder.WriteString("\n")
 	}
 	if len(briefing.Related) > 0 {
 		builder.WriteString("### Related Context\n\n")
 		for _, source := range briefing.Related {
-			fmt.Fprintf(builder, "- `%s:%d-%d` - %s / %s\n", source.Path, source.LineStart, source.LineEnd, source.Title, source.Heading)
+			fmt.Fprintf(builder, "- Source: `%s:%d-%d` (linked neighbor)\n", source.Path, source.LineStart, source.LineEnd)
+			if strings.TrimSpace(source.Title) != "" {
+				fmt.Fprintf(builder, "  Title: %s\n", source.Title)
+			}
+			if strings.TrimSpace(source.Heading) != "" {
+				fmt.Fprintf(builder, "  Heading: %s\n", source.Heading)
+			}
 		}
 		builder.WriteString("\n")
 	}

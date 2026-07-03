@@ -60,6 +60,9 @@ entries in this section until they are released.
 * Structured JSON output now includes an additive `briefing` object with a
   summary, cited key points, linked-neighbor context, gaps, and validation issue
   count.
+* Markdown output now labels key point citations as `Source:` and each found
+  entry/excerpt as `Origin: path:line-line`, making it obvious which file and
+  line range each selected entry came from.
 * This keeps query mode file-native and non-generative while making the output
   easier for agents to answer from directly.
 * Source anchors: `packages/cli/internal/okf/context.go`,
