@@ -64,9 +64,15 @@ openknowledge to graph --out ./graph.json ./project-memory
 
 * Default viewer export: static viewer pages with file browsing, search,
   stacked-panel navigation, embedded note data, theme/source configuration, and
-  remote-connect assets.
+  discovery and remote-connect assets.
 * Plain export: unstyled semantic HTML without viewer CSS, JavaScript, theme
   links, source buttons, or rich table controls.
+
+Default viewer exports write `llms.txt` for agents and LLM-oriented consumers.
+When `[html.site].base_url` is configured in `openknowledge.toml`, they also
+write `sitemap.xml` with absolute URLs for published pages. Files with
+`okf_publish: false` are omitted from generated pages, static note payloads,
+`llms.txt`, and `sitemap.xml`.
 
 Default viewer exports also write `openknowledge.json` and
 `assets/openknowledge-bundle.tar.gz`. The manifest points to the archive and
@@ -111,6 +117,7 @@ Unknown targets and unknown flags exit with status `2`.
 > * `packages/cli/internal/okf/graph.go`
 > * `packages/cli/internal/okf/graph_types.go`
 > * `packages/cli/cmd/openknowledge/viewer.go`
+> * `packages/cli/cmd/openknowledge/viewer_discovery.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.css`
 > * `packages/cli/internal/okf/export_test.go`

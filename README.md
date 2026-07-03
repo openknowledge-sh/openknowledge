@@ -114,7 +114,9 @@ structure, and `openknowledge list [key-or-path]` prints the bundle tree with
 inline validation issues. Without an argument, both commands use the current
 directory.
 `openknowledge to html` writes the same static viewer app bundle by default,
-including searchable, sortable Markdown tables with basic column filters.
+including searchable, sortable Markdown tables with basic column filters,
+`llms.txt`, and a connect manifest. It also writes `sitemap.xml` when the bundle
+declares a deployed site URL.
 `openknowledge to html --plain` writes unstyled semantic HTML, and
 `openknowledge to json` writes a normalized bundle model for tools and agents.
 `openknowledge to graph` writes AST-backed node and edge JSON for local
@@ -126,6 +128,9 @@ The default HTML viewer export can inherit your site styling from an optional
 [html.theme]
 name = "landing"
 stylesheet = "assets/wiki-theme.css"
+
+[html.site]
+base_url = "https://example.com/wiki/"
 
 [html.source]
 github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
@@ -139,7 +144,10 @@ page. The canonical default theme lives at
 HTML export derive their colors, fonts, and viewer dimensions from that theme
 layer. In default static viewer exports, `[html.source]` replaces local editor
 deep links with a single GitHub source button for each Markdown file. Omit that
-section when exported pages should show no source action.
+section when exported pages should show no source action. `[html.site].base_url`
+sets the canonical deployed root for absolute `llms.txt` links and
+`sitemap.xml`; omit it for portable exports that should keep discovery links
+relative and skip sitemap generation.
 
 `openknowledge connect` stores named local paths for shared or standalone
 knowledge bases. A key is only an alias: path-based commands still work, and
@@ -187,7 +195,7 @@ changes.
 | `openknowledge registry where <name-or-path>` | Print the absolute path for a registry name or path. |
 | `openknowledge open [path]` | Start the registry or knowledge base Markdown viewer. |
 | `openknowledge open --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
-| `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle plus connect manifest and tar archive. |
+| `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle plus `llms.txt`, connect manifest, and tar archive. |
 | `openknowledge to html --plain --out <folder> [path]` | Write unstyled semantic HTML files. |
 | `openknowledge to json [path]` | Print normalized bundle JSON. |
 | `openknowledge to json --out <file> [path]` | Write normalized bundle JSON to a file. |

@@ -12,7 +12,8 @@ The HTML exporter turns an OKF bundle into static pages. The default mode ships
 the same viewer used by `openknowledge open`, so exported docs keep file
 browsing, search, stacked panels, graph data, table controls, syntax
 highlighting, and mobile layout behavior without a local server. It also writes
-connection assets so a deployed wiki can be added back to the local registry.
+discovery and connection assets so agents can index the published wiki and a
+deployed wiki can be added back to the local registry.
 
 Use `--plain` when the output should be only semantic HTML without viewer CSS,
 JavaScript, search, graph data, or table controls.
@@ -51,6 +52,17 @@ static host. The viewer can resolve pretty URLs such as `/agents` or
 `index.html` with a relative URL for subpath deployments. Portable static pages
 do not expose the local filesystem path used during the build.
 
+Default viewer exports include discovery files:
+
+* `llms.txt` - a Markdown index following the llms.txt proposal shape: H1 title,
+  summary blockquote, details, and a `## Docs` section of Markdown links to
+  published pages. When no site base URL is configured, links are relative to
+  the export root.
+* `sitemap.xml` - a Sitemap Protocol XML document for published pages when
+  `[html.site].base_url` is configured. The sitemap is skipped without a base URL
+  because sitemap `<loc>` entries must be absolute `http` or `https` URLs on one
+  host.
+
 Default viewer exports include remote-connect assets:
 
 * `openknowledge.json` - an Open Knowledge manifest with type
@@ -70,12 +82,21 @@ Default viewer exports read optional settings from `openknowledge.toml`.
 [html.theme]
 name = "landing"
 stylesheet = "assets/wiki-theme.css"
+
+[html.site]
+base_url = "https://example.com/wiki/"
 ```
 
 Exported pages include `data-openknowledge-theme="<name>"` on `<html>` and link
 the stylesheet after the built-in viewer CSS. Local stylesheets must stay inside
 the bundle; they are copied into the output and linked relatively from every
 page. External `http` and `https` stylesheet URLs are linked as-is.
+
+`[html.site].base_url` sets the deployed root URL for discovery files. It must be
+an absolute `http` or `https` URL without a query string or fragment. The export
+normalizes it with a trailing slash and uses it for absolute `llms.txt` links and
+`sitemap.xml` `<loc>` entries. Omit it for portable local exports that should not
+claim a canonical deployment URL.
 
 Default viewer exports also suppress the local editor dropdown because deployed
 HTML cannot open the build machine's local files. To show a source action in
@@ -102,6 +123,7 @@ there through a configured stylesheet instead of changing generated HTML.
 ## Use Cases
 
 * Publish a portable static wiki.
+* Expose `llms.txt` and `sitemap.xml` for agents and crawlers.
 * Connect a deployed wiki back into a local registry.
 * Produce minimal HTML for systems that should not include viewer JavaScript.
 * Apply a deployable theme stylesheet without changing source Markdown.
@@ -117,6 +139,7 @@ there through a configured stylesheet instead of changing generated HTML.
 > * `packages/cli/internal/okf/markdown.go`
 > * `packages/cli/internal/okf/export_test.go`
 > * `packages/cli/cmd/openknowledge/viewer.go`
+> * `packages/cli/cmd/openknowledge/viewer_discovery.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.css`
 > * `packages/cli/cmd/openknowledge/viewer_test.go`

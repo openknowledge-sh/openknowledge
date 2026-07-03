@@ -1181,6 +1181,10 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
+	siteConfig, err := loadViewerSiteConfig(bundle.Root)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
 
 	absoluteOut, err := filepath.Abs(out)
 	if err != nil {
@@ -1241,6 +1245,11 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 		return okf.HTMLResult{}, err
 	}
 	written = append(written, archiveResult...)
+	discoveryResult, err := writeViewerDiscoveryFiles(bundle.Files, absoluteOut, siteConfig)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	written = append(written, discoveryResult...)
 
 	sort.Strings(written)
 	return okf.HTMLResult{Root: bundle.Root, Out: absoluteOut, Written: written}, nil

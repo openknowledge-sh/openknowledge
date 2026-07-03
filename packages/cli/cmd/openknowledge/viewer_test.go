@@ -560,8 +560,8 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 6 {
-		t.Fatalf("expected exported viewer files plus bundle manifest and archive, got %#v", result.Written)
+	if len(result.Written) != 7 {
+		t.Fatalf("expected exported viewer files plus discovery files, bundle manifest, and archive, got %#v", result.Written)
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
@@ -594,6 +594,15 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	}
 	if !strings.Contains(index, `class="powered-by-openknowledge"`) || !strings.Contains(index, `href="https://openknowledge.sh"`) || !strings.Contains(index, `Powered by OpenKnowledge.sh`) {
 		t.Fatalf("expected exported index to include OpenKnowledge.sh attribution:\n%s", index)
+	}
+	llms := readViewerExportFile(t, out, "llms.txt")
+	if !strings.Contains(llms, "# Home") || !strings.Contains(llms, "## Docs") ||
+		!strings.Contains(llms, "- [Setup](guides/setup.html): guides/setup.md") ||
+		!strings.Contains(llms, "- [Agents](AGENTS.html): AGENTS.md") {
+		t.Fatalf("expected llms.txt to list exported wiki pages:\n%s", llms)
+	}
+	if _, err := os.Stat(filepath.Join(out, "sitemap.xml")); !os.IsNotExist(err) {
+		t.Fatalf("expected sitemap.xml to be absent without html.site.base_url, got err=%v", err)
 	}
 
 	setup := readViewerExportFile(t, out, "guides/setup.html")
@@ -642,7 +651,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,index.html,openknowledge.json,public.html" {
+	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,index.html,llms.txt,openknowledge.json,public.html" {
 		t.Fatalf("expected only published viewer files, got %#v", result.Written)
 	}
 
@@ -657,6 +666,10 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, "examples", "index.html")); !os.IsNotExist(err) {
 		t.Fatalf("expected examples/index.html to be absent, got err=%v", err)
+	}
+	llms := readViewerExportFile(t, out, "llms.txt")
+	if strings.Contains(llms, "draft.md") || strings.Contains(llms, "examples/index.md") {
+		t.Fatalf("expected unpublished pages to be absent from llms.txt:\n%s", llms)
 	}
 }
 
@@ -818,8 +831,8 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 5 {
-		t.Fatalf("expected exported pages plus theme stylesheet, manifest, and archive, got %#v", result.Written)
+	if len(result.Written) != 6 {
+		t.Fatalf("expected exported pages plus theme stylesheet, discovery file, manifest, and archive, got %#v", result.Written)
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
@@ -878,6 +891,50 @@ func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 	setup := readViewerExportFile(t, out, "guides/setup.html")
 	if !strings.Contains(setup, `href="https://github.com/openknowledge-sh/openknowledge/blob/main/Wiki/guides/setup.md"`) {
 		t.Fatalf("nested static export should link its GitHub source:\n%s", setup)
+	}
+}
+
+func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeViewerFile(t, root, "openknowledge.toml", "[html.site]\nbase_url = \"https://example.com/wiki/\"\n")
+	writeViewerFile(t, root, "index.md", "---\nokf_bundle_title: \"Team Handbook\"\nokf_bundle_purpose: \"Knowledge for shipping product changes.\"\n---\n\n# Home\n\nRead [Setup](guides/setup.md).\n")
+	writeViewerFile(t, root, "guides/setup.md", "---\ntitle: \"Setup Guide\"\n---\n\n# Setup\n")
+
+	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	written := strings.Join(result.Written, ",")
+	if !strings.Contains(written, "llms.txt") || !strings.Contains(written, "sitemap.xml") {
+		t.Fatalf("expected discovery files in written list, got %#v", result.Written)
+	}
+
+	llms := readViewerExportFile(t, out, "llms.txt")
+	if !strings.Contains(llms, "# Team Handbook") ||
+		!strings.Contains(llms, "> Knowledge for shipping product changes.") ||
+		!strings.Contains(llms, "- [Home](https://example.com/wiki/index.html): index.md") ||
+		!strings.Contains(llms, "- [Setup Guide](https://example.com/wiki/guides/setup.html): guides/setup.md") {
+		t.Fatalf("unexpected llms.txt:\n%s", llms)
+	}
+
+	sitemap := readViewerExportFile(t, out, "sitemap.xml")
+	if !strings.Contains(sitemap, `<?xml version="1.0" encoding="UTF-8"?>`) ||
+		!strings.Contains(sitemap, `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`) ||
+		!strings.Contains(sitemap, `<loc>https://example.com/wiki/index.html</loc>`) ||
+		!strings.Contains(sitemap, `<loc>https://example.com/wiki/guides/setup.html</loc>`) {
+		t.Fatalf("unexpected sitemap.xml:\n%s", sitemap)
+	}
+}
+
+func TestViewerSiteConfigRejectsInvalidBaseURL(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "openknowledge.toml", "[html.site]\nbase_url = \"/wiki/\"\n")
+	writeViewerFile(t, root, "index.md", "# Home\n")
+
+	_, err := writeViewerHTMLWithVersion(root, filepath.Join(t.TempDir(), "site"), "0.1")
+	if err == nil || !strings.Contains(err.Error(), "html.site.base_url must be an http(s) URL") {
+		t.Fatalf("expected invalid site base URL to be rejected, got %v", err)
 	}
 }
 

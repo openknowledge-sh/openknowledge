@@ -2,6 +2,9 @@
 name = "openknowledge-site"
 stylesheet = "assets/openknowledge-site.css"
 
+[html.site]
+base_url = "https://openknowledge.sh/wiki/"
+
 [html.source]
 github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"

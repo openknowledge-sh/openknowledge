@@ -28,6 +28,10 @@ type viewerSourceConfig struct {
 	Entry      string
 }
 
+type viewerSiteConfig struct {
+	BaseURL string
+}
+
 type viewerThemeData struct {
 	Name       string
 	Stylesheet string
@@ -147,6 +151,53 @@ func loadViewerSourceConfig(root string) (viewerSourceConfig, error) {
 	return normalizeViewerSourceConfig(config)
 }
 
+func loadViewerSiteConfig(root string) (viewerSiteConfig, error) {
+	content, err := os.ReadFile(filepath.Join(root, viewerThemeConfigFile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return viewerSiteConfig{}, nil
+		}
+		return viewerSiteConfig{}, err
+	}
+
+	var config viewerSiteConfig
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+	section := ""
+	lineNumber := 0
+	for scanner.Scan() {
+		lineNumber++
+		line := strings.TrimSpace(stripTomlComment(scanner.Text()))
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
+			continue
+		}
+		if section != "html.site" {
+			continue
+		}
+
+		key, rawValue, ok := strings.Cut(line, "=")
+		if !ok {
+			return viewerSiteConfig{}, fmt.Errorf("%s:%d expected key = value in [html.site]", viewerThemeConfigFile, lineNumber)
+		}
+		value, err := parseTomlStringValue(strings.TrimSpace(rawValue))
+		if err != nil {
+			return viewerSiteConfig{}, fmt.Errorf("%s:%d %w", viewerThemeConfigFile, lineNumber, err)
+		}
+
+		switch strings.TrimSpace(key) {
+		case "base_url", "baseURL", "site_url", "url":
+			config.BaseURL = strings.TrimSpace(value)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return viewerSiteConfig{}, err
+	}
+	return normalizeViewerSiteConfig(config)
+}
+
 func normalizeViewerSourceConfig(config viewerSourceConfig) (viewerSourceConfig, error) {
 	if strings.TrimSpace(config.GitHubBase) == "" {
 		return viewerSourceConfig{}, nil
@@ -173,6 +224,21 @@ func normalizeViewerSourceConfig(config viewerSourceConfig) (viewerSourceConfig,
 	}
 
 	return viewerSourceConfig{GitHubBase: base, Entry: entry}, nil
+}
+
+func normalizeViewerSiteConfig(config viewerSiteConfig) (viewerSiteConfig, error) {
+	if strings.TrimSpace(config.BaseURL) == "" {
+		return viewerSiteConfig{}, nil
+	}
+	base := strings.TrimSpace(config.BaseURL)
+	parsed, err := url.Parse(base)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return viewerSiteConfig{}, fmt.Errorf("html.site.base_url must be an http(s) URL")
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return viewerSiteConfig{}, fmt.Errorf("html.site.base_url must not include a query string or fragment")
+	}
+	return viewerSiteConfig{BaseURL: strings.TrimRight(base, "/") + "/"}, nil
 }
 
 func viewerSourceURL(config viewerSourceConfig, filePath string) string {

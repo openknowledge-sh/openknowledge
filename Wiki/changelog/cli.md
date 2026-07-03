@@ -15,13 +15,31 @@ that were updated.
 ## Unreleased
 
 No uncategorized changes are currently tracked here. Next-release work is
-classified under [v0.4.0 Candidate](#v040-candidate) until a release tag is
+classified under [v0.5.0 Candidate](#v050-candidate) until a release tag is
 cut.
 
-## v0.4.0 Candidate
+## v0.5.0 Candidate
 
-Candidate V4 changes are commits after the `v0.3.0` release tag. Keep new
+Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
+
+### 2026-07-04 - Static wiki discovery files
+
+* Default `openknowledge to html` viewer exports now write `llms.txt` with a
+  Markdown title, summary, details, and published page links for LLM-oriented
+  consumers.
+* Viewer exports also write `sitemap.xml` when `[html.site].base_url` is
+  configured in `openknowledge.toml`; sitemap entries use absolute URLs for
+  published pages only.
+* The repository wiki now configures `https://openknowledge.sh/wiki/` as its
+  published base URL so web builds can emit sitemap URLs for the deployed wiki.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_discovery.go`,
+  `packages/cli/cmd/openknowledge/viewer_theme.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `Wiki/openknowledge.toml`.
+* Docs updated: `README.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/features/commands/to.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-07-03 - Validation JSON reports and rule severities
 
@@ -89,6 +107,12 @@ entries in this section until they are released.
   `packages/cli/cmd/openknowledge/main.go`.
 * Docs updated: `README.md`, `Wiki/features/commands/use.md`,
   `Wiki/changelog/cli.md`.
+
+## v0.4.0 - 2026-06-23
+
+Released as Git tag `v0.4.0` from commit `335188f`. These entries were still
+stored under `v0.4.0 Candidate` at tag time and are now classified as V4
+release contents.
 
 ### 2026-06-23 - Viewer system badge spacing
 
