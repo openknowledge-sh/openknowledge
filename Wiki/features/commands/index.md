@@ -12,7 +12,7 @@ anchors. Keep this index as the quick map.
 
 ## Validate Bundles
 
-* [Validate](validate.md) - validate a bundle against OKF.
+* [Validate](validate.md) - validate a bundle against OKF with configurable rule severities and optional JSON reports.
 
 ## Connect And Resolve Bundles
 

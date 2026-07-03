@@ -1458,7 +1458,31 @@ func runValidate(args []string) int {
 	fs.SetOutput(os.Stderr)
 	quiet := fs.Bool("quiet", false, "print only errors")
 	specVersion := fs.String("spec", "latest", "OKF spec version")
+	format := fs.String("format", "text", "output format: text or json")
+	out := fs.String("out", "", "write a machine-readable JSON report to this file")
+	asJSON := fs.Bool("json", false, "print the machine-readable JSON report")
+	ruleOverrides := stringListFlag{}
+	fs.Var(&ruleOverrides, "rule", "override validation rule severity as rule=off|warn|error; may be repeated")
 	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *asJSON {
+		*format = "json"
+	}
+	*format = strings.TrimSpace(strings.ToLower(*format))
+	if *format == "" {
+		*format = "text"
+	}
+	if *format != "text" && *format != "json" {
+		fmt.Fprintf(os.Stderr, "unsupported validate format: %s\n", *format)
+		return 2
+	}
+	if *quiet && *format == "json" {
+		fmt.Fprintln(os.Stderr, "--quiet cannot be combined with JSON validation output")
+		return 2
+	}
+	if strings.TrimSpace(*out) != "" && *format != "json" {
+		fmt.Fprintln(os.Stderr, "--out requires --format json or --json")
 		return 2
 	}
 
@@ -1477,10 +1501,40 @@ func runValidate(args []string) int {
 		return 2
 	}
 
-	result, err := okf.ValidateWithVersion(root, *specVersion)
+	validationOptions, err := okf.LoadValidationOptions(root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
+	}
+	cliOptions := okf.ValidationOptions{}
+	for _, override := range ruleOverrides {
+		rule, severity, err := okf.ParseValidationRuleOverride(override)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		if err := okf.SetValidationRuleSeverity(&cliOptions, rule, severity); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+	}
+	validationOptions = okf.MergeValidationOptions(validationOptions, cliOptions)
+
+	result, err := okf.ValidateWithVersionAndOptions(root, *specVersion, validationOptions)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+
+	if *format == "json" {
+		if err := printValidationJSONResult(result, strings.TrimSpace(*out)); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if len(result.Errors) > 0 {
+			return 1
+		}
+		return 0
 	}
 
 	if *quiet {
@@ -1498,6 +1552,25 @@ func runValidate(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func printValidationJSONResult(result okf.Result, out string) error {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	if out == "" {
+		fmt.Print(string(data))
+		return nil
+	}
+	if err := os.WriteFile(out, data, 0644); err != nil {
+		return err
+	}
+	terminal.success("Wrote validation report")
+	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
+	fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(out))
+	return nil
 }
 
 func printValidationResult(result okf.Result) {
@@ -2005,6 +2078,8 @@ Usage:
   openknowledge spec latest|<version>
   openknowledge validate [key-or-path]
   openknowledge validate --spec <version> [key-or-path]
+  openknowledge validate --format json [key-or-path]
+  openknowledge validate --rule <rule=off|warn|error> [key-or-path]
   openknowledge list [key-or-path]
   openknowledge list --spec <version> [key-or-path]
   openknowledge list --json [key-or-path]
@@ -2460,6 +2535,9 @@ Validate a bundle against an Open Knowledge Format spec.
 Usage:
   openknowledge validate [key-or-path]
   openknowledge validate --spec <version> [key-or-path]
+  openknowledge validate --format json [key-or-path]
+  openknowledge validate --format json --out <file> [key-or-path]
+  openknowledge validate --rule <rule=off|warn|error> [key-or-path]
   openknowledge validate --quiet [key-or-path]
   openknowledge validate --help
 
@@ -2468,14 +2546,24 @@ Arguments:
 
 Flags:
   --spec       OKF spec version. Defaults to latest.
+  --format     Output format: text or json. Defaults to text.
+  --json       Alias for --format json.
+  --out        Write a JSON validation report to a file. Requires JSON output.
+  --rule       Override one validation rule severity as rule=off|warn|error.
+               May be repeated and overrides [validation.rules] config.
   --quiet      Print only validation errors.
+
+Config:
+  openknowledge.toml may define [validation.rules] with rule severities:
+    link-target = "error"
+    markdown-syntax = "off"
 
 Versions:
   %s
 
 Exit codes:
   0            Validation passed, with or without warnings.
-  1            Validation found errors.
+  1            Validation found errors after configured severity overrides.
   2            Usage or setup error.
 `, supportedSpecVersionsText())
 }

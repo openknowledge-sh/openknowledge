@@ -1,14 +1,24 @@
 package okf
 
 func parseAndValidateASTBundle(root string, version string) (Result, ASTBundle, error) {
+	return parseAndValidateASTBundleWithOptions(root, version, ValidationOptions{})
+}
+
+func parseAndValidateASTBundleWithOptions(root string, version string, options ValidationOptions) (Result, ASTBundle, error) {
 	bundle, err := ParseASTWithVersion(root, version)
 	if err != nil {
 		return Result{}, ASTBundle{}, err
 	}
-	return ValidateAST(bundle), bundle, nil
+	result, err := ValidateASTWithOptions(bundle, options)
+	return result, bundle, err
 }
 
 func ValidateAST(bundle ASTBundle) Result {
+	result, _ := ValidateASTWithOptions(bundle, ValidationOptions{})
+	return result
+}
+
+func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result, error) {
 	result := Result{Root: bundle.Root, SpecVersion: bundle.SpecVersion}
 	for _, document := range bundle.Documents {
 		result.Files++
@@ -17,8 +27,15 @@ func ValidateAST(bundle ASTBundle) Result {
 
 	sortIssues(result.Errors)
 	sortIssues(result.Warnings)
+	if err := applyValidationOptions(&result, options); err != nil {
+		return Result{}, err
+	}
 	result.Checks = buildChecks(result)
-	return result
+	result.Summary = buildValidationSummary(result)
+	result.Errors = nonNilIssues(result.Errors)
+	result.Warnings = nonNilIssues(result.Warnings)
+	result.Issues = nonNilIssues(issuesFromResult(result))
+	return result, nil
 }
 
 func validateDocument(root string, document ASTDocument, result *Result) {

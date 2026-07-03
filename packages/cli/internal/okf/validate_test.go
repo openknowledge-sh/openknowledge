@@ -216,6 +216,54 @@ func TestValidateWarnsForBrokenLocalLinks(t *testing.T) {
 	}
 }
 
+func TestValidateOptionsEscalateAndDisableRules(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n\n[Missing](missing.md)\n")
+
+	result, err := ValidateWithVersionAndOptions(root, LatestSpecVersion, ValidationOptions{
+		Rules: map[string]string{"link-target": "error"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 1 || result.Errors[0].Rule != "link-target" || result.Errors[0].Severity != ValidationSeverityError {
+		t.Fatalf("expected link target warning to be escalated, got %#v", result.Errors)
+	}
+	if result.Summary.Status != "fail" || result.Summary.ErrorCount != 1 || result.Summary.IssueCount != 1 {
+		t.Fatalf("unexpected validation summary: %#v", result.Summary)
+	}
+	if statusForCheck(result, "Link targets") != "fail" {
+		t.Fatalf("expected link target check to fail, got %#v", result.Checks)
+	}
+
+	result, err = ValidateWithVersionAndOptions(root, LatestSpecVersion, ValidationOptions{
+		Rules: map[string]string{"link-target": "off"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 || len(result.Warnings) != 0 || len(result.Issues) != 0 {
+		t.Fatalf("expected disabled link target rule to suppress issue, got %#v", result)
+	}
+	if result.Summary.Status != "pass" {
+		t.Fatalf("expected disabled rule to pass validation, got %#v", result.Summary)
+	}
+}
+
+func TestParseValidationOptionsConfig(t *testing.T) {
+	options, err := ParseValidationOptionsConfig("[validation.rules]\nlink-target = \"error\"\nmarkdown-syntax = 'off'\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.Rules["link-target"] != ValidationSeverityError || options.Rules["markdown-syntax"] != ValidationSeverityOff {
+		t.Fatalf("unexpected validation options: %#v", options.Rules)
+	}
+
+	if _, err := ParseValidationOptionsConfig("[validation.rules]\nmissing-rule = \"warn\"\n"); err == nil {
+		t.Fatal("expected unknown validation rule to fail")
+	}
+}
+
 func TestValidateAcceptsDirectoryLinksToIndex(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Index\n\n[Guides](guides) and [Guides index](guides/).\n")

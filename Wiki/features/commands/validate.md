@@ -19,6 +19,9 @@ that cannot be parsed is an error.
 ```sh
 openknowledge validate [key-or-path]
 openknowledge validate --spec <version> [key-or-path]
+openknowledge validate --format json [key-or-path]
+openknowledge validate --format json --out <file> [key-or-path]
+openknowledge validate --rule <rule=off|warn|error> [key-or-path]
 openknowledge validate --quiet [key-or-path]
 openknowledge validate --help
 ```
@@ -29,6 +32,10 @@ openknowledge validate --help
 | --- | --- | --- |
 | `key-or-path` | argument | Registry key or knowledge base root. Defaults to the current directory. |
 | `--spec` | flag | OKF spec version. Defaults to latest. |
+| `--format` | flag | Output format: `text` or `json`. Defaults to `text`. |
+| `--json` | flag | Alias for `--format json`. |
+| `--out` | flag | Write the JSON validation report to a file. Requires JSON output. |
+| `--rule` | flag | Override one validation rule severity as `rule=off`, `rule=warn`, or `rule=error`. May be repeated. |
 | `--quiet` | flag | Print only errors and exit with status. |
 
 ## Validation Checks
@@ -57,6 +64,65 @@ The report currently includes these checks:
 
 Errors make `openknowledge validate` exit with status `1`. Warnings are printed
 but still exit with status `0`.
+
+## Rule Severity Configuration
+
+Default validation preserves the OKF v0.1 conformance behavior described above:
+hard rules are errors, and non-blocking hygiene checks are warnings. For lint
+workflows that need stricter or looser behavior, bundles can configure rule
+severities in `openknowledge.toml`:
+
+```toml
+[validation.rules]
+link-target = "error"
+markdown-syntax = "off"
+frontmatter-format = "warn"
+```
+
+The same rules can be overridden for a single run:
+
+```sh
+openknowledge validate --rule link-target=error --rule markdown-syntax=off Wiki
+```
+
+Supported severities are `off`, `warn`, and `error`. CLI `--rule` values
+override `openknowledge.toml`. Unknown rule names or severities fail with a
+usage error so typos do not silently weaken validation.
+
+Current rule names are:
+
+| Rule | Default | Covered behavior |
+| --- | --- | --- |
+| `bundle-read` | error | A Markdown file could not be read. |
+| `utf-8` | error | Markdown content is not valid UTF-8. |
+| `frontmatter` | error | Frontmatter starts but cannot be parsed. |
+| `concept-frontmatter` | error | A concept document is missing YAML frontmatter. |
+| `concept-type` | error | A concept document has an empty or missing `type`. |
+| `index-frontmatter` | error | A non-root `index.md` uses disallowed frontmatter. |
+| `log-frontmatter` | error | `log.md` uses concept frontmatter. |
+| `log-date` | error | A `log.md` `##` heading is not `YYYY-MM-DD`. |
+| `frontmatter-format` | warning | Frontmatter is parseable but not cleanly formatted. |
+| `markdown-syntax` | warning | Markdown body syntax looks malformed. |
+| `okf-version` | warning | Root `okf_version` differs from the selected spec. |
+| `link-target` | warning | A local Markdown link is missing or escapes the root. |
+
+## JSON Reports
+
+`--format json` prints the full machine-readable validation report to stdout.
+`--format json --out <file>` writes the same report to disk:
+
+```sh
+openknowledge validate --format json --out okf-report.json Wiki
+```
+
+The JSON report includes:
+
+* bundle counts and selected spec version
+* `summary.status`, `errorCount`, `warningCount`, and `issueCount`
+* active policy metadata, including config path and severity overrides
+* check statuses after configured severities are applied
+* a combined `issues` array plus separate `errors` and `warnings` arrays
+* each issue's path, line, rule, severity, and message
 
 ### ❌ Current errors
 
@@ -102,6 +168,16 @@ reserved file instead of a concept document.
 * Distinguish fatal frontmatter parse errors from non-blocking Markdown and
   frontmatter formatting warnings.
 * Surface broken local links without blocking partially written knowledge.
+* Generate JSON reports for CI, editor integrations, or external lint tooling.
+* Escalate or suppress rule severities for project-specific lint policies.
+
+## Command Change History
+
+### 2026-07-03
+
+`openknowledge validate` added JSON reports with `--format json`, `--json`, and
+`--out`, plus configurable rule severities through `[validation.rules]` in
+`openknowledge.toml` and repeatable `--rule rule=off|warn|error` overrides.
 
 ---
 
@@ -110,6 +186,8 @@ reserved file instead of a concept document.
 > **Source anchors**
 >
 > * `packages/cli/internal/okf/validate.go`
+> * `packages/cli/internal/okf/validation_policy.go`
+> * `packages/cli/internal/okf/validation_types.go`
 > * `packages/cli/cmd/openknowledge/main.go`
 >
 > **Update notes**

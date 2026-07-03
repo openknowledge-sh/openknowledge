@@ -41,6 +41,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge to tar --out <file> [path]",
 		"openknowledge to graph --out <file> [path]",
 		"openknowledge validate --spec <version> [key-or-path]",
+		"openknowledge validate --format json [key-or-path]",
+		"openknowledge validate --rule <rule=off|warn|error> [key-or-path]",
 		"openknowledge list --spec <version> [key-or-path]",
 		"openknowledge list --json [key-or-path]",
 		"Commands:",
@@ -247,8 +249,11 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: validateHelpText(),
 			required: []string{
 				"openknowledge validate --quiet [key-or-path]",
+				"openknowledge validate --format json --out <file> [key-or-path]",
+				"--rule",
+				"[validation.rules]",
 				"Exit codes:",
-				"Validation found errors.",
+				"Validation found errors after configured severity overrides.",
 			},
 		},
 		"list": {
@@ -356,6 +361,56 @@ func TestRunValidateAcceptsRegistryKey(t *testing.T) {
 	})
 	if code != 0 {
 		t.Fatalf("expected validate registry key to succeed, got exit code %d", code)
+	}
+}
+
+func TestRunValidatePrintsJSONReportWithConfiguredRules(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n\n[Missing](missing.md)\n")
+	writeMainTestFile(t, root, "openknowledge.toml", "[validation.rules]\nlink-target = \"error\"\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runValidate([]string{"--json", root})
+	})
+	if code != 1 {
+		t.Fatalf("expected configured validation error exit code, got %d\n%s", code, output)
+	}
+	var report okf.Result
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatalf("expected JSON validation report: %v\n%s", err, output)
+	}
+	if report.Summary.Status != "fail" || report.Summary.ErrorCount != 1 {
+		t.Fatalf("unexpected JSON validation summary: %#v", report.Summary)
+	}
+	if len(report.Errors) != 1 || report.Errors[0].Rule != "link-target" || report.Errors[0].Severity != okf.ValidationSeverityError {
+		t.Fatalf("expected escalated link-target error, got %#v", report.Errors)
+	}
+	if report.Policy.Overrides["link-target"] != okf.ValidationSeverityError || !strings.HasSuffix(report.Policy.ConfigPath, "openknowledge.toml") {
+		t.Fatalf("expected policy metadata in report, got %#v", report.Policy)
+	}
+}
+
+func TestRunValidateWritesJSONReport(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n")
+	out := filepath.Join(t.TempDir(), "okf-report.json")
+
+	_, code := captureMainStdout(t, func() int {
+		return runValidate([]string{"--format", "json", "--out", out, root})
+	})
+	if code != 0 {
+		t.Fatalf("expected JSON report write to succeed, got exit code %d", code)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report okf.Result
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatalf("expected written JSON validation report: %v\n%s", err, string(data))
+	}
+	if report.Summary.Status != "pass" || report.Root == "" {
+		t.Fatalf("unexpected written validation report: %#v", report)
 	}
 }
 

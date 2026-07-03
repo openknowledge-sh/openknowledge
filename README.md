@@ -198,6 +198,9 @@ changes.
 | `openknowledge spec 0.1` | Print a specific embedded spec version. |
 | `openknowledge validate [key-or-path]` | Validate a bundle against the latest spec. |
 | `openknowledge validate --spec 0.1 [key-or-path]` | Validate against a specific spec version. |
+| `openknowledge validate --format json [key-or-path]` | Print a machine-readable validation report. |
+| `openknowledge validate --format json --out <file> [key-or-path]` | Write a machine-readable validation report to a file. |
+| `openknowledge validate --rule <rule=off\|warn\|error> [key-or-path]` | Override one validation rule severity for the run. |
 | `openknowledge list [key-or-path]` | Print a bundle tree with inline validation issues. |
 | `openknowledge list --spec 0.1 [key-or-path]` | List while validating against a specific spec version. |
 | `openknowledge list --json [key-or-path]` | Print machine-readable inventory output. |
@@ -222,6 +225,12 @@ The validator enforces the OKF v0.1 rules that matter for a portable bundle:
 It does not fail on optional fields, unknown concept types, unknown frontmatter
 keys, broken local links, non-blocking Markdown syntax warnings, or missing
 index files.
+
+For CI and editor integrations, `openknowledge validate --format json` emits a
+machine-readable report with summary counts, checks, active severity policy, and
+combined/separate issue arrays. Bundle-local `openknowledge.toml` can configure
+lint severities under `[validation.rules]`, and repeatable `--rule` flags can
+override them per run.
 
 
 ## License and attribution

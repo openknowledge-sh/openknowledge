@@ -23,6 +23,24 @@ cut.
 Candidate V4 changes are commits after the `v0.3.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-03 - Validation JSON reports and rule severities
+
+* `openknowledge validate` now supports `--format json`, `--json`, and
+  `--format json --out <file>` for machine-readable validation reports with
+  summary counts, policy metadata, check statuses, combined issues, errors, and
+  warnings.
+* Validation rule severities can be configured with `[validation.rules]` in
+  `openknowledge.toml` and overridden per run with repeatable
+  `--rule rule=off|warn|error` flags.
+* Default validation behavior remains unchanged when no severity overrides are
+  configured.
+* Source anchors: `packages/cli/internal/okf/validation_policy.go`,
+  `packages/cli/internal/okf/validation_types.go`,
+  `packages/cli/internal/okf/ast_validate.go`,
+  `packages/cli/cmd/openknowledge/main.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/validate.md`,
+  `Wiki/features/commands/index.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-07-03 - LLM wiki landing and README positioning
 
 * Reworded the landing page title, heading, metadata, prompt copy, and product
