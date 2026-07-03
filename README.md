@@ -2,15 +2,20 @@
   <img src="docs/assets/openknowledge-readme-logo.png" alt="Open Knowledge CLI" width="140">
 
 
-Open Knowledge CLI helps you create, connect, inspect, and publish local LLM
-wikis that are readable for both humans and agents, then keep them up to date
-using a maintenance loop.
+# Open Knowledge CLI: Local LLM Wiki for Agents
 
-Implements the [Open Knowledge Format v0.1][okf-spec] specification.
+Open Knowledge CLI creates a Git-native local LLM wiki for project context that
+humans and agents can read, maintain, and publish.
+
+Implements the [Open Knowledge Format v0.1][okf-spec] specification: a Markdown
+and YAML-frontmatter standard that is easy to inspect with shell tools and
+agents.
 
 ## What the CLI is for
 
-Open Knowledge is a small tooling stack around Markdown knowledge bases:
+Open Knowledge is a small tooling stack around Markdown knowledge bases. Use it
+when you want an LLM wiki, LLM Wikipedia-style project memory, or
+Karpathy-style local wiki that stays in plain files:
 
 | Layer | Commands | Use it for |
 | --- | --- | --- |
@@ -33,7 +38,7 @@ flow as local bundles.
 The fastest way to start is to paste this prompt into Codex, Cowork, Cursor, Claude, or another coding agent in the workspace where the wiki should live:
 
 ```text
-Set up an Open Knowledge agentic wiki for this workspace.
+Set up an Open Knowledge LLM wiki for this workspace.
 
 First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, inspect this workspace and any relevant memories, ask only the setup questions still needed, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect it with openknowledge open.
 ```
