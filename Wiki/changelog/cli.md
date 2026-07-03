@@ -23,6 +23,20 @@ cut.
 Candidate V4 changes are commits after the `v0.3.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-03 - LLM wiki landing and README positioning
+
+* Reworded the landing page title, heading, metadata, prompt copy, and product
+  summary to lead with local LLM wiki positioning while keeping Open Knowledge
+  CLI branding.
+* Updated the root and npm READMEs with lightweight LLM wiki, LLM
+  Wikipedia-style project memory, Karpathy-style local wiki, and portable OKF
+  language.
+* Source anchors: `packages/web/index.html`, `packages/web/og.html`,
+  `README.md`, `packages/npm/README.md`.
+* Docs updated: `README.md`, `packages/npm/README.md`,
+  `packages/web/index.html`, `packages/web/og.html`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-06-23 - Viewer system badge spacing
 
 * Adjusted local and static viewer file tree layout so reserved file `system`

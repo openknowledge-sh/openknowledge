@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Open Knowledge</title>
-    <meta name="description" content="Create and maintain local LLM wikis that are human and agent readable.">
+    <title>Open Knowledge - Local LLM Wiki for Agents</title>
+    <meta name="description" content="Create a Git-native local LLM wiki for project context that humans and agents can read.">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Open Knowledge CLI">
-    <meta property="og:description" content="Create a local LLM wiki that stays readable in Git and easy for coding agents to use.">
+    <meta property="og:title" content="Open Knowledge CLI - Local LLM Wiki">
+    <meta property="og:description" content="Create a local LLM wiki that stays readable in Git, works like a lightweight LLM Wikipedia for project context, and is easy for coding agents to use.">
     <meta property="og:image" content="https://openknowledge.sh/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Open Knowledge CLI">
-    <meta name="twitter:description" content="Create a local LLM wiki that stays readable in Git and easy for coding agents to use.">
+    <meta name="twitter:title" content="Open Knowledge CLI - Local LLM Wiki">
+    <meta name="twitter:description" content="Create a local LLM wiki that stays readable in Git, works like a lightweight LLM Wikipedia for project context, and is easy for coding agents to use.">
     <meta name="twitter:image" content="https://openknowledge.sh/og.png">
     <link rel="icon" href="favicon.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
@@ -52,14 +52,14 @@
       </div>
 
       <section class="intro">
-        <h1>Create an agentic wiki for you and your agents</h1>
+        <h1>Create a local LLM wiki for you and your agents</h1>
         <p class="lede">
-          Open Knowledge CLI helps you create local LLM wikis that are readable for both humans and agents, then keep them up to date using a maintenance loop.
+          Open Knowledge CLI creates a Git-native local LLM wiki for project context that humans and agents can read, maintain, and publish.
         </p>
         <p class="spec-note">
           Implements the
           <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a>
-          specification.
+          specification, a Markdown and YAML-frontmatter standard that stays readable for humans, shell tools, and agents.
         </p>
 
         <section class="terminal setup-terminal" aria-label="Agent setup prompt">
@@ -72,7 +72,7 @@
               <span>Copy setup prompt</span>
             </button>
           </div>
-          <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge agentic wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, inspect this workspace and any relevant memories, ask only the setup questions still needed, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, and show me how to inspect it with <code>openknowledge open</code>.</p>
+          <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge LLM wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, inspect this workspace and any relevant memories, ask only the setup questions still needed, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, and show me how to inspect it with <code>openknowledge open</code>.</p>
         </section>
         <p class="setup-note">
           Need manual installation, or advanced setup options? See
@@ -83,13 +83,14 @@
 
       <section class="readme" aria-label="Open Knowledge product overview">
         <article class="readme-body">
-          <h2>What Open Knowledge CLI gives you</h2>
+          <h2>What an Open Knowledge LLM wiki gives you</h2>
           <p>
-            A local Markdown wiki that lives with your project and gives agents a
-            clear place to read, update, and preserve durable context.
+            A local Markdown LLM wiki that lives with your project and gives
+            agents a clear place to read, update, and preserve durable context.
           </p>
           <ul class="feature-list">
-            <li>Turn a project or research folder into an agent-readable wiki stored as normal Markdown in Git.</li>
+            <li>Turn a project or research folder into an agent-readable LLM wiki stored as normal Markdown in Git.</li>
+            <li>Use it as a Karpathy-style LLM wiki for project memory without giving up plain files, Git history, or portable parsing.</li>
             <li>Guided setup through an agent interview, so the wiki starts with the right purpose, structure, and maintenance rules.</li>
             <li>Search helps agents quickly find related context across the wiki as project knowledge grows.</li>
             <li>A maintenance loop that keeps decisions, workflows, and project memory current as work changes.</li>
