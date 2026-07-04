@@ -37,6 +37,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge open --script-src <src> [path]",
 		"openknowledge open --no-browser [path]",
 		"openknowledge to html --out <folder> [path]",
+		"openknowledge to html --head-file <file> --out <folder> [path]",
+		"openknowledge to html --script-src <src> --out <folder> [path]",
 		"openknowledge to json --out <file> [path]",
 		"openknowledge to tar --out <file> [path]",
 		"openknowledge to graph --out <file> [path]",
@@ -203,6 +205,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge to html --out <folder> [path]",
 				"openknowledge to html --plain --out <folder> [path]",
+				"openknowledge to html --head-file <file> --out <folder> [path]",
+				"openknowledge to html --script-src <src> --out <folder> [path]",
 				"openknowledge to json --out <file> [path]",
 				"openknowledge to tar --out <file> [path]",
 				"openknowledge to graph --out <file> [path]",
@@ -214,6 +218,9 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge to html --plain --out <folder> [path]",
 				"openknowledge to html --spec <version> --out <folder> [path]",
+				"--head-file",
+				"--head-html",
+				"--script-src",
 				"Output folder for generated HTML files. Required.",
 				"Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.",
 				"openknowledge.json",
@@ -319,11 +326,11 @@ func TestParseBundleEntryFlags(t *testing.T) {
 }
 
 func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
-	options, err := parseToOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1", "--plain"})
+	options, err := parseToOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1", "--plain", "--head-html", `<meta name="ok-head">`, "--script-src=/analytics.js"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.path != "./project-memory" || options.out != "./site" || options.spec != "0.1" || !options.plain {
+	if options.path != "./project-memory" || options.out != "./site" || options.spec != "0.1" || !options.plain || options.headHTML == "" || strings.Join(options.scriptSrcs, ",") != "/analytics.js" {
 		t.Fatalf("unexpected options: %#v", options)
 	}
 }
@@ -498,6 +505,33 @@ func TestRunToTarWritesPortableArchive(t *testing.T) {
 	}
 	if len(validation.Errors) != 0 {
 		t.Fatalf("expected extracted archive to validate, got %#v", validation.Errors)
+	}
+}
+
+func TestRunToHTMLInjectsTrustedHeadHTML(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeMainTestFile(t, root, "index.md", "# Bundle\n\nRead [Topic](notes/topic.md).\n")
+	writeMainTestFile(t, root, "notes/topic.md", "# Topic\n")
+
+	code := runToHTML([]string{
+		"--head-html", `<meta name="ok-export-head" content="1">`,
+		"--script-src", "/analytics.js",
+		"--out", out,
+		root,
+	})
+	if code != 0 {
+		t.Fatalf("expected to html to succeed, got exit code %d", code)
+	}
+
+	index := string(readMainTestFile(t, filepath.Join(out, "index.html")))
+	if !strings.Contains(index, `<meta name="ok-export-head" content="1">`) || !strings.Contains(index, `<script src="/analytics.js"></script>`) {
+		t.Fatalf("expected exported index to include trusted head HTML:\n%s", index)
+	}
+
+	nested := string(readMainTestFile(t, filepath.Join(out, "notes", "topic.html")))
+	if !strings.Contains(nested, `<meta name="ok-export-head" content="1">`) || !strings.Contains(nested, `<script src="/analytics.js"></script>`) {
+		t.Fatalf("expected nested exported page to include trusted head HTML:\n%s", nested)
 	}
 }
 

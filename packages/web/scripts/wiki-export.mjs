@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -44,5 +44,21 @@ export async function exportWiki(out = path.join(distRoot, "wiki"), options = {}
     await rm(out, { recursive: true, force: true });
   }
 
-  await runOpenKnowledge(["to", "html", "--out", out, wikiRoot]);
+  const args = ["to", "html", "--out", out];
+  const headHTML = options.headHTML === undefined ? await landingAnalyticsHeadHTML() : options.headHTML;
+  if (headHTML.trim()) {
+    args.push("--head-html", headHTML);
+  }
+  args.push(wikiRoot);
+  await runOpenKnowledge(args);
+}
+
+export async function landingAnalyticsHeadHTML() {
+  const html = await readFile(path.join(webRoot, "index.html"), "utf8");
+  return extractLandingAnalyticsHeadHTML(html);
+}
+
+export function extractLandingAnalyticsHeadHTML(html) {
+  const match = html.match(/<script async src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=[^"]+"><\/script>\s*<script>\s*window\.dataLayer = window\.dataLayer \|\| \[];[\s\S]*?gtag\("config", "[^"]+"\);\s*<\/script>/);
+  return match ? match[0] : "";
 }

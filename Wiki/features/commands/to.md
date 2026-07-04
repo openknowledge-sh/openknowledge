@@ -16,6 +16,8 @@ timestamp: 2026-06-18T00:00:00Z
 ```sh
 openknowledge to html --out <folder> [path]
 openknowledge to html --plain --out <folder> [path]
+openknowledge to html --head-file <file> --out <folder> [path]
+openknowledge to html --script-src <src> --out <folder> [path]
 openknowledge to html --spec <version> --out <folder> [path]
 openknowledge to json [path]
 openknowledge to json --out <file> [path]
@@ -44,13 +46,18 @@ openknowledge to --help
 | `path` | argument | `html`, `json`, `tar`, `graph` | no | current directory | Knowledge base root. |
 | `--spec` | flag | `html`, `json`, `tar`, `graph` | no | `latest` | OKF spec version. |
 | `--out` | flag | `html`, `json`, `tar`, `graph` | HTML and TAR yes, JSON/graph no | stdout for JSON and graph | Output folder for HTML, optional output file for JSON and graph, and archive file for TAR. |
+| `--head-file` | flag | `html` default viewer export only | no | `OPENKNOWLEDGE_HEAD_FILE` | Trusted HTML fragment file to inject into every generated viewer page `<head>`. |
+| `--head-html` | flag | `html` default viewer export only | no | `OPENKNOWLEDGE_HEAD_HTML` | Trusted HTML fragment to inject into every generated viewer page `<head>`. |
 | `--plain` | flag | `html` only | no | off | Write plain semantic HTML without viewer chrome, CSS, or JavaScript. |
+| `--script-src` | repeatable flag | `html` default viewer export only | no | `OPENKNOWLEDGE_SCRIPT_SRC` | Script `src` to inject into every generated viewer page `<head>`. Environment values may be comma- or newline-separated. |
 
 ## Quick Examples
 
 ```sh
 openknowledge to html --out ./site ./project-memory
 openknowledge to html --plain --out ./plain-site ./project-memory
+openknowledge to html --head-file ./head.html --out ./site ./project-memory
+openknowledge to html --script-src /analytics.js --out ./site ./project-memory
 openknowledge to json ./project-memory
 openknowledge to json --out ./bundle.json ./project-memory
 openknowledge to tar --out ./bundle.tar.gz ./project-memory
@@ -64,7 +71,9 @@ openknowledge to graph --out ./graph.json ./project-memory
 
 * Default viewer export: static viewer pages with file browsing, search,
   stacked-panel navigation, embedded note data, theme/source configuration, and
-  discovery and remote-connect assets.
+  discovery and remote-connect assets. Trusted custom head HTML can be injected
+  into every generated viewer page through `--head-file`, `--head-html`,
+  repeatable `--script-src`, or their matching environment variables.
 * Plain export: unstyled semantic HTML without viewer CSS, JavaScript, theme
   links, source buttons, or rich table controls.
 

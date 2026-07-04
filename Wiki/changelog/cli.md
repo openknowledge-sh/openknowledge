@@ -23,6 +23,24 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-04 - Static viewer head injection and wiki analytics
+
+* Default `openknowledge to html` viewer exports now support trusted custom
+  head injection with `--head-file`, `--head-html`, repeatable `--script-src`,
+  and matching `OPENKNOWLEDGE_HEAD_FILE`, `OPENKNOWLEDGE_HEAD_HTML`, and
+  `OPENKNOWLEDGE_SCRIPT_SRC` environment variables.
+* The website wiki export now extracts the Google Analytics `gtag.js` snippet
+  from `packages/web/index.html` and injects the same head HTML into generated
+  wiki pages so the deployed landing page and wiki use the same measurement ID.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/web/index.html`, `packages/web/scripts/wiki-export.mjs`.
+* Docs updated: `README.md`, `Wiki/features/exporters/html.md`,
+  `Wiki/features/commands/to.md`, `Wiki/features/operations.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-04 - Static wiki discovery files
 
 * Default `openknowledge to html` viewer exports now write `llms.txt` with a

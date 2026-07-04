@@ -1168,7 +1168,15 @@ func registryEntryRoot(entry okf.RegistryEntry) (string, error) {
 	return absolute, nil
 }
 
+type viewerHTMLExportOptions struct {
+	HeadHTML template.HTML
+}
+
 func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HTMLResult, error) {
+	return writeViewerHTMLWithOptions(root, out, version, viewerHTMLExportOptions{})
+}
+
+func writeViewerHTMLWithOptions(root string, out string, version string, options viewerHTMLExportOptions) (okf.HTMLResult, error) {
 	bundle, err := okf.ParseBundleWithVersion(root, version)
 	if err != nil {
 		return okf.HTMLResult{}, err
@@ -1226,6 +1234,7 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 			EditorsJSON: editorsJSON,
 			StaticJSON:  staticJSON,
 			GraphJSON:   graphJSON,
+			HeadHTML:    options.HeadHTML,
 		}
 
 		var builder strings.Builder

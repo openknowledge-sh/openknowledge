@@ -121,6 +121,9 @@ declares a deployed site URL.
 `openknowledge to json` writes a normalized bundle model for tools and agents.
 `openknowledge to graph` writes AST-backed node and edge JSON for local
 Markdown link structure.
+Default viewer HTML exports can inject trusted deployment-owned head HTML with
+`--head-file`, `--head-html`, repeatable `--script-src`, or matching
+`OPENKNOWLEDGE_HEAD_*` and `OPENKNOWLEDGE_SCRIPT_SRC` environment variables.
 The default HTML viewer export can inherit your site styling from an optional
 `openknowledge.toml` in the bundle root:
 

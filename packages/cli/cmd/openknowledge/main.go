@@ -1684,10 +1684,13 @@ func runTo(args []string) int {
 }
 
 type toOptions struct {
-	path  string
-	out   string
-	spec  string
-	plain bool
+	path       string
+	out        string
+	spec       string
+	plain      bool
+	headHTML   string
+	headFile   string
+	scriptSrcs []string
 }
 
 func runToHTML(args []string) int {
@@ -1704,6 +1707,12 @@ func runToHTML(args []string) int {
 		fmt.Fprintln(os.Stderr, "openknowledge to html requires --out <folder>")
 		return 2
 	}
+	if options.plain {
+		if flag := options.headFlag(); flag != "" {
+			fmt.Fprintf(os.Stderr, "%s requires the default viewer export; remove --plain\n", flag)
+			return 2
+		}
+	}
 
 	var result okf.HTMLResult
 	root, err := okf.ResolveKnowledgeRoot(options.path)
@@ -1714,7 +1723,12 @@ func runToHTML(args []string) int {
 	if options.plain {
 		result, err = okf.WritePlainHTMLWithVersion(root, options.out, options.spec)
 	} else {
-		result, err = writeViewerHTMLWithVersion(root, options.out, options.spec)
+		headInjection, loadErr := loadHeadInjection(options.headInjectionOptions())
+		if loadErr != nil {
+			fmt.Fprintln(os.Stderr, loadErr)
+			return 2
+		}
+		result, err = writeViewerHTMLWithOptions(root, options.out, options.spec, viewerHTMLExportOptions{HeadHTML: headInjection})
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -1740,6 +1754,10 @@ func runToJSON(args []string) int {
 	}
 	if options.plain {
 		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		return 2
+	}
+	if flag := options.headFlag(); flag != "" {
+		fmt.Fprintf(os.Stderr, "unknown flag: %s\n", flag)
 		return 2
 	}
 
@@ -1791,6 +1809,10 @@ func runToTar(args []string) int {
 		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
 		return 2
 	}
+	if flag := options.headFlag(); flag != "" {
+		fmt.Fprintf(os.Stderr, "unknown flag: %s\n", flag)
+		return 2
+	}
 	if options.out == "" {
 		fmt.Fprintln(os.Stderr, "openknowledge to tar requires --out <file>")
 		return 2
@@ -1826,6 +1848,10 @@ func runToGraph(args []string) int {
 	}
 	if options.plain {
 		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		return 2
+	}
+	if flag := options.headFlag(); flag != "" {
+		fmt.Fprintf(os.Stderr, "unknown flag: %s\n", flag)
 		return 2
 	}
 
@@ -1892,6 +1918,40 @@ func parseToOptions(args []string) (toOptions, error) {
 			}
 		case arg == "--plain":
 			options.plain = true
+		case arg == "--head-file":
+			index++
+			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
+				return toOptions{}, fmt.Errorf("--head-file requires a value")
+			}
+			options.headFile = args[index]
+		case strings.HasPrefix(arg, "--head-file="):
+			options.headFile = strings.TrimPrefix(arg, "--head-file=")
+			if strings.TrimSpace(options.headFile) == "" {
+				return toOptions{}, fmt.Errorf("--head-file requires a value")
+			}
+		case arg == "--head-html":
+			index++
+			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
+				return toOptions{}, fmt.Errorf("--head-html requires a value")
+			}
+			options.headHTML = args[index]
+		case strings.HasPrefix(arg, "--head-html="):
+			options.headHTML = strings.TrimPrefix(arg, "--head-html=")
+			if strings.TrimSpace(options.headHTML) == "" {
+				return toOptions{}, fmt.Errorf("--head-html requires a value")
+			}
+		case arg == "--script-src":
+			index++
+			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
+				return toOptions{}, fmt.Errorf("--script-src requires a value")
+			}
+			options.scriptSrcs = append(options.scriptSrcs, args[index])
+		case strings.HasPrefix(arg, "--script-src="):
+			src := strings.TrimPrefix(arg, "--script-src=")
+			if strings.TrimSpace(src) == "" {
+				return toOptions{}, fmt.Errorf("--script-src requires a value")
+			}
+			options.scriptSrcs = append(options.scriptSrcs, src)
 		case strings.HasPrefix(arg, "-"):
 			return toOptions{}, fmt.Errorf("unknown flag: %s", arg)
 		default:
@@ -1902,6 +1962,37 @@ func parseToOptions(args []string) (toOptions, error) {
 		}
 	}
 	return options, nil
+}
+
+func (options toOptions) headFlag() string {
+	if options.headFile != "" {
+		return "--head-file"
+	}
+	if options.headHTML != "" {
+		return "--head-html"
+	}
+	if len(options.scriptSrcs) > 0 {
+		return "--script-src"
+	}
+	return ""
+}
+
+func (options toOptions) headInjectionOptions() headInjectionOptions {
+	headHTML := options.headHTML
+	if strings.TrimSpace(headHTML) == "" {
+		headHTML = os.Getenv("OPENKNOWLEDGE_HEAD_HTML")
+	}
+	headFile := options.headFile
+	if strings.TrimSpace(headFile) == "" {
+		headFile = os.Getenv("OPENKNOWLEDGE_HEAD_FILE")
+	}
+	scriptSrcs := append([]string{}, splitHeadList(os.Getenv("OPENKNOWLEDGE_SCRIPT_SRC"))...)
+	scriptSrcs = append(scriptSrcs, options.scriptSrcs...)
+	return headInjectionOptions{
+		HTML:       headHTML,
+		File:       headFile,
+		ScriptSrcs: scriptSrcs,
+	}
 }
 
 func runVersion(args []string) int {
@@ -2070,6 +2161,8 @@ Usage:
   openknowledge open --script-src <src> [path]
   openknowledge open --no-browser [path]
   openknowledge to html --out <folder> [path]
+  openknowledge to html --head-file <file> --out <folder> [path]
+  openknowledge to html --script-src <src> --out <folder> [path]
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
   openknowledge to tar --out <file> [path]
@@ -2289,6 +2382,8 @@ Convert an Open Knowledge bundle to another format.
 Usage:
   openknowledge to html --out <folder> [path]
   openknowledge to html --plain --out <folder> [path]
+  openknowledge to html --head-file <file> --out <folder> [path]
+  openknowledge to html --script-src <src> --out <folder> [path]
   openknowledge to json [path]
   openknowledge to json --out <file> [path]
   openknowledge to tar --out <file> [path]
@@ -2303,8 +2398,11 @@ Targets:
   graph      Write node and edge graph JSON from local Markdown links.
 
 Flags:
-  --spec     OKF spec version. Defaults to latest.
-  --out      Output folder for html, optional output file for json/graph, archive file for tar.
+  --spec       OKF spec version. Defaults to latest.
+  --out        Output folder for html, optional output file for json/graph, archive file for tar.
+  --head-file  Trusted HTML fragment file to inject into default viewer HTML <head>.
+  --head-html  Trusted HTML fragment to inject into default viewer HTML <head>.
+  --script-src Script src to inject into default viewer HTML <head>. May be repeated.
 
 Versions:
   %s
@@ -2319,6 +2417,8 @@ Write a static HTML site for an Open Knowledge bundle.
 Usage:
   openknowledge to html --out <folder> [path]
   openknowledge to html --plain --out <folder> [path]
+  openknowledge to html --head-file <file> --out <folder> [path]
+  openknowledge to html --script-src <src> --out <folder> [path]
   openknowledge to html --spec <version> --out <folder> [path]
   openknowledge to html --help
 
@@ -2326,9 +2426,21 @@ Arguments:
   path        Knowledge base root. Defaults to the current directory.
 
 Flags:
-  --out       Output folder for generated HTML files. Required.
-  --plain     Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.
-  --spec      OKF spec version. Defaults to latest.
+  --out        Output folder for generated HTML files. Required.
+  --head-file  Trusted HTML fragment file to inject into default viewer HTML
+                <head>. Defaults to OPENKNOWLEDGE_HEAD_FILE when set.
+  --head-html  Trusted HTML fragment to inject into default viewer HTML <head>.
+                Defaults to OPENKNOWLEDGE_HEAD_HTML when set.
+  --plain      Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.
+  --script-src Script src to inject into default viewer HTML <head>. May be
+                repeated. Defaults to comma- or newline-separated
+                OPENKNOWLEDGE_SCRIPT_SRC when set.
+  --spec       OKF spec version. Defaults to latest.
+
+Examples:
+  openknowledge to html --head-file ./head.html --out ./site ./project-memory
+  openknowledge to html --script-src /analytics.js --out ./site ./project-memory
+  openknowledge to html --head-html '<meta name="robots" content="noindex">' --out ./site ./project-memory
 
 Connect:
   Default viewer exports include openknowledge.json and

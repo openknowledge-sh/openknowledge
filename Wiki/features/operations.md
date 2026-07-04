@@ -38,11 +38,14 @@ builds both the CLI and web package.
 the Open Knowledge HTML exporter for this repository wiki:
 
 ```sh
-openknowledge to html --out packages/web/dist/wiki Wiki
+openknowledge to html --head-html '<landing analytics head HTML>' --out packages/web/dist/wiki Wiki
 ```
 
 That makes the public website's `wiki/` path a static viewer export of the
-colocated `Wiki/` bundle.
+colocated `Wiki/` bundle. The web export extracts the Google Analytics
+`gtag.js` block from `packages/web/index.html` and injects that same trusted
+head HTML into every generated wiki page, keeping the landing page as the
+single source for the measurement ID.
 
 `pnpm build:web` can also inject trusted HTML into the generated landing page
 `<head>`. Use this for analytics, verification meta tags, or small loader
@@ -56,6 +59,11 @@ OPENKNOWLEDGE_SCRIPT_SRC=/analytics.js pnpm build:web
 
 `OPENKNOWLEDGE_SCRIPT_SRC` accepts comma- or newline-separated values. Script
 URLs may be relative, `http:`, or `https:`.
+
+`openknowledge to html` supports the same trusted head injection flags and
+environment variables for default viewer exports. Use `--head-file`,
+`--head-html`, or repeatable `--script-src` when another deployed wiki needs its
+own analytics or verification tags.
 
 The web server redirects `/install` and `/install/` to
 `https://github.com/openknowledge-sh/openknowledge/releases/latest/download/install`.

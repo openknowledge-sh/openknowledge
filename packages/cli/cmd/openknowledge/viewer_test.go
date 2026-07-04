@@ -673,6 +673,34 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	}
 }
 
+func TestViewerHTMLExportInjectsHeadHTMLWhenConfigured(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Topic](notes/topic.md).\n")
+	writeViewerFile(t, root, "notes/topic.md", "# Topic\n")
+
+	headHTML, err := loadHeadInjection(headInjectionOptions{
+		HTML:       `<meta name="ok-static-head" content="1">`,
+		ScriptSrcs: []string{"https://example.com/analytics.js"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writeViewerHTMLWithOptions(root, out, "0.1", viewerHTMLExportOptions{HeadHTML: headHTML}); err != nil {
+		t.Fatal(err)
+	}
+
+	index := readViewerExportFile(t, out, "index.html")
+	if !strings.Contains(index, `<meta name="ok-static-head" content="1">`) || !strings.Contains(index, `<script src="https://example.com/analytics.js"></script>`) {
+		t.Fatalf("expected exported index to include custom head HTML:\n%s", index)
+	}
+
+	nested := readViewerExportFile(t, out, "notes/topic.html")
+	if !strings.Contains(nested, `<meta name="ok-static-head" content="1">`) || !strings.Contains(nested, `<script src="https://example.com/analytics.js"></script>`) {
+		t.Fatalf("expected nested exported page to include custom head HTML:\n%s", nested)
+	}
+}
+
 func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 	required := []string{
 		"--ok-font-body",

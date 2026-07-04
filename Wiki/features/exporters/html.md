@@ -23,6 +23,8 @@ JavaScript, search, graph data, or table controls.
 ```sh
 openknowledge to html --out <folder> [path]
 openknowledge to html --plain --out <folder> [path]
+openknowledge to html --head-file <file> --out <folder> [path]
+openknowledge to html --script-src <src> --out <folder> [path]
 openknowledge to html --spec <version> --out <folder> [path]
 ```
 
@@ -32,7 +34,10 @@ openknowledge to html --spec <version> --out <folder> [path]
 | --- | --- | --- | --- | --- |
 | `path` | argument | no | current directory | Knowledge base root. |
 | `--out` | flag | yes | none | Output folder for generated HTML files. |
+| `--head-file` | flag | no | `OPENKNOWLEDGE_HEAD_FILE` | Trusted HTML fragment file to inject into default viewer HTML `<head>`. |
+| `--head-html` | flag | no | `OPENKNOWLEDGE_HEAD_HTML` | Trusted HTML fragment to inject into default viewer HTML `<head>`. |
 | `--plain` | flag | no | off | Generate plain semantic HTML without CSS, JavaScript, or viewer chrome. |
+| `--script-src` | repeatable flag | no | `OPENKNOWLEDGE_SCRIPT_SRC` | Script `src` to inject into default viewer HTML `<head>`. Environment values may be comma- or newline-separated. |
 | `--spec` | flag | no | `latest` | OKF spec version. |
 
 ## Behavior
@@ -51,6 +56,14 @@ static host. The viewer can resolve pretty URLs such as `/agents` or
 `/features/` back to generated notes, and the header brand links to the exported
 `index.html` with a relative URL for subpath deployments. Portable static pages
 do not expose the local filesystem path used during the build.
+
+Default viewer exports can inject trusted custom `<head>` HTML into every
+generated wiki page with `--head-file`, `--head-html`, repeatable
+`--script-src`, or the matching `OPENKNOWLEDGE_HEAD_FILE`,
+`OPENKNOWLEDGE_HEAD_HTML`, and `OPENKNOWLEDGE_SCRIPT_SRC` environment
+variables. Use this for deployment-owned analytics, verification meta tags, or
+small loader scripts. Script URLs may be relative, `http:`, or `https:`. Plain
+exports remain semantic HTML and do not support custom head injection.
 
 Default viewer exports include discovery files:
 
@@ -124,6 +137,7 @@ there through a configured stylesheet instead of changing generated HTML.
 
 * Publish a portable static wiki.
 * Expose `llms.txt` and `sitemap.xml` for agents and crawlers.
+* Add deployment-owned analytics or verification tags to default viewer pages.
 * Connect a deployed wiki back into a local registry.
 * Produce minimal HTML for systems that should not include viewer JavaScript.
 * Apply a deployable theme stylesheet without changing source Markdown.
@@ -138,6 +152,7 @@ there through a configured stylesheet instead of changing generated HTML.
 > * `packages/cli/internal/okf/html.go`
 > * `packages/cli/internal/okf/markdown.go`
 > * `packages/cli/internal/okf/export_test.go`
+> * `packages/cli/cmd/openknowledge/main.go`
 > * `packages/cli/cmd/openknowledge/viewer.go`
 > * `packages/cli/cmd/openknowledge/viewer_discovery.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.go`
