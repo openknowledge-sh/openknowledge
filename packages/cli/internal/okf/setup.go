@@ -1,5 +1,7 @@
 package okf
 
+import "strings"
+
 const setupPrompt = `This setup guide is meant to be executed by an AI coding agent.
 
 If you are a human reading this in your terminal, pass it to an agent instead:
@@ -24,7 +26,8 @@ Use these seed questions only when context cannot answer them:
 1. What should this knowledge base help with?
 2. Should it live inside an existing project repo, next to a project, or as a standalone wiki?
 3. Which use case is closest: code/project memory, personal knowledge, team/work memory, research/data dump, recurring automation output, or something else?
-4. Which ongoing behaviors should agents help with, if any: docs updates, changelog updates, decision logging, feature memory, bug triage, research import, weekly summaries, or another workflow?
+4. Which maintenance rules should future agents follow, if any?
+   Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents. Run openknowledge rules --list for descriptions.
 5. Are there privacy, safety, source-boundary, or "do not edit" rules?
 
 After the user answers:
@@ -62,5 +65,18 @@ Finish by telling the user:
 `
 
 func SetupPrompt() string {
-	return setupPrompt
+	prompt, _ := SetupPromptWithOptions(SetupPromptOptions{})
+	return prompt
+}
+
+func SetupPromptWithOptions(options SetupPromptOptions) (string, error) {
+	if len(options.Rules) == 0 {
+		return setupPrompt, nil
+	}
+	rules, err := ResolveRuleSets(options.Rules)
+	if err != nil {
+		return "", err
+	}
+	selected := renderSelectedSetupRules(rules)
+	return strings.Replace(setupPrompt, "\nAfter the user answers:", selected+"\nAfter the user answers:", 1), nil
 }

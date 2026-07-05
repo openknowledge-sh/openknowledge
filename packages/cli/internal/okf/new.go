@@ -203,6 +203,7 @@ context-specific questions only for missing or ambiguous details such as:
 * what should be captured as raw source, synthesized wiki pages, references, decisions, or logs
 * privacy or safety boundaries
 * update cadence and rules for future agents
+* which maintenance rules apply: project, docs, decisions, changelog, research, bugs, schemas, summary, or agents; run openknowledge rules --list for descriptions when available
 
 ## Output
 

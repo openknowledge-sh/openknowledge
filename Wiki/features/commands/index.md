@@ -6,6 +6,7 @@ anchors. Keep this index as the quick map.
 ## Create And Inspect Bundles
 
 * [Setup](setup.md) - agent setup prompt generation.
+* [Rules](rules.md) - print ready-to-paste agent maintenance rules.
 * [New](new.md) - scaffold a local OKF bundle.
 * [List](list.md) - print bundle inventory with optional JSON output.
 * [AST](ast.md) - print the parsed OKF AST as JSON.

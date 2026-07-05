@@ -19,6 +19,11 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge --help",
 		"openknowledge <command> --help",
 		"openknowledge setup",
+		"openknowledge setup --rules <rules>",
+		"openknowledge rules",
+		"openknowledge rules <rules> --path <path>",
+		"openknowledge rules apply <rules> --path <path>",
+		"openknowledge rules --list",
 		"openknowledge new --name <name> [folder]",
 		"openknowledge connect <source>",
 		"openknowledge connect <source> --as <key>",
@@ -49,6 +54,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge list --json [key-or-path]",
 		"Commands:",
 		"setup      Print an agent setup prompt.",
+		"rules      Print agent maintenance rules.",
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
@@ -63,6 +69,9 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"Flags:",
 		"-h, --help  Show this help.",
 		"Examples:",
+		"openknowledge rules docs,changelog --path Wiki",
+		"openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md",
+		"openknowledge setup --rules docs,changelog",
 		"openknowledge validate ./project-memory",
 		"openknowledge use accessibility --query \"validation workflow\"",
 		"openknowledge to html --out ./site ./project-memory",
@@ -98,8 +107,35 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: setupHelpText(),
 			required: []string{
 				"openknowledge setup --help",
+				"openknowledge setup --rules <rules>",
 				"Print an agent setup prompt",
 				"create a bundle with",
+				"--rules",
+				"project, docs, decisions, changelog, research, bugs, schemas, summary, agents",
+			},
+		},
+		"rules": {
+			help: rulesHelpText(),
+			required: []string{
+				"openknowledge rules <rules> --path <path>",
+				"openknowledge rules apply <rules> --path <path>",
+				"openknowledge rules --target generic|codex|claude|cursor",
+				"Print maintenance instructions for AI agents",
+				"The command does not edit files",
+				"prints non-blocking warnings after the rendered",
+				"with pipes or",
+				"--list",
+				"--path",
+			},
+		},
+		"rules apply": {
+			help: rulesApplyHelpText(),
+			required: []string{
+				"openknowledge rules apply <rules> --path <path> --file <file>",
+				"managed block",
+				"--dry-run",
+				"--yes",
+				"skip confirmation",
 			},
 		},
 		"new": {
@@ -287,6 +323,234 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRulesCommandPrintsSelectedRules(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRules([]string{"docs,changelog", "--path", wiki, "--target", "codex"})
+	})
+	if code != 0 {
+		t.Fatalf("expected rules command to succeed, got exit code %d\n%s", code, output)
+	}
+	required := []string{
+		"Open Knowledge wiki at `" + wiki + "`",
+		"repository `AGENTS.md` file for Codex",
+		"- docs: Keep docs in sync",
+		"Docs rules:",
+		"Changelog rules:",
+		"openknowledge validate \"" + wiki + "\"",
+	}
+	for _, expected := range required {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected rules output to include %q:\n%s", expected, output)
+		}
+	}
+	if strings.Contains(output, "Project rules:") {
+		t.Fatalf("did not expect default project rules when explicit rules were selected:\n%s", output)
+	}
+	if stderr != "" {
+		t.Fatalf("did not expect warnings for valid wiki, got:\n%s", stderr)
+	}
+}
+
+func TestRulesCommandListsRules(t *testing.T) {
+	output, code := captureMainStdout(t, func() int {
+		return runRules([]string{"--list"})
+	})
+	if code != 0 {
+		t.Fatalf("expected rules --list to succeed, got exit code %d\n%s", code, output)
+	}
+	for _, expected := range []string{
+		"openknowledge rules prints maintenance instructions",
+		"does not edit files",
+		"Available rules:",
+		"project",
+		"docs",
+		"changelog",
+		"agents",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected rules list to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestRulesCommandRejectsUnknownRule(t *testing.T) {
+	_, code := captureMainStdout(t, func() int {
+		return runRules([]string{"release-changelog"})
+	})
+	if code != 2 {
+		t.Fatalf("expected unknown rule to exit 2, got %d", code)
+	}
+}
+
+func TestRulesCommandRejectsRemovedModeFlag(t *testing.T) {
+	_, code := captureMainStdout(t, func() int {
+		return runRules([]string{"--mode", "docs"})
+	})
+	if code != 2 {
+		t.Fatalf("expected removed --mode flag to exit 2, got %d", code)
+	}
+}
+
+func TestRulesCommandRejectsInvalidRulesList(t *testing.T) {
+	_, code := captureMainStdout(t, func() int {
+		return runRules([]string{"docs,"})
+	})
+	if code != 2 {
+		t.Fatalf("expected invalid comma-separated rules list to exit 2, got %d", code)
+	}
+}
+
+func TestRulesCommandWarnsWhenWikiPathIsMissing(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing")
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRules([]string{"docs", "--path", missing})
+	})
+	if code != 0 {
+		t.Fatalf("expected missing wiki path to warn but still print rules, got %d", code)
+	}
+	if !strings.Contains(output, "Open Knowledge Maintenance") {
+		t.Fatalf("expected rules on stdout:\n%s", output)
+	}
+	if !strings.Contains(stderr, "⚠ Warning: Open Knowledge wiki path does not exist") || !strings.Contains(stderr, "Agent action: create the wiki first") {
+		t.Fatalf("expected missing path warning on stderr:\n%s", stderr)
+	}
+}
+
+func TestWarningTextIncludesIconAndMessage(t *testing.T) {
+	message := warningText(os.Stderr, "Open Knowledge wiki path does not exist: Wiki")
+	if !strings.Contains(message, "⚠ Warning:") || !strings.Contains(message, "Open Knowledge wiki path does not exist: Wiki") {
+		t.Fatalf("unexpected warning text: %q", message)
+	}
+}
+
+func TestWarningTextUsesYellowWhenColorIsForced(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("TERM", "xterm")
+	t.Setenv("CLICOLOR_FORCE", "1")
+	message := warningText(os.Stderr, "Open Knowledge wiki path does not exist: Wiki")
+	if !strings.Contains(message, "\x1b[33m") || !strings.Contains(message, "\x1b[0m") {
+		t.Fatalf("expected yellow ANSI warning text, got %q", message)
+	}
+}
+
+func TestRulesApplyWritesManagedBlockToFile(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	agentFile := filepath.Join(root, "AGENTS.md")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, root, "AGENTS.md", "# Agent Rules\n")
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRules([]string{"apply", "docs", "--path", wiki, "--file", agentFile, "--yes"})
+	})
+	if code != 0 {
+		t.Fatalf("expected rules apply to succeed, got %d\nstdout:\n%s\nstderr:\n%s", code, output, stderr)
+	}
+	if !strings.Contains(output, "Updated "+agentFile) {
+		t.Fatalf("expected update message, got:\n%s", output)
+	}
+	content := string(readMainTestFile(t, agentFile))
+	for _, expected := range []string{
+		okf.RulesBlockStart,
+		"This Codex instruction block is managed by `openknowledge rules apply`.",
+		"Docs rules:",
+		okf.RulesBlockEnd,
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected AGENTS.md to include %q:\n%s", expected, content)
+		}
+	}
+
+	_, _, code = captureMainOutput(t, func() int {
+		return runRules([]string{"apply", "changelog", "--path", wiki, "--file", agentFile, "--yes"})
+	})
+	if code != 0 {
+		t.Fatalf("expected second rules apply to succeed, got %d", code)
+	}
+	content = string(readMainTestFile(t, agentFile))
+	if strings.Count(content, okf.RulesBlockStart) != 1 || strings.Contains(content, "Docs rules:") || !strings.Contains(content, "Changelog rules:") {
+		t.Fatalf("expected managed block replacement:\n%s", content)
+	}
+}
+
+func TestRulesApplyDryRunDoesNotWrite(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	agentFile := filepath.Join(root, "AGENTS.md")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, root, "AGENTS.md", "# Agent Rules\n")
+
+	output, _, code := captureMainOutput(t, func() int {
+		return runRules([]string{"apply", "docs", "--path", wiki, "--file", agentFile, "--dry-run"})
+	})
+	if code != 0 {
+		t.Fatalf("expected rules apply dry-run to succeed, got %d", code)
+	}
+	if !strings.Contains(output, "Would update "+agentFile) || !strings.Contains(output, okf.RulesBlockStart) {
+		t.Fatalf("expected dry-run managed block output:\n%s", output)
+	}
+	content := string(readMainTestFile(t, agentFile))
+	if strings.Contains(content, okf.RulesBlockStart) {
+		t.Fatalf("dry-run should not write managed block:\n%s", content)
+	}
+}
+
+func TestRulesApplyConfirmationMessagesDescribeWriteType(t *testing.T) {
+	file := filepath.Join("repo", "AGENTS.md")
+	tests := []struct {
+		name     string
+		existing string
+		expected string
+	}{
+		{
+			name:     "replace managed block",
+			existing: okf.RulesBlockStart + "\nold\n" + okf.RulesBlockEnd + "\n",
+			expected: "replace that block",
+		},
+		{
+			name:     "append to existing file",
+			existing: "# Agent Rules\n",
+			expected: "append an Open Knowledge rules block",
+		},
+		{
+			name:     "partial marker",
+			existing: okf.RulesBlockStart + "\nold\n",
+			expected: "partial Open Knowledge rules marker",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			message := rulesApplyConfirmationMessage(file, test.existing)
+			if !strings.Contains(message, file) || !strings.Contains(message, test.expected) {
+				t.Fatalf("unexpected confirmation message:\n%s", message)
+			}
+		})
+	}
+}
+
+func TestSetupCommandAcceptsRules(t *testing.T) {
+	output, code := captureMainStdout(t, func() int {
+		return runSetup([]string{"--rules", "docs,changelog"})
+	})
+	if code != 0 {
+		t.Fatalf("expected setup command with rules to succeed, got exit code %d\n%s", code, output)
+	}
+	for _, expected := range []string{
+		"Selected maintenance rules:",
+		"- docs: Keep docs in sync",
+		"- changelog: Track user-facing changes",
+		"After the user answers:",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected setup output to include %q:\n%s", expected, output)
+		}
 	}
 }
 
@@ -743,6 +1007,40 @@ func captureMainStdout(t *testing.T, run func() int) (string, int) {
 		t.Fatal(err)
 	}
 	return string(output), code
+}
+
+func captureMainOutput(t *testing.T, run func() int) (string, string, int) {
+	t.Helper()
+	originalStdout := os.Stdout
+	originalStderr := os.Stderr
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderrReader, stderrWriter, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = stdoutWriter
+	os.Stderr = stderrWriter
+	code := run()
+	if err := stdoutWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stderrWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = originalStdout
+	os.Stderr = originalStderr
+	stdout, err := io.ReadAll(stdoutReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderr, err := io.ReadAll(stderrReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(stdout), string(stderr), code
 }
 
 func writeMainTestFile(t *testing.T, root string, name string, content string) {

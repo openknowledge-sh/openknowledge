@@ -23,6 +23,46 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-05 - Agent maintenance rules command
+
+* Added `openknowledge rules`, a print-only command that renders
+  ready-to-paste Markdown instructions for agents maintaining an Open Knowledge
+  wiki. It supports a comma-separated rules argument, `--path`, `--target`, and
+  `--list`.
+* The print path now inspects the selected wiki path and emits non-blocking
+  warnings when the folder is missing, empty of Markdown, or not valid OKF.
+  Each warning includes an agent action, such as creating the wiki, choosing a
+  folder, adding Markdown files, or running validation. In an interactive
+  terminal, warnings are highlighted with a `⚠ Warning:` marker, spaced apart
+  from nearby output, and printed after the rendered rules; with pipes or
+  redirection they go to stderr.
+* Added `openknowledge rules apply` as the explicit mutation path for inserting
+  or replacing an idempotent managed rules block in `AGENTS.md`, `CLAUDE.md`,
+  Cursor rules, or a user-selected instruction file. In interactive mode it
+  shows the generated block, then warns and asks for confirmation before
+  changing an existing file unless `--yes` is passed.
+* Added `openknowledge setup --rules <rules>` support so setup prompts can
+  start from selected comma-separated maintenance rules while still letting the
+  setup agent inspect context before creating files.
+* Standardized the canonical maintenance rules as `project`, `docs`,
+  `decisions`, `changelog`, `research`, `bugs`, `schemas`, `summary`, and
+  `agents`.
+* Updated the setup prompt, generated `SETUP.MD`, landing page, and README
+  setup copy to tell agents to use `openknowledge rules --list` when they need
+  the available rule list.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/rules.go`,
+  `packages/cli/internal/okf/setup.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/internal/okf/rules_test.go`,
+  `packages/cli/internal/okf/setup_test.go`,
+  `README.md`, `packages/web/index.html`.
+* Docs updated: `README.md`, `packages/web/index.html`,
+  `Wiki/features/commands/rules.md`, `Wiki/features/commands/setup.md`,
+  `Wiki/features/commands/help.md`, `Wiki/features/commands/index.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-04 - Static viewer head injection and wiki analytics
 
 * Default `openknowledge to html` viewer exports now support trusted custom

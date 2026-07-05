@@ -19,7 +19,7 @@ Karpathy-style local wiki that stays in plain files:
 
 | Layer | Commands | Use it for |
 | --- | --- | --- |
-| Authoring and OKF hygiene | `setup`, `new`, `validate`, `list`, `spec` | Create a bundle, seed agent maintenance rules, and keep the Markdown valid. |
+| Authoring and OKF hygiene | `setup`, `rules`, `new`, `validate`, `list`, `spec` | Create a bundle, seed agent maintenance rules, and keep the Markdown valid. |
 | Local registry management | `connect`, `disconnect`, `registry` | Give local, published, archive, or Git knowledge bases stable names that humans, agents, and the viewer can resolve. |
 | Agent entrypoints | `use` | Print a bundle-declared instruction file, a bundle-relative file path, or fall back to the bundle root `index.md`, so an agent can load the right knowledge on demand. |
 | Local Markdown viewer | `open` | Browse, search, inspect validation issues, and review linked Markdown in a local browser UI. |
@@ -40,10 +40,13 @@ The fastest way to start is to paste this prompt into Codex, Cowork, Cursor, Cla
 ```text
 Set up an Open Knowledge LLM wiki for this workspace.
 
-First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, inspect this workspace and any relevant memories, ask only the setup questions still needed, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect it with openknowledge open.
+First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, use openknowledge rules --list to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect it with openknowledge open.
 ```
 
-The agent will install the CLI if needed, run setup, inspect local context and relevant memories, ask only for missing decisions, create the scaffold, tailor it to your use case, and validate the result.
+The agent will install the CLI if needed, run setup, inspect local context and
+relevant memories, ask only for missing decisions, choose the maintenance rules
+the wiki should follow, create the scaffold, tailor it to your use case, and
+validate the result.
 
 ### CLI shortcut
 
@@ -54,6 +57,13 @@ setup prompt directly as the initial prompt:
 codex "$(openknowledge setup)"
 claude "$(openknowledge setup)"
 ```
+
+Use `openknowledge setup --rules docs,changelog` to preselect maintenance
+rules in the generated setup prompt. Use `openknowledge rules --list` to see
+the canonical rules, and use `openknowledge rules docs,changelog --path Wiki --target codex`
+to print ready-to-paste instructions for an existing wiki without editing files.
+Use `openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md`
+when you want the CLI to update an agent instruction file explicitly.
 
 ## Manual setup
 
@@ -93,12 +103,28 @@ openknowledge disconnect personal
 knowledge base with the user. Paste it into a coding agent, or pass it as an
 initial CLI prompt when your agent CLI supports that pattern. The agent first
 inspects the workspace and any relevant user or project memories available in
-its runtime, asks only the missing setup questions, creates the bundle with
-`openknowledge new`, then creates the folders, workflows, agent instructions,
-native automations when supported, and seed pages that fit the chosen use case.
+its runtime, asks only the missing setup questions, chooses maintenance rules
+such as docs, changelog, decisions, research, bugs, schemas, summaries, or
+general project memory, creates the bundle with `openknowledge new`, then
+creates the folders, workflows, agent instructions, native automations when
+supported, and seed pages that fit the chosen use case. The `--rules` flag
+preselects setup rules from the same catalog printed by `openknowledge rules --list`.
 When setup creates repo-scoped or user-scoped skills, the prompt tells the
 agent to include guidance for focused lower-reasoning subagents on bounded wiki
 maintenance tasks when the runtime supports that.
+
+`openknowledge rules` prints a Markdown instruction block for agents that
+maintain an existing wiki. It does not edit files, and it prints non-blocking
+warnings when the wiki path does not exist, has no Markdown, or does not
+currently validate as OKF. In a terminal those warnings are highlighted, spaced
+apart, printed after the generated rules, and include an agent action such as
+creating the wiki or running validation; with pipes or redirection they go to
+stderr. Use `openknowledge rules apply` when you want the CLI to write an
+idempotent managed block into `AGENTS.md`, `CLAUDE.md`, Cursor project rules,
+or another instruction file. In an interactive terminal, `rules apply` shows
+the generated block, then asks before changing an existing file; pass `--yes`
+to skip that confirmation. Canonical rules are `project`, `docs`, `decisions`,
+`changelog`, `research`, `bugs`, `schemas`, `summary`, and `agents`.
 
 `openknowledge new` creates a minimal local bundle with the base OKF files: a
 setup handoff, starter agent guidance, an update log, and a pinned copy of the
@@ -179,6 +205,10 @@ changes.
 | `openknowledge --help` | Print command usage, summaries, and examples. |
 | `openknowledge <command> --help` | Print command-specific usage, flags, and examples. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
+| `openknowledge setup --rules <rules>` | Print the setup prompt with selected maintenance rules. |
+| `openknowledge rules --list` | List canonical agent maintenance rules. |
+| `openknowledge rules <rules> --path <path>` | Print ready-to-paste maintenance rules for an existing wiki. |
+| `openknowledge rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge new --bundle-name <id> [folder]` | Scaffold with optional bundle metadata. |
 | `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |

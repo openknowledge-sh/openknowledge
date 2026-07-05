@@ -14,6 +14,8 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"relevant user or project memories",
 		"Do not ask a fixed questionnaire",
 		"Use these seed questions only when context cannot answer them",
+		"Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents.",
+		"openknowledge rules --list",
 		"context-specific questions",
 		"spawn focused subagents with lower reasoning effort",
 	}
@@ -44,6 +46,8 @@ func TestGeneratedSetupHandoffRequiresContextFirstInterview(t *testing.T) {
 		"relevant user or project memories",
 		"Do not ask a\nfixed generic questionnaire",
 		"context-specific questions only for missing or ambiguous details",
+		"which maintenance rules apply",
+		"openknowledge rules --list",
 		"spawn focused subagents with lower reasoning effort",
 	}
 

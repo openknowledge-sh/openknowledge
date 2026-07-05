@@ -27,9 +27,10 @@ recognizes the common Go flag help spelling after a subcommand.
 ## Behavior
 
 Root help prints the supported command surface, global help flag, examples, and
-the command-specific help convention. Its examples include a minimal
-`openknowledge new` scaffold, a scaffold with optional bundle metadata, and a
-`connect` example that registers the generated bundle under a stable key.
+the command-specific help convention. Its examples include rule generation,
+setup rule selection, a minimal `openknowledge new` scaffold, a scaffold with
+optional bundle metadata, and a `connect` example that registers the generated
+bundle under a stable key.
 Unknown commands print the root usage to stderr and exit with status `2`.
 
 ## Use Cases
@@ -39,6 +40,14 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 * Give agents a stable entry point before setup.
 
 ## Command Change History
+
+### 2026-07-05
+
+Root help added `openknowledge rules <rules> --path <path>`,
+`openknowledge rules apply <rules> --path <path>`,
+`openknowledge rules --list`, and `openknowledge setup --rules <rules>` usage
+forms with examples for printing, applying, and preselecting agent maintenance
+rules.
 
 ### 2026-06-28
 

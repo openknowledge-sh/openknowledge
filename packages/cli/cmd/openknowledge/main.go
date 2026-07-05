@@ -37,6 +37,8 @@ func main() {
 		fmt.Fprint(os.Stdout, helpText())
 	case "setup":
 		os.Exit(runSetup(os.Args[2:]))
+	case "rules":
+		os.Exit(runRules(os.Args[2:]))
 	case "new":
 		os.Exit(runNew(os.Args[2:]))
 	case "connect":
@@ -73,13 +75,412 @@ func runSetup(args []string) int {
 		fmt.Fprint(os.Stdout, setupHelpText())
 		return 0
 	}
-	if len(args) != 0 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge setup")
+	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	var rules string
+	fs.StringVar(&rules, "rules", "", "suggest comma-separated maintenance rules for setup")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "setup accepts no positional arguments")
 		return 2
 	}
 
-	fmt.Print(okf.SetupPrompt())
+	ruleIDs, err := parseRuleIDs(rules)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	prompt, err := okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	fmt.Print(prompt)
 	return 0
+}
+
+func runRules(args []string) int {
+	if len(args) > 0 && args[0] == "apply" {
+		return runRulesApply(args[1:])
+	}
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, rulesHelpText())
+		return 0
+	}
+
+	options, err := parseRulesArgs(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if options.list {
+		fmt.Print(okf.RenderRulesList())
+		return 0
+	}
+	output, err := okf.RenderAgentRules(okf.AgentRulesOptions{
+		Wiki:   options.wiki,
+		Target: options.target,
+		Rules:  options.rules,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	fmt.Print(output)
+	printRulesWikiWarnings(options.wiki)
+	return 0
+}
+
+func runRulesApply(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, rulesApplyHelpText())
+		return 0
+	}
+	options, err := parseRulesApplyArgs(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	printRulesWikiWarnings(options.wiki)
+
+	targetFile, err := resolveRulesApplyFile(options)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	target := options.target
+	if target == "" {
+		target = rulesTargetForFile(targetFile)
+	}
+	rules, err := okf.RenderAgentRules(okf.AgentRulesOptions{
+		Wiki:    options.wiki,
+		Target:  target,
+		Rules:   options.rules,
+		Managed: true,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	block := okf.RenderManagedRulesBlock(rules)
+	if options.dryRun {
+		fmt.Printf("Would update %s with:\n\n%s", targetFile, block)
+		return 0
+	}
+
+	existingBytes, err := os.ReadFile(targetFile)
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if err == nil && !options.yes && isTerminalFile(os.Stdin) {
+		confirmed, err := confirmRulesApplyWrite(targetFile, string(existingBytes), block)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if !confirmed {
+			fmt.Fprintln(os.Stdout, "Cancelled.")
+			return 0
+		}
+	}
+	updated := okf.UpsertManagedRulesBlock(string(existingBytes), block)
+	if err := os.MkdirAll(filepath.Dir(targetFile), 0755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if err := os.WriteFile(targetFile, []byte(updated), 0644); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Printf("Updated %s\n", targetFile)
+	return 0
+}
+
+type rulesArgs struct {
+	wiki   string
+	target string
+	rules  []string
+	list   bool
+}
+
+type rulesApplyArgs struct {
+	wiki   string
+	target string
+	rules  []string
+	file   string
+	yes    bool
+	dryRun bool
+}
+
+func parseRulesArgs(args []string) (rulesArgs, error) {
+	options := rulesArgs{
+		wiki:   okf.DefaultRulesWiki,
+		target: "generic",
+	}
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--list":
+			options.list = true
+		case arg == "--path":
+			i++
+			if i >= len(args) {
+				return options, fmt.Errorf("--path requires a value")
+			}
+			if strings.TrimSpace(args[i]) == "" {
+				return options, fmt.Errorf("--path requires a non-empty value")
+			}
+			options.wiki = args[i]
+		case strings.HasPrefix(arg, "--path="):
+			value := strings.TrimPrefix(arg, "--path=")
+			if strings.TrimSpace(value) == "" {
+				return options, fmt.Errorf("--path requires a non-empty value")
+			}
+			options.wiki = value
+		case arg == "--target":
+			i++
+			if i >= len(args) {
+				return options, fmt.Errorf("--target requires a value")
+			}
+			options.target = args[i]
+		case strings.HasPrefix(arg, "--target="):
+			options.target = strings.TrimPrefix(arg, "--target=")
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown rules option: %s", arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) > 1 {
+		return options, fmt.Errorf("rules accepts at most one comma-separated rules argument; pass the wiki path with --path")
+	}
+	if len(positionals) == 1 {
+		rules, err := parseRuleIDs(positionals[0])
+		if err != nil {
+			return options, err
+		}
+		options.rules = rules
+	}
+	return options, nil
+}
+
+func parseRulesApplyArgs(args []string) (rulesApplyArgs, error) {
+	options := rulesApplyArgs{wiki: okf.DefaultRulesWiki}
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--path":
+			i++
+			if i >= len(args) {
+				return options, fmt.Errorf("--path requires a value")
+			}
+			if strings.TrimSpace(args[i]) == "" {
+				return options, fmt.Errorf("--path requires a non-empty value")
+			}
+			options.wiki = args[i]
+		case strings.HasPrefix(arg, "--path="):
+			value := strings.TrimPrefix(arg, "--path=")
+			if strings.TrimSpace(value) == "" {
+				return options, fmt.Errorf("--path requires a non-empty value")
+			}
+			options.wiki = value
+		case arg == "--target":
+			i++
+			if i >= len(args) {
+				return options, fmt.Errorf("--target requires a value")
+			}
+			options.target = args[i]
+		case strings.HasPrefix(arg, "--target="):
+			options.target = strings.TrimPrefix(arg, "--target=")
+		case arg == "--file":
+			i++
+			if i >= len(args) {
+				return options, fmt.Errorf("--file requires a value")
+			}
+			options.file = args[i]
+		case strings.HasPrefix(arg, "--file="):
+			options.file = strings.TrimPrefix(arg, "--file=")
+		case arg == "--yes" || arg == "-y":
+			options.yes = true
+		case arg == "--dry-run":
+			options.dryRun = true
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown rules apply option: %s", arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) > 1 {
+		return options, fmt.Errorf("rules apply accepts at most one comma-separated rules argument; pass the wiki path with --path")
+	}
+	if len(positionals) == 1 {
+		rules, err := parseRuleIDs(positionals[0])
+		if err != nil {
+			return options, err
+		}
+		options.rules = rules
+	}
+	return options, nil
+}
+
+func parseRuleIDs(value string) ([]string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	parts := strings.Split(value, ",")
+	rules := make([]string, 0, len(parts))
+	for _, part := range parts {
+		rule := strings.TrimSpace(part)
+		if rule == "" {
+			return nil, fmt.Errorf("rules list must not contain empty entries")
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
+func printRulesWikiWarnings(wiki string) {
+	output := os.Stderr
+	if isTerminalFile(os.Stdout) {
+		output = os.Stdout
+	}
+	for _, warning := range okf.RulesWikiWarnings(wiki) {
+		printWarning(output, warning)
+	}
+}
+
+func resolveRulesApplyFile(options rulesApplyArgs) (string, error) {
+	if strings.TrimSpace(options.file) != "" {
+		return options.file, nil
+	}
+	candidates, err := discoverAgentRuleFiles(".")
+	if err != nil {
+		return "", err
+	}
+	if len(candidates) == 1 || (len(candidates) > 1 && options.yes) {
+		return candidates[0], nil
+	}
+	if len(candidates) == 0 && options.yes {
+		return "AGENTS.md", nil
+	}
+	if isTerminalFile(os.Stdin) {
+		defaultFile := "AGENTS.md"
+		if len(candidates) > 0 {
+			fmt.Fprintln(os.Stdout, "Found agent instruction files:")
+			for _, candidate := range candidates {
+				fmt.Fprintf(os.Stdout, "  %s\n", candidate)
+			}
+			defaultFile = candidates[0]
+		}
+		return prompt("Agent rules file", defaultFile)
+	}
+	if len(candidates) > 1 {
+		return "", fmt.Errorf("multiple agent instruction files found; pass --file or --yes")
+	}
+	return "", fmt.Errorf("no agent instruction file found; pass --file or --yes to create AGENTS.md")
+}
+
+func discoverAgentRuleFiles(start string) ([]string, error) {
+	absolute, err := filepath.Abs(start)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		absolute = filepath.Dir(absolute)
+	}
+	candidateNames := []string{
+		"AGENTS.md",
+		"CLAUDE.md",
+		filepath.Join(".cursor", "rules", "openknowledge.md"),
+		filepath.Join(".cursor", "rules", "openknowledge.mdc"),
+	}
+	var candidates []string
+	seen := map[string]struct{}{}
+	for {
+		for _, name := range candidateNames {
+			candidate := filepath.Join(absolute, name)
+			if _, err := os.Stat(candidate); err == nil {
+				if _, ok := seen[candidate]; !ok {
+					seen[candidate] = struct{}{}
+					candidates = append(candidates, candidate)
+				}
+			}
+		}
+		parent := filepath.Dir(absolute)
+		if parent == absolute {
+			break
+		}
+		absolute = parent
+	}
+	return candidates, nil
+}
+
+func rulesTargetForFile(file string) string {
+	base := filepath.Base(file)
+	switch base {
+	case "AGENTS.md":
+		return "codex"
+	case "CLAUDE.md":
+		return "claude"
+	}
+	slashed := filepath.ToSlash(file)
+	if strings.Contains(slashed, "/.cursor/rules/") || strings.HasPrefix(slashed, ".cursor/rules/") {
+		return "cursor"
+	}
+	return "generic"
+}
+
+func confirmRulesApplyWrite(file string, existing string, block string) (bool, error) {
+	fmt.Fprintf(os.Stdout, "\nGenerated rules block:\n\n%s", block)
+	printWarning(os.Stdout, rulesApplyConfirmationMessage(file, existing))
+	fmt.Fprint(os.Stdout, "Continue? [y/N]: ")
+	reader := bufio.NewReader(os.Stdin)
+	answer, err := reader.ReadString('\n')
+	if err != nil && len(answer) == 0 {
+		return false, nil
+	}
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	return answer == "y" || answer == "yes", nil
+}
+
+func rulesApplyConfirmationMessage(file string, existing string) string {
+	if strings.Contains(existing, okf.RulesBlockStart) && strings.Contains(existing, okf.RulesBlockEnd) {
+		return fmt.Sprintf("%s already contains an Open Knowledge rules block. This will replace that block.", file)
+	}
+	if strings.Contains(existing, okf.RulesBlockStart) || strings.Contains(existing, okf.RulesBlockEnd) {
+		return fmt.Sprintf("%s contains a partial Open Knowledge rules marker. This will append a new managed block.", file)
+	}
+	if strings.TrimSpace(existing) == "" {
+		return fmt.Sprintf("%s already exists. This will write an Open Knowledge rules block to it.", file)
+	}
+	return fmt.Sprintf("%s already exists. This will append an Open Knowledge rules block to the file.", file)
+}
+
+func printWarning(output *os.File, message string) {
+	fmt.Fprintln(output)
+	fmt.Fprintln(output, warningText(output, message))
+	fmt.Fprintln(output)
+}
+
+func warningText(output *os.File, message string) string {
+	label := "⚠ Warning:"
+	text := label + " " + strings.TrimSpace(message)
+	return newTerminal(output).yellow(text)
+}
+
+func isTerminalFile(file *os.File) bool {
+	info, err := file.Stat()
+	return err == nil && (info.Mode()&os.ModeCharDevice) != 0
 }
 
 func runSpec(args []string) int {
@@ -2137,6 +2538,11 @@ Usage:
   openknowledge --help
   openknowledge <command> --help
   openknowledge setup
+  openknowledge setup --rules <rules>
+  openknowledge rules
+  openknowledge rules <rules> --path <path>
+  openknowledge rules apply <rules> --path <path>
+  openknowledge rules --list
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
@@ -2180,6 +2586,7 @@ Usage:
 
 Commands:
   setup      Print an agent setup prompt.
+  rules      Print agent maintenance rules.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
@@ -2199,6 +2606,9 @@ Flags:
 Run openknowledge <command> --help for command-specific help.
 
 Examples:
+  openknowledge rules docs,changelog --path Wiki
+  openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
+  openknowledge setup --rules docs,changelog
   openknowledge new ./project-memory
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
   openknowledge connect ./accessibility --as accessibility
@@ -2535,11 +2945,97 @@ Print an agent setup prompt for creating and customizing a knowledge base.
 
 Usage:
   openknowledge setup
+  openknowledge setup --rules <rules>
   openknowledge setup --help
 
 The prompt tells an agent to inspect the current workspace, ask tailored
 questions, create a bundle with openknowledge new, customize the scaffold, and
 validate the result.
+
+Options:
+  --rules     Suggest comma-separated maintenance rules for setup.
+
+Available rules:
+  project, docs, decisions, changelog, research, bugs, schemas, summary, agents.
+  Run openknowledge rules --list for descriptions.
+`
+}
+
+func rulesHelpText() string {
+	return `openknowledge rules
+
+Print maintenance instructions for AI agents.
+
+The command does not edit files. It prints a Markdown block you can paste into
+AGENTS.md, CLAUDE.md, Cursor rules, or any project instruction file.
+It checks the wiki path and prints non-blocking warnings after the rendered
+rules when the path does not exist, has no Markdown, or does not validate as
+OKF. Each warning includes an agent action. In a terminal warnings print after
+the rules on stdout; with pipes or redirection they print to stderr.
+
+Usage:
+  openknowledge rules
+  openknowledge rules <rules>
+  openknowledge rules <rules> --path <path>
+  openknowledge rules --target generic|codex|claude|cursor
+  openknowledge rules apply <rules> --path <path>
+  openknowledge rules --list
+  openknowledge rules --help
+
+Arguments:
+  rules       Comma-separated maintenance rules to include.
+              Defaults to project.
+
+Options:
+  --path      Open Knowledge wiki path used in generated rules.
+              Defaults to .openknowledge.
+  --target    Instruction target: generic, codex, claude, or cursor.
+              Defaults to generic.
+  --list      List available rules.
+
+Examples:
+  openknowledge rules docs,changelog --path Wiki
+  openknowledge rules changelog --path Wiki --target codex
+  openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
+`
+}
+
+func rulesApplyHelpText() string {
+	return `openknowledge rules apply
+
+Write generated maintenance instructions into an agent instruction file.
+
+The command updates a managed block between openknowledge:rules markers, so
+running it again replaces the previous generated block instead of duplicating it.
+It still checks the wiki path and prints non-blocking warnings with agent actions.
+
+Usage:
+  openknowledge rules apply
+  openknowledge rules apply <rules>
+  openknowledge rules apply <rules> --path <path>
+  openknowledge rules apply <rules> --path <path> --file <file>
+  openknowledge rules apply <rules> --path <path> --dry-run
+  openknowledge rules apply <rules> --path <path> --yes
+  openknowledge rules apply --help
+
+Arguments:
+  rules       Comma-separated maintenance rules to include.
+              Defaults to project.
+
+Options:
+  --file      Agent instruction file to update.
+  --path      Open Knowledge wiki path used in generated rules.
+              Defaults to .openknowledge.
+  --target    Instruction target: generic, codex, claude, or cursor.
+              Defaults to the target inferred from --file when possible.
+  --yes       Use the nearest detected agent instruction file without prompting,
+              create AGENTS.md when none exists, and skip confirmation.
+  --dry-run   Print the managed block that would be written without editing.
+
+Examples:
+  openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
+  openknowledge rules apply changelog --path Wiki --yes
+  openknowledge rules apply docs --path Wiki --dry-run
 `
 }
 
