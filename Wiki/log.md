@@ -2,10 +2,14 @@
 
 ## 2026-07-06
 
+* **Clean navigation API**: Replaced the active CLI docs for deterministic
+  reading and local viewing with `openknowledge get` and `openknowledge view`,
+  removed the old command pages from navigation, and documented
+  `openknowledge list --depth` plus non-Markdown asset listing.
 * **Search command and graph retrieval**: Added command docs for
-  `openknowledge search`, updated `use` to reflect removal of `--query`, and
-  documented `openknowledge to graph --type search` as the derivative chunk
-  graph layer for source-grounded retrieval.
+  `openknowledge search`, documented the removal of the previous query mode,
+  and documented `openknowledge to graph --type search` as the derivative
+  chunk graph layer for source-grounded retrieval.
 * **Use/navigation and OKF views**: Updated the README, landing prompt, setup
   prompt, generated setup handoff, and tooling-model docs so `search` sits in
   the use/navigation layer and AST, JSON, source graph, and search graph are

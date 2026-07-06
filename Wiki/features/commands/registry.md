@@ -11,7 +11,7 @@ timestamp: 2026-06-18T00:00:00Z
 `openknowledge registry` manages knowledge bundle connections. Registry
 keys are shortcuts only; commands still work with normal filesystem paths. The
 local viewer also uses the registry as its default workspace list when
-`openknowledge open` is run without a path.
+`openknowledge view` is run without a path.
 
 The top-level [openknowledge connect](connect.md) and
 [openknowledge disconnect](disconnect.md) commands are aliases for

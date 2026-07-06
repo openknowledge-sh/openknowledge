@@ -22,9 +22,9 @@ anchors. Keep this index as the quick map.
 
 ## Use And Navigate Knowledge
 
-* [Use](use.md) - print an entrypoint, bundle file, or metadata.
+* [Get](get.md) - print an exact Markdown file, entrypoint, or metadata.
 * [Search](search.md) - search source-grounded Markdown chunks with optional graph expansion.
-* [Open](open.md) - local Markdown viewer.
+* [View](view.md) - local Markdown viewer.
 
 ## OKF Views And Publishing
 

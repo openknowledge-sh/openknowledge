@@ -9,7 +9,7 @@ timestamp: 2026-06-18T00:00:00Z
 # HTML Exporter
 
 The HTML exporter turns an OKF bundle into static pages. The default mode ships
-the same viewer used by `openknowledge open`, so exported docs keep file
+the same viewer used by `openknowledge view`, so exported docs keep file
 browsing, search, stacked panels, graph data, table controls, syntax
 highlighting, and mobile layout behavior without a local server. It also writes
 discovery and connection assets so agents can index the published wiki and a

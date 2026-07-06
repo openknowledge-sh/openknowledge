@@ -43,11 +43,19 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 
 ### 2026-07-06
 
+Root help replaced the previous deterministic read and viewer command names
+with `openknowledge get <name|path> [entry-or-file]` and
+`openknowledge view [path]`. The old command names are no longer part of the
+pre-1.0 command surface.
+
+Root help added `openknowledge list --depth <n> [key-or-path]` for bounded
+bundle tree inspection.
+
 Root help added `openknowledge search <name|path> <query>`,
 `openknowledge search <name|path> <query> --format json`, and
 `openknowledge search <name|path> <query> --expand graph`. It removed
-`openknowledge use --query` usage forms and reframed `use` as entrypoint
-loading only.
+the previous query-mode usage forms and keeps search as the standalone
+retrieval command.
 
 Root help added `openknowledge to graph --type search [path]` for derivative
 search graph exports.
@@ -62,7 +70,7 @@ rules.
 
 ### 2026-06-28
 
-Root and command-specific help now describe `openknowledge use --query` as a
+Root and command-specific help described the previous query mode as a
 source-grounded query briefing instead of an excerpt-only mode.
 
 ### 2026-06-20
@@ -72,9 +80,8 @@ Root help removed top-level `where` and the `registry add` subcommand, added
 `openknowledge registry where`, and reframed `registry` as the
 connection-management namespace.
 
-Root help added `openknowledge use <name|path> [entry]`,
-`openknowledge use <name|path> --info`, a `use` command summary, and quick
-examples for inspecting and printing an entrypoint.
+Root help added the previous deterministic entrypoint-loading command summary
+and quick examples for inspecting and printing an entrypoint.
 
 Root help added `openknowledge disconnect <key|path>`, a `disconnect` command
 summary, and a quick example for removing a connection.
@@ -90,9 +97,9 @@ Root help added `openknowledge to graph [path]`,
 `openknowledge to graph --out <file> [path]`, and the `graph` converter target
 for AST-backed link graph JSON.
 
-Root help added `openknowledge use <name|path> --query <text>`, JSON output
-usage, and a quick example for query-focused bundle excerpts under the existing
-`use` command.
+Root help added the previous query usage, JSON output usage, and a quick
+example for query-focused bundle excerpts under the then-current deterministic
+read command.
 
 Root help added `openknowledge ast [path]`, file output usage, an `ast` command
 summary, and a quick example for printing parsed OKF AST JSON.

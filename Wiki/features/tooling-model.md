@@ -18,8 +18,8 @@ a different user or agent need.
 | --- | --- | --- |
 | Authoring and OKF hygiene | `setup`, `rules`, `new`, `spec` | Create a bundle, seed maintenance instructions, and keep Markdown shaped around OKF v0.1. |
 | Connection and bundle lifecycle | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry list`, `registry where`, `to tar` | Give local, published, archive, or Git bundles stable names, materialize remote sources, resolve names back to filesystem paths, and package portable source archives. |
-| Validation and inspection | `validate`, `list` | Check OKF structure, link health, and bundle inventory before humans or agents rely on the knowledge. |
-| Use and navigation | `use`, `search`, `open` | Load known entrypoints, search source-grounded chunks, follow graph-expanded context, and browse connected or direct bundles. |
+| Validation and inspection | `validate`, `list` | Check OKF structure, link health, bundle inventory, and depth-limited tree views before humans or agents rely on the knowledge. |
+| Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown or known entrypoints, inspect structure, search source-grounded chunks, follow graph-expanded context, and browse connected or direct bundles. |
 | OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
 
 ## Current Boundaries
@@ -27,7 +27,7 @@ a different user or agent need.
 `connect` and the registry store aliases for existing bundle folders. They also
 materialize Open Knowledge manifests, tar archives, and Git remote sources into
 the Open Knowledge cache before registration. After registration,
-`registry where`, `use`, `search`, `open`, `validate`, `list`, and `to` work
+`registry where`, `get`, `search`, `view`, `validate`, `list`, and `to` work
 through the same key-or-path resolution model for local folders and remote
 sources.
 
@@ -50,17 +50,19 @@ The intended agent loop is path-light:
 ```sh
 openknowledge connect ./accessibility --as accessibility
 openknowledge list accessibility
-openknowledge use accessibility --info
-openknowledge use accessibility
+openknowledge list --depth 2 accessibility
+openknowledge get accessibility --info
+openknowledge get accessibility
 openknowledge search accessibility "validation workflow"
 openknowledge search accessibility "validation workflow" --expand graph
-openknowledge open accessibility
+openknowledge view accessibility
 ```
 
-The agent can read `use` output as its task-specific entrypoint. When it needs
+The agent can read `get` output as its task-specific entrypoint. When it needs
 focused source snippets, it can call `search` for ranked heading chunks and
-graph-expanded neighbors. When it needs raw files, it can resolve the bundle
-with:
+graph-expanded neighbors. When it needs structure before choosing files, it can
+call `list --depth`. When it needs raw filesystem access, it can resolve the
+bundle with:
 
 ```sh
 openknowledge registry where accessibility
@@ -87,9 +89,9 @@ viewer, plain semantic HTML, normalized JSON, or a tar archive.
 * [Exporters](exporters/) - shipped and candidate export targets.
 * [Registry command](commands/registry.md) - connection storage and lookup.
 * [List command](commands/list.md) - bundle inventory and validation context.
-* [Use command](commands/use.md) - agent entrypoint selection.
+* [Get command](commands/get.md) - exact Markdown and entrypoint retrieval.
 * [Search command](commands/search.md) - section-level search and graph-expanded retrieval.
-* [Open command](commands/open.md) - local Markdown viewer behavior.
+* [View command](commands/view.md) - local Markdown viewer behavior.
 * [Graph exporter](exporters/graph.md) - source and search graph views.
 
 ---

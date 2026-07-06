@@ -45,16 +45,16 @@ func main() {
 		os.Exit(runConnect(os.Args[2:], "openknowledge connect"))
 	case "disconnect":
 		os.Exit(runDisconnect(os.Args[2:], "openknowledge disconnect"))
-	case "use":
-		os.Exit(runUse(os.Args[2:]))
+	case "get":
+		os.Exit(runGet(os.Args[2:]))
 	case "search":
 		os.Exit(runSearch(os.Args[2:]))
 	case "ast":
 		os.Exit(runAST(os.Args[2:]))
 	case "registry":
 		os.Exit(runRegistry(os.Args[2:]))
-	case "open":
-		os.Exit(runOpen(os.Args[2:]))
+	case "view":
+		os.Exit(runView(os.Args[2:]))
 	case "to":
 		os.Exit(runTo(os.Args[2:]))
 	case "spec":
@@ -589,7 +589,7 @@ func runNew(args []string) int {
 	fmt.Println()
 	fmt.Printf("  Set up an Open Knowledge agentic wiki for this workspace. Read %s,\n", terminal.path(result.SetupPath))
 	fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
-	fmt.Println("  run openknowledge validate, and show me how to inspect it with openknowledge open.")
+	fmt.Println("  run openknowledge validate, and show me how to inspect it with openknowledge view.")
 	return 0
 }
 
@@ -1306,7 +1306,7 @@ func printDisconnectResult(entry okf.RegistryEntry, files string) {
 	fmt.Printf("%-6s %s\n", "files", files)
 }
 
-type useOptions struct {
+type getOptions struct {
 	target string
 	entry  string
 	info   bool
@@ -1321,23 +1321,48 @@ type searchOptions struct {
 	expandGraph bool
 }
 
-type useSelection struct {
+type getSelection struct {
 	name string
 	rel  string
 	abs  string
 }
 
-// use remains the deterministic entrypoint/file reader. Query retrieval moved
-// to runSearch so callers do not mix "load this document" with "rank chunks".
-func runUse(args []string) int {
+// get is the deterministic Markdown reader. It prints an exact local file,
+// named bundle entrypoint, bundle-relative file, or root index fallback.
+func runGet(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, useHelpText())
+		fmt.Fprint(os.Stdout, getHelpText())
 		return 0
 	}
-	options, err := parseUseOptions(args)
+	options, err := parseGetOptions(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
+	}
+
+	if options.entry == "" {
+		if localFile, rel, ok := resolveDirectGetFile(options.target); ok {
+			if !isGetMarkdownFile(localFile) {
+				fmt.Fprintf(os.Stderr, "get only prints Markdown files: %s\n", rel)
+				return 1
+			}
+			if options.info {
+				document, err := okf.ReadMarkdownDocumentInfo(localFile, rel)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					return 1
+				}
+				printGetFileInfo(getSelection{name: rel, rel: rel, abs: localFile}, document)
+				return 0
+			}
+			content, err := os.ReadFile(localFile)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			fmt.Print(string(content))
+			return 0
+		}
 	}
 
 	root, err := resolveWhereTarget(options.target)
@@ -1352,14 +1377,14 @@ func runUse(args []string) int {
 	}
 
 	if options.info {
-		if err := printUseInfo(root, info, options.entry); err != nil {
+		if err := printGetInfo(root, info, options.entry); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
 		return 0
 	}
 
-	selection, err := selectUseEntrypoint(root, info, options.entry)
+	selection, err := selectGetTarget(root, info, options.entry)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -1426,42 +1451,27 @@ func parsePositiveIntFlag(flag string, value string) (int, error) {
 	return parsed, nil
 }
 
-func parseUseOptions(args []string) (useOptions, error) {
-	options := useOptions{}
+func parseGetOptions(args []string) (getOptions, error) {
+	options := getOptions{}
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
 		case arg == "--info":
 			options.info = true
-		case arg == "--query":
-			return useOptions{}, removedUseQueryError()
-		case strings.HasPrefix(arg, "--query="):
-			return useOptions{}, removedUseQueryError()
-		case arg == "--budget" || strings.HasPrefix(arg, "--budget=") ||
-			arg == "--limit" || strings.HasPrefix(arg, "--limit=") ||
-			arg == "--format" || strings.HasPrefix(arg, "--format=") ||
-			arg == "--spec" || strings.HasPrefix(arg, "--spec="):
-			// These were query-mode flags before search became a standalone
-			// command. Keep the failure explicit so scripts migrate cleanly.
-			return useOptions{}, fmt.Errorf("%s is a search option; use openknowledge search <bundle> <query>", strings.Split(arg, "=")[0])
 		case strings.HasPrefix(arg, "-"):
-			return useOptions{}, fmt.Errorf("unknown flag: %s", arg)
+			return getOptions{}, fmt.Errorf("unknown flag: %s", arg)
 		case options.target == "":
 			options.target = arg
 		case options.entry == "":
 			options.entry = arg
 		default:
-			return useOptions{}, fmt.Errorf("use accepts at most one entry")
+			return getOptions{}, fmt.Errorf("get accepts at most one entry or file path")
 		}
 	}
 	if options.target == "" {
-		return useOptions{}, fmt.Errorf("usage: openknowledge use <name|path> [entry]")
+		return getOptions{}, fmt.Errorf("usage: openknowledge get <name|path> [entry-or-file]")
 	}
 	return options, nil
-}
-
-func removedUseQueryError() error {
-	return fmt.Errorf("openknowledge use --query has been removed. Use: openknowledge search <bundle> <query>")
 }
 
 func parseSearchOptions(args []string) (searchOptions, error) {
@@ -1617,7 +1627,27 @@ func printSearchTextResult(result okf.SearchResultSet) {
 	}
 }
 
-func selectUseEntrypoint(root string, info okf.BundleInfo, entryName string) (useSelection, error) {
+func resolveDirectGetFile(target string) (string, string, bool) {
+	expanded, err := okf.ExpandUserPath(strings.TrimSpace(target))
+	if err != nil {
+		return "", "", false
+	}
+	info, err := os.Stat(expanded)
+	if err != nil || info.IsDir() {
+		return "", "", false
+	}
+	absolute, err := filepath.Abs(expanded)
+	if err != nil {
+		absolute = expanded
+	}
+	rel, err := filepath.Rel(".", absolute)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		rel = filepath.Base(absolute)
+	}
+	return absolute, filepath.ToSlash(rel), true
+}
+
+func selectGetTarget(root string, info okf.BundleInfo, entryName string) (getSelection, error) {
 	name := strings.TrimSpace(entryName)
 	rel := ""
 	pathFallback := false
@@ -1644,13 +1674,21 @@ func selectUseEntrypoint(root string, info okf.BundleInfo, entryName string) (us
 		if pathFallback && os.IsNotExist(err) {
 			available := info.EntryNames()
 			if len(available) == 0 {
-				return useSelection{}, fmt.Errorf("entrypoint or path %q does not exist; this bundle has no declared entrypoints", name)
+				return getSelection{}, fmt.Errorf("entrypoint or path %q does not exist; this bundle has no declared entrypoints", name)
 			}
-			return useSelection{}, fmt.Errorf("entrypoint or path %q does not exist; available entries: %s", name, strings.Join(available, ", "))
+			return getSelection{}, fmt.Errorf("entrypoint or path %q does not exist; available entries: %s", name, strings.Join(available, ", "))
 		}
-		return useSelection{}, err
+		return getSelection{}, err
 	}
-	return useSelection{name: name, rel: normalizedRel, abs: abs}, nil
+	if !isGetMarkdownFile(abs) {
+		return getSelection{}, fmt.Errorf("get only prints Markdown files: %s", normalizedRel)
+	}
+	return getSelection{name: name, rel: normalizedRel, abs: abs}, nil
+}
+
+func isGetMarkdownFile(path string) bool {
+	extension := strings.ToLower(filepath.Ext(path))
+	return extension == ".md" || extension == ".markdown"
 }
 
 func resolveBundleRelativeFile(root string, rel string) (string, string, error) {
@@ -1680,8 +1718,8 @@ func resolveBundleRelativeFile(root string, rel string) (string, string, error) 
 	return abs, filepath.ToSlash(relative), nil
 }
 
-func printUseInfo(root string, info okf.BundleInfo, entryName string) error {
-	terminal.title("Open Knowledge Use", "agent entrypoint metadata")
+func printGetInfo(root string, info okf.BundleInfo, entryName string) error {
+	terminal.title("Open Knowledge Get", "entrypoint and file metadata")
 	fmt.Printf("%-9s %s\n", "name", info.DisplayName())
 	fmt.Printf("%-9s %s\n", "root", terminal.path(root))
 	if info.Metadata.Purpose != "" {
@@ -1693,7 +1731,7 @@ func printUseInfo(root string, info okf.BundleInfo, entryName string) error {
 	fmt.Println()
 
 	if strings.TrimSpace(entryName) != "" {
-		selection, err := selectUseEntrypoint(root, info, entryName)
+		selection, err := selectGetTarget(root, info, entryName)
 		if err != nil {
 			return err
 		}
@@ -1701,12 +1739,12 @@ func printUseInfo(root string, info okf.BundleInfo, entryName string) error {
 		if err != nil {
 			return err
 		}
-		printUseEntrypointInfo(selection, document)
+		printGetFileInfo(selection, document)
 		return nil
 	}
 
 	if len(info.Metadata.Entries) == 0 {
-		selection, err := selectUseEntrypoint(root, info, "")
+		selection, err := selectGetTarget(root, info, "")
 		if err != nil {
 			return err
 		}
@@ -1714,13 +1752,13 @@ func printUseInfo(root string, info okf.BundleInfo, entryName string) error {
 		if err != nil {
 			return err
 		}
-		printUseEntrypointInfo(selection, document)
+		printGetFileInfo(selection, document)
 		return nil
 	}
 
 	terminal.section("Entrypoints")
 	for _, entry := range info.Metadata.Entries {
-		selection, err := selectUseEntrypoint(root, info, entry.Name)
+		selection, err := selectGetTarget(root, info, entry.Name)
 		if err != nil {
 			return err
 		}
@@ -1741,9 +1779,9 @@ func printUseInfo(root string, info okf.BundleInfo, entryName string) error {
 	return nil
 }
 
-func printUseEntrypointInfo(selection useSelection, document okf.MarkdownDocumentInfo) {
-	terminal.section("Entrypoint")
-	fmt.Printf("%-12s %s\n", "entry", selection.name)
+func printGetFileInfo(selection getSelection, document okf.MarkdownDocumentInfo) {
+	terminal.section("File")
+	fmt.Printf("%-12s %s\n", "selection", selection.name)
 	fmt.Printf("%-12s %s\n", "path", selection.rel)
 	if document.Type != "" {
 		fmt.Printf("%-12s %s\n", "type", document.Type)
@@ -1999,7 +2037,12 @@ func runList(args []string) int {
 	fs.SetOutput(os.Stderr)
 	asJSON := fs.Bool("json", false, "print JSON")
 	specVersion := fs.String("spec", "latest", "OKF spec version")
+	depth := fs.Int("depth", 0, "maximum tree depth; 0 means unlimited")
 	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *depth < 0 {
+		fmt.Fprintln(os.Stderr, "--depth must be zero or a positive integer")
 		return 2
 	}
 
@@ -2025,6 +2068,7 @@ func runList(args []string) int {
 	}
 
 	if *asJSON {
+		listing.Entries = filterListEntriesByDepth(listing.Entries, *depth)
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(listing.Entries); err != nil {
@@ -2034,7 +2078,7 @@ func runList(args []string) int {
 		return 0
 	}
 
-	printListTree(listing)
+	printListTree(listing, *depth)
 	return 0
 }
 
@@ -2417,9 +2461,12 @@ type listTreeNode struct {
 	children map[string]*listTreeNode
 }
 
-func printListTree(listing okf.ListResult) {
+func printListTree(listing okf.ListResult, depth int) {
 	terminal.title("Open Knowledge List", "bundle tree")
 	fmt.Printf("%s %s\n", terminal.muted("target"), terminal.path(listing.Root))
+	if depth > 0 {
+		fmt.Printf("%s %d\n", terminal.muted("depth"), depth)
+	}
 	fmt.Println()
 
 	root := &listTreeNode{children: make(map[string]*listTreeNode)}
@@ -2438,7 +2485,7 @@ func printListTree(listing okf.ListResult) {
 		fmt.Printf("  %s\n", terminal.muted("(empty)"))
 		return
 	}
-	printListChildren(children, "")
+	printListChildren(children, "", depth, 1)
 }
 
 func addListEntry(root *listTreeNode, entry okf.ListEntry) {
@@ -2458,7 +2505,7 @@ func addListEntry(root *listTreeNode, entry okf.ListEntry) {
 	}
 }
 
-func printListChildren(nodes []*listTreeNode, prefix string) {
+func printListChildren(nodes []*listTreeNode, prefix string, maxDepth int, currentDepth int) {
 	for index, node := range nodes {
 		last := index == len(nodes)-1
 		connector := "|-- "
@@ -2468,10 +2515,31 @@ func printListChildren(nodes []*listTreeNode, prefix string) {
 			nextPrefix = prefix + "    "
 		}
 		fmt.Println(prefix + connector + formatListNode(node))
-		if len(node.children) > 0 {
-			printListChildren(sortedListChildren(node), nextPrefix)
+		if len(node.children) > 0 && (maxDepth == 0 || currentDepth < maxDepth) {
+			printListChildren(sortedListChildren(node), nextPrefix, maxDepth, currentDepth+1)
 		}
 	}
+}
+
+func filterListEntriesByDepth(entries []okf.ListEntry, maxDepth int) []okf.ListEntry {
+	if maxDepth == 0 {
+		return entries
+	}
+	filtered := make([]okf.ListEntry, 0, len(entries))
+	for _, entry := range entries {
+		if listPathDepth(entry.Path) <= maxDepth {
+			filtered = append(filtered, entry)
+		}
+	}
+	return filtered
+}
+
+func listPathDepth(path string) int {
+	path = strings.Trim(strings.TrimSpace(filepath.ToSlash(path)), "/")
+	if path == "" {
+		return 0
+	}
+	return len(strings.Split(path, "/"))
 }
 
 func sortedListChildren(node *listTreeNode) []*listTreeNode {
@@ -2501,6 +2569,9 @@ func formatListNode(node *listTreeNode) string {
 	}
 	if entry.Reserved {
 		return terminal.muted(node.name + "  " + entry.Kind)
+	}
+	if entry.Kind == "asset" {
+		return node.name + terminal.muted("  asset")
 	}
 
 	meta := entry.Type
@@ -2551,8 +2622,8 @@ Usage:
   openknowledge connect <source>
   openknowledge connect <source> --as <key>
   openknowledge disconnect <key|path>
-  openknowledge use <name|path> [entry]
-  openknowledge use <name|path> --info
+  openknowledge get <name|path> [entry-or-file]
+  openknowledge get <name|path> --info
   openknowledge search <name|path> <query>
   openknowledge search <name|path> <query> --format json
   openknowledge search <name|path> <query> --expand graph
@@ -2563,12 +2634,12 @@ Usage:
   openknowledge registry disconnect <key|path>
   openknowledge registry list
   openknowledge registry where <name|path>
-  openknowledge open [path]
-  openknowledge open --name <alias-name> [path]
-  openknowledge open --host <host> --port <port> [path]
-  openknowledge open --head-file <file> [path]
-  openknowledge open --script-src <src> [path]
-  openknowledge open --no-browser [path]
+  openknowledge view [path]
+  openknowledge view --name <alias-name> [path]
+  openknowledge view --host <host> --port <port> [path]
+  openknowledge view --head-file <file> [path]
+  openknowledge view --script-src <src> [path]
+  openknowledge view --no-browser [path]
   openknowledge to html --out <folder> [path]
   openknowledge to html --head-file <file> --out <folder> [path]
   openknowledge to html --script-src <src> --out <folder> [path]
@@ -2585,6 +2656,7 @@ Usage:
   openknowledge validate --rule <rule=off|warn|error> [key-or-path]
   openknowledge list [key-or-path]
   openknowledge list --spec <version> [key-or-path]
+  openknowledge list --depth <n> [key-or-path]
   openknowledge list --json [key-or-path]
   openknowledge version
 
@@ -2594,15 +2666,15 @@ Commands:
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
-  use        Print an agent entrypoint from a bundle.
+  get        Print a Markdown file or bundle entrypoint.
   search     Search source-grounded Markdown chunks in a bundle.
   ast        Print parsed OKF AST JSON.
   registry   Manage knowledge bundle connections.
-  open       Start the registry or knowledge base Markdown viewer.
+  view       Start the registry or knowledge base Markdown viewer.
   to         Convert a bundle to another format.
   spec       Print an embedded OKF spec.
   validate   Validate a bundle against an OKF spec.
-  list       Print a bundle tree, with optional JSON output.
+  list       Print a bundle tree, with optional depth and JSON output.
   version    Print the CLI version.
 
 Flags:
@@ -2617,8 +2689,8 @@ Examples:
   openknowledge new ./project-memory
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
   openknowledge connect ./accessibility --as accessibility
-  openknowledge use accessibility --info
-  openknowledge use accessibility
+  openknowledge get accessibility --info
+  openknowledge get accessibility
   openknowledge search accessibility "validation workflow"
   openknowledge ast ./project-memory
   openknowledge disconnect accessibility
@@ -2631,45 +2703,49 @@ Examples:
   openknowledge to tar --out ./bundle.tar.gz ./project-memory
   openknowledge to graph ./project-memory
   openknowledge list --json ./project-memory
-  openknowledge open
-  openknowledge open ./project-memory
+  openknowledge list --depth 2 ./project-memory
+  openknowledge view
+  openknowledge view ./project-memory
 `
 }
 
-func useHelpText() string {
-	return `openknowledge use
+func getHelpText() string {
+	return `openknowledge get
 
-Print an agent-facing entrypoint from a knowledge bundle.
+Print an exact Markdown file or bundle entrypoint.
 
 Usage:
-  openknowledge use <name|path>
-  openknowledge use <name|path> <entry>
-  openknowledge use <name|path> --info
-  openknowledge use <name|path> <entry> --info
-  openknowledge use --help
+  openknowledge get <name|path>
+  openknowledge get <name|path> <entry-or-file>
+  openknowledge get <name|path> --info
+  openknowledge get <name|path> <entry-or-file> --info
+  openknowledge get --help
 
 Arguments:
-  name|path      Registry key or local bundle path.
-  entry          Optional entrypoint name from okf_bundle_entry_<name> or
-                 bundle-relative file path.
+  name|path      Local Markdown file, registry key, or local bundle path.
+  entry-or-file  Optional entrypoint name from okf_bundle_entry_<name> or
+                 bundle-relative Markdown file path inside the selected bundle.
 
 Flags:
-  --info         Print bundle and entrypoint metadata instead of Markdown body.
+  --info         Print bundle and selected-file metadata instead of Markdown body.
 
 Behavior:
-  Without an entry, use prints okf_bundle_entry_default when declared. If no
-  default entrypoint exists, it prints the bundle root index.md. With an entry,
-  use first checks root index.md metadata, then treats the value as a path
-  inside the bundle.
+  With one argument that points at a local Markdown file, get prints that exact
+  file.
+  With a bundle path or registry key, get prints okf_bundle_entry_default when
+  declared. If no default entrypoint exists, it prints the bundle root index.md.
+  With a second argument, get first checks root index.md metadata, then treats
+  the value as a path inside the bundle.
 
   Use openknowledge search when you need query-based retrieval across Markdown
   sections, heading paths, snippets, and optional graph expansion.
 
 Examples:
-  openknowledge use accessibility --info
-  openknowledge use accessibility
-  openknowledge use accessibility review
-  openknowledge use accessibility agents/review.md
+  openknowledge get README.md
+  openknowledge get accessibility --info
+  openknowledge get accessibility
+  openknowledge get accessibility review
+  openknowledge get accessibility agents/review.md
 `
 }
 
@@ -3118,19 +3194,19 @@ Examples:
 `
 }
 
-func openHelpText() string {
-	return `openknowledge open
+func viewHelpText() string {
+	return `openknowledge view
 
 Start a local HTTP Markdown viewer.
 
 Usage:
-  openknowledge open [path]
-  openknowledge open --name <alias-name> [path]
-  openknowledge open --host <host> --port <port> [path]
-  openknowledge open --head-file <file> [path]
-  openknowledge open --script-src <src> [path]
-  openknowledge open --no-browser [path]
-  openknowledge open --help
+  openknowledge view [path]
+  openknowledge view --name <alias-name> [path]
+  openknowledge view --host <host> --port <port> [path]
+  openknowledge view --head-file <file> [path]
+  openknowledge view --script-src <src> [path]
+  openknowledge view --no-browser [path]
+  openknowledge view --help
 
 Arguments:
   path         Optional knowledge base root or registry name. When omitted,
@@ -3151,13 +3227,13 @@ Flags:
                comma- or newline-separated OPENKNOWLEDGE_SCRIPT_SRC when set.
 
 Examples:
-  openknowledge open
-  openknowledge open personal
-  openknowledge open ./project-memory
-  openknowledge open --head-file ./head.html ./project-memory
-  openknowledge open --script-src /analytics.js ./project-memory
-  openknowledge open --port 8080 ./project-memory
-  openknowledge open --name project-memory --port 3000 ./project-memory
+  openknowledge view
+  openknowledge view personal
+  openknowledge view ./project-memory
+  openknowledge view --head-file ./head.html ./project-memory
+  openknowledge view --script-src /analytics.js ./project-memory
+  openknowledge view --port 8080 ./project-memory
+  openknowledge view --name project-memory --port 3000 ./project-memory
 `
 }
 
@@ -3228,6 +3304,7 @@ Print a bundle tree with inline validation issues.
 Usage:
   openknowledge list [key-or-path]
   openknowledge list --spec <version> [key-or-path]
+  openknowledge list --depth <n> [key-or-path]
   openknowledge list --json [key-or-path]
   openknowledge list --help
 
@@ -3236,6 +3313,7 @@ Arguments:
 
 Flags:
   --spec       OKF spec version. Defaults to latest.
+  --depth      Maximum tree depth. Defaults to 0 for unlimited depth.
   --json       Print machine-readable inventory JSON.
 
 Versions:

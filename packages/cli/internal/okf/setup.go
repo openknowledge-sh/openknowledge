@@ -54,7 +54,7 @@ After creation:
 - Delete SETUP.MD only after setup is complete.
 
 After setup, offer to start the local viewer with:
-  openknowledge open "<folder path>"
+  openknowledge view "<folder path>"
 
 Finish by telling the user:
 - the exact path of the knowledge base
@@ -62,7 +62,8 @@ Finish by telling the user:
 - how future agents should use it
 - how to inspect it with openknowledge list "<folder path>"
 - how to search it with openknowledge search "<folder path>" "<query>"
-- how to view it with openknowledge open "<folder path>"
+- how to read exact Markdown with openknowledge get "<folder path>" "<file>"
+- how to view it with openknowledge view "<folder path>"
 `
 
 func SetupPrompt() string {

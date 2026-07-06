@@ -15,7 +15,7 @@ heading sections, and returns source-grounded matches with file paths, line
 ranges, heading paths, snippets, and scores.
 
 Use `search` when an agent or human needs to find relevant knowledge. Use
-[`use`](use.md) when the caller already knows which entrypoint or bundle file
+[`get`](get.md) when the caller already knows which entrypoint or bundle file
 to load.
 
 ## Usage
@@ -106,7 +106,7 @@ the authored OKF Markdown source.
 ### 2026-07-06
 
 `openknowledge search` shipped as the query retrieval command. It replaces
-`openknowledge use --query`, adds section-level BM25-style ranking, JSON output,
+the previous query mode, adds section-level BM25-style ranking, JSON output,
 and optional graph expansion through local links and backlinks.
 
 ---

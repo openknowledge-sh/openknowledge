@@ -47,7 +47,7 @@ The scaffold writes the core handoff files only: `index.md`, `log.md`,
 When bundle metadata flags are provided, `new` writes optional Open Knowledge
 CLI metadata into the root `index.md` frontmatter as flat `okf_bundle_*` keys.
 This metadata is a tooling layer for discovery, future `connect`, and candidate
-`use` entrypoint routing; it is not required for OKF conformance. Without these
+`get` entrypoint routing; it is not required for OKF conformance. Without these
 flags, `new` writes only `okf_version: "0.1"` in the root index frontmatter.
 
 `--bundle-entry` accepts repeatable `name=path` values. For example,

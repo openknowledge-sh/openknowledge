@@ -28,8 +28,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge connect <source>",
 		"openknowledge connect <source> --as <key>",
 		"openknowledge disconnect <key|path>",
-		"openknowledge use <name|path> [entry]",
-		"openknowledge use <name|path> --info",
+		"openknowledge get <name|path> [entry-or-file]",
+		"openknowledge get <name|path> --info",
 		"openknowledge search <name|path> <query>",
 		"openknowledge search <name|path> <query> --format json",
 		"openknowledge search <name|path> <query> --expand graph",
@@ -37,11 +37,11 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge registry connect <source> --as <key>",
 		"openknowledge registry disconnect <key|path>",
 		"openknowledge registry where <name|path>",
-		"openknowledge open --name <alias-name> [path]",
-		"openknowledge open --host <host> --port <port> [path]",
-		"openknowledge open --head-file <file> [path]",
-		"openknowledge open --script-src <src> [path]",
-		"openknowledge open --no-browser [path]",
+		"openknowledge view --name <alias-name> [path]",
+		"openknowledge view --host <host> --port <port> [path]",
+		"openknowledge view --head-file <file> [path]",
+		"openknowledge view --script-src <src> [path]",
+		"openknowledge view --no-browser [path]",
 		"openknowledge to html --out <folder> [path]",
 		"openknowledge to html --head-file <file> --out <folder> [path]",
 		"openknowledge to html --script-src <src> --out <folder> [path]",
@@ -53,6 +53,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge validate --format json [key-or-path]",
 		"openknowledge validate --rule <rule=off|warn|error> [key-or-path]",
 		"openknowledge list --spec <version> [key-or-path]",
+		"openknowledge list --depth <n> [key-or-path]",
 		"openknowledge list --json [key-or-path]",
 		"Commands:",
 		"setup      Print an agent setup prompt.",
@@ -60,14 +61,14 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
-		"use        Print an agent entrypoint from a bundle.",
+		"get        Print a Markdown file or bundle entrypoint.",
 		"search     Search source-grounded Markdown chunks in a bundle.",
 		"registry   Manage knowledge bundle connections.",
-		"open       Start the registry or knowledge base Markdown viewer.",
+		"view       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
 		"spec       Print an embedded OKF spec.",
 		"validate   Validate a bundle against an OKF spec.",
-		"list       Print a bundle tree, with optional JSON output.",
+		"list       Print a bundle tree, with optional depth and JSON output.",
 		"version    Print the CLI version.",
 		"Flags:",
 		"-h, --help  Show this help.",
@@ -77,6 +78,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge setup --rules docs,changelog",
 		"openknowledge validate ./project-memory",
 		"openknowledge search accessibility \"validation workflow\"",
+		"openknowledge list --depth 2 ./project-memory",
 		"openknowledge to html --out ./site ./project-memory",
 		"openknowledge to json ./project-memory",
 		"openknowledge to graph ./project-memory",
@@ -91,6 +93,10 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 	forbidden := []string{
 		"openknowledge registry add <name> <path>",
 		"openknowledge where <name|path>",
+		"openknowledge use <name|path>",
+		"openknowledge open [path]",
+		"use        Print an agent entrypoint from a bundle.",
+		"open       Start the registry or knowledge base Markdown viewer.",
 		"openknowledge context",
 		"where      Print the path for a named knowledge base or path.",
 	}
@@ -184,10 +190,11 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge registry disconnect --help",
 			},
 		},
-		"use": {
-			help: useHelpText(),
+		"get": {
+			help: getHelpText(),
 			required: []string{
-				"openknowledge use <name|path> <entry> --info",
+				"openknowledge get <name|path> <entry-or-file> --info",
+				"Local Markdown file, registry key, or local bundle path.",
 				"okf_bundle_entry_<name>",
 				"prints the bundle root index.md",
 				"Use openknowledge search",
@@ -223,15 +230,15 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"Print the absolute path",
 			},
 		},
-		"open": {
-			help: openHelpText(),
+		"view": {
+			help: viewHelpText(),
 			required: []string{
-				"openknowledge open --host <host> --port <port> [path]",
-				"openknowledge open --head-file <file> [path]",
-				"openknowledge open --name <alias-name> [path]",
-				"openknowledge open --no-browser [path]",
+				"openknowledge view --host <host> --port <port> [path]",
+				"openknowledge view --head-file <file> [path]",
+				"openknowledge view --name <alias-name> [path]",
+				"openknowledge view --no-browser [path]",
 				"Open Knowledge Registry workspace selector",
-				"openknowledge open personal",
+				"openknowledge view personal",
 				"--host",
 				"--port",
 				"--head-html",
@@ -318,7 +325,9 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"list": {
 			help: listHelpText(),
 			required: []string{
+				"openknowledge list --depth <n> [key-or-path]",
 				"openknowledge list --json [key-or-path]",
+				"Maximum tree depth.",
 				"Print machine-readable inventory JSON.",
 			},
 		},
@@ -615,16 +624,6 @@ func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 	}
 }
 
-func TestParseUseOptionsRejectsRemovedQueryFlag(t *testing.T) {
-	_, err := parseUseOptions([]string{"./project-memory", "--query", "validation workflow"})
-	if err == nil {
-		t.Fatal("expected removed use --query flag to fail")
-	}
-	if !strings.Contains(err.Error(), "openknowledge use --query has been removed") || !strings.Contains(err.Error(), "openknowledge search <bundle> <query>") {
-		t.Fatalf("unexpected removed query error: %v", err)
-	}
-}
-
 func TestParseSearchOptionsAcceptsQueryFlags(t *testing.T) {
 	options, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--limit=5", "--format=json", "--spec", "0.1", "--expand=graph"})
 	if err != nil {
@@ -725,6 +724,45 @@ func TestRunListAcceptsRegistryKey(t *testing.T) {
 	}
 	if !strings.Contains(output, "topic.md") {
 		t.Fatalf("expected list output to include bundle file:\n%s", output)
+	}
+}
+
+func TestRunListDepthLimitsTreeAndIncludesAssets(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n")
+	writeMainTestFile(t, root, "assets/logo.txt", "logo")
+	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
+	writeMainTestFile(t, root, "notes/deep/detail.md", "---\ntype: Note\n---\n\n# Detail\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runList([]string{"--depth", "2", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected depth-limited list to succeed, got exit code %d", code)
+	}
+	for _, expected := range []string{"depth 2", "assets/", "logo.txt", "notes/", "topic.md"} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected list output to include %q:\n%s", expected, output)
+		}
+	}
+	if strings.Contains(output, "detail.md") {
+		t.Fatalf("did not expect depth-limited list output to include deep file:\n%s", output)
+	}
+}
+
+func TestRunGetPrintsDirectFile(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "note.md")
+	writeMainTestFile(t, root, "note.md", "# Note\n\nExact body.\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runGet([]string{file})
+	})
+	if code != 0 {
+		t.Fatalf("expected get file to succeed, got exit code %d", code)
+	}
+	if output != "# Note\n\nExact body.\n" {
+		t.Fatalf("unexpected get output:\n%s", output)
 	}
 }
 
@@ -874,8 +912,8 @@ func TestRunToGraphPrintsSearchGraphJSON(t *testing.T) {
 	}
 }
 
-func TestParseUseOptionsAllowsInfoAfterEntry(t *testing.T) {
-	options, err := parseUseOptions([]string{"accessibility", "review", "--info"})
+func TestParseGetOptionsAllowsInfoAfterEntry(t *testing.T) {
+	options, err := parseGetOptions([]string{"accessibility", "review", "--info"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -884,7 +922,7 @@ func TestParseUseOptionsAllowsInfoAfterEntry(t *testing.T) {
 	}
 }
 
-func TestSelectUseEntrypointUsesDefaultNamedAndRootFallback(t *testing.T) {
+func TestSelectGetTargetUsesDefaultNamedAndRootFallback(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", `---
 okf_version: "0.1"
@@ -902,28 +940,28 @@ okf_bundle_entry_review: "agents/review.md"
 	if err != nil {
 		t.Fatal(err)
 	}
-	selection, err := selectUseEntrypoint(root, info, "")
+	selection, err := selectGetTarget(root, info, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if selection.name != "default" || selection.rel != "agents/default.md" {
 		t.Fatalf("unexpected default selection: %#v", selection)
 	}
-	selection, err = selectUseEntrypoint(root, info, "review")
+	selection, err = selectGetTarget(root, info, "review")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if selection.name != "review" || selection.rel != "agents/review.md" {
 		t.Fatalf("unexpected review selection: %#v", selection)
 	}
-	selection, err = selectUseEntrypoint(root, info, "guides/manual.md")
+	selection, err = selectGetTarget(root, info, "guides/manual.md")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if selection.name != "guides/manual.md" || selection.rel != "guides/manual.md" {
 		t.Fatalf("unexpected path selection: %#v", selection)
 	}
-	if _, err := selectUseEntrypoint(root, info, "missing"); err == nil {
+	if _, err := selectGetTarget(root, info, "missing"); err == nil {
 		t.Fatal("expected missing entrypoint path to fail")
 	} else if !strings.Contains(err.Error(), `entrypoint or path "missing" does not exist; available entries: default, review`) {
 		t.Fatalf("unexpected missing entrypoint error: %v", err)
@@ -935,7 +973,7 @@ okf_bundle_entry_review: "agents/review.md"
 	if err != nil {
 		t.Fatal(err)
 	}
-	selection, err = selectUseEntrypoint(fallbackRoot, fallbackInfo, "")
+	selection, err = selectGetTarget(fallbackRoot, fallbackInfo, "")
 	if err != nil {
 		t.Fatal(err)
 	}

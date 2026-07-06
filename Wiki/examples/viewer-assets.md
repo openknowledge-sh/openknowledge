@@ -8,7 +8,7 @@ timestamp: 2026-06-19T00:00:00Z
 
 # Viewer Asset Examples
 
-Use this page with `openknowledge open Wiki` to test local asset handling in
+Use this page with `openknowledge view Wiki` to test local asset handling in
 the viewer.
 
 ## Files

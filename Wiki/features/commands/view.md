@@ -1,14 +1,14 @@
 ---
 type: Command Documentation
-title: openknowledge open
+title: openknowledge view
 description: Starts a local HTTP Markdown viewer for a knowledge base.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-07-06T00:00:00Z
 ---
 
-# `openknowledge open`
+# `openknowledge view`
 
-`openknowledge open` starts a local HTTP viewer. Without a path, it opens a
+`openknowledge view` starts a local HTTP viewer. Without a path, it opens a
 registry-backed workspace selector. With a filesystem path or registry name, it
 opens that knowledge base directly.
 
@@ -19,7 +19,7 @@ header brand comes from root `index.md` metadata in this order:
 `okf_bundle_title`, `okf_bundle_name`, `title`, then the first parsed Markdown
 `#` heading.
 
-Think of `open` as the interactive OKF view. It presents the same bundle as a
+Think of `view` as the interactive OKF view. It presents the same bundle as a
 file tree, rendered Markdown panels, local search results, validation context,
 and a source-link graph. The derivative search graph used for retrieval is
 exported with [`openknowledge to graph --type search`](/features/exporters/graph.md).
@@ -27,13 +27,13 @@ exported with [`openknowledge to graph --type search`](/features/exporters/graph
 ## Usage
 
 ```sh
-openknowledge open [path]
-openknowledge open --name <alias-name> [path]
-openknowledge open --host <host> --port <port> [path]
-openknowledge open --head-file <file> [path]
-openknowledge open --script-src <src> [path]
-openknowledge open --no-browser [path]
-openknowledge open --help
+openknowledge view [path]
+openknowledge view --name <alias-name> [path]
+openknowledge view --host <host> --port <port> [path]
+openknowledge view --head-file <file> [path]
+openknowledge view --script-src <src> [path]
+openknowledge view --no-browser [path]
+openknowledge view --help
 ```
 
 ## Arguments And Flags
@@ -123,6 +123,15 @@ as `/wiki/` or `/personal/`.
   bundle that can also be exported with `openknowledge to graph`.
 * Preview bundled source and media assets in the browser.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
+
+## Command Change History
+
+### 2026-07-06
+
+`openknowledge view` replaced the previous viewer command name as the clean
+pre-1.0 API. The command owns the interactive local application, while
+[`openknowledge get`](get.md) owns exact Markdown retrieval and
+[`openknowledge list`](list.md) owns structure inspection.
 
 ---
 

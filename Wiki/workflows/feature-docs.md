@@ -55,7 +55,7 @@ For command pages, prefer these sections when they add signal:
   entry should include the date, a concise change summary, and source anchors.
 
 Keep short commands short. Use deeper behavior sections for complex commands
-such as `openknowledge open`, `openknowledge validate`, and `openknowledge to`.
+such as `openknowledge view`, `openknowledge validate`, and `openknowledge to`.
 
 ## Agent Maintenance Footer
 

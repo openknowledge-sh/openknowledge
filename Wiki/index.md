@@ -47,11 +47,11 @@ custom theme.
 
 ### Use And Navigate Knowledge
 
-* [use](features/commands/use.md) - print an entrypoint, bundle file, or
-  metadata.
+* [get](features/commands/get.md) - print an exact Markdown file, entrypoint,
+  or metadata.
 * [search](features/commands/search.md) - search source-grounded Markdown
   chunks with optional graph expansion.
-* [open](features/commands/open.md) - browse a bundle in the local Markdown
+* [view](features/commands/view.md) - browse a bundle in the local Markdown
   viewer.
 
 ### OKF Views And Publishing

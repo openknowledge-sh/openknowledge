@@ -2679,7 +2679,7 @@
     message.className = "note-error";
     const detail = error instanceof Error ? error.message : "";
     message.textContent = detail === "Failed to fetch"
-      ? "Could not reach the local viewer server while opening " + path + ". Restart openknowledge open and refresh this page."
+      ? "Could not reach the local viewer server while opening " + path + ". Restart openknowledge view and refresh this page."
       : detail || "Could not open " + path;
     return createPanel({
       title: "Not found",

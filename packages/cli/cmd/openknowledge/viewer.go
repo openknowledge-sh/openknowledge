@@ -26,12 +26,12 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
-func runOpen(args []string) int {
+func runView(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, openHelpText())
+		fmt.Fprint(os.Stdout, viewHelpText())
 		return 0
 	}
-	fs := flag.NewFlagSet("open", flag.ContinueOnError)
+	fs := flag.NewFlagSet("view", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	host := fs.String("host", "127.0.0.1", "host to bind")
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
@@ -45,7 +45,7 @@ func runOpen(args []string) int {
 		return 2
 	}
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "open accepts at most one path")
+		fmt.Fprintln(os.Stderr, "view accepts at most one path")
 		return 2
 	}
 

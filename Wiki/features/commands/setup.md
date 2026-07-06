@@ -16,7 +16,8 @@ it, choose maintenance rules such as docs, changelog, decisions, research, bugs,
 schemas, summaries, or general project memory, configure repo-scoped or
 user-scoped skills with focused lower-reasoning subagent guidance when useful,
 validate it, and finish with the concrete post-setup loop:
-`openknowledge list`, `openknowledge search`, and `openknowledge open`.
+`openknowledge list`, `openknowledge search`, `openknowledge get`, and
+`openknowledge view`.
 
 The optional `--rules` flag preselects comma-separated maintenance rules in the
 prompt. It uses the same canonical rule IDs listed by
@@ -58,7 +59,8 @@ Canonical rules are `project`, `docs`, `decisions`, `changelog`, `research`,
 * Keep interactive agent stdin available by passing the prompt as an argument,
   for example `codex "$(openknowledge setup)"`.
 * Leave the user with the use/navigation commands for the created bundle:
-  `openknowledge list`, `openknowledge search`, and `openknowledge open`.
+  `openknowledge list`, `openknowledge search`, `openknowledge get`, and
+  `openknowledge view`.
 
 ## Command Change History
 
@@ -67,7 +69,7 @@ Canonical rules are `project`, `docs`, `decisions`, `changelog`, `research`,
 The setup prompt, generated `SETUP.MD`, README setup prompt, and landing page
 prompt now tell agents to show users how to inspect and navigate a finished
 wiki with `openknowledge list`, `openknowledge search`, and
-`openknowledge open`.
+`openknowledge get`, and `openknowledge view`.
 
 ### 2026-07-05 - Maintenance rules
 

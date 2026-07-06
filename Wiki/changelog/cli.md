@@ -23,6 +23,41 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-06 - Clean get/list/view navigation API
+
+* Deprecated and removed the previous deterministic read command name outright;
+  it is no longer registered in the dispatcher, shown in root help, or retained
+  as an alias. `openknowledge get <name-or-path> [entry-or-file]` is the clean
+  replacement for exact Markdown retrieval.
+* `openknowledge get` can print an exact local Markdown file, a bundle default
+  entrypoint, a named entrypoint, a bundle-relative Markdown file, or selected
+  metadata with `--info`.
+* Deprecated and removed the previous local viewer command name outright; it is
+  no longer registered in the dispatcher, shown in root help, or retained as an
+  alias. `openknowledge view [path]` is the clean replacement for launching the
+  local viewer.
+* Added `openknowledge list --depth <n>` for bounded tree inspection and
+  expanded `openknowledge list` to include non-Markdown files as `asset`
+  entries, so it can describe the whole knowledge base structure.
+* Updated setup prompts, generated `SETUP.MD`, README setup copy, landing page
+  setup copy, command help, wiki command pages, and the tooling model around
+  the `get`, `list`, `search`, and `view` navigation loop.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/internal/okf/list.go`,
+  `packages/cli/internal/okf/setup.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/internal/okf/setup_test.go`,
+  `README.md`, `packages/web/index.html`.
+* Docs updated: `README.md`, `Wiki/features/commands/get.md`,
+  `Wiki/features/commands/view.md`, `Wiki/features/commands/list.md`,
+  `Wiki/features/commands/search.md`, `Wiki/features/commands/setup.md`,
+  `Wiki/features/commands/help.md`, `Wiki/features/commands/index.md`,
+  `Wiki/features/tooling-model.md`, `Wiki/index.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-06 - Search command and search graph exports
 
 * Added `openknowledge search <name-or-path> <query>` as the first-class query
@@ -32,16 +67,16 @@ entries in this section until they are released.
   results with snippets, source line ranges, scores, and matched fields.
 * Added `openknowledge search --expand graph` to include lower-ranked outgoing
   local-link and backlink neighbor chunks in search results.
-* Removed `openknowledge use --query`; `use` now stays focused on deterministic
-  entrypoint and bundle-file loading. Removed query flags fail with a migration
-  hint to `openknowledge search <bundle> <query>`.
+* Removed the previous query mode from deterministic entrypoint and bundle-file
+  loading. Query retrieval now belongs to
+  `openknowledge search <bundle> <query>`.
 * Added `openknowledge to graph --type source|search`. `source` is the default
   file/link graph. `search` exports a derivative chunk graph with source file
   nodes, heading chunk nodes, containment edges, reading-order edges, and
   chunk-level local-link edges.
 * Updated the setup prompt, generated `SETUP.MD`, README setup prompt, and
-  landing page prompt to leave users with the use/navigation loop:
-  `openknowledge list`, `openknowledge search`, and `openknowledge open`.
+  landing page prompt to leave users with the use/navigation loop available at
+  that point in the candidate series.
 * Reframed the docs layer model around connection and bundle lifecycle,
   validation and inspection, use and navigation, and OKF views. Search now
   belongs with use/navigation, while AST, JSON, source graph, and search graph
@@ -60,8 +95,7 @@ entries in this section until they are released.
   `packages/cli/internal/okf/search_test.go`,
   `packages/cli/internal/okf/export_test.go`.
 * Docs updated: `README.md`, `Wiki/features/commands/search.md`,
-  `Wiki/features/commands/use.md`, `Wiki/features/commands/setup.md`,
-  `Wiki/features/commands/open.md`, `Wiki/features/commands/to.md`,
+  `Wiki/features/commands/setup.md`, `Wiki/features/commands/to.md`,
   `Wiki/features/exporters/graph.md`,
   `Wiki/features/exporters/index.md`, `Wiki/features/commands/index.md`,
   `Wiki/features/commands/help.md`, `Wiki/features/tooling-model.md`,

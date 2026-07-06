@@ -8,7 +8,7 @@ timestamp: 2026-06-20T00:00:00Z
 
 # Syntax Highlighting Examples
 
-Use this page with `openknowledge open Wiki` to compare fenced code blocks
+Use this page with `openknowledge view Wiki` to compare fenced code blocks
 across languages supported by the built-in highlighter.
 
 ## Shell

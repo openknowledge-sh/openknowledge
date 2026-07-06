@@ -22,14 +22,14 @@ Karpathy-style local wiki that stays in plain files:
 | Authoring and OKF hygiene | `setup`, `rules`, `new`, `spec` | Create a bundle, seed agent maintenance rules, and keep the Markdown format understandable. |
 | Connection and bundle lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names, materialize remote bundles, and package portable source archives. |
 | Validation and inspection | `validate`, `list` | Check OKF structure, link health, and bundle inventory before humans or agents rely on the knowledge. |
-| Use and navigation | `use`, `search`, `open` | Load declared entrypoints, search source-grounded chunks, follow graph-expanded context, and browse the knowledge base in a local viewer. |
+| Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown files or declared entrypoints, inspect structure, search source-grounded chunks, follow graph-expanded context, and browse the knowledge base in a local viewer. |
 | OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
 
 The registry layer works with existing bundle folders, Open Knowledge manifests,
 tar archives, and Git remote sources. Published Open Knowledge HTML exports
 include an `openknowledge.json` manifest and `assets/openknowledge-bundle.tar.gz`
 archive by default, so `openknowledge connect https://example.com/wiki/` can
-materialize the bundle into the local cache. After registration, `use`, `open`,
+materialize the bundle into the local cache. After registration, `get`, `view`,
 `search`, `list`, `validate`, and `to` resolve remote materializations through
 the same key-or-path flow as local bundles.
 
@@ -40,7 +40,7 @@ The fastest way to start is to paste this prompt into Codex, Cowork, Cursor, Cla
 ```text
 Set up an Open Knowledge LLM wiki for this workspace.
 
-First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, use openknowledge rules --list to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect and navigate it with openknowledge list, openknowledge search, and openknowledge open.
+First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, use openknowledge rules --list to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect and navigate it with openknowledge list, openknowledge search, openknowledge get, and openknowledge view.
 ```
 
 The agent will install the CLI if needed, run setup, inspect local context and
@@ -82,14 +82,15 @@ openknowledge new ./project-memory
 openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
 openknowledge connect ./project-memory --as personal
 openknowledge connect ./accessibility
-openknowledge use personal --info
-openknowledge use personal
+openknowledge get personal --info
+openknowledge get personal
 openknowledge search personal "validation workflow"
 openknowledge search personal "validation workflow" --expand graph
 openknowledge registry where personal
-openknowledge open
-openknowledge open ./project-memory
+openknowledge view
+openknowledge view ./project-memory
 openknowledge list ./project-memory
+openknowledge list --depth 2 ./project-memory
 openknowledge list personal
 openknowledge validate ./project-memory
 openknowledge validate personal
@@ -135,13 +136,14 @@ current spec. Optional `--bundle-*` flags can seed `okf_bundle_*` metadata in
 the root index for discovery and future agent entrypoints. The use-case
 structure is intentionally left to setup.
 
-After that, humans and agents edit normal Markdown files. `openknowledge open`
+After that, humans and agents edit normal Markdown files. `openknowledge view`
 starts a registry-backed local viewer with a workspace selector, and
-`openknowledge open <path-or-name>` opens one knowledge base directly.
+`openknowledge view <path-or-name>` opens one knowledge base directly.
 `openknowledge validate [key-or-path]` checks the bundle for portable OKF
-structure, and `openknowledge list [key-or-path]` prints the bundle tree with
-inline validation issues. Without an argument, both commands use the current
-directory.
+structure, and `openknowledge list [key-or-path]` prints the bundle tree,
+including non-Markdown assets, with inline validation issues. Use
+`openknowledge list --depth <n>` to limit the displayed tree depth. Without an
+argument, both commands use the current directory.
 `openknowledge to html` writes the same static viewer app bundle by default,
 including searchable, sortable Markdown tables with basic column filters,
 `llms.txt`, and a connect manifest. It also writes `sitemap.xml` when the bundle
@@ -190,8 +192,8 @@ relative and skip sitemap generation.
 knowledge bases. A key is only an alias: path-based commands still work, and
 agents can use `openknowledge registry where <key>` to get the real folder
 before using normal filesystem tools such as `rg`. Agents can use
-`openknowledge use <key>` to print a bundle-declared entrypoint, or
-`openknowledge use <key> agents/review.md` to print a specific file inside the
+`openknowledge get <key>` to print a bundle-declared entrypoint, or
+`openknowledge get <key> agents/review.md` to print a specific file inside the
 bundle, falling back to root `index.md` when no default entrypoint is declared.
 Agents can use `openknowledge search <key> <query>` when they need
 source-grounded Markdown chunks with line ranges, snippets, heading paths, and
@@ -225,9 +227,9 @@ changes.
 | `openknowledge connect <source> --access read\|write` | Store an access label with a connection. |
 | `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
 | `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for CLI-managed remote clones. |
-| `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
-| `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint or bundle-relative file. |
-| `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
+| `openknowledge get <name-or-path>` | Print an exact local Markdown file, default entrypoint, or root `index.md`. |
+| `openknowledge get <name-or-path> <entry-or-file>` | Print a named bundle entrypoint or bundle-relative Markdown file. |
+| `openknowledge get <name-or-path> --info` | Print bundle and selected-file metadata. |
 | `openknowledge search <name-or-path> <query>` | Search source-grounded Markdown chunks. |
 | `openknowledge search <name-or-path> <query> --expand graph` | Include outgoing-link and backlink neighbor chunks. |
 | `openknowledge search <name-or-path> <query> --format json` | Print structured search results. |
@@ -236,8 +238,8 @@ changes.
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |
 | `openknowledge registry list` | List connected knowledge base paths. |
 | `openknowledge registry where <name-or-path>` | Print the absolute path for a registry name or path. |
-| `openknowledge open [path]` | Start the registry or knowledge base Markdown viewer. |
-| `openknowledge open --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
+| `openknowledge view [path]` | Start the registry or knowledge base Markdown viewer. |
+| `openknowledge view --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
 | `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle plus `llms.txt`, connect manifest, and tar archive. |
 | `openknowledge to html --plain --out <folder> [path]` | Write unstyled semantic HTML files. |
 | `openknowledge to json [path]` | Print normalized bundle JSON. |
@@ -255,6 +257,7 @@ changes.
 | `openknowledge validate --rule <rule=off\|warn\|error> [key-or-path]` | Override one validation rule severity for the run. |
 | `openknowledge list [key-or-path]` | Print a bundle tree with inline validation issues. |
 | `openknowledge list --spec 0.1 [key-or-path]` | List while validating against a specific spec version. |
+| `openknowledge list --depth <n> [key-or-path]` | Limit the displayed tree depth. |
 | `openknowledge list --json [key-or-path]` | Print machine-readable inventory output. |
 | `openknowledge version` | Print the CLI version. |
 

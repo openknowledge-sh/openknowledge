@@ -19,6 +19,8 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"context-specific questions",
 		"spawn focused subagents with lower reasoning effort",
 		"openknowledge search \"<folder path>\" \"<query>\"",
+		"openknowledge get \"<folder path>\" \"<file>\"",
+		"openknowledge view \"<folder path>\"",
 	}
 
 	for _, expected := range required {
@@ -50,7 +52,8 @@ func TestGeneratedSetupHandoffRequiresContextFirstInterview(t *testing.T) {
 		"which maintenance rules apply",
 		"openknowledge rules --list",
 		"spawn focused subagents with lower reasoning effort",
-		"search source-grounded chunks with openknowledge search",
+		"read exact Markdown with openknowledge get",
+		"browse it with openknowledge view",
 	}
 
 	for _, expected := range required {
