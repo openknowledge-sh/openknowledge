@@ -1,7 +1,20 @@
 # Bundle Update Log
 
+## 2026-07-07
+
+* **Source-to-wiki generation command**: Implemented `openknowledge from` as a
+  shipped prompt-producing command for turning a source URL or path into an OKF
+  Markdown bundle through a local agent. Documented `--out`, `--type`,
+  `--about`, `--depth`, source provenance guidance, custom interview behavior,
+  and refresh expectations.
+
 ## 2026-07-06
 
+* **Source-to-wiki generation candidate**: Added candidate documentation for
+  `openknowledge from`, including repository and website source adapters,
+  `--type understanding`, `--type custom`, custom interview behavior,
+  provenance metadata, refresh semantics, and the agent-prompt usage model for
+  Codex, Claude Code, Cursor, Cowork, or other filesystem-capable local agents.
 * **Clean navigation API**: Replaced the active CLI docs for deterministic
   reading and local viewing with `openknowledge get` and `openknowledge view`,
   removed the old command pages from navigation, and documented

@@ -20,6 +20,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge <command> --help",
 		"openknowledge setup",
 		"openknowledge setup --rules <rules>",
+		"openknowledge from <source> --out <folder>",
+		"openknowledge from <source> --out <folder> --type custom --about <goal>",
 		"openknowledge rules",
 		"openknowledge rules <rules> --path <path>",
 		"openknowledge rules apply <rules> --path <path>",
@@ -57,6 +59,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge list --json [key-or-path]",
 		"Commands:",
 		"setup      Print an agent setup prompt.",
+		"from       Print an agent source-to-wiki generation prompt.",
 		"rules      Print agent maintenance rules.",
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
@@ -73,6 +76,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"Flags:",
 		"-h, --help  Show this help.",
 		"Examples:",
+		"openknowledge from https://github.com/owner/repo --out Wiki --type understanding",
+		"openknowledge from https://example.com/docs --out Wiki --type custom --about \"Create an onboarding wiki\"",
 		"openknowledge rules docs,changelog --path Wiki",
 		"openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md",
 		"openknowledge setup --rules docs,changelog",
@@ -121,6 +126,20 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"create a bundle with",
 				"--rules",
 				"project, docs, decisions, changelog, research, bugs, schemas, summary, agents",
+			},
+		},
+		"from": {
+			help: fromHelpText(),
+			required: []string{
+				"openknowledge from <source> --out <folder>",
+				"openknowledge from <source> --out <folder> --type custom --about <goal>",
+				"Print an agent task prompt",
+				"The command does not fetch, crawl, call an LLM, or write the wiki itself",
+				"--type",
+				"understanding or custom",
+				"--about",
+				"--depth",
+				"codex \"$(openknowledge from https://github.com/owner/repo --out Wiki --type custom)\"",
 			},
 		},
 		"rules": {
@@ -576,6 +595,51 @@ func TestSetupCommandAcceptsRules(t *testing.T) {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected setup output to include %q:\n%s", expected, output)
 		}
+	}
+}
+
+func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
+	output, code := captureMainStdout(t, func() int {
+		return runFrom([]string{
+			"https://github.com/owner/repo",
+			"--out", "Wiki",
+			"--type", "custom",
+			"--about", "Help contributors understand releases",
+			"--depth", "2",
+		})
+	})
+	if code != 0 {
+		t.Fatalf("expected from command to succeed, got exit code %d\n%s", code, output)
+	}
+	for _, expected := range []string{
+		"source URL or path -> local agent task -> OKF Markdown bundle",
+		"Source: `https://github.com/owner/repo`",
+		"Output wiki path: `Wiki`",
+		"Wiki type: `custom`",
+		"Custom goal: `Help contributors understand releases`",
+		"Depth: 2",
+		"okf_generated_from",
+		"openknowledge validate \"Wiki\"",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected from output to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestParseFromOptionsDefaultsToUnderstanding(t *testing.T) {
+	options, err := parseFromOptions([]string{"https://example.com/docs", "--out=Wiki", "--depth=0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.source != "https://example.com/docs" || options.out != "Wiki" || options.wikiType != okf.DefaultFromType || options.depth != 0 {
+		t.Fatalf("unexpected from options: %#v", options)
+	}
+	if _, err := parseFromOptions([]string{"https://example.com/docs", "--out", "Wiki", "--depth", "-1"}); err == nil {
+		t.Fatal("expected negative depth to fail")
+	}
+	if _, err := parseFromOptions([]string{"https://example.com/docs"}); err == nil {
+		t.Fatal("expected missing --out to fail")
 	}
 }
 

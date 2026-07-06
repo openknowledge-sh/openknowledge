@@ -8,6 +8,7 @@ anchors. Keep this index as the quick map.
 * [Setup](setup.md) - agent setup prompt generation.
 * [Rules](rules.md) - print ready-to-paste agent maintenance rules.
 * [New](new.md) - scaffold a local OKF bundle.
+* [From](from.md) - print a source-to-wiki generation prompt for agents.
 
 ## Validate And Inspect Bundles
 

@@ -16,6 +16,7 @@ a different user or agent need.
 
 | Layer | Shipped commands | Purpose |
 | --- | --- | --- |
+| Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into an OKF Markdown bundle. |
 | Authoring and OKF hygiene | `setup`, `rules`, `new`, `spec` | Create a bundle, seed maintenance instructions, and keep Markdown shaped around OKF v0.1. |
 | Connection and bundle lifecycle | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry list`, `registry where`, `to tar` | Give local, published, archive, or Git bundles stable names, materialize remote sources, resolve names back to filesystem paths, and package portable source archives. |
 | Validation and inspection | `validate`, `list` | Check OKF structure, link health, bundle inventory, and depth-limited tree views before humans or agents rely on the knowledge. |
@@ -42,6 +43,25 @@ frontmatter, sections, and links. `to json` shows the normalized bundle model.
 `to graph` exports AST-backed source graph JSON, and `to graph --type search`
 emits a derivative chunk graph with file containment, chunk reading order, and
 chunk-level local links for retrieval tooling.
+
+## Source-To-Wiki Generation
+
+`openknowledge from` is the source-to-wiki layer. Its simple model is
+source URL or path, local agent task, then OKF Markdown bundle. The command can
+print a prompt for Codex, Claude Code, Cursor, Cowork, or another
+filesystem-capable agent to inspect the source, generate the wiki, validate it,
+and hand back navigation commands.
+
+Usage:
+
+```sh
+openknowledge from https://github.com/owner/repo --out Wiki --type understanding
+openknowledge from https://github.com/owner/repo --out Wiki --type custom
+openknowledge from https://example.com/docs --out Wiki --type understanding --depth 2
+```
+
+The `--type` flag selects a generation recipe such as `understanding` or
+`custom`. See [openknowledge from](commands/from.md) for command behavior.
 
 ## Agent Flow
 
@@ -89,6 +109,7 @@ viewer, plain semantic HTML, normalized JSON, or a tar archive.
 * [Exporters](exporters/) - shipped and candidate export targets.
 * [Registry command](commands/registry.md) - connection storage and lookup.
 * [List command](commands/list.md) - bundle inventory and validation context.
+* [From command](commands/from.md) - agent-driven source-to-wiki generation.
 * [Get command](commands/get.md) - exact Markdown and entrypoint retrieval.
 * [Search command](commands/search.md) - section-level search and graph-expanded retrieval.
 * [View command](commands/view.md) - local Markdown viewer behavior.

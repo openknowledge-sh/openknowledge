@@ -37,6 +37,8 @@ func main() {
 		fmt.Fprint(os.Stdout, helpText())
 	case "setup":
 		os.Exit(runSetup(os.Args[2:]))
+	case "from":
+		os.Exit(runFrom(os.Args[2:]))
 	case "rules":
 		os.Exit(runRules(os.Args[2:]))
 	case "new":
@@ -101,6 +103,114 @@ func runSetup(args []string) int {
 	}
 	fmt.Print(prompt)
 	return 0
+}
+
+type fromOptions struct {
+	source   string
+	out      string
+	wikiType string
+	about    string
+	depth    int
+}
+
+func runFrom(args []string) int {
+	if len(args) == 0 || hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, fromHelpText())
+		return 0
+	}
+	options, err := parseFromOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	prompt, err := okf.FromPrompt(okf.FromPromptOptions{
+		Source: options.source,
+		Out:    options.out,
+		Type:   options.wikiType,
+		About:  options.about,
+		Depth:  options.depth,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	fmt.Print(prompt)
+	return 0
+}
+
+func parseFromOptions(args []string) (fromOptions, error) {
+	options := fromOptions{wikiType: okf.DefaultFromType}
+	var positionals []string
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--out":
+			value, next, err := nextFlagValue(args, index, "--out")
+			if err != nil {
+				return fromOptions{}, err
+			}
+			options.out = value
+			index = next
+		case strings.HasPrefix(arg, "--out="):
+			options.out = strings.TrimPrefix(arg, "--out=")
+			if strings.TrimSpace(options.out) == "" {
+				return fromOptions{}, fmt.Errorf("--out requires a value")
+			}
+		case arg == "--type":
+			value, next, err := nextFlagValue(args, index, "--type")
+			if err != nil {
+				return fromOptions{}, err
+			}
+			options.wikiType = value
+			index = next
+		case strings.HasPrefix(arg, "--type="):
+			options.wikiType = strings.TrimPrefix(arg, "--type=")
+			if strings.TrimSpace(options.wikiType) == "" {
+				return fromOptions{}, fmt.Errorf("--type requires a value")
+			}
+		case arg == "--about":
+			value, next, err := nextFlagValue(args, index, "--about")
+			if err != nil {
+				return fromOptions{}, err
+			}
+			options.about = value
+			index = next
+		case strings.HasPrefix(arg, "--about="):
+			options.about = strings.TrimPrefix(arg, "--about=")
+			if strings.TrimSpace(options.about) == "" {
+				return fromOptions{}, fmt.Errorf("--about requires a value")
+			}
+		case arg == "--depth":
+			value, next, err := nextFlagValue(args, index, "--depth")
+			if err != nil {
+				return fromOptions{}, err
+			}
+			depth, err := parseNonNegativeIntFlag("--depth", value)
+			if err != nil {
+				return fromOptions{}, err
+			}
+			options.depth = depth
+			index = next
+		case strings.HasPrefix(arg, "--depth="):
+			depth, err := parseNonNegativeIntFlag("--depth", strings.TrimPrefix(arg, "--depth="))
+			if err != nil {
+				return fromOptions{}, err
+			}
+			options.depth = depth
+		case strings.HasPrefix(arg, "-"):
+			return fromOptions{}, fmt.Errorf("unknown from option: %s", arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) != 1 {
+		return fromOptions{}, fmt.Errorf("usage: openknowledge from <source> --out <path>")
+	}
+	options.source = positionals[0]
+	if strings.TrimSpace(options.out) == "" {
+		return fromOptions{}, fmt.Errorf("from requires --out <path>")
+	}
+	return options, nil
 }
 
 func runRules(args []string) int {
@@ -1451,6 +1561,14 @@ func parsePositiveIntFlag(flag string, value string) (int, error) {
 	return parsed, nil
 }
 
+func parseNonNegativeIntFlag(flag string, value string) (int, error) {
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || parsed < 0 {
+		return 0, fmt.Errorf("%s must be zero or a positive integer", flag)
+	}
+	return parsed, nil
+}
+
 func parseGetOptions(args []string) (getOptions, error) {
 	options := getOptions{}
 	for index := 0; index < len(args); index++ {
@@ -2612,6 +2730,9 @@ Usage:
   openknowledge <command> --help
   openknowledge setup
   openknowledge setup --rules <rules>
+  openknowledge from <source> --out <folder>
+  openknowledge from <source> --out <folder> --type understanding
+  openknowledge from <source> --out <folder> --type custom --about <goal>
   openknowledge rules
   openknowledge rules <rules> --path <path>
   openknowledge rules apply <rules> --path <path>
@@ -2662,6 +2783,7 @@ Usage:
 
 Commands:
   setup      Print an agent setup prompt.
+  from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
@@ -2683,6 +2805,8 @@ Flags:
 Run openknowledge <command> --help for command-specific help.
 
 Examples:
+  openknowledge from https://github.com/owner/repo --out Wiki --type understanding
+  openknowledge from https://example.com/docs --out Wiki --type custom --about "Create an onboarding wiki"
   openknowledge rules docs,changelog --path Wiki
   openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
   openknowledge setup --rules docs,changelog
@@ -3078,6 +3202,50 @@ Options:
 Available rules:
   project, docs, decisions, changelog, research, bugs, schemas, summary, agents.
   Run openknowledge rules --list for descriptions.
+`
+}
+
+func fromHelpText() string {
+	return `openknowledge from
+
+Print an agent task prompt for turning a source into an Open Knowledge wiki.
+
+The command does not fetch, crawl, call an LLM, or write the wiki itself. It
+prints a prompt for Codex, Claude Code, Cursor, Cowork, or another local agent
+that can access the source and write files.
+
+Usage:
+  openknowledge from <source> --out <folder>
+  openknowledge from <source> --out <folder> --type understanding
+  openknowledge from <source> --out <folder> --type custom
+  openknowledge from <source> --out <folder> --type custom --about <goal>
+  openknowledge from <source> --out <folder> --depth <count>
+  openknowledge from --help
+
+Arguments:
+  source      Source URL or local path. Examples include GitHub repositories,
+              local repositories, and website documentation roots.
+
+Options:
+  --out       Output Open Knowledge wiki folder. Required.
+  --type      Generation recipe: understanding or custom.
+              Defaults to understanding.
+  --about     Custom goal for --type custom, avoiding the interview step.
+  --depth     Website crawl depth or source traversal depth hint.
+              Defaults to 0, meaning the agent should choose the minimum depth.
+
+Behavior:
+  The generated prompt tells the agent to inspect the source, ask only missing
+  questions, create or update the OKF bundle at --out, preserve provenance such
+  as source URLs or commit IDs, run openknowledge validate, and finish with
+  list/search/get/view commands for the generated wiki.
+
+Examples:
+  openknowledge from https://github.com/owner/repo --out Wiki
+  openknowledge from https://github.com/owner/repo --out Wiki --type custom
+  openknowledge from https://github.com/owner/repo --out Wiki --type custom --about "Help new contributors understand the release workflow"
+  openknowledge from https://example.com/docs --out Wiki --type understanding --depth 2
+  codex "$(openknowledge from https://github.com/owner/repo --out Wiki --type custom)"
 `
 }
 

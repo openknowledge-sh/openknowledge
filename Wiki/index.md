@@ -29,6 +29,8 @@ custom theme.
 ### Create Bundles
 
 * [setup](features/commands/setup.md) - generate setup instructions for agents.
+* [from](features/commands/from.md) - generate source-to-wiki instructions for
+  agents.
 * [new](features/commands/new.md) - scaffold a local OKF bundle.
 
 ### Validate And Inspect Bundles

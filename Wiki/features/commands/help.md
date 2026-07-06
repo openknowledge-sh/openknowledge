@@ -41,6 +41,13 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 
 ## Command Change History
 
+### 2026-07-07
+
+Root help added `openknowledge from <source> --out <folder>`,
+`openknowledge from <source> --out <folder> --type understanding`, and
+`openknowledge from <source> --out <folder> --type custom --about <goal>` for
+source-to-wiki prompt generation.
+
 ### 2026-07-06
 
 Root help replaced the previous deterministic read and viewer command names

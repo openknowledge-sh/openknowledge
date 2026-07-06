@@ -19,6 +19,7 @@ Karpathy-style local wiki that stays in plain files:
 
 | Layer | Commands | Use it for |
 | --- | --- | --- |
+| Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into a local OKF Markdown wiki. |
 | Authoring and OKF hygiene | `setup`, `rules`, `new`, `spec` | Create a bundle, seed agent maintenance rules, and keep the Markdown format understandable. |
 | Connection and bundle lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names, materialize remote bundles, and package portable source archives. |
 | Validation and inspection | `validate`, `list` | Check OKF structure, link health, and bundle inventory before humans or agents rely on the knowledge. |
@@ -64,6 +65,17 @@ the canonical rules, and use `openknowledge rules docs,changelog --path Wiki --t
 to print ready-to-paste instructions for an existing wiki without editing files.
 Use `openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md`
 when you want the CLI to update an agent instruction file explicitly.
+
+To generate a wiki from an existing source, use `openknowledge from` as an
+agent prompt:
+
+```sh
+codex "$(openknowledge from https://github.com/owner/repo --out Wiki --type understanding)"
+```
+
+The command prints instructions for a local agent to inspect the source, create
+or update the OKF bundle, preserve source provenance, validate the result, and
+show the follow-up `list`, `search`, `get`, and `view` commands.
 
 ## Manual setup
 
@@ -129,6 +141,15 @@ or another instruction file. In an interactive terminal, `rules apply` shows
 the generated block, then asks before changing an existing file; pass `--yes`
 to skip that confirmation. Canonical rules are `project`, `docs`, `decisions`,
 `changelog`, `research`, `bugs`, `schemas`, `summary`, and `agents`.
+
+`openknowledge from <source> --out <folder>` prints a source-to-wiki agent
+prompt. Use it with a GitHub repository, a local path, or a website entrypoint
+when you want a local agent to create or refresh an OKF bundle from existing
+material. `--type understanding` is the default DeepWiki-style recipe for
+overview, architecture, structure, workflows, entrypoints, diagrams, glossary,
+and citations. `--type custom` asks the agent to interview for the wiki goal;
+pass `--about "<goal>"` to make that non-interactive. `--depth <n>` is a crawl
+or traversal hint for sources that need one.
 
 `openknowledge new` creates a minimal local bundle with the base OKF files: a
 setup handoff, starter agent guidance, an update log, and a pinned copy of the
@@ -217,6 +238,8 @@ changes.
 | `openknowledge <command> --help` | Print command-specific usage, flags, and examples. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge setup --rules <rules>` | Print the setup prompt with selected maintenance rules. |
+| `openknowledge from <source> --out <folder>` | Print an agent prompt for generating or refreshing a wiki from a source URL or path. |
+| `openknowledge from <source> --out <folder> --type custom --about <goal>` | Print a custom source-to-wiki prompt without an interview step. |
 | `openknowledge rules --list` | List canonical agent maintenance rules. |
 | `openknowledge rules <rules> --path <path>` | Print ready-to-paste maintenance rules for an existing wiki. |
 | `openknowledge rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |

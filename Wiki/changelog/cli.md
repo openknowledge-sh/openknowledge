@@ -23,6 +23,26 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-07 - Source-to-wiki prompt command
+
+* Added `openknowledge from <source> --out <folder>` as a prompt-producing
+  source-to-wiki command. It prints instructions for a local agent to inspect a
+  GitHub repository, local path, or website, create or refresh an OKF bundle,
+  preserve source provenance, validate the result, and hand back
+  `list`/`search`/`get`/`view` commands.
+* Added `--type understanding|custom`, with `understanding` as the default
+  DeepWiki-style recipe and `custom` as the interview-driven recipe.
+* Added `--about <goal>` for non-interactive custom generation goals and
+  `--depth <count>` as a crawl or traversal hint.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/from.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/internal/okf/from_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/from.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/commands/help.md`,
+  `Wiki/features/tooling-model.md`, `Wiki/index.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-06 - Clean get/list/view navigation API
 
 * Deprecated and removed the previous deterministic read command name outright;
