@@ -62,17 +62,17 @@ Rules are canonical IDs. The CLI intentionally does not accept extra aliases,
 so users and generated instructions share one stable vocabulary. Select
 multiple rules with a comma-separated list.
 
-| Rule | Purpose |
+| Rule name | Description |
 | --- | --- |
-| `project` | General project knowledge. |
-| `docs` | Keep docs in sync with implementation. |
-| `decisions` | Record important decisions. |
-| `changelog` | Track user-facing changes. |
-| `research` | Import research with citations. |
-| `bugs` | Capture reusable debugging knowledge. |
-| `schemas` | Document APIs, data models, configs, and contracts. |
-| `summary` | Write recurring summaries. |
-| `agents` | Create focused agent entrypoint docs. |
+| `project` | General project memory. Tells agents to read the wiki before non-trivial work, update durable project knowledge after meaningful changes, and keep the structure small and workflow-shaped. |
+| `docs` | Documentation maintenance. Tells agents to update docs when behavior, APIs, commands, configs, or examples change, preserve source anchors, and separate shipped behavior from planned work. |
+| `decisions` | Decision logging. Tells agents to record meaningful technical or product decisions with context, options, chosen path, tradeoffs, and links to affected concepts or source files. |
+| `changelog` | Release and changelog memory. Tells agents to update changelog memory for user-facing behavior, flags, output, validation, publishing, packaging, or setup changes, while skipping formatting-only edits. |
+| `research` | Research import. Tells agents to keep raw sources separate from synthesized wiki pages, preserve citations or source links, and avoid turning uncertain research into asserted project knowledge. |
+| `bugs` | Debugging memory. Tells agents to capture reusable bug knowledge such as symptoms, reproduction, root cause, fix, tests, follow-up risks, and links to affected workflows or modules. |
+| `schemas` | Contract documentation. Tells agents to document APIs, schemas, tables, config keys, data models, and contracts when authoritative source files or specs change. |
+| `summary` | Recurring summaries. Tells agents to create dated summaries from reliable sources such as git history, issues, logs, or updated wiki pages, without claiming automations exist unless they were actually created. |
+| `agents` | Agent entrypoints. Tells agents to create focused agent handoff docs only for repeated workflows, keep them short, link to deeper wiki concepts, and wire useful entrypoints through bundle metadata. |
 
 ## Behavior
 

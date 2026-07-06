@@ -22,12 +22,19 @@ workflow that matches the work:
 * [Feature docs workflow](workflows/feature-docs.md)
 * [Changelog update workflow](workflows/changelog-updates.md)
 
+For command-surface work, start from the matching page under
+[features/commands](features/commands/). Agent setup and maintenance-rule
+changes should read both [setup](features/commands/setup.md) and
+[rules](features/commands/rules.md), because `openknowledge setup --rules` and
+`openknowledge rules` share the same canonical rule catalog.
+
 The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
 
 ## Update Rules
 
 * Update [changelog/cli.md](changelog/cli.md) when a package change affects CLI behavior, command output, flags, setup, exporters, validation, viewer behavior, release packaging, or user-facing docs.
 * Update the relevant page under [features/commands](features/commands/) or [features/exporters](features/exporters/) when behavior, arguments, examples, or use cases change.
+* Update [features/commands/rules.md](features/commands/rules.md) when agent maintenance rule IDs, descriptions, generated instructions, `--path`, `--target`, `rules apply`, or setup rule selection changes.
 * For each command page, maintain a dated command change history for major command-surface changes, including added, removed, renamed, or behavior-changing arguments, flags, subcommands, frontmatter/config properties, output fields, and exit-code semantics.
 * Keep shipped behavior separate from planned work. Planned `openknowledge to graph` work belongs on [features/exporters/graph.md](features/exporters/graph.md) until implemented.
 * Preserve source paths in prose or code spans when a page depends on specific files.
