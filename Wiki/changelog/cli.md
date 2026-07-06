@@ -23,6 +23,50 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-06 - Search command and search graph exports
+
+* Added `openknowledge search <name-or-path> <query>` as the first-class query
+  retrieval command for Open Knowledge bundles. It builds source-grounded
+  Markdown heading chunks, scores them with BM25-style lexical ranking across
+  metadata, heading paths, paths, and body text, and prints text or JSON
+  results with snippets, source line ranges, scores, and matched fields.
+* Added `openknowledge search --expand graph` to include lower-ranked outgoing
+  local-link and backlink neighbor chunks in search results.
+* Removed `openknowledge use --query`; `use` now stays focused on deterministic
+  entrypoint and bundle-file loading. Removed query flags fail with a migration
+  hint to `openknowledge search <bundle> <query>`.
+* Added `openknowledge to graph --type source|search`. `source` is the default
+  file/link graph. `search` exports a derivative chunk graph with source file
+  nodes, heading chunk nodes, containment edges, reading-order edges, and
+  chunk-level local-link edges.
+* Updated the setup prompt, generated `SETUP.MD`, README setup prompt, and
+  landing page prompt to leave users with the use/navigation loop:
+  `openknowledge list`, `openknowledge search`, and `openknowledge open`.
+* Reframed the docs layer model around connection and bundle lifecycle,
+  validation and inspection, use and navigation, and OKF views. Search now
+  belongs with use/navigation, while AST, JSON, source graph, and search graph
+  are described as different views of the same OKF bundle.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/setup.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/web/index.html`,
+  `packages/cli/internal/okf/search_knowledge.go`,
+  `packages/cli/internal/okf/search_types.go`,
+  `packages/cli/internal/okf/context_sections.go`,
+  `packages/cli/internal/okf/graph.go`,
+  `packages/cli/internal/okf/graph_types.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/internal/okf/setup_test.go`,
+  `packages/cli/internal/okf/search_test.go`,
+  `packages/cli/internal/okf/export_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/search.md`,
+  `Wiki/features/commands/use.md`, `Wiki/features/commands/setup.md`,
+  `Wiki/features/commands/open.md`, `Wiki/features/commands/to.md`,
+  `Wiki/features/exporters/graph.md`,
+  `Wiki/features/exporters/index.md`, `Wiki/features/commands/index.md`,
+  `Wiki/features/commands/help.md`, `Wiki/features/tooling-model.md`,
+  `Wiki/features/index.md`, `Wiki/index.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-07-05 - Agent maintenance rules command
 
 * Added `openknowledge rules`, a print-only command that renders

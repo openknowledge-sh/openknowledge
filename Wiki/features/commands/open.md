@@ -19,6 +19,11 @@ header brand comes from root `index.md` metadata in this order:
 `okf_bundle_title`, `okf_bundle_name`, `title`, then the first parsed Markdown
 `#` heading.
 
+Think of `open` as the interactive OKF view. It presents the same bundle as a
+file tree, rendered Markdown panels, local search results, validation context,
+and a source-link graph. The derivative search graph used for retrieval is
+exported with [`openknowledge to graph --type search`](/features/exporters/graph.md).
+
 ## Usage
 
 ```sh
@@ -114,6 +119,8 @@ as `/wiki/` or `/personal/`.
 * Search files and rendered content from the top bar.
 * Let an agent search `/api/search`, navigate a browser to `highlightURL`, and
   show the exact matched text in context.
+* Inspect the authored source graph as an interactive view of the same OKF
+  bundle that can also be exported with `openknowledge to graph`.
 * Preview bundled source and media assets in the browser.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
 

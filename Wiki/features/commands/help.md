@@ -41,6 +41,17 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 
 ## Command Change History
 
+### 2026-07-06
+
+Root help added `openknowledge search <name|path> <query>`,
+`openknowledge search <name|path> <query> --format json`, and
+`openknowledge search <name|path> <query> --expand graph`. It removed
+`openknowledge use --query` usage forms and reframed `use` as entrypoint
+loading only.
+
+Root help added `openknowledge to graph --type search [path]` for derivative
+search graph exports.
+
 ### 2026-07-05
 
 Root help added `openknowledge rules <rules> --path <path>`,

@@ -1,17 +1,16 @@
 ---
 type: Command Documentation
 title: openknowledge use
-description: Prints an entrypoint, bundle file, metadata, or query briefing from a local or connected OKF bundle.
+description: Prints an entrypoint, bundle file, or metadata from a local or connected OKF bundle.
 tags: [openknowledge, cli, command, registry, agent]
 timestamp: 2026-06-20T00:00:00Z
 ---
 
 # `openknowledge use`
 
-`openknowledge use` prints an entrypoint, a bundle-relative file, metadata, or
-a source-grounded query briefing from a local or connected Open Knowledge bundle. It
-resolves a registry key or path, then prints the selected Markdown body,
-metadata, or token-bounded briefing plus original excerpts.
+`openknowledge use` prints an entrypoint, a bundle-relative file, or metadata
+from a local or connected Open Knowledge bundle. It resolves a registry key or
+path, then prints the selected Markdown body or metadata.
 
 The metadata layer is optional. Plain OKF bundles without declared entrypoints
 fall back to root `index.md`.
@@ -23,9 +22,6 @@ openknowledge use <name-or-path>
 openknowledge use <name-or-path> <entry>
 openknowledge use <name-or-path> --info
 openknowledge use <name-or-path> <entry> --info
-openknowledge use <name-or-path> --query <text>
-openknowledge use <name-or-path> --query <text> --budget <tokens>
-openknowledge use <name-or-path> --query <text> --format json
 openknowledge use --help
 ```
 
@@ -36,11 +32,6 @@ openknowledge use --help
 | `name-or-path` | argument | Registry key or local bundle path. |
 | `entry` | argument | Optional entrypoint name declared as `okf_bundle_entry_<name>` in the root index, or a bundle-relative file path. |
 | `--info` | flag | Print bundle and entrypoint metadata instead of the Markdown body. |
-| `--query` | flag | Select relevant bundle sections and print a source-grounded briefing. |
-| `--budget` | flag | Approximate query output token budget. Defaults to `2400`. |
-| `--limit` | flag | Maximum number of query sections. Defaults to `12`. |
-| `--format` | flag | Query output format, `markdown` or `json`. Defaults to `markdown`. |
-| `--spec` | flag | OKF spec version for query mode. Defaults to `latest`. |
 
 `--info` can appear after the target or after a named entry.
 
@@ -83,26 +74,10 @@ that entrypoint's path and frontmatter summary. Without a named entry, it lists
 all declared entrypoints; when none are declared, it prints the root `index.md`
 fallback metadata.
 
-`--query` switches `use` into token-bounded briefing mode. It builds a
-section-level index from Markdown headings, scores original sections with
-lexical matches over metadata, paths, headings, and body text, then packs the
-highest-scoring excerpts into an approximate token budget.
-
-Query mode does not use embeddings and does not generate summaries. Markdown
-output starts with query and budget metadata, then prints a deterministic
-briefing with selected key points, linked-neighbor context, gaps, source ranges,
-and original excerpts for verification. JSON output returns the same result
-model plus a `briefing` object for tools that want to pack or inspect context
-themselves.
-
-Markdown output labels every found entry with an explicit origin range before
-the excerpt, formatted as `Origin: path:line-line`. Key points and related
-context also include `Source: path:line` citations so an agent can trace each
-answer-ready claim back to the Markdown file it came from.
-
-When a selected section links to another local Markdown file and budget remains,
-query mode may include that target's first section as a neighbor result.
-Neighbor sections are marked in JSON and as `linked neighbor` in Markdown.
+`use` no longer performs query retrieval. `openknowledge use --query` exits
+with status `2` and tells callers to use
+`openknowledge search <bundle> <query>` instead. Search owns ranked retrieval,
+source snippets, JSON output, and graph-expanded results.
 
 ## Quick Examples
 
@@ -113,12 +88,15 @@ openknowledge use accessibility
 openknowledge use accessibility review
 openknowledge use accessibility agents/accessibility-review.md
 openknowledge use ./project-memory
-openknowledge use accessibility --query "validation workflow"
-openknowledge use personal --query "release checklist" --budget 1200
-openknowledge use personal --query "release checklist" --format json
 ```
 
 ## Command Change History
+
+### 2026-07-06
+
+`openknowledge use --query` was removed. Query retrieval moved to
+[`openknowledge search`](search.md), keeping `use` focused on deterministic
+entrypoint and bundle-file loading.
 
 ### 2026-06-28
 
@@ -149,15 +127,12 @@ flags.
 >
 > * `packages/cli/cmd/openknowledge/main.go`
 > * `packages/cli/cmd/openknowledge/main_test.go`
-> * `packages/cli/internal/okf/context.go`
-> * `packages/cli/internal/okf/context_briefing.go`
-> * `packages/cli/internal/okf/context_test.go`
 > * `packages/cli/internal/okf/metadata.go`
 > * `packages/cli/internal/okf/metadata_test.go`
 >
 > **Update notes**
 >
 > Update this page when entrypoint selection, supported metadata fields, `--info`
-> output, fallback behavior, path-safety checks, query scoring, output fields,
-> or token budget behavior change. CLI behavior changes also require
+> output, fallback behavior, or path-safety checks change. Search retrieval
+> behavior belongs on [search](search.md). CLI behavior changes also require
 > [CLI changelog](/changelog/cli.md) updates.

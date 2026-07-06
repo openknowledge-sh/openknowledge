@@ -61,6 +61,7 @@ Finish by telling the user:
 - what folders, workflows, agent instructions or skills, and native automations or automation candidates you created
 - how future agents should use it
 - how to inspect it with openknowledge list "<folder path>"
+- how to search it with openknowledge search "<folder path>" "<query>"
 - how to view it with openknowledge open "<folder path>"
 `
 

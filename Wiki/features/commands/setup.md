@@ -15,7 +15,8 @@ missing setup questions, create a bundle with `openknowledge new`, customize
 it, choose maintenance rules such as docs, changelog, decisions, research, bugs,
 schemas, summaries, or general project memory, configure repo-scoped or
 user-scoped skills with focused lower-reasoning subagent guidance when useful,
-validate it, and show how to inspect it.
+validate it, and finish with the concrete post-setup loop:
+`openknowledge list`, `openknowledge search`, and `openknowledge open`.
 
 The optional `--rules` flag preselects comma-separated maintenance rules in the
 prompt. It uses the same canonical rule IDs listed by
@@ -56,8 +57,17 @@ Canonical rules are `project`, `docs`, `decisions`, `changelog`, `research`,
   lower-reasoning subagents for bounded wiki maintenance tasks.
 * Keep interactive agent stdin available by passing the prompt as an argument,
   for example `codex "$(openknowledge setup)"`.
+* Leave the user with the use/navigation commands for the created bundle:
+  `openknowledge list`, `openknowledge search`, and `openknowledge open`.
 
 ## Command Change History
+
+### 2026-07-06 - Use/navigation loop
+
+The setup prompt, generated `SETUP.MD`, README setup prompt, and landing page
+prompt now tell agents to show users how to inspect and navigate a finished
+wiki with `openknowledge list`, `openknowledge search`, and
+`openknowledge open`.
 
 ### 2026-07-05 - Maintenance rules
 
@@ -75,10 +85,13 @@ same maintenance-loop vocabulary exposed by `openknowledge rules --list`.
 > **Source anchors**
 >
 > * `packages/cli/internal/okf/setup.go`
+> * `packages/cli/internal/okf/new.go`
 > * `packages/cli/internal/okf/rules.go`
 > * `packages/cli/cmd/openknowledge/main.go`
+> * `packages/cli/internal/okf/setup_test.go`
 > * `packages/cli/internal/okf/rules_test.go`
 > * `README.md`
+> * `packages/web/index.html`
 >
 > **Update notes**
 >

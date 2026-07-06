@@ -19,19 +19,19 @@ Karpathy-style local wiki that stays in plain files:
 
 | Layer | Commands | Use it for |
 | --- | --- | --- |
-| Authoring and OKF hygiene | `setup`, `rules`, `new`, `validate`, `list`, `spec` | Create a bundle, seed agent maintenance rules, and keep the Markdown valid. |
-| Local registry management | `connect`, `disconnect`, `registry` | Give local, published, archive, or Git knowledge bases stable names that humans, agents, and the viewer can resolve. |
-| Agent entrypoints | `use` | Print a bundle-declared instruction file, a bundle-relative file path, or fall back to the bundle root `index.md`, so an agent can load the right knowledge on demand. |
-| Local Markdown viewer | `open` | Browse, search, inspect validation issues, and review linked Markdown in a local browser UI. |
-| Export and publish | `to html`, `to html --plain`, `to json`, `to graph` | Publish a static viewer, emit plain semantic HTML, hand a normalized bundle model to tools, or export link graph JSON. |
+| Authoring and OKF hygiene | `setup`, `rules`, `new`, `spec` | Create a bundle, seed agent maintenance rules, and keep the Markdown format understandable. |
+| Connection and bundle lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names, materialize remote bundles, and package portable source archives. |
+| Validation and inspection | `validate`, `list` | Check OKF structure, link health, and bundle inventory before humans or agents rely on the knowledge. |
+| Use and navigation | `use`, `search`, `open` | Load declared entrypoints, search source-grounded chunks, follow graph-expanded context, and browse the knowledge base in a local viewer. |
+| OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
 
 The registry layer works with existing bundle folders, Open Knowledge manifests,
 tar archives, and Git remote sources. Published Open Knowledge HTML exports
 include an `openknowledge.json` manifest and `assets/openknowledge-bundle.tar.gz`
 archive by default, so `openknowledge connect https://example.com/wiki/` can
 materialize the bundle into the local cache. After registration, `use`, `open`,
-`validate`, and `to` resolve remote materializations through the same key-or-path
-flow as local bundles.
+`search`, `list`, `validate`, and `to` resolve remote materializations through
+the same key-or-path flow as local bundles.
 
 ## Start with an agent
 
@@ -40,7 +40,7 @@ The fastest way to start is to paste this prompt into Codex, Cowork, Cursor, Cla
 ```text
 Set up an Open Knowledge LLM wiki for this workspace.
 
-First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, use openknowledge rules --list to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect it with openknowledge open.
+First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, use openknowledge rules --list to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect and navigate it with openknowledge list, openknowledge search, and openknowledge open.
 ```
 
 The agent will install the CLI if needed, run setup, inspect local context and
@@ -84,6 +84,8 @@ openknowledge connect ./project-memory --as personal
 openknowledge connect ./accessibility
 openknowledge use personal --info
 openknowledge use personal
+openknowledge search personal "validation workflow"
+openknowledge search personal "validation workflow" --expand graph
 openknowledge registry where personal
 openknowledge open
 openknowledge open ./project-memory
@@ -94,6 +96,7 @@ openknowledge validate personal
 openknowledge to html --out ./project-site ./project-memory
 openknowledge to html --plain --out ./project-plain-site ./project-memory
 openknowledge to json ./project-memory
+openknowledge to graph --type search ./project-memory
 openknowledge disconnect personal
 ```
 
@@ -145,8 +148,13 @@ including searchable, sortable Markdown tables with basic column filters,
 declares a deployed site URL.
 `openknowledge to html --plain` writes unstyled semantic HTML, and
 `openknowledge to json` writes a normalized bundle model for tools and agents.
-`openknowledge to graph` writes AST-backed node and edge JSON for local
-Markdown link structure.
+`openknowledge to graph` writes AST-backed graph JSON. The default graph type
+captures source files and local Markdown links; `openknowledge to graph --type
+search` writes a derivative chunk graph with heading sections, containment,
+reading-order edges, and chunk-level local links for retrieval tooling. These
+exports sit beside `openknowledge ast` and `openknowledge to json` as different
+views of the same OKF bundle: parsed syntax, normalized bundle model, authored
+source graph, and search-oriented retrieval graph.
 Default viewer HTML exports can inject trusted deployment-owned head HTML with
 `--head-file`, `--head-html`, repeatable `--script-src`, or matching
 `OPENKNOWLEDGE_HEAD_*` and `OPENKNOWLEDGE_SCRIPT_SRC` environment variables.
@@ -185,9 +193,10 @@ before using normal filesystem tools such as `rg`. Agents can use
 `openknowledge use <key>` to print a bundle-declared entrypoint, or
 `openknowledge use <key> agents/review.md` to print a specific file inside the
 bundle, falling back to root `index.md` when no default entrypoint is declared.
-Agents can use `openknowledge use <key> --query <text>` when they need a
-source-grounded briefing with key points, related linked context, gaps, source
-ranges, and original excerpts without loading the whole bundle.
+Agents can use `openknowledge search <key> <query>` when they need
+source-grounded Markdown chunks with line ranges, snippets, heading paths, and
+BM25-style lexical ranking. Use `--expand graph` to include lower-ranked local
+link and backlink neighbors, or `--format json` for structured search output.
 The `openknowledge disconnect` alias removes a connection without deleting
 local files by default.
 `openknowledge connect` and `openknowledge disconnect` are top-level aliases
@@ -219,8 +228,9 @@ changes.
 | `openknowledge use <name-or-path>` | Print a default agent entrypoint or root `index.md`. |
 | `openknowledge use <name-or-path> <entry>` | Print a named bundle entrypoint or bundle-relative file. |
 | `openknowledge use <name-or-path> --info` | Print bundle and entrypoint metadata. |
-| `openknowledge use <name-or-path> --query <text>` | Print a source-grounded query briefing and Markdown sections within a token budget. |
-| `openknowledge use <name-or-path> --query <text> --format json` | Print the same briefing and result model as structured JSON. |
+| `openknowledge search <name-or-path> <query>` | Search source-grounded Markdown chunks. |
+| `openknowledge search <name-or-path> <query> --expand graph` | Include outgoing-link and backlink neighbor chunks. |
+| `openknowledge search <name-or-path> <query> --format json` | Print structured search results. |
 | `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
 | `openknowledge registry connect <source> --as <key>` | Connect a bundle with an explicit key. |
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |
@@ -235,6 +245,7 @@ changes.
 | `openknowledge to tar --out <file> [path]` | Write a portable bundle tar.gz archive. |
 | `openknowledge to graph [path]` | Print AST-backed graph JSON. |
 | `openknowledge to graph --out <file> [path]` | Write AST-backed graph JSON to a file. |
+| `openknowledge to graph --type search [path]` | Print derivative search graph JSON with chunk nodes. |
 | `openknowledge spec latest` | Print the latest embedded OKF spec. |
 | `openknowledge spec 0.1` | Print a specific embedded spec version. |
 | `openknowledge validate [key-or-path]` | Validate a bundle against the latest spec. |

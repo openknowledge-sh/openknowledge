@@ -5,7 +5,8 @@ update the smallest relevant page.
 
 ## Core Areas
 
-* [Tooling model](tooling-model.md) - product-level map of authoring, registry, entrypoint, viewer, and export layers.
+* [Tooling model](tooling-model.md) - product-level map of authoring,
+  connection, validation, use/navigation, OKF views, and publishing layers.
 * [Installation](installation.md) - shell installer, npm wrapper, and local install assumptions.
 * [CLI Operations](operations.md) - development commands, workspace layout, and release workflow notes.
 * [OKF, skills, and plugins](okf-skills-plugins.md) - user-facing comparison of raw OKF v0.1, agent skills, and plugins.

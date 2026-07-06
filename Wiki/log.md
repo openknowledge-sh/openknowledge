@@ -1,5 +1,16 @@
 # Bundle Update Log
 
+## 2026-07-06
+
+* **Search command and graph retrieval**: Added command docs for
+  `openknowledge search`, updated `use` to reflect removal of `--query`, and
+  documented `openknowledge to graph --type search` as the derivative chunk
+  graph layer for source-grounded retrieval.
+* **Use/navigation and OKF views**: Updated the README, landing prompt, setup
+  prompt, generated setup handoff, and tooling-model docs so `search` sits in
+  the use/navigation layer and AST, JSON, source graph, and search graph are
+  framed as different views of the same OKF bundle.
+
 ## 2026-06-22
 
 * **Website product summary**: Added a landing page `Changelog` navigation link

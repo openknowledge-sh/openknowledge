@@ -26,6 +26,8 @@ openknowledge to tar --out <file> [path]
 openknowledge to tar --spec <version> --out <file> [path]
 openknowledge to graph [path]
 openknowledge to graph --out <file> [path]
+openknowledge to graph --type source [path]
+openknowledge to graph --type search [path]
 openknowledge to graph --spec <version> [path]
 openknowledge to --help
 ```
@@ -46,6 +48,7 @@ openknowledge to --help
 | `path` | argument | `html`, `json`, `tar`, `graph` | no | current directory | Knowledge base root. |
 | `--spec` | flag | `html`, `json`, `tar`, `graph` | no | `latest` | OKF spec version. |
 | `--out` | flag | `html`, `json`, `tar`, `graph` | HTML and TAR yes, JSON/graph no | stdout for JSON and graph | Output folder for HTML, optional output file for JSON and graph, and archive file for TAR. |
+| `--type` | flag | `graph` only | no | `source` | Graph type, `source` or `search`. |
 | `--head-file` | flag | `html` default viewer export only | no | `OPENKNOWLEDGE_HEAD_FILE` | Trusted HTML fragment file to inject into every generated viewer page `<head>`. |
 | `--head-html` | flag | `html` default viewer export only | no | `OPENKNOWLEDGE_HEAD_HTML` | Trusted HTML fragment to inject into every generated viewer page `<head>`. |
 | `--plain` | flag | `html` only | no | off | Write plain semantic HTML without viewer chrome, CSS, or JavaScript. |
@@ -63,6 +66,7 @@ openknowledge to json --out ./bundle.json ./project-memory
 openknowledge to tar --out ./bundle.tar.gz ./project-memory
 openknowledge to graph ./project-memory
 openknowledge to graph --out ./graph.json ./project-memory
+openknowledge to graph --type search ./project-memory
 ```
 
 ## Behavior
@@ -98,10 +102,13 @@ JSON. See [JSON exporter](/features/exporters/json.md).
 source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
 See [Tar exporter](/features/exporters/tar.md).
 
-`to graph` serializes an AST-backed node and edge graph. Nodes come from bundle
-files, and edges are deduplicated existing local Markdown links. It prints to
-stdout by default and writes to `--out <file>` when provided. `--plain` is not
-valid for graph output. See [Graph exporter](/features/exporters/graph.md).
+`to graph` serializes AST-backed graph JSON. The default `--type source` graph
+contains bundle file nodes and deduplicated existing local Markdown links.
+`--type search` writes a derivative search graph with source file nodes,
+heading chunk nodes, file-to-chunk containment edges, chunk reading-order
+edges, and chunk-level local-link edges. It prints to stdout by default and
+writes to `--out <file>` when provided. `--plain` is not valid for graph
+output. See [Graph exporter](/features/exporters/graph.md).
 
 Unknown targets and unknown flags exit with status `2`.
 
@@ -113,6 +120,15 @@ Unknown targets and unknown flags exit with status `2`.
   connected later.
 * Produce a link graph for visualization, orphan detection, or relationship
   analysis.
+* Produce a search graph for retrieval tooling and graph-expanded search.
+
+## Command Change History
+
+### 2026-07-06
+
+`openknowledge to graph` added `--type source|search`. `source` keeps the
+existing file/link graph behavior as the default. `search` exports derivative
+heading chunk nodes and typed retrieval edges.
 
 ---
 

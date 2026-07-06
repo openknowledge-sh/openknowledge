@@ -73,7 +73,7 @@
               <span>Copy setup prompt</span>
             </button>
           </div>
-          <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge LLM wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, use <code>openknowledge rules --list</code> to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, and show me how to inspect it with <code>openknowledge open</code>.</p>
+          <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge LLM wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, use <code>openknowledge rules --list</code> to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, and show me how to inspect and navigate it with <code>openknowledge list</code>, <code>openknowledge search</code>, and <code>openknowledge open</code>.</p>
         </section>
         <p class="setup-note">
           Need manual installation, or advanced setup options? See
@@ -93,9 +93,10 @@
             <li>Turn a project or research folder into an agent-readable LLM wiki stored as normal Markdown in Git.</li>
             <li>Use it as a Karpathy-style LLM wiki for project memory without giving up plain files, Git history, or portable parsing.</li>
             <li>Guided setup through an agent interview, so the wiki starts with the right purpose, structure, and maintenance rules like docs, changelog, decisions, or research.</li>
-            <li>Search helps agents quickly find related context across the wiki as project knowledge grows.</li>
+            <li>Use and search commands help agents load entrypoints, find source-grounded context, and navigate related wiki areas as project knowledge grows.</li>
             <li>A maintenance loop that keeps decisions, workflows, and project memory current as work changes.</li>
             <li>A local Markdown viewer for browsing, searching, and inspecting the wiki.</li>
+            <li>AST, JSON, source graph, and search graph outputs expose different views of the same OKF bundle.</li>
             <li>Consistency against the
               <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a> specification.</li>
           </ul>

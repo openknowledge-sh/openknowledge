@@ -224,6 +224,7 @@ After the interview:
 * keep raw source snapshots separate from maintained synthesis
 * record setup decisions in log.md
 * run openknowledge validate against the selected spec version and fix any issues
+* tell the user how future agents should load entrypoints with openknowledge use, search source-grounded chunks with openknowledge search, inspect the bundle tree with openknowledge list, and browse it with openknowledge open
 * double-check that the scaffold no longer contains placeholder rules or structure that conflict with the interview
 * delete SETUP.MD after successful setup
 `, title, date, title),

@@ -26,14 +26,16 @@ custom theme.
 
 ## Commands
 
-### Create And Inspect Bundles
+### Create Bundles
 
 * [setup](features/commands/setup.md) - generate setup instructions for agents.
 * [new](features/commands/new.md) - scaffold a local OKF bundle.
 
-### Validate Bundles
+### Validate And Inspect Bundles
 
 * [validate](features/commands/validate.md) - validate a bundle against OKF.
+* [list](features/commands/list.md) - inspect bundle inventory with inline
+  validation context.
 
 ### Connect And Resolve Bundles
 
@@ -43,22 +45,25 @@ custom theme.
 * [registry](features/commands/registry.md) - list, connect, disconnect, and
   resolve registry entries.
 
-### Use And Browse Knowledge
+### Use And Navigate Knowledge
 
-* [list](features/commands/list.md) - print bundle inventory.
-* [use](features/commands/use.md) - print an entrypoint, bundle file, metadata,
-  or query excerpts.
+* [use](features/commands/use.md) - print an entrypoint, bundle file, or
+  metadata.
+* [search](features/commands/search.md) - search source-grounded Markdown
+  chunks with optional graph expansion.
 * [open](features/commands/open.md) - browse a bundle in the local Markdown
   viewer.
 
-### Export And Inspect
+### OKF Views And Publishing
 
 * [ast](features/commands/ast.md) - print the parsed OKF AST as JSON.
-* [to](features/commands/to.md) - export a bundle to HTML, JSON, or tar.
+* [to](features/commands/to.md) - export a bundle to HTML, JSON, tar, or graph.
 * [HTML exporter](features/exporters/html.md) - default static viewer export
   and plain semantic HTML mode.
 * [JSON exporter](features/exporters/json.md) - normalized bundle model.
 * [Tar exporter](features/exporters/tar.md) - portable source bundle archive.
+* [Graph exporter](features/exporters/graph.md) - source and search graph views
+  of the same OKF bundle.
 
 ### Help And Version
 
@@ -69,7 +74,7 @@ custom theme.
 ## Further Reading
 
 * [Tooling model](features/tooling-model.md) - product-level map of authoring,
-  registry, entrypoint, viewer, and export layers.
+  connection, validation, use/navigation, OKF views, and publishing layers.
 * [CLI operations](features/operations.md) - development commands, workspace
   layout, website export, deployment, and release notes.
 * [OKF, skills, and plugins](features/okf-skills-plugins.md) - comparison of
