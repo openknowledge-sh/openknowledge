@@ -7,9 +7,10 @@ import (
 )
 
 type contextSectionBoundary struct {
-	start int
-	level int
-	title string
+	start       int
+	level       int
+	title       string
+	headingPath []string
 }
 
 func splitContextSectionsFromASTDocument(entry ListEntry, document ASTDocument) []ContextSection {
@@ -18,36 +19,34 @@ func splitContextSectionsFromASTDocument(entry ListEntry, document ASTDocument) 
 		bodyLine = 1
 	}
 
-	sections := flattenASTMarkdownSections(document.Markdown.Sections)
-	boundaries := make([]contextSectionBoundary, 0, len(sections))
-	for _, section := range sections {
-		if section.Level <= 0 || section.Level > 3 {
-			continue
-		}
-		start := section.LineStart - bodyLine
-		if start < 0 {
-			continue
-		}
-		boundaries = append(boundaries, contextSectionBoundary{
-			start: start,
-			level: section.Level,
-			title: section.Heading,
-		})
-	}
+	boundaries := contextSectionBoundaries(document.Markdown.Sections, bodyLine)
 	return contextSectionsFromBoundaries(entry, document.Frontmatter.Values, document.Body, document.Links, bodyLine, boundaries)
 }
 
-func flattenASTMarkdownSections(sections []ASTMarkdownSection) []ASTMarkdownSection {
-	var flattened []ASTMarkdownSection
-	var walk func([]ASTMarkdownSection)
-	walk = func(nodes []ASTMarkdownSection) {
+func contextSectionBoundaries(sections []ASTMarkdownSection, bodyLine int) []contextSectionBoundary {
+	var boundaries []contextSectionBoundary
+	var walk func([]ASTMarkdownSection, []string)
+	walk = func(nodes []ASTMarkdownSection, parents []string) {
 		for _, section := range nodes {
-			flattened = append(flattened, section)
-			walk(section.Children)
+			// Keep the human heading trail on each chunk; search and graph
+			// output use this as navigational context without reparsing text.
+			path := append(append([]string{}, parents...), section.Heading)
+			if section.Level > 0 && section.Level <= 3 {
+				start := section.LineStart - bodyLine
+				if start >= 0 {
+					boundaries = append(boundaries, contextSectionBoundary{
+						start:       start,
+						level:       section.Level,
+						title:       section.Heading,
+						headingPath: path,
+					})
+				}
+			}
+			walk(section.Children, path)
 		}
 	}
-	walk(sections)
-	return flattened
+	walk(sections, nil)
+	return boundaries
 }
 
 func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]string, body string, links []Link, bodyLine int, boundaries []contextSectionBoundary) []ContextSection {
@@ -62,12 +61,12 @@ func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]strin
 		if text == "" {
 			return nil
 		}
-		return []ContextSection{newContextSection(entry, frontmatter, "#top", "Top", 0, bodyLine, bodyLine+len(lines)-1, text, links)}
+		return []ContextSection{newContextSection(entry, frontmatter, "#top", "Top", nil, 0, bodyLine, bodyLine+len(lines)-1, text, links)}
 	}
 
 	var sections []ContextSection
 	if top := strings.TrimSpace(strings.Join(lines[:boundaries[0].start], "\n")); top != "" {
-		sections = append(sections, newContextSection(entry, frontmatter, "#top", "Top", 0, bodyLine, bodyLine+boundaries[0].start-1, top, linksInRange(links, bodyLine, bodyLine+boundaries[0].start-1)))
+		sections = append(sections, newContextSection(entry, frontmatter, "#top", "Top", nil, 0, bodyLine, bodyLine+boundaries[0].start-1, top, linksInRange(links, bodyLine, bodyLine+boundaries[0].start-1)))
 	}
 
 	usedIDs := map[string]int{}
@@ -77,20 +76,36 @@ func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]strin
 			end = boundaries[index+1].start - 1
 		}
 		text := strings.TrimSpace(strings.Join(lines[current.start:end+1], "\n"))
-		if text == "" {
+		if text == "" || !hasContextSectionContent(text) {
 			continue
 		}
 		lineStart := bodyLine + current.start
 		lineEnd := bodyLine + end
 		id := contextSectionID(entry.ID, current.title, usedIDs)
-		sections = append(sections, newContextSection(entry, frontmatter, id, current.title, current.level, lineStart, lineEnd, text, linksInRange(links, lineStart, lineEnd)))
+		sections = append(sections, newContextSection(entry, frontmatter, id, current.title, current.headingPath, current.level, lineStart, lineEnd, text, linksInRange(links, lineStart, lineEnd)))
 	}
 	return sections
 }
 
-func newContextSection(entry ListEntry, frontmatter map[string]string, id string, heading string, level int, lineStart int, lineEnd int, text string, links []Link) ContextSection {
+func hasContextSectionContent(text string) bool {
+	// Heading-only parent sections add noise to ranked retrieval and graph
+	// chunk output. Keep sections only when they contain usable source content.
+	for _, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func newContextSection(entry ListEntry, frontmatter map[string]string, id string, heading string, headingPath []string, level int, lineStart int, lineEnd int, text string, links []Link) ContextSection {
 	if id == "#top" {
 		id = entry.ID + "#top"
+	}
+	if len(headingPath) == 0 && heading != "" && heading != "Top" {
+		headingPath = []string{heading}
 	}
 	return ContextSection{
 		ID:              id,
@@ -101,6 +116,7 @@ func newContextSection(entry ListEntry, frontmatter map[string]string, id string
 		Description:     entry.Description,
 		Frontmatter:     frontmatter,
 		Heading:         heading,
+		HeadingPath:     append([]string{}, headingPath...),
 		HeadingLevel:    level,
 		LineStart:       lineStart,
 		LineEnd:         lineEnd,

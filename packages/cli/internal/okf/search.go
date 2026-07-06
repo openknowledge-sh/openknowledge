@@ -9,6 +9,9 @@ import (
 	"unicode/utf8"
 )
 
+// SearchIndex is the older whole-document lexical index. It stays available
+// for internal callers, while the CLI search command uses SearchKnowledge for
+// section-level chunk results.
 func NewSearchIndex(bundle Bundle) SearchIndex {
 	documents := make([]searchDocument, 0, len(bundle.Files))
 	for _, file := range bundle.Files {

@@ -110,6 +110,40 @@ func TestBuildGraphUsesASTBackedLocalLinks(t *testing.T) {
 	}
 }
 
+func TestBuildSearchGraphIncludesSectionChunks(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n\nRead [Guide](guides/setup.md).\n")
+	writeFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nPrepare the bundle.\n\n## Validate\n\nRun `openknowledge validate`.\n")
+
+	graph, err := BuildGraphWithType(root, LatestSpecVersion, GraphTypeSearch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if graph.Type != GraphTypeSearch {
+		t.Fatalf("expected search graph type, got %#v", graph)
+	}
+	var setupChunk GraphNode
+	for _, node := range graph.Nodes {
+		if node.ID == "guides/setup#validate" {
+			setupChunk = node
+			break
+		}
+	}
+	if setupChunk.ID == "" || setupChunk.Kind != "chunk" || setupChunk.Path != "guides/setup.md" || setupChunk.Heading != "Validate" {
+		t.Fatalf("expected validate chunk node, got %#v in graph %#v", setupChunk, graph)
+	}
+
+	kinds := map[string]bool{}
+	for _, edge := range graph.Edges {
+		kinds[edge.Kind] = true
+	}
+	for _, expected := range []string{"contains", "local-link", "next"} {
+		if !kinds[expected] {
+			t.Fatalf("expected %s edge in search graph, got %#v", expected, graph.Edges)
+		}
+	}
+}
+
 func TestWriteHTMLRendersPagesAndRewritesMarkdownLinks(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")

@@ -30,8 +30,9 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge disconnect <key|path>",
 		"openknowledge use <name|path> [entry]",
 		"openknowledge use <name|path> --info",
-		"openknowledge use <name|path> --query <text>",
-		"openknowledge use <name|path> --query <text> --format json",
+		"openknowledge search <name|path> <query>",
+		"openknowledge search <name|path> <query> --format json",
+		"openknowledge search <name|path> <query> --expand graph",
 		"openknowledge registry connect <source>",
 		"openknowledge registry connect <source> --as <key>",
 		"openknowledge registry disconnect <key|path>",
@@ -47,6 +48,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge to json --out <file> [path]",
 		"openknowledge to tar --out <file> [path]",
 		"openknowledge to graph --out <file> [path]",
+		"openknowledge to graph --type search [path]",
 		"openknowledge validate --spec <version> [key-or-path]",
 		"openknowledge validate --format json [key-or-path]",
 		"openknowledge validate --rule <rule=off|warn|error> [key-or-path]",
@@ -58,7 +60,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
-		"use        Print an agent entrypoint or query briefing from a bundle.",
+		"use        Print an agent entrypoint from a bundle.",
+		"search     Search source-grounded Markdown chunks in a bundle.",
 		"registry   Manage knowledge bundle connections.",
 		"open       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
@@ -73,7 +76,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md",
 		"openknowledge setup --rules docs,changelog",
 		"openknowledge validate ./project-memory",
-		"openknowledge use accessibility --query \"validation workflow\"",
+		"openknowledge search accessibility \"validation workflow\"",
 		"openknowledge to html --out ./site ./project-memory",
 		"openknowledge to json ./project-memory",
 		"openknowledge to graph ./project-memory",
@@ -185,13 +188,22 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: useHelpText(),
 			required: []string{
 				"openknowledge use <name|path> <entry> --info",
-				"openknowledge use <name|path> --query <text>",
-				"--budget",
-				"--format",
 				"okf_bundle_entry_<name>",
 				"prints the bundle root index.md",
-				"not use embeddings",
-				"generate summaries",
+				"Use openknowledge search",
+			},
+		},
+		"search": {
+			help: searchHelpText(),
+			required: []string{
+				"openknowledge search <name|path> <query>",
+				"openknowledge search <name|path> <query> --format json",
+				"openknowledge search <name|path> <query> --expand graph",
+				"--limit",
+				"--spec",
+				"BM25-style",
+				"heading paths",
+				"backlinks",
 			},
 		},
 		"registry": {
@@ -246,6 +258,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge to json --out <file> [path]",
 				"openknowledge to tar --out <file> [path]",
 				"openknowledge to graph --out <file> [path]",
+				"openknowledge to graph --type search [path]",
 				"Targets:",
 			},
 		},
@@ -284,7 +297,10 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: toGraphHelpText(),
 			required: []string{
 				"openknowledge to graph --out <file> [path]",
+				"openknowledge to graph --type search [path]",
 				"Write node and edge graph JSON",
+				"source",
+				"search",
 				"AST-backed parser",
 			},
 		},
@@ -599,22 +615,29 @@ func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 	}
 }
 
-func TestParseUseOptionsAllowsQueryFlags(t *testing.T) {
-	options, err := parseUseOptions([]string{"./project-memory", "--query", "validation workflow", "--budget", "1200", "--limit=5", "--format=json", "--spec", "0.1"})
+func TestParseUseOptionsRejectsRemovedQueryFlag(t *testing.T) {
+	_, err := parseUseOptions([]string{"./project-memory", "--query", "validation workflow"})
+	if err == nil {
+		t.Fatal("expected removed use --query flag to fail")
+	}
+	if !strings.Contains(err.Error(), "openknowledge use --query has been removed") || !strings.Contains(err.Error(), "openknowledge search <bundle> <query>") {
+		t.Fatalf("unexpected removed query error: %v", err)
+	}
+}
+
+func TestParseSearchOptionsAcceptsQueryFlags(t *testing.T) {
+	options, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--limit=5", "--format=json", "--spec", "0.1", "--expand=graph"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.target != "./project-memory" || !options.queryMode || options.query != "validation workflow" || options.budget != 1200 || options.limit != 5 || options.format != "json" || options.spec != "0.1" {
-		t.Fatalf("unexpected use query options: %#v", options)
+	if options.target != "./project-memory" || options.query != "validation workflow" || options.limit != 5 || options.format != "json" || options.spec != "0.1" || !options.expandGraph {
+		t.Fatalf("unexpected search options: %#v", options)
 	}
-	if _, err := parseUseOptions([]string{"./project-memory", "--budget", "1200"}); err == nil {
-		t.Fatal("expected query-only flag without query to fail")
+	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--limit", "0"}); err == nil {
+		t.Fatal("expected invalid limit to fail")
 	}
-	if _, err := parseUseOptions([]string{"./project-memory", "--query", "x", "--budget", "0"}); err == nil {
-		t.Fatal("expected invalid budget to fail")
-	}
-	if _, err := parseUseOptions([]string{"./project-memory", "review", "--query", "x"}); err == nil {
-		t.Fatal("expected query mode with entry to fail")
+	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--expand", "semantic"}); err == nil {
+		t.Fatal("expected unsupported expand value to fail")
 	}
 }
 
@@ -705,44 +728,44 @@ func TestRunListAcceptsRegistryKey(t *testing.T) {
 	}
 }
 
-func TestRunUseQueryPrintsMarkdownSections(t *testing.T) {
+func TestRunSearchPrintsMarkdownSections(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Home\n")
 	writeMainTestFile(t, root, "guides/validate.md", "---\ntype: Guide\ntitle: Validation Workflow\n---\n\n# Validate\n\nRun `openknowledge validate` before sharing.\n")
 
 	output, code := captureMainStdout(t, func() int {
-		return runUse([]string{root, "--query", "validation workflow", "--budget", "400"})
+		return runSearch([]string{root, "validation workflow"})
 	})
 	if code != 0 {
-		t.Fatalf("expected use query to succeed, got exit code %d", code)
+		t.Fatalf("expected search to succeed, got exit code %d", code)
 	}
-	for _, expected := range []string{"# Open Knowledge Query", "## Briefing", "### Key Points", "Source: `guides/validate.md:", "## Found Entries", "Origin: `guides/validate.md:", "Type: Guide", "Run `openknowledge validate`"} {
+	for _, expected := range []string{"Open Knowledge Search", "Query: validation workflow", "guides/validate.md:", "heading: Validate", "type: Guide", "Run `openknowledge validate`"} {
 		if !strings.Contains(output, expected) {
-			t.Fatalf("expected markdown use query to include %q:\n%s", expected, output)
+			t.Fatalf("expected search output to include %q:\n%s", expected, output)
 		}
 	}
 }
 
-func TestRunUseQueryPrintsJSON(t *testing.T) {
+func TestRunSearchPrintsJSON(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Home\n")
 	writeMainTestFile(t, root, "guides/release.md", "---\ntype: Guide\ntitle: Release Checklist\n---\n\n# Release\n\nShip the release notes.\n")
 
 	output, code := captureMainStdout(t, func() int {
-		return runUse([]string{"--query=release checklist", "--format", "json", root})
+		return runSearch([]string{"--format", "json", root, "release checklist"})
 	})
 	if code != 0 {
-		t.Fatalf("expected use query json to succeed, got exit code %d", code)
+		t.Fatalf("expected search json to succeed, got exit code %d", code)
 	}
-	var payload okf.ContextResult
+	var payload okf.SearchResultSet
 	if err := json.Unmarshal([]byte(output), &payload); err != nil {
-		t.Fatalf("expected JSON use query output: %v\n%s", err, output)
+		t.Fatalf("expected JSON search output: %v\n%s", err, output)
 	}
-	if payload.Query != "release checklist" || len(payload.Results) == 0 || payload.Results[0].Path != "guides/release.md" {
-		t.Fatalf("unexpected use query payload: %#v", payload)
+	if payload.Query != "release checklist" || len(payload.Results) == 0 || payload.Results[0].Path != "guides/release.md" || payload.Results[0].Heading != "Release" {
+		t.Fatalf("unexpected search payload: %#v", payload)
 	}
-	if len(payload.Briefing.KeyPoints) == 0 || payload.Briefing.KeyPoints[0].Path != "guides/release.md" {
-		t.Fatalf("expected JSON use query briefing key points: %#v", payload.Briefing)
+	if payload.Results[0].LineStart == 0 || payload.Results[0].Snippet == "" {
+		t.Fatalf("expected source range and snippet in search result: %#v", payload.Results[0])
 	}
 }
 
@@ -819,6 +842,35 @@ func TestRunToGraphPrintsGraphJSON(t *testing.T) {
 	}
 	if graph.Edges[0].Source != "index.md" || graph.Edges[0].Target != "notes/topic.md" || graph.Edges[0].Label != "Topic" {
 		t.Fatalf("unexpected graph edge: %#v", graph.Edges[0])
+	}
+}
+
+func TestRunToGraphPrintsSearchGraphJSON(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Home\n\nRead [Topic](notes/topic.md).\n")
+	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\ntitle: Topic\n---\n\n# Topic\n\n## Details\n\nSearchable details.\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runToGraph([]string{"--type", "search", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected to graph --type search to succeed, got exit code %d", code)
+	}
+	var graph okf.Graph
+	if err := json.Unmarshal([]byte(output), &graph); err != nil {
+		t.Fatalf("expected graph JSON output: %v\n%s", err, output)
+	}
+	if graph.Type != okf.GraphTypeSearch {
+		t.Fatalf("expected search graph, got %#v", graph)
+	}
+	hasChunk := false
+	for _, node := range graph.Nodes {
+		if node.ID == "notes/topic#details" && node.Kind == "chunk" && node.Heading == "Details" {
+			hasChunk = true
+		}
+	}
+	if !hasChunk {
+		t.Fatalf("expected search graph chunk node, got %#v", graph.Nodes)
 	}
 }
 

@@ -36,6 +36,8 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 		sections = append(sections, splitContextSectionsFromASTDocument(entry, document)...)
 	}
 
+	// The context index predates the search command and is still the shared
+	// source of section chunks for context packing, search, and search graphs.
 	sort.SliceStable(sections, func(i, j int) bool {
 		if sections[i].Path != sections[j].Path {
 			return sections[i].Path < sections[j].Path

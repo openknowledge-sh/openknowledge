@@ -47,6 +47,8 @@ func main() {
 		os.Exit(runDisconnect(os.Args[2:], "openknowledge disconnect"))
 	case "use":
 		os.Exit(runUse(os.Args[2:]))
+	case "search":
+		os.Exit(runSearch(os.Args[2:]))
 	case "ast":
 		os.Exit(runAST(os.Args[2:]))
 	case "registry":
@@ -1305,15 +1307,18 @@ func printDisconnectResult(entry okf.RegistryEntry, files string) {
 }
 
 type useOptions struct {
-	target    string
-	entry     string
-	info      bool
-	query     string
-	queryMode bool
-	format    string
-	spec      string
-	budget    int
-	limit     int
+	target string
+	entry  string
+	info   bool
+}
+
+type searchOptions struct {
+	target      string
+	query       string
+	format      string
+	spec        string
+	limit       int
+	expandGraph bool
 }
 
 type useSelection struct {
@@ -1322,6 +1327,8 @@ type useSelection struct {
 	abs  string
 }
 
+// use remains the deterministic entrypoint/file reader. Query retrieval moved
+// to runSearch so callers do not mix "load this document" with "rank chunks".
 func runUse(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, useHelpText())
@@ -1331,10 +1338,6 @@ func runUse(args []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
-	}
-
-	if options.queryMode {
-		return runUseQuery(options)
 	}
 
 	root, err := resolveWhereTarget(options.target)
@@ -1370,22 +1373,34 @@ func runUse(args []string) int {
 	return 0
 }
 
-func runUseQuery(options useOptions) int {
+// search is the CLI retrieval surface: resolve a key/path, build the
+// section-level knowledge index, then print ranked chunks as text or JSON.
+func runSearch(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, searchHelpText())
+		return 0
+	}
+	options, err := parseSearchOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 	root, err := resolveWhereTarget(options.target)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	result, err := okf.ResolveContextWithVersion(root, options.spec, okf.ContextOptions{
-		Query:  options.query,
-		Budget: options.budget,
-		Limit:  options.limit,
+	result, err := okf.SearchKnowledgeWithVersion(root, options.spec, okf.SearchOptions{
+		Query:       options.query,
+		Limit:       options.limit,
+		Fuzzy:       true,
+		ExpandGraph: options.expandGraph,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	if err := printUseQueryResult(result, options.format); err != nil {
+	if err := printSearchResult(result, options.format); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
@@ -1411,204 +1426,24 @@ func parsePositiveIntFlag(flag string, value string) (int, error) {
 	return parsed, nil
 }
 
-func printUseQueryResult(result okf.ContextResult, format string) error {
-	switch format {
-	case "json":
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(data))
-	case "markdown":
-		fmt.Print(renderUseQueryMarkdown(result))
-	default:
-		return fmt.Errorf("unsupported use query format: %s", format)
-	}
-	return nil
-}
-
-func renderUseQueryMarkdown(result okf.ContextResult) string {
-	var builder strings.Builder
-	fmt.Fprintf(&builder, "# Open Knowledge Query\n\n")
-	fmt.Fprintf(&builder, "- Query: %s\n", result.Query)
-	fmt.Fprintf(&builder, "- Budget: %d tokens\n", result.Budget)
-	fmt.Fprintf(&builder, "- Estimated: %d tokens\n\n", result.EstimatedTokens)
-	renderUseQueryBriefing(&builder, result.Briefing)
-	if len(result.Results) == 0 {
-		builder.WriteString("No matching sections found.\n")
-		return builder.String()
-	}
-
-	builder.WriteString("## Found Entries\n\n")
-	for _, match := range result.Results {
-		originKind := "direct match"
-		if match.Neighbor {
-			originKind = "linked neighbor"
-		}
-		fmt.Fprintf(&builder, "- Origin: `%s:%d-%d` (%s)\n", match.Path, match.LineStart, match.LineEnd, originKind)
-		if strings.TrimSpace(match.Title) != "" {
-			fmt.Fprintf(&builder, "  Title: %s\n", match.Title)
-		}
-		if strings.TrimSpace(match.Heading) != "" {
-			fmt.Fprintf(&builder, "  Heading: %s\n", match.Heading)
-		}
-		if strings.TrimSpace(match.Type) != "" {
-			fmt.Fprintf(&builder, "  Type: %s\n", match.Type)
-		} else if strings.TrimSpace(match.Kind) != "" {
-			fmt.Fprintf(&builder, "  Type: %s\n", match.Kind)
-		}
-		fmt.Fprintf(&builder, "  Score: %.2f\n", match.Score)
-	}
-	builder.WriteString("\n")
-
-	for _, match := range result.Results {
-		fmt.Fprintf(&builder, "## %s\n\n", useQueryExcerptHeading(match))
-		fmt.Fprintf(&builder, "Origin: `%s:%d-%d`\n\n", match.Path, match.LineStart, match.LineEnd)
-		builder.WriteString(strings.TrimSpace(match.Text))
-		builder.WriteString("\n\n")
-	}
-	return builder.String()
-}
-
-func useQueryExcerptHeading(match okf.ContextMatch) string {
-	heading := strings.TrimSpace(match.Heading)
-	if heading == "" {
-		heading = strings.TrimSpace(match.Title)
-	}
-	if heading == "" {
-		heading = match.Path
-	}
-	if match.Neighbor {
-		return heading + " (linked neighbor)"
-	}
-	return heading
-}
-
-func renderUseQueryBriefing(builder *strings.Builder, briefing okf.ContextBriefing) {
-	builder.WriteString("## Briefing\n\n")
-	if strings.TrimSpace(briefing.Summary) != "" {
-		builder.WriteString(briefing.Summary)
-		builder.WriteString("\n\n")
-	}
-	if len(briefing.KeyPoints) > 0 {
-		builder.WriteString("### Key Points\n\n")
-		for _, point := range briefing.KeyPoints {
-			originKind := "direct match"
-			if point.Neighbor {
-				originKind = "linked neighbor"
-			}
-			fmt.Fprintf(builder, "- %s\n  Source: `%s:%d` (%s)\n", point.Text, point.Path, point.Line, originKind)
-		}
-		builder.WriteString("\n")
-	}
-	if len(briefing.Related) > 0 {
-		builder.WriteString("### Related Context\n\n")
-		for _, source := range briefing.Related {
-			fmt.Fprintf(builder, "- Source: `%s:%d-%d` (linked neighbor)\n", source.Path, source.LineStart, source.LineEnd)
-			if strings.TrimSpace(source.Title) != "" {
-				fmt.Fprintf(builder, "  Title: %s\n", source.Title)
-			}
-			if strings.TrimSpace(source.Heading) != "" {
-				fmt.Fprintf(builder, "  Heading: %s\n", source.Heading)
-			}
-		}
-		builder.WriteString("\n")
-	}
-	if len(briefing.Gaps) > 0 {
-		builder.WriteString("### Gaps\n\n")
-		for _, gap := range briefing.Gaps {
-			fmt.Fprintf(builder, "- %s\n", gap)
-		}
-		builder.WriteString("\n")
-	}
-}
-
 func parseUseOptions(args []string) (useOptions, error) {
-	options := useOptions{
-		format: "markdown",
-		spec:   "latest",
-		budget: okf.DefaultContextBudget,
-		limit:  12,
-	}
-	queryFlagUsed := false
+	options := useOptions{}
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
 		case arg == "--info":
 			options.info = true
 		case arg == "--query":
-			value, next, err := nextFlagValue(args, index, "--query")
-			if err != nil {
-				return useOptions{}, err
-			}
-			options.query = value
-			options.queryMode = true
-			queryFlagUsed = true
-			index = next
+			return useOptions{}, removedUseQueryError()
 		case strings.HasPrefix(arg, "--query="):
-			options.query = strings.TrimPrefix(arg, "--query=")
-			options.queryMode = true
-			queryFlagUsed = true
-		case arg == "--budget":
-			value, next, err := nextFlagValue(args, index, "--budget")
-			if err != nil {
-				return useOptions{}, err
-			}
-			budget, err := parsePositiveIntFlag("--budget", value)
-			if err != nil {
-				return useOptions{}, err
-			}
-			options.budget = budget
-			queryFlagUsed = true
-			index = next
-		case strings.HasPrefix(arg, "--budget="):
-			budget, err := parsePositiveIntFlag("--budget", strings.TrimPrefix(arg, "--budget="))
-			if err != nil {
-				return useOptions{}, err
-			}
-			options.budget = budget
-			queryFlagUsed = true
-		case arg == "--limit":
-			value, next, err := nextFlagValue(args, index, "--limit")
-			if err != nil {
-				return useOptions{}, err
-			}
-			limit, err := parsePositiveIntFlag("--limit", value)
-			if err != nil {
-				return useOptions{}, err
-			}
-			options.limit = limit
-			queryFlagUsed = true
-			index = next
-		case strings.HasPrefix(arg, "--limit="):
-			limit, err := parsePositiveIntFlag("--limit", strings.TrimPrefix(arg, "--limit="))
-			if err != nil {
-				return useOptions{}, err
-			}
-			options.limit = limit
-			queryFlagUsed = true
-		case arg == "--format":
-			value, next, err := nextFlagValue(args, index, "--format")
-			if err != nil {
-				return useOptions{}, err
-			}
-			options.format = strings.TrimSpace(value)
-			queryFlagUsed = true
-			index = next
-		case strings.HasPrefix(arg, "--format="):
-			options.format = strings.TrimSpace(strings.TrimPrefix(arg, "--format="))
-			queryFlagUsed = true
-		case arg == "--spec":
-			value, next, err := nextFlagValue(args, index, "--spec")
-			if err != nil {
-				return useOptions{}, err
-			}
-			options.spec = value
-			queryFlagUsed = true
-			index = next
-		case strings.HasPrefix(arg, "--spec="):
-			options.spec = strings.TrimPrefix(arg, "--spec=")
-			queryFlagUsed = true
+			return useOptions{}, removedUseQueryError()
+		case arg == "--budget" || strings.HasPrefix(arg, "--budget=") ||
+			arg == "--limit" || strings.HasPrefix(arg, "--limit=") ||
+			arg == "--format" || strings.HasPrefix(arg, "--format=") ||
+			arg == "--spec" || strings.HasPrefix(arg, "--spec="):
+			// These were query-mode flags before search became a standalone
+			// command. Keep the failure explicit so scripts migrate cleanly.
+			return useOptions{}, fmt.Errorf("%s is a search option; use openknowledge search <bundle> <query>", strings.Split(arg, "=")[0])
 		case strings.HasPrefix(arg, "-"):
 			return useOptions{}, fmt.Errorf("unknown flag: %s", arg)
 		case options.target == "":
@@ -1622,23 +1457,164 @@ func parseUseOptions(args []string) (useOptions, error) {
 	if options.target == "" {
 		return useOptions{}, fmt.Errorf("usage: openknowledge use <name|path> [entry]")
 	}
-	if options.queryMode {
-		if strings.TrimSpace(options.query) == "" {
-			return useOptions{}, fmt.Errorf("openknowledge use --query requires <text>")
+	return options, nil
+}
+
+func removedUseQueryError() error {
+	return fmt.Errorf("openknowledge use --query has been removed. Use: openknowledge search <bundle> <query>")
+}
+
+func parseSearchOptions(args []string) (searchOptions, error) {
+	options := searchOptions{
+		format: "text",
+		spec:   "latest",
+		limit:  12,
+	}
+	// The first positional is the bundle target. Remaining positionals are
+	// joined into the query so both quoted and unquoted multi-word queries work.
+	var positionals []string
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--format":
+			value, next, err := nextFlagValue(args, index, "--format")
+			if err != nil {
+				return searchOptions{}, err
+			}
+			options.format = strings.TrimSpace(strings.ToLower(value))
+			index = next
+		case strings.HasPrefix(arg, "--format="):
+			options.format = strings.TrimSpace(strings.ToLower(strings.TrimPrefix(arg, "--format=")))
+		case arg == "--limit":
+			value, next, err := nextFlagValue(args, index, "--limit")
+			if err != nil {
+				return searchOptions{}, err
+			}
+			limit, err := parsePositiveIntFlag("--limit", value)
+			if err != nil {
+				return searchOptions{}, err
+			}
+			options.limit = limit
+			index = next
+		case strings.HasPrefix(arg, "--limit="):
+			limit, err := parsePositiveIntFlag("--limit", strings.TrimPrefix(arg, "--limit="))
+			if err != nil {
+				return searchOptions{}, err
+			}
+			options.limit = limit
+		case arg == "--spec":
+			value, next, err := nextFlagValue(args, index, "--spec")
+			if err != nil {
+				return searchOptions{}, err
+			}
+			options.spec = value
+			index = next
+		case strings.HasPrefix(arg, "--spec="):
+			options.spec = strings.TrimPrefix(arg, "--spec=")
+			if strings.TrimSpace(options.spec) == "" {
+				return searchOptions{}, fmt.Errorf("--spec requires a value")
+			}
+		case arg == "--expand":
+			value, next, err := nextFlagValue(args, index, "--expand")
+			if err != nil {
+				return searchOptions{}, err
+			}
+			if err := applySearchExpand(&options, value); err != nil {
+				return searchOptions{}, err
+			}
+			index = next
+		case strings.HasPrefix(arg, "--expand="):
+			if err := applySearchExpand(&options, strings.TrimPrefix(arg, "--expand=")); err != nil {
+				return searchOptions{}, err
+			}
+		case strings.HasPrefix(arg, "-"):
+			return searchOptions{}, fmt.Errorf("unknown search option: %s", arg)
+		default:
+			positionals = append(positionals, arg)
 		}
-		if options.info {
-			return useOptions{}, fmt.Errorf("openknowledge use --query cannot be combined with --info")
-		}
-		if options.entry != "" {
-			return useOptions{}, fmt.Errorf("openknowledge use --query does not accept an entry")
-		}
-		if options.format != "markdown" && options.format != "json" {
-			return useOptions{}, fmt.Errorf("unsupported use query format: %s", options.format)
-		}
-	} else if queryFlagUsed {
-		return useOptions{}, fmt.Errorf("--budget, --limit, --format, and --spec require --query")
+	}
+
+	if options.format == "" {
+		options.format = "text"
+	}
+	if options.format != "text" && options.format != "json" {
+		return searchOptions{}, fmt.Errorf("unsupported search format: %s", options.format)
+	}
+	if len(positionals) < 2 {
+		return searchOptions{}, fmt.Errorf("usage: openknowledge search <name|path> <query>")
+	}
+	options.target = positionals[0]
+	options.query = strings.TrimSpace(strings.Join(positionals[1:], " "))
+	if options.query == "" {
+		return searchOptions{}, fmt.Errorf("openknowledge search requires a non-empty query")
 	}
 	return options, nil
+}
+
+func applySearchExpand(options *searchOptions, value string) error {
+	value = strings.TrimSpace(strings.ToLower(value))
+	switch value {
+	case "graph":
+		options.expandGraph = true
+	case "none", "off":
+		options.expandGraph = false
+	default:
+		return fmt.Errorf("unsupported search expansion %q; use graph", value)
+	}
+	return nil
+}
+
+func printSearchResult(result okf.SearchResultSet, format string) error {
+	switch format {
+	case "json":
+		data, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
+	case "text":
+		printSearchTextResult(result)
+	default:
+		return fmt.Errorf("unsupported search format: %s", format)
+	}
+	return nil
+}
+
+func printSearchTextResult(result okf.SearchResultSet) {
+	terminal.title("Open Knowledge Search", "source-grounded chunks")
+	fmt.Printf("Query: %s\n", result.Query)
+	fmt.Printf("Root: %s\n", terminal.path(result.Root))
+	fmt.Printf("Results: %d\n", len(result.Results))
+	if len(result.Results) == 0 {
+		fmt.Println()
+		fmt.Println("No matching chunks found.")
+		return
+	}
+	fmt.Println()
+	for index, match := range result.Results {
+		location := match.Path
+		if match.LineStart > 0 {
+			location = fmt.Sprintf("%s:%d-%d", match.Path, match.LineStart, match.LineEnd)
+		}
+		relation := "direct"
+		if match.Neighbor {
+			relation = match.Relation
+		}
+		fmt.Printf("%d. %s\n", index+1, location)
+		if strings.TrimSpace(match.Heading) != "" {
+			fmt.Printf("   heading: %s\n", match.Heading)
+		}
+		if len(match.HeadingPath) > 0 {
+			fmt.Printf("   path: %s\n", strings.Join(match.HeadingPath, " > "))
+		}
+		if strings.TrimSpace(match.Type) != "" {
+			fmt.Printf("   type: %s\n", match.Type)
+		}
+		fmt.Printf("   score: %.2f (%s)\n", match.Score, relation)
+		if strings.TrimSpace(match.Snippet) != "" {
+			fmt.Printf("   %s\n", match.Snippet)
+		}
+	}
 }
 
 func selectUseEntrypoint(root string, info okf.BundleInfo, entryName string) (useSelection, error) {
@@ -2088,6 +2064,7 @@ type toOptions struct {
 	path       string
 	out        string
 	spec       string
+	graphType  string
 	plain      bool
 	headHTML   string
 	headFile   string
@@ -2113,6 +2090,10 @@ func runToHTML(args []string) int {
 			fmt.Fprintf(os.Stderr, "%s requires the default viewer export; remove --plain\n", flag)
 			return 2
 		}
+	}
+	if options.graphType != "" {
+		fmt.Fprintln(os.Stderr, "unknown flag: --type")
+		return 2
 	}
 
 	var result okf.HTMLResult
@@ -2155,6 +2136,10 @@ func runToJSON(args []string) int {
 	}
 	if options.plain {
 		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		return 2
+	}
+	if options.graphType != "" {
+		fmt.Fprintln(os.Stderr, "unknown flag: --type")
 		return 2
 	}
 	if flag := options.headFlag(); flag != "" {
@@ -2210,6 +2195,10 @@ func runToTar(args []string) int {
 		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
 		return 2
 	}
+	if options.graphType != "" {
+		fmt.Fprintln(os.Stderr, "unknown flag: --type")
+		return 2
+	}
 	if flag := options.headFlag(); flag != "" {
 		fmt.Fprintf(os.Stderr, "unknown flag: %s\n", flag)
 		return 2
@@ -2237,6 +2226,8 @@ func runToTar(args []string) int {
 	return 0
 }
 
+// graph export has two shapes: source preserves the original file/link graph,
+// while search adds derivative chunk nodes for retrieval and visualization.
 func runToGraph(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, toGraphHelpText())
@@ -2262,7 +2253,7 @@ func runToGraph(args []string) int {
 		return 2
 	}
 
-	graph, err := okf.BuildGraphWithVersion(root, options.spec)
+	graph, err := okf.BuildGraphWithType(root, options.spec, options.graphType)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -2316,6 +2307,17 @@ func parseToOptions(args []string) (toOptions, error) {
 			options.spec = strings.TrimPrefix(arg, "--spec=")
 			if strings.TrimSpace(options.spec) == "" {
 				return toOptions{}, fmt.Errorf("--spec requires a value")
+			}
+		case arg == "--type":
+			index++
+			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
+				return toOptions{}, fmt.Errorf("--type requires a value")
+			}
+			options.graphType = args[index]
+		case strings.HasPrefix(arg, "--type="):
+			options.graphType = strings.TrimPrefix(arg, "--type=")
+			if strings.TrimSpace(options.graphType) == "" {
+				return toOptions{}, fmt.Errorf("--type requires a value")
 			}
 		case arg == "--plain":
 			options.plain = true
@@ -2551,8 +2553,9 @@ Usage:
   openknowledge disconnect <key|path>
   openknowledge use <name|path> [entry]
   openknowledge use <name|path> --info
-  openknowledge use <name|path> --query <text>
-  openknowledge use <name|path> --query <text> --format json
+  openknowledge search <name|path> <query>
+  openknowledge search <name|path> <query> --format json
+  openknowledge search <name|path> <query> --expand graph
   openknowledge ast [path]
   openknowledge ast --out <file> [path]
   openknowledge registry connect <source>
@@ -2574,6 +2577,7 @@ Usage:
   openknowledge to tar --out <file> [path]
   openknowledge to graph [path]
   openknowledge to graph --out <file> [path]
+  openknowledge to graph --type search [path]
   openknowledge spec latest|<version>
   openknowledge validate [key-or-path]
   openknowledge validate --spec <version> [key-or-path]
@@ -2590,7 +2594,8 @@ Commands:
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
-  use        Print an agent entrypoint or query briefing from a bundle.
+  use        Print an agent entrypoint from a bundle.
+  search     Search source-grounded Markdown chunks in a bundle.
   ast        Print parsed OKF AST JSON.
   registry   Manage knowledge bundle connections.
   open       Start the registry or knowledge base Markdown viewer.
@@ -2614,7 +2619,7 @@ Examples:
   openknowledge connect ./accessibility --as accessibility
   openknowledge use accessibility --info
   openknowledge use accessibility
-  openknowledge use accessibility --query "validation workflow"
+  openknowledge search accessibility "validation workflow"
   openknowledge ast ./project-memory
   openknowledge disconnect accessibility
   openknowledge registry connect ./team-wiki --as team
@@ -2632,18 +2637,15 @@ Examples:
 }
 
 func useHelpText() string {
-	return fmt.Sprintf(`openknowledge use
+	return `openknowledge use
 
-Print an agent-facing entrypoint or query briefing from a knowledge bundle.
+Print an agent-facing entrypoint from a knowledge bundle.
 
 Usage:
   openknowledge use <name|path>
   openknowledge use <name|path> <entry>
   openknowledge use <name|path> --info
   openknowledge use <name|path> <entry> --info
-  openknowledge use <name|path> --query <text>
-  openknowledge use <name|path> --query <text> --budget <tokens>
-  openknowledge use <name|path> --query <text> --format json
   openknowledge use --help
 
 Arguments:
@@ -2653,11 +2655,6 @@ Arguments:
 
 Flags:
   --info         Print bundle and entrypoint metadata instead of Markdown body.
-  --query        Select relevant bundle sections and print a source-grounded briefing.
-  --budget       Approximate query output token budget. Defaults to %d.
-  --limit        Maximum number of query sections. Defaults to 12.
-  --format       Query output format: markdown or json. Defaults to markdown.
-  --spec         OKF spec version for query mode. Defaults to latest.
 
 Behavior:
   Without an entry, use prints okf_bundle_entry_default when declared. If no
@@ -2665,21 +2662,60 @@ Behavior:
   use first checks root index.md metadata, then treats the value as a path
   inside the bundle.
 
-  With --query, use builds a section-level index from Markdown headings, scores
-  sections using lexical matches across metadata, paths, headings, and body
-  text, then prints a source-grounded briefing with key points, related linked
-  context, gaps, source ranges, and original excerpts that fit the budget.
-  Query mode does not use embeddings or generate summaries.
+  Use openknowledge search when you need query-based retrieval across Markdown
+  sections, heading paths, snippets, and optional graph expansion.
 
 Examples:
   openknowledge use accessibility --info
   openknowledge use accessibility
   openknowledge use accessibility review
   openknowledge use accessibility agents/review.md
-  openknowledge use Wiki --query "validation workflow"
-  openknowledge use personal --query "release checklist" --budget 1200
-  openknowledge use personal --query "release checklist" --format json
-`, okf.DefaultContextBudget)
+`
+}
+
+func searchHelpText() string {
+	return fmt.Sprintf(`openknowledge search
+
+Search source-grounded Markdown chunks in an Open Knowledge bundle.
+
+Usage:
+  openknowledge search <name|path> <query>
+  openknowledge search <name|path> <query> --format json
+  openknowledge search <name|path> <query> --expand graph
+  openknowledge search <name|path> <query> --limit <count>
+  openknowledge search <name|path> <query> --spec <version>
+  openknowledge search --help
+
+Arguments:
+  name|path      Registry key or local bundle path.
+  query          Search text. Quote multi-word queries in shells.
+
+Flags:
+  --expand       Optional expansion mode. Use graph to include outgoing local
+                 links and backlinks as lower-ranked neighbor results.
+  --format       Output format: text or json. Defaults to text.
+  --limit        Maximum result count. Defaults to 12.
+  --spec         OKF spec version. Defaults to latest.
+
+Behavior:
+  Search builds Markdown chunks from parsed heading sections, preserves source
+  line ranges and heading paths, scores chunks with BM25-style lexical ranking
+  across title, path, type, description, frontmatter, headings, and body text,
+  and returns source snippets. Fuzzy and diacritic-insensitive matching are
+  enabled for local CLI search.
+
+  With --expand graph, direct matches are followed by linked neighbor chunks
+  and backlinks. Neighbor results are marked with their relation.
+
+Examples:
+  openknowledge search Wiki "validation workflow"
+  openknowledge search personal "release checklist" --limit 5
+  openknowledge search personal "MCP auth" --expand graph
+  openknowledge search personal "MCP auth" --format json
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
 }
 
 func disconnectHelpText(command string) string {
@@ -2799,13 +2835,14 @@ Usage:
   openknowledge to tar --out <file> [path]
   openknowledge to graph [path]
   openknowledge to graph --out <file> [path]
+  openknowledge to graph --type search [path]
   openknowledge to --help
 
 Targets:
   html       Write a static HTML site. Defaults to the viewer app bundle.
   json       Write normalized bundle JSON.
   tar        Write a portable bundle tar.gz archive.
-  graph      Write node and edge graph JSON from local Markdown links.
+  graph      Write node and edge graph JSON by graph type.
 
 Flags:
   --spec       OKF spec version. Defaults to latest.
@@ -2919,6 +2956,8 @@ Write node and edge graph JSON for an Open Knowledge bundle.
 Usage:
   openknowledge to graph [path]
   openknowledge to graph --out <file> [path]
+  openknowledge to graph --type source [path]
+  openknowledge to graph --type search [path]
   openknowledge to graph --spec <version> [path]
   openknowledge to graph --help
 
@@ -2928,10 +2967,15 @@ Arguments:
 Flags:
   --out       Output file. Defaults to stdout.
   --spec      OKF spec version. Defaults to latest.
+  --type      Graph type: source or search. Defaults to source.
 
 Behavior:
-  Nodes come from parsed bundle files. Edges are deduplicated existing local
-  Markdown links and are sourced from the AST-backed parser.
+  Source graphs contain one node per parsed bundle file. Edges are deduplicated
+  existing local Markdown links and are sourced from the AST-backed parser.
+
+  Search graphs are derivative retrieval artifacts. They include source file
+  nodes, Markdown heading chunk nodes, contains edges, chunk reading-order
+  edges, and chunk-level local-link edges for graph-expanded search.
 
 Versions:
   %s

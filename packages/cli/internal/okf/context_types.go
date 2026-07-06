@@ -42,20 +42,21 @@ type ContextBriefingSource struct {
 }
 
 type ContextMatch struct {
-	ID              string  `json:"id"`
-	Path            string  `json:"path"`
-	Kind            string  `json:"kind"`
-	Type            string  `json:"type,omitempty"`
-	Title           string  `json:"title"`
-	Heading         string  `json:"heading"`
-	HeadingLevel    int     `json:"headingLevel,omitempty"`
-	LineStart       int     `json:"lineStart"`
-	LineEnd         int     `json:"lineEnd"`
-	Score           float64 `json:"score"`
-	EstimatedTokens int     `json:"estimatedTokens"`
-	Text            string  `json:"text"`
-	Links           []Link  `json:"links,omitempty"`
-	Neighbor        bool    `json:"neighbor,omitempty"`
+	ID              string   `json:"id"`
+	Path            string   `json:"path"`
+	Kind            string   `json:"kind"`
+	Type            string   `json:"type,omitempty"`
+	Title           string   `json:"title"`
+	Heading         string   `json:"heading"`
+	HeadingPath     []string `json:"headingPath,omitempty"`
+	HeadingLevel    int      `json:"headingLevel,omitempty"`
+	LineStart       int      `json:"lineStart"`
+	LineEnd         int      `json:"lineEnd"`
+	Score           float64  `json:"score"`
+	EstimatedTokens int      `json:"estimatedTokens"`
+	Text            string   `json:"text"`
+	Links           []Link   `json:"links,omitempty"`
+	Neighbor        bool     `json:"neighbor,omitempty"`
 }
 
 type ContextIndex struct {
@@ -73,6 +74,7 @@ type ContextSection struct {
 	Description     string
 	Frontmatter     map[string]string
 	Heading         string
+	HeadingPath     []string
 	HeadingLevel    int
 	LineStart       int
 	LineEnd         int

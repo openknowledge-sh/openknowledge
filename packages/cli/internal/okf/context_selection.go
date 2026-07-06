@@ -154,6 +154,7 @@ func contextMatch(section ContextSection, score float64, neighbor bool) ContextM
 		Type:            section.Type,
 		Title:           section.Title,
 		Heading:         section.Heading,
+		HeadingPath:     append([]string{}, section.HeadingPath...),
 		HeadingLevel:    section.HeadingLevel,
 		LineStart:       section.LineStart,
 		LineEnd:         section.LineEnd,
