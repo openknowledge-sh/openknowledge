@@ -37,10 +37,82 @@ func splitFrontmatter(text string) (frontmatter, string, error) {
 		return frontmatter{has: true}, "", fmt.Errorf("frontmatter block is not closed")
 	}
 
-	values, keys, parseWarnings, err := parseFrontmatter(lines[1:end], 2)
+	block := lines[1:end]
+	values, keys, parseWarnings, err := parseFrontmatter(block, 2)
+	data, structuredErr := parseStructuredFrontmatter(block, 2)
 	warnings = append(warnings, parseWarnings...)
 	body := strings.Join(lines[end+1:], "\n")
-	return frontmatter{has: true, values: values, keys: keys, warnings: warnings, bodyLine: end + 2}, body, err
+	return frontmatter{has: true, values: values, keys: keys, data: data, warnings: warnings, bodyLine: end + 2, structuredErr: structuredErr}, body, err
+}
+
+func ParseFrontmatterDocument(content []byte) (FrontmatterDocument, error) {
+	meta, body, err := splitFrontmatter(string(content))
+	document := FrontmatterDocument{
+		Has:      meta.has,
+		Values:   copyStringMap(meta.values),
+		Data:     copyAnyMap(meta.data),
+		Body:     body,
+		BodyLine: meta.bodyLine,
+		Warnings: exportedFrontmatterWarnings(meta.warnings),
+	}
+	if err != nil {
+		return document, err
+	}
+	if meta.structuredErr != nil {
+		return document, meta.structuredErr
+	}
+	return document, nil
+}
+
+func copyStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	copied := make(map[string]string, len(values))
+	for key, value := range values {
+		copied[key] = value
+	}
+	return copied
+}
+
+func copyAnyMap(values map[string]any) map[string]any {
+	if len(values) == 0 {
+		return nil
+	}
+	copied := make(map[string]any, len(values))
+	for key, value := range values {
+		copied[key] = copyFrontmatterValue(value)
+	}
+	return copied
+}
+
+func copyFrontmatterValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return copyAnyMap(typed)
+	case []any:
+		copied := make([]any, 0, len(typed))
+		for _, item := range typed {
+			copied = append(copied, copyFrontmatterValue(item))
+		}
+		return copied
+	default:
+		return typed
+	}
+}
+
+func exportedFrontmatterWarnings(warnings []frontmatterWarning) []FrontmatterWarning {
+	if len(warnings) == 0 {
+		return nil
+	}
+	exported := make([]FrontmatterWarning, 0, len(warnings))
+	for _, warning := range warnings {
+		exported = append(exported, FrontmatterWarning{
+			Line:    warning.line,
+			Message: warning.message,
+		})
+	}
+	return exported
 }
 
 func parseFrontmatter(lines []string, startLine int) (map[string]string, map[string]struct{}, []frontmatterWarning, error) {

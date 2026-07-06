@@ -41,6 +41,8 @@ func main() {
 		os.Exit(runFrom(os.Args[2:]))
 	case "rules":
 		os.Exit(runRules(os.Args[2:]))
+	case "agents":
+		os.Exit(runAgents(os.Args[2:]))
 	case "new":
 		os.Exit(runNew(os.Args[2:]))
 	case "connect":
@@ -2737,6 +2739,13 @@ Usage:
   openknowledge rules <rules> --path <path>
   openknowledge rules apply <rules> --path <path>
   openknowledge rules --list
+  openknowledge agents new
+  openknowledge agents new <template> --out <file>
+  openknowledge agents list [path]
+  openknowledge agents validate <job-or-dir>
+  openknowledge agents run <job.md> --dry-run
+  openknowledge agents run <job.md>
+  openknowledge agents daemon [jobs-dir] --once
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
@@ -2785,6 +2794,7 @@ Commands:
   setup      Print an agent setup prompt.
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
+  agents     Run scheduled local agent jobs from Markdown specs.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
@@ -2809,6 +2819,9 @@ Examples:
   openknowledge from https://example.com/docs --out Wiki --type custom --about "Create an onboarding wiki"
   openknowledge rules docs,changelog --path Wiki
   openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
+  openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md
+  openknowledge agents validate .openknowledge/agents/jobs
+  openknowledge agents run .openknowledge/agents/jobs/docs.md --dry-run
   openknowledge setup --rules docs,changelog
   openknowledge new ./project-memory
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility

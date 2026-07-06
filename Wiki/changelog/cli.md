@@ -23,6 +23,31 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-07 - Local agent job runner
+
+* Added `openknowledge agents` with `new`, `list`, `validate`, `run`, and
+  `daemon` subcommands for Markdown-authored local agent jobs.
+* Added built-in agent job templates for docs audits, wiki health checks,
+  release readiness checks, and custom jobs. `openknowledge agents new` lists
+  templates, prints template Markdown, writes a selected template with `--out`,
+  and prints the supported nested frontmatter syntax with `--reference`.
+* Extended the existing frontmatter splitter with a structured nested
+  frontmatter view while preserving the scalar metadata view used by OKF
+  documents and validation.
+* Agent runs now resolve deterministic run plans from job id, scheduled time,
+  job file hash, and Git base SHA; create Git worktrees; support host and
+  Docker executors; write run logs/records under `.openknowledge/agents/runs/`;
+  and run configured verification commands.
+* Source anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+  `packages/cli/internal/agents/`,
+  `packages/cli/internal/okf/frontmatter.go`,
+  `packages/cli/internal/okf/frontmatter_structured.go`,
+  `packages/cli/cmd/openknowledge/agents_command_test.go`,
+  `packages/cli/internal/okf/frontmatter_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md`,
+  `Wiki/features/commands/index.md`, `Wiki/index.md`,
+  `Wiki/log.md`, `Wiki/changelog/cli.md`.
+
 ### 2026-07-07 - Source-to-wiki prompt command
 
 * Added `openknowledge from <source> --out <folder>` as a prompt-producing

@@ -32,6 +32,8 @@ custom theme.
 * [from](features/commands/from.md) - generate source-to-wiki instructions for
   agents.
 * [new](features/commands/new.md) - scaffold a local OKF bundle.
+* [agents](features/commands/agents.md) - create, validate, plan, schedule,
+  and run local agent jobs.
 
 ### Validate And Inspect Bundles
 

@@ -2,6 +2,10 @@
 
 ## 2026-07-07
 
+* **Local agent job runner**: Added documentation for `openknowledge agents`
+  as a local deterministic automation layer for Markdown-authored jobs with
+  nested frontmatter, built-in job templates, Git worktree isolation, host or
+  Docker execution, run records, verification commands, and daemon scheduling.
 * **Source-to-wiki generation command**: Implemented `openknowledge from` as a
   shipped prompt-producing command for turning a source URL or path into an OKF
   Markdown bundle through a local agent. Documented `--out`, `--type`,
