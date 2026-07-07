@@ -154,7 +154,7 @@ func TestRegistrySavesPathKeyedConnections(t *testing.T) {
 	t.Setenv(RegistryFileEnv, registryFile)
 
 	root := t.TempDir()
-	source := RegistrySource{Type: "git", URL: "https://example.com/wiki.git"}
+	source := RegistrySource{Type: "git", URL: "https://github.com/openknowledge-sh/openknowledge.git"}
 	entry, _, err := ConnectRegistryEntryWithSource("personal", root, "read", true, source)
 	if err != nil {
 		t.Fatal(err)

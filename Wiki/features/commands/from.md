@@ -28,24 +28,25 @@ files.
 ## Usage
 
 ```sh
-openknowledge from https://github.com/owner/repo --out Wiki
-openknowledge from https://github.com/owner/repo --out Wiki --type understanding
-openknowledge from https://github.com/owner/repo --out Wiki --type custom
-openknowledge from https://github.com/owner/repo --out Wiki --type custom --about "Help new contributors understand the plugin system and release workflow."
-openknowledge from https://example.com/docs --out Wiki --type understanding --depth 2
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help new contributors understand the plugin system and release workflow."
+openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type understanding --depth 2
 openknowledge from ./local-repo --out Wiki --type understanding
 openknowledge from --help
 ```
 
-For agent CLIs that accept an initial prompt:
+Generate the prompt, then copy the terminal output into Codex, Claude Code,
+Cursor, Cowork, or another agent that can access the source and edit the
+output folder:
 
 ```sh
-codex "$(openknowledge from https://github.com/owner/repo --out Wiki --type custom)"
-claude "$(openknowledge from https://github.com/owner/repo --out Wiki --type custom)"
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
 ```
 
-Interactive agents need stdin to remain a terminal. Pipes are only appropriate
-for agent CLIs that explicitly accept prompts from stdin.
+Avoid shell command substitution or piping for interactive agent CLIs; those
+patterns can be flagged by security tools and can break interactive stdin.
 
 ## Arguments And Flags
 
@@ -67,7 +68,7 @@ concept-document `type` frontmatter.
 This command prints an agent prompt:
 
 ```sh
-openknowledge from https://github.com/owner/repo --out Wiki --type custom --about "Help contributors understand releases"
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help contributors understand releases"
 ```
 
 The first part looks like:
@@ -76,13 +77,14 @@ The first part looks like:
 This source-to-wiki guide is meant to be executed by an AI coding or research agent.
 
 If you are a human reading this in your terminal, pass it to an agent instead:
-  codex "$(openknowledge from https://github.com/owner/repo --out Wiki --type custom --about 'Help contributors understand releases')"
+  copy this entire prompt and paste it into Codex, Claude Code, Cursor,
+  Cowork, or another agent that can access the source and edit the output folder.
 
 Simple model:
 source URL or path -> local agent task -> OKF Markdown bundle
 
 Inputs:
-- Source: `https://github.com/owner/repo`
+- Source: `https://github.com/openknowledge-sh/openknowledge`
 - Source kind: GitHub repository
 - Output wiki path: `Wiki`
 - Wiki type: `custom`
@@ -138,7 +140,7 @@ okf_generation_goal: "Help new contributors understand the plugin system."
 okf_generation_rules: [overview, architecture, workflows, glossary, citations]
 okf_generated_from:
   kind: github
-  url: https://github.com/owner/repo
+  url: https://github.com/openknowledge-sh/openknowledge
   branch: main
   commit: abc123
   generated_at: 2026-07-07T12:00:00Z

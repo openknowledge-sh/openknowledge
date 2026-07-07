@@ -15,13 +15,61 @@ that were updated.
 ## Unreleased
 
 No uncategorized changes are currently tracked here. Next-release work is
-classified under [v0.5.0 Candidate](#v050-candidate) until a release tag is
+classified under [v0.6.0 Candidate](#v060-candidate) until a release tag is
 cut.
 
-## v0.5.0 Candidate
+## v0.6.0 Candidate
 
-Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
-entries in this section until they are released.
+No candidate v0.6.0 changes are currently tracked here.
+
+## v0.5.0 - 2026-07-08
+
+Released v0.5.0 changes after the `v0.4.0` release tag.
+
+### 2026-07-08 - First-party source examples
+
+* Replaced generic placeholder source URLs in source-to-wiki, connect, and HTML
+  export examples with Open Knowledge-owned URLs so copied examples do not
+  encourage agents to fetch arbitrary external sources.
+* Source anchors: `README.md`, `packages/web/index.html`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `Wiki/features/commands/from.md`, `Wiki/features/tooling-model.md`.
+* Docs updated: `README.md`, `packages/web/index.html`,
+  `Wiki/features/commands/from.md`, `Wiki/features/commands/connect.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/features/tooling-model.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-07-08 - Safer agent prompt handoff
+
+* Replaced command-substitution examples for setup and source-to-wiki prompts
+  with a safer flow: run `openknowledge setup` or `openknowledge from`, then
+  copy the printed prompt into the agent. The generated prompts and `from`
+  help text now explicitly avoid shell substitution and piping for interactive
+  agent CLIs because those patterns can be flagged by security tools.
+* Source anchors: `packages/cli/internal/okf/setup.go`,
+  `packages/cli/internal/okf/from.go`,
+  `packages/cli/cmd/openknowledge/main.go`, `README.md`,
+  `packages/web/index.html`.
+* Docs updated: `README.md`, `packages/web/index.html`,
+  `Wiki/features/commands/setup.md`, `Wiki/features/commands/from.md`,
+  `Wiki/changelog/cli.md`.
+
+### 2026-07-08 - Homepage source-to-wiki workflow
+
+* Added a homepage common workflow for creating a knowledge base from a Git
+  repository or docs page with `openknowledge from`.
+* Source anchors: `packages/web/index.html`.
+* Docs updated: `packages/web/index.html`, `Wiki/changelog/cli.md`.
+
+### 2026-07-08 - Setup prompt view handoff
+
+* Updated the README and homepage setup prompt copy so the post-setup handoff
+  tells agents to inspect the wiki with `openknowledge list`,
+  `openknowledge search`, and `openknowledge get`, then open it for the user
+  with `openknowledge view`.
+* Source anchors: `README.md`, `packages/web/index.html`.
+* Docs updated: `README.md`, `packages/web/index.html`,
+  `Wiki/features/commands/setup.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-07-07 - Homepage README alignment
 
@@ -36,9 +84,8 @@ entries in this section until they are released.
 
 ### 2026-07-07 - Top navigation links
 
-* Added README and changelog links to the README top link strip and added a
-  README link to the website header beside the existing wiki and changelog
-  links.
+* Added README and changelog links to the README top link strip, while the
+  website header keeps the focused Wiki, Changelog, and GitHub navigation.
 * Source anchors: `README.md`, `packages/web/index.html`.
 * Docs updated: `README.md`, `packages/web/index.html`,
   `Wiki/changelog/cli.md`.

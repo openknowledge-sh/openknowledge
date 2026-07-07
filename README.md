@@ -15,7 +15,7 @@ view it locally, and publish it as portable static HTML.
 [🗂️ Repository wiki](Wiki/index.md) | [📝 Changelog](Wiki/changelog/cli.md) |
 [📐 OKF spec][okf-spec] | [⚖️ License](LICENSE)
 
-<p align="center">
+<p align="left">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
   <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"><img alt="OKF v0.1" src="https://img.shields.io/badge/OKF-v0.1-2f6feb"></a>
   <a href="https://openknowledge.sh"><img alt="Local-first Markdown wiki" src="https://img.shields.io/badge/wiki-local--first-0f766e"></a>
@@ -89,7 +89,7 @@ workspace where the wiki should live:
 ```text
 Set up an Open Knowledge LLM wiki for this workspace.
 
-First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, use openknowledge rules --list to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run openknowledge validate, and show me how to inspect and navigate it with openknowledge list, openknowledge search, openknowledge get, and openknowledge view.
+First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup, use openknowledge rules --list to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run openknowledge validate, show me how to inspect it with openknowledge list, openknowledge search, and openknowledge get, and open it for me using openknowledge view.
 ```
 
 The agent will install the CLI if needed, inspect local context, choose useful
@@ -98,19 +98,21 @@ validation, and leave you with navigation commands.
 
 ### Use the setup prompt directly
 
-If your agent CLI accepts an initial prompt, pass the generated setup prompt to
-it:
+Print the setup prompt, then copy the terminal output into Codex, Claude Code,
+Cursor, Cowork, or another agent that can edit the workspace:
 
 ```sh
-codex "$(openknowledge setup)"
-claude "$(openknowledge setup)"
+openknowledge setup
 ```
 
 Preselect maintenance rules when you already know the wiki shape:
 
 ```sh
-codex "$(openknowledge setup --rules docs,changelog)"
+openknowledge setup --rules docs,changelog
 ```
+
+Avoid shell command substitution or piping for interactive agent CLIs; those
+patterns can be flagged by security tools and can break interactive stdin.
 
 ### Generate a wiki from existing material
 
@@ -118,12 +120,13 @@ Use `openknowledge from` when the wiki should be grounded in a repository,
 folder, or website:
 
 ```sh
-codex "$(openknowledge from https://github.com/owner/repo --out Wiki --type understanding)"
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding
 ```
 
 The command prints instructions for a local agent to inspect the source,
 create or update an OKF bundle, preserve source provenance, validate the
-result, and show follow-up `list`, `search`, `get`, and `view` commands.
+result, and show follow-up `list`, `search`, `get`, and `view` commands. Copy
+that printed prompt into the agent.
 
 ### Install manually
 
@@ -263,7 +266,7 @@ manifest, and an `assets/openknowledge-bundle.tar.gz` source archive.
 Published exports can be connected later:
 
 ```sh
-openknowledge connect https://example.com/wiki/
+openknowledge connect https://openknowledge.sh/wiki/
 ```
 
 `openknowledge to html --plain` writes unstyled semantic HTML.
@@ -283,7 +286,7 @@ name = "landing"
 stylesheet = "assets/wiki-theme.css"
 
 [html.site]
-base_url = "https://example.com/wiki/"
+base_url = "https://openknowledge.sh/wiki/"
 
 [html.source]
 github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"

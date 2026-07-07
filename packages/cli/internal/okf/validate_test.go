@@ -179,7 +179,7 @@ func TestListAnnotatesInvalidBundle(t *testing.T) {
 
 func TestValidateWarnsForBrokenLocalLinks(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "index.md", "# Index\n\n[Concept](concepts/good.md)\n[Section](#section)\n[External](https://example.com)\n[Missing](missing.md)\n[Missing directory](references/)\n")
+	writeFile(t, root, "index.md", "# Index\n\n[Concept](concepts/good.md)\n[Section](#section)\n[External](https://openknowledge.sh)\n[Missing](missing.md)\n[Missing directory](references/)\n")
 	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
 	writeFile(t, root, "concepts/good.md", "---\ntype: Concept\ntitle: Good\n---\n\n# Good\n")
 

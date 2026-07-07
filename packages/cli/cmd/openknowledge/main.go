@@ -2947,8 +2947,8 @@ Flags:
 Run openknowledge <command> --help for command-specific help.
 
 Examples:
-  openknowledge from https://github.com/owner/repo --out Wiki --type understanding
-  openknowledge from https://example.com/docs --out Wiki --type custom --about "Create an onboarding wiki"
+  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding
+  openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type custom --about "Create an onboarding wiki"
   openknowledge rules docs,changelog --path Wiki
   openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
   openknowledge review rules --rules docs,changelog --path Wiki
@@ -3117,7 +3117,7 @@ Examples:
   %[1]s ./project-memory
   %[1]s ./accessibility --as accessibility
   %[1]s https://openknowledge.sh/wiki/
-  %[1]s https://example.com/openknowledge-bundle.tar.gz
+  %[1]s https://openknowledge.sh/openknowledge-bundle.tar.gz
   %[1]s https://github.com/openknowledge-sh/accessibility.git --as accessibility
   %[1]s ./team-wiki --access write
 `, command)
@@ -3385,14 +3385,15 @@ Behavior:
   The generated prompt tells the agent to inspect the source, ask only missing
   questions, create or update the OKF bundle at --out, preserve provenance such
   as source URLs or commit IDs, run openknowledge validate, and finish with
-  list/search/get/view commands for the generated wiki.
+  list/search/get/view commands for the generated wiki. Copy the printed prompt
+  into your agent; avoid shell command substitution or piping for interactive
+  agent CLIs.
 
 Examples:
-  openknowledge from https://github.com/owner/repo --out Wiki
-  openknowledge from https://github.com/owner/repo --out Wiki --type custom
-  openknowledge from https://github.com/owner/repo --out Wiki --type custom --about "Help new contributors understand the release workflow"
-  openknowledge from https://example.com/docs --out Wiki --type understanding --depth 2
-  codex "$(openknowledge from https://github.com/owner/repo --out Wiki --type custom)"
+  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki
+  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
+  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help new contributors understand the release workflow"
+  openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type understanding --depth 2
 `
 }
 

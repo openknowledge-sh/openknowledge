@@ -87,8 +87,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"Flags:",
 		"-h, --help  Show this help.",
 		"Examples:",
-		"openknowledge from https://github.com/owner/repo --out Wiki --type understanding",
-		"openknowledge from https://example.com/docs --out Wiki --type custom --about \"Create an onboarding wiki\"",
+		"openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding",
+		"openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type custom --about \"Create an onboarding wiki\"",
 		"openknowledge rules docs,changelog --path Wiki",
 		"openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md",
 		"openknowledge review rules --rules docs,changelog --path Wiki",
@@ -155,7 +155,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"understanding or custom",
 				"--about",
 				"--depth",
-				"codex \"$(openknowledge from https://github.com/owner/repo --out Wiki --type custom)\"",
+				"Copy the printed prompt",
+				"avoid shell command substitution or piping",
 			},
 		},
 		"rules": {
@@ -791,7 +792,7 @@ func TestSetupCommandAcceptsRules(t *testing.T) {
 func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 	output, code := captureMainStdout(t, func() int {
 		return runFrom([]string{
-			"https://github.com/owner/repo",
+			"https://github.com/openknowledge-sh/openknowledge",
 			"--out", "Wiki",
 			"--type", "custom",
 			"--about", "Help contributors understand releases",
@@ -803,7 +804,7 @@ func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"source URL or path -> local agent task -> OKF Markdown bundle",
-		"Source: `https://github.com/owner/repo`",
+		"Source: `https://github.com/openknowledge-sh/openknowledge`",
 		"Output wiki path: `Wiki`",
 		"Wiki type: `custom`",
 		"Custom goal: `Help contributors understand releases`",
@@ -859,17 +860,17 @@ func TestNewCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 }
 
 func TestParseFromOptionsDefaultsToUnderstanding(t *testing.T) {
-	options, err := parseFromOptions([]string{"https://example.com/docs", "--out=Wiki", "--depth=0"})
+	options, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/", "--out=Wiki", "--depth=0"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.source != "https://example.com/docs" || options.out != "Wiki" || options.wikiType != okf.DefaultFromType || options.depth != 0 {
+	if options.source != "https://openknowledge.sh/wiki/" || options.out != "Wiki" || options.wikiType != okf.DefaultFromType || options.depth != 0 {
 		t.Fatalf("unexpected from options: %#v", options)
 	}
-	if _, err := parseFromOptions([]string{"https://example.com/docs", "--out", "Wiki", "--depth", "-1"}); err == nil {
+	if _, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/", "--out", "Wiki", "--depth", "-1"}); err == nil {
 		t.Fatal("expected negative depth to fail")
 	}
-	if _, err := parseFromOptions([]string{"https://example.com/docs"}); err == nil {
+	if _, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/"}); err == nil {
 		t.Fatal("expected missing --out to fail")
 	}
 }

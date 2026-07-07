@@ -39,11 +39,11 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 		},
 		{
 			name:  "links with custom resolver",
-			input: "Read [Setup](guides/setup.md), [Anchor](#top), and [External](https://example.com).",
+			input: "Read [Setup](guides/setup.md), [Anchor](#top), and [External](https://openknowledge.sh).",
 			required: []string{
 				`<a href="/resolved/guides/setup.md">Setup</a>`,
 				`<a href="/resolved/#top">Anchor</a>`,
-				`<a href="/resolved/https://example.com">External</a>`,
+				`<a href="/resolved/https://openknowledge.sh">External</a>`,
 			},
 			forbidden: []string{"[Setup]", "(guides/setup.md)"},
 		},

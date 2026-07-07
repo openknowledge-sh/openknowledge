@@ -16,8 +16,8 @@ it, choose maintenance rules such as docs, changelog, decisions, research, bugs,
 schemas, summaries, or general project memory, configure repo-scoped or
 user-scoped skills with focused lower-reasoning subagent guidance when useful,
 validate it, and finish with the concrete post-setup loop:
-`openknowledge list`, `openknowledge search`, `openknowledge get`, and
-`openknowledge view`.
+`openknowledge list`, `openknowledge search`, `openknowledge get`, and opening
+the finished wiki with `openknowledge view`.
 
 The optional `--rules` flag preselects comma-separated built-in maintenance
 rules in the prompt. It uses the same built-in rule IDs listed by
@@ -53,7 +53,8 @@ agent. The beginning and selected-rule block look like:
 This setup guide is meant to be executed by an AI coding agent.
 
 If you are a human reading this in your terminal, pass it to an agent instead:
-  codex "$(openknowledge setup)"
+  copy this entire prompt and paste it into Codex, Claude Code, Cursor,
+  Cowork, or another coding agent that can edit this workspace.
 
 You are helping the user create an agentic LLM wiki with Open Knowledge.
 
@@ -78,20 +79,20 @@ Use these as the starting point for AGENTS.md, workflow docs, and any agent inst
   changelog, decisions, research, bugs, schemas, summary, or project memory.
 * Seed repo-scoped or user-scoped skills with guidance for spawning focused
   lower-reasoning subagents for bounded wiki maintenance tasks.
-* Keep interactive agent stdin available by passing the prompt as an argument,
-  for example `codex "$(openknowledge setup)"`.
+* Keep interactive agent stdin available by copying the printed prompt into the
+  agent instead of wrapping the command in shell substitution or pipes.
 * Leave the user with the use/navigation commands for the created bundle:
-  `openknowledge list`, `openknowledge search`, `openknowledge get`, and
-  `openknowledge view`.
+  `openknowledge list`, `openknowledge search`, `openknowledge get`, and open
+  the finished wiki with `openknowledge view`.
 
 ## Command Change History
 
 ### 2026-07-06 - Use/navigation loop
 
 The setup prompt, generated `SETUP.MD`, README setup prompt, and landing page
-prompt now tell agents to show users how to inspect and navigate a finished
-wiki with `openknowledge list`, `openknowledge search`, and
-`openknowledge get`, and `openknowledge view`.
+prompt now tell agents to show users how to inspect a finished wiki with
+`openknowledge list`, `openknowledge search`, and `openknowledge get`, and open
+it with `openknowledge view`.
 
 ### 2026-07-05 - Maintenance rules
 

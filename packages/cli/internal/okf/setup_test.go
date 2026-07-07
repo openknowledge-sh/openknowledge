@@ -16,6 +16,8 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"Use these seed questions only when context cannot answer them",
 		"Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents.",
 		"openknowledge rules --list",
+		"copy this entire prompt and paste it into Codex",
+		"Avoid shell command substitution or piping",
 		"context-specific questions",
 		"spawn focused subagents with lower reasoning effort",
 		"openknowledge search \"<folder path>\" \"<query>\"",
@@ -26,6 +28,15 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 	for _, expected := range required {
 		if !strings.Contains(prompt, expected) {
 			t.Fatalf("expected setup prompt to include %q:\n%s", expected, prompt)
+		}
+	}
+	forbidden := []string{
+		"codex \"$(" + "openknowledge setup)\"",
+		"openknowledge setup " + "| codex",
+	}
+	for _, unexpected := range forbidden {
+		if strings.Contains(prompt, unexpected) {
+			t.Fatalf("expected setup prompt not to include %q:\n%s", unexpected, prompt)
 		}
 	}
 }

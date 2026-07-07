@@ -82,7 +82,7 @@ openknowledge connect ./project-memory
 openknowledge connect ./accessibility --as accessibility
 openknowledge connect ./team-wiki --access write
 openknowledge connect https://openknowledge.sh/wiki/
-openknowledge connect https://example.com/openknowledge-bundle.tar.gz
+openknowledge connect https://openknowledge.sh/openknowledge-bundle.tar.gz
 openknowledge connect https://github.com/openknowledge-sh/accessibility.git --as accessibility
 ```
 

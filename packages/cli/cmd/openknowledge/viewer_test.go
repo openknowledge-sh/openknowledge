@@ -681,7 +681,7 @@ func TestViewerHTMLExportInjectsHeadHTMLWhenConfigured(t *testing.T) {
 
 	headHTML, err := loadHeadInjection(headInjectionOptions{
 		HTML:       `<meta name="ok-static-head" content="1">`,
-		ScriptSrcs: []string{"https://example.com/analytics.js"},
+		ScriptSrcs: []string{"https://openknowledge.sh/analytics.js"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -691,12 +691,12 @@ func TestViewerHTMLExportInjectsHeadHTMLWhenConfigured(t *testing.T) {
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
-	if !strings.Contains(index, `<meta name="ok-static-head" content="1">`) || !strings.Contains(index, `<script src="https://example.com/analytics.js"></script>`) {
+	if !strings.Contains(index, `<meta name="ok-static-head" content="1">`) || !strings.Contains(index, `<script src="https://openknowledge.sh/analytics.js"></script>`) {
 		t.Fatalf("expected exported index to include custom head HTML:\n%s", index)
 	}
 
 	nested := readViewerExportFile(t, out, "notes/topic.html")
-	if !strings.Contains(nested, `<meta name="ok-static-head" content="1">`) || !strings.Contains(nested, `<script src="https://example.com/analytics.js"></script>`) {
+	if !strings.Contains(nested, `<meta name="ok-static-head" content="1">`) || !strings.Contains(nested, `<script src="https://openknowledge.sh/analytics.js"></script>`) {
 		t.Fatalf("expected nested exported page to include custom head HTML:\n%s", nested)
 	}
 }
@@ -925,7 +925,7 @@ func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[html.site]\nbase_url = \"https://example.com/wiki/\"\n")
+	writeViewerFile(t, root, "openknowledge.toml", "[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "---\nokf_bundle_title: \"Team Handbook\"\nokf_bundle_purpose: \"Knowledge for shipping product changes.\"\n---\n\n# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntitle: \"Setup Guide\"\n---\n\n# Setup\n")
 
@@ -941,16 +941,16 @@ func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 	llms := readViewerExportFile(t, out, "llms.txt")
 	if !strings.Contains(llms, "# Team Handbook") ||
 		!strings.Contains(llms, "> Knowledge for shipping product changes.") ||
-		!strings.Contains(llms, "- [Home](https://example.com/wiki/index.html): index.md") ||
-		!strings.Contains(llms, "- [Setup Guide](https://example.com/wiki/guides/setup.html): guides/setup.md") {
+		!strings.Contains(llms, "- [Home](https://openknowledge.sh/wiki/index.html): index.md") ||
+		!strings.Contains(llms, "- [Setup Guide](https://openknowledge.sh/wiki/guides/setup.html): guides/setup.md") {
 		t.Fatalf("unexpected llms.txt:\n%s", llms)
 	}
 
 	sitemap := readViewerExportFile(t, out, "sitemap.xml")
 	if !strings.Contains(sitemap, `<?xml version="1.0" encoding="UTF-8"?>`) ||
 		!strings.Contains(sitemap, `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`) ||
-		!strings.Contains(sitemap, `<loc>https://example.com/wiki/index.html</loc>`) ||
-		!strings.Contains(sitemap, `<loc>https://example.com/wiki/guides/setup.html</loc>`) {
+		!strings.Contains(sitemap, `<loc>https://openknowledge.sh/wiki/index.html</loc>`) ||
+		!strings.Contains(sitemap, `<loc>https://openknowledge.sh/wiki/guides/setup.html</loc>`) {
 		t.Fatalf("unexpected sitemap.xml:\n%s", sitemap)
 	}
 }

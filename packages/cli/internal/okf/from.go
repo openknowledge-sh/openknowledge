@@ -38,10 +38,9 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	var builder strings.Builder
 	builder.WriteString("This source-to-wiki guide is meant to be executed by an AI coding or research agent.\n\n")
 	builder.WriteString("If you are a human reading this in your terminal, pass it to an agent instead:\n")
-	builder.WriteString("  codex \"$(")
-	builder.WriteString(fromCommand(options))
-	builder.WriteString(")\"\n\n")
-	builder.WriteString("Do not pipe this into interactive Codex with openknowledge from ... | codex; interactive Codex needs stdin to remain a terminal. Pipes are only appropriate for agent CLIs that explicitly accept prompts from stdin.\n\n")
+	builder.WriteString("  copy this entire prompt and paste it into Codex, Claude Code, Cursor,\n")
+	builder.WriteString("  Cowork, or another agent that can access the source and edit the output folder.\n\n")
+	builder.WriteString("Avoid shell command substitution or piping for interactive agent CLIs; some security tools flag those patterns, and interactive agents usually need stdin to remain a terminal.\n\n")
 	builder.WriteString("If you are an agent, follow the instructions below. Turn the source into an Open Knowledge wiki.\n\n")
 	builder.WriteString("Simple model:\n")
 	builder.WriteString("source URL or path -> local agent task -> OKF Markdown bundle\n\n")

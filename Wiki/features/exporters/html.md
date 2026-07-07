@@ -97,7 +97,7 @@ name = "landing"
 stylesheet = "assets/wiki-theme.css"
 
 [html.site]
-base_url = "https://example.com/wiki/"
+base_url = "https://openknowledge.sh/wiki/"
 ```
 
 Exported pages include `data-openknowledge-theme="<name>"` on `<html>` and link

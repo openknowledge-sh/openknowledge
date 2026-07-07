@@ -5,9 +5,10 @@ import "strings"
 const setupPrompt = `This setup guide is meant to be executed by an AI coding agent.
 
 If you are a human reading this in your terminal, pass it to an agent instead:
-  codex "$(openknowledge setup)"
+  copy this entire prompt and paste it into Codex, Claude Code, Cursor,
+  Cowork, or another coding agent that can edit this workspace.
 
-Do not pipe this into interactive Codex with openknowledge setup | codex; interactive Codex needs stdin to remain a terminal. Pipes are only appropriate for agent CLIs that explicitly accept prompts from stdin.
+Avoid shell command substitution or piping for interactive agent CLIs; some security tools flag those patterns, and interactive agents usually need stdin to remain a terminal.
 
 If you are an agent, follow the instructions below. First build context, then ask tailored setup questions, create the knowledge base with the Open Knowledge CLI, customize it for their use case, validate it, and explain what you created.
 

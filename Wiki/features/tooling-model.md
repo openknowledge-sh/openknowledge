@@ -59,9 +59,9 @@ and hand back navigation commands.
 Usage:
 
 ```sh
-openknowledge from https://github.com/owner/repo --out Wiki --type understanding
-openknowledge from https://github.com/owner/repo --out Wiki --type custom
-openknowledge from https://example.com/docs --out Wiki --type understanding --depth 2
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding
+openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
+openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type understanding --depth 2
 ```
 
 The `--type` flag selects a generation recipe such as `understanding` or

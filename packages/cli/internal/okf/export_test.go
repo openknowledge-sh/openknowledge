@@ -9,7 +9,7 @@ import (
 
 func TestParseBundleIncludesContentLinksAndIssues(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nSee [Setup](guides/setup.md), [Missing](missing.md), [Top](#home), and [External](https://example.com).\n")
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nSee [Setup](guides/setup.md), [Missing](missing.md), [Top](#home), and [External](https://openknowledge.sh).\n")
 	writeFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup Guide\ndescription: How to set up the bundle.\nresource: file://setup\n---\n\n# Setup\n\nRun `openknowledge validate`.\n")
 
 	bundle, err := ParseBundle(root)
