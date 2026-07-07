@@ -71,7 +71,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"from       Print an agent source-to-wiki generation prompt.",
 		"rules      Print agent maintenance rules.",
 		"review     Print advisory AI review prompts.",
-		"agents     Run scheduled local agent jobs from Markdown specs.",
+		"agents     Experimental: run scheduled local agent jobs from Markdown specs.",
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
@@ -209,7 +209,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge agents validate <job-or-dir>",
 				"openknowledge agents run <job.md> --dry-run",
 				"openknowledge agents daemon [jobs-dir] --once",
-				"Run deterministic local agent jobs",
+				"Experimental command group for deterministic local agent jobs",
+				"may still",
 			},
 		},
 		"agents new": {

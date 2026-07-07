@@ -14,7 +14,8 @@ anchors. Keep this index as the quick map.
 * [Validate](validate.md) - validate a bundle against OKF with configurable rule severities and optional JSON reports.
 * [Rules](rules.md) - print and inspect canonical agent maintenance rules.
 * [Review](review.md) - print advisory AI review prompts for maintenance rules.
-* [Agents](agents.md) - validate, plan, schedule, and run local agent jobs.
+* [Agents](agents.md) - experimental local agent job validation, planning,
+  scheduling, and execution.
 * [List](list.md) - print bundle inventory with optional JSON output.
 
 ## Connect And Resolve Bundles

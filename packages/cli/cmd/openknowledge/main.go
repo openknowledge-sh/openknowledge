@@ -2926,7 +2926,7 @@ Commands:
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
   review     Print advisory AI review prompts.
-  agents     Run scheduled local agent jobs from Markdown specs.
+  agents     Experimental: run scheduled local agent jobs from Markdown specs.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.

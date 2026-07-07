@@ -1,17 +1,21 @@
 ---
 type: Command Documentation
 title: openknowledge agents
-description: Runs deterministic local agent jobs from Markdown specs.
+description: Experimental command group for deterministic local agent jobs from Markdown specs.
 tags: [openknowledge, cli, command, agents, automation]
 timestamp: 2026-07-07T00:00:00Z
 ---
 
 # `openknowledge agents`
 
-`openknowledge agents` validates, plans, and runs local agent jobs from
-Markdown files with nested frontmatter. The frontmatter is the deterministic
-job contract; the Markdown body is the prompt passed to the configured agent
-CLI.
+`openknowledge agents` is experimental. It validates, plans, and runs local
+agent jobs from Markdown files with nested frontmatter. The frontmatter is the
+deterministic job contract; the Markdown body is the prompt passed to the
+configured agent CLI.
+
+Because the command group is still experimental, job frontmatter fields,
+scheduler semantics, run artifact layout, and executor behavior may change
+before this surface is treated as stable.
 
 The command group is local-first. It can run commands directly on the host or
 through Docker with a bind-mounted Git worktree. It does not open pull
@@ -163,6 +167,13 @@ at `/workspace`, and each command runs from that directory.
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
 exits. Without `--once`, the daemon polls using `--tick`, defaulting to `1m`.
 
+## Caveats
+
+`openknowledge agents` is not a stable automation API yet. Keep job specs close
+to the repository that owns them, review generated templates before running
+them, and expect follow-up changes to the schema or daemon behavior while this
+feature is marked experimental.
+
 ## Command Change History
 
 ### 2026-07-07 - Built-in agent templates
@@ -173,11 +184,11 @@ printing the supported nested frontmatter reference.
 
 ### 2026-07-07 - Local agent job runner
 
-Added `openknowledge agents list`, `validate`, `run`, and `daemon` for
-Markdown-authored local agent jobs. The implementation reuses the OKF
-frontmatter splitter with a structured nested frontmatter view, creates Git
-worktrees for runs, supports host and Docker executors, writes run records, and
-runs verification commands.
+Added `openknowledge agents list`, `validate`, `run`, and `daemon` as an
+experimental command group for Markdown-authored local agent jobs. The
+implementation reuses the OKF frontmatter splitter with a structured nested
+frontmatter view, creates Git worktrees for runs, supports host and Docker
+executors, writes run records, and runs verification commands.
 
 ---
 

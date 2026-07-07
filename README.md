@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/openknowledge-readme-logo.png" alt="Open Knowledge CLI" width="140">
+  <img src="docs/assets/openknowledge-readme-banner.png" alt="Open Knowledge CLI banner">
 </p>
 
 # Open Knowledge CLI
@@ -50,7 +50,8 @@ It gives you:
 - local registry aliases so agents can address knowledge bases by stable names
 - a local viewer and static publisher with connect manifests and portable
   bundle archives
-- optional Markdown-authored local agent jobs for scheduled maintenance
+- optional experimental Markdown-authored local agent jobs for scheduled
+  maintenance
 
 Open Knowledge implements Google's [Open Knowledge Format v0.1][okf-spec]
 specification, a Markdown and YAML-frontmatter standard designed to stay easy
@@ -64,7 +65,7 @@ to inspect, diff, validate, and maintain.
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
 | :mag: | Retrieval | `search`, `get`, `list`, and `view` make the wiki usable as local context instead of a passive docs folder. |
 | :package: | Portable publishing | HTML exports include `llms.txt`, `openknowledge.json`, and a bundle archive so published wikis can be connected again. |
-| :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and agent job commands provide structured views that automation can trust. |
+| :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and experimental agent job commands provide structured views that automation can trust. |
 
 ```mermaid
 flowchart LR
@@ -146,7 +147,7 @@ openknowledge view ./project-memory
 | Agent setup | `setup`, `rules`, `review rules` | Print prompts and maintenance instructions for agents that create or maintain a wiki. |
 | Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into a local OKF Markdown wiki. |
 | Authoring and format hygiene | `new`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
-| Local agent automation | `agents` | Validate, dry-run, and execute scheduled local agent jobs from Markdown specs in isolated Git worktrees. |
+| Experimental local agent automation | `agents` | Validate, dry-run, and execute scheduled local agent jobs from Markdown specs in isolated Git worktrees. |
 | Registry and lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
 | Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown files, inspect bundle trees, search source-grounded chunks, and browse locally. |
 | Views and publishing | `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | Export normalized models, source graphs, retrieval graphs, static viewers, and plain semantic HTML. |
@@ -288,12 +289,13 @@ github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"
 ```
 
-### Local agent jobs
+### Experimental Local Agent Jobs
 
-`openknowledge agents` runs deterministic automation around local agent CLIs.
-Jobs are Markdown files with nested frontmatter for schedule, agent command,
-workspace, sandbox, verification, and output settings. The Markdown body is
-the agent prompt.
+`openknowledge agents` is experimental. It runs deterministic automation
+around local agent CLIs, but the job schema and scheduler behavior may still
+change before this command is treated as stable. Jobs are Markdown files with
+nested frontmatter for schedule, agent command, workspace, sandbox,
+verification, and output settings. The Markdown body is the agent prompt.
 
 Use `openknowledge agents new` to list shipped templates,
 `openknowledge agents new <template> --out <file>` to write one,
@@ -317,14 +319,14 @@ Run `openknowledge <command> --help` for command-specific flags and examples.
 | `openknowledge rules <rules> --path <path>` | Print ready-to-paste maintenance rules for an existing wiki. |
 | `openknowledge rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
 | `openknowledge review rules [path]` | Print an advisory AI review prompt for maintenance rules. |
-| `openknowledge agents new` | List built-in local agent job templates. |
-| `openknowledge agents new <template> --out <file>` | Write a built-in agent job template to a Markdown file. |
-| `openknowledge agents new --reference` | Print the supported nested frontmatter syntax. |
-| `openknowledge agents list [path]` | List Markdown agent job specs. |
-| `openknowledge agents validate <job-or-dir>` | Parse and schema-check agent job specs. |
-| `openknowledge agents run <job.md> --dry-run` | Print the resolved deterministic run plan. |
-| `openknowledge agents run <job.md>` | Create a Git worktree and run one local agent job. |
-| `openknowledge agents daemon [jobs-dir] --once` | Check scheduled jobs once and run due jobs. |
+| `openknowledge agents new` | Experimental: list built-in local agent job templates. |
+| `openknowledge agents new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
+| `openknowledge agents new --reference` | Experimental: print the supported nested frontmatter syntax. |
+| `openknowledge agents list [path]` | Experimental: list Markdown agent job specs. |
+| `openknowledge agents validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
+| `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
+| `openknowledge agents run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
+| `openknowledge agents daemon [jobs-dir] --once` | Experimental: check scheduled jobs once and run due jobs. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge new --no-agents --no-setup [folder]` | Scaffold without starter agent rules or a setup handoff. |
 | `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |

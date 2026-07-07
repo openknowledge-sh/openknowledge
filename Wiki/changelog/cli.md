@@ -23,6 +23,18 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-07 - Experimental label for local agent jobs
+
+* Marked `openknowledge agents` as experimental in root help, command-specific
+  help, README command references, and wiki command docs while the job schema
+  and scheduler behavior are still settling.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/agents_command.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/agents.md`,
+  `Wiki/features/commands/help.md`, `Wiki/features/commands/index.md`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-07 - Local agent job runner
 
 * Added `openknowledge agents` with `new`, `list`, `validate`, `run`, and

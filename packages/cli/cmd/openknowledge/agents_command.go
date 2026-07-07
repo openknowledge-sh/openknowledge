@@ -477,7 +477,9 @@ func scheduleLabel(job agents.Job) string {
 func agentsHelpText() string {
 	return `openknowledge agents
 
-Run deterministic local agent jobs from Markdown specs with nested frontmatter.
+Experimental command group for deterministic local agent jobs from Markdown
+specs with nested frontmatter. Job schema and scheduler behavior may still
+change before this surface is treated as stable.
 
 Usage:
   openknowledge agents new

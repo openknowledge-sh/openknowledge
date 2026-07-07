@@ -56,7 +56,7 @@ Commands:
   setup      Print an agent setup prompt.
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
-  agents     Run scheduled local agent jobs from Markdown specs.
+  agents     Experimental: run scheduled local agent jobs from Markdown specs.
 ```
 
 ## Use Cases
@@ -68,6 +68,9 @@ Commands:
 ## Command Change History
 
 ### 2026-07-07
+
+Root help marks `openknowledge agents` as experimental while the local job
+schema and scheduler behavior are still settling.
 
 Root help added `openknowledge agents new` and
 `openknowledge agents new <template> --out <file>` for built-in local agent
