@@ -20,7 +20,13 @@ cut.
 
 ## v0.6.0 Candidate
 
-No candidate v0.6.0 changes are currently tracked here.
+### 2026-07-08 - Homepage OKF note
+
+* Added inline homepage hero metadata next to the release badge stating that
+  Open Knowledge implements Google's Open Knowledge Format.
+* Source anchors: `packages/web/index.html`, `packages/web/styles.css`.
+* Docs updated: `packages/web/index.html`, `packages/web/styles.css`,
+  `Wiki/changelog/cli.md`.
 
 ## v0.5.0 - 2026-07-08
 
