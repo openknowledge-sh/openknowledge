@@ -23,6 +23,17 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-07 - Homepage README alignment
+
+* Refreshed the homepage around the updated README story: shared the new banner
+  image, moved the setup prompt into a clearer start section, added At A Glance
+  capability cards, and added a command-map table with the experimental agents
+  surface labeled.
+* Source anchors: `packages/web/index.html`, `packages/web/styles.css`,
+  `packages/web/scripts/build.mjs`, `packages/web/openknowledge-readme-banner.png`.
+* Docs updated: `packages/web/index.html`, `packages/web/styles.css`,
+  `packages/web/scripts/build.mjs`, `Wiki/changelog/cli.md`.
+
 ### 2026-07-07 - Top navigation links
 
 * Added README and changelog links to the README top link strip and added a

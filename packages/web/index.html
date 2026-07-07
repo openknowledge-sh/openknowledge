@@ -4,16 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Open Knowledge - Local LLM Wiki for Agents</title>
-    <meta name="description" content="Create a Git-native local LLM wiki for project context that humans and agents can read.">
+    <meta name="description" content="Local LLM wiki tooling for agents and humans. Create Git-native Markdown project knowledge bases, validate them, search them, and publish them.">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Open Knowledge CLI - Local LLM Wiki">
-    <meta property="og:description" content="Create a local LLM wiki that stays readable in Git, works like a lightweight LLM Wikipedia for project context, and is easy for coding agents to use.">
+    <meta property="og:description" content="Local LLM wiki tooling for agents and humans. Create Git-native Markdown project knowledge bases, validate them, search them, and publish them.">
     <meta property="og:image" content="https://openknowledge.sh/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Open Knowledge CLI - Local LLM Wiki">
-    <meta name="twitter:description" content="Create a local LLM wiki that stays readable in Git, works like a lightweight LLM Wikipedia for project context, and is easy for coding agents to use.">
+    <meta name="twitter:description" content="Local LLM wiki tooling for agents and humans. Create Git-native Markdown project knowledge bases, validate them, search them, and publish them.">
     <meta name="twitter:image" content="https://openknowledge.sh/og.png">
     <link rel="icon" href="favicon.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
@@ -53,17 +53,32 @@
         </a>
       </div>
 
-      <section class="intro">
-        <h1>Create a local LLM wiki for you and your agents</h1>
-        <p class="lede">
-          Open Knowledge CLI creates a Git-native local LLM wiki for project context that humans and agents can read, maintain, and publish.
-        </p>
-        <p class="spec-note">
-          Implements the
-          <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a>
-          specification, a Markdown and YAML-frontmatter standard that stays readable for humans, shell tools, and agents.
-        </p>
+      <section class="hero" aria-labelledby="hero-title">
+        <img class="hero-media" src="openknowledge-readme-banner.png" alt="" aria-hidden="true">
+        <div class="hero-copy">
+          <p class="eyebrow">Open Knowledge CLI</p>
+          <h1 id="hero-title">Local LLM wiki tooling for agents and humans</h1>
+          <p class="lede">
+            Create Git-native project knowledge bases in plain Markdown. Set
+            them up with local agents, validate the structure, search exact
+            source-grounded context, and publish portable static docs.
+          </p>
+          <nav class="hero-actions" aria-label="Primary actions">
+            <a class="primary-action" href="#setup">Start with an agent</a>
+            <a class="secondary-action" href="wiki/">Read the wiki</a>
+          </nav>
+        </div>
+      </section>
 
+      <section class="setup-section" id="setup" aria-labelledby="setup-title">
+        <div class="section-heading">
+          <p class="eyebrow">Start here</p>
+          <h2 id="setup-title">Let an agent create the wiki</h2>
+          <p>
+            Paste the prompt into Codex, Claude, Cursor, Cowork, or another
+            coding agent in the workspace where the wiki should live.
+          </p>
+        </div>
         <section class="terminal setup-terminal" aria-label="Agent setup prompt">
           <div class="terminal-header">
             <button class="copy-command" type="button" data-copy-target="#setup-prompt" aria-label="Copy setup prompt" title="Copy setup prompt">
@@ -77,34 +92,116 @@
           <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge LLM wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, use <code>openknowledge rules --list</code> to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, and show me how to inspect and navigate it with <code>openknowledge list</code>, <code>openknowledge search</code>, <code>openknowledge get</code>, and <code>openknowledge view</code>.</p>
         </section>
         <p class="setup-note">
-          Need manual installation, or advanced setup options? See
-          the
-          <a href="https://github.com/openknowledge-sh/openknowledge#setup-entry-points" target="_blank" rel="noreferrer">GitHub docs</a>.
+          Prefer shell setup? Run <code>curl -fsSL https://openknowledge.sh/install | bash</code>,
+          then <code>openknowledge setup</code>. The
+          <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
+          has the full command reference.
         </p>
       </section>
 
-      <section class="readme" aria-label="Open Knowledge product overview">
-        <article class="readme-body">
-          <h2>What an Open Knowledge LLM wiki gives you</h2>
+      <section class="section at-glance" aria-labelledby="glance-title">
+        <div class="section-heading">
+          <p class="eyebrow">At a glance</p>
+          <h2 id="glance-title">One Markdown wiki, several operational views</h2>
           <p>
-            A local Markdown LLM wiki that lives with your project and gives
-            agents a clear place to read, update, and preserve durable context.
+            The same OKF bundle stays readable in Git, useful to agents, and
+            inspectable through deterministic CLI commands.
           </p>
-          <ul class="feature-list">
-            <li>Turn a project or research folder into an agent-readable LLM wiki stored as normal Markdown in Git.</li>
-            <li>Use it as a Karpathy-style LLM wiki for project memory without giving up plain files, Git history, or portable parsing.</li>
-            <li>Guided setup through an agent interview, so the wiki starts with the right purpose, structure, and maintenance rules like docs, changelog, decisions, or research.</li>
-            <li>Use and search commands help agents load entrypoints, find source-grounded context, and navigate related wiki areas as project knowledge grows.</li>
-            <li>A maintenance loop that keeps decisions, workflows, and project memory current as work changes.</li>
-            <li>A local Markdown viewer for browsing, searching, and inspecting the wiki.</li>
-            <li>AST, JSON, source graph, and search graph outputs expose different views of the same OKF bundle.</li>
-            <li>Consistency against the
-              <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a> specification.</li>
-          </ul>
-        </article>
+        </div>
+        <div class="capability-grid">
+          <article class="capability">
+            <span class="capability-key">setup</span>
+            <h3>Agent setup</h3>
+            <p><code>setup</code>, <code>from</code>, and <code>rules</code> print prompts that let local agents create and maintain useful project memory.</p>
+          </article>
+          <article class="capability">
+            <span class="capability-key">files</span>
+            <h3>Plain Markdown</h3>
+            <p>Knowledge stays in Git-friendly files that humans can read and agents can patch without a database or hosted service.</p>
+          </article>
+          <article class="capability">
+            <span class="capability-key">use</span>
+            <h3>Retrieval</h3>
+            <p><code>search</code>, <code>get</code>, <code>list</code>, and <code>view</code> make the wiki usable as local context instead of passive docs.</p>
+          </article>
+          <article class="capability">
+            <span class="capability-key">ship</span>
+            <h3>Portable publishing</h3>
+            <p>HTML exports include <code>llms.txt</code>, <code>openknowledge.json</code>, and a bundle archive so published wikis can be connected again.</p>
+          </article>
+          <article class="capability">
+            <span class="capability-key">check</span>
+            <h3>Deterministic checks</h3>
+            <p><code>validate</code>, <code>ast</code>, JSON, graph, and experimental agent job commands provide structured views automation can trust.</p>
+          </article>
+          <article class="capability">
+            <span class="capability-key">okf</span>
+            <h3>OKF v0.1</h3>
+            <p>Open Knowledge implements the <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a> Markdown and YAML-frontmatter spec.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section command-section" aria-labelledby="command-title">
+        <div class="section-heading">
+          <p class="eyebrow">Command map</p>
+          <h2 id="command-title">Use the CLI by layer</h2>
+          <p>
+            Start with prompts, inspect the bundle, connect stable names, then
+            publish or export the same source files.
+          </p>
+        </div>
+        <div class="command-table-wrap">
+          <table class="command-map">
+            <thead>
+              <tr>
+                <th scope="col">Layer</th>
+                <th scope="col">Commands</th>
+                <th scope="col">Use them for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Agent setup</td>
+                <td><code>setup</code>, <code>rules</code>, <code>review rules</code></td>
+                <td>Print prompts and maintenance instructions for agents that create or maintain a wiki.</td>
+              </tr>
+              <tr>
+                <td>Source-to-wiki</td>
+                <td><code>from</code></td>
+                <td>Turn a source URL or path into a local OKF Markdown wiki through an agent task prompt.</td>
+              </tr>
+              <tr>
+                <td>Format hygiene</td>
+                <td><code>new</code>, <code>spec</code>, <code>validate</code>, <code>list</code>, <code>ast</code></td>
+                <td>Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules.</td>
+              </tr>
+              <tr>
+                <td>Registry</td>
+                <td><code>connect</code>, <code>disconnect</code>, <code>registry</code>, <code>to tar</code></td>
+                <td>Give local, published, archive, or Git knowledge bases stable names and portable archives.</td>
+              </tr>
+              <tr>
+                <td>Use and navigation</td>
+                <td><code>get</code>, <code>search</code>, <code>list</code>, <code>view</code></td>
+                <td>Read exact Markdown files, inspect bundle trees, search chunks, and browse locally.</td>
+              </tr>
+              <tr>
+                <td>Views and publishing</td>
+                <td><code>to json</code>, <code>to graph</code>, <code>to html</code>, <code>to html --plain</code></td>
+                <td>Export normalized models, graphs, static viewers, and plain semantic HTML.</td>
+              </tr>
+              <tr>
+                <td>Experimental automation</td>
+                <td><code>agents</code></td>
+                <td>Validate, dry-run, and execute scheduled local agent jobs from Markdown specs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
       <footer class="site-footer">
-        <p>Open Knowledge is licensed under Apache-2.0.</p>
+        <p>Open Knowledge is licensed under Apache-2.0. Read the <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>, browse the <a href="wiki/">wiki</a>, or follow the <a href="wiki/changelog/cli.html">changelog</a>.</p>
       </footer>
     </main>
     <script src="main.js"></script>

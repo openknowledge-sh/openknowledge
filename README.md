@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/openknowledge-readme-banner.png" alt="Open Knowledge CLI banner">
+  <img src="docs/assets/openknowledge-readme-banner-wide.png" alt="Open Knowledge CLI banner" width="1160" height="125">
 </p>
 
 # Open Knowledge CLI
@@ -11,9 +11,9 @@ and YAML frontmatter. Use it to set up local agent memory, generate
 source-grounded docs from existing material, validate the structure, search it,
 view it locally, and publish it as portable static HTML.
 
-[Website](https://openknowledge.sh) | [README](README.md) |
-[Repository wiki](Wiki/index.md) | [Changelog](Wiki/changelog/cli.md) |
-[OKF spec][okf-spec] | [License](LICENSE)
+[🌐 Website](https://openknowledge.sh) | [📖 README](README.md) |
+[🗂️ Repository wiki](Wiki/index.md) | [📝 Changelog](Wiki/changelog/cli.md) |
+[📐 OKF spec][okf-spec] | [⚖️ License](LICENSE)
 
 <p align="center">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
