@@ -14,9 +14,17 @@ view it locally, and publish it as portable static HTML.
 [Website](https://openknowledge.sh) | [Repository wiki](Wiki/index.md) |
 [OKF spec][okf-spec] | [License](LICENSE)
 
+<p align="center">
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
+  <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"><img alt="OKF v0.1" src="https://img.shields.io/badge/OKF-v0.1-2f6feb"></a>
+  <a href="https://openknowledge.sh"><img alt="Local-first Markdown wiki" src="https://img.shields.io/badge/wiki-local--first-0f766e"></a>
+  <a href="Wiki/index.md"><img alt="Agent-ready docs" src="https://img.shields.io/badge/docs-agent--ready-6f42c1"></a>
+</p>
+
 ## Contents
 
 - [Why Open Knowledge](#why-open-knowledge)
+- [At A Glance](#at-a-glance)
 - [Start Here](#start-here)
 - [Command Map](#command-map)
 - [Common Workflows](#common-workflows)
@@ -47,6 +55,27 @@ It gives you:
 Open Knowledge implements Google's [Open Knowledge Format v0.1][okf-spec]
 specification, a Markdown and YAML-frontmatter standard designed to stay easy
 to inspect, diff, validate, and maintain.
+
+## At A Glance
+
+| | Capability | What it gives you |
+| --- | --- | --- |
+| :robot: | Agent setup | `openknowledge setup`, `from`, and `rules` print prompts that let local agents create and maintain useful project memory. |
+| :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
+| :mag: | Retrieval | `search`, `get`, `list`, and `view` make the wiki usable as local context instead of a passive docs folder. |
+| :package: | Portable publishing | HTML exports include `llms.txt`, `openknowledge.json`, and a bundle archive so published wikis can be connected again. |
+| :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and agent job commands provide structured views that automation can trust. |
+
+```mermaid
+flowchart LR
+  Source["Repository, docs, website, or local folder"] --> Prompt["openknowledge from / setup"]
+  Prompt --> Agent["Local coding agent"]
+  Agent --> Wiki["OKF Markdown wiki"]
+  Wiki --> Use["get / search / list / view"]
+  Wiki --> Check["validate / ast"]
+  Wiki --> Publish["to html / json / graph / tar"]
+  Publish --> Connect["connect remote or archive"]
+```
 
 ## Start Here
 
@@ -362,6 +391,20 @@ machine-readable report with summary counts, checks, active severity policy,
 and combined or separate issue arrays. Bundle-local `openknowledge.toml` can
 configure lint severities under `[validation.rules]`, and repeatable `--rule`
 flags can override them per run.
+
+## Development
+
+```sh
+pnpm test:cli
+pnpm build:cli
+pnpm build:web
+pnpm dev:web
+```
+
+This repository keeps CLI documentation in the colocated [Wiki](Wiki/index.md).
+When a command, flag, exporter, validation rule, viewer behavior, setup flow,
+or release-facing package behavior changes, update the relevant wiki page and
+CLI changelog memory with the source-backed behavior.
 
 ## License And Attribution
 
