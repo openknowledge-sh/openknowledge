@@ -86,16 +86,13 @@ body {
   gap: 14px;
 }
 
-.release-row {
-  display: flex;
-  margin-bottom: 18px;
-}
-
 .release-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 7px;
+  width: fit-content;
   min-height: 26px;
+  margin-bottom: 16px;
   padding: 0 9px;
   border: 1px solid rgba(var(--accent-rgb), 0.36);
   background: rgba(var(--accent-rgb), 0.08);
@@ -162,15 +159,6 @@ h2,
 h3 {
   font-family: var(--heading-font);
   font-weight: 400;
-}
-
-.eyebrow {
-  margin-bottom: 12px;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
 }
 
 .hero {
