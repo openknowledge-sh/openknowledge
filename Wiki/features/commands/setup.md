@@ -19,8 +19,8 @@ validate it, and finish with the concrete post-setup loop:
 `openknowledge list`, `openknowledge search`, `openknowledge get`, and
 `openknowledge view`.
 
-The optional `--rules` flag preselects comma-separated maintenance rules in the
-prompt. It uses the same canonical rule IDs listed by
+The optional `--rules` flag preselects comma-separated built-in maintenance
+rules in the prompt. It uses the same built-in rule IDs listed by
 `openknowledge rules --list`. The generated setup prompt also tells agents to
 run `openknowledge rules --list` when they need rule descriptions.
 
@@ -41,8 +41,30 @@ No positional arguments are accepted.
 | `--rules <rules>` | Suggest comma-separated maintenance rules for setup. |
 | `--help` | Print setup-specific help. |
 
-Canonical rules are `project`, `docs`, `decisions`, `changelog`, `research`,
-`bugs`, `schemas`, `summary`, and `agents`.
+Built-in canonical rules are `project`, `docs`, `decisions`, `changelog`,
+`research`, `bugs`, `schemas`, `summary`, and `agents`.
+
+## Example Output
+
+`openknowledge setup --rules docs,changelog` prints a full setup prompt for an
+agent. The beginning and selected-rule block look like:
+
+```text
+This setup guide is meant to be executed by an AI coding agent.
+
+If you are a human reading this in your terminal, pass it to an agent instead:
+  codex "$(openknowledge setup)"
+
+You are helping the user create an agentic LLM wiki with Open Knowledge.
+
+Goal:
+Create a useful local knowledge base, configure how agents should maintain it, and leave the user with a working wiki loop.
+
+Selected maintenance rules:
+Use these as the starting point for AGENTS.md, workflow docs, and any agent instruction files.
+- docs: Keep docs in sync with implementation.
+- changelog: Track user-facing changes.
+```
 
 ## Use Cases
 
@@ -77,8 +99,9 @@ wiki with `openknowledge list`, `openknowledge search`, and
 comma-separated rules are inserted into the generated setup prompt as the
 starting point for
 `AGENTS.md`, workflow docs, and agent instruction files. The default setup
-prompt also lists the available canonical rules and points the user toward the
-same maintenance-loop vocabulary exposed by `openknowledge rules --list`.
+prompt also lists the available built-in canonical rules and points the user
+toward the same maintenance-loop vocabulary exposed by
+`openknowledge rules --list`.
 
 ---
 

@@ -34,7 +34,7 @@ func NewProject(options NewProjectOptions) (NewProjectResult, error) {
 		return NewProjectResult{}, err
 	}
 
-	files := newProjectFiles(name, metadata)
+	files := newProjectFiles(name, metadata, options)
 	var created []string
 	for _, file := range files {
 		path := filepath.Join(absolute, file.name)
@@ -47,10 +47,15 @@ func NewProject(options NewProjectOptions) (NewProjectResult, error) {
 		created = append(created, filepath.ToSlash(file.name))
 	}
 
+	setupPath := ""
+	if !options.SkipSetup {
+		setupPath = filepath.Join(absolute, "SETUP.MD")
+	}
+
 	return NewProjectResult{
 		Name:      name,
 		Root:      absolute,
-		SetupPath: filepath.Join(absolute, "SETUP.MD"),
+		SetupPath: setupPath,
 		Created:   created,
 	}, nil
 }
@@ -82,14 +87,53 @@ type projectFile struct {
 	content string
 }
 
-func newProjectFiles(name string, metadata BundleMetadata) []projectFile {
+func newProjectFiles(name string, metadata BundleMetadata, options NewProjectOptions) []projectFile {
 	date := time.Now().Format("2006-01-02")
 	title := markdownEscape(name)
 
-	return []projectFile{
+	files := []projectFile{
 		{
-			name: "index.md",
-			content: fmt.Sprintf(`---
+			name:    "index.md",
+			content: newIndexContent(title, metadata, options),
+		},
+		{
+			name:    "log.md",
+			content: newLogContent(date, options),
+		},
+	}
+	if !options.SkipAgentRules {
+		files = append(files, projectFile{
+			name:    "AGENTS.md",
+			content: newAgentRulesContent(title, date, options),
+		})
+	}
+	if !options.SkipSetup {
+		files = append(files, projectFile{
+			name:    "SETUP.MD",
+			content: newSetupContent(title, date, options),
+		})
+	}
+	files = append(files, projectFile{
+		name:    "SPEC.md",
+		content: specDocument(),
+	})
+	return files
+}
+
+func newIndexContent(title string, metadata BundleMetadata, options NewProjectOptions) string {
+	startHere := []string{}
+	if !options.SkipSetup {
+		startHere = append(startHere, "* [Setup](SETUP.MD) - temporary agent handoff for building the initial wiki.")
+	}
+	if !options.SkipAgentRules {
+		startHere = append(startHere, "* [Agent rules](AGENTS.md) - lightweight starter rules for agents.")
+	}
+	startHere = append(startHere,
+		"* [Spec](SPEC.md) - local pinned copy of the Open Knowledge Format spec.",
+		"* [Log](log.md) - chronological update history.",
+	)
+
+	return fmt.Sprintf(`---
 %s
 ---
 
@@ -99,33 +143,46 @@ This is the entry point for the local Open Knowledge bundle.
 
 ## Start Here
 
-* [Setup](SETUP.MD) - temporary agent handoff for building the initial wiki.
-* [Agent rules](AGENTS.md) - lightweight starter rules for agents.
-* [Spec](SPEC.md) - local pinned copy of the Open Knowledge Format spec.
-* [Log](log.md) - chronological update history.
+%s
 
 ## Sections
 
-This scaffold is intentionally small. During setup, create only the folders
-and pages that fit the user's interview and expectations. Common optional
+This scaffold is intentionally small. Create only the folders and pages that
+fit the user's source, interview, and maintenance expectations. Common optional
 sections include workflows, references, decisions, raw sources, and
 domain-specific concept folders.
-`, bundleRootFrontmatter(metadata), title),
-		},
-		{
-			name: "log.md",
-			content: fmt.Sprintf(`# Bundle Update Log
+`, bundleRootFrontmatter(metadata), title, strings.Join(startHere, "\n"))
+}
+
+func newLogContent(date string, options NewProjectOptions) string {
+	entries := []string{"* **Initialization**: Created the Open Knowledge bundle scaffold."}
+	if !options.SkipAgentRules {
+		entries = append(entries, "* **Rules**: Seeded lightweight starter agent rules in [AGENTS.md](AGENTS.md).")
+	}
+	if !options.SkipSetup {
+		entries = append(entries, "* **Handoff**: Seeded a temporary setup handoff in [SETUP.MD](SETUP.MD).")
+	}
+	entries = append(entries, "* **Reference**: Stored a local pinned OKF spec copy in [SPEC.md](SPEC.md).")
+
+	return fmt.Sprintf(`# Bundle Update Log
 
 ## %s
 
-* **Initialization**: Created the Open Knowledge bundle scaffold.
-* **Rules**: Seeded lightweight starter agent rules in [AGENTS.md](AGENTS.md).
-* **Reference**: Stored a local pinned OKF spec copy in [SPEC.md](SPEC.md).
-`, date),
-		},
-		{
-			name: "AGENTS.md",
-			content: fmt.Sprintf(`---
+%s
+`, date, strings.Join(entries, "\n"))
+}
+
+func newAgentRulesContent(title, date string, options NewProjectOptions) string {
+	setupGuidance := `These are starter rules only. During setup, read [SETUP.MD](SETUP.MD), interview
+the user, then replace or extend this file with rules that fit the final
+knowledge base.`
+	if options.SkipSetup {
+		setupGuidance = `These are starter rules only. During setup, inspect the source and context,
+interview the user when needed, then replace or extend this file with rules
+that fit the final knowledge base.`
+	}
+
+	return fmt.Sprintf(`---
 type: Agent Rules
 title: %s Agent Rules
 description: Lightweight starter rules for agents working in this Open Knowledge wiki.
@@ -155,14 +212,19 @@ You are working inside a local Open Knowledge wiki.
 
 ## Setup
 
-These are starter rules only. During setup, read [SETUP.MD](SETUP.MD), interview
-the user, then replace or extend this file with rules that fit the final
-knowledge base.
-`, title, date),
-		},
-		{
-			name: "SETUP.MD",
-			content: fmt.Sprintf(`---
+%s
+`, title, date, setupGuidance)
+}
+
+func newSetupContent(title, date string, options NewProjectOptions) string {
+	agentInstruction := "Read\n[SPEC.md](SPEC.md) and the starter [AGENTS.md](AGENTS.md)."
+	agentOutput := "* update AGENTS.md so future agents understand the final wiki purpose, rules, and boundaries"
+	if options.SkipAgentRules {
+		agentInstruction = "Read\n[SPEC.md](SPEC.md). Create AGENTS.md only if the final wiki needs local agent rules."
+		agentOutput = "* create AGENTS.md only if the final wiki needs local agent rules"
+	}
+
+	return fmt.Sprintf(`---
 type: Setup
 title: %s Setup
 description: Agent handoff for creating the initial local Open Knowledge wiki.
@@ -186,8 +248,7 @@ generated from openknowledge spec latest, currently version 0.1.
 ## Agent Task
 
 Set up the local Open Knowledge wiki for "%s". First inspect the scaffold,
-the current folder, and any surrounding project context. Read
-[SPEC.md](SPEC.md) and the starter [AGENTS.md](AGENTS.md). If your runtime
+the current folder, and any surrounding project context. %s If your runtime
 exposes relevant user or project memories, read only the small subset that
 applies to this setup. Then interview the user before creating or reshaping the
 initial content.
@@ -212,7 +273,7 @@ After the interview:
 * update index.md for progressive disclosure
 * create the smallest useful folder structure for the domain
 * write initial section indexes for folders you create
-* update AGENTS.md so future agents understand the final wiki purpose, rules, and boundaries
+%s
 * create workflow pages for selected agent maintenance behaviors
 * configure agent instructions or skills where the agent will actually read them: repo-scoped instructions such as AGENTS.md updates or a repo-scoped skill/instruction file for colocated project wikis, or user-scoped skill guidance for standalone or external wikis when appropriate; when creating repo-scoped or user-scoped skills, include guidance to spawn focused subagents with lower reasoning effort for bounded wiki maintenance tasks when the runtime supports that
 * create wiki pages for skills only when they are useful as documentation or references, not as the default skill location
@@ -227,13 +288,7 @@ After the interview:
 * tell the user how future agents should read exact Markdown with openknowledge get, search source-grounded chunks with openknowledge search, inspect the bundle tree with openknowledge list, and browse it with openknowledge view
 * double-check that the scaffold no longer contains placeholder rules or structure that conflict with the interview
 * delete SETUP.MD after successful setup
-`, title, date, title),
-		},
-		{
-			name:    "SPEC.md",
-			content: specDocument(),
-		},
-	}
+`, title, date, title, agentInstruction, agentOutput)
 }
 
 func normalizeBundleMetadata(metadata BundleMetadata) (BundleMetadata, error) {

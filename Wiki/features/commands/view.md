@@ -63,6 +63,27 @@ The CLI does not print or configure custom hostname aliases. Use the printed
 loopback URL; stable knowledge base names are represented as path segments such
 as `/wiki/` or `/personal/`.
 
+## Example Output
+
+`openknowledge view --no-browser ./project-memory` starts a long-running local
+server and prints the URL plus direct-mode details:
+
+```text
+Open Knowledge view: http://127.0.0.1:57475/project-memory/
+root /work/project-memory
+Press Ctrl+C to stop.
+```
+
+Running `openknowledge view` without a path starts the registry workspace
+selector instead:
+
+```text
+Open Knowledge view: http://127.0.0.1:57475/
+registry /home/user/.config/openknowledge/registry.json
+knowledge bases 2
+Press Ctrl+C to stop.
+```
+
 ## Behavior
 
 * Registry names and normal filesystem paths resolve through the same

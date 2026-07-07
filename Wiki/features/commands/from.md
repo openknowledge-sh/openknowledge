@@ -62,13 +62,43 @@ The CLI-facing flag is `--type`, but generated bundle metadata should store the
 value in a namespaced key such as `okf_wiki_type` so it does not conflict with
 concept-document `type` frontmatter.
 
+## Example Output
+
+This command prints an agent prompt:
+
+```sh
+openknowledge from https://github.com/owner/repo --out Wiki --type custom --about "Help contributors understand releases"
+```
+
+The first part looks like:
+
+```text
+This source-to-wiki guide is meant to be executed by an AI coding or research agent.
+
+If you are a human reading this in your terminal, pass it to an agent instead:
+  codex "$(openknowledge from https://github.com/owner/repo --out Wiki --type custom --about 'Help contributors understand releases')"
+
+Simple model:
+source URL or path -> local agent task -> OKF Markdown bundle
+
+Inputs:
+- Source: `https://github.com/owner/repo`
+- Source kind: GitHub repository
+- Output wiki path: `Wiki`
+- Wiki type: `custom`
+- Custom goal: `Help contributors understand releases`
+```
+
 ## What The Agent Does
 
 The generated task should be concrete and short:
 
 1. Inspect the source before writing.
 2. Ask the user only for missing intent or scope.
-3. Create or update the OKF bundle at `--out`.
+3. Create or update the OKF bundle at `--out`. For a missing or empty output
+   folder, initialize it with
+   `openknowledge new --name "<clear wiki name>" --no-agents --no-setup <out>`
+   unless the user explicitly wants starter agent rules or a setup handoff.
 4. Keep raw copied material separate from synthesized pages.
 5. Preserve source links, source files, line ranges, commit IDs, or canonical
    page URLs where available.
@@ -140,7 +170,10 @@ sections from later human-maintained notes.
 `openknowledge from` shipped as a prompt-producing source-to-wiki command. It
 accepts one source argument, requires `--out`, defaults `--type` to
 `understanding`, supports `--type custom`, accepts `--about` for non-interactive
-custom goals, and accepts `--depth` as a crawl or traversal hint.
+custom goals, and accepts `--depth` as a crawl or traversal hint. Its generated
+prompt initializes fresh source-generated bundles with `openknowledge new`
+plus `--no-agents --no-setup` so the output does not include an unnecessary
+interactive setup handoff or starter agent rules unless the user asks for them.
 
 ---
 

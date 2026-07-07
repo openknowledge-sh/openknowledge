@@ -6,11 +6,20 @@
   as a local deterministic automation layer for Markdown-authored jobs with
   nested frontmatter, built-in job templates, Git worktree isolation, host or
   Docker execution, run records, verification commands, and daemon scheduling.
+* **Custom rule catalogs and advisory review**: Documented wiki-local custom
+  maintenance rules under `rules/`, deterministic `rule-catalog` validation,
+  `[rules]` configuration in `openknowledge.toml`, and
+  `openknowledge review rules` as the prompt-producing AI review surface
+  separate from `openknowledge validate`. Classified `rules` and `review` with
+  validation and inspection commands in the README, command index, root wiki
+  index, and tooling model.
 * **Source-to-wiki generation command**: Implemented `openknowledge from` as a
   shipped prompt-producing command for turning a source URL or path into an OKF
   Markdown bundle through a local agent. Documented `--out`, `--type`,
   `--about`, `--depth`, source provenance guidance, custom interview behavior,
-  and refresh expectations.
+  refresh expectations, and the fresh-bundle path that uses
+  `openknowledge new` with `--no-agents --no-setup` when starter agent rules or
+  a setup handoff are not needed.
 
 ## 2026-07-06
 

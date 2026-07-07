@@ -69,6 +69,36 @@ openknowledge to graph --out ./graph.json ./project-memory
 openknowledge to graph --type search ./project-memory
 ```
 
+## Example Output
+
+File-writing targets print short summaries:
+
+```text
+OK Exported HTML
+root /work/project-memory
+out /work/site
+wrote 10 files
+```
+
+```text
+OK Exported TAR
+root /work/project-memory
+out /work/bundle.tar.gz
+sha256 9f7f4c4832d5e833aff7574d957172cfbaf9bbece0cbb13ed69c97e5b9c11897
+```
+
+Stdout targets print JSON when `--out` is omitted:
+
+```json
+{
+  "root": "/work/project-memory",
+  "specVersion": "0.1",
+  "type": "source",
+  "nodes": [],
+  "edges": []
+}
+```
+
 ## Behavior
 
 `to html` requires `--out <folder>`. It has two modes:

@@ -81,7 +81,8 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteByte('\n')
 
 	builder.WriteString("Write the wiki:\n")
-	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `openknowledge new --name \"<clear wiki name>\" %q` before customizing it.\n", markdownCode(options.Out), options.Out))
+	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `openknowledge new --name \"<clear wiki name>\" --no-agents --no-setup %q` before customizing it.\n", markdownCode(options.Out), options.Out))
+	builder.WriteString("- Use `--no-agents --no-setup` for generated source wikis unless the user explicitly wants starter agent rules or an interactive setup handoff document.\n")
 	builder.WriteString("- Keep raw copied material separate from synthesized wiki pages.\n")
 	builder.WriteString("- Write ordinary OKF Markdown so list, search, get, view, validate, and to work without a generation runtime.\n")
 	builder.WriteString("- Use normal concept page `type` values such as `Repository Overview`, `Architecture Overview`, `Module`, `Development Workflow`, `API Reference`, `Research Synthesis`, or `Glossary`.\n")

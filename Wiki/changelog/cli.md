@@ -44,9 +44,39 @@ entries in this section until they are released.
   `packages/cli/internal/okf/frontmatter_structured.go`,
   `packages/cli/cmd/openknowledge/agents_command_test.go`,
   `packages/cli/internal/okf/frontmatter_test.go`.
-* Docs updated: `Wiki/features/commands/agents.md`,
-  `Wiki/features/commands/index.md`, `Wiki/index.md`,
-  `Wiki/log.md`, `Wiki/changelog/cli.md`.
+* Docs updated: `README.md`, `Wiki/features/commands/agents.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/commands/help.md`,
+  `Wiki/index.md`, `Wiki/changelog/cli.md`.
+
+### 2026-07-07 - Custom rule catalogs and advisory rule reviews
+
+* Added wiki-local custom maintenance rules under `rules/` as OKF Markdown
+  files. `openknowledge rules --list --path <wiki>` now includes valid custom
+  rule IDs, and `openknowledge rules <id> --path <wiki>` can render them
+  alongside built-in rules.
+* Added deterministic `rule-catalog` validation for custom rule structure,
+  including canonical IDs, summaries, instruction bullets, built-in collisions,
+  duplicate custom IDs, configured rule paths, and configured default rule IDs.
+* Added `[rules]` support in `openknowledge.toml`. `rules.paths` selects
+  custom rule Markdown directories, and `rules.enabled` defines the default
+  selected rules for `openknowledge rules`, `openknowledge rules apply`, and
+  `openknowledge review rules`.
+* Added `openknowledge review rules`, a prompt-producing advisory AI review
+  workflow for selected built-in or custom rules. It does not call a model,
+  mutate files, or affect `validate` status.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/internal/okf/rule_catalog.go`,
+  `packages/cli/internal/okf/rules.go`,
+  `packages/cli/internal/okf/ast_validate.go`,
+  `packages/cli/internal/okf/validation_checks.go`,
+  `packages/cli/internal/okf/validation_policy.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/internal/okf/rules_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/rules.md`,
+  `Wiki/features/commands/review.md`, `Wiki/features/commands/validate.md`,
+  `Wiki/features/commands/setup.md`, `Wiki/features/commands/help.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/tooling-model.md`,
+  `Wiki/index.md`, `Wiki/log.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-07-07 - Source-to-wiki prompt command
 
@@ -59,14 +89,20 @@ entries in this section until they are released.
   DeepWiki-style recipe and `custom` as the interview-driven recipe.
 * Added `--about <goal>` for non-interactive custom generation goals and
   `--depth <count>` as a crawl or traversal hint.
+* Added `openknowledge new --no-agents` and `--no-setup` for source-generated
+  or otherwise task-driven bundles that do not need starter agent rules or an
+  interactive setup handoff document. The `from` prompt now tells agents to use
+  those flags when initializing a fresh output bundle.
 * Source anchors: `packages/cli/cmd/openknowledge/main.go`,
   `packages/cli/internal/okf/from.go`,
+  `packages/cli/internal/okf/new.go`,
   `packages/cli/cmd/openknowledge/main_test.go`,
-  `packages/cli/internal/okf/from_test.go`.
+  `packages/cli/internal/okf/from_test.go`,
+  `packages/cli/internal/okf/validate_test.go`.
 * Docs updated: `README.md`, `Wiki/features/commands/from.md`,
-  `Wiki/features/commands/index.md`, `Wiki/features/commands/help.md`,
-  `Wiki/features/tooling-model.md`, `Wiki/index.md`,
-  `Wiki/changelog/cli.md`.
+  `Wiki/features/commands/new.md`, `Wiki/features/commands/help.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/tooling-model.md`,
+  `Wiki/index.md`, `Wiki/log.md`, `Wiki/changelog/cli.md`.
 
 ### 2026-07-06 - Clean get/list/view navigation API
 

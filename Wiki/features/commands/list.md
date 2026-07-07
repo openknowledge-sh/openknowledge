@@ -49,6 +49,44 @@ are still shown when deeper files exist.
 JSON output prints machine-readable inventory entries. With `--depth`, JSON
 keeps file entries whose path depth is within the requested limit.
 
+## Example Output
+
+`openknowledge list --depth 2 ./project-memory` prints a tree with metadata
+beside known OKF files and `asset` beside non-Markdown files:
+
+```text
+Open Knowledge List
+bundle tree
+
+target /work/project-memory
+depth 2
+
+project-memory/
+|-- agents/
+|   `-- default.md  Agent Entrypoint  Default Agent Guide
+|-- assets/
+|   `-- logo.txt  asset
+|-- guides/
+|   `-- validation.md  Guide  Validation Workflow
+|-- index.md  index
+`-- log.md  log
+```
+
+`openknowledge list --json ./project-memory` prints inventory entries:
+
+```json
+[
+  {
+    "id": "guides/validation",
+    "path": "guides/validation.md",
+    "kind": "concept",
+    "reserved": false,
+    "type": "Guide",
+    "title": "Validation Workflow"
+  }
+]
+```
+
 ## Use Cases
 
 * Inspect a wiki from the terminal.

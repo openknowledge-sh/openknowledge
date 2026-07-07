@@ -17,6 +17,12 @@ openknowledge version
 openknowledge version --help
 ```
 
+## Example Output
+
+```text
+0.1.0
+```
+
 ## Use Cases
 
 * Confirm the installed CLI version in support or release workflows.

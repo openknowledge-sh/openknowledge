@@ -86,6 +86,23 @@ openknowledge connect https://example.com/openknowledge-bundle.tar.gz
 openknowledge connect https://github.com/openknowledge-sh/accessibility.git --as accessibility
 ```
 
+## Example Output
+
+`openknowledge connect --as personal ./project-memory` prints the registry key,
+display name, resolved path, access label, validation status, and any bundle
+metadata:
+
+```text
+OK Connected knowledge bundle
+key      personal
+name     Project Memory
+path     /work/project-memory
+access   read
+status   valid
+purpose  Durable project context.
+entries  default
+```
+
 ## Caveats
 
 Remote archive and manifest sources require network access for non-local URLs.

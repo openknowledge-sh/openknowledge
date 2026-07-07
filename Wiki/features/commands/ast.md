@@ -62,6 +62,40 @@ Use a specific OKF spec version:
 openknowledge ast --spec 0.1 ./project-memory
 ```
 
+## Example Output
+
+`openknowledge ast ./project-memory` prints formatted JSON. The top-level shape
+starts like:
+
+```json
+{
+  "root": "/work/project-memory",
+  "specVersion": "0.1",
+  "documents": [
+    {
+      "rel": "AGENTS.md",
+      "id": "AGENTS",
+      "kind": "concept",
+      "frontmatter": {
+        "has": true
+      },
+      "metadata": {
+        "type": "Agent Rules",
+        "title": "Project Memory Agent Rules"
+      }
+    }
+  ]
+}
+```
+
+When `--out ast.json` is used, stdout is a short write summary:
+
+```text
+OK Wrote AST
+root /work/project-memory
+out ast.json
+```
+
 ## Behavior
 
 The command resolves `path` with the same knowledge-root resolver used by other

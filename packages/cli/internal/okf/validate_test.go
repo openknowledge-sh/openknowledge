@@ -432,6 +432,61 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 	}
 }
 
+func TestNewProjectCanSkipAgentAndSetupDocs(t *testing.T) {
+	parent := t.TempDir()
+	target := filepath.Join(parent, "source-wiki")
+
+	result, err := NewProject(NewProjectOptions{
+		Name:           "Source Wiki",
+		Path:           target,
+		SkipAgentRules: true,
+		SkipSetup:      true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.SetupPath != "" {
+		t.Fatalf("expected no setup path, got %s", result.SetupPath)
+	}
+
+	expectedCreated := []string{
+		"index.md",
+		"log.md",
+		"SPEC.md",
+	}
+	if !reflect.DeepEqual(result.Created, expectedCreated) {
+		t.Fatalf("unexpected created paths: %#v", result.Created)
+	}
+
+	for _, name := range []string{"AGENTS.md", "SETUP.MD"} {
+		if _, err := os.Stat(filepath.Join(target, name)); !os.IsNotExist(err) {
+			t.Fatalf("expected %s not to exist, got err=%v", name, err)
+		}
+	}
+
+	content, err := os.ReadFile(filepath.Join(target, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := string(content)
+	for _, unexpected := range []string{"AGENTS.md", "SETUP.MD"} {
+		if strings.Contains(index, unexpected) {
+			t.Fatalf("did not expect generated index to include %q:\n%s", unexpected, index)
+		}
+	}
+
+	validation, err := Validate(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(validation.Errors) != 0 {
+		t.Fatalf("expected generated project to validate, got %#v", validation.Errors)
+	}
+	if validation.Concepts != 1 {
+		t.Fatalf("expected only SPEC.md to count as a concept, got %#v", validation)
+	}
+}
+
 func TestNewProjectWritesOptionalBundleMetadata(t *testing.T) {
 	parent := t.TempDir()
 	target := filepath.Join(parent, "accessibility")

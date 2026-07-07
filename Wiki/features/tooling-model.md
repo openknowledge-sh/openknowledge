@@ -17,9 +17,9 @@ a different user or agent need.
 | Layer | Shipped commands | Purpose |
 | --- | --- | --- |
 | Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into an OKF Markdown bundle. |
-| Authoring and OKF hygiene | `setup`, `rules`, `new`, `spec` | Create a bundle, seed maintenance instructions, and keep Markdown shaped around OKF v0.1. |
+| Authoring and OKF hygiene | `setup`, `new`, `spec` | Create a bundle and keep Markdown shaped around OKF v0.1. |
 | Connection and bundle lifecycle | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry list`, `registry where`, `to tar` | Give local, published, archive, or Git bundles stable names, materialize remote sources, resolve names back to filesystem paths, and package portable source archives. |
-| Validation and inspection | `validate`, `list` | Check OKF structure, link health, bundle inventory, and depth-limited tree views before humans or agents rely on the knowledge. |
+| Validation and inspection | `validate`, `list`, `rules`, `review` | Check OKF structure, link health, bundle inventory, maintenance rules, and depth-limited tree views before humans or agents rely on the knowledge. |
 | Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown or known entrypoints, inspect structure, search source-grounded chunks, follow graph-expanded context, and browse connected or direct bundles. |
 | OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
 
@@ -43,6 +43,10 @@ frontmatter, sections, and links. `to json` shows the normalized bundle model.
 `to graph` exports AST-backed source graph JSON, and `to graph --type search`
 emits a derivative chunk graph with file containment, chunk reading order, and
 chunk-level local links for retrieval tooling.
+
+`validate` remains deterministic, while `review rules` prints advisory AI
+review prompts for checking whether selected maintenance rules appear to have
+been followed.
 
 ## Source-To-Wiki Generation
 

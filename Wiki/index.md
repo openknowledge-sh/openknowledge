@@ -32,12 +32,14 @@ custom theme.
 * [from](features/commands/from.md) - generate source-to-wiki instructions for
   agents.
 * [new](features/commands/new.md) - scaffold a local OKF bundle.
-* [agents](features/commands/agents.md) - create, validate, plan, schedule,
-  and run local agent jobs.
 
 ### Validate And Inspect Bundles
 
 * [validate](features/commands/validate.md) - validate a bundle against OKF.
+* [rules](features/commands/rules.md) - inspect and print maintenance rules.
+* [review](features/commands/review.md) - print advisory AI review prompts.
+* [agents](features/commands/agents.md) - validate, plan, schedule, and run
+  local agent jobs.
 * [list](features/commands/list.md) - inspect bundle inventory with inline
   validation context.
 

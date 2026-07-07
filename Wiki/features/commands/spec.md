@@ -25,6 +25,20 @@ openknowledge spec --help
 | --- | --- | --- |
 | `latest|<version>` | argument | Spec selector. Unsupported versions fail. |
 
+## Example Output
+
+`openknowledge spec latest` prints the embedded spec Markdown:
+
+```text
+# Open Knowledge Format (OKF)
+
+**Version 0.1 - Draft**
+
+OKF is an open, human- and agent-friendly format for representing
+*knowledge* - the metadata, context, and curated insight that surrounds
+data and systems.
+```
+
 ## Use Cases
 
 * Inspect the pinned format rules available to the CLI.

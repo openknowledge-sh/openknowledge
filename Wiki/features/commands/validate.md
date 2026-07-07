@@ -59,6 +59,7 @@ The report currently includes these checks:
 | Markdown syntax | warning | Markdown bodies avoid malformed links, unclosed inline code spans, mismatched table separators, and unclosed fenced code blocks. |
 | Spec version | warning | Root `index.md` may declare `okf_version`; a mismatch with `--spec` warns. |
 | Link targets | warning | Local Markdown links resolve inside the bundle and do not escape the root. |
+| Rule catalog | error | Custom rule documents under configured `[rules].paths` define canonical IDs, summaries, and instruction bullets without colliding with built-in or duplicate custom IDs, and `[rules].enabled` references known IDs. |
 
 ## Error Vs Warning
 
@@ -105,6 +106,7 @@ Current rule names are:
 | `markdown-syntax` | warning | Markdown body syntax looks malformed. |
 | `okf-version` | warning | Root `okf_version` differs from the selected spec. |
 | `link-target` | warning | A local Markdown link is missing or escapes the root. |
+| `rule-catalog` | error | A custom rule document under configured `[rules].paths` is missing required structure, collides with another rule ID, or `[rules]` config is invalid. |
 
 ## JSON Reports
 
@@ -137,6 +139,11 @@ The JSON report includes:
   metadata.
 * `log.md` uses frontmatter.
 * A `log.md` `##` heading is not exactly `## YYYY-MM-DD`.
+* A custom rule document under configured `[rules].paths` is missing
+  `type: Rule`, `rule_id`, a summary, or instruction bullets, uses an invalid
+  ID, or collides with a built-in or duplicate custom rule.
+* `[rules]` configuration in `openknowledge.toml` has invalid relative paths or
+  `rules.enabled` references an unknown rule ID.
 
 ### ⚠️ Current warnings
 
@@ -153,12 +160,56 @@ The frontmatter parser is intentionally lightweight. It extracts top-level
 scalar keys for OKF validation and skips nested YAML lines or sequence items
 instead of enforcing a complete YAML schema.
 
+`openknowledge validate` checks custom maintenance rules and `[rules]`
+configuration structurally, not semantically. Use `openknowledge review rules`
+when you want an advisory AI-assisted review of whether selected rules appear
+to have been followed.
+
 Root `index.md` frontmatter may declare `okf_version`; unknown additional root
 frontmatter keys are tolerated. Root `okf_bundle_*` keys are an optional Open
 Knowledge CLI metadata layer for bundle discovery and future agent entrypoint
 routing. Any `index.md` may also declare `okf_publish: false` so public-view
 publishers can exclude that index while the OKF validator still treats it as a
 reserved file instead of a concept document.
+
+## Example Output
+
+`openknowledge validate ./project-memory` prints a text report and exits `0`
+when there are no errors:
+
+```text
+Open Knowledge Validate
+against Open Knowledge Format v0.1
+
+target /work/project-memory
+spec Open Knowledge Format v0.1
+scan 7 markdown files, 5 concepts, 1 indexes, 1 logs
+
+Checks
+  OK   Bundle scan
+       OKF 0.1 section 3; 7 Markdown files scanned
+  OK   Concept documents
+       OKF 0.1 sections 4 and 9; 5 concepts require YAML frontmatter with non-empty type
+
+OK Validation passed
+```
+
+`openknowledge validate --format json ./project-memory` prints the same result
+as machine-readable JSON:
+
+```json
+{
+  "root": "/work/project-memory",
+  "specVersion": "0.1",
+  "summary": {
+    "status": "pass",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issueCount": 0
+  },
+  "issues": []
+}
+```
 
 ## Use Cases
 
@@ -173,6 +224,11 @@ reserved file instead of a concept document.
 
 ## Command Change History
 
+### 2026-07-07
+
+`openknowledge validate` added deterministic `rule-catalog` checks for custom
+rule documents and `[rules]` configuration in `openknowledge.toml`.
+
 ### 2026-07-03
 
 `openknowledge validate` added JSON reports with `--format json`, `--json`, and
@@ -186,6 +242,9 @@ reserved file instead of a concept document.
 > **Source anchors**
 >
 > * `packages/cli/internal/okf/validate.go`
+> * `packages/cli/internal/okf/ast_validate.go`
+> * `packages/cli/internal/okf/rule_catalog.go`
+> * `packages/cli/internal/okf/validation_checks.go`
 > * `packages/cli/internal/okf/validation_policy.go`
 > * `packages/cli/internal/okf/validation_types.go`
 > * `packages/cli/cmd/openknowledge/main.go`

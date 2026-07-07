@@ -34,6 +34,7 @@ var knownValidationRules = map[string]struct{}{
 	"log-frontmatter":     {},
 	"markdown-syntax":     {},
 	"okf-version":         {},
+	"rule-catalog":        {},
 	"utf-8":               {},
 }
 

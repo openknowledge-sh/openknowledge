@@ -26,7 +26,16 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge rules <rules> --path <path>",
 		"openknowledge rules apply <rules> --path <path>",
 		"openknowledge rules --list",
+		"openknowledge review rules [path]",
+		"openknowledge review rules --rules <rules> --path <path>",
+		"openknowledge agents new",
+		"openknowledge agents new <template> --out <file>",
+		"openknowledge agents list [path]",
+		"openknowledge agents validate <job-or-dir>",
+		"openknowledge agents run <job.md> --dry-run",
+		"openknowledge agents daemon [jobs-dir] --once",
 		"openknowledge new --name <name> [folder]",
+		"openknowledge new --no-agents --no-setup [folder]",
 		"openknowledge connect <source>",
 		"openknowledge connect <source> --as <key>",
 		"openknowledge disconnect <key|path>",
@@ -61,6 +70,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"setup      Print an agent setup prompt.",
 		"from       Print an agent source-to-wiki generation prompt.",
 		"rules      Print agent maintenance rules.",
+		"review     Print advisory AI review prompts.",
+		"agents     Run scheduled local agent jobs from Markdown specs.",
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
@@ -80,7 +91,12 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge from https://example.com/docs --out Wiki --type custom --about \"Create an onboarding wiki\"",
 		"openknowledge rules docs,changelog --path Wiki",
 		"openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md",
+		"openknowledge review rules --rules docs,changelog --path Wiki",
+		"openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md",
+		"openknowledge agents validate .openknowledge/agents/jobs",
+		"openknowledge agents run .openknowledge/agents/jobs/docs.md --dry-run",
 		"openknowledge setup --rules docs,changelog",
+		"openknowledge new --no-agents --no-setup ./source-wiki",
 		"openknowledge validate ./project-memory",
 		"openknowledge search accessibility \"validation workflow\"",
 		"openknowledge list --depth 2 ./project-memory",
@@ -166,14 +182,66 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"skip confirmation",
 			},
 		},
+		"review": {
+			help: reviewHelpText(),
+			required: []string{
+				"openknowledge review rules [path]",
+				"Print advisory AI review prompts",
+				"does not call a model",
+				"Use openknowledge validate",
+			},
+		},
+		"review rules": {
+			help: reviewRulesHelpText(),
+			required: []string{
+				"openknowledge review rules --rules <rules> --path <path>",
+				"advisory AI review prompt",
+				"--rules",
+				"--all",
+				"Defaults to [rules].enabled, then project",
+			},
+		},
+		"agents": {
+			help: agentsHelpText(),
+			required: []string{
+				"openknowledge agents new <template> --out <file>",
+				"openknowledge agents list [path]",
+				"openknowledge agents validate <job-or-dir>",
+				"openknowledge agents run <job.md> --dry-run",
+				"openknowledge agents daemon [jobs-dir] --once",
+				"Run deterministic local agent jobs",
+			},
+		},
+		"agents new": {
+			help: agentsNewHelpText(),
+			required: []string{
+				"openknowledge agents new --reference",
+				"openknowledge agents new <template> --out <file>",
+				"--list",
+				"--force",
+				"built-in agent job templates",
+			},
+		},
+		"agents run": {
+			help: agentsRunHelpText(),
+			required: []string{
+				"openknowledge agents run <job.md> --at <time>",
+				"--dry-run",
+				"--executor",
+				"deterministic run ID",
+			},
+		},
 		"new": {
 			help: newHelpText(),
 			required: []string{
 				"openknowledge new --name <name> [folder]",
 				"openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]",
+				"openknowledge new --no-agents --no-setup [folder]",
 				"Arguments:",
 				"--name",
 				"--bundle-entry",
+				"--no-agents",
+				"--no-setup",
 			},
 		},
 		"connect": {
@@ -424,6 +492,127 @@ func TestRulesCommandListsRules(t *testing.T) {
 	}
 }
 
+func TestRulesCommandListsAndPrintsCustomRules(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, wiki, "rules/security.md", `---
+type: Rule
+title: Security
+description: Keep security-sensitive changes documented.
+rule_id: security
+---
+
+# Security
+
+## Instructions
+
+- When auth or permissions change, update security notes.
+`)
+
+	list, _, code := captureMainOutput(t, func() int {
+		return runRules([]string{"--list", "--path", wiki})
+	})
+	if code != 0 {
+		t.Fatalf("expected rules --list with custom rules to succeed, got %d\n%s", code, list)
+	}
+	if !strings.Contains(list, "security") || !strings.Contains(list, "Keep security-sensitive changes documented.") {
+		t.Fatalf("expected custom rule in list:\n%s", list)
+	}
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRules([]string{"security", "--path", wiki})
+	})
+	if code != 0 {
+		t.Fatalf("expected custom rules command to succeed, got %d\nstdout:\n%s\nstderr:\n%s", code, output, stderr)
+	}
+	for _, expected := range []string{
+		"- security: Keep security-sensitive changes documented.",
+		"Security rules:",
+		"When auth or permissions change, update security notes.",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected custom rules output to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestRulesCommandUsesConfiguredEnabledRules(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, wiki, "openknowledge.toml", "[rules]\nenabled = [\"docs\", \"changelog\"]\n")
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRules([]string{"--path", wiki})
+	})
+	if code != 0 {
+		t.Fatalf("expected configured rules command to succeed, got %d\nstdout:\n%s\nstderr:\n%s", code, output, stderr)
+	}
+	for _, expected := range []string{
+		"Docs rules:",
+		"Changelog rules:",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected configured rules output to include %q:\n%s", expected, output)
+		}
+	}
+	if strings.Contains(output, "Project rules:") {
+		t.Fatalf("did not expect project default when rules.enabled is configured:\n%s", output)
+	}
+}
+
+func TestReviewRulesCommandPrintsPrompt(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, wiki, "rules/security.md", `---
+type: Rule
+title: Security
+description: Keep security-sensitive changes documented.
+rule_id: security
+rule_review_prompt: Check auth and permission changes against security notes.
+rule_review_evidence: [git diff, Wiki/security/]
+---
+
+# Security
+
+## Instructions
+
+- When auth or permissions change, update security notes.
+`)
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runReview([]string{"rules", "--rules", "security", "--path", wiki})
+	})
+	if code != 0 {
+		t.Fatalf("expected review rules to succeed, got %d\nstdout:\n%s\nstderr:\n%s", code, output, stderr)
+	}
+	for _, expected := range []string{
+		"Open Knowledge Rule Review",
+		"advisory AI review",
+		"security: Keep security-sensitive changes documented.",
+		"Check auth and permission changes against security notes.",
+		"git diff",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected review output to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestReviewRulesHelpUsesSubcommandHelp(t *testing.T) {
+	output, code := captureMainStdout(t, func() int {
+		return runReview([]string{"rules", "--help"})
+	})
+	if code != 0 {
+		t.Fatalf("expected review rules help to succeed, got %d", code)
+	}
+	if !strings.Contains(output, "openknowledge review rules --rules <rules> --path <path>") {
+		t.Fatalf("expected review rules subcommand help:\n%s", output)
+	}
+}
+
 func TestRulesCommandRejectsUnknownRule(t *testing.T) {
 	_, code := captureMainStdout(t, func() int {
 		return runRules([]string{"release-changelog"})
@@ -618,11 +807,52 @@ func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 		"Wiki type: `custom`",
 		"Custom goal: `Help contributors understand releases`",
 		"Depth: 2",
+		"openknowledge new --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
 		"okf_generated_from",
 		"openknowledge validate \"Wiki\"",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected from output to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestNewCommandCanSkipAgentAndSetupDocs(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "source-wiki")
+
+	output, code := captureMainStdout(t, func() int {
+		return runNew([]string{
+			"--name", "Source Wiki",
+			"--no-agents",
+			"--no-setup",
+			target,
+		})
+	})
+	if code != 0 {
+		t.Fatalf("expected new command to succeed, got exit code %d\n%s", code, output)
+	}
+	for _, expected := range []string{
+		"Created knowledge base",
+		"+ index.md",
+		"+ log.md",
+		"+ SPEC.md",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected new output to include %q:\n%s", expected, output)
+		}
+	}
+	for _, unexpected := range []string{
+		"+ AGENTS.md",
+		"+ SETUP.MD",
+		"Agent handoff",
+	} {
+		if strings.Contains(output, unexpected) {
+			t.Fatalf("did not expect new output to include %q:\n%s", unexpected, output)
+		}
+	}
+	for _, name := range []string{"AGENTS.md", "SETUP.MD"} {
+		if _, err := os.Stat(filepath.Join(target, name)); !os.IsNotExist(err) {
+			t.Fatalf("expected %s not to exist, got err=%v", name, err)
 		}
 	}
 }

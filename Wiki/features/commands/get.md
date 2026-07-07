@@ -95,6 +95,37 @@ openknowledge get accessibility agents/accessibility-review.md
 openknowledge get ./project-memory
 ```
 
+## Example Output
+
+`openknowledge get personal --info` prints bundle metadata and declared
+entrypoints:
+
+```text
+Open Knowledge Get
+entrypoint and file metadata
+
+name      Project Memory
+root      /work/project-memory
+purpose   Durable project context.
+tags      project
+
+Entrypoints
+  default      agents/default.md  Default Agent Guide
+```
+
+`openknowledge get personal` prints the selected Markdown body exactly:
+
+```md
+---
+type: Agent Entrypoint
+title: Default Agent Guide
+---
+
+# Default Agent Guide
+
+Read the wiki before non-trivial work.
+```
+
 ## Command Change History
 
 ### 2026-07-06

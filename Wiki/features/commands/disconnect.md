@@ -60,6 +60,15 @@ openknowledge disconnect accessibility
 openknowledge disconnect ./project-memory --keep-files
 ```
 
+## Example Output
+
+```text
+OK Disconnected knowledge bundle
+key    personal
+path   /work/project-memory
+files  kept
+```
+
 ## Command Change History
 
 ### 2026-06-20

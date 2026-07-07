@@ -28,10 +28,36 @@ recognizes the common Go flag help spelling after a subcommand.
 
 Root help prints the supported command surface, global help flag, examples, and
 the command-specific help convention. Its examples include rule generation,
-setup rule selection, a minimal `openknowledge new` scaffold, a scaffold with
-optional bundle metadata, and a `connect` example that registers the generated
-bundle under a stable key.
+setup rule selection, rule review prompt generation, a minimal
+`openknowledge new` scaffold, a source-wiki scaffold without setup or agent
+handoff files, a scaffold with optional bundle metadata, and a `connect`
+example that registers the generated bundle under a stable key.
 Unknown commands print the root usage to stderr and exit with status `2`.
+
+## Example Output
+
+`openknowledge --help` starts with the root summary, usage forms, and command
+list:
+
+```text
+openknowledge creates and validates Open Knowledge Format v0.1 bundles.
+
+Usage:
+  openknowledge --help
+  openknowledge <command> --help
+  openknowledge setup
+  openknowledge setup --rules <rules>
+  openknowledge from <source> --out <folder>
+  openknowledge agents new <template> --out <file>
+  openknowledge agents run <job.md> --dry-run
+  openknowledge new --no-agents --no-setup [folder]
+
+Commands:
+  setup      Print an agent setup prompt.
+  from       Print an agent source-to-wiki generation prompt.
+  rules      Print agent maintenance rules.
+  agents     Run scheduled local agent jobs from Markdown specs.
+```
 
 ## Use Cases
 
@@ -43,10 +69,33 @@ Unknown commands print the root usage to stderr and exit with status `2`.
 
 ### 2026-07-07
 
+Root help added `openknowledge agents new` and
+`openknowledge agents new <template> --out <file>` for built-in local agent
+job templates and job-file creation.
+
+Root help added `openknowledge agents list [path]`,
+`openknowledge agents validate <job-or-dir>`,
+`openknowledge agents run <job.md> --dry-run`, and
+`openknowledge agents daemon [jobs-dir] --once` for local scheduled agent job
+automation.
+
+Root help added `openknowledge review rules [path]`,
+`openknowledge review rules --rules <rules> --path <path>`, and
+`openknowledge review rules --all [path]` for advisory AI review prompt
+generation.
+
+Command-specific help for `openknowledge rules` and
+`openknowledge review rules` now describes `[rules]` defaults from
+`openknowledge.toml`.
+
 Root help added `openknowledge from <source> --out <folder>`,
 `openknowledge from <source> --out <folder> --type understanding`, and
 `openknowledge from <source> --out <folder> --type custom --about <goal>` for
 source-to-wiki prompt generation.
+
+Root and command-specific help added
+`openknowledge new --no-agents --no-setup [folder]` for scaffolding bundles
+that do not need starter agent rules or a setup handoff document.
 
 ### 2026-07-06
 

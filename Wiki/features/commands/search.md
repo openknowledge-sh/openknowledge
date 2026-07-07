@@ -86,6 +86,46 @@ JSON output returns:
 * `issues` when bundle validation produced warnings or errors while building
   the AST-backed context index.
 
+## Example Output
+
+`openknowledge search ./project-memory "validation workflow" --limit 2` prints
+ranked source snippets:
+
+```text
+Open Knowledge Search
+source-grounded chunks
+
+Query: validation workflow
+Root: /work/project-memory
+Results: 2
+
+1. guides/validation.md:7-10
+   heading: Validation Workflow
+   path: Validation Workflow
+   type: Guide
+   score: 527.86 (direct)
+   Run `openknowledge validate` before sharing the wiki.
+```
+
+`openknowledge search --format json ./project-memory "validation workflow"`
+prints structured results:
+
+```json
+{
+  "root": "/work/project-memory",
+  "query": "validation workflow",
+  "limit": 12,
+  "results": [
+    {
+      "path": "guides/validation.md",
+      "heading": "Validation Workflow",
+      "snippet": "Run `openknowledge validate` before sharing the wiki.",
+      "score": 527.86
+    }
+  ]
+}
+```
+
 ## Quick Examples
 
 ```sh

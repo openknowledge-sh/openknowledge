@@ -50,6 +50,11 @@ func buildChecks(result Result) []Check {
 			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"link-target"}, []string{"link-target"}),
 			Message: "Local Markdown links should resolve inside the bundle",
 		},
+		{
+			Name:    "Rule catalog",
+			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"rule-catalog"}, []string{"rule-catalog"}),
+			Message: "Custom rule documents under configured rule paths should define canonical IDs, summaries, and instruction bullets",
+		},
 	}
 }
 

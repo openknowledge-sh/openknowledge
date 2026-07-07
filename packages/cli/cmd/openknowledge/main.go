@@ -41,6 +41,8 @@ func main() {
 		os.Exit(runFrom(os.Args[2:]))
 	case "rules":
 		os.Exit(runRules(os.Args[2:]))
+	case "review":
+		os.Exit(runReview(os.Args[2:]))
 	case "agents":
 		os.Exit(runAgents(os.Args[2:]))
 	case "new":
@@ -230,7 +232,15 @@ func runRules(args []string) int {
 		return 2
 	}
 	if options.list {
-		fmt.Print(okf.RenderRulesList())
+		output, err := okf.RenderRulesListForWiki(options.wiki)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		fmt.Print(output)
+		if options.pathSet {
+			printRulesWikiWarnings(options.wiki)
+		}
 		return 0
 	}
 	output, err := okf.RenderAgentRules(okf.AgentRulesOptions{
@@ -313,11 +323,50 @@ func runRulesApply(args []string) int {
 	return 0
 }
 
+func runReview(args []string) int {
+	if len(args) == 0 || isHelpFlag(args[0]) {
+		fmt.Fprint(os.Stdout, reviewHelpText())
+		return 0
+	}
+	switch args[0] {
+	case "rules":
+		return runReviewRules(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "unknown review subcommand: %s\n", args[0])
+		return 2
+	}
+}
+
+func runReviewRules(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, reviewRulesHelpText())
+		return 0
+	}
+	options, err := parseReviewRulesArgs(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	output, err := okf.RenderRuleReviewPrompt(okf.RuleReviewOptions{
+		Wiki:  options.wiki,
+		Rules: options.rules,
+		All:   options.all,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	fmt.Print(output)
+	printRulesWikiWarnings(options.wiki)
+	return 0
+}
+
 type rulesArgs struct {
-	wiki   string
-	target string
-	rules  []string
-	list   bool
+	wiki    string
+	target  string
+	rules   []string
+	list    bool
+	pathSet bool
 }
 
 type rulesApplyArgs struct {
@@ -327,6 +376,12 @@ type rulesApplyArgs struct {
 	file   string
 	yes    bool
 	dryRun bool
+}
+
+type reviewRulesArgs struct {
+	wiki  string
+	rules []string
+	all   bool
 }
 
 func parseRulesArgs(args []string) (rulesArgs, error) {
@@ -349,12 +404,14 @@ func parseRulesArgs(args []string) (rulesArgs, error) {
 				return options, fmt.Errorf("--path requires a non-empty value")
 			}
 			options.wiki = args[i]
+			options.pathSet = true
 		case strings.HasPrefix(arg, "--path="):
 			value := strings.TrimPrefix(arg, "--path=")
 			if strings.TrimSpace(value) == "" {
 				return options, fmt.Errorf("--path requires a non-empty value")
 			}
 			options.wiki = value
+			options.pathSet = true
 		case arg == "--target":
 			i++
 			if i >= len(args) {
@@ -438,6 +495,70 @@ func parseRulesApplyArgs(args []string) (rulesApplyArgs, error) {
 			return options, err
 		}
 		options.rules = rules
+	}
+	return options, nil
+}
+
+func parseReviewRulesArgs(args []string) (reviewRulesArgs, error) {
+	options := reviewRulesArgs{wiki: okf.DefaultRulesWiki}
+	var positionals []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--path":
+			i++
+			if i >= len(args) {
+				return options, fmt.Errorf("--path requires a value")
+			}
+			if strings.TrimSpace(args[i]) == "" {
+				return options, fmt.Errorf("--path requires a non-empty value")
+			}
+			options.wiki = args[i]
+		case strings.HasPrefix(arg, "--path="):
+			value := strings.TrimPrefix(arg, "--path=")
+			if strings.TrimSpace(value) == "" {
+				return options, fmt.Errorf("--path requires a non-empty value")
+			}
+			options.wiki = value
+		case arg == "--rules":
+			i++
+			if i >= len(args) {
+				return options, fmt.Errorf("--rules requires a value")
+			}
+			if strings.TrimSpace(args[i]) == "" {
+				return options, fmt.Errorf("--rules requires a non-empty value")
+			}
+			rules, err := parseRuleIDs(args[i])
+			if err != nil {
+				return options, err
+			}
+			options.rules = rules
+		case strings.HasPrefix(arg, "--rules="):
+			value := strings.TrimPrefix(arg, "--rules=")
+			if strings.TrimSpace(value) == "" {
+				return options, fmt.Errorf("--rules requires a non-empty value")
+			}
+			rules, err := parseRuleIDs(value)
+			if err != nil {
+				return options, err
+			}
+			options.rules = rules
+		case arg == "--all":
+			options.all = true
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown review rules option: %s", arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) > 1 {
+		return options, fmt.Errorf("review rules accepts at most one wiki path positional argument")
+	}
+	if len(positionals) == 1 {
+		options.wiki = positionals[0]
+	}
+	if options.all && len(options.rules) > 0 {
+		return options, fmt.Errorf("--all cannot be combined with --rules")
 	}
 	return options, nil
 }
@@ -632,6 +753,8 @@ func runNew(args []string) int {
 	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
 	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
 	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for root okf_bundle_purpose metadata")
+	noAgentsFlag := fs.Bool("no-agents", false, "skip AGENTS.md starter agent rules")
+	noSetupFlag := fs.Bool("no-setup", false, "skip SETUP.MD setup handoff")
 	var bundleTags stringListFlag
 	var bundleEntries stringListFlag
 	fs.Var(&bundleTags, "bundle-tag", "bundle tag for root okf_bundle_tags metadata; repeatable")
@@ -672,8 +795,10 @@ func runNew(args []string) int {
 	}
 
 	result, err := okf.NewProject(okf.NewProjectOptions{
-		Name: name,
-		Path: path,
+		Name:           name,
+		Path:           path,
+		SkipAgentRules: *noAgentsFlag,
+		SkipSetup:      *noSetupFlag,
 		BundleMetadata: okf.BundleMetadata{
 			Name:    *bundleNameFlag,
 			Title:   *bundleTitleFlag,
@@ -695,13 +820,15 @@ func runNew(args []string) int {
 		fmt.Printf("  %s %s\n", terminal.green("+"), path)
 	}
 
-	fmt.Println()
-	terminal.section("Agent handoff")
-	fmt.Println("  Paste this into your agent:")
-	fmt.Println()
-	fmt.Printf("  Set up an Open Knowledge agentic wiki for this workspace. Read %s,\n", terminal.path(result.SetupPath))
-	fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
-	fmt.Println("  run openknowledge validate, and show me how to inspect it with openknowledge view.")
+	if result.SetupPath != "" {
+		fmt.Println()
+		terminal.section("Agent handoff")
+		fmt.Println("  Paste this into your agent:")
+		fmt.Println()
+		fmt.Printf("  Set up an Open Knowledge agentic wiki for this workspace. Read %s,\n", terminal.path(result.SetupPath))
+		fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
+		fmt.Println("  run openknowledge validate, and show me how to inspect it with openknowledge view.")
+	}
 	return 0
 }
 
@@ -2739,6 +2866,9 @@ Usage:
   openknowledge rules <rules> --path <path>
   openknowledge rules apply <rules> --path <path>
   openknowledge rules --list
+  openknowledge review rules [path]
+  openknowledge review rules --rules <rules> --path <path>
+  openknowledge review rules --all [path]
   openknowledge agents new
   openknowledge agents new <template> --out <file>
   openknowledge agents list [path]
@@ -2749,6 +2879,7 @@ Usage:
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
+  openknowledge new --no-agents --no-setup [folder]
   openknowledge connect <source>
   openknowledge connect <source> --as <key>
   openknowledge disconnect <key|path>
@@ -2794,6 +2925,7 @@ Commands:
   setup      Print an agent setup prompt.
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
+  review     Print advisory AI review prompts.
   agents     Run scheduled local agent jobs from Markdown specs.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
@@ -2819,11 +2951,13 @@ Examples:
   openknowledge from https://example.com/docs --out Wiki --type custom --about "Create an onboarding wiki"
   openknowledge rules docs,changelog --path Wiki
   openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
+  openknowledge review rules --rules docs,changelog --path Wiki
   openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md
   openknowledge agents validate .openknowledge/agents/jobs
   openknowledge agents run .openknowledge/agents/jobs/docs.md --dry-run
   openknowledge setup --rules docs,changelog
   openknowledge new ./project-memory
+  openknowledge new --no-agents --no-setup ./source-wiki
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
   openknowledge connect ./accessibility --as accessibility
   openknowledge get accessibility --info
@@ -3269,6 +3403,10 @@ Print maintenance instructions for AI agents.
 
 The command does not edit files. It prints a Markdown block you can paste into
 AGENTS.md, CLAUDE.md, Cursor rules, or any project instruction file.
+Built-in rules are always available, and local custom rules can be added as
+OKF Markdown files under rules/ in the selected wiki.
+The selected wiki's openknowledge.toml may configure [rules].paths for custom
+rule directories and [rules].enabled for default selected rules.
 It checks the wiki path and prints non-blocking warnings after the rendered
 rules when the path does not exist, has no Markdown, or does not validate as
 OKF. Each warning includes an agent action. In a terminal warnings print after
@@ -3340,6 +3478,61 @@ Examples:
 `
 }
 
+func reviewHelpText() string {
+	return `openknowledge review
+
+Print advisory AI review prompts for Open Knowledge workflows.
+
+The command does not call a model, edit files, or decide validation status.
+Use openknowledge validate for deterministic CI-safe checks.
+
+Usage:
+  openknowledge review rules [path]
+  openknowledge review rules --rules <rules> --path <path>
+  openknowledge review rules --all [path]
+  openknowledge review --help
+
+Subcommands:
+  rules      Print an AI review prompt for selected maintenance rules.
+
+Examples:
+  openknowledge review rules Wiki
+  openknowledge review rules --rules docs,changelog --path Wiki
+  openknowledge review rules --all Wiki
+`
+}
+
+func reviewRulesHelpText() string {
+	return `openknowledge review rules
+
+Print an advisory AI review prompt for Open Knowledge maintenance rules.
+
+The prompt tells an agent to inspect evidence, run deterministic validation,
+and report source-backed findings. It does not call a model or edit files.
+
+Usage:
+  openknowledge review rules [path]
+  openknowledge review rules --path <path>
+  openknowledge review rules --rules <rules> --path <path>
+  openknowledge review rules --all [path]
+  openknowledge review rules --help
+
+Arguments:
+  path       Open Knowledge wiki path. Defaults to .openknowledge.
+
+Options:
+  --path     Open Knowledge wiki path.
+  --rules    Comma-separated maintenance rules to review.
+             Defaults to [rules].enabled, then project.
+  --all      Review every built-in and local custom rule.
+
+Examples:
+  openknowledge review rules Wiki
+  openknowledge review rules --rules docs,changelog --path Wiki
+  openknowledge review rules --all Wiki
+`
+}
+
 func newHelpText() string {
 	return `openknowledge new
 
@@ -3349,10 +3542,11 @@ Usage:
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
+  openknowledge new --no-agents --no-setup [folder]
   openknowledge new --help
 
 Arguments:
-  folder       Destination folder. Defaults to the current directory.
+  folder       Destination folder. Defaults to a slug derived from the name.
 
 Flags:
   --name       Knowledge base name. If omitted, the CLI prompts for one.
@@ -3367,9 +3561,14 @@ Flags:
   --bundle-entry
                Optional entrypoint as name=path, for example
                default=agents/checker.md. Repeatable.
+  --no-agents
+               Do not create AGENTS.md starter agent rules.
+  --no-setup
+               Do not create SETUP.MD or print the setup handoff prompt.
 
 Examples:
   openknowledge new ./project-memory
+  openknowledge new --no-agents --no-setup ./source-wiki
   openknowledge new --name "Project Memory" ./project-memory
   openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility
 `

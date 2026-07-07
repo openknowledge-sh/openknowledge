@@ -24,6 +24,7 @@ func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result
 		result.Files++
 		validateDocument(bundle.Root, document, &result)
 	}
+	result.Errors = append(result.Errors, ValidateRuleCatalog(bundle)...)
 
 	sortIssues(result.Errors)
 	sortIssues(result.Warnings)

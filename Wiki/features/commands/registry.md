@@ -72,6 +72,27 @@ clones.
 `registry where` prints only an absolute path. If the value looks like a path,
 it is expanded and normalized directly. Otherwise it must match a registry key.
 
+## Example Output
+
+After connecting a bundle as `personal`, `openknowledge registry list` prints
+the registry file and sorted entries:
+
+```text
+Open Knowledge Registry
+known knowledge bases
+
+config /home/user/.config/openknowledge/registry.json
+
+  personal           /work/project-memory
+```
+
+`openknowledge registry where personal` prints only the resolved path, which is
+useful for scripts:
+
+```text
+/work/project-memory
+```
+
 ## Top-Level Aliases
 
 `openknowledge connect` and `openknowledge disconnect` are retained as

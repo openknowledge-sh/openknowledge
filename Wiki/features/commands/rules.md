@@ -25,11 +25,12 @@ a managed rules block inside an agent instruction file.
 ```sh
 openknowledge rules
 openknowledge rules docs,changelog --path Wiki
+openknowledge rules security --path Wiki
 openknowledge rules changelog --path Wiki --target codex
 openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
 openknowledge rules apply changelog --path Wiki --yes
 openknowledge rules apply docs --path Wiki --dry-run
-openknowledge rules --list
+openknowledge rules --list --path Wiki
 openknowledge rules --help
 ```
 
@@ -43,7 +44,7 @@ omitted, the selected rules default to `project`.
 | --- | --- |
 | `--path <path>` | Open Knowledge wiki path used in generated rules. Defaults to `.openknowledge`. |
 | `--target <target>` | Adjusts the sentence that tells the user where to paste the block. Valid values are `generic`, `codex`, `claude`, and `cursor`. Defaults to `generic`. |
-| `--list` | Print an explainer plus the available canonical rules. |
+| `--list` | Print an explainer plus the available built-in rules and any valid custom rules under the selected wiki's `rules/` directory. |
 | `--help` | Print command-specific help. |
 
 `openknowledge rules apply` accepts the same optional rules argument and
@@ -60,7 +61,9 @@ omitted, the selected rules default to `project`.
 
 Rules are canonical IDs. The CLI intentionally does not accept extra aliases,
 so users and generated instructions share one stable vocabulary. Select
-multiple rules with a comma-separated list.
+multiple rules with a comma-separated list. Built-in IDs are always available;
+wiki-local custom IDs are loaded from OKF Markdown files under `rules/` when a
+wiki path is provided.
 
 | Rule name | Description |
 | --- | --- |
@@ -74,11 +77,70 @@ multiple rules with a comma-separated list.
 | `summary` | Recurring summaries. Tells agents to create dated summaries from reliable sources such as git history, issues, logs, or updated wiki pages, without claiming automations exist unless they were actually created. |
 | `agents` | Agent entrypoints. Tells agents to create focused agent handoff docs only for repeated workflows, keep them short, link to deeper wiki concepts, and wire useful entrypoints through bundle metadata. |
 
+## Custom Rule Documents
+
+Custom rules live inside the selected wiki under `rules/` by default, or under
+the directories configured with `[rules].paths` in `openknowledge.toml`. Each
+rule is a normal OKF concept Markdown file with `type: Rule`, a canonical
+`rule_id`, a summary from `rule_summary` or `description`, and at least one
+instruction bullet, preferably under `## Instructions`:
+
+```md
+---
+type: Rule
+title: Security
+description: Keep security-sensitive changes documented.
+rule_id: security
+rule_review_prompt: Check recent changes for auth, secrets, permissions, or data exposure changes.
+rule_review_evidence: [git diff, Wiki/security/]
+---
+
+# Security
+
+## Instructions
+
+- When auth, permissions, secrets, or data exposure behavior changes, update security notes.
+```
+
+Custom IDs must use lowercase letters, numbers, and dashes, and start with a
+letter. They cannot collide with built-in IDs or another custom rule. The
+optional `rule_review_prompt` and `rule_review_evidence` fields are used by
+`openknowledge review rules`, not by deterministic validation.
+
+## Rule Configuration
+
+`openknowledge.toml` can configure where custom rule Markdown lives and which
+rules are selected by default:
+
+```toml
+[rules]
+paths = ["rules", "policy-rules"]
+enabled = ["docs", "changelog", "security"]
+```
+
+`rules.paths` defaults to `["rules"]`. Paths must be relative directories
+inside the bundle. When explicitly configured, missing paths or non-directory
+paths are deterministic `rule-catalog` validation errors.
+
+`rules.enabled` is a comma-free TOML string array or single string of canonical
+rule IDs. When present, it becomes the default selection for
+`openknowledge rules`, `openknowledge rules apply`, and
+`openknowledge review rules` unless the command passes an explicit rule list
+or `--all`. Unknown IDs are reported through `rule-catalog` validation and make
+rule rendering fail when used as defaults.
+
 ## Behavior
 
-Without a rules argument, the command prints the `project` rule. With a
-comma-separated rules list, only those selected rules are included. Duplicate
-rules are deduplicated in the rendered output.
+Without a rules argument, the command prints `[rules].enabled` when configured,
+otherwise the `project` rule. With a comma-separated rules list, only those
+selected rules are included. Duplicate rules are deduplicated in the rendered
+output. `--list --path <wiki>` includes valid custom rules from the configured
+rule paths alongside the built-in catalog.
+
+When a custom rule document or `[rules]` configuration is malformed, rule
+rendering exits with usage status `2` and reports the catalog issue.
+`openknowledge validate <wiki>` checks the same catalog structure through the
+deterministic `rule-catalog` validation rule.
 
 The wiki path comes from `--path` and defaults to `.openknowledge`. It is
 checked before rendering. In an interactive terminal, wiki
@@ -123,16 +185,63 @@ generated block first, then prints the warning with the same highlighted
 `⚠ Warning:` marker. The default answer is no; pass `--yes` to skip
 confirmation. In text-only contexts, pass `--file` or `--yes`.
 
+## Example Output
+
+`openknowledge rules docs,changelog --path Wiki --target codex` prints a
+Markdown instruction block:
+
+```text
+## Open Knowledge Maintenance
+
+This project has an Open Knowledge wiki at `Wiki`.
+
+Add this block to the repository `AGENTS.md` file for Codex.
+
+Before relevant work:
+- Read `Wiki/index.md` and follow only links relevant to the task.
+- Treat the wiki as durable project memory, not as a scratchpad.
+- If the wiki is missing, stale, or wrong, say so instead of inventing facts.
+
+Enabled rules:
+- docs: Keep docs in sync with implementation.
+- changelog: Track user-facing changes.
+```
+
+`openknowledge rules --list` prints an explainer plus the built-in rule IDs:
+
+```text
+Available rules:
+
+  project        General project knowledge.
+  docs           Keep docs in sync with implementation.
+  decisions      Record important decisions.
+  changelog      Track user-facing changes.
+```
+
 ## Use Cases
 
 * Add Open Knowledge maintenance guidance to an existing project `AGENTS.md`.
 * Print Claude Code or Cursor project instructions without running setup.
 * Give an agent a narrow wiki maintenance contract, such as docs plus changelog.
+* Add repository-specific maintenance rules, such as security, release, or data
+  boundary rules, without adding aliases to the built-in catalog.
 * Update a repo instruction file idempotently with `openknowledge rules apply`.
-* Inspect the canonical rule list with `openknowledge rules --list` before
-  choosing setup rules.
+* Inspect the built-in rule list with `openknowledge rules --list`, or include
+  local custom rules with `openknowledge rules --list --path Wiki`.
 
 ## Command Change History
+
+### 2026-07-07 - Custom rule catalog
+
+Added wiki-local custom rule support through OKF Markdown files under
+`rules/`. `openknowledge rules --list --path <wiki>` lists built-in rules plus
+valid custom rules, and `openknowledge rules <id> --path <wiki>` can render
+custom IDs. `openknowledge validate` now checks custom rule catalog structure
+with `rule-catalog`.
+
+Added `[rules]` configuration in `openknowledge.toml`. `rules.paths` selects
+custom rule directories, and `rules.enabled` defines the default selected rule
+IDs for `rules`, `rules apply`, and `review rules`.
 
 ### 2026-07-05 - Agent maintenance rules
 
@@ -155,7 +264,10 @@ and asks for confirmation before changing an existing instruction file unless
 >
 > * `packages/cli/cmd/openknowledge/main.go`
 > * `packages/cli/internal/okf/rules.go`
+> * `packages/cli/internal/okf/rule_catalog.go`
 > * `packages/cli/internal/okf/rules_test.go`
+> * `packages/cli/internal/okf/validation_checks.go`
+> * `packages/cli/internal/okf/validation_policy.go`
 > * `packages/cli/cmd/openknowledge/main_test.go`
 > * `README.md`
 >

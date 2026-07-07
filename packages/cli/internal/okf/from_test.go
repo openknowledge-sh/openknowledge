@@ -23,6 +23,8 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 		"Wiki type: `understanding`",
 		"Depth: 2",
 		"DeepWiki-style understanding wiki",
+		"openknowledge new --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
+		"unless the user explicitly wants starter agent rules or an interactive setup handoff document",
 		"okf_generated_from",
 		"openknowledge validate \"Wiki\"",
 		"openknowledge list \"Wiki\"",
