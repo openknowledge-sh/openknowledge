@@ -11,7 +11,8 @@ and YAML frontmatter. Use it to set up local agent memory, generate
 source-grounded docs from existing material, validate the structure, search it,
 view it locally, and publish it as portable static HTML.
 
-[Website](https://openknowledge.sh) | [Repository wiki](Wiki/index.md) |
+[Website](https://openknowledge.sh) | [README](README.md) |
+[Repository wiki](Wiki/index.md) | [Changelog](Wiki/changelog/cli.md) |
 [OKF spec][okf-spec] | [License](LICENSE)
 
 <p align="center">

@@ -23,6 +23,15 @@ cut.
 Candidate V5 changes are commits after the `v0.4.0` release tag. Keep new
 entries in this section until they are released.
 
+### 2026-07-07 - Top navigation links
+
+* Added README and changelog links to the README top link strip and added a
+  README link to the website header beside the existing wiki and changelog
+  links.
+* Source anchors: `README.md`, `packages/web/index.html`.
+* Docs updated: `README.md`, `packages/web/index.html`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-07 - Experimental label for local agent jobs
 
 * Marked `openknowledge agents` as experimental in root help, command-specific
