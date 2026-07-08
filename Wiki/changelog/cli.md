@@ -20,6 +20,17 @@ cut.
 
 ## v0.6.0 Candidate
 
+### 2026-07-08 - LLM wiki positioning copy
+
+* Reworded homepage and README positioning from "Local LLM wiki" to "LLM wiki
+  tooling" so the public copy does not overstate that the workflow is strictly
+  local.
+* Source anchors: `packages/web/index.html`, `packages/web/og.html`,
+  `README.md`, `packages/npm/README.md`.
+* Docs updated: `README.md`, `packages/npm/README.md`,
+  `packages/web/index.html`, `packages/web/og.html`,
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-08 - Homepage OKF note
 
 * Added inline homepage hero metadata next to the release badge stating that

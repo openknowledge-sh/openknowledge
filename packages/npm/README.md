@@ -1,7 +1,7 @@
 # @openknowledge-sh/openknowledge
 
-NPM wrapper for the `openknowledge` CLI, a small tool for creating local LLM
-wiki and LLM Wikipedia-style Markdown knowledge bases for agents.
+NPM wrapper for the `openknowledge` CLI, a small tool for creating LLM wiki
+tooling and LLM Wikipedia-style Markdown knowledge bases for agents.
 
 ```sh
 npm install -g @openknowledge-sh/openknowledge

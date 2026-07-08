@@ -4,10 +4,10 @@
 
 # Open Knowledge CLI
 
-Local LLM wiki tooling for agents and humans.
+LLM wiki tooling for agents and humans.
 
 Open Knowledge CLI creates Git-native project knowledge bases in plain Markdown
-and YAML frontmatter. Use it to set up local agent memory, generate
+and YAML frontmatter. Use it to set up agent memory, generate
 source-grounded docs from existing material, validate the structure, search it,
 view it locally, and publish it as portable static HTML.
 
@@ -18,7 +18,7 @@ view it locally, and publish it as portable static HTML.
 <p align="left">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
   <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"><img alt="OKF v0.1" src="https://img.shields.io/badge/OKF-v0.1-2f6feb"></a>
-  <a href="https://openknowledge.sh"><img alt="Local-first Markdown wiki" src="https://img.shields.io/badge/wiki-local--first-0f766e"></a>
+  <a href="https://openknowledge.sh"><img alt="Git-native Markdown wiki" src="https://img.shields.io/badge/wiki-git--native-0f766e"></a>
   <a href="Wiki/index.md"><img alt="Agent-ready docs" src="https://img.shields.io/badge/docs-agent--ready-6f42c1"></a>
 </p>
 
@@ -39,7 +39,7 @@ view it locally, and publish it as portable static HTML.
 
 Open Knowledge is a small tooling stack around Markdown knowledge bases. It is
 useful when you want an LLM wiki, LLM Wikipedia-style project memory, or
-Karpathy-style local wiki that stays inspectable with normal shell tools.
+Karpathy-style project wiki that stays inspectable with normal shell tools.
 
 It gives you:
 
