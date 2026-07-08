@@ -705,6 +705,10 @@ li code {
     padding: 154px 0 48px;
   }
 
+  .okf-note {
+    display: none;
+  }
+
   h1 {
     font-size: 34px;
   }
