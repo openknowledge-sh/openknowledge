@@ -80,8 +80,8 @@ lists all declared entrypoints; when none are declared, it prints the root
 `index.md` fallback metadata.
 
 Query retrieval belongs to [`openknowledge search`](search.md), not `get`.
-Search owns ranked retrieval, source snippets, JSON output, and graph-expanded
-results.
+Search owns token-budgeted Markdown context, structured JSON, default one-hop
+authored-link expansion, and ranked match inspection.
 
 ## Quick Examples
 

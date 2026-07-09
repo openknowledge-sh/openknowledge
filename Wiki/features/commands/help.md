@@ -67,6 +67,16 @@ Commands:
 
 ## Command Change History
 
+### 2026-07-09
+
+Root and command-specific help changed `openknowledge search` to emit a
+source-preserving Markdown context packet by default. Search help added
+`--budget <tokens>`, `--no-expand`, and `--matches`; changed `--format` to
+`markdown|json` with `markdown` as the default; and removed `--expand graph`
+and the previous text-as-default description. Help also records the `2400`
+default token budget, the `12` source or match limit, and default one-hop local
+link and backlink expansion.
+
 ### 2026-07-07
 
 Root help marks `openknowledge agents` as experimental while the local job
@@ -114,7 +124,7 @@ Root help added `openknowledge search <name|path> <query>`,
 `openknowledge search <name|path> <query> --format json`, and
 `openknowledge search <name|path> <query> --expand graph`. It removed
 the previous query-mode usage forms and keeps search as the standalone
-retrieval command.
+retrieval command. This was the pre-2026-07-09 search surface.
 
 Root help added `openknowledge to graph --type search [path]` for derivative
 search graph exports.

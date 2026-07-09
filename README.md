@@ -64,7 +64,7 @@ to inspect, diff, validate, and maintain.
 | --- | --- | --- |
 | :robot: | Agent setup | `openknowledge setup`, `from`, and `rules` print prompts that let local agents create and maintain useful project memory. |
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
-| :mag: | Retrieval | `search`, `get`, `list`, and `view` make the wiki usable as local context instead of a passive docs folder. |
+| :mag: | Retrieval | `search` builds budget-bounded Markdown context by default, while `get`, `list`, and `view` support exact reads, structure, and browsing. |
 | :package: | Portable publishing | HTML exports include `llms.txt`, `openknowledge.json`, and a bundle archive so published wikis can be connected again. |
 | :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and experimental agent job commands provide structured views that automation can trust. |
 
@@ -153,7 +153,7 @@ openknowledge view ./project-memory
 | Authoring and format hygiene | `new`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
 | Experimental local agent automation | `agents` | Validate, dry-run, and execute scheduled local agent jobs from Markdown specs in isolated Git worktrees. |
 | Registry and lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
-| Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown files, inspect bundle trees, search source-grounded chunks, and browse locally. |
+| Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, and browse locally. |
 | Views and publishing | `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | Export normalized models, source graphs, retrieval graphs, static viewers, and plain semantic HTML. |
 
 ## Common Workflows
@@ -173,7 +173,8 @@ openknowledge connect ./project-memory --as personal
 openknowledge get personal --info
 openknowledge get personal
 openknowledge search personal "validation workflow"
-openknowledge search personal "validation workflow" --expand graph
+openknowledge search personal "validation workflow" --budget 1200
+openknowledge search personal "validation workflow" --matches
 openknowledge registry where personal
 openknowledge view personal
 openknowledge disconnect personal
@@ -243,8 +244,10 @@ the interactive handoff is not useful for the workflow.
 After creation, humans and agents edit normal Markdown files.
 `openknowledge validate` checks the bundle, `openknowledge list` prints the
 bundle tree, `openknowledge get` prints exact files or declared entrypoints,
-and `openknowledge search` retrieves source-grounded Markdown chunks with
-snippets, line ranges, heading paths, and lexical ranking.
+and `openknowledge search` uses deterministic BM25 ranking to build
+source-preserving Markdown context under a token budget. One-hop local links
+and backlinks are included by default when they fit; `--matches` exposes the
+underlying ranked snippets and scores.
 
 ### Registry and viewer
 
@@ -340,9 +343,11 @@ Run `openknowledge <command> --help` for command-specific flags and examples.
 | `openknowledge get <name-or-path>` | Print an exact local Markdown file, default entrypoint, or root `index.md`. |
 | `openknowledge get <name-or-path> <entry-or-file>` | Print a named bundle entrypoint or bundle-relative Markdown file. |
 | `openknowledge get <name-or-path> --info` | Print bundle and selected-file metadata. |
-| `openknowledge search <name-or-path> <query>` | Search source-grounded Markdown chunks. |
-| `openknowledge search <name-or-path> <query> --expand graph` | Include outgoing-link and backlink neighbor chunks. |
-| `openknowledge search <name-or-path> <query> --format json` | Print structured search results. |
+| `openknowledge search <name-or-path> <query>` | Build source-preserving Markdown context with related authored links. |
+| `openknowledge search <name-or-path> <query> --budget <tokens>` | Bound the approximate context size. |
+| `openknowledge search <name-or-path> <query> --no-expand` | Include only direct lexical matches. |
+| `openknowledge search <name-or-path> <query> --matches` | Inspect ranked snippets, scores, and relations. |
+| `openknowledge search <name-or-path> <query> --format json` | Print structured context JSON. |
 | `openknowledge ast [path]` | Print parsed OKF AST JSON. |
 | `openknowledge ast --out <file> [path]` | Write parsed OKF AST JSON to a file. |
 | `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |

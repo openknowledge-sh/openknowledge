@@ -85,20 +85,31 @@ func TestResolveContextRanksHeadingMetadataAndBodyMatches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Results) == 0 {
+	if len(result.Sources) == 0 {
 		t.Fatal("expected context results")
 	}
-	if result.Results[0].Path != "guides/incident.md" {
-		t.Fatalf("expected title metadata match first, got %#v", result.Results)
+	if result.Sources[0].Path != "guides/incident.md" {
+		t.Fatalf("expected BM25 title metadata match first, got %#v", result.Sources)
 	}
 	if result.EstimatedTokens <= 0 || result.EstimatedTokens > result.Budget {
 		t.Fatalf("unexpected token accounting: %#v", result)
 	}
-	if result.Briefing.Summary == "" || len(result.Briefing.KeyPoints) == 0 {
-		t.Fatalf("expected answer-ready briefing, got %#v", result.Briefing)
+	if !strings.Contains(result.Sources[0].Markdown, "escalation checklist") || result.Sources[0].Relation != "direct" {
+		t.Fatalf("expected source-preserving direct context, got %#v", result.Sources[0])
 	}
-	if result.Briefing.KeyPoints[0].Path != "guides/incident.md" || !strings.Contains(result.Briefing.KeyPoints[0].Text, "escalation checklist") {
-		t.Fatalf("expected source-grounded key point, got %#v", result.Briefing.KeyPoints)
+	matches, err := SearchKnowledge(root, SearchOptions{Query: "incident playbook", Limit: 12, Fuzzy: true, NoExpand: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches.Results) == 0 || matches.Results[0].ID != result.Sources[0].ID || matches.Results[0].Score != result.Sources[0].Score {
+		t.Fatalf("expected context and matches to share BM25 ranking, context=%#v matches=%#v", result.Sources, matches.Results)
+	}
+	limited, err := ResolveContext(root, ContextOptions{Query: "incident", Budget: 1200, Limit: 1, NoExpand: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(limited.Sources) != 1 || limited.Limit != 1 {
+		t.Fatalf("expected context limit to cap selected sources, got %#v", limited)
 	}
 }
 
@@ -110,14 +121,14 @@ func TestResolveContextTrimsOversizedTopMatchToBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Results) != 1 {
-		t.Fatalf("expected one trimmed result, got %#v", result.Results)
+	if len(result.Sources) != 1 {
+		t.Fatalf("expected one trimmed result, got %#v", result.Sources)
 	}
-	if result.Results[0].EstimatedTokens > 30 || result.EstimatedTokens > 30 {
+	if result.Sources[0].EstimatedTokens > 30 || result.EstimatedTokens > 30 {
 		t.Fatalf("expected result to fit budget, got %#v", result)
 	}
-	if result.Results[0].LineEnd >= 44 {
-		t.Fatalf("expected truncated line range, got %#v", result.Results[0])
+	if result.Sources[0].LineEnd >= 44 {
+		t.Fatalf("expected truncated line range, got %#v", result.Sources[0])
 	}
 }
 
@@ -130,13 +141,23 @@ func TestResolveContextIncludesLinkedNeighborWithinBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Results) < 2 {
-		t.Fatalf("expected linked neighbor result, got %#v", result.Results)
+	if len(result.Sources) < 2 {
+		t.Fatalf("expected linked neighbor result, got %#v", result.Sources)
 	}
-	if result.Results[1].Path != "rollback.md" || !result.Results[1].Neighbor {
-		t.Fatalf("expected rollback neighbor second, got %#v", result.Results)
+	if result.Sources[1].Path != "rollback.md" || result.Sources[1].Relation != "outgoing-link" {
+		t.Fatalf("expected rollback neighbor second, got %#v", result.Sources)
 	}
-	if len(result.Briefing.Related) != 1 || result.Briefing.Related[0].Path != "rollback.md" {
-		t.Fatalf("expected neighbor in briefing related context, got %#v", result.Briefing)
+	if !strings.Contains(result.Sources[1].Markdown, "Restore the previous release") {
+		t.Fatalf("expected original rollback Markdown, got %#v", result.Sources[1])
+	}
+
+	directOnly, err := ResolveContext(root, ContextOptions{Query: "deploy", Budget: 500, NoExpand: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range directOnly.Sources {
+		if source.Relation != "direct" {
+			t.Fatalf("expected NoExpand to omit related sources, got %#v", directOnly.Sources)
+		}
 	}
 }

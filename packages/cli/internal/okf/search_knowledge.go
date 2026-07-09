@@ -64,34 +64,45 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 		return result
 	}
 
-	// Direct results are scored first. Optional graph expansion only fills
-	// remaining slots, so linked neighbors cannot displace stronger matches.
-	corpus := newKnowledgeSearchCorpus(index.Sections)
-	normalizedQuery := normalizeSearchText(query)
-	for _, document := range corpus.documents {
-		searchResult, ok := scoreKnowledgeSearchDocument(document, corpus, terms, normalizedQuery, options.Fuzzy)
-		if ok {
-			result.Results = append(result.Results, searchResult)
-		}
-	}
-
-	sort.SliceStable(result.Results, func(i, j int) bool {
-		if result.Results[i].Score != result.Results[j].Score {
-			return result.Results[i].Score > result.Results[j].Score
-		}
-		if result.Results[i].Path != result.Results[j].Path {
-			return result.Results[i].Path < result.Results[j].Path
-		}
-		return result.Results[i].LineStart < result.Results[j].LineStart
-	})
-
-	if options.ExpandGraph {
-		result.Results = appendKnowledgeSearchGraphNeighbors(result.Results, index.Sections, limit)
+	result.Results = index.rankKnowledgeSearch(options)
+	if !options.NoExpand && len(result.Results) > 0 {
+		seedCount := minInt(limit, len(result.Results))
+		neighbors := knowledgeSearchGraphNeighbors(result.Results[:seedCount], result.Results, index.Sections)
+		result.Results = mergeKnowledgeSearchResults(result.Results, neighbors)
 	}
 	if len(result.Results) > limit {
 		result.Results = result.Results[:limit]
 	}
 	return result
+}
+
+func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchResult {
+	query := strings.TrimSpace(options.Query)
+	terms := searchTerms(query)
+	if len(terms) == 0 {
+		return nil
+	}
+
+	corpus := newKnowledgeSearchCorpus(index.Sections)
+	normalizedQuery := normalizeSearchText(query)
+	var results []SearchResult
+	for _, document := range corpus.documents {
+		searchResult, ok := scoreKnowledgeSearchDocument(document, corpus, terms, normalizedQuery, options.Fuzzy)
+		if ok {
+			results = append(results, searchResult)
+		}
+	}
+
+	sort.SliceStable(results, func(i, j int) bool {
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
+		}
+		if results[i].Path != results[j].Path {
+			return results[i].Path < results[j].Path
+		}
+		return results[i].LineStart < results[j].LineStart
+	})
+	return results
 }
 
 func newKnowledgeSearchCorpus(sections []ContextSection) knowledgeSearchCorpus {
@@ -200,7 +211,7 @@ func scoreKnowledgeSearchDocument(document knowledgeSearchDocument, corpus knowl
 		score *= 0.55
 	}
 
-	return searchResultFromContextSection(document.section, roundSearchScore(score), sortedSearchMatches(matches), false, "", terms, normalizedQuery, fuzzy), true
+	return searchResultFromContextSection(document.section, roundSearchScore(score), sortedSearchMatches(matches), false, "direct", terms, normalizedQuery, fuzzy), true
 }
 
 func knowledgeSearchFieldTermScore(field knowledgeSearchField, corpus knowledgeSearchCorpus, term string, fuzzy bool) (float64, bool) {
@@ -323,13 +334,14 @@ func firstKnowledgeSearchSnippet(section ContextSection, document searchDocument
 	return ""
 }
 
-func appendKnowledgeSearchGraphNeighbors(results []SearchResult, sections []ContextSection, limit int) []SearchResult {
-	if len(results) == 0 || len(results) >= limit {
-		return results
+func knowledgeSearchGraphNeighbors(seeds []SearchResult, direct []SearchResult, sections []ContextSection) []SearchResult {
+	if len(seeds) == 0 {
+		return nil
 	}
 
 	// Graph expansion is intentionally shallow: one hop through authored local
-	// links, plus backlinks, lowered enough to remain context rather than rank.
+	// links plus backlinks. Relationship penalties let strong authored context
+	// outrank weak lexical matches without displacing the strongest direct hit.
 	sectionsByID := map[string]ContextSection{}
 	firstSectionByPath := map[string]ContextSection{}
 	for _, section := range sections {
@@ -339,23 +351,24 @@ func appendKnowledgeSearchGraphNeighbors(results []SearchResult, sections []Cont
 		}
 	}
 
-	seen := map[string]struct{}{}
-	direct := append([]SearchResult{}, results...)
-	for _, result := range results {
-		seen[result.ID] = struct{}{}
+	directIDs := map[string]struct{}{}
+	for _, result := range direct {
+		directIDs[result.ID] = struct{}{}
 	}
 
-	var candidates []SearchResult
+	candidatesByID := map[string]SearchResult{}
 	addCandidate := func(section ContextSection, relation string, score float64) {
-		if _, ok := seen[section.ID]; ok {
+		if _, ok := directIDs[section.ID]; ok {
 			return
 		}
 		result := searchResultFromContextSection(section, roundSearchScore(score), []string{"graph"}, true, relation, nil, "", false)
-		candidates = append(candidates, result)
-		seen[section.ID] = struct{}{}
+		if existing, ok := candidatesByID[section.ID]; ok && existing.Score >= result.Score {
+			return
+		}
+		candidatesByID[section.ID] = result
 	}
 
-	for _, result := range direct {
+	for _, result := range seeds {
 		section, ok := sectionsByID[result.ID]
 		if !ok {
 			continue
@@ -381,6 +394,10 @@ func appendKnowledgeSearchGraphNeighbors(results []SearchResult, sections []Cont
 		}
 	}
 
+	candidates := make([]SearchResult, 0, len(candidatesByID))
+	for _, candidate := range candidatesByID {
+		candidates = append(candidates, candidate)
+	}
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].Score != candidates[j].Score {
 			return candidates[i].Score > candidates[j].Score
@@ -393,12 +410,25 @@ func appendKnowledgeSearchGraphNeighbors(results []SearchResult, sections []Cont
 		}
 		return candidates[i].LineStart < candidates[j].LineStart
 	})
+	return candidates
+}
 
-	for _, candidate := range candidates {
-		if len(results) >= limit {
-			break
+func mergeKnowledgeSearchResults(direct []SearchResult, neighbors []SearchResult) []SearchResult {
+	results := append(append([]SearchResult{}, direct...), neighbors...)
+	sort.SliceStable(results, func(i, j int) bool {
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
 		}
-		results = append(results, candidate)
-	}
+		if results[i].Neighbor != results[j].Neighbor {
+			return !results[i].Neighbor
+		}
+		if results[i].Relation != results[j].Relation {
+			return results[i].Relation < results[j].Relation
+		}
+		if results[i].Path != results[j].Path {
+			return results[i].Path < results[j].Path
+		}
+		return results[i].LineStart < results[j].LineStart
+	})
 	return results
 }

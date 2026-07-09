@@ -20,6 +20,40 @@ cut.
 
 ## v0.6.0 Candidate
 
+### 2026-07-09 - Search context packets by default
+
+* Changed `openknowledge search <name-or-path> <query>` to emit a bounded,
+  source-preserving Markdown context packet by default. Context sources retain
+  their authored Markdown, file and heading provenance, line range, score, and
+  direct or related relationship to the query.
+* Kept section-level BM25 ranking as the canonical retrieval layer. Search now
+  includes one-hop existing local outgoing links and backlinks by default when
+  related sections fit the remaining token budget and source limit;
+  `--no-expand` opts out.
+* Added `--budget <tokens>` with a `2400` default and `--matches` for the prior
+  ranked match-list inspection view. The context-only budget flag cannot be
+  combined with `--matches`. `--limit` continues to default to `12` and caps
+  selected context sources or displayed matches.
+* Changed `--format` to `markdown|json` with `markdown` as the default. Context
+  JSON reports `root`, `query`, `budget`, `estimatedTokens`, `limit`,
+  `sources`, and validation `issues`; each source carries its original
+  Markdown and provenance. Removed the pre-v1 `--expand graph` flag and the
+  `text` format name.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/internal/okf/search_knowledge.go`,
+  `packages/cli/internal/okf/search_types.go`,
+  `packages/cli/internal/okf/context.go`,
+  `packages/cli/internal/okf/context_selection.go`,
+  `packages/cli/internal/okf/context_types.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/internal/okf/search_test.go`,
+  `packages/cli/internal/okf/context_test.go`.
+* Docs updated: `README.md`, `packages/web/index.html`, `Wiki/index.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/commands/search.md`,
+  `Wiki/features/commands/get.md`, `Wiki/features/commands/help.md`,
+  `Wiki/features/tooling-model.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-08 - LLM wiki positioning copy
 
 * Reworded homepage and README positioning from "Local LLM wiki" to "LLM wiki

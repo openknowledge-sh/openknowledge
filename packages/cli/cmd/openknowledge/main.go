@@ -1552,12 +1552,15 @@ type getOptions struct {
 }
 
 type searchOptions struct {
-	target      string
-	query       string
-	format      string
-	spec        string
-	limit       int
-	expandGraph bool
+	target    string
+	query     string
+	format    string
+	spec      string
+	limit     int
+	budget    int
+	budgetSet bool
+	matches   bool
+	noExpand  bool
 }
 
 type getSelection struct {
@@ -1637,8 +1640,8 @@ func runGet(args []string) int {
 	return 0
 }
 
-// search is the CLI retrieval surface: resolve a key/path, build the
-// section-level knowledge index, then print ranked chunks as text or JSON.
+// search is the CLI retrieval surface: resolve a key/path, rank heading
+// sections once, then print source-preserving context or diagnostic matches.
 func runSearch(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, searchHelpText())
@@ -1654,17 +1657,35 @@ func runSearch(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	result, err := okf.SearchKnowledgeWithVersion(root, options.spec, okf.SearchOptions{
-		Query:       options.query,
-		Limit:       options.limit,
-		Fuzzy:       true,
-		ExpandGraph: options.expandGraph,
+	if options.matches {
+		result, err := okf.SearchKnowledgeWithVersion(root, options.spec, okf.SearchOptions{
+			Query:    options.query,
+			Limit:    options.limit,
+			Fuzzy:    true,
+			NoExpand: options.noExpand,
+		})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if err := printSearchMatches(result, options.format); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return 0
+	}
+
+	result, err := okf.ResolveContextWithVersion(root, options.spec, okf.ContextOptions{
+		Query:    options.query,
+		Budget:   options.budget,
+		Limit:    options.limit,
+		NoExpand: options.noExpand,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	if err := printSearchResult(result, options.format); err != nil {
+	if err := printSearchContext(result, options.format); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
@@ -1723,9 +1744,10 @@ func parseGetOptions(args []string) (getOptions, error) {
 
 func parseSearchOptions(args []string) (searchOptions, error) {
 	options := searchOptions{
-		format: "text",
+		format: "markdown",
 		spec:   "latest",
 		limit:  12,
+		budget: okf.DefaultContextBudget,
 	}
 	// The first positional is the bundle target. Remaining positionals are
 	// joined into the query so both quoted and unquoted multi-word queries work.
@@ -1742,6 +1764,25 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 			index = next
 		case strings.HasPrefix(arg, "--format="):
 			options.format = strings.TrimSpace(strings.ToLower(strings.TrimPrefix(arg, "--format=")))
+		case arg == "--budget":
+			value, next, err := nextFlagValue(args, index, "--budget")
+			if err != nil {
+				return searchOptions{}, err
+			}
+			budget, err := parsePositiveIntFlag("--budget", value)
+			if err != nil {
+				return searchOptions{}, err
+			}
+			options.budget = budget
+			options.budgetSet = true
+			index = next
+		case strings.HasPrefix(arg, "--budget="):
+			budget, err := parsePositiveIntFlag("--budget", strings.TrimPrefix(arg, "--budget="))
+			if err != nil {
+				return searchOptions{}, err
+			}
+			options.budget = budget
+			options.budgetSet = true
 		case arg == "--limit":
 			value, next, err := nextFlagValue(args, index, "--limit")
 			if err != nil {
@@ -1771,19 +1812,10 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 			if strings.TrimSpace(options.spec) == "" {
 				return searchOptions{}, fmt.Errorf("--spec requires a value")
 			}
-		case arg == "--expand":
-			value, next, err := nextFlagValue(args, index, "--expand")
-			if err != nil {
-				return searchOptions{}, err
-			}
-			if err := applySearchExpand(&options, value); err != nil {
-				return searchOptions{}, err
-			}
-			index = next
-		case strings.HasPrefix(arg, "--expand="):
-			if err := applySearchExpand(&options, strings.TrimPrefix(arg, "--expand=")); err != nil {
-				return searchOptions{}, err
-			}
+		case arg == "--matches":
+			options.matches = true
+		case arg == "--no-expand":
+			options.noExpand = true
 		case strings.HasPrefix(arg, "-"):
 			return searchOptions{}, fmt.Errorf("unknown search option: %s", arg)
 		default:
@@ -1792,9 +1824,9 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 	}
 
 	if options.format == "" {
-		options.format = "text"
+		options.format = "markdown"
 	}
-	if options.format != "text" && options.format != "json" {
+	if options.format != "markdown" && options.format != "json" {
 		return searchOptions{}, fmt.Errorf("unsupported search format: %s", options.format)
 	}
 	if len(positionals) < 2 {
@@ -1805,73 +1837,136 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 	if options.query == "" {
 		return searchOptions{}, fmt.Errorf("openknowledge search requires a non-empty query")
 	}
+	if options.matches && options.budgetSet {
+		return searchOptions{}, fmt.Errorf("--budget cannot be used with --matches")
+	}
 	return options, nil
 }
 
-func applySearchExpand(options *searchOptions, value string) error {
-	value = strings.TrimSpace(strings.ToLower(value))
-	switch value {
-	case "graph":
-		options.expandGraph = true
-	case "none", "off":
-		options.expandGraph = false
-	default:
-		return fmt.Errorf("unsupported search expansion %q; use graph", value)
-	}
-	return nil
-}
-
-func printSearchResult(result okf.SearchResultSet, format string) error {
+func printSearchContext(result okf.ContextResult, format string) error {
 	switch format {
 	case "json":
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(data))
-	case "text":
-		printSearchTextResult(result)
+		return printSearchJSON(result)
+	case "markdown":
+		printSearchContextMarkdown(result)
 	default:
 		return fmt.Errorf("unsupported search format: %s", format)
 	}
 	return nil
 }
 
-func printSearchTextResult(result okf.SearchResultSet) {
-	terminal.title("Open Knowledge Search", "source-grounded chunks")
+func printSearchContextMarkdown(result okf.ContextResult) {
+	fmt.Println("# Open Knowledge Context")
+	fmt.Println()
 	fmt.Printf("Query: %s\n", result.Query)
-	fmt.Printf("Root: %s\n", terminal.path(result.Root))
-	fmt.Printf("Results: %d\n", len(result.Results))
-	if len(result.Results) == 0 {
+	fmt.Printf("Root: `%s`\n", result.Root)
+	fmt.Printf("Context: %d / %d estimated tokens\n", result.EstimatedTokens, result.Budget)
+	fmt.Printf("Sources: %d\n", len(result.Sources))
+	fmt.Printf("Validation issues: %d\n", len(result.Issues))
+	if len(result.Sources) == 0 {
 		fmt.Println()
-		fmt.Println("No matching chunks found.")
+		fmt.Println("No matching source sections found.")
 		return
 	}
+
+	for index, source := range result.Sources {
+		fmt.Println()
+		fmt.Printf("## %d. %s\n", index+1, searchContextSourceTitle(source))
+		fmt.Println()
+		fmt.Printf("Source: `%s`\n", searchSourceLocation(source.Path, source.LineStart, source.LineEnd))
+		fmt.Printf("Relation: `%s`\n", source.Relation)
+		fmt.Printf("Score: `%.2f`\n", source.Score)
+		fmt.Println()
+		fmt.Println(source.Markdown)
+	}
+}
+
+func printSearchMatches(result okf.SearchResultSet, format string) error {
+	switch format {
+	case "json":
+		return printSearchJSON(result)
+	case "markdown":
+		printSearchMatchesMarkdown(result)
+	default:
+		return fmt.Errorf("unsupported search format: %s", format)
+	}
+	return nil
+}
+
+func printSearchMatchesMarkdown(result okf.SearchResultSet) {
+	fmt.Println("# Open Knowledge Search Matches")
 	fmt.Println()
+	fmt.Printf("Query: %s\n", result.Query)
+	fmt.Printf("Root: `%s`\n", result.Root)
+	fmt.Printf("Matches: %d\n", len(result.Results))
+	fmt.Printf("Validation issues: %d\n", len(result.Issues))
+	if len(result.Results) == 0 {
+		fmt.Println()
+		fmt.Println("No matching source sections found.")
+		return
+	}
+
 	for index, match := range result.Results {
-		location := match.Path
-		if match.LineStart > 0 {
-			location = fmt.Sprintf("%s:%d-%d", match.Path, match.LineStart, match.LineEnd)
-		}
-		relation := "direct"
-		if match.Neighbor {
-			relation = match.Relation
-		}
-		fmt.Printf("%d. %s\n", index+1, location)
-		if strings.TrimSpace(match.Heading) != "" {
-			fmt.Printf("   heading: %s\n", match.Heading)
-		}
+		fmt.Println()
+		fmt.Printf("## %d. %s\n", index+1, searchMatchTitle(match))
+		fmt.Println()
+		fmt.Printf("Source: `%s`\n", searchSourceLocation(match.Path, match.LineStart, match.LineEnd))
+		fmt.Printf("Relation: `%s`\n", searchResultRelation(match))
+		fmt.Printf("Score: `%.2f`\n", match.Score)
 		if len(match.HeadingPath) > 0 {
-			fmt.Printf("   path: %s\n", strings.Join(match.HeadingPath, " > "))
+			fmt.Printf("Heading path: %s\n", strings.Join(match.HeadingPath, " > "))
 		}
 		if strings.TrimSpace(match.Type) != "" {
-			fmt.Printf("   type: %s\n", match.Type)
+			fmt.Printf("Type: `%s`\n", match.Type)
 		}
-		fmt.Printf("   score: %.2f (%s)\n", match.Score, relation)
 		if strings.TrimSpace(match.Snippet) != "" {
-			fmt.Printf("   %s\n", match.Snippet)
+			fmt.Println()
+			fmt.Println(match.Snippet)
 		}
 	}
+}
+
+func printSearchJSON(value any) error {
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+func searchContextSourceTitle(source okf.ContextSource) string {
+	if strings.TrimSpace(source.Heading) != "" && source.Heading != "Top" {
+		return source.Heading
+	}
+	if strings.TrimSpace(source.Title) != "" {
+		return source.Title
+	}
+	return source.Path
+}
+
+func searchMatchTitle(result okf.SearchResult) string {
+	if strings.TrimSpace(result.Heading) != "" && result.Heading != "Top" {
+		return result.Heading
+	}
+	if strings.TrimSpace(result.Title) != "" {
+		return result.Title
+	}
+	return result.Path
+}
+
+func searchSourceLocation(path string, lineStart int, lineEnd int) string {
+	if lineStart <= 0 {
+		return path
+	}
+	return fmt.Sprintf("%s:%d-%d", path, lineStart, lineEnd)
+}
+
+func searchResultRelation(result okf.SearchResult) string {
+	if strings.TrimSpace(result.Relation) != "" {
+		return result.Relation
+	}
+	return "direct"
 }
 
 func resolveDirectGetFile(target string) (string, string, bool) {
@@ -2886,8 +2981,10 @@ Usage:
   openknowledge get <name|path> [entry-or-file]
   openknowledge get <name|path> --info
   openknowledge search <name|path> <query>
+  openknowledge search <name|path> <query> --budget <tokens>
   openknowledge search <name|path> <query> --format json
-  openknowledge search <name|path> <query> --expand graph
+  openknowledge search <name|path> <query> --matches
+  openknowledge search <name|path> <query> --no-expand
   openknowledge ast [path]
   openknowledge ast --out <file> [path]
   openknowledge registry connect <source>
@@ -2931,7 +3028,7 @@ Commands:
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
   get        Print a Markdown file or bundle entrypoint.
-  search     Search source-grounded Markdown chunks in a bundle.
+  search     Build source-grounded Markdown context from a bundle.
   ast        Print parsed OKF AST JSON.
   registry   Manage knowledge bundle connections.
   view       Start the registry or knowledge base Markdown viewer.
@@ -3008,8 +3105,8 @@ Behavior:
   With a second argument, get first checks root index.md metadata, then treats
   the value as a path inside the bundle.
 
-  Use openknowledge search when you need query-based retrieval across Markdown
-  sections, heading paths, snippets, and optional graph expansion.
+  Use openknowledge search when you need query-based, token-budgeted Markdown
+  context with source ranges and related authored links.
 
 Examples:
   openknowledge get README.md
@@ -3023,12 +3120,14 @@ Examples:
 func searchHelpText() string {
 	return fmt.Sprintf(`openknowledge search
 
-Search source-grounded Markdown chunks in an Open Knowledge bundle.
+Build source-grounded Markdown context from an Open Knowledge bundle.
 
 Usage:
   openknowledge search <name|path> <query>
+  openknowledge search <name|path> <query> --budget <tokens>
   openknowledge search <name|path> <query> --format json
-  openknowledge search <name|path> <query> --expand graph
+  openknowledge search <name|path> <query> --matches
+  openknowledge search <name|path> <query> --no-expand
   openknowledge search <name|path> <query> --limit <count>
   openknowledge search <name|path> <query> --spec <version>
   openknowledge search --help
@@ -3038,31 +3137,36 @@ Arguments:
   query          Search text. Quote multi-word queries in shells.
 
 Flags:
-  --expand       Optional expansion mode. Use graph to include outgoing local
-                 links and backlinks as lower-ranked neighbor results.
-  --format       Output format: text or json. Defaults to text.
-  --limit        Maximum result count. Defaults to 12.
+  --budget       Approximate context token budget. Defaults to %d.
+                 Context mode only; cannot be combined with --matches.
+  --format       Output format: markdown or json. Defaults to markdown.
+  --limit        Maximum context source or match count. Defaults to 12.
+  --matches      Print ranked match diagnostics instead of packed context.
+  --no-expand    Exclude one-hop outgoing-link and backlink context.
   --spec         OKF spec version. Defaults to latest.
 
 Behavior:
   Search builds Markdown chunks from parsed heading sections, preserves source
   line ranges and heading paths, scores chunks with BM25-style lexical ranking
   across title, path, type, description, frontmatter, headings, and body text,
-  and returns source snippets. Fuzzy and diacritic-insensitive matching are
-  enabled for local CLI search.
+  then packs original Markdown under the requested token budget. Fuzzy and
+  diacritic-insensitive matching are enabled for local CLI search.
 
-  With --expand graph, direct matches are followed by linked neighbor chunks
-  and backlinks. Neighbor results are marked with their relation.
+  Direct evidence is packed first. By default, remaining budget can include
+  one-hop outgoing local links and backlinks with their relation. Use
+  --no-expand for direct lexical matches only, or --matches to inspect scores,
+  matched fields, snippets, and relations instead of context Markdown.
 
 Examples:
   openknowledge search Wiki "validation workflow"
-  openknowledge search personal "release checklist" --limit 5
-  openknowledge search personal "MCP auth" --expand graph
+  openknowledge search personal "release checklist" --budget 1200
+  openknowledge search personal "MCP auth" --matches
+  openknowledge search personal "MCP auth" --no-expand
   openknowledge search personal "MCP auth" --format json
 
 Versions:
   %s
-`, supportedSpecVersionsText())
+`, okf.DefaultContextBudget, supportedSpecVersionsText())
 }
 
 func disconnectHelpText(command string) string {

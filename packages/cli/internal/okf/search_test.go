@@ -260,7 +260,7 @@ func TestSearchKnowledgeExpandsThroughGraphNeighbors(t *testing.T) {
 	writeFile(t, root, "rollback.md", "---\ntype: Runbook\ntitle: Rollback Plan\n---\n\n# Rollback\n\nRestore the previous release when verification fails.\n")
 	writeFile(t, root, "owners.md", "---\ntype: Team\ntitle: Owners\n---\n\n# Owners\n\nPlatform owns the [Runbook](runbook.md).\n")
 
-	results, err := SearchKnowledge(root, SearchOptions{Query: "deploy checklist", Limit: 5, Fuzzy: true, ExpandGraph: true})
+	results, err := SearchKnowledge(root, SearchOptions{Query: "deploy checklist", Limit: 5, Fuzzy: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,5 +278,36 @@ func TestSearchKnowledgeExpandsThroughGraphNeighbors(t *testing.T) {
 	}
 	if result, ok := byPath["owners.md"]; !ok || !result.Neighbor || result.Relation != "backlink" {
 		t.Fatalf("expected backlink owner neighbor, got %#v", results.Results)
+	}
+
+	directOnly, err := SearchKnowledge(root, SearchOptions{Query: "deploy checklist", Limit: 5, Fuzzy: true, NoExpand: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, result := range directOnly.Results {
+		if result.Neighbor {
+			t.Fatalf("expected NoExpand to omit graph neighbors, got %#v", directOnly.Results)
+		}
+	}
+}
+
+func TestSearchKnowledgeExpansionCanReplaceWeakDirectMatchAtLimit(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "runbook.md", "---\ntype: Runbook\ntitle: Deploy Checklist\n---\n\n# Deploy Checklist\n\nUse the production deploy checklist and read [Rollback](rollback.md).\n")
+	writeFile(t, root, "rollback.md", "---\ntype: Runbook\ntitle: Rollback Plan\n---\n\n# Rollback\n\nRestore the previous release.\n")
+	writeFile(t, root, "notes.md", "---\ntype: Note\ntitle: Miscellaneous\n---\n\n# Notes\n\nThe deploy word appears in a broad note.\n")
+
+	results, err := SearchKnowledge(root, SearchOptions{Query: "deploy checklist", Limit: 2, Fuzzy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results.Results) != 2 {
+		t.Fatalf("expected two limited results, got %#v", results.Results)
+	}
+	if results.Results[0].Path != "runbook.md" || results.Results[0].Relation != "direct" {
+		t.Fatalf("expected strongest direct result first, got %#v", results.Results)
+	}
+	if results.Results[1].Path != "rollback.md" || results.Results[1].Relation != "outgoing-link" {
+		t.Fatalf("expected strong authored neighbor to replace weak direct match, got %#v", results.Results)
 	}
 }

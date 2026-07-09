@@ -71,23 +71,27 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 	}
 
 	result := ContextResult{
-		Root:   index.Root,
-		Query:  query,
-		Budget: budget,
-		Issues: index.Issues,
+		Root:    index.Root,
+		Query:   query,
+		Budget:  budget,
+		Limit:   limit,
+		Sources: []ContextSource{},
+		Issues:  index.Issues,
 	}
 	if query == "" {
-		result.Briefing = buildContextBriefing(result)
 		return result, nil
 	}
 
-	candidates := scoreContextSections(index.Sections, query)
-	selected := packContextCandidates(candidates, budget, limit, false)
-	selected = appendContextNeighbors(selected, index.Sections, budget, limit)
-	for _, match := range selected {
-		result.EstimatedTokens += match.EstimatedTokens
+	searchOptions := SearchOptions{Query: query, Limit: limit, Fuzzy: true}
+	direct := index.rankKnowledgeSearch(searchOptions)
+	seedCount := minInt(limit, len(direct))
+	var neighbors []SearchResult
+	if !options.NoExpand && seedCount > 0 {
+		neighbors = knowledgeSearchGraphNeighbors(direct[:seedCount], direct, index.Sections)
 	}
-	result.Results = selected
-	result.Briefing = buildContextBriefing(result)
+	result.Sources = packContextSources(index.Sections, direct, neighbors, budget, limit)
+	for _, source := range result.Sources {
+		result.EstimatedTokens += source.EstimatedTokens
+	}
 	return result, nil
 }

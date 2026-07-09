@@ -1,10 +1,10 @@
 package okf
 
 type SearchOptions struct {
-	Query       string
-	Limit       int
-	Fuzzy       bool
-	ExpandGraph bool
+	Query    string
+	Limit    int
+	Fuzzy    bool
+	NoExpand bool
 }
 
 type SearchResultSet struct {

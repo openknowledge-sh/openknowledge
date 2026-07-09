@@ -42,8 +42,10 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge get <name|path> [entry-or-file]",
 		"openknowledge get <name|path> --info",
 		"openknowledge search <name|path> <query>",
+		"openknowledge search <name|path> <query> --budget <tokens>",
 		"openknowledge search <name|path> <query> --format json",
-		"openknowledge search <name|path> <query> --expand graph",
+		"openknowledge search <name|path> <query> --matches",
+		"openknowledge search <name|path> <query> --no-expand",
 		"openknowledge registry connect <source>",
 		"openknowledge registry connect <source> --as <key>",
 		"openknowledge registry disconnect <key|path>",
@@ -76,7 +78,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
 		"get        Print a Markdown file or bundle entrypoint.",
-		"search     Search source-grounded Markdown chunks in a bundle.",
+		"search     Build source-grounded Markdown context from a bundle.",
 		"registry   Manage knowledge bundle connections.",
 		"view       Start the registry or knowledge base Markdown viewer.",
 		"to         Convert a bundle to another format.",
@@ -119,6 +121,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"use        Print an agent entrypoint from a bundle.",
 		"open       Start the registry or knowledge base Markdown viewer.",
 		"openknowledge context",
+		"openknowledge search <name|path> <query> --expand graph",
 		"where      Print the path for a named knowledge base or path.",
 	}
 	for _, unexpected := range forbidden {
@@ -293,13 +296,17 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: searchHelpText(),
 			required: []string{
 				"openknowledge search <name|path> <query>",
+				"openknowledge search <name|path> <query> --budget <tokens>",
 				"openknowledge search <name|path> <query> --format json",
-				"openknowledge search <name|path> <query> --expand graph",
+				"openknowledge search <name|path> <query> --matches",
+				"openknowledge search <name|path> <query> --no-expand",
+				"Defaults to 2400",
 				"--limit",
 				"--spec",
 				"BM25-style",
 				"heading paths",
 				"backlinks",
+				"original Markdown",
 			},
 		},
 		"registry": {
@@ -921,18 +928,35 @@ func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
 }
 
 func TestParseSearchOptionsAcceptsQueryFlags(t *testing.T) {
-	options, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--limit=5", "--format=json", "--spec", "0.1", "--expand=graph"})
+	defaults, err := parseSearchOptions([]string{"./project-memory", "validation workflow"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.target != "./project-memory" || options.query != "validation workflow" || options.limit != 5 || options.format != "json" || options.spec != "0.1" || !options.expandGraph {
+	if defaults.format != "markdown" || defaults.budget != okf.DefaultContextBudget || defaults.limit != 12 || defaults.matches || defaults.noExpand {
+		t.Fatalf("unexpected search defaults: %#v", defaults)
+	}
+
+	options, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--limit=5", "--budget", "900", "--format=json", "--spec", "0.1", "--no-expand"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.target != "./project-memory" || options.query != "validation workflow" || options.limit != 5 || options.budget != 900 || !options.budgetSet || options.format != "json" || options.spec != "0.1" || options.matches || !options.noExpand {
 		t.Fatalf("unexpected search options: %#v", options)
 	}
 	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--limit", "0"}); err == nil {
 		t.Fatal("expected invalid limit to fail")
 	}
-	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--expand", "semantic"}); err == nil {
-		t.Fatal("expected unsupported expand value to fail")
+	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--budget", "0"}); err == nil {
+		t.Fatal("expected invalid budget to fail")
+	}
+	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--matches", "--budget", "900"}); err == nil {
+		t.Fatal("expected matches and budget combination to fail")
+	}
+	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--format", "text"}); err == nil {
+		t.Fatal("expected removed text format to fail")
+	}
+	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--expand", "graph"}); err == nil {
+		t.Fatal("expected removed expand flag to fail")
 	}
 }
 
@@ -1073,7 +1097,7 @@ func TestRunSearchPrintsMarkdownSections(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected search to succeed, got exit code %d", code)
 	}
-	for _, expected := range []string{"Open Knowledge Search", "Query: validation workflow", "guides/validate.md:", "heading: Validate", "type: Guide", "Run `openknowledge validate`"} {
+	for _, expected := range []string{"# Open Knowledge Context", "Query: validation workflow", "Context:", "Sources: 1", "## 1. Validate", "Source: `guides/validate.md:", "Relation: `direct`", "# Validate", "Run `openknowledge validate`"} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected search output to include %q:\n%s", expected, output)
 		}
@@ -1091,15 +1115,85 @@ func TestRunSearchPrintsJSON(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected search json to succeed, got exit code %d", code)
 	}
-	var payload okf.SearchResultSet
+	var payload okf.ContextResult
 	if err := json.Unmarshal([]byte(output), &payload); err != nil {
 		t.Fatalf("expected JSON search output: %v\n%s", err, output)
 	}
-	if payload.Query != "release checklist" || len(payload.Results) == 0 || payload.Results[0].Path != "guides/release.md" || payload.Results[0].Heading != "Release" {
+	if payload.Query != "release checklist" || payload.Budget != okf.DefaultContextBudget || len(payload.Sources) == 0 || payload.Sources[0].Path != "guides/release.md" || payload.Sources[0].Heading != "Release" {
 		t.Fatalf("unexpected search payload: %#v", payload)
 	}
-	if payload.Results[0].LineStart == 0 || payload.Results[0].Snippet == "" {
-		t.Fatalf("expected source range and snippet in search result: %#v", payload.Results[0])
+	if payload.Sources[0].LineStart == 0 || payload.Sources[0].Markdown == "" || payload.Sources[0].Relation != "direct" {
+		t.Fatalf("expected source range and Markdown in search context: %#v", payload.Sources[0])
+	}
+	if !strings.Contains(output, `"sources"`) || !strings.Contains(output, `"issues": []`) {
+		t.Fatalf("expected stable context JSON fields:\n%s", output)
+	}
+}
+
+func TestRunSearchMatchesPrintsRankedDiagnostics(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Home\n")
+	writeMainTestFile(t, root, "guides/release.md", "---\ntype: Guide\ntitle: Release Checklist\n---\n\n# Release\n\nShip the release notes.\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runSearch([]string{"--matches", root, "release checklist"})
+	})
+	if code != 0 {
+		t.Fatalf("expected search matches to succeed, got exit code %d", code)
+	}
+	for _, expected := range []string{"# Open Knowledge Search Matches", "Matches: 1", "## 1. Release", "Relation: `direct`", "Score:", "Ship the release notes"} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected search matches output to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestRunSearchMatchesPrintsJSON(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Home\n")
+	writeMainTestFile(t, root, "guides/release.md", "---\ntype: Guide\ntitle: Release Checklist\n---\n\n# Release\n\nShip the release notes.\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runSearch([]string{"--matches", "--format", "json", root, "release checklist"})
+	})
+	if code != 0 {
+		t.Fatalf("expected JSON search matches to succeed, got exit code %d", code)
+	}
+	var payload okf.SearchResultSet
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("expected JSON match output: %v\n%s", err, output)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Path != "guides/release.md" || payload.Results[0].Relation != "direct" || payload.Results[0].Snippet == "" {
+		t.Fatalf("unexpected JSON search matches: %#v", payload)
+	}
+}
+
+func TestRunSearchExpandsRelatedContextByDefault(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "runbook.md", "---\ntype: Runbook\ntitle: Deploy Runbook\n---\n\n# Deploy\n\nRun the deploy checklist and read [Rollback](rollback.md).\n")
+	writeMainTestFile(t, root, "rollback.md", "---\ntype: Runbook\ntitle: Rollback Plan\n---\n\n# Rollback\n\nRestore the previous release.\n")
+	writeMainTestFile(t, root, "owners.md", "---\ntype: Team\ntitle: Owners\n---\n\n# Owners\n\nPlatform owns the [Runbook](runbook.md).\n")
+
+	expanded, code := captureMainStdout(t, func() int {
+		return runSearch([]string{root, "deploy checklist", "--budget", "1000"})
+	})
+	if code != 0 {
+		t.Fatalf("expected expanded context search to succeed, got exit code %d", code)
+	}
+	for _, expected := range []string{"Relation: `direct`", "Relation: `outgoing-link`", "Relation: `backlink`", "Restore the previous release", "Platform owns the"} {
+		if !strings.Contains(expanded, expected) {
+			t.Fatalf("expected default context expansion to include %q:\n%s", expected, expanded)
+		}
+	}
+
+	directOnly, code := captureMainStdout(t, func() int {
+		return runSearch([]string{root, "deploy checklist", "--no-expand"})
+	})
+	if code != 0 {
+		t.Fatalf("expected direct-only context search to succeed, got exit code %d", code)
+	}
+	if strings.Contains(directOnly, "outgoing-link") || strings.Contains(directOnly, "backlink") || strings.Contains(directOnly, "Restore the previous release") {
+		t.Fatalf("expected --no-expand to omit related context:\n%s", directOnly)
 	}
 }
 

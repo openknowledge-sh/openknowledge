@@ -1,196 +1,112 @@
 package okf
 
-import (
-	"sort"
-	"strings"
-)
+import "strings"
 
-func scoreContextSections(sections []ContextSection, query string) []contextCandidate {
-	terms := searchTerms(query)
-	if len(terms) == 0 {
-		return nil
-	}
-	normalizedQuery := normalizeSearchText(query)
-	var candidates []contextCandidate
+func packContextSources(sections []ContextSection, direct []SearchResult, neighbors []SearchResult, budget int, limit int) []ContextSource {
+	byID := make(map[string]ContextSection, len(sections))
 	for _, section := range sections {
-		score := scoreContextSection(section, terms, normalizedQuery)
-		if score <= 0 {
-			continue
-		}
-		candidates = append(candidates, contextCandidate{section: section, score: roundSearchScore(score)})
+		byID[section.ID] = section
 	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].score != candidates[j].score {
-			return candidates[i].score > candidates[j].score
-		}
-		if candidates[i].section.Path != candidates[j].section.Path {
-			return candidates[i].section.Path < candidates[j].section.Path
-		}
-		return candidates[i].section.LineStart < candidates[j].section.LineStart
-	})
-	return candidates
-}
 
-func scoreContextSection(section ContextSection, terms []string, normalizedQuery string) float64 {
-	fields := []searchField{
-		newSearchField("title", section.Title, 14),
-		newSearchField("heading", section.Heading, 10),
-		newSearchField("path", section.Path+" "+section.ID, 9),
-		newSearchField("type", section.Type+" "+section.Kind, 6),
-		newSearchField("description", section.Description, 5),
-		newSearchField("metadata", frontmatterSearchText(section.Frontmatter), 3),
-		newSearchField("body", section.Text, 1.2),
-	}
-	score := 0.0
-	matchedTerms := map[string]struct{}{}
-	for _, field := range fields {
-		if field.text == "" {
-			continue
-		}
-		if normalizedQuery != "" && strings.Contains(field.text, normalizedQuery) {
-			score += field.weight * 4
-		}
-		for _, term := range terms {
-			fieldScore, ok := scoreSearchField(field, term, true)
-			if !ok {
-				continue
-			}
-			score += fieldScore
-			matchedTerms[term] = struct{}{}
-		}
-	}
-	if len(matchedTerms) == 0 {
-		return 0
-	}
-	if len(matchedTerms) == len(terms) {
-		score *= 1.25
-	}
-	if isIndexMarkdownSearchResult(section.Path) {
-		score *= 0.55
-	}
-	return score
-}
-
-func packContextCandidates(candidates []contextCandidate, budget int, limit int, neighbor bool) []ContextMatch {
-	var matches []ContextMatch
+	sources := make([]ContextSource, 0, minInt(limit, len(direct)+len(neighbors)))
 	remaining := budget
-	seen := map[string]struct{}{}
-	for _, candidate := range candidates {
-		if len(matches) >= limit || remaining <= 0 {
-			break
-		}
-		if _, ok := seen[candidate.section.ID]; ok {
-			continue
-		}
-		match := contextMatch(candidate.section, candidate.score, neighbor)
-		if match.EstimatedTokens > remaining {
-			if len(matches) > 0 {
-				continue
+	var deferred []ContextSource
+	pack := func(results []SearchResult) bool {
+		for _, result := range results {
+			if len(sources) >= limit || remaining <= 0 {
+				return false
 			}
-			match = truncateContextMatch(match, remaining)
-		}
-		matches = append(matches, match)
-		seen[match.ID] = struct{}{}
-		remaining -= match.EstimatedTokens
-	}
-	return matches
-}
-
-func appendContextNeighbors(matches []ContextMatch, sections []ContextSection, budget int, limit int) []ContextMatch {
-	usedTokens := 0
-	seen := map[string]struct{}{}
-	for _, match := range matches {
-		usedTokens += match.EstimatedTokens
-		seen[match.ID] = struct{}{}
-	}
-	remaining := budget - usedTokens
-	if remaining <= 0 || len(matches) >= limit {
-		return matches
-	}
-
-	byPath := map[string]ContextSection{}
-	for _, section := range sections {
-		if _, ok := byPath[section.Path]; !ok {
-			byPath[section.Path] = section
-		}
-	}
-	var candidates []contextCandidate
-	for _, match := range matches {
-		for _, link := range match.Links {
-			if link.Kind != "local" || link.TargetPath == "" || !link.Exists {
-				continue
-			}
-			section, ok := byPath[link.TargetPath]
+			section, ok := byID[result.ID]
 			if !ok {
 				continue
 			}
-			if _, ok := seen[section.ID]; ok {
+			source := contextSourceFromSearchResult(section, result)
+			if source.EstimatedTokens > remaining {
+				if len(sources) == 0 {
+					source = truncateContextSource(source, remaining)
+					if source.EstimatedTokens > 0 && strings.TrimSpace(source.Markdown) != "" {
+						sources = append(sources, source)
+					}
+					return false
+				}
+				deferred = append(deferred, source)
 				continue
 			}
-			candidates = append(candidates, contextCandidate{section: section, score: roundSearchScore(match.Score * 0.55)})
+			sources = append(sources, source)
+			remaining -= source.EstimatedTokens
+		}
+		return true
+	}
+
+	if pack(direct) {
+		pack(neighbors)
+	}
+	if len(sources) < limit && remaining > 0 && len(deferred) > 0 {
+		source := truncateContextSource(deferred[0], remaining)
+		if source.EstimatedTokens > 0 && strings.TrimSpace(source.Markdown) != "" {
+			sources = append(sources, source)
 		}
 	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].score != candidates[j].score {
-			return candidates[i].score > candidates[j].score
-		}
-		return candidates[i].section.Path < candidates[j].section.Path
-	})
-	for _, match := range packContextCandidates(candidates, remaining, limit-len(matches), true) {
-		if _, ok := seen[match.ID]; ok {
-			continue
-		}
-		matches = append(matches, match)
-		seen[match.ID] = struct{}{}
-	}
-	return matches
+	return sources
 }
 
-func contextMatch(section ContextSection, score float64, neighbor bool) ContextMatch {
-	return ContextMatch{
+func contextSourceFromSearchResult(section ContextSection, result SearchResult) ContextSource {
+	relation := result.Relation
+	if relation == "" {
+		relation = "direct"
+	}
+	title := result.Title
+	if title == "" {
+		title = deriveTitle(section.Path)
+	}
+	return ContextSource{
 		ID:              section.ID,
 		Path:            section.Path,
 		Kind:            section.Kind,
 		Type:            section.Type,
-		Title:           section.Title,
+		Title:           title,
 		Heading:         section.Heading,
 		HeadingPath:     append([]string{}, section.HeadingPath...),
 		HeadingLevel:    section.HeadingLevel,
 		LineStart:       section.LineStart,
 		LineEnd:         section.LineEnd,
-		Score:           score,
+		Score:           result.Score,
 		EstimatedTokens: section.EstimatedTokens,
-		Text:            section.Text,
-		Links:           section.Links,
-		Neighbor:        neighbor,
+		Relation:        relation,
+		Markdown:        section.Text,
 	}
 }
 
-func truncateContextMatch(match ContextMatch, budget int) ContextMatch {
-	lines := strings.Split(match.Text, "\n")
+func truncateContextSource(source ContextSource, budget int) ContextSource {
+	if budget <= 0 {
+		source.Markdown = ""
+		source.EstimatedTokens = 0
+		return source
+	}
+
+	lines := strings.Split(source.Markdown, "\n")
 	var selected []string
-	estimated := 0
 	for _, line := range lines {
-		next := estimateContextTokens(strings.Join(append(selected, line), "\n"))
-		if next > budget {
+		candidate := strings.Join(append(selected, line), "\n")
+		if estimateContextTokens(candidate) > budget {
 			break
 		}
 		selected = append(selected, line)
-		estimated = next
 	}
-	if len(selected) == 0 {
-		text := []rune(match.Text)
-		if len(text) > budget*4 {
-			text = text[:budget*4]
-		}
-		match.Text = strings.TrimSpace(string(text))
-		match.LineEnd = match.LineStart
-		match.EstimatedTokens = estimateContextTokens(match.Text)
-		return match
+	if len(selected) > 0 {
+		source.Markdown = strings.TrimSpace(strings.Join(selected, "\n"))
+		source.LineEnd = source.LineStart + len(selected) - 1
+		source.EstimatedTokens = estimateContextTokens(source.Markdown)
+		return source
 	}
-	match.Text = strings.TrimSpace(strings.Join(selected, "\n"))
-	match.LineEnd = match.LineStart + len(selected) - 1
-	match.EstimatedTokens = estimated
-	match.Links = linksInRange(match.Links, match.LineStart, match.LineEnd)
-	return match
+
+	runes := []rune(source.Markdown)
+	limit := budget * 4
+	if len(runes) > limit {
+		runes = runes[:limit]
+	}
+	source.Markdown = strings.TrimSpace(string(runes))
+	source.LineEnd = source.LineStart
+	source.EstimatedTokens = estimateContextTokens(source.Markdown)
+	return source
 }

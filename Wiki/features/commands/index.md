@@ -27,7 +27,7 @@ anchors. Keep this index as the quick map.
 ## Use And Navigate Knowledge
 
 * [Get](get.md) - print an exact Markdown file, entrypoint, or metadata.
-* [Search](search.md) - search source-grounded Markdown chunks with optional graph expansion.
+* [Search](search.md) - build budget-bounded Markdown context or inspect ranked matches.
 * [View](view.md) - local Markdown viewer.
 
 ## OKF Views And Publishing
