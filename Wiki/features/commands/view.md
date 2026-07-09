@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Starts a local HTTP Markdown viewer for a knowledge base.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-07-06T00:00:00Z
+timestamp: 2026-07-09T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -12,10 +12,11 @@ timestamp: 2026-07-06T00:00:00Z
 registry-backed workspace selector. With a filesystem path or registry name, it
 opens that knowledge base directly.
 
-The viewer renders Markdown without frontmatter, rewrites local Markdown links,
-shows validation context, supports search, opens linked notes in a horizontal
-panel stack, and provides a graph overview when no note panels are open. The
-header brand comes from root `index.md` metadata in this order:
+The viewer renders Markdown bodies together with a typed, collapsible inspector
+for each note's YAML frontmatter, rewrites local Markdown links, shows
+validation context, supports search, opens linked notes in a horizontal panel
+stack, and provides a graph overview when no note panels are open. The header
+brand comes from root `index.md` metadata in this order:
 `okf_bundle_title`, `okf_bundle_name`, `title`, then the first parsed Markdown
 `#` heading.
 
@@ -90,14 +91,18 @@ Press Ctrl+C to stop.
   key-or-path model used by other commands.
 * `Command+K` focuses search. `Ctrl+K` is still accepted as a non-macOS
   fallback, but the visible search shortcut stays `⌘K`.
+* Top-bar search opens ranked default files when focused, supports Arrow-key
+  navigation and Enter activation, and dismisses its results and query on
+  Escape, outside pointer interaction, or focus moving elsewhere. Results use a
+  clear title, path/type metadata, and optional snippet hierarchy.
 * `Command+Option+S` toggles the file explorer sidebar. `Ctrl+Alt+S` is still
   accepted as a non-macOS fallback, but the shortcut shown beside the file
   explorer button stays `⌘⌥S`. The sidebar shortcut is ignored while focus is in
   editable controls.
 * `Command+Option+W` closes the focused note panel. `Ctrl+Alt+W` is still
-  accepted as a non-macOS fallback. The active panel shows a minimal shortcut
-  hint to the left of the close button, and after a panel closes, focus moves to
-  the previous panel when one exists.
+  accepted as a non-macOS fallback. The close button exposes the shortcut in
+  its hover/focus tooltip, and after a panel closes, focus moves to the previous
+  panel when one exists.
 * The local search API returns `highlightText` and `highlightURL` when a result
   has a reliable visible text match. `highlightURL` points at the Markdown file
   with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the
@@ -105,6 +110,16 @@ Press Ctrl+C to stop.
   the local viewer; static HTML exports keep their existing search links.
 * Markdown tables keep semantic table markup and are enhanced with scrolling,
   filtering, sorting, and row counts when viewer JavaScript is active.
+* Notes with YAML frontmatter show a collapsed-by-default, per-note collapsible
+  metadata inspector above the Markdown body. Values use content-aware
+  presentations without datatype badges: booleans retain a state treatment,
+  simple lists render as chips, and nested lists and maps render recursively.
+  Top-level `tags` chips are navigable facets: selecting one opens the existing
+  search surface with exact same-tag matches from other notes, rather than
+  fuzzy body-text matches.
+  The structured preview follows the YAML subset supported by the OKF
+  frontmatter parser and falls back to compatible scalar values without hiding
+  the Markdown body.
 * HTML comments are not rendered as visible text. The
   `<!-- okf-footer: agent-maintenance -->` marker turns the remaining document
   content into a visually subdued maintenance footer.
@@ -127,14 +142,29 @@ Press Ctrl+C to stop.
 * Reserved `index.md` and `log.md` entries show their `system` badge directly
   beside the file name instead of pinning the badge to the far edge of the tree
   row.
+* Note paths render as segmented breadcrumbs. Directory segments link to their
+  real `index.md` or `index.markdown` document when one exists; missing indexes
+  remain plain text. The current-file segment always links to a clean
+  single-panel view, so it closes any other open note panels.
 * The file viewer header includes a settings menu with five built-in visual
-  themes plus a custom theme editor for page, surface, text, muted, accent, and
-  border colors. Theme choices are browser-local and persist through
-  `localStorage` with a cookie fallback.
+  themes: Night, Light, Paper, Ocean, and Rose, plus a custom theme editor for
+  page, surface, text, muted, accent, and border colors. Night is the first-run
+  theme when no valid browser-local preference exists; an explicit saved theme
+  selection takes precedence on later visits. The same system-level menu
+  includes `Show frontmatter`, font, text size, line spacing, motion, readable
+  line length, high contrast, and link-underlining controls. These choices
+  affect the viewer presentation, never the authored Markdown or editor
+  deeplinks. Theme, frontmatter, and accessibility choices are browser-local
+  and persist through `localStorage` with a cookie fallback. `Show frontmatter`
+  is enabled by default and controls inspector visibility for every currently
+  open and newly opened note panel without expanding it; each inspector remains
+  independently collapsible and starts collapsed.
 
 ## Use Cases
 
 * Browse a local or connected knowledge base.
+* Inspect a note's OKF metadata and nested frontmatter without opening its raw
+  Markdown source.
 * Inspect validation warnings next to the bundle tree.
 * Follow local Markdown links without leaving the current context.
 * Search files and rendered content from the top bar.

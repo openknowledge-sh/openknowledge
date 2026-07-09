@@ -7,7 +7,7 @@ const headMarker = "<!-- OPENKNOWLEDGE_HEAD -->";
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 
-for (const asset of ["index.html", "main.js", "favicon.png", "apple-touch-icon.png", "og.png", "openknowledge-readme-banner.png", "styles.css", "robots.txt"]) {
+for (const asset of ["index.html", "main.js", "favicon.png", "apple-touch-icon.png", "logo-mark.png", "og.png", "openknowledge-readme-banner.png", "styles.css", "robots.txt"]) {
   if (asset === "index.html") {
     await writeFile(path.join(dist, asset), await injectHeadHTML(await readFile(path.join(webRoot, asset), "utf8")));
   } else {

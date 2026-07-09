@@ -565,6 +565,7 @@ type viewerFileData struct {
 	LinkPrefix  string
 	SearchURL   string
 	Theme       viewerThemeData
+	Frontmatter template.HTML
 	Body        template.HTML
 	Tree        []viewerTreeItem
 	EditorsJSON template.JS
@@ -590,17 +591,20 @@ type viewerAssetData struct {
 }
 
 type viewerFilePayload struct {
-	Title string `json:"title"`
-	Path  string `json:"path"`
-	Body  string `json:"body"`
+	Title       string `json:"title"`
+	Path        string `json:"path"`
+	Frontmatter string `json:"frontmatter,omitempty"`
+	Body        string `json:"body"`
 }
 
 type viewerStaticPayload struct {
-	Title     string `json:"title"`
-	Path      string `json:"path"`
-	HTMLPath  string `json:"htmlPath"`
-	SourceURL string `json:"sourceURL,omitempty"`
-	Body      string `json:"body"`
+	Title       string   `json:"title"`
+	Path        string   `json:"path"`
+	HTMLPath    string   `json:"htmlPath"`
+	SourceURL   string   `json:"sourceURL,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Frontmatter string   `json:"frontmatter,omitempty"`
+	Body        string   `json:"body"`
 }
 
 type viewerGraphData struct {
@@ -781,9 +785,10 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 
 	response.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err := json.NewEncoder(response).Encode(viewerFilePayload{
-		Title: data.Title,
-		Path:  data.Path,
-		Body:  string(data.Body),
+		Title:       data.Title,
+		Path:        data.Path,
+		Frontmatter: string(data.Frontmatter),
+		Body:        string(data.Body),
 	}); err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
@@ -801,6 +806,10 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	file, ok := viewerBundleFileByPath(bundle.Files, cleanRel)
 	if !ok {
 		return viewerFileData{}, false, nil
+	}
+	frontmatter, err := viewerFrontmatterHTMLForFile(root, file)
+	if err != nil {
+		return viewerFileData{}, true, err
 	}
 	entries := viewerEntriesFromBundleFiles(bundle.Files)
 	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, func(path string) string {
@@ -823,6 +832,7 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
 		SearchURL:   searchURLWithPrefix(linkPrefix),
 		Theme:       theme,
+		Frontmatter: frontmatter,
 		Body:        template.HTML(okf.RenderMarkdown(file.Body, cleanRel, viewerLinkWithPrefix(linkPrefix))),
 		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
@@ -882,34 +892,91 @@ type viewerSearchCache struct {
 	mutex       sync.Mutex
 	fingerprint string
 	index       okf.SearchIndex
+	tags        map[string][]okf.BundleFile
 }
 
 func (cache *viewerSearchCache) Search(options okf.SearchOptions) ([]okf.SearchResult, error) {
-	fingerprint, err := markdownFingerprint(cache.root)
+	index, _, err := cache.load()
 	if err != nil {
 		return nil, err
 	}
+	return index.Search(options), nil
+}
+
+func (cache *viewerSearchCache) SearchTag(tag string, excludePath string, limit int) ([]okf.BundleFile, error) {
+	_, tags, err := cache.load()
+	if err != nil {
+		return nil, err
+	}
+	matched := tags[strings.ToLower(strings.TrimSpace(tag))]
+	if limit <= 0 || limit > len(matched) {
+		limit = len(matched)
+	}
+	result := make([]okf.BundleFile, 0, limit)
+	for _, file := range matched {
+		if file.Path == excludePath {
+			continue
+		}
+		result = append(result, file)
+		if len(result) == limit {
+			break
+		}
+	}
+	return result, nil
+}
+
+func (cache *viewerSearchCache) load() (okf.SearchIndex, map[string][]okf.BundleFile, error) {
+	fingerprint, err := markdownFingerprint(cache.root)
+	if err != nil {
+		return okf.SearchIndex{}, nil, err
+	}
 
 	cache.mutex.Lock()
-	if cache.fingerprint == fingerprint {
+	if cache.fingerprint == fingerprint && cache.tags != nil {
 		index := cache.index
+		tags := cache.tags
 		cache.mutex.Unlock()
-		return index.Search(options), nil
+		return index, tags, nil
 	}
 	cache.mutex.Unlock()
 
 	bundle, err := okf.ParseBundle(cache.root)
 	if err != nil {
-		return nil, err
+		return okf.SearchIndex{}, nil, err
 	}
 	index := okf.NewSearchIndex(bundle)
+	tags, err := viewerTagIndex(cache.root, bundle.Files)
+	if err != nil {
+		return okf.SearchIndex{}, nil, err
+	}
 
 	cache.mutex.Lock()
 	cache.fingerprint = fingerprint
 	cache.index = index
+	cache.tags = tags
 	cache.mutex.Unlock()
 
-	return index.Search(options), nil
+	return index, tags, nil
+}
+
+func viewerTagIndex(root string, files []okf.BundleFile) (map[string][]okf.BundleFile, error) {
+	index := make(map[string][]okf.BundleFile)
+	for _, file := range files {
+		tags, err := viewerTagsForFile(root, file)
+		if err != nil {
+			return nil, err
+		}
+		for _, tag := range tags {
+			key := strings.ToLower(strings.TrimSpace(tag))
+			index[key] = append(index[key], file)
+		}
+	}
+	for key := range index {
+		sort.SliceStable(index[key], func(left int, right int) bool {
+			return index[key][left].Path < index[key][right].Path
+		})
+	}
+	return index, nil
 }
 
 func markdownFingerprint(root string) (string, error) {
@@ -957,6 +1024,8 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 	}
 
 	query := strings.TrimSpace(request.URL.Query().Get("q"))
+	tag := strings.TrimSpace(request.URL.Query().Get("tag"))
+	excludePath := strings.TrimSpace(request.URL.Query().Get("exclude"))
 	limit := 12
 	if rawLimit := strings.TrimSpace(request.URL.Query().Get("limit")); rawLimit != "" {
 		parsed, err := strconv.Atoi(rawLimit)
@@ -968,8 +1037,39 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 		limit = 30
 	}
 
-	if query == "" {
+	if query == "" && tag == "" {
 		writeViewerSearchJSON(response, viewerSearchResponse{Query: query})
+		return
+	}
+	if tag != "" {
+		files, err := searchCache.SearchTag(tag, excludePath, limit)
+		if err != nil {
+			http.Error(response, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		payload := viewerSearchResponse{
+			Query:   tag,
+			Results: make([]viewerSearchResult, 0, len(files)),
+		}
+		for _, file := range files {
+			title := strings.TrimSpace(file.Title)
+			if title == "" {
+				title = titleForMarkdownFile(file.Path)
+			}
+			payload.Results = append(payload.Results, viewerSearchResult{
+				Path:        file.Path,
+				URL:         fileURLWithPrefix(linkPrefix, file.Path),
+				ID:          file.ID,
+				Kind:        file.Kind,
+				Type:        file.Type,
+				Title:       title,
+				Description: file.Description,
+				Snippet:     file.Description,
+				Score:       1,
+				Matches:     []string{"tags"},
+			})
+		}
+		writeViewerSearchJSON(response, payload)
 		return
 	}
 
@@ -1203,7 +1303,11 @@ func writeViewerHTMLWithOptions(root string, out string, version string, options
 		return okf.HTMLResult{}, err
 	}
 
-	staticJSON, err := viewerStaticFilesJSON(bundle.Files, sourceConfig)
+	frontmatterByPath, err := viewerFrontmatterHTMLByPath(bundle.Root, bundle.Files)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	staticJSON, err := viewerStaticFilesJSON(bundle.Root, bundle.Files, sourceConfig, frontmatterByPath)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
@@ -1228,6 +1332,7 @@ func writeViewerHTMLWithOptions(root string, out string, version string, options
 			Path:        file.Path,
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
 			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
+			Frontmatter: frontmatterByPath[file.Path],
 			Body:        template.HTML(viewerStaticFileBody(file)),
 			Tree:        viewerStaticTree(bundle.Files, file.Path),
 			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
@@ -1303,18 +1408,24 @@ func viewerRelPath(root string, target string) string {
 	return filepath.ToSlash(relative)
 }
 
-func viewerStaticFilesJSON(files []okf.BundleFile, sourceConfig viewerSourceConfig) (template.JS, error) {
+func viewerStaticFilesJSON(root string, files []okf.BundleFile, sourceConfig viewerSourceConfig, frontmatterByPath map[string]template.HTML) (template.JS, error) {
 	payload := make([]viewerStaticPayload, 0, len(files))
 	for _, file := range files {
 		if !okf.ShouldPublish(file) {
 			continue
 		}
+		tags, err := viewerTagsForFile(root, file)
+		if err != nil {
+			return "", err
+		}
 		payload = append(payload, viewerStaticPayload{
-			Title:     titleForMarkdownFile(file.Path),
-			Path:      file.Path,
-			HTMLPath:  viewerHTMLPath(file.Path),
-			SourceURL: viewerSourceURL(sourceConfig, file.Path),
-			Body:      viewerStaticFileBody(file),
+			Title:       titleForMarkdownFile(file.Path),
+			Path:        file.Path,
+			HTMLPath:    viewerHTMLPath(file.Path),
+			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
+			Tags:        tags,
+			Frontmatter: string(frontmatterByPath[file.Path]),
+			Body:        viewerStaticFileBody(file),
 		})
 	}
 
@@ -2308,11 +2419,12 @@ func validScriptSrc(src string) bool {
 }
 
 var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!doctype html>
-<html lang="en" data-openknowledge-theme="{{.Theme.Name}}">
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="night">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
+  <script>` + viewerThemeBootstrapJS + `</script>
   <style>` + viewerCSS + `</style>
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
@@ -2366,11 +2478,12 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
 </html>`))
 
 var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!doctype html>
-<html lang="en" data-openknowledge-theme="{{.Theme.Name}}">
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="night">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
+  <script>` + viewerThemeBootstrapJS + `</script>
   <style>` + viewerCSS + `</style>
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
@@ -2409,11 +2522,12 @@ var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!do
 </html>`))
 
 var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doctype html>
-<html lang="en" data-openknowledge-theme="{{.Theme.Name}}">
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="night">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
+  <script>` + viewerThemeBootstrapJS + `</script>
   <style>` + viewerCSS + `</style>
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
@@ -2449,16 +2563,16 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.65V21.3a2.1 2.1 0 0 1-4.2 0v-.06a1.8 1.8 0 0 0-1.1-1.65 1.8 1.8 0 0 0-1.98.36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04A1.8 1.8 0 0 0 3.8 15a1.8 1.8 0 0 0-1.65-1.1H2.1a2.1 2.1 0 0 1 0-4.2h.06A1.8 1.8 0 0 0 3.8 8a1.8 1.8 0 0 0-.36-1.98l-.04-.04A2.1 2.1 0 0 1 6.37 3l.04.04A1.8 1.8 0 0 0 8.4 3.4a1.8 1.8 0 0 0 1.1-1.65V1.7a2.1 2.1 0 0 1 4.2 0v.06a1.8 1.8 0 0 0 1.1 1.65 1.8 1.8 0 0 0 1.98-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04A1.8 1.8 0 0 0 19.4 8a1.8 1.8 0 0 0 1.65 1.1h.06a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"></path>
         </svg>
       </button>
-      <div class="viewer-settings-menu" data-viewer-settings-menu role="dialog" aria-label="Theme settings" hidden>
+      <div class="viewer-settings-menu" data-viewer-settings-menu role="dialog" aria-label="Viewer settings" hidden>
         <div class="viewer-settings-title">Theme</div>
         <div class="theme-options" role="radiogroup" aria-label="Theme">
-          <button class="theme-option" type="button" data-theme-option="default" role="radio" aria-checked="false">
-            <span class="theme-swatch theme-swatch-default" aria-hidden="true"></span>
-            <span>Default</span>
-          </button>
           <button class="theme-option" type="button" data-theme-option="night" role="radio" aria-checked="false">
             <span class="theme-swatch theme-swatch-night" aria-hidden="true"></span>
             <span>Night</span>
+          </button>
+          <button class="theme-option" type="button" data-theme-option="default" role="radio" aria-checked="false">
+            <span class="theme-swatch theme-swatch-default" aria-hidden="true"></span>
+            <span>Light</span>
           </button>
           <button class="theme-option" type="button" data-theme-option="paper" role="radio" aria-checked="false">
             <span class="theme-swatch theme-swatch-paper" aria-hidden="true"></span>
@@ -2484,6 +2598,90 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           <label>Muted <input type="color" data-theme-custom-value="muted"></label>
           <label>Accent <input type="color" data-theme-custom-value="accent"></label>
           <label>Border <input type="color" data-theme-custom-value="border"></label>
+        </div>
+        <div class="viewer-settings-section">
+          <div class="viewer-settings-title">Document</div>
+          <label class="viewer-setting-toggle">
+            <span class="viewer-setting-copy">
+              <strong>Show frontmatter</strong>
+              <small>Display typed YAML metadata above each note.</small>
+            </span>
+            <input type="checkbox" data-frontmatter-visibility checked>
+            <span class="viewer-setting-switch" aria-hidden="true"></span>
+          </label>
+        </div>
+        <div class="viewer-settings-section">
+          <div class="viewer-settings-title">Reading &amp; accessibility</div>
+          <label class="viewer-setting-select">
+            <span class="viewer-setting-copy">
+              <strong>Font</strong>
+              <small>Choose a comfortable typeface for the viewer.</small>
+            </span>
+            <select data-accessibility-font aria-label="Font">
+              <option value="system">System sans</option>
+              <option value="readable">Readable sans</option>
+              <option value="serif">Serif</option>
+              <option value="mono">Monospace</option>
+            </select>
+          </label>
+          <label class="viewer-setting-select">
+            <span class="viewer-setting-copy">
+              <strong>Text size</strong>
+              <small>Adjust the note reading size without changing Markdown.</small>
+            </span>
+            <select data-accessibility-size aria-label="Text size">
+              <option value="small">Small</option>
+              <option value="default">Default</option>
+              <option value="large">Large</option>
+              <option value="extra-large">Extra large</option>
+            </select>
+          </label>
+          <label class="viewer-setting-select">
+            <span class="viewer-setting-copy">
+              <strong>Line spacing</strong>
+              <small>Increase space between lines for easier reading.</small>
+            </span>
+            <select data-accessibility-spacing aria-label="Line spacing">
+              <option value="default">Default</option>
+              <option value="relaxed">Relaxed</option>
+              <option value="spacious">Spacious</option>
+            </select>
+          </label>
+          <label class="viewer-setting-select">
+            <span class="viewer-setting-copy">
+              <strong>Motion</strong>
+              <small>Follow the system setting or reduce viewer animations.</small>
+            </span>
+            <select data-accessibility-motion aria-label="Motion">
+              <option value="system">System</option>
+              <option value="reduced">Reduce</option>
+              <option value="full">Full</option>
+            </select>
+          </label>
+          <label class="viewer-setting-toggle">
+            <span class="viewer-setting-copy">
+              <strong>Readable line length</strong>
+              <small>Keep note text to a comfortable reading measure.</small>
+            </span>
+            <input type="checkbox" data-readable-line-length checked>
+            <span class="viewer-setting-switch" aria-hidden="true"></span>
+          </label>
+          <label class="viewer-setting-toggle">
+            <span class="viewer-setting-copy">
+              <strong>High contrast</strong>
+              <small>Strengthen text, borders, and focus indicators.</small>
+            </span>
+            <input type="checkbox" data-high-contrast>
+            <span class="viewer-setting-switch" aria-hidden="true"></span>
+          </label>
+          <label class="viewer-setting-toggle">
+            <span class="viewer-setting-copy">
+              <strong>Underline links</strong>
+              <small>Keep links visibly marked without relying on color.</small>
+            </span>
+            <input type="checkbox" data-underline-links>
+            <span class="viewer-setting-switch" aria-hidden="true"></span>
+          </label>
         </div>
       </div>
     </div>
@@ -2538,7 +2736,9 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     <section class="note-stack" data-note-stack aria-label="Open notes">
       <article class="document note-panel is-active-panel" data-note-path="{{.Path}}" data-note-title="{{.Title}}" tabindex="-1">
         <div class="note-chrome">
-          <a class="note-path" href="{{.FileURL}}" data-direct-link="true">{{.Path}}</a>
+          <nav class="note-path note-breadcrumbs" data-note-breadcrumbs data-note-path-value="{{.Path}}" aria-label="Note path">
+            <a href="{{.FileURL}}" data-direct-link="true">{{.Path}}</a>
+          </nav>
           <div class="note-actions">
             {{if .SourceURL}}
             <a class="source-open" href="{{.SourceURL}}" data-source-open data-direct-link="true" target="_blank" rel="noreferrer" aria-label="Open {{.Path}} on GitHub" title="Open on GitHub">
@@ -2561,8 +2761,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
               <div class="editor-menu" data-editor-menu role="menu" hidden></div>
             </div>
             {{end}}
-            <kbd class="note-close-shortcut" data-panel-close-shortcut aria-hidden="true">⌘⌥W</kbd>
-            <a class="note-close" href="#" data-close-panel aria-label="Close {{.Path}}" title="Close note" role="button">
+            <a class="note-close" href="#" data-close-panel aria-label="Close {{.Path}}" aria-keyshortcuts="Meta+Alt+W" title="Close {{.Path}} (⌘⌥W)" role="button">
               <svg class="note-close-icon control-icon" data-icon="x" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M18 6 6 18"></path>
                 <path d="m6 6 12 12"></path>
@@ -2571,6 +2770,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           </div>
         </div>
         <div class="note-body">
+          {{.Frontmatter}}
           {{.Body}}
         </div>
       </article>

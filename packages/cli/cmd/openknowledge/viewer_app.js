@@ -10,6 +10,14 @@
   const settingsTrigger = document.querySelector("[data-viewer-settings-trigger]");
   const settingsMenu = document.querySelector("[data-viewer-settings-menu]");
   const customThemeFields = document.querySelector("[data-theme-custom-fields]");
+  const frontmatterVisibility = document.querySelector("[data-frontmatter-visibility]");
+  const accessibilityFont = document.querySelector("[data-accessibility-font]");
+  const accessibilitySize = document.querySelector("[data-accessibility-size]");
+  const accessibilitySpacing = document.querySelector("[data-accessibility-spacing]");
+  const accessibilityMotion = document.querySelector("[data-accessibility-motion]");
+  const readableLineLength = document.querySelector("[data-readable-line-length]");
+  const highContrast = document.querySelector("[data-high-contrast]");
+  const underlineLinks = document.querySelector("[data-underline-links]");
   const scrollRail = document.querySelector("[data-workspace-rail]");
   const scrollTrack = document.querySelector("[data-workspace-scroll-track]");
   const scrollThumb = document.querySelector("[data-workspace-scroll-thumb]");
@@ -22,6 +30,8 @@
   const mobileSidebar = window.matchMedia("(max-width: 680px)");
   const editorStorageKey = "openknowledge.viewer.editorOrder";
   const themeStorageKey = "openknowledge.viewer.theme";
+  const frontmatterStorageKey = "openknowledge.viewer.frontmatter";
+  const accessibilityStorageKey = "openknowledge.viewer.accessibility";
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
   const editorOptions = readEditorOptions();
@@ -29,23 +39,51 @@
   const staticNotes = readStaticNotes();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
+  const knownNotePaths = collectKnownNotePaths();
   const knowledgeGraph = readKnowledgeGraph();
   const themePresets = ["default", "night", "paper", "ocean", "rose", "custom"];
+  const defaultThemePreset = "night";
+  const accessibilityFonts = {
+    system: 'Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif',
+    readable: 'Verdana, Tahoma, Arial, sans-serif',
+    serif: 'Iowan Old Style, Baskerville, "Times New Roman", serif',
+    mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
+  };
+  const accessibilityFontSizes = {
+    small: { value: "14px", scale: "0.9" },
+    default: { value: "15.5px", scale: "1" },
+    large: { value: "18px", scale: "1.16" },
+    "extra-large": { value: "21px", scale: "1.35" }
+  };
+  const accessibilityLineHeights = {
+    default: { value: "1.62", letterSpacing: "normal" },
+    relaxed: { value: "1.82", letterSpacing: ".02em" },
+    spacious: { value: "2.05", letterSpacing: ".04em" }
+  };
+  const defaultAccessibilityPreference = {
+    font: "system",
+    size: "default",
+    spacing: "default",
+    motion: "system",
+    readableLineLength: true,
+    highContrast: false,
+    underlineLinks: false
+  };
   const customThemeDefaults = {
-    page: "#f0f0f0",
+    page: "#f4f5f4",
     surface: "#ffffff",
-    text: "#1f2724",
-    muted: "#65736d",
-    accent: "#0f7a4d",
-    border: "#dfe5e1"
+    text: "#202322",
+    muted: "#707773",
+    accent: "#0b7a53",
+    border: "#e3e6e4"
   };
   const customThemeVariables = {
-    page: ["--ok-color-page", "--ok-color-viewer-canvas", "--ok-color-viewer-header-bg", "--ok-color-sidebar", "--ok-color-sidebar-header", "--ok-color-search-input-bg", "--ok-color-editor-trigger-bg"],
-    surface: ["--ok-color-surface", "--ok-color-note-chrome-bg", "--ok-color-search-popover-bg", "--ok-color-editor-menu-bg", "--ok-color-card-bg", "--ok-color-editor-mark-bg"],
+    page: ["--ok-color-page", "--ok-color-header-bg", "--ok-color-viewer-canvas", "--ok-color-viewer-header-bg", "--ok-color-sidebar", "--ok-color-sidebar-header"],
+    surface: ["--ok-color-surface", "--ok-color-note-chrome-bg", "--ok-color-search-input-bg", "--ok-color-search-popover-bg", "--ok-color-editor-trigger-bg", "--ok-color-editor-menu-bg", "--ok-color-card-bg", "--ok-color-editor-mark-bg"],
     text: ["--ok-color-text", "--ok-color-document-text", "--ok-color-control-hover-text", "--ok-color-editor-mark-text", "--ok-color-code-block-bg"],
-    muted: ["--ok-color-muted", "--ok-color-control-text", "--ok-color-sidebar-text", "--ok-color-tree-text", "--ok-color-editor-trigger-text"],
-    accent: ["--ok-color-accent", "--ok-color-accent-strong", "--ok-color-graph-node-active-border"],
-    border: ["--ok-color-border", "--ok-color-search-input-border", "--ok-color-card-border", "--ok-color-editor-trigger-border", "--ok-color-editor-menu-border"]
+    muted: ["--ok-color-muted", "--ok-color-control-text", "--ok-color-close-text", "--ok-color-sidebar-text", "--ok-color-search-shortcut-text", "--ok-color-tree-text", "--ok-color-tree-badge-text", "--ok-color-note-close-text", "--ok-color-editor-trigger-text"],
+    accent: ["--ok-color-accent", "--ok-color-accent-strong", "--ok-color-focus-ring", "--ok-color-graph-node-active-border"],
+    border: ["--ok-color-border", "--ok-color-control-hover-border", "--ok-color-close-hover-border", "--ok-color-sidebar-border", "--ok-color-search-input-border", "--ok-color-search-shortcut-border", "--ok-color-search-popover-border", "--ok-color-card-border", "--ok-color-tree-badge-border", "--ok-color-note-close-hover-border", "--ok-color-editor-trigger-border", "--ok-color-editor-trigger-separator", "--ok-color-editor-menu-border", "--ok-color-editor-menu-separator"]
   };
   const panelCloseShortcut = {
     id: "viewer.panel.close",
@@ -152,11 +190,11 @@
     if (stored && typeof stored === "object" && !Array.isArray(stored)) {
       return normalizeThemePreference(stored);
     }
-    return normalizeThemePreference({ preset: "default", custom: customThemeDefaults });
+    return normalizeThemePreference({ preset: defaultThemePreset, custom: customThemeDefaults });
   }
 
   function normalizeThemePreference(value) {
-    const preset = themePresets.includes(value.preset) ? value.preset : "default";
+    const preset = themePresets.includes(value.preset) ? value.preset : defaultThemePreset;
     const custom = Object.assign({}, customThemeDefaults);
     Object.keys(customThemeDefaults).forEach(function (key) {
       if (isHexColor(value.custom && value.custom[key])) {
@@ -175,6 +213,112 @@
       // Browser storage can be disabled in private or file-export contexts.
     }
     writeCookie(themeStorageKey, serialized);
+  }
+
+  function readFrontmatterPreference() {
+    const stored = readStoredJSON(frontmatterStorageKey);
+    if (stored && typeof stored === "object" && !Array.isArray(stored) && typeof stored.visible === "boolean") {
+      return stored.visible;
+    }
+    return true;
+  }
+
+  function saveFrontmatterPreference(visible) {
+    const serialized = JSON.stringify({ visible: Boolean(visible) });
+    try {
+      window.localStorage.setItem(frontmatterStorageKey, serialized);
+    } catch {
+      // Browser storage can be disabled in private or file-export contexts.
+    }
+    writeCookie(frontmatterStorageKey, serialized);
+  }
+
+  function readAccessibilityPreference() {
+    const stored = readStoredJSON(accessibilityStorageKey);
+    if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+      return normalizeAccessibilityPreference(stored);
+    }
+    return normalizeAccessibilityPreference(defaultAccessibilityPreference);
+  }
+
+  function normalizeAccessibilityPreference(value) {
+    const source = value && typeof value === "object" ? value : {};
+    return {
+      font: Object.prototype.hasOwnProperty.call(accessibilityFonts, source.font) ? source.font : defaultAccessibilityPreference.font,
+      size: Object.prototype.hasOwnProperty.call(accessibilityFontSizes, source.size) ? source.size : defaultAccessibilityPreference.size,
+      spacing: Object.prototype.hasOwnProperty.call(accessibilityLineHeights, source.spacing) ? source.spacing : defaultAccessibilityPreference.spacing,
+      motion: ["system", "reduced", "full"].includes(source.motion) ? source.motion : defaultAccessibilityPreference.motion,
+      readableLineLength: typeof source.readableLineLength === "boolean" ? source.readableLineLength : defaultAccessibilityPreference.readableLineLength,
+      highContrast: typeof source.highContrast === "boolean" ? source.highContrast : defaultAccessibilityPreference.highContrast,
+      underlineLinks: typeof source.underlineLinks === "boolean" ? source.underlineLinks : defaultAccessibilityPreference.underlineLinks
+    };
+  }
+
+  function saveAccessibilityPreference(preference) {
+    const normalized = normalizeAccessibilityPreference(preference);
+    const serialized = JSON.stringify(normalized);
+    try {
+      window.localStorage.setItem(accessibilityStorageKey, serialized);
+    } catch {
+      // Browser storage can be disabled in private or file-export contexts.
+    }
+    writeCookie(accessibilityStorageKey, serialized);
+  }
+
+  function applyAccessibilityPreference(preference) {
+    const normalized = normalizeAccessibilityPreference(preference);
+    const size = accessibilityFontSizes[normalized.size];
+    const spacing = accessibilityLineHeights[normalized.spacing];
+    document.documentElement.dataset.viewerFont = normalized.font;
+    document.documentElement.dataset.viewerFontSize = normalized.size;
+    document.documentElement.dataset.viewerMotion = normalized.motion;
+    document.documentElement.dataset.viewerContrast = normalized.highContrast ? "high" : "normal";
+    document.documentElement.dataset.viewerUnderlines = normalized.underlineLinks ? "on" : "off";
+    document.documentElement.style.setProperty("--ok-font-body", accessibilityFonts[normalized.font]);
+    document.documentElement.style.setProperty("--ok-document-font-size", size.value);
+    document.documentElement.style.setProperty("--ok-document-scale", size.scale);
+    document.documentElement.style.setProperty("--ok-document-line-height", spacing.value);
+    document.documentElement.style.setProperty("--ok-document-letter-spacing", spacing.letterSpacing);
+    document.documentElement.style.setProperty("--ok-note-body-max-width", normalized.readableLineLength ? "70ch" : "none");
+    document.body.classList.toggle("is-high-contrast", normalized.highContrast);
+    document.body.classList.toggle("is-links-underlined", normalized.underlineLinks);
+    syncAccessibilityControls(normalized);
+  }
+
+  function syncAccessibilityControls(preference) {
+    if (accessibilityFont) {
+      accessibilityFont.value = preference.font;
+    }
+    if (accessibilitySize) {
+      accessibilitySize.value = preference.size;
+    }
+    if (accessibilitySpacing) {
+      accessibilitySpacing.value = preference.spacing;
+    }
+    if (accessibilityMotion) {
+      accessibilityMotion.value = preference.motion;
+    }
+    if (readableLineLength) {
+      readableLineLength.checked = preference.readableLineLength;
+    }
+    if (highContrast) {
+      highContrast.checked = preference.highContrast;
+    }
+    if (underlineLinks) {
+      underlineLinks.checked = preference.underlineLinks;
+    }
+  }
+
+  function motionIsReduced() {
+    const preference = document.documentElement.dataset.viewerMotion || "system";
+    return preference === "reduced" || (preference === "system" && reduceMotion.matches);
+  }
+
+  function applyFrontmatterPreference(visible) {
+    document.body.classList.toggle("is-frontmatter-hidden", !visible);
+    if (frontmatterVisibility) {
+      frontmatterVisibility.checked = visible;
+    }
   }
 
   function isHexColor(value) {
@@ -202,15 +346,19 @@
   }
 
   function readableCodeBlockText(background) {
-    const rgb = hexToRGB(background);
-    const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
-    return luminance > 0.48 ? "#121715" : "#f3f7f4";
+    return colorLuminance(background) > 0.48 ? "#121715" : "#f3f7f4";
+  }
+
+  function colorLuminance(value) {
+    const rgb = hexToRGB(value);
+    return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
   }
 
   function applyThemePreference(preference) {
     const normalized = normalizeThemePreference(preference);
     document.documentElement.dataset.viewerTheme = normalized.preset;
-    document.documentElement.style.colorScheme = normalized.preset === "night" ? "dark" : "light";
+    const darkCustomTheme = normalized.preset === "custom" && colorLuminance(normalized.custom.surface) <= 0.48;
+    document.documentElement.style.colorScheme = normalized.preset === "night" || darkCustomTheme ? "dark" : "light";
     clearCustomThemeVariables();
     if (normalized.preset === "custom") {
       applyCustomThemeVariables(normalized.custom);
@@ -255,14 +403,14 @@
     });
     const accentRGB = hexToRGB(custom.accent).join(", ");
     document.documentElement.style.setProperty("--ok-color-accent-rgb", accentRGB);
-    document.documentElement.style.setProperty("--ok-color-accent-soft", "rgba(" + accentRGB + ", .13)");
-    document.documentElement.style.setProperty("--ok-color-accent-softer", "rgba(" + accentRGB + ", .09)");
-    document.documentElement.style.setProperty("--ok-color-accent-selected", "rgba(" + accentRGB + ", .1)");
+    document.documentElement.style.setProperty("--ok-color-accent-soft", "rgba(" + accentRGB + ", .11)");
+    document.documentElement.style.setProperty("--ok-color-accent-softer", "rgba(" + accentRGB + ", .065)");
+    document.documentElement.style.setProperty("--ok-color-accent-selected", "rgba(" + accentRGB + ", .09)");
     document.documentElement.style.setProperty("--ok-color-accent-focus", "rgba(" + accentRGB + ", .12)");
     document.documentElement.style.setProperty("--ok-color-accent-focus-strong", "rgba(" + accentRGB + ", .18)");
     document.documentElement.style.setProperty("--ok-color-accent-border", "rgba(" + accentRGB + ", .35)");
     document.documentElement.style.setProperty("--ok-color-accent-border-strong", "rgba(" + accentRGB + ", .5)");
-    document.documentElement.style.setProperty("--ok-color-shadow", "rgba(" + hexToRGB(custom.text).join(", ") + ", .14)");
+    document.documentElement.style.setProperty("--ok-color-shadow", "rgba(" + hexToRGB(custom.text).join(", ") + ", .1)");
     document.documentElement.style.setProperty("--ok-color-code-inline-bg", colorMix(custom.surface, custom.accent, 0.1));
     document.documentElement.style.setProperty("--ok-color-code-block-text", readableCodeBlockText(custom.text));
     document.documentElement.style.setProperty("--ok-color-control-hover-bg", colorMix(custom.page, custom.text, 0.08));
@@ -439,6 +587,90 @@
     } catch {
       return [];
     }
+  }
+
+  function collectKnownNotePaths() {
+    const paths = new Set();
+    staticNotes.forEach(function (note) {
+      if (note.path) {
+        paths.add(note.path);
+      }
+    });
+    document.querySelectorAll("[data-tree-path]").forEach(function (link) {
+      if (link.dataset.treePath) {
+        paths.add(link.dataset.treePath);
+      }
+    });
+    return paths;
+  }
+
+  function noteIndexPath(parts) {
+    const base = parts.join("/");
+    return [base + "/index.md", base + "/index.markdown"].find(function (candidate) {
+      return knownNotePaths.has(candidate);
+    }) || "";
+  }
+
+  function createNoteBreadcrumbs(path) {
+    const normalizedPath = String(path || "index.md");
+    const pathParts = normalizedPath.split("/").filter(Boolean);
+    const leaf = pathParts[pathParts.length - 1] || "index.md";
+    const isDirectoryIndex = /^index\.(md|markdown)$/i.test(leaf) && pathParts.length > 1;
+    const displayParts = isDirectoryIndex ? pathParts.slice(0, -1) : pathParts;
+    const breadcrumbs = document.createElement("nav");
+    breadcrumbs.className = "note-path note-breadcrumbs";
+    breadcrumbs.dataset.noteBreadcrumbs = "";
+    breadcrumbs.dataset.breadcrumbsReady = "true";
+    breadcrumbs.dataset.notePathValue = normalizedPath;
+    breadcrumbs.setAttribute("aria-label", "Note path");
+    breadcrumbs.title = normalizedPath;
+
+    displayParts.forEach(function (part, index) {
+      if (index > 0) {
+        const separator = document.createElement("span");
+        separator.className = "note-breadcrumb-separator";
+        separator.setAttribute("aria-hidden", "true");
+        separator.textContent = "/";
+        breadcrumbs.append(separator);
+      }
+
+      const isLast = index === displayParts.length - 1;
+      const isCurrent = isLast;
+      const directoryTarget = noteIndexPath(displayParts.slice(0, index + 1));
+      const targetPath = isCurrent
+        ? normalizedPath
+        : directoryTarget;
+      const label = isCurrent && !isDirectoryIndex
+        ? part.replace(/\.(md|markdown)$/i, "")
+        : part;
+
+      if (targetPath) {
+        const link = document.createElement("a");
+        link.className = "note-breadcrumb-link" + (isCurrent ? " note-breadcrumb-current" : "");
+        link.href = fileURL(targetPath);
+        link.dataset.directLink = "true";
+        link.textContent = label;
+        if (isCurrent) {
+          link.setAttribute("aria-current", "page");
+        }
+        breadcrumbs.append(link);
+        return;
+      }
+
+      const text = document.createElement("span");
+      text.className = "note-breadcrumb-label";
+      text.textContent = label;
+      breadcrumbs.append(text);
+    });
+    return breadcrumbs;
+  }
+
+  function renderPanelBreadcrumbs(panel) {
+    const existing = panel.querySelector("[data-note-breadcrumbs], .note-path");
+    if (!existing || existing.dataset.breadcrumbsReady === "true") {
+      return;
+    }
+    existing.replaceWith(createNoteBreadcrumbs(panel.dataset.notePath));
   }
 
   function readKnowledgeGraph() {
@@ -1754,7 +1986,11 @@
     }
     settings.dataset.settingsBound = "true";
     let preference = readThemePreference();
+    let frontmatterVisible = readFrontmatterPreference();
+    let accessibilityPreference = readAccessibilityPreference();
     applyThemePreference(preference);
+    applyFrontmatterPreference(frontmatterVisible);
+    applyAccessibilityPreference(accessibilityPreference);
 
     settingsTrigger.addEventListener("click", function (event) {
       event.preventDefault();
@@ -1816,6 +2052,55 @@
         applyThemePreference(preference);
       });
     });
+    if (frontmatterVisibility) {
+      frontmatterVisibility.addEventListener("change", function () {
+        frontmatterVisible = frontmatterVisibility.checked;
+        saveFrontmatterPreference(frontmatterVisible);
+        applyFrontmatterPreference(frontmatterVisible);
+      });
+    }
+
+    function updateAccessibilityPreference(key, value) {
+      accessibilityPreference = normalizeAccessibilityPreference(Object.assign({}, accessibilityPreference, { [key]: value }));
+      saveAccessibilityPreference(accessibilityPreference);
+      applyAccessibilityPreference(accessibilityPreference);
+    }
+
+    if (accessibilityFont) {
+      accessibilityFont.addEventListener("change", function () {
+        updateAccessibilityPreference("font", accessibilityFont.value);
+      });
+    }
+    if (accessibilitySize) {
+      accessibilitySize.addEventListener("change", function () {
+        updateAccessibilityPreference("size", accessibilitySize.value);
+      });
+    }
+    if (accessibilitySpacing) {
+      accessibilitySpacing.addEventListener("change", function () {
+        updateAccessibilityPreference("spacing", accessibilitySpacing.value);
+      });
+    }
+    if (accessibilityMotion) {
+      accessibilityMotion.addEventListener("change", function () {
+        updateAccessibilityPreference("motion", accessibilityMotion.value);
+      });
+    }
+    if (readableLineLength) {
+      readableLineLength.addEventListener("change", function () {
+        updateAccessibilityPreference("readableLineLength", readableLineLength.checked);
+      });
+    }
+    if (highContrast) {
+      highContrast.addEventListener("change", function () {
+        updateAccessibilityPreference("highContrast", highContrast.checked);
+      });
+    }
+    if (underlineLinks) {
+      underlineLinks.addEventListener("change", function () {
+        updateAccessibilityPreference("underlineLinks", underlineLinks.checked);
+      });
+    }
   }
 
   function activePanel() {
@@ -2434,7 +2719,7 @@
       panel.scrollIntoView({
         block: "nearest",
         inline: "end",
-        behavior: reduceMotion.matches ? "auto" : "smooth"
+        behavior: motionIsReduced() ? "auto" : "smooth"
       });
       panel.focus({ preventScroll: true });
     });
@@ -2472,7 +2757,7 @@
       mark.scrollIntoView({
         block: "center",
         inline: "nearest",
-        behavior: reduceMotion.matches ? "auto" : "smooth"
+        behavior: motionIsReduced() ? "auto" : "smooth"
       });
       panel.focus({ preventScroll: true });
     });
@@ -2591,12 +2876,7 @@
     const chrome = document.createElement("div");
     chrome.className = "note-chrome";
 
-    const pathLink = document.createElement("a");
-    pathLink.className = "note-path";
-    pathLink.href = fileURL(data.path);
-    pathLink.dataset.directLink = "true";
-    pathLink.textContent = data.path;
-    chrome.append(pathLink);
+    chrome.append(createNoteBreadcrumbs(data.path));
 
     const actions = document.createElement("div");
     actions.className = "note-actions";
@@ -2613,20 +2893,15 @@
     closeButton.dataset.closePanel = "";
     closeButton.setAttribute("role", "button");
     closeButton.setAttribute("aria-label", "Close " + data.path);
-    closeButton.title = "Close note";
+    closeButton.title = "Close note (" + panelCloseShortcut.label + ")";
+    closeButton.setAttribute("aria-keyshortcuts", panelCloseShortcut.ariaKeyShortcut);
     closeButton.append(controlIcon("x", "note-close-icon"));
-    const closeShortcut = document.createElement("kbd");
-    closeShortcut.className = "note-close-shortcut";
-    closeShortcut.dataset.panelCloseShortcut = "";
-    closeShortcut.setAttribute("aria-hidden", "true");
-    closeShortcut.textContent = panelCloseShortcut.label;
-    actions.append(closeShortcut);
     actions.append(closeButton);
     chrome.append(actions);
 
     const body = document.createElement("div");
     body.className = "note-body";
-    body.innerHTML = data.body;
+    body.innerHTML = (data.frontmatter || "") + data.body;
 
     panel.append(chrome, body);
     bindPanel(panel);
@@ -2634,6 +2909,7 @@
   }
 
   function bindPanel(panel) {
+    renderPanelBreadcrumbs(panel);
     applyPanelWidth(panel);
     ensurePanelResizeHandles(panel);
     syncPanelCloseShortcut(panel);
@@ -2669,9 +2945,6 @@
     const label = shortcutSystem.format(panelCloseShortcut);
     closeButton.title = "Close note (" + label + ")";
     closeButton.setAttribute("aria-keyshortcuts", shortcutSystem.ariaKeyShortcut(panelCloseShortcut));
-    panel.querySelectorAll("[data-panel-close-shortcut]").forEach(function (element) {
-      element.textContent = label;
-    });
   }
 
   function createErrorPanel(path, error) {
@@ -2710,7 +2983,7 @@
   }
 
   function canUseStackTransition() {
-    return !reduceMotion.matches && typeof document.startViewTransition === "function";
+    return !motionIsReduced() && typeof document.startViewTransition === "function";
   }
 
   function clearEnteringPanels() {

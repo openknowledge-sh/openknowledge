@@ -3,7 +3,7 @@ type: Exporter Documentation
 title: HTML Exporter
 description: Static HTML export behavior for Open Knowledge bundles.
 tags: [openknowledge, cli, exporter, html]
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-07-09T00:00:00Z
 ---
 
 # HTML Exporter
@@ -11,9 +11,10 @@ timestamp: 2026-06-18T00:00:00Z
 The HTML exporter turns an OKF bundle into static pages. The default mode ships
 the same viewer used by `openknowledge view`, so exported docs keep file
 browsing, search, stacked panels, graph data, table controls, syntax
-highlighting, and mobile layout behavior without a local server. It also writes
-discovery and connection assets so agents can index the published wiki and a
-deployed wiki can be added back to the local registry.
+highlighting, typed frontmatter inspectors, and mobile layout behavior without
+a local server. It also writes discovery and connection assets so agents can
+index the published wiki and a deployed wiki can be added back to the local
+registry.
 
 Use `--plain` when the output should be only semantic HTML without viewer CSS,
 JavaScript, search, graph data, or table controls.
@@ -42,13 +43,39 @@ openknowledge to html --spec <version> --out <folder> [path]
 
 ## Behavior
 
-Both modes strip YAML frontmatter from rendered pages, rewrite local Markdown
-links to generated `.html` targets, and skip files with `okf_publish: false`.
-Rendered Markdown comes from the parsed Markdown AST rather than a separate
-body scan. It keeps list continuations inside their parent item and emits
-semantic tables with alignment metadata. HTML comments are hidden. The
-`<!-- okf-footer: agent-maintenance -->` marker renders following content as a
-subdued maintenance footer in the default viewer export.
+Default viewer pages render YAML frontmatter as a typed, collapsible inspector
+that starts collapsed above the Markdown body. The browser-local `Show frontmatter`
+setting is enabled by default and controls inspector visibility for initial and
+dynamically opened panels; it does not expand an inspector. Values use the
+same content-aware presentation as `openknowledge view`: booleans retain a
+state treatment, simple lists render as chips, and nested lists and maps render
+recursively, without datatype badges. Plain exports continue to omit
+frontmatter and viewer chrome.
+
+Top-level `tags` values are exported as navigable facets. Selecting a tag opens
+the shared search surface with exact same-tag matches from other published
+notes. Exported note paths also render as segmented breadcrumbs whose directory
+segments link only to published index documents that actually exist; the leaf
+returns to a clean single-panel page.
+
+Default viewer pages start with the Night theme when no valid browser-local
+theme preference exists. A saved theme selection takes precedence on later
+visits, and the lightweight head bootstrap restores built-in presets before the
+viewer CSS paints. The previous light palette remains available as Light in the
+viewer settings menu.
+
+Markdown pages in the default viewer export share the local viewer's system-level
+reading and accessibility settings: font family, text size, line spacing, motion,
+readable line length, high contrast, and link underlining. Preferences are stored
+in the browser and do not modify exported Markdown or apply to `--plain` output.
+
+Both modes rewrite local Markdown links to generated `.html` targets and skip
+files with `okf_publish: false`. Rendered Markdown comes from the parsed
+Markdown AST rather than a separate body scan. It keeps list continuations
+inside their parent item and emits semantic tables with alignment metadata.
+HTML comments are hidden. The `<!-- okf-footer: agent-maintenance -->` marker
+renders following content as a subdued maintenance footer in the default
+viewer export.
 
 Default viewer exports embed a static note manifest and graph data in each page
 so search, panel navigation, source links, and enhanced table controls work on a
@@ -136,6 +163,7 @@ there through a configured stylesheet instead of changing generated HTML.
 ## Use Cases
 
 * Publish a portable static wiki.
+* Publish visible, type-aware OKF metadata without exposing raw YAML delimiters.
 * Expose `llms.txt` and `sitemap.xml` for agents and crawlers.
 * Add deployment-owned analytics or verification tags to default viewer pages.
 * Connect a deployed wiki back into a local registry.
@@ -154,6 +182,7 @@ there through a configured stylesheet instead of changing generated HTML.
 > * `packages/cli/internal/okf/export_test.go`
 > * `packages/cli/cmd/openknowledge/main.go`
 > * `packages/cli/cmd/openknowledge/viewer.go`
+> * `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
 > * `packages/cli/cmd/openknowledge/viewer_discovery.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.go`
 > * `packages/cli/cmd/openknowledge/viewer_theme.css`

@@ -47,11 +47,26 @@
     let controller = null;
     let activeIndex = -1;
     let sequence = 0;
+    let activeTag = "";
 
     initializeSearchAccessibility(input, results);
     closeSearch(false);
 
+    if (search === primarySearch) {
+      activeTag = tagSearchFromLocation();
+      if (activeTag) {
+        input.value = activeTag;
+        window.requestAnimationFrame(() => {
+          input.focus();
+          input.select();
+          runTagSearch(activeTag);
+        });
+      }
+    }
+
     input.addEventListener("input", () => {
+      activeTag = "";
+      clearTagSearchFromLocation();
       window.clearTimeout(timer);
       setActiveResult(-1, false);
       if (!input.value.trim()) {
@@ -128,6 +143,16 @@
       }
       closeSearch(true);
     });
+    document.addEventListener("pointerdown", (event) => {
+      if (!results.hidden && !search.contains(event.target)) {
+        closeSearch(true);
+      }
+    });
+    document.addEventListener("focusin", (event) => {
+      if (!results.hidden && !search.contains(event.target)) {
+        closeSearch(true);
+      }
+    });
 
     async function runSearch() {
       const query = input.value.trim();
@@ -166,6 +191,53 @@
       }
     }
 
+    async function runTagSearch(tag) {
+      const normalizedTag = String(tag || "").trim();
+      if (!normalizedTag) {
+        return;
+      }
+      const requestID = ++sequence;
+      const currentPath = document.querySelector("[data-note-path]")?.dataset.notePath || "";
+      setActiveResult(-1, false);
+
+      if (staticNotes.length > 0) {
+        const items = searchStaticTag(normalizedTag, currentPath);
+        renderResults(results, status, items, normalizedTag, setResultsOpen, setActiveResult, {
+          emptyStatus: "No other notes tagged \"" + normalizedTag + "\".",
+          keepOpenWhenEmpty: true,
+          statusText: items.length + " note" + (items.length === 1 ? "" : "s") + " tagged \"" + normalizedTag + "\"",
+        });
+        return;
+      }
+
+      if (controller) controller.abort();
+      controller = new AbortController();
+      status.textContent = "Finding tagged notes...";
+      const params = new URLSearchParams({ tag: normalizedTag, limit: "30" });
+      if (currentPath) {
+        params.set("exclude", currentPath);
+      }
+      try {
+        const response = await fetch(searchURL + "?" + params.toString(), { signal: controller.signal });
+        if (!response.ok) throw new Error("tag search request failed");
+        const payload = await response.json();
+        if (requestID !== sequence || activeTag !== normalizedTag) {
+          return;
+        }
+        const items = payload.results || [];
+        renderResults(results, status, items, normalizedTag, setResultsOpen, setActiveResult, {
+          emptyStatus: "No other notes tagged \"" + normalizedTag + "\".",
+          keepOpenWhenEmpty: true,
+          statusText: items.length + " note" + (items.length === 1 ? "" : "s") + " tagged \"" + normalizedTag + "\"",
+        });
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        status.textContent = "Tag lookup failed.";
+        setActiveResult(-1, false);
+        setResultsOpen(false);
+      }
+    }
+
     function renderDefaultResults(open) {
       sequence += 1;
       window.clearTimeout(timer);
@@ -192,6 +264,8 @@
       }
       if (clearInput) {
         input.value = "";
+        activeTag = "";
+        clearTagSearchFromLocation();
       }
       status.textContent = "";
       results.replaceChildren();
@@ -227,11 +301,40 @@
     }
   }
 
+  function tagSearchFromLocation() {
+    try {
+      return (new URL(window.location.href).searchParams.get("ok-tag") || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function clearTagSearchFromLocation() {
+    let url;
+    try {
+      url = new URL(window.location.href);
+    } catch {
+      return;
+    }
+    if (!url.searchParams.has("ok-tag")) {
+      return;
+    }
+    url.searchParams.delete("ok-tag");
+    window.history.replaceState(window.history.state, "", url);
+  }
+
   function renderResults(results, status, items, query, setResultsOpen, setActiveResult, options) {
     const config = options || {};
     results.replaceChildren();
     if (items.length === 0) {
-      status.textContent = config.emptyStatus ?? "No results for \"" + query + "\".";
+      const emptyText = config.emptyStatus ?? "No results for \"" + query + "\".";
+      status.textContent = emptyText;
+      if (emptyText) {
+        const empty = document.createElement("div");
+        empty.className = "search-empty";
+        empty.textContent = emptyText;
+        results.append(empty);
+      }
       setActiveResult(-1, false);
       setResultsOpen(Boolean(config.keepOpenWhenEmpty));
       return;
@@ -356,20 +459,22 @@
     return staticNotes
       .map(function (note) {
         const bodyText = htmlToText(note.body || "");
+        const frontmatterText = htmlToText(note.frontmatter || "");
         const title = note.title || note.path || "";
         const path = note.path || "";
-        const haystack = normalizeSearchText([title, path, bodyText].join(" "));
+        const contentText = [frontmatterText, bodyText].filter(Boolean).join(" ");
+        const haystack = normalizeSearchText([title, path, contentText].join(" "));
         const titleMatch = normalizeSearchText(title).includes(normalizedQuery);
         const pathMatch = normalizeSearchText(path).includes(normalizedQuery);
-        const bodyMatch = haystack.includes(normalizedQuery);
-        if (!bodyMatch) {
+        const contentMatch = haystack.includes(normalizedQuery);
+        if (!contentMatch) {
           return null;
         }
         const baseScore = (titleMatch ? 3 : 0) + (pathMatch ? 2 : 0) + 1;
         return {
           path,
           title,
-          snippet: staticSnippet(bodyText, query),
+          snippet: staticSnippet(contentText, query),
           score: isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore,
         };
       })
@@ -384,6 +489,27 @@
         return a.path.localeCompare(b.path);
       })
       .slice(0, 12);
+  }
+
+  function searchStaticTag(tag, excludePath) {
+    const normalizedTag = normalizeSearchText(tag).trim();
+    return staticNotes
+      .filter(function (note) {
+        return note.path !== excludePath && Array.isArray(note.tags) && note.tags.some(function (candidate) {
+          return normalizeSearchText(candidate).trim() === normalizedTag;
+        });
+      })
+      .map(function (note) {
+        return {
+          path: note.path,
+          title: note.title || note.path,
+          url: staticRelativeURL(note.path),
+          type: "tagged note",
+        };
+      })
+      .sort(function (left, right) {
+        return left.path.localeCompare(right.path);
+      });
   }
 
   function normalizeSearchText(value) {

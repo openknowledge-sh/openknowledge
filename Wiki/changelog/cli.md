@@ -14,11 +14,138 @@ that were updated.
 
 ## Unreleased
 
-No uncategorized changes are currently tracked here. Next-release work is
-classified under [v0.6.0 Candidate](#v060-candidate) until a release tag is
-cut.
+### 2026-07-10 - Published Wiki uses landing-page colors
+
+* Fixed the deployed Wiki theme so its dark preset reliably overrides the
+  built-in Night palette instead of retaining green links and green-tinted
+  surfaces from the generic viewer theme.
+* The published docs now use the landing page's blue accent, dark surfaces,
+  focus states, selection colors, and matching Night theme swatch.
+* Source anchors: `Wiki/assets/openknowledge-site.css`.
+* Docs updated: `Wiki/changelog/cli.md`.
+
+### 2026-07-10 - Homepage product positioning
+
+* Restored the landing page's "LLM wiki tooling for agents and humans" hero and
+  its concise Git-native Markdown description.
+* Reframed the benefits and capabilities around the problems the product
+  solves: locally navigable context, token-budgeted retrieval, trustworthy link
+  and structure validation, and portable HTML, JSON, graph, and TAR output.
+* Kept prompt-driven behavior explicit: `setup`, `from`, and `rules` generate
+  instructions for local agents rather than calling a model themselves. No CLI
+  behavior changed.
+* Source anchors: `packages/web/index.html`.
+* Docs updated: `packages/web/index.html`, `Wiki/changelog/cli.md`.
+
+### 2026-07-09 - Viewer reading and accessibility settings
+
+* Added system-level viewer controls for font family, text size, line spacing,
+  motion reduction, readable line length, high contrast, and always-underlined
+  links alongside the existing theme and frontmatter settings.
+* Preferences are browser-local, persist through `localStorage` with a cookie
+  fallback, and affect viewer presentation only; authored Markdown and editor
+  deeplinks remain unchanged. The default viewer behavior is shared by local
+  pages and static HTML exports, while `--plain` exports remain unchanged.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/changelog/cli.md`.
+
+### 2026-07-09 - Homepage visual system polish
+
+* Refined the project homepage without changing its product story: the existing
+  electric-blue artwork now carries a cleaner transparent header, restrained
+  release metadata, stronger sans-serif type hierarchy, and higher-contrast
+  primary actions.
+* Simplified the content body into a README-like flow with typographic section
+  breaks, quiet line icons, a responsive command map, and code-first workflow
+  examples. Hero actions use purpose-specific agent and document icons without
+  redundant arrow glyphs.
+* Promoted setup-prompt copying to the hero's primary action and removed the
+  standalone setup section. The full agent prompt and shell fallback remain in
+  a native disclosure that starts collapsed beneath the hero actions, alongside
+  concise open-source and Apache-2.0 metadata. Copy feedback remains immediate
+  even while the prompt is hidden, and lower section headings no longer repeat
+  explanatory subcopy.
+* The footer retains the concise project identity and links.
+* Aligned the deployed Wiki theme's palette and typography with the homepage.
+* Source anchors: `packages/web/index.html`, `packages/web/styles.css`,
+  `packages/web/main.js`, `packages/web/logo-mark.png`,
+  `packages/web/scripts/build.mjs`, and `Wiki/assets/openknowledge-site.css`.
+* Docs updated: `Wiki/changelog/cli.md`.
+
+Next-release work is classified under [v0.6.0 Candidate](#v060-candidate) until
+a release tag is cut.
 
 ## v0.6.0 Candidate
+
+### 2026-07-09 - Viewer tag facets and breadcrumb navigation
+
+* Added an exact viewer tag index from top-level OKF `tags` arrays. Tag chips
+  now open the shared search surface with same-tag notes, excluding the current
+  note; static exports embed the same facet data for local/static parity.
+* Replaced monolithic note-path links with segmented breadcrumbs. Directory
+  segments link only when their index document exists, while the current-file
+  segment returns to a clean single-panel URL.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_search.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/changelog/cli.md`.
+
+### 2026-07-09 - Viewer visual system polish
+
+* Refined the shared local and default static viewer visual system with quieter
+  neutral surfaces, clearer panel elevation and document hierarchy, consistent
+  control geometry, stronger focus states, and more coherent built-in themes.
+  Commands, navigation, and content behavior remain unchanged.
+* Made Night the first-run theme for local and default static viewer pages,
+  renamed the previous light preset to Light in the settings UI, and restored a
+  valid saved selection before the built-in CSS paints. Existing browser-local
+  theme choices remain unchanged.
+* Removed the redundant inner editor-button border and the document header rule
+  so the note chrome and viewer shell read as a single, quieter surface.
+* Improved top-bar search dismissal for outside pointer/focus interaction and
+  streamlined its dropdown into a single shadowed surface with clearer result
+  title, metadata, and snippet hierarchy.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_theme_bootstrap.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/changelog/cli.md`.
+
+### 2026-07-09 - Typed viewer frontmatter inspector
+
+* Added a typed, per-note collapsible frontmatter inspector to Markdown note
+  panels. It starts collapsed so the rendered document body remains the first
+  focus, while OKF metadata stays one interaction away.
+* Added a global `Show frontmatter` viewer setting. It is enabled by default,
+  applies to open and newly opened panels, controls inspector visibility rather
+  than expansion, and persists browser-locally through the viewer's local-storage
+  and cookie fallback.
+* Structured frontmatter values render recursively without visible datatype
+  badges: booleans retain a state treatment, simple lists render as chips, and
+  nested lists and maps retain their structure. Unsupported structured YAML
+  falls back to compatible scalar values without hiding the Markdown body.
+* Kept local and default static viewer behavior aligned; static search also
+  includes the rendered frontmatter text. Plain HTML exports continue to omit
+  viewer chrome and frontmatter presentation.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_search.js`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/changelog/cli.md`.
 
 ### 2026-07-09 - Search context packets by default
 
@@ -477,9 +604,9 @@ release contents.
 
 * Added `Command+Option+W` / `Ctrl+Alt+W` as a local viewer shortcut for
   closing the focused note panel.
-* The active note panel now shows a minimal formatted close shortcut hint to the
-  left of the close button, and closing a panel moves focus to the previous
-  panel when one exists.
+* The close button now exposes the formatted shortcut in its hover/focus
+  tooltip instead of adding a separate inline badge, and closing a panel moves
+  focus to the previous panel when one exists.
 * Source anchors: `packages/cli/cmd/openknowledge/viewer_app.js`,
   `packages/cli/cmd/openknowledge/viewer_app.css`,
   `packages/cli/cmd/openknowledge/viewer.go`,

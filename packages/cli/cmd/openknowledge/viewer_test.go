@@ -22,8 +22,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	handler := newViewerHandler(root)
 
 	page := getViewerBody(t, handler, "/file/index.md")
-	if strings.Contains(page, "okf_version") {
-		t.Fatalf("viewer should strip frontmatter:\n%s", page)
+	if !strings.Contains(page, `class="ok-frontmatter" data-frontmatter`) ||
+		strings.Contains(page, `class="ok-frontmatter" data-frontmatter open`) ||
+		!strings.Contains(page, `<code>okf_version</code>`) ||
+		!strings.Contains(page, `data-frontmatter-type="string"`) {
+		t.Fatalf("viewer should render typed frontmatter above the markdown body:\n%s", page)
 	}
 	if !strings.Contains(page, "<h1>Home</h1>") {
 		t.Fatalf("viewer did not render heading:\n%s", page)
@@ -34,25 +37,34 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, "body.viewer-document &gt; header") && !strings.Contains(page, "body.viewer-document > header") {
 		t.Fatalf("viewer file page did not include seamless header override:\n%s", page)
 	}
-	if !strings.Contains(page, `data-openknowledge-theme="default"`) || !strings.Contains(page, `--ok-color-accent`) || !strings.Contains(page, `--ok-font-body`) {
+	if !strings.Contains(page, `data-openknowledge-theme="default"`) ||
+		!strings.Contains(page, `data-viewer-theme="night"`) ||
+		!strings.Contains(page, `const defaultPreset = "night";`) ||
+		!strings.Contains(page, `const defaultThemePreset = "night";`) ||
+		!strings.Contains(page, `--ok-color-accent`) ||
+		!strings.Contains(page, `--ok-font-body`) {
 		t.Fatalf("viewer file page should expose theme data and root CSS variables:\n%s", page)
 	}
-	if !strings.Contains(page, `--ok-viewport-height: 100vh`) || !strings.Contains(page, `--ok-viewport-height: 100svh`) || !strings.Contains(page, `html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }`) {
+	if !strings.Contains(page, `--ok-viewport-height: 100vh`) || !strings.Contains(page, `--ok-viewport-height: 100svh`) || !strings.Contains(page, `-webkit-text-size-adjust: 100%; text-size-adjust: 100%;`) {
 		t.Fatalf("viewer should normalize iOS viewport height and text scaling:\n%s", page)
 	}
 	if !strings.Contains(page, `--ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));`) ||
 		!strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-default-width)", 650)`) {
 		t.Fatalf("viewer default panel width should follow a 65ch reading measure with matching resize fallback:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; height: var(--ok-header-height); min-height: 0; justify-content: center; padding: 0 22px;`) &&
-		!strings.Contains(page, `body.viewer-document > header { position: relative; height: var(--ok-header-height); min-height: 0; justify-content: center; padding: 0 22px;`) {
+	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; height: var(--ok-header-height); min-height: 0; z-index: 6; justify-content: center; padding: 0 22px;`) &&
+		!strings.Contains(page, `body.viewer-document > header { position: relative; height: var(--ok-header-height); min-height: 0; z-index: 6; justify-content: center; padding: 0 22px;`) {
 		t.Fatalf("viewer document header should use a slim fixed height with centered contents:\n%s", page)
+	}
+	if !strings.Contains(page, `border-bottom: 0; background: var(--ok-color-viewer-header-bg);`) ||
+		!strings.Contains(page, `.editor-open .editor-mark { border: 0; background: transparent; }`) {
+		t.Fatalf("viewer document chrome should avoid redundant nested borders:\n%s", page)
 	}
 	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }`) {
 		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
 	}
-	if !strings.Contains(page, `.search.header-search { width: min(52vw, 320px); min-width: 0; }`) {
-		t.Fatalf("viewer mobile header search should override the desktop minimum width:\n%s", page)
+	if !strings.Contains(page, `.search.header-search { width: min(44vw, 280px); min-width: 0; margin-right: 44px; }`) {
+		t.Fatalf("viewer mobile header search should reserve a separate settings-control slot:\n%s", page)
 	}
 	if !strings.Contains(page, `data-viewer-settings-trigger`) ||
 		!strings.Contains(page, `data-theme-option="default"`) ||
@@ -60,7 +72,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `data-theme-option="paper"`) ||
 		!strings.Contains(page, `data-theme-option="ocean"`) ||
 		!strings.Contains(page, `data-theme-option="rose"`) ||
-		!strings.Contains(page, `data-theme-option="custom"`) {
+		!strings.Contains(page, `data-theme-option="custom"`) ||
+		!strings.Contains(page, `<span>Light</span>`) {
 		t.Fatalf("viewer should render the settings theme selector with built-in and custom themes:\n%s", page)
 	}
 	if !strings.Contains(page, `openknowledge.viewer.theme`) ||
@@ -71,6 +84,30 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `data-theme-custom-value="accent"`) ||
 		!strings.Contains(page, `data-theme-custom-value="border"`) {
 		t.Fatalf("viewer should persist theme choices and expose custom theme controls:\n%s", page)
+	}
+	if !strings.Contains(page, `data-frontmatter-visibility checked`) ||
+		!strings.Contains(page, `openknowledge.viewer.frontmatter`) ||
+		!strings.Contains(page, `applyFrontmatterPreference`) ||
+		!strings.Contains(page, `body.is-frontmatter-hidden .ok-frontmatter`) {
+		t.Fatalf("viewer should persist a global frontmatter visibility preference:\n%s", page)
+	}
+	if !strings.Contains(page, `data-accessibility-font`) ||
+		!strings.Contains(page, `data-accessibility-size`) ||
+		!strings.Contains(page, `data-accessibility-spacing`) ||
+		!strings.Contains(page, `data-accessibility-motion`) ||
+		!strings.Contains(page, `data-readable-line-length`) ||
+		!strings.Contains(page, `data-high-contrast`) ||
+		!strings.Contains(page, `data-underline-links`) {
+		t.Fatalf("viewer should render system-level reading and accessibility controls:\n%s", page)
+	}
+	if !strings.Contains(page, `openknowledge.viewer.accessibility`) ||
+		!strings.Contains(page, `applyAccessibilityPreference`) ||
+		!strings.Contains(page, `motionIsReduced`) ||
+		!strings.Contains(page, `body.is-links-underlined .note-body a`) ||
+		!strings.Contains(page, `dataset.viewerUnderlines = normalized.underlineLinks ? "on" : "off"`) ||
+		!strings.Contains(page, `html[data-viewer-underlines="off"] .note-body a`) ||
+		!strings.Contains(page, `html[data-viewer-contrast="high"]`) {
+		t.Fatalf("viewer should persist and apply reading and accessibility preferences:\n%s", page)
 	}
 	if !strings.Contains(page, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer did not rewrite relative markdown link:\n%s", page)
@@ -84,7 +121,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `<th scope="col" data-align="left">Name</th>`) || !strings.Contains(page, `<td data-align="right">2</td>`) {
 		t.Fatalf("viewer should preserve markdown table alignment metadata:\n%s", page)
 	}
-	if !strings.Contains(page, `.code-block[data-language] { padding-top: 34px; }`) || !strings.Contains(page, `content: attr(data-language)`) || !strings.Contains(page, `opacity: .78`) || !strings.Contains(page, `font: 400 1em/1.55 var(--ok-font-mono)`) {
+	if !strings.Contains(page, `.code-block[data-language] { padding-top: 34px; }`) || !strings.Contains(page, `content: attr(data-language)`) || !strings.Contains(page, `opacity: .78`) || !strings.Contains(page, `font: 400 .94em/1.6 var(--ok-font-mono)`) {
 		t.Fatalf("viewer should style code blocks with a subtle language label and body-sized code text:\n%s", page)
 	}
 	if strings.Contains(page, `.code-block[data-language]::before { display: block; margin: -16px`) || strings.Contains(page, `radial-gradient(circle at 16px 50%`) {
@@ -108,13 +145,13 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-note-workspace`) || !strings.Contains(page, `data-note-path="index.md"`) {
 		t.Fatalf("viewer file page did not include stacked note layout:\n%s", page)
 	}
-	if !strings.Contains(page, `.document h2 { margin: 34px 0 12px;`) || !strings.Contains(page, `.document li + li { margin-top: 6px; }`) {
+	if !strings.Contains(page, `.document h2 { margin: 40px 0 13px; padding-top: 0; border-top: 0;`) || !strings.Contains(page, `.document li + li { margin-top: 6px; }`) || !strings.Contains(page, `.document h1 code, .document h2 code, .document h3 code`) {
 		t.Fatalf("viewer document typography should distinguish sections and list items:\n%s", page)
 	}
 	if !strings.Contains(page, `is-single-panel`) || !strings.Contains(page, `justify-content: center`) {
 		t.Fatalf("viewer should center a lone open panel before additional panels are opened:\n%s", page)
 	}
-	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { box-sizing: border-box; flex-basis: 100%; min-width: 100%; justify-content: center; padding-left: max(22px, calc((100vw - 1180px) / 2)); padding-right: max(22px, calc((100vw - 1180px) / 2)); }`) {
+	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { box-sizing: border-box; flex-basis: 100%; min-width: 100%; justify-content: center; padding-left: max(24px, calc((100vw - 1180px) / 2)); padding-right: max(24px, calc((100vw - 1180px) / 2)); }`) {
 		t.Fatalf("single-panel stack should use symmetric viewport gutters around the centered panel:\n%s", page)
 	}
 	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }`) {
@@ -126,7 +163,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `display: flex; flex: 0 0 auto; align-self: stretch`) || strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%`) {
 		t.Fatalf("viewer note stack should stretch inside the horizontal scroller without forcing full scrollbar height:\n%s", page)
 	}
-	if !strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 18px; min-width: max-content; min-height: 0; padding: 12px max(22px, calc((100vw - 1180px) / 2)) 22px 22px; }`) {
+	if !strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 16px; min-width: max-content; min-height: 0; padding: 16px max(24px, calc((100vw - 1180px) / 2)) 24px 24px; }`) {
 		t.Fatalf("viewer note stack should use a compact top gutter so panels can extend vertically:\n%s", page)
 	}
 	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 50px; }`) || !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 18px; }`) {
@@ -201,6 +238,13 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-close-panel`) {
 		t.Fatalf("viewer file page did not include panel close control:\n%s", page)
 	}
+	if !strings.Contains(page, `data-note-breadcrumbs data-note-path-value="index.md"`) ||
+		!strings.Contains(page, `function createNoteBreadcrumbs(path)`) ||
+		!strings.Contains(page, `noteIndexPath(displayParts.slice(0, index + 1))`) ||
+		!strings.Contains(page, `link.dataset.directLink = "true"`) ||
+		!strings.Contains(page, `link.setAttribute("aria-current", "page")`) {
+		t.Fatalf("viewer file page should enhance note paths into index-aware breadcrumb links:\n%s", page)
+	}
 	if !strings.Contains(page, `id: "viewer.panel.close"`) ||
 		!strings.Contains(page, `code: "KeyW"`) ||
 		!strings.Contains(page, `label: "⌘⌥W"`) ||
@@ -209,12 +253,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `remaining[Math.min(Math.max(index - 1, 0), remaining.length - 1)]`) {
 		t.Fatalf("viewer file page should close the focused panel with a primary-alt-w shortcut and focus the previous panel:\n%s", page)
 	}
-	if !strings.Contains(page, `class="note-close-shortcut" data-panel-close-shortcut`) ||
-		!strings.Contains(page, `document.createElement("kbd")`) ||
-		!strings.Contains(page, `.note-close-shortcut { display: inline-flex; height: 22px;`) ||
-		!strings.Contains(page, `.note-panel:not(.is-active-panel) .note-close-shortcut { display: none; }`) ||
-		!strings.Contains(page, `.note-close-shortcut { display: none; }`) {
-		t.Fatalf("viewer file page should show a minimal panel close shortcut badge only on the active panel:\n%s", page)
+	if strings.Contains(page, `class="note-close-shortcut" data-panel-close-shortcut`) ||
+		!strings.Contains(page, `aria-keyshortcuts="Meta+Alt+W"`) ||
+		!strings.Contains(page, `title="Close index.md (⌘⌥W)"`) ||
+		!strings.Contains(page, `closeButton.title = "Close note (" + panelCloseShortcut.label + ")"`) {
+		t.Fatalf("viewer file page should expose the panel close shortcut through the close-button tooltip:\n%s", page)
 	}
 	if !strings.Contains(page, `data-editor-picker`) || !strings.Contains(page, `data-editor-options`) {
 		t.Fatalf("viewer file page did not include editor picker:\n%s", page)
@@ -242,6 +285,16 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `.search-results[hidden] { display: none; }`) || !strings.Contains(page, `renderDefaultResults(true)`) || !strings.Contains(page, `defaultSearchResults()`) || !strings.Contains(page, `Top files`) {
 		t.Fatalf("viewer search dropdown should stay open on focus with default results for an empty query:\n%s", page)
+	}
+	if !strings.Contains(page, `document.addEventListener("pointerdown"`) ||
+		!strings.Contains(page, `!results.hidden && !search.contains(event.target)`) ||
+		!strings.Contains(page, `document.addEventListener("focusin"`) {
+		t.Fatalf("viewer search dropdown should dismiss on outside pointer and focus:\n%s", page)
+	}
+	if !strings.Contains(page, `.header-search .search-results { position: absolute; top: calc(100% + 8px);`) ||
+		!strings.Contains(page, `.header-search .search-result-title`) ||
+		!strings.Contains(page, `.header-search .search-result-snippet`) {
+		t.Fatalf("viewer header search should use a streamlined result surface with clear hierarchy:\n%s", page)
 	}
 	if !strings.Contains(page, `isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore`) || !strings.Contains(page, `isIndexMarkdownPath(a.path) ? 1 : -1`) {
 		t.Fatalf("viewer static search should rank index.md files below regular pages:\n%s", page)
@@ -275,11 +328,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `id: "viewer.search.focus"`) {
 		t.Fatalf("viewer file page did not include the shared shortcut registry:\n%s", page)
 	}
-	if !strings.Contains(page, `.file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; display: flex; width: var(--ok-sidebar-width); flex-direction: column; border-right: 0; background: var(--ok-color-sidebar);`) {
-		t.Fatalf("viewer file sidebar should not draw a vertical divider against the document canvas:\n%s", page)
+	if !strings.Contains(page, `.file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 7; display: flex; width: var(--ok-sidebar-width); flex-direction: column; border-right: 1px solid var(--ok-color-sidebar-border); background: var(--ok-color-sidebar);`) {
+		t.Fatalf("viewer file sidebar should use a subtle divider against the document canvas:\n%s", page)
 	}
-	if !strings.Contains(page, `--ok-color-viewer-canvas: #f0f0f0`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #f0f0f0`) || !strings.Contains(page, `--ok-color-sidebar-header: #f0f0f0`) {
-		t.Fatalf("viewer sidebar should share the document canvas surface:\n%s", page)
+	if !strings.Contains(page, `--ok-color-viewer-canvas: #f4f5f4`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #f7f8f7`) || !strings.Contains(page, `--ok-color-sidebar-header: rgba(247, 248, 247, .94)`) {
+		t.Fatalf("viewer sidebar should use the polished neutral shell palette:\n%s", page)
 	}
 	if !strings.Contains(page, `const mobileSidebar = window.matchMedia("(max-width: 680px)")`) ||
 		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
@@ -313,7 +366,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
 		t.Fatalf("viewer file page did not include knowledge tree empty state:\n%s", page)
 	}
-	if !strings.Contains(page, `.tree-directory { margin: 6px 0 1px; background: transparent;`) ||
+	if !strings.Contains(page, `.tree-directory { margin: 7px 0 1px; background: transparent;`) ||
 		!strings.Contains(page, `.file-sidebar .tree-directory { background: transparent;`) ||
 		!strings.Contains(page, `.tree-directory::before { content: none; }`) {
 		t.Fatalf("viewer file tree should render directories as lightweight text rows:\n%s", page)
@@ -367,11 +420,108 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if api.Path != "index.md" || api.Title != "Index" {
 		t.Fatalf("unexpected viewer API metadata: %#v", api)
 	}
+	if !strings.Contains(api.Frontmatter, `<code>okf_version</code>`) || !strings.Contains(api.Frontmatter, `data-frontmatter-type="string"`) {
+		t.Fatalf("viewer API did not include typed frontmatter: %#v", api)
+	}
 	if !strings.Contains(api.Body, "<h1>Home</h1>") || !strings.Contains(api.Body, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer API did not render markdown body with rewritten links: %#v", api)
 	}
 	if !strings.Contains(api.Body, `class="ok-table" data-ok-table`) || !strings.Contains(api.Body, `<th scope="col" data-align="left">Name</th>`) || !strings.Contains(api.Body, `<td data-align="right">2</td>`) {
 		t.Fatalf("viewer API did not render markdown table wrappers and alignment metadata: %#v", api)
+	}
+}
+
+func TestViewerRendersStructuredFrontmatterByType(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Runbook](runbook.md).\n")
+	writeViewerFile(t, root, "runbook.md", `---
+type: Runbook
+enabled: false
+retries: 0
+optional: null
+tags: [docs, 7, true]
+metadata:
+  tags: [internal]
+owner:
+  name: Platform
+  active: true
+steps:
+  - name: Validate
+    required: true
+empty:
+empty_list: []
+source: https://openknowledge.sh/wiki/
+unsafe: "<script>alert('no')</script>"
+---
+
+# Runbook
+
+Typed metadata stays visible.
+`)
+
+	handler := newViewerHandler(root)
+	page := getViewerBody(t, handler, "/file/runbook.md")
+	checks := []string{
+		`<span class="ok-frontmatter-title">Frontmatter</span>`,
+		`<span class="ok-frontmatter-count">12 fields</span>`,
+		`data-frontmatter-type="boolean"`,
+		`class="ok-frontmatter-scalar ok-frontmatter-boolean" data-value="false"`,
+		`data-frontmatter-type="number"`,
+		`class="ok-frontmatter-scalar ok-frontmatter-number">0</span>`,
+		`data-frontmatter-type="null"`,
+		`class="ok-frontmatter-chips ok-frontmatter-tags"`,
+		`class="ok-frontmatter-tag-link" href="?ok-tag=docs" data-frontmatter-tag="docs" data-direct-link="true"`,
+		`class="ok-frontmatter-list"`,
+		`<code>empty</code>`,
+		`<code>empty_list</code>`,
+		`class="ok-frontmatter-scalar ok-frontmatter-empty">[]</span>`,
+		`href="https://openknowledge.sh/wiki/"`,
+		`&lt;script&gt;alert(&#39;no&#39;)&lt;/script&gt;`,
+		`<h1>Runbook</h1>`,
+	}
+	for _, check := range checks {
+		if !strings.Contains(page, check) {
+			t.Fatalf("viewer frontmatter missing %q:\n%s", check, page)
+		}
+	}
+	if strings.Contains(page, `class="ok-frontmatter-type"`) {
+		t.Fatalf("viewer frontmatter should not render datatype badges:\n%s", page)
+	}
+	if strings.Contains(page, `data-frontmatter-tag="internal"`) {
+		t.Fatalf("viewer frontmatter should facet only top-level tags:\n%s", page)
+	}
+	if strings.Contains(page, `<script>alert('no')</script>`) {
+		t.Fatalf("viewer frontmatter should escape HTML values:\n%s", page)
+	}
+
+	typeIndex := strings.Index(page, `<code>type</code>`)
+	enabledIndex := strings.Index(page, `<code>enabled</code>`)
+	retriesIndex := strings.Index(page, `<code>retries</code>`)
+	if typeIndex < 0 || enabledIndex <= typeIndex || retriesIndex <= enabledIndex {
+		t.Fatalf("viewer should preserve authored top-level frontmatter order:\n%s", page)
+	}
+
+	api := getViewerJSON(t, handler, "/api/file/runbook.md")
+	if !strings.Contains(api.Frontmatter, `data-frontmatter-type="object"`) || !strings.Contains(api.Frontmatter, `data-value="false"`) {
+		t.Fatalf("viewer API should retain structured frontmatter for dynamic panels: %#v", api)
+	}
+	if !strings.Contains(api.Frontmatter, `data-frontmatter-tag="docs"`) {
+		t.Fatalf("viewer API should retain navigable tag facets for dynamic panels: %#v", api)
+	}
+}
+
+func TestViewerFrontmatterFallsBackWithoutHidingMarkdown(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nconfig: {mode: fast}\n---\n\n# Home\n\nStill readable.\n")
+
+	page := getViewerBody(t, newViewerHandler(root), "/file/index.md")
+	if !strings.Contains(page, "Structured preview is unavailable for this YAML subset") ||
+		!strings.Contains(page, `<code>config</code>`) ||
+		!strings.Contains(page, `{mode: fast}`) {
+		t.Fatalf("viewer should fall back to compatible scalar frontmatter:\n%s", page)
+	}
+	if !strings.Contains(page, "<h1>Home</h1>") || !strings.Contains(page, "Still readable.") {
+		t.Fatalf("frontmatter fallback should not hide the markdown body:\n%s", page)
 	}
 }
 
@@ -383,8 +533,11 @@ func TestViewerRendersMarkdownExtensionFilesFromAST(t *testing.T) {
 	handler := newViewerHandler(root)
 
 	page := getViewerBody(t, handler, "/file/guide.markdown")
-	if strings.Contains(page, "type: Guide") || strings.Contains(page, "---") {
-		t.Fatalf("viewer should render .markdown files from parsed AST body, got:\n%s", page)
+	if strings.Contains(page, "type: Guide") || strings.Contains(page, "---\r\n") {
+		t.Fatalf("viewer should not expose raw frontmatter delimiters, got:\n%s", page)
+	}
+	if !strings.Contains(page, `class="ok-frontmatter" data-frontmatter`) || strings.Contains(page, `class="ok-frontmatter" data-frontmatter open`) || !strings.Contains(page, `<code>type</code>`) {
+		t.Fatalf("viewer should show parsed .markdown frontmatter:\n%s", page)
 	}
 	if !strings.Contains(page, "<h1>Guide</h1>") || !strings.Contains(page, "Rendered from AST.") {
 		t.Fatalf("viewer did not render .markdown body:\n%s", page)
@@ -554,7 +707,7 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md), [Agents](AGENTS.md), and [Features](features/index.md).\n\n| Kind | Required |\n| --- | --- |\n| flag | no |\n| argument | yes |\n")
 	writeViewerFile(t, root, "AGENTS.md", "---\ntype: Guide\ntitle: Agents\n---\n\n# Agents\n")
 	writeViewerFile(t, root, "features/index.md", "# Features\n")
-	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
+	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\nenabled: false\ntags: [docs, setup]\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
 	if err != nil {
@@ -568,6 +721,11 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if !strings.Contains(index, `data-note-workspace`) || !strings.Contains(index, `data-static-notes`) {
 		t.Fatalf("expected exported index to include static viewer app bundle:\n%s", index)
 	}
+	if !strings.Contains(index, `data-viewer-theme="night"`) ||
+		!strings.Contains(index, `const defaultPreset = "night";`) ||
+		!strings.Contains(index, `const defaultThemePreset = "night";`) {
+		t.Fatalf("expected exported viewer to use Night on first run and bootstrap saved theme choices before paint:\n%s", index)
+	}
 	if !strings.Contains(index, `class="ok-table" data-ok-table`) || !strings.Contains(index, `function enhanceTables(scope)`) || !strings.Contains(index, `.ok-table-tools`) || !strings.Contains(index, `.ok-table-filter-panel`) {
 		t.Fatalf("expected exported viewer pages to include rich table markup and runtime:\n%s", index)
 	}
@@ -579,6 +737,17 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	}
 	if !strings.Contains(index, `function fetchNote(path)`) || !strings.Contains(index, `staticNotesByPath[path]`) {
 		t.Fatalf("expected exported index to use static note runtime:\n%s", index)
+	}
+	if !strings.Contains(index, `"frontmatter":"\u003cdetails class=\"ok-frontmatter\"`) ||
+		!strings.Contains(index, `openknowledge.viewer.frontmatter`) ||
+		!strings.Contains(index, `(data.frontmatter || "") + data.body`) ||
+		!strings.Contains(index, `htmlToText(note.frontmatter || "")`) {
+		t.Fatalf("expected exported viewer runtime to carry typed frontmatter into dynamic panels:\n%s", index)
+	}
+	if !strings.Contains(index, `"tags":["docs","setup"]`) ||
+		!strings.Contains(index, `function searchStaticTag(tag, excludePath)`) ||
+		!strings.Contains(index, `tagSearchFromLocation()`) {
+		t.Fatalf("expected exported viewer runtime to carry exact tag facets into static search:\n%s", index)
 	}
 	if !strings.Contains(index, `function staticHTMLAliases(htmlPath)`) || !strings.Contains(index, `function staticRootPrefixFromCurrentURL`) || !strings.Contains(index, `function staticNotePathForHTMLPath`) {
 		t.Fatalf("expected exported index to resolve hosted pretty URLs back to static notes:\n%s", index)
@@ -608,6 +777,13 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	setup := readViewerExportFile(t, out, "guides/setup.html")
 	if !strings.Contains(setup, `href="../index.html"`) {
 		t.Fatalf("expected nested exported page to keep relative static fallback link:\n%s", setup)
+	}
+	if !strings.Contains(setup, `class="ok-frontmatter" data-frontmatter`) ||
+		strings.Contains(setup, `class="ok-frontmatter" data-frontmatter open`) ||
+		!strings.Contains(setup, `data-value="false"`) ||
+		!strings.Contains(setup, `class="ok-frontmatter-chips ok-frontmatter-tags"`) ||
+		strings.Contains(setup, `class="ok-frontmatter-type"`) {
+		t.Fatalf("expected nested exported page to render typed frontmatter:\n%s", setup)
 	}
 
 	manifestContent := readViewerExportFile(t, out, okf.BundleManifestRelPath)
@@ -726,6 +902,7 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 		"--ok-color-accent-focus-strong",
 		"--ok-color-accent-border",
 		"--ok-color-accent-border-strong",
+		"--ok-color-focus-ring",
 		"--ok-color-shadow",
 		"--ok-color-danger",
 		"--ok-color-header-bg",
@@ -832,17 +1009,17 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 
 	handler := newViewerHandler(root)
 	page := getViewerBody(t, handler, "/file/index.md")
-	if !strings.Contains(page, `data-openknowledge-theme="landing"`) || !strings.Contains(page, `href="/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(page, `data-openknowledge-theme="landing"`) || !strings.Contains(page, `data-viewer-theme="night"`) || !strings.Contains(page, `href="/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer should link the configured theme stylesheet from the raw endpoint:\n%s", page)
 	}
 
 	asset := getViewerBody(t, handler, "/file/references/report.pdf")
-	if !strings.Contains(asset, `data-openknowledge-theme="landing"`) || !strings.Contains(asset, `href="/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(asset, `data-openknowledge-theme="landing"`) || !strings.Contains(asset, `data-viewer-theme="night"`) || !strings.Contains(asset, `href="/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer asset pages should link the configured theme stylesheet from the raw endpoint:\n%s", asset)
 	}
 
 	alias := getViewerBody(t, newViewerHandlerWithAlias(root, "project-memory"), "/project-memory/file/index.md")
-	if !strings.Contains(alias, `data-openknowledge-theme="landing"`) || !strings.Contains(alias, `href="/project-memory/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(alias, `data-openknowledge-theme="landing"`) || !strings.Contains(alias, `data-viewer-theme="night"`) || !strings.Contains(alias, `href="/project-memory/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer alias pages should link the prefixed theme stylesheet from the raw endpoint:\n%s", alias)
 	}
 
@@ -851,7 +1028,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	writeViewerFile(t, listRoot, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, listRoot, "notes/readme.md", "---\ntype: Note\n---\n\n# Readme\n")
 	listing := getViewerBody(t, newViewerHandler(listRoot), "/")
-	if !strings.Contains(listing, `data-openknowledge-theme="landing"`) || !strings.Contains(listing, `href="/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(listing, `data-openknowledge-theme="landing"`) || !strings.Contains(listing, `data-viewer-theme="night"`) || !strings.Contains(listing, `href="/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer index pages should link the configured theme stylesheet from the raw endpoint:\n%s", listing)
 	}
 
@@ -864,7 +1041,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
-	if !strings.Contains(index, `data-openknowledge-theme="landing"`) || !strings.Contains(index, `href="assets/wiki-theme.css"`) {
+	if !strings.Contains(index, `data-openknowledge-theme="landing"`) || !strings.Contains(index, `data-viewer-theme="night"`) || !strings.Contains(index, `href="assets/wiki-theme.css"`) {
 		t.Fatalf("expected exported index to link copied theme stylesheet:\n%s", index)
 	}
 	if !strings.Contains(index, `<a class="brand" href="index.html">Home</a>`) {
@@ -1043,7 +1220,7 @@ func TestViewerIndexFallsBackToListWithoutIndexMarkdown(t *testing.T) {
 func TestViewerSearchAPI(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead the workflow docs.\n")
-	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\n---\n\n# Docs\n\nRun validation before publishing.\n")
+	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\ntags: [docs]\n---\n\n# Docs\n\nRun validation before publishing.\n")
 
 	handler := newViewerHandler(root)
 	payload := getViewerSearch(t, handler, "/api/search?q=validaton&limit=4")
@@ -1061,10 +1238,29 @@ func TestViewerSearchAPI(t *testing.T) {
 	}
 }
 
+func TestViewerSearchReturnsExactTagFacets(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	writeViewerFile(t, root, "notes/current.md", "---\ntype: Note\ntags: [docs]\n---\n\n# Current\n")
+	writeViewerFile(t, root, "notes/match.md", "---\ntype: Guide\ntitle: Exact tag match\ndescription: Shares the docs tag.\ntags: [docs, guide]\n---\n\n# Match\n")
+	writeViewerFile(t, root, "notes/subset.md", "---\ntype: Note\ntags: [docs-tools]\n---\n\n# Subset\n")
+	writeViewerFile(t, root, "notes/body-only.md", "---\ntype: Note\ntags: [other]\n---\n\n# Body only\n\nMentions docs in the body.\n")
+
+	handler := newViewerHandler(root)
+	payload := getViewerSearch(t, handler, "/api/search?tag=docs&exclude=notes/current.md&limit=12")
+	if payload.Query != "docs" || len(payload.Results) != 1 {
+		t.Fatalf("expected one exact docs tag match, got %#v", payload)
+	}
+	result := payload.Results[0]
+	if result.Path != "notes/match.md" || result.Type != "Guide" || result.URL != "/file/notes/match.md" || result.Snippet != "Shares the docs tag." {
+		t.Fatalf("unexpected tag facet result: %#v", result)
+	}
+}
+
 func TestViewerServesDirectAliasPath(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Workflow](workflows/docs.md) and [Report](references/report.pdf).\n")
-	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\n---\n\n# Docs\n\nRun validation before publishing.\n")
+	writeViewerFile(t, root, "workflows/docs.md", "---\ntype: Workflow\ntitle: Docs Workflow\ntags: [docs]\n---\n\n# Docs\n\nRun validation before publishing.\n")
 	writeViewerFile(t, root, "references/report.pdf", "%PDF-1.4\n% test pdf\n")
 
 	handler := newViewerHandlerWithAlias(root, "project-memory")
@@ -1113,6 +1309,10 @@ func TestViewerServesDirectAliasPath(t *testing.T) {
 	if payload.Results[0].HighlightURL != "/project-memory/file/workflows/docs.md?ok-highlight=validation" {
 		t.Fatalf("unexpected prefixed highlight URL: %#v", payload.Results[0])
 	}
+	tagPayload := getViewerSearch(t, handler, "/project-memory/api/search?tag=docs")
+	if len(tagPayload.Results) != 1 || tagPayload.Results[0].URL != "/project-memory/file/workflows/docs.md" {
+		t.Fatalf("unexpected prefixed tag facet result: %#v", tagPayload)
+	}
 }
 
 func TestViewerSearchRefreshesAfterMarkdownChanges(t *testing.T) {
@@ -1125,10 +1325,14 @@ func TestViewerSearchRefreshesAfterMarkdownChanges(t *testing.T) {
 		t.Fatalf("expected no draft results before file is written, got %#v", first)
 	}
 
-	writeViewerFile(t, root, "notes/draft.md", "---\ntype: Note\ntitle: Draft Note\n---\n\n# Draft\n\nFresh searchable content.\n")
+	writeViewerFile(t, root, "notes/draft.md", "---\ntype: Note\ntitle: Draft Note\ntags: [draft]\n---\n\n# Draft\n\nFresh searchable content.\n")
 	second := getViewerSearch(t, handler, "/api/search?q=draft")
 	if len(second.Results) == 0 || second.Results[0].Path != "notes/draft.md" {
 		t.Fatalf("expected refreshed search result, got %#v", second)
+	}
+	tagged := getViewerSearch(t, handler, "/api/search?tag=draft")
+	if len(tagged.Results) != 1 || tagged.Results[0].Path != "notes/draft.md" {
+		t.Fatalf("expected refreshed tag facet, got %#v", tagged)
 	}
 }
 

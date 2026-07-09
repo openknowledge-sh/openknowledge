@@ -34,10 +34,10 @@ for (const copy of copyButtons) {
     const label = copy.querySelector("span");
     const defaultLabel = label.textContent;
 
-    await copyText(target.textContent);
     copy.classList.add("copied");
     label.textContent = "Copied";
     clearTimeout(copiedTimers.get(copy));
+    await copyText(target.textContent);
     copiedTimers.set(
       copy,
       setTimeout(() => {

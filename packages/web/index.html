@@ -30,10 +30,10 @@
   <body>
     <main class="shell">
       <header class="site-topbar" aria-label="Site navigation">
-        <div class="site-logo" aria-label="Open Knowledge CLI">
-          <img src="favicon.png" alt="" aria-hidden="true">
+        <a class="site-logo" href="/" aria-label="Open Knowledge CLI home">
+          <img src="logo-mark.png" alt="" aria-hidden="true">
           <span>Open Knowledge CLI</span>
-        </div>
+        </a>
         <nav class="site-actions" aria-label="Open Knowledge links">
           <a class="wiki-link" href="wiki/">Wiki</a>
           <a class="wiki-link" href="wiki/changelog/cli.html">Changelog</a>
@@ -41,6 +41,7 @@
             <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
               <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.37 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.51-1.11-1.51-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.27 2.75 1.05A9.28 9.28 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.82-4.57 5.08.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.8 0 .27.18.59.69.49A10.06 10.06 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"></path>
             </svg>
+            <span>GitHub</span>
           </a>
         </nav>
       </header>
@@ -53,7 +54,7 @@
                 <span data-release-version>Latest release</span>
                 <time data-release-age hidden></time>
               </a>
-              <span class="okf-note">Implements Google's OKF v0.1.</span>
+              <span class="okf-note">Built on Google's Open Knowledge Format v0.1.</span>
             </div>
             <h1 id="hero-title">LLM wiki tooling for agents and humans</h1>
             <p class="lede">
@@ -62,66 +63,51 @@
               source-grounded context, and publish portable static docs.
             </p>
             <nav class="hero-actions" aria-label="Primary actions">
-              <a class="primary-action" href="#setup">Start with an agent</a>
-              <a class="secondary-action" href="wiki/">Read the docs</a>
+              <button class="primary-action copy-command" type="button" data-copy-target="#setup-prompt" aria-label="Copy setup prompt" title="Copy setup prompt">
+                <span>Copy setup prompt</span>
+                <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M12 3v2"></path>
+                  <path d="M9 3h6"></path>
+                  <rect x="5" y="6" width="14" height="12" rx="4"></rect>
+                  <path d="M9 11h.01M15 11h.01"></path>
+                  <path d="M9 15c1.6 1 4.4 1 6 0"></path>
+                  <path d="M3 10v4M21 10v4"></path>
+                </svg>
+              </button>
+              <a class="secondary-action" href="wiki/">
+                <span>Explore the docs</span>
+                <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="M6.5 3.75h7l4 4v12.5h-11z"></path>
+                  <path d="M13.5 3.75v4h4"></path>
+                  <path d="M9 12h5M9 15h5"></path>
+                </svg>
+              </a>
             </nav>
+            <details class="hero-setup-details">
+              <summary>
+                <span class="hero-setup-toggle">See the setup prompt <span class="setup-toggle-glyph" aria-hidden="true"></span></span>
+                <span class="hero-meta-divider" aria-hidden="true">·</span>
+                <span>Open source</span>
+                <span class="hero-meta-divider" aria-hidden="true">·</span>
+                <span>Apache-2.0</span>
+              </summary>
+              <div class="hero-prompt-panel">
+                <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge LLM wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, use <code>openknowledge rules --list</code> to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, show me how to inspect it with <code>openknowledge list</code>, <code>openknowledge search</code>, and <code>openknowledge get</code>, and open it for me using <code>openknowledge view</code>.</p>
+                <p class="setup-note">
+                  Prefer shell setup? Run <code>curl -fsSL https://openknowledge.sh/install | bash</code>,
+                  then <code>openknowledge setup</code>. The
+                  <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
+                  has the full command reference.
+                </p>
+              </div>
+            </details>
           </div>
         </div>
-      </section>
-
-      <section class="setup-section" id="setup" aria-labelledby="setup-title">
-        <div class="section-heading">
-          <h2 id="setup-title">Let an agent create the wiki</h2>
-          <p>
-            Paste the prompt into Codex, Claude, Cursor, Cowork, or another
-            coding agent in the workspace where the wiki should live.
-          </p>
-        </div>
-        <section class="terminal setup-terminal" aria-label="Agent setup prompt">
-          <div class="terminal-header">
-            <button class="copy-command" type="button" data-copy-target="#setup-prompt" aria-label="Copy setup prompt" title="Copy setup prompt">
-              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                <path d="M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7Z"></path>
-                <path d="M4 11a2 2 0 0 1 2-2h2v6a2 2 0 0 0 2 2h6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Z"></path>
-              </svg>
-              <span>Copy setup prompt</span>
-            </button>
-          </div>
-          <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge LLM wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup</code>, use <code>openknowledge rules --list</code> to see the available maintenance rules, inspect this workspace and any relevant memories, ask only the setup questions still needed, choose the maintenance rules this wiki should follow, such as project, docs, decisions, changelog, research, bugs, schemas, summary, or agents, create and customize the wiki for this workspace, run <code>openknowledge validate</code>, show me how to inspect it with <code>openknowledge list</code>, <code>openknowledge search</code>, and <code>openknowledge get</code>, and open it for me using <code>openknowledge view</code>.</p>
-        </section>
-        <p class="setup-note">
-          Prefer shell setup? Run <code>curl -fsSL https://openknowledge.sh/install | bash</code>,
-          then <code>openknowledge setup</code>. The
-          <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
-          has the full command reference.
-        </p>
-      </section>
-
-      <section class="section why-section" aria-labelledby="why-title">
-        <div class="section-heading">
-          <h2 id="why-title">Why Open Knowledge</h2>
-          <p>
-            Open Knowledge is a small tooling stack around Markdown knowledge
-            bases. It is useful when you want local project memory that stays
-            inspectable with normal shell tools.
-          </p>
-        </div>
-        <ul class="why-list">
-          <li>Plain-file knowledge bases that agents and humans can both edit.</li>
-          <li>Source-to-wiki prompts for turning repositories, local folders, or websites into OKF Markdown bundles.</li>
-          <li>Deterministic validation, listing, search, AST, JSON, graph, tar, and HTML views of the same bundle.</li>
-          <li>Local registry aliases so agents can address knowledge bases by stable names.</li>
-          <li>Static publishing with connect manifests and portable bundle archives.</li>
-        </ul>
       </section>
 
       <section class="section at-glance" aria-labelledby="glance-title">
         <div class="section-heading">
-          <h2 id="glance-title">At A Glance</h2>
-          <p>
-            The same OKF bundle stays readable in Git, useful to agents, and
-            inspectable through deterministic CLI commands.
-          </p>
+          <h2 id="glance-title">Context you can keep</h2>
         </div>
         <div class="capability-grid">
           <article class="capability">
@@ -134,8 +120,8 @@
               </svg>
             </span>
             <span class="sr-only">Setup</span>
-            <h3>Agent setup</h3>
-            <p><code>setup</code>, <code>from</code>, and <code>rules</code> print prompts that let local agents create and maintain useful project memory.</p>
+            <h3>Create with an agent</h3>
+            <p><code>setup</code>, <code>from</code>, and <code>rules</code> generate ready-to-use prompts for creating and maintaining project knowledge.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -146,9 +132,9 @@
                 <path d="M9 16h4"></path>
               </svg>
             </span>
-            <span class="sr-only">Files</span>
-            <h3>Plain Markdown</h3>
-            <p>Knowledge stays in Git-friendly files that humans can read and agents can patch without a database or hosted service.</p>
+            <span class="sr-only">Local machine context</span>
+            <h3>Keep context local</h3>
+            <p>Work with project knowledge as local Markdown and YAML files on your machine—easy to inspect, version in Git, and navigate without a hosted knowledge service.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -159,8 +145,8 @@
               </svg>
             </span>
             <span class="sr-only">Retrieval</span>
-            <h3>Retrieval</h3>
-            <p><code>search</code>, <code>get</code>, <code>list</code>, and <code>view</code> make the wiki usable as local context instead of passive docs.</p>
+            <h3>Retrieve only what matters</h3>
+            <p><code>search</code> ranks relevant sections and builds source-preserving context within the token budget you set.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -171,8 +157,8 @@
               </svg>
             </span>
             <span class="sr-only">Publishing</span>
-            <h3>Portable publishing</h3>
-            <p>HTML exports include <code>llms.txt</code>, <code>openknowledge.json</code>, and a bundle archive so published wikis can be connected again.</p>
+            <h3>Publish without lock-in</h3>
+            <p>Ship searchable static HTML or export JSON, graph data, and a portable tar archive from the same authored bundle.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -182,8 +168,8 @@
               </svg>
             </span>
             <span class="sr-only">Checks</span>
-            <h3>Deterministic checks</h3>
-            <p><code>validate</code>, <code>ast</code>, JSON, graph, and experimental agent job commands provide structured views automation can trust.</p>
+            <h3>Trust it before use</h3>
+            <p>Validate OKF structure and local links before people or agents rely on the wiki.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -196,19 +182,15 @@
               </svg>
             </span>
             <span class="sr-only">OKF</span>
-            <h3>OKF v0.1</h3>
-            <p>Open Knowledge implements the <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a> Markdown and YAML-frontmatter spec.</p>
+            <h3>Own the source</h3>
+            <p>Built on Google's <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.1</a>: Markdown plus YAML frontmatter that stays inspectable, diffable, and easy to maintain.</p>
           </article>
         </div>
       </section>
 
       <section class="section command-section" aria-labelledby="command-title">
         <div class="section-heading">
-          <h2 id="command-title">Use the CLI by layer</h2>
-          <p>
-            Start with prompts, inspect the bundle, connect stable names, then
-            publish or export the same source files.
-          </p>
+          <h2 id="command-title">One CLI, end to end.</h2>
         </div>
         <div class="command-table-wrap">
           <table class="command-map">
@@ -216,44 +198,44 @@
               <tr>
                 <th scope="col">Layer</th>
                 <th scope="col">Commands</th>
-                <th scope="col">Use them for</th>
+                <th scope="col">Outcome</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>Agent setup</td>
+                <td>Create and maintain</td>
                 <td><code>setup</code>, <code>rules</code>, <code>review rules</code></td>
-                <td>Print prompts and maintenance instructions for agents that create or maintain a wiki.</td>
+                <td>Give agents the prompts and maintenance rules to create or evolve a wiki.</td>
               </tr>
               <tr>
-                <td>Source-to-wiki</td>
+                <td>Build from source</td>
                 <td><code>from</code></td>
-                <td>Turn a source URL or path into a local OKF Markdown wiki through an agent task prompt.</td>
+                <td>Ground a wiki in a repository, folder, or website through a local agent.</td>
               </tr>
               <tr>
-                <td>Format hygiene</td>
+                <td>Validate and inspect</td>
                 <td><code>new</code>, <code>spec</code>, <code>validate</code>, <code>list</code>, <code>ast</code></td>
-                <td>Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules.</td>
+                <td>Scaffold content, check OKF structure, and inspect parsed output.</td>
               </tr>
               <tr>
-                <td>Registry</td>
+                <td>Connect and resolve</td>
                 <td><code>connect</code>, <code>disconnect</code>, <code>registry</code>, <code>to tar</code></td>
-                <td>Give local, published, archive, or Git knowledge bases stable names and portable archives.</td>
+                <td>Give local or remote bundles stable names instead of remembering paths.</td>
               </tr>
               <tr>
-                <td>Use and navigation</td>
+                <td>Retrieve and browse</td>
                 <td><code>get</code>, <code>search</code>, <code>list</code>, <code>view</code></td>
-                <td>Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, and browse locally.</td>
+                <td>Build ranked context, read exact files, inspect structure, and browse locally.</td>
               </tr>
               <tr>
-                <td>Views and publishing</td>
+                <td>Publish and integrate</td>
                 <td><code>to json</code>, <code>to graph</code>, <code>to html</code>, <code>to html --plain</code></td>
-                <td>Export normalized models, graphs, static viewers, and plain semantic HTML.</td>
+                <td>Ship static docs or consume the same knowledge as JSON or graph data.</td>
               </tr>
               <tr>
-                <td>Experimental automation</td>
+                <td>Automate maintenance (experimental)</td>
                 <td><code>agents</code></td>
-                <td>Validate, dry-run, and execute scheduled local agent jobs from Markdown specs.</td>
+                <td>Run Markdown-defined local agent jobs in isolated Git worktrees.</td>
               </tr>
             </tbody>
           </table>
@@ -262,34 +244,29 @@
 
       <section class="section workflow-section" aria-labelledby="workflow-title">
         <div class="section-heading">
-          <h2 id="workflow-title">Common Workflows</h2>
-          <p>
-            Five short loops cover the README path: create the bundle, generate
-            one from a source, connect it, inspect it, then publish or export
-            the same files.
-          </p>
+          <h2 id="workflow-title">From Markdown to shared context</h2>
         </div>
         <div class="workflow-list">
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Create a bundle</h3>
-              <p>Start a local OKF Markdown knowledge base.</p>
+              <h3>Start a wiki</h3>
+              <p>Scaffold the files and defaults for a local OKF bundle.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">new</span> <span class="tok-path">./project-memory</span>
 <span class="tok-command">openknowledge</span> <span class="tok-subcommand">new</span> <span class="tok-flag">--no-agents</span> <span class="tok-flag">--no-setup</span> <span class="tok-path">./source-wiki</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Create from source</h3>
-              <p>Print a source-to-wiki prompt, then paste it into your agent.</p>
+              <h3>Build from source</h3>
+              <p>Generate a prompt grounded in a repository, folder, or website.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">from</span> <span class="tok-url">https://github.com/openknowledge-sh/openknowledge</span> <span class="tok-flag">--out</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span>
 <span class="tok-command">openknowledge</span> <span class="tok-subcommand">from</span> <span class="tok-url">https://openknowledge.sh/wiki/</span> <span class="tok-flag">--out</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Connect and navigate</h3>
-              <p>Give the bundle a stable name and browse it locally.</p>
+              <h3>Connect and retrieve</h3>
+              <p>Give the bundle a stable name, then search it or browse it locally.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">connect</span> <span class="tok-path">./project-memory</span> <span class="tok-flag">--as</span> <span class="tok-value">personal</span>
 <span class="tok-command">openknowledge</span> <span class="tok-subcommand">search</span> <span class="tok-value">personal</span> <span class="tok-string">"validation workflow"</span>
@@ -297,8 +274,8 @@
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Validate and inspect</h3>
-              <p>Check structure and inspect the parsed Markdown model.</p>
+              <h3>Validate before use</h3>
+              <p>Catch structure and link issues before agents or publishing depend on it.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">validate</span> <span class="tok-path">./project-memory</span>
 <span class="tok-command">openknowledge</span> <span class="tok-subcommand">list</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span> <span class="tok-path">./project-memory</span>
@@ -306,8 +283,8 @@
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Publish or export</h3>
-              <p>Ship static docs or export normalized machine-readable views.</p>
+              <h3>Publish or integrate</h3>
+              <p>Ship a static site or export portable machine-readable views.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">to</span> <span class="tok-value">html</span> <span class="tok-flag">--out</span> <span class="tok-path">./project-site</span> <span class="tok-path">./project-memory</span>
 <span class="tok-command">openknowledge</span> <span class="tok-subcommand">to</span> <span class="tok-value">json</span> <span class="tok-path">./project-memory</span>
@@ -317,7 +294,20 @@
       </section>
 
       <footer class="site-footer">
-        <p>Open Knowledge is licensed under Apache-2.0. Read the <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>, browse the <a href="wiki/">wiki</a>, or follow the <a href="wiki/changelog/cli.html">changelog</a>.</p>
+        <div class="footer-brand">
+          <a class="site-logo" href="/" aria-label="Open Knowledge CLI home">
+            <img src="logo-mark.png" alt="" aria-hidden="true">
+            <span>Open Knowledge CLI</span>
+          </a>
+          <p>Git-native project knowledge for agents and humans.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer links">
+          <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
+          <a href="wiki/">Wiki</a>
+          <a href="wiki/changelog/cli.html">Changelog</a>
+          <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+        </nav>
+        <p class="footer-meta">Apache-2.0 · Open source</p>
       </footer>
     </main>
     <script src="main.js"></script>
