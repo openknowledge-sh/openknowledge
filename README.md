@@ -314,6 +314,8 @@ configured agent command.
 ## Command Reference
 
 Run `openknowledge <command> --help` for command-specific flags and examples.
+Nested agent commands also support
+`openknowledge agents <subcommand> --help`.
 
 | Command | Purpose |
 | --- | --- |

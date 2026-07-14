@@ -38,6 +38,7 @@ openknowledge agents run <job.md> --executor host
 openknowledge agents run <job.md> --executor docker
 openknowledge agents daemon [jobs-dir] --once
 openknowledge agents daemon [jobs-dir] --tick 5m
+openknowledge agents <subcommand> --help
 openknowledge agents --help
 ```
 
@@ -167,6 +168,10 @@ at `/workspace`, and each command runs from that directory.
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
 exits. Without `--once`, the daemon polls using `--tick`, defaulting to `1m`.
 
+`new`, `list`, `validate`, `run`, and `daemon` each provide dedicated help.
+For example, `openknowledge agents run --help` prints run-specific flags and
+usage instead of the command-group overview.
+
 ## Caveats
 
 `openknowledge agents` is not a stable automation API yet. Keep job specs close
@@ -175,6 +180,13 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Subcommand-specific help
+
+`openknowledge agents new|list|validate|run|daemon --help` now prints the
+dedicated subcommand usage instead of the general `agents` overview. Source
+anchors: `packages/cli/cmd/openknowledge/agents_command.go` and
+`packages/cli/cmd/openknowledge/agents_command_test.go`.
 
 ### 2026-07-07 - Built-in agent templates
 

@@ -123,6 +123,36 @@ func TestAgentsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	}
 }
 
+func TestAgentsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
+	tests := []struct {
+		subcommand string
+		expected   string
+	}{
+		{subcommand: "new", expected: "openknowledge agents new --reference"},
+		{subcommand: "list", expected: "openknowledge agents list [path]"},
+		{subcommand: "validate", expected: "openknowledge agents validate <job-or-dir>"},
+		{subcommand: "run", expected: "openknowledge agents run <job.md> --at <time>"},
+		{subcommand: "daemon", expected: "openknowledge agents daemon [jobs-dir] --tick <duration>"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.subcommand, func(t *testing.T) {
+			output, stderr, code := captureMainOutput(t, func() int {
+				return runAgents([]string{test.subcommand, "--help"})
+			})
+			if code != 0 {
+				t.Fatalf("expected agents %s --help to succeed, got %d\nstdout=%s\nstderr=%s", test.subcommand, code, output, stderr)
+			}
+			if !strings.Contains(output, test.expected) {
+				t.Fatalf("expected agents %s subcommand help to include %q:\n%s", test.subcommand, test.expected, output)
+			}
+			if strings.Contains(output, "Experimental command group for deterministic local agent jobs") {
+				t.Fatalf("expected specific subcommand help, got group help:\n%s", output)
+			}
+		})
+	}
+}
+
 func TestAgentsRunCreatesRunRecord(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---

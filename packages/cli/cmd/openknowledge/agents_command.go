@@ -14,7 +14,7 @@ import (
 const defaultAgentsJobsPath = ".openknowledge/agents/jobs"
 
 func runAgents(args []string) int {
-	if len(args) == 0 || hasHelpFlag(args) {
+	if len(args) == 0 || isHelpFlag(args[0]) {
 		fmt.Fprint(os.Stdout, agentsHelpText())
 		return 0
 	}

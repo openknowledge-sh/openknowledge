@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Nested agent command help
+
+* Fixed `openknowledge agents new|list|validate|run|daemon --help` so each form
+  prints dedicated subcommand usage and flags instead of the general `agents`
+  overview.
+* Added behavioral coverage for all five nested help routes.
+* Source anchors: `packages/cli/cmd/openknowledge/agents_command.go` and
+  `packages/cli/cmd/openknowledge/agents_command_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/agents.md`,
+  `Wiki/features/commands/help.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Positional connection flags
 
 * Fixed `connect` and `disconnect`, including their `registry` aliases, so

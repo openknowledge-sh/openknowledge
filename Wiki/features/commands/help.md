@@ -19,6 +19,7 @@ openknowledge --help
 openknowledge -h
 openknowledge <command> --help
 openknowledge <command> -h
+openknowledge agents <subcommand> --help
 ```
 
 Command-specific help also accepts `-help`, because the command dispatcher
@@ -33,6 +34,10 @@ setup rule selection, rule review prompt generation, a minimal
 handoff files, a scaffold with optional bundle metadata, and a `connect`
 example that registers the generated bundle under a stable key.
 Unknown commands print the root usage to stderr and exit with status `2`.
+
+Nested agent commands dispatch help at the subcommand level. For example,
+`openknowledge agents run --help` prints the run-specific flags rather than
+the general `agents` overview.
 
 ## Example Output
 
@@ -66,6 +71,13 @@ Commands:
 * Give agents a stable entry point before setup.
 
 ## Command Change History
+
+### 2026-07-15
+
+Nested `openknowledge agents <subcommand> --help` now dispatches to dedicated
+help for `new`, `list`, `validate`, `run`, and `daemon`. Source anchors:
+`packages/cli/cmd/openknowledge/agents_command.go` and
+`packages/cli/cmd/openknowledge/agents_command_test.go`.
 
 ### 2026-07-09
 
