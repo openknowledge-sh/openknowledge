@@ -530,7 +530,7 @@ func customRuleSetFromDocument(document ASTDocument) (RuleSet, []Issue) {
 
 	meta := document.Frontmatter
 	var issues []Issue
-	if strings.ToLower(strings.TrimSpace(meta.Values["type"])) != "rule" {
+	if strings.ToLower(frontmatterString(meta, "type")) != "rule" {
 		issues = append(issues, Issue{
 			Path:    document.Rel,
 			Line:    1,
@@ -539,7 +539,7 @@ func customRuleSetFromDocument(document ASTDocument) (RuleSet, []Issue) {
 		})
 	}
 
-	id := strings.TrimSpace(meta.Values["rule_id"])
+	id := frontmatterString(meta, "rule_id")
 	if id == "" {
 		issues = append(issues, Issue{
 			Path:    document.Rel,
@@ -556,7 +556,7 @@ func customRuleSetFromDocument(document ASTDocument) (RuleSet, []Issue) {
 		})
 	}
 
-	summary := firstNonEmpty(meta.Values["rule_summary"], meta.Values["description"])
+	summary := firstNonEmpty(frontmatterString(meta, "rule_summary"), frontmatterString(meta, "description"))
 	if summary == "" {
 		issues = append(issues, Issue{
 			Path:    document.Rel,
@@ -576,14 +576,14 @@ func customRuleSetFromDocument(document ASTDocument) (RuleSet, []Issue) {
 		})
 	}
 
-	label := firstNonEmpty(meta.Values["rule_label"], meta.Values["title"], labelFromRuleID(id))
+	label := firstNonEmpty(frontmatterString(meta, "rule_label"), frontmatterString(meta, "title"), labelFromRuleID(id))
 	return RuleSet{
 		ID:             id,
 		Label:          label,
 		Summary:        summary,
 		Rules:          rules,
-		ReviewPrompt:   strings.TrimSpace(meta.Values["rule_review_prompt"]),
-		ReviewEvidence: parseFlowStringList(meta.Values["rule_review_evidence"]),
+		ReviewPrompt:   frontmatterString(meta, "rule_review_prompt"),
+		ReviewEvidence: frontmatterStringList(meta, "rule_review_evidence"),
 	}, issues
 }
 

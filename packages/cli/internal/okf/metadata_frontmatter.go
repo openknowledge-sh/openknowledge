@@ -5,22 +5,22 @@ import (
 	"strings"
 )
 
-func bundleMetadataFromFrontmatter(values map[string]string) BundleMetadata {
+func bundleMetadataFromFrontmatter(frontmatter ASTFrontmatter) BundleMetadata {
 	metadata := BundleMetadata{
-		Name:    strings.TrimSpace(values["okf_bundle_name"]),
-		Title:   strings.TrimSpace(values["okf_bundle_title"]),
-		Purpose: strings.TrimSpace(values["okf_bundle_purpose"]),
-		Tags:    parseFlowStringList(values["okf_bundle_tags"]),
+		Name:    frontmatterString(frontmatter, "okf_bundle_name"),
+		Title:   frontmatterString(frontmatter, "okf_bundle_title"),
+		Purpose: frontmatterString(frontmatter, "okf_bundle_purpose"),
+		Tags:    frontmatterStringList(frontmatter, "okf_bundle_tags"),
 	}
 
-	for key, value := range values {
+	for key := range frontmatter.Keys {
 		name, ok := strings.CutPrefix(key, "okf_bundle_entry_")
 		if !ok || strings.TrimSpace(name) == "" {
 			continue
 		}
 		metadata.Entries = append(metadata.Entries, BundleEntry{
 			Name: strings.TrimSpace(name),
-			Path: strings.TrimSpace(value),
+			Path: frontmatterString(frontmatter, key),
 		})
 	}
 	sort.Slice(metadata.Entries, func(i, j int) bool {

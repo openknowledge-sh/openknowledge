@@ -60,13 +60,13 @@ Built-in templates:
 | `release-check` | Manually check tests, docs, changelog memory, and wiki validation before a release. |
 | `custom` | Blank starting point for a project-specific scheduled agent. |
 
-Use `openknowledge agents new --reference` to print the supported nested
-frontmatter fields, template variables, run lifecycle, and output artifact
-layout without creating a job file.
+Use `openknowledge agents new --reference` to print the supported job schema,
+template variables, run lifecycle, and output artifact layout without creating
+a job file.
 
 ## Job Format
 
-Agent jobs are Markdown files with one nested frontmatter block:
+Agent jobs are Markdown files with one YAML frontmatter mapping:
 
 ```md
 ---
@@ -103,6 +103,10 @@ Audit the CLI docs against the implementation.
 End with COMPLETE.
 ```
 
+Agent jobs use the shared OKF YAML parser. Normal YAML mapping and sequence
+syntax is accepted, but only the fields and value types listed below belong to
+the agent-job schema. Complete YAML syntax support does not widen that schema.
+
 Supported top-level fields:
 
 | Field | Description |
@@ -133,8 +137,8 @@ template catalog. With a template id and no `--out`, it prints the template
 Markdown. With `--out`, it writes a new job file and prints follow-up
 `validate` and `run --dry-run` commands.
 
-`agents validate` parses the frontmatter and checks the job schema without
-running an agent or touching Git worktrees.
+`agents validate` decodes the YAML frontmatter and then checks the documented
+job schema without running an agent or touching Git worktrees.
 
 `agents run --dry-run` resolves the job into a JSON run plan. The plan includes
 the stable run id, repository root, base SHA, branch name, worktree path,
@@ -181,6 +185,12 @@ feature is marked experimental.
 
 ## Command Change History
 
+### 2026-07-15 - Shared YAML parser
+
+Agent jobs now use the same complete YAML parser as OKF documents. The accepted
+job fields and value types remain limited to the documented experimental job
+schema.
+
 ### 2026-07-15 - Subcommand-specific help
 
 `openknowledge agents new|list|validate|run|daemon --help` now prints the
@@ -212,7 +222,7 @@ executors, writes run records, and runs verification commands.
 > * `packages/cli/internal/agents/`
 > * `packages/cli/internal/agents/templates.go`
 > * `packages/cli/internal/okf/frontmatter.go`
-> * `packages/cli/internal/okf/frontmatter_structured.go`
+> * `packages/cli/internal/okf/frontmatter_yaml.go`
 > * `packages/cli/cmd/openknowledge/agents_command_test.go`
 > * `packages/cli/internal/okf/frontmatter_test.go`
 >

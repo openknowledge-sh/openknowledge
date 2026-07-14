@@ -33,7 +33,7 @@ func viewerFrontmatterHTMLForFile(root string, file okf.BundleFile) (template.HT
 	if parseErr != nil || len(data) == 0 {
 		data = viewerFrontmatterScalarData(document.Values)
 		if len(data) == 0 {
-			data = viewerFrontmatterScalarData(file.Frontmatter)
+			data = file.Frontmatter
 		}
 		fallback = parseErr != nil
 	}
@@ -68,6 +68,11 @@ func viewerFrontmatterScalarData(values map[string]string) map[string]any {
 		data[key] = value
 	}
 	return data
+}
+
+func viewerFrontmatterString(values map[string]any, key string) string {
+	value, _ := values[key].(string)
+	return strings.TrimSpace(value)
 }
 
 func viewerFrontmatterTopLevelOrder(content string, data map[string]any) []string {

@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Typed YAML frontmatter parsing
+
+* Replaced the separate lightweight scalar and structured-subset frontmatter
+  paths with one shared standard YAML parser for OKF validation, AST output,
+  normalized JSON, viewer metadata, and experimental agent jobs.
+* Invalid YAML at any nesting depth and non-mapping roots are now parse errors.
+  Valid nested mappings and sequences, flow collections, block scalars, and
+  typed scalar values are preserved instead of flattened or rejected as an
+  unsupported subset.
+* AST output exposes typed values in `frontmatter.data` alongside the compatible
+  scalar `frontmatter.values` projection. Normalized JSON exposes typed values
+  directly in each file's `frontmatter` object.
+* Source anchors: `packages/cli/internal/okf/frontmatter.go`,
+  `packages/cli/internal/okf/frontmatter_yaml.go`,
+  `packages/cli/internal/okf/ast_frontmatter_types.go`,
+  `packages/cli/internal/okf/bundle_types.go`,
+  `packages/cli/internal/agents/spec.go`, and
+  `packages/cli/cmd/openknowledge/viewer_frontmatter.go`.
+* Docs updated: `README.md`, `Wiki/features/spec-compliance.md`,
+  `Wiki/features/commands/validate.md`, `Wiki/features/commands/ast.md`,
+  `Wiki/features/exporters/json.md`, `Wiki/features/commands/view.md`,
+  `Wiki/features/commands/agents.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Nested agent command help
 
 * Fixed `openknowledge agents new|list|validate|run|daemon --help` so each form

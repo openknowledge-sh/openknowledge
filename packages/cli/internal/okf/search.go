@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"fmt"
 	"math"
 	"path/filepath"
 	"sort"
@@ -45,7 +46,7 @@ func SearchIndexFromAST(bundle ASTBundle) SearchIndex {
 
 func searchDocumentFromASTDocument(document ASTDocument) searchDocument {
 	metadata := document.Metadata
-	frontmatter := document.Frontmatter.Values
+	var frontmatter any = document.Frontmatter.Data
 	if document.FrontmatterDiagnostic != nil {
 		metadata = ASTDocumentMetadata{}
 		frontmatter = nil
@@ -79,7 +80,7 @@ func searchDocumentFromBundleFile(file BundleFile) searchDocument {
 	)
 }
 
-func newSearchDocument(path string, id string, kind string, documentType string, title string, description string, body string, headings string, frontmatter map[string]string) searchDocument {
+func newSearchDocument(path string, id string, kind string, documentType string, title string, description string, body string, headings string, frontmatter any) searchDocument {
 	document := searchDocument{
 		path:         path,
 		id:           id,
@@ -320,21 +321,42 @@ func foldSearchRune(r rune) rune {
 	return r
 }
 
-func frontmatterSearchText(values map[string]string) string {
-	if len(values) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
+func frontmatterSearchText(value any) string {
 	var parts []string
-	for _, key := range keys {
-		parts = append(parts, key, values[key])
-	}
+	appendFrontmatterSearchText(&parts, value)
 	return strings.Join(parts, " ")
+}
+
+func appendFrontmatterSearchText(parts *[]string, value any) {
+	switch typed := value.(type) {
+	case map[string]string:
+		keys := make([]string, 0, len(typed))
+		for key := range typed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			*parts = append(*parts, key, typed[key])
+		}
+	case map[string]any:
+		keys := make([]string, 0, len(typed))
+		for key := range typed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			*parts = append(*parts, key)
+			appendFrontmatterSearchText(parts, typed[key])
+		}
+	case []any:
+		for _, item := range typed {
+			appendFrontmatterSearchText(parts, item)
+		}
+	case nil:
+		return
+	default:
+		*parts = append(*parts, fmt.Sprint(typed))
+	}
 }
 
 func searchSnippet(document searchDocument, terms []string) string {

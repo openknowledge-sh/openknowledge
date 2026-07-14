@@ -51,7 +51,7 @@ func bundleFile(document ASTDocument, issues []Issue) BundleFile {
 		Title:       summary.Title,
 		Description: summary.Description,
 		Resource:    summary.Resource,
-		Frontmatter: document.Frontmatter.Values,
+		Frontmatter: copyAnyMap(document.Frontmatter.Data),
 		Body:        document.Body,
 		Links:       document.Links,
 		Issues:      issues,

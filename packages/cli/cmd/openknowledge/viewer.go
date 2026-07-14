@@ -2336,7 +2336,7 @@ func viewerKnowledgeBaseNameFromFiles(files []okf.BundleFile, fallback string) s
 			continue
 		}
 		for _, key := range []string{"okf_bundle_title", "okf_bundle_name", "title"} {
-			if name := strings.TrimSpace(file.Frontmatter[key]); name != "" {
+			if name := viewerFrontmatterString(file.Frontmatter, key); name != "" {
 				return name
 			}
 		}

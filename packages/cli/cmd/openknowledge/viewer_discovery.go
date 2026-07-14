@@ -111,7 +111,7 @@ func viewerDiscoveryPages(files []okf.BundleFile, siteConfig viewerSiteConfig) [
 }
 
 func viewerDiscoveryTitle(file okf.BundleFile) string {
-	if title := strings.TrimSpace(file.Frontmatter["title"]); title != "" {
+	if title := viewerFrontmatterString(file.Frontmatter, "title"); title != "" {
 		return title
 	}
 	if heading := firstMarkdownHeading(file.Body); heading != "" {
@@ -129,7 +129,7 @@ func viewerKnowledgeBaseSummaryFromFiles(files []okf.BundleFile) string {
 			continue
 		}
 		for _, key := range []string{"okf_bundle_purpose", "description"} {
-			if summary := strings.TrimSpace(file.Frontmatter[key]); summary != "" {
+			if summary := viewerFrontmatterString(file.Frontmatter, key); summary != "" {
 				return summary
 			}
 		}

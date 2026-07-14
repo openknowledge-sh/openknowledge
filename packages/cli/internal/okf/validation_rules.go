@@ -23,7 +23,7 @@ func validateFrontmatterFormatting(rel string, meta ASTFrontmatter, result *Resu
 func validateIndex(rel string, meta ASTFrontmatter, result *Result) {
 	if strings.EqualFold(rel, "index.md") {
 		if meta.Has {
-			if version := meta.Values["okf_version"]; version != "" && version != result.SpecVersion {
+			if version := frontmatterString(meta, "okf_version"); version != "" && version != result.SpecVersion {
 				result.Warnings = append(result.Warnings, Issue{Path: rel, Line: 1, Rule: "okf-version", Message: fmt.Sprintf("declares okf_version %q, validating against %s", version, result.SpecVersion)})
 			}
 		}
@@ -66,7 +66,7 @@ func validateConcept(rel string, meta ASTFrontmatter, result *Result) {
 		return
 	}
 
-	if meta.Values["type"] == "" {
+	if frontmatterString(meta, "type") == "" {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-type", Message: "concept frontmatter must include non-empty type"})
 	}
 }

@@ -131,9 +131,9 @@ The JSON report includes:
 * The target cannot be read as a bundle directory.
 * A Markdown file cannot be read.
 * A Markdown file is not valid UTF-8.
-* Frontmatter starts but cannot be parsed, for example an unclosed block, a
-  malformed top-level key, missing `key: value` spacing for a scalar, unclosed
-  quotes, or unclosed flow `[]` / `{}` values.
+* Frontmatter cannot be decoded as one YAML mapping, for example because of
+  malformed indentation, an unclosed quoted or flow value, an invalid nested
+  collection, a tab used for indentation, or a non-mapping document root.
 * A concept document is missing YAML frontmatter or has an empty `type`.
 * A non-root `index.md` uses frontmatter other than optional `okf_publish`
   metadata.
@@ -151,14 +151,16 @@ The JSON report includes:
 * A local Markdown link points outside the bundle root or to a missing target.
   Directory links must resolve to an `index.md` in that directory.
 * Frontmatter is parseable but not cleanly formatted, such as delimiter
-  whitespace, tab indentation, or duplicate top-level keys.
+  whitespace or duplicate mapping keys. For duplicates, the later value wins.
 * Markdown body syntax looks malformed: unclosed inline code spans, missing
   closing `)` in links, empty link labels or targets, table separator column
   count mismatches, or unclosed fenced code blocks.
 
-The frontmatter parser is intentionally lightweight. It extracts top-level
-scalar keys for OKF validation and skips nested YAML lines or sequence items
-instead of enforcing a complete YAML schema.
+Frontmatter is decoded as one YAML mapping. Nested mappings and sequences,
+block and flow collections, quoted and block scalars, booleans, numbers, and
+null values are parsed before the validator reads the OKF metadata fields. A
+syntax error at any nesting depth, or a non-mapping YAML root, is a
+`frontmatter` error.
 
 `openknowledge validate` checks custom maintenance rules and `[rules]`
 configuration structurally, not semantically. Use `openknowledge review rules`
@@ -224,6 +226,13 @@ as machine-readable JSON:
 
 ## Command Change History
 
+### 2026-07-15 - Complete YAML frontmatter parsing
+
+`openknowledge validate` now parses the complete YAML mapping, including
+nested and flow collections and block scalars. YAML syntax errors at any
+nesting depth are `frontmatter` errors; OKF validation continues to derive its
+required fields from the top-level mapping.
+
 ### 2026-07-07
 
 `openknowledge validate` added deterministic `rule-catalog` checks for custom
@@ -243,6 +252,7 @@ rule documents and `[rules]` configuration in `openknowledge.toml`.
 >
 > * `packages/cli/internal/okf/validate.go`
 > * `packages/cli/internal/okf/ast_validate.go`
+> * `packages/cli/internal/okf/frontmatter_yaml.go`
 > * `packages/cli/internal/okf/rule_catalog.go`
 > * `packages/cli/internal/okf/validation_checks.go`
 > * `packages/cli/internal/okf/validation_policy.go`

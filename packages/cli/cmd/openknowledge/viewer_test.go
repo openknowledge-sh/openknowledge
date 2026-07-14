@@ -510,18 +510,19 @@ Typed metadata stays visible.
 	}
 }
 
-func TestViewerFrontmatterFallsBackWithoutHidingMarkdown(t *testing.T) {
+func TestViewerFrontmatterRendersFlowMappingsWithoutHidingMarkdown(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nconfig: {mode: fast}\n---\n\n# Home\n\nStill readable.\n")
 
 	page := getViewerBody(t, newViewerHandler(root), "/file/index.md")
-	if !strings.Contains(page, "Structured preview is unavailable for this YAML subset") ||
+	if strings.Contains(page, "Structured preview is unavailable") ||
 		!strings.Contains(page, `<code>config</code>`) ||
-		!strings.Contains(page, `{mode: fast}`) {
-		t.Fatalf("viewer should fall back to compatible scalar frontmatter:\n%s", page)
+		!strings.Contains(page, `<code>mode</code>`) ||
+		!strings.Contains(page, `>fast</span>`) {
+		t.Fatalf("viewer should render structured flow-mapping frontmatter:\n%s", page)
 	}
 	if !strings.Contains(page, "<h1>Home</h1>") || !strings.Contains(page, "Still readable.") {
-		t.Fatalf("frontmatter fallback should not hide the markdown body:\n%s", page)
+		t.Fatalf("frontmatter rendering should not hide the markdown body:\n%s", page)
 	}
 }
 

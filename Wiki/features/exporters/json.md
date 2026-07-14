@@ -9,7 +9,7 @@ timestamp: 2026-06-18T00:00:00Z
 # JSON Exporter
 
 The JSON exporter serializes a normalized bundle model. It includes file
-metadata, frontmatter scalar values, Markdown body content, links, and
+metadata, typed YAML frontmatter values, Markdown body content, links, and
 validation issues.
 
 ## Command
@@ -39,6 +39,11 @@ Link entries include their kind, source line, local target path and ID, and
 whether the target exists. Directory links are marked existing when they resolve
 to an `index.md` file in that directory.
 
+Each file's `frontmatter` preserves YAML mappings and sequences as JSON objects
+and arrays, scalar types as JSON-compatible values, and block scalar content as
+strings. Export no longer flattens nested values or substitutes YAML syntax
+markers such as `|` for decoded content.
+
 ## Use Cases
 
 * Feed bundle content to tools and agents.
@@ -52,6 +57,7 @@ to an `index.md` file in that directory.
 > **Source anchors**
 >
 > * `packages/cli/internal/okf/bundle.go`
+> * `packages/cli/internal/okf/bundle_types.go`
 > * `packages/cli/internal/okf/export_test.go`
 > * `packages/cli/cmd/openknowledge/main.go`
 >

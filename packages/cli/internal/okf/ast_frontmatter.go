@@ -19,6 +19,7 @@ func astFrontmatterFromParse(meta frontmatter) ASTFrontmatter {
 	return ASTFrontmatter{
 		Has:      meta.has,
 		Values:   values,
+		Data:     copyAnyMap(meta.data),
 		Keys:     keys,
 		Warnings: warnings,
 		BodyLine: meta.bodyLine,

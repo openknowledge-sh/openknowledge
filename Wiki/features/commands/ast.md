@@ -116,7 +116,7 @@ Each `documents[]` item contains the main pieces the CLI derives from a file:
 | Field | Use it to inspect |
 | --- | --- |
 | `rel`, `id`, `kind`, `reserved` | Which file was parsed and how the CLI classified it. |
-| `frontmatter` | Raw parsed top-level frontmatter values and formatting warnings. |
+| `frontmatter` | Frontmatter presence, typed YAML `data`, compatible scalar `values`, body-line metadata, formatting warnings, and any parser diagnostic. |
 | `metadata` | Derived fields such as `type`, `title`, and `description`. |
 | `body` | Markdown content after frontmatter. |
 | `markdown` | Parsed Markdown blocks, sections, headings, links, code blocks, and syntax diagnostics. |
@@ -129,6 +129,12 @@ used by rendering and diagnostics. Search, context, link resolution,
 validation, bundle generation, and HTML rendering consume this parsed model or
 projections derived from it instead of each command inventing its own Markdown
 parse.
+
+`frontmatter.data` preserves YAML mappings and sequences as JSON objects and
+arrays, scalar types as JSON-compatible values, and block scalars as strings.
+The compatible `frontmatter.values` projection remains for existing consumers
+that only need top-level scalar metadata. Invalid YAML is reported through
+`frontmatterDiagnostic` instead of being silently flattened.
 
 When `--out` is omitted, JSON is written to stdout. When `--out` is present,
 the command writes the JSON file and prints a short success summary.
@@ -161,6 +167,15 @@ contracts.
 The command does not modify the knowledge base. The only write side effect is
 the file passed to `--out`.
 
+## Command Change History
+
+### 2026-07-15 - Typed YAML frontmatter
+
+AST frontmatter gained a typed `data` tree alongside the compatible flat
+`values` projection. Nested mappings and sequences, scalar types, flow
+collections, and block scalar content are now preserved, and invalid nested
+YAML produces a parser diagnostic.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -170,6 +185,7 @@ the file passed to `--out`.
 > * `packages/cli/cmd/openknowledge/ast_command.go`
 > * `packages/cli/internal/okf/ast_bundle_parse.go`
 > * `packages/cli/internal/okf/ast_document_types.go`
+> * `packages/cli/internal/okf/ast_frontmatter_types.go`
 > * `packages/cli/internal/okf/ast_markdown_types.go`
 >
 > **Update notes**

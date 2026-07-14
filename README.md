@@ -330,7 +330,7 @@ Nested agent commands also support
 | `openknowledge review rules [path]` | Print an advisory AI review prompt for maintenance rules. |
 | `openknowledge agents new` | Experimental: list built-in local agent job templates. |
 | `openknowledge agents new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
-| `openknowledge agents new --reference` | Experimental: print the supported nested frontmatter syntax. |
+| `openknowledge agents new --reference` | Experimental: print the supported agent-job schema. |
 | `openknowledge agents list [path]` | Experimental: list Markdown agent job specs. |
 | `openknowledge agents validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
 | `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |

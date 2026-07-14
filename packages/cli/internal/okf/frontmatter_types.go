@@ -1,13 +1,12 @@
 package okf
 
 type frontmatter struct {
-	has           bool
-	values        map[string]string
-	keys          map[string]struct{}
-	data          map[string]any
-	warnings      []frontmatterWarning
-	bodyLine      int
-	structuredErr error
+	has      bool
+	values   map[string]string
+	keys     map[string]struct{}
+	data     map[string]any
+	warnings []frontmatterWarning
+	bodyLine int
 }
 
 type frontmatterWarning struct {

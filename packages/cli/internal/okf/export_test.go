@@ -1,8 +1,10 @@
 package okf
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -64,6 +66,39 @@ func TestParseBundleTrimsMarkdownExtensionIDs(t *testing.T) {
 	guide := bundleFileByPath(t, bundle, "guide.markdown")
 	if guide.ID != "guide" {
 		t.Fatalf("expected .markdown ID to trim extension, got %q", guide.ID)
+	}
+}
+
+func TestParseBundlePreservesTypedFrontmatter(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\ndescription: |-\n  First line.\n  Second line.\nconfig: {mode: fast, retries: 2}\ntags: [docs, cli]\nenabled: false\n---\n\n# Guide\n")
+
+	bundle, err := ParseBundle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	guide := bundleFileByPath(t, bundle, "guide.md")
+	if guide.Description != "First line.\nSecond line." {
+		t.Fatalf("expected decoded block-scalar metadata, got %q", guide.Description)
+	}
+	config, ok := guide.Frontmatter["config"].(map[string]any)
+	if !ok || config["mode"] != "fast" || config["retries"] != 2 {
+		t.Fatalf("expected typed nested frontmatter, got %#v", guide.Frontmatter)
+	}
+	tags, ok := guide.Frontmatter["tags"].([]any)
+	if !ok || !reflect.DeepEqual(tags, []any{"docs", "cli"}) || guide.Frontmatter["enabled"] != false {
+		t.Fatalf("expected typed sequence and boolean, got %#v", guide.Frontmatter)
+	}
+
+	payload, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{`"config":{"mode":"fast","retries":2}`, `"tags":["docs","cli"]`, `"enabled":false`} {
+		if !strings.Contains(string(payload), expected) {
+			t.Fatalf("normalized JSON must preserve typed frontmatter %s: %s", expected, payload)
+		}
 	}
 }
 

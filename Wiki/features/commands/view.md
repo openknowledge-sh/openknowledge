@@ -117,9 +117,10 @@ Press Ctrl+C to stop.
   Top-level `tags` chips are navigable facets: selecting one opens the existing
   search surface with exact same-tag matches from other notes, rather than
   fuzzy body-text matches.
-  The structured preview follows the YAML subset supported by the OKF
-  frontmatter parser and falls back to compatible scalar values without hiding
-  the Markdown body.
+  The inspector consumes the same typed YAML mapping as the shared OKF parser,
+  so valid nested mappings and sequences, flow collections, and block scalars
+  retain their structure and content. Invalid frontmatter is surfaced by
+  validation without hiding the Markdown body.
 * HTML comments are not rendered as visible text. The
   `<!-- okf-footer: agent-maintenance -->` marker turns the remaining document
   content into a visually subdued maintenance footer.
@@ -177,6 +178,12 @@ Press Ctrl+C to stop.
 
 ## Command Change History
 
+### 2026-07-15 - Complete YAML frontmatter inspector
+
+The frontmatter inspector now uses the shared complete YAML parser. Valid block
+scalars, flow mappings, and nested collections render from typed data instead
+of falling back because of parser-subset limitations.
+
 ### 2026-07-06
 
 `openknowledge view` replaced the previous viewer command name as the clean
@@ -202,6 +209,7 @@ pre-1.0 API. The command owns the interactive local application, while
 > * `packages/cli/internal/okf/search_types.go`
 > * `packages/cli/internal/okf/markdown.go`
 > * `packages/cli/internal/okf/markdown_test.go`
+> * `packages/cli/internal/okf/frontmatter_yaml.go`
 >
 > **Update notes**
 >
