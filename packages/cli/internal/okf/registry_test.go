@@ -2,8 +2,12 @@ package okf
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sync"
 	"testing"
 )
 
@@ -176,5 +180,116 @@ func TestRegistrySavesPathKeyedConnections(t *testing.T) {
 	}
 	if connection.Name != entry.Name || connection.Source.URL != source.URL || !connection.Managed {
 		t.Fatalf("unexpected stored connection: %#v", connection)
+	}
+}
+
+func TestRemoveRegistryEntryRequireManagedIsTransactional(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+
+	root := t.TempDir()
+	entry, _, err := ConnectRegistryEntry("personal", root, "read", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok, err := RemoveRegistryEntryWithOptions("personal", RemoveRegistryOptions{RequireManaged: true}); err == nil || ok {
+		t.Fatalf("expected managed-only removal to refuse local entry, ok=%t err=%v", ok, err)
+	}
+	remaining, ok, err := ResolveRegistryEntry("personal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || remaining != entry {
+		t.Fatalf("expected refused entry to remain unchanged, ok=%t entry=%#v", ok, remaining)
+	}
+}
+
+func TestRegistryConcurrentProcessesPreserveEveryConnection(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+	const processCount = 16
+
+	commands := make([]*exec.Cmd, 0, processCount)
+	for index := 0; index < processCount; index++ {
+		root := filepath.Join(t.TempDir(), "bundle")
+		if err := os.Mkdir(root, 0700); err != nil {
+			t.Fatal(err)
+		}
+		command := exec.Command(os.Args[0], "-test.run=^TestRegistryConnectHelper$")
+		command.Env = append(os.Environ(),
+			"OPENKNOWLEDGE_REGISTRY_TEST_HELPER=1",
+			RegistryFileEnv+"="+registryFile,
+			fmt.Sprintf("OPENKNOWLEDGE_REGISTRY_TEST_NAME=bundle-%02d", index),
+			"OPENKNOWLEDGE_REGISTRY_TEST_PATH="+root,
+		)
+		commands = append(commands, command)
+	}
+
+	var waitGroup sync.WaitGroup
+	errors := make(chan error, processCount)
+	for _, command := range commands {
+		waitGroup.Add(1)
+		go func(command *exec.Cmd) {
+			defer waitGroup.Done()
+			if output, err := command.CombinedOutput(); err != nil {
+				errors <- fmt.Errorf("helper failed: %w\n%s", err, output)
+			}
+		}(command)
+	}
+	waitGroup.Wait()
+	close(errors)
+	for err := range errors {
+		t.Error(err)
+	}
+	if t.Failed() {
+		return
+	}
+
+	content, err := os.ReadFile(registryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored Registry
+	if err := json.Unmarshal(content, &stored); err != nil {
+		t.Fatalf("registry must remain valid JSON: %v\n%s", err, content)
+	}
+	entries, err := RegistryEntries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != processCount {
+		t.Fatalf("expected %d concurrent entries, got %d: %#v", processCount, len(entries), entries)
+	}
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(registryFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if permissions := info.Mode().Perm(); permissions != 0600 {
+			t.Fatalf("expected owner-only registry permissions, got %04o", permissions)
+		}
+	}
+
+	matches, err := filepath.Glob(registryFile + "*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, match := range matches {
+		if match != registryFile && match != registryFile+".lock" {
+			t.Fatalf("unexpected registry temporary file left behind: %s", match)
+		}
+	}
+}
+
+func TestRegistryConnectHelper(t *testing.T) {
+	if os.Getenv("OPENKNOWLEDGE_REGISTRY_TEST_HELPER") != "1" {
+		return
+	}
+	name := os.Getenv("OPENKNOWLEDGE_REGISTRY_TEST_NAME")
+	path := os.Getenv("OPENKNOWLEDGE_REGISTRY_TEST_PATH")
+	if _, _, err := ConnectRegistryEntry(name, path, "read", true); err != nil {
+		t.Fatal(err)
 	}
 }

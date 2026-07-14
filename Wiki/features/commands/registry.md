@@ -54,6 +54,10 @@ openknowledge registry --help
 Registry entries are stored as JSON under the user config directory at
 `openknowledge/registry.json`. Set `OPENKNOWLEDGE_REGISTRY_FILE` to use a
 specific registry file, which is useful in tests and isolated agent runs.
+Mutations take an inter-process lock and replace the registry atomically, so
+parallel CLI or agent processes cannot discard one another's connections and
+readers never observe a partially written JSON document. Registry and lock
+files use owner-only permissions.
 
 `registry connect` expands `~`, resolves the target to an absolute path,
 requires it to be an existing directory, derives or accepts a key, reads
@@ -109,10 +113,10 @@ They share parsing, output, and exit-code behavior.
 ## Storage
 
 Registry storage is path-keyed under `connections`. Entries store the stable
-key, display name, optional access label, optional source metadata, and whether
-the files are CLI-managed. Local connections normally leave `managed` unset;
-remote manifest, tar, and Git connections are marked managed because their
-files live in the Open Knowledge cache.
+key, optional access label, optional source metadata, and whether the files are
+CLI-managed. Local connections normally leave `managed` unset; remote manifest,
+tar, and Git connections are marked managed because their files live in the
+Open Knowledge cache.
 
 Bundle metadata such as purpose, tags, and entrypoints remains in bundle
 content as `okf_bundle_*` root metadata.
@@ -121,6 +125,15 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Atomic concurrent registry updates
+
+Registry mutations now use both in-process and cross-process locking, load one
+consistent snapshot, and atomically replace the owner-only registry file.
+Managed-file deletion eligibility is checked inside the same removal
+transaction. Source anchors: `packages/cli/internal/okf/registry.go`,
+`packages/cli/internal/okf/registry_test.go`, and
+`packages/cli/cmd/openknowledge/main.go`.
 
 ### 2026-07-15 - Positional-first connection flags
 

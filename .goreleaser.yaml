@@ -29,7 +29,7 @@ archives:
       - LICENSE
       - README.md
       - THIRD_PARTY_NOTICES.md
-      - third_party/licenses/GoogleCloudPlatform-knowledge-catalog-Apache-2.0.txt
+      - third_party/licenses/*
 
 checksum:
   name_template: checksums.txt

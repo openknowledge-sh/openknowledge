@@ -1484,21 +1484,7 @@ func runDisconnect(args []string, command string) int {
 	}
 
 	target := fs.Arg(0)
-	entry, ok, err := okf.ResolveRegistryTarget(target)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	if !ok {
-		printUnknownConnection(target)
-		return 1
-	}
-	if *deleteFilesFlag && !entry.Managed {
-		fmt.Fprintf(os.Stderr, "refusing to delete non-managed files: %s\n", entry.Path)
-		return 1
-	}
-
-	entry, ok, err = okf.RemoveRegistryEntry(target)
+	entry, ok, err := okf.RemoveRegistryEntryWithOptions(target, okf.RemoveRegistryOptions{RequireManaged: *deleteFilesFlag})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1

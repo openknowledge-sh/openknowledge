@@ -51,8 +51,10 @@ argument. Top-level and `registry disconnect` forms use the same parsing.
 After resolution, the command removes the registry entry and prints the key,
 path, and file action. Default and `--keep-files` output uses `files kept`.
 
-`--delete-files` fails before unregistering when the matched entry is not
-marked managed. If a CLI-managed clone is removed from the registry but file
+`--delete-files` checks the matched entry's managed status and unregisters it
+inside one locked registry transaction. A refused non-managed entry therefore
+remains registered even when other processes are connecting or disconnecting
+at the same time. If a CLI-managed clone is removed from the registry but file
 deletion fails, the command leaves the registry update in place, prints a
 warning, and exits with status `1`.
 
@@ -73,6 +75,15 @@ files  kept
 ```
 
 ## Command Change History
+
+### 2026-07-15 - Transactional managed-file guard
+
+The `--delete-files` managed check and registry removal now operate on one
+locked registry snapshot, preventing a concurrent key or path change from
+causing deletion of files that were never approved as CLI-managed. Source
+anchors: `packages/cli/internal/okf/registry.go`,
+`packages/cli/internal/okf/registry_test.go`, and
+`packages/cli/cmd/openknowledge/main.go`.
 
 ### 2026-07-15 - Positional-first flags
 

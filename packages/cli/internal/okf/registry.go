@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,11 +9,20 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/gofrs/flock"
+	"github.com/natefinch/atomic"
 )
 
 const RegistryFileEnv = "OPENKNOWLEDGE_REGISTRY_FILE"
 
 var registryNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+// registryProcessLock complements the filesystem lock. Some operating systems
+// scope advisory locks to a process instead of an individual file descriptor,
+// so independent goroutines must also serialize registry transactions.
+var registryProcessLock sync.Mutex
 
 type Registry struct {
 	Connections map[string]RegistryConnection `json:"connections,omitempty"`
@@ -38,6 +48,10 @@ type RegistrySource struct {
 	Type string `json:"type,omitempty"`
 	URL  string `json:"url,omitempty"`
 	Ref  string `json:"ref,omitempty"`
+}
+
+type RemoveRegistryOptions struct {
+	RequireManaged bool
 }
 
 func RegistryFile() (string, error) {
@@ -111,53 +125,49 @@ func ConnectRegistryEntryWithSource(name string, path string, access string, exp
 		return RegistryEntry{}, "", err
 	}
 
-	registry, err := LoadRegistry()
+	var connected RegistryEntry
+	warning := ""
+	err = mutateRegistry(func(registry *Registry) (bool, error) {
+		if index := registryEntryIndexByPath(registry.Entries, absolute); index >= 0 {
+			entry := registry.Entries[index]
+			if explicitName && entry.Name != name {
+				if existing := registryEntryIndexByName(registry.Entries, name); existing >= 0 && registry.Entries[existing].Path != absolute {
+					return false, fmt.Errorf("connection key %q already points to %s", name, registry.Entries[existing].Path)
+				}
+				entry.Name = name
+			}
+			entry.Access = access
+			entry.Managed = source.URL != ""
+			entry.Source = source
+			registry.Entries[index] = entry
+			sortRegistryEntries(registry.Entries)
+			connected = entry
+			return true, nil
+		}
+
+		if explicitName {
+			if existing := registryEntryIndexByName(registry.Entries, name); existing >= 0 {
+				return false, fmt.Errorf("connection key %q already points to %s", name, registry.Entries[existing].Path)
+			}
+		} else {
+			base := name
+			for suffix := 2; registryEntryIndexByName(registry.Entries, name) >= 0; suffix++ {
+				name = fmt.Sprintf("%s-%d", base, suffix)
+			}
+			if name != base {
+				warning = fmt.Sprintf("connection key %q already exists; using %q", base, name)
+			}
+		}
+
+		connected = RegistryEntry{Name: name, Path: absolute, Access: access, Managed: source.URL != "", Source: source}
+		registry.Entries = append(registry.Entries, connected)
+		sortRegistryEntries(registry.Entries)
+		return true, nil
+	})
 	if err != nil {
 		return RegistryEntry{}, "", err
 	}
-
-	if index := registryEntryIndexByPath(registry.Entries, absolute); index >= 0 {
-		entry := registry.Entries[index]
-		if explicitName && entry.Name != name {
-			if existing := registryEntryIndexByName(registry.Entries, name); existing >= 0 && registry.Entries[existing].Path != absolute {
-				return RegistryEntry{}, "", fmt.Errorf("connection key %q already points to %s", name, registry.Entries[existing].Path)
-			}
-			entry.Name = name
-		}
-		entry.Access = access
-		entry.Managed = source.URL != ""
-		entry.Source = source
-		registry.Entries[index] = entry
-		sortRegistryEntries(registry.Entries)
-		if err := saveRegistry(registry); err != nil {
-			return RegistryEntry{}, "", err
-		}
-		return entry, "", nil
-	}
-
-	warning := ""
-	if explicitName {
-		if existing := registryEntryIndexByName(registry.Entries, name); existing >= 0 {
-			return RegistryEntry{}, "", fmt.Errorf("connection key %q already points to %s", name, registry.Entries[existing].Path)
-		}
-	} else {
-		base := name
-		for suffix := 2; registryEntryIndexByName(registry.Entries, name) >= 0; suffix++ {
-			name = fmt.Sprintf("%s-%d", base, suffix)
-		}
-		if name != base {
-			warning = fmt.Sprintf("connection key %q already exists; using %q", base, name)
-		}
-	}
-
-	entry := RegistryEntry{Name: name, Path: absolute, Access: access, Managed: source.URL != "", Source: source}
-	registry.Entries = append(registry.Entries, entry)
-	sortRegistryEntries(registry.Entries)
-
-	if err := saveRegistry(registry); err != nil {
-		return RegistryEntry{}, "", err
-	}
-	return entry, warning, nil
+	return connected, warning, nil
 }
 
 func ResolveRegistryEntry(name string) (RegistryEntry, bool, error) {
@@ -184,6 +194,10 @@ func ResolveRegistryTarget(target string) (RegistryEntry, bool, error) {
 		return RegistryEntry{}, false, err
 	}
 
+	return resolveRegistryTargetIn(registry, target)
+}
+
+func resolveRegistryTargetIn(registry Registry, target string) (RegistryEntry, bool, error) {
 	if !LooksLikePath(target) {
 		if index := registryEntryIndexByName(registry.Entries, target); index >= 0 {
 			return registry.Entries[index], true, nil
@@ -206,25 +220,40 @@ func ResolveRegistryTarget(target string) (RegistryEntry, bool, error) {
 }
 
 func RemoveRegistryEntry(target string) (RegistryEntry, bool, error) {
-	entry, ok, err := ResolveRegistryTarget(target)
-	if err != nil || !ok {
-		return entry, ok, err
+	return RemoveRegistryEntryWithOptions(target, RemoveRegistryOptions{})
+}
+
+func RemoveRegistryEntryWithOptions(target string, options RemoveRegistryOptions) (RegistryEntry, bool, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return RegistryEntry{}, false, fmt.Errorf("connection key or path is required")
 	}
 
-	registry, err := LoadRegistry()
+	var removed RegistryEntry
+	found := false
+	err := mutateRegistry(func(registry *Registry) (bool, error) {
+		entry, ok, err := resolveRegistryTargetIn(*registry, target)
+		if err != nil || !ok {
+			return false, err
+		}
+		if options.RequireManaged && !entry.Managed {
+			return false, fmt.Errorf("refusing to delete non-managed files: %s", entry.Path)
+		}
+
+		index := registryEntryIndexByPath(registry.Entries, entry.Path)
+		if index < 0 {
+			return false, nil
+		}
+		registry.Entries = append(registry.Entries[:index], registry.Entries[index+1:]...)
+		sortRegistryEntries(registry.Entries)
+		removed = entry
+		found = true
+		return true, nil
+	})
 	if err != nil {
 		return RegistryEntry{}, false, err
 	}
-	index := registryEntryIndexByPath(registry.Entries, entry.Path)
-	if index < 0 {
-		return RegistryEntry{}, false, nil
-	}
-	registry.Entries = append(registry.Entries[:index], registry.Entries[index+1:]...)
-	sortRegistryEntries(registry.Entries)
-	if err := saveRegistry(registry); err != nil {
-		return RegistryEntry{}, false, err
-	}
-	return entry, true, nil
+	return removed, found, nil
 }
 
 func ResolveKnowledgeRoot(value string) (string, error) {
@@ -367,12 +396,45 @@ func absoluteDirectory(path string) (string, error) {
 	return absolute, nil
 }
 
+func mutateRegistry(mutate func(*Registry) (bool, error)) (resultErr error) {
+	registryProcessLock.Lock()
+	defer registryProcessLock.Unlock()
+
+	path, err := RegistryFile()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+
+	lock := flock.New(path+".lock", flock.SetPermissions(0600))
+	if err := lock.Lock(); err != nil {
+		return fmt.Errorf("lock registry: %w", err)
+	}
+	defer func() {
+		if err := lock.Close(); err != nil && resultErr == nil {
+			resultErr = fmt.Errorf("unlock registry: %w", err)
+		}
+	}()
+
+	registry, err := LoadRegistry()
+	if err != nil {
+		return err
+	}
+	changed, err := mutate(&registry)
+	if err != nil || !changed {
+		return err
+	}
+	return saveRegistry(registry)
+}
+
 func saveRegistry(registry Registry) error {
 	path, err := RegistryFile()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
 	}
 
@@ -382,7 +444,13 @@ func saveRegistry(registry Registry) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0644)
+	if err := os.Chmod(path, 0600); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := atomic.WriteFile(path, bytes.NewReader(data)); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0600)
 }
 
 func normalizeRegistry(registry Registry) Registry {

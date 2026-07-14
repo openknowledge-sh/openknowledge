@@ -14,6 +14,26 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Atomic concurrent registry updates
+
+* Serialized registry mutations across goroutines and processes, loaded one
+  snapshot per transaction, and atomically replaced the JSON file so parallel
+  connects and disconnects cannot lose entries or expose partial content.
+* Restricted registry and lock files to owner-only permissions and added a
+  cross-process regression test covering 16 simultaneous connections, valid
+  JSON, complete entry retention, and temporary-file cleanup.
+* Moved the `disconnect --delete-files` managed-entry guard inside the removal
+  transaction so a concurrent registry change cannot redirect deletion toward
+  non-managed files.
+* Added complete third-party license notices to source, release archives, and
+  the npm wrapper for the cross-platform locking and replacement libraries.
+* Source anchors: `packages/cli/internal/okf/registry.go`,
+  `packages/cli/internal/okf/registry_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`, `.goreleaser.yaml`, and
+  `THIRD_PARTY_NOTICES.md`.
+* Docs updated: `Wiki/features/commands/registry.md`,
+  `Wiki/features/commands/disconnect.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Unified release versions and npm publishing
 
 * Made the root `package.json` the release-version source of truth and aligned
