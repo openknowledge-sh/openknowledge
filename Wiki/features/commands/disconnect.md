@@ -45,6 +45,9 @@ openknowledge disconnect --help
 * unknown targets fail clearly and print available keys when the registry has
   entries.
 
+Disconnect flags may appear before or after the required `<key-or-path>`
+argument. Top-level and `registry disconnect` forms use the same parsing.
+
 After resolution, the command removes the registry entry and prints the key,
 path, and file action. Default and `--keep-files` output uses `files kept`.
 
@@ -70,6 +73,14 @@ files  kept
 ```
 
 ## Command Change History
+
+### 2026-07-15 - Positional-first flags
+
+`openknowledge disconnect` and `openknowledge registry disconnect` now parse
+`--keep-files` and `--delete-files` after `<key-or-path>` as documented while
+continuing to accept flag-first forms. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-06-20
 

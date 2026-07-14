@@ -47,6 +47,10 @@ are normalized when needed.
 root `index.md` metadata, writes or updates the registry entry, then prints a
 validation status unless `--no-validate` is set.
 
+Connection flags may appear before or after the required `<source>` argument.
+The positional-first forms in this page and the equivalent flag-first forms
+share the same behavior.
+
 Remote source handling:
 
 * Open Knowledge manifest URLs are JSON documents with type
@@ -111,6 +115,14 @@ reused when they still validate. See [registry](registry.md) for storage
 details.
 
 ## Command Change History
+
+### 2026-07-15 - Positional-first flags
+
+`openknowledge connect` and `openknowledge registry connect` now parse
+`--as`, `--access`, and `--no-validate` after `<source>` as documented while
+continuing to accept flag-first forms. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-06-20
 

@@ -14,6 +14,21 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Positional connection flags
+
+* Fixed `connect` and `disconnect`, including their `registry` aliases, so
+  documented positional-first forms such as
+  `openknowledge connect ./wiki --as personal` and
+  `openknowledge disconnect personal --delete-files` parse their flags.
+  Flag-first forms remain supported.
+* Added behavioral coverage for both flag orders across the top-level and
+  registry command surfaces.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go` and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/disconnect.md`,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-10 - Published Wiki uses landing-page colors
 
 * Fixed the deployed Wiki theme so its dark preset reliably overrides the

@@ -897,7 +897,7 @@ func runConnect(args []string, command string) int {
 	keyFlag := fs.String("as", "", "connection key")
 	accessFlag := fs.String("access", "read", "connection access: read or write")
 	noValidateFlag := fs.Bool("no-validate", false, "skip validation status")
-	if err := fs.Parse(args); err != nil {
+	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
@@ -1471,7 +1471,7 @@ func runDisconnect(args []string, command string) int {
 	fs.SetOutput(os.Stderr)
 	deleteFilesFlag := fs.Bool("delete-files", false, "delete CLI-managed bundle files")
 	keepFilesFlag := fs.Bool("keep-files", false, "keep bundle files")
-	if err := fs.Parse(args); err != nil {
+	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
@@ -1522,6 +1522,47 @@ func runDisconnect(args []string, command string) int {
 		return 1
 	}
 	return 0
+}
+
+// parseInterspersedFlags preserves flag.FlagSet's parsing rules while allowing
+// registered flags to appear on either side of positional arguments. The
+// standard flag package stops parsing at the first positional argument.
+func parseInterspersedFlags(fs *flag.FlagSet, args []string) error {
+	flags := make([]string, 0, len(args))
+	positionals := make([]string, 0, len(args))
+
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		if arg == "--" {
+			positionals = append(positionals, args[index+1:]...)
+			break
+		}
+		if arg == "-" || !strings.HasPrefix(arg, "-") {
+			positionals = append(positionals, arg)
+			continue
+		}
+
+		flags = append(flags, arg)
+		name := strings.TrimLeft(arg, "-")
+		if equals := strings.IndexByte(name, '='); equals >= 0 {
+			continue
+		}
+		registered := fs.Lookup(name)
+		if registered == nil {
+			continue
+		}
+		if boolean, ok := registered.Value.(interface{ IsBoolFlag() bool }); ok && boolean.IsBoolFlag() {
+			continue
+		}
+		if index+1 < len(args) {
+			index++
+			flags = append(flags, args[index])
+		}
+	}
+
+	reordered := append(flags, "--")
+	reordered = append(reordered, positionals...)
+	return fs.Parse(reordered)
 }
 
 func printUnknownConnection(target string) {

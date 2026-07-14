@@ -67,6 +67,10 @@ then Git fallback.
 by default. `--delete-files` is guarded and only applies to CLI-managed remote
 clones.
 
+Connection and disconnection flags may appear before or after their required
+positional argument. The registry subcommands and their top-level aliases share
+this parsing contract.
+
 `registry list` prints the registry file path and sorted entries.
 
 `registry where` prints only an absolute path. If the value looks like a path,
@@ -117,6 +121,14 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Positional-first connection flags
+
+`registry connect` and `registry disconnect` now accept their documented
+positional-first flag forms while preserving flag-first usage. The top-level
+aliases use the same parser. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-06-20
 

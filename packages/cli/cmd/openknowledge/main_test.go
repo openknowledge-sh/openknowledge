@@ -977,6 +977,126 @@ func TestRunValidateAcceptsRegistryKey(t *testing.T) {
 	}
 }
 
+func TestRunConnectAcceptsFlagsBeforeAndAfterDocumentedSourceArgument(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(root string, key string) int
+	}{
+		{
+			name: "top-level flags after source",
+			run: func(root string, key string) int {
+				return runConnect([]string{root, "--as", key, "--access", "write", "--no-validate"}, "openknowledge connect")
+			},
+		},
+		{
+			name: "top-level flags before source",
+			run: func(root string, key string) int {
+				return runConnect([]string{"--as", key, "--access", "write", "--no-validate", root}, "openknowledge connect")
+			},
+		},
+		{
+			name: "registry flags after source",
+			run: func(root string, key string) int {
+				return runRegistry([]string{"connect", root, "--as", key, "--access", "write", "--no-validate"})
+			},
+		},
+		{
+			name: "registry flags before source",
+			run: func(root string, key string) int {
+				return runRegistry([]string{"connect", "--as", key, "--access", "write", "--no-validate", root})
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeMainTestFile(t, root, "index.md", "# Bundle\n")
+			t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+			key := "personal"
+
+			output, stderr, code := captureMainOutput(t, func() int {
+				return test.run(root, key)
+			})
+			if code != 0 {
+				t.Fatalf("expected connect to accept interspersed flags, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+			}
+			entry, ok, err := okf.ResolveRegistryEntry(key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok || entry.Path != root || entry.Access != "write" {
+				t.Fatalf("unexpected connected entry: %#v", entry)
+			}
+			for _, expected := range []string{"key      personal", "access   write", "status   unknown"} {
+				if !strings.Contains(output, expected) {
+					t.Fatalf("expected connect output to include %q:\n%s", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestRunDisconnectAcceptsFlagsBeforeAndAfterDocumentedTargetArgument(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(key string) int
+	}{
+		{
+			name: "top-level flag after target",
+			run: func(key string) int {
+				return runDisconnect([]string{key, "--delete-files"}, "openknowledge disconnect")
+			},
+		},
+		{
+			name: "top-level flag before target",
+			run: func(key string) int {
+				return runDisconnect([]string{"--delete-files", key}, "openknowledge disconnect")
+			},
+		},
+		{
+			name: "registry flag after target",
+			run: func(key string) int {
+				return runRegistry([]string{"disconnect", key, "--delete-files"})
+			},
+		},
+		{
+			name: "registry flag before target",
+			run: func(key string) int {
+				return runRegistry([]string{"disconnect", "--delete-files", key})
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeMainTestFile(t, root, "index.md", "# Bundle\n")
+			t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+			key := "personal"
+			if _, _, err := okf.ConnectRegistryEntryWithSource(key, root, "read", true, okf.RegistrySource{Type: "git", URL: "https://example.test/bundle.git"}); err != nil {
+				t.Fatal(err)
+			}
+
+			output, stderr, code := captureMainOutput(t, func() int {
+				return test.run(key)
+			})
+			if code != 0 {
+				t.Fatalf("expected disconnect to accept interspersed flags, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+			}
+			if _, err := os.Stat(root); !os.IsNotExist(err) {
+				t.Fatalf("expected managed bundle files to be deleted, stat error: %v", err)
+			}
+			if _, ok, err := okf.ResolveRegistryEntry(key); err != nil || ok {
+				t.Fatalf("expected registry entry to be removed, ok=%t err=%v", ok, err)
+			}
+			if !strings.Contains(output, "files  deleted") {
+				t.Fatalf("expected disconnect output to report deleted files:\n%s", output)
+			}
+		})
+	}
+}
+
 func TestRunValidatePrintsJSONReportWithConfiguredRules(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\n[Missing](missing.md)\n")
