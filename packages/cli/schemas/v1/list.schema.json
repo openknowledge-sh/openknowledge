@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/list.schema.json",
+  "title": "Open Knowledge list output v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "entries"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "kind", "reserved"],
+        "properties": {
+          "id": {"type": "string"},
+          "path": {"type": "string"},
+          "kind": {"type": "string"},
+          "reserved": {"type": "boolean"},
+          "type": {"type": "string"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "resource": {"type": "string"},
+          "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

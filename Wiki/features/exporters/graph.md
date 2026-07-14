@@ -36,6 +36,7 @@ openknowledge to graph --help
 
 All graph JSON includes:
 
+* `schemaVersion`, currently `"1"`, for the CLI graph contract.
 * `root` and `specVersion` for bundle context.
 * `type`, currently `source` or `search`.
 * `nodes`.
@@ -66,7 +67,8 @@ blocks are ignored by the AST parser and therefore do not become graph edges.
 
 The command prints graph JSON to stdout by default. `--out <file>` writes the
 same JSON to disk. `--plain` is not valid for graph output. Unknown graph types
-exit with status `2`.
+exit with status `2`. The v1 contract is described by
+`packages/cli/schemas/v1/graph.schema.json`.
 
 ## Use Cases
 
@@ -77,6 +79,11 @@ exit with status `2`.
   Markdown.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned graph JSON
+
+Source and search graph JSON now declare `schemaVersion: "1"` and share a
+checked JSON Schema plus golden snapshot.
 
 ### 2026-07-06
 
@@ -92,6 +99,7 @@ nodes and typed graph edges for source-grounded retrieval.
 >
 > * `packages/cli/internal/okf/graph.go`
 > * `packages/cli/internal/okf/graph_types.go`
+> * `packages/cli/schemas/v1/graph.schema.json`
 > * `packages/cli/internal/okf/bundle.go`
 > * `packages/cli/internal/okf/ast_links.go`
 > * `packages/cli/cmd/openknowledge/main.go`

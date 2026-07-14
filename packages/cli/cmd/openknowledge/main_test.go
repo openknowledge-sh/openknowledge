@@ -1115,6 +1115,9 @@ func TestRunValidatePrintsJSONReportWithConfiguredRules(t *testing.T) {
 	if report.Summary.Status != "fail" || report.Summary.ErrorCount != 1 {
 		t.Fatalf("unexpected JSON validation summary: %#v", report.Summary)
 	}
+	if report.SchemaVersion != okf.MachineSchemaVersion {
+		t.Fatalf("unexpected validation schema version: %#v", report)
+	}
 	if len(report.Errors) != 1 || report.Errors[0].Rule != "link-target" || report.Errors[0].Severity != okf.ValidationSeverityError {
 		t.Fatalf("expected escalated link-target error, got %#v", report.Errors)
 	}
@@ -1190,6 +1193,26 @@ func TestRunListDepthLimitsTreeAndIncludesAssets(t *testing.T) {
 	}
 }
 
+func TestRunListJSONUsesVersionedEnvelope(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Home\n")
+	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runList([]string{"--json", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected list JSON to succeed, got %d\n%s", code, output)
+	}
+	var listing okf.ListResult
+	if err := json.Unmarshal([]byte(output), &listing); err != nil {
+		t.Fatalf("expected versioned list JSON object: %v\n%s", err, output)
+	}
+	if listing.SchemaVersion != okf.MachineSchemaVersion || listing.Root != root || len(listing.Entries) != 2 {
+		t.Fatalf("unexpected list JSON envelope: %#v", listing)
+	}
+}
+
 func TestRunGetPrintsDirectFile(t *testing.T) {
 	root := t.TempDir()
 	file := filepath.Join(root, "note.md")
@@ -1242,6 +1265,9 @@ func TestRunSearchPrintsJSON(t *testing.T) {
 	if payload.Query != "release checklist" || payload.Budget != okf.DefaultContextBudget || len(payload.Sources) == 0 || payload.Sources[0].Path != "guides/release.md" || payload.Sources[0].Heading != "Release" {
 		t.Fatalf("unexpected search payload: %#v", payload)
 	}
+	if payload.SchemaVersion != okf.MachineSchemaVersion {
+		t.Fatalf("unexpected search context schema version: %#v", payload)
+	}
 	if payload.Sources[0].LineStart == 0 || payload.Sources[0].Markdown == "" || payload.Sources[0].Relation != "direct" {
 		t.Fatalf("expected source range and Markdown in search context: %#v", payload.Sources[0])
 	}
@@ -1285,6 +1311,9 @@ func TestRunSearchMatchesPrintsJSON(t *testing.T) {
 	}
 	if len(payload.Results) != 1 || payload.Results[0].Path != "guides/release.md" || payload.Results[0].Relation != "direct" || payload.Results[0].Snippet == "" {
 		t.Fatalf("unexpected JSON search matches: %#v", payload)
+	}
+	if payload.SchemaVersion != okf.MachineSchemaVersion {
+		t.Fatalf("unexpected search results schema version: %#v", payload)
 	}
 }
 
@@ -1387,6 +1416,9 @@ func TestRunToGraphPrintsGraphJSON(t *testing.T) {
 	}
 	if len(graph.Nodes) != 2 || len(graph.Edges) != 1 {
 		t.Fatalf("unexpected graph output: %#v", graph)
+	}
+	if graph.SchemaVersion != okf.MachineSchemaVersion {
+		t.Fatalf("unexpected graph schema version: %#v", graph)
 	}
 	if graph.Edges[0].Source != "index.md" || graph.Edges[0].Target != "notes/topic.md" || graph.Edges[0].Label != "Topic" {
 		t.Fatalf("unexpected graph edge: %#v", graph.Edges[0])

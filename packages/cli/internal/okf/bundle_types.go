@@ -1,10 +1,11 @@
 package okf
 
 type Bundle struct {
-	Root        string       `json:"root"`
-	SpecVersion string       `json:"specVersion"`
-	Files       []BundleFile `json:"files"`
-	Issues      []Issue      `json:"issues,omitempty"`
+	SchemaVersion string       `json:"schemaVersion"`
+	Root          string       `json:"root"`
+	SpecVersion   string       `json:"specVersion"`
+	Files         []BundleFile `json:"files"`
+	Issues        []Issue      `json:"issues,omitempty"`
 }
 
 type BundleFile struct {

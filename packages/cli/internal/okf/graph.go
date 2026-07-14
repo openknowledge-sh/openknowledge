@@ -94,12 +94,13 @@ func GraphFromBundle(bundle Bundle) Graph {
 	})
 
 	return Graph{
-		Root:        bundle.Root,
-		SpecVersion: bundle.SpecVersion,
-		Type:        GraphTypeSource,
-		Nodes:       nodes,
-		Edges:       edges,
-		Issues:      bundle.Issues,
+		SchemaVersion: MachineSchemaVersion,
+		Root:          bundle.Root,
+		SpecVersion:   bundle.SpecVersion,
+		Type:          GraphTypeSource,
+		Nodes:         nodes,
+		Edges:         edges,
+		Issues:        bundle.Issues,
 	}
 }
 

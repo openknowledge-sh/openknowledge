@@ -2454,7 +2454,7 @@ func runList(args []string) int {
 		listing.Entries = filterListEntriesByDepth(listing.Entries, *depth)
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(listing.Entries); err != nil {
+		if err := encoder.Encode(listing); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}

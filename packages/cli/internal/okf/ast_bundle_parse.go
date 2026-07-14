@@ -46,9 +46,10 @@ func parseASTBundle(root string, version string) (ASTBundle, error) {
 		return ASTBundle{}, err
 	}
 	return ASTBundle{
-		Root:        absolute,
-		SpecVersion: resolved,
-		Documents:   documents,
+		SchemaVersion: MachineSchemaVersion,
+		Root:          absolute,
+		SpecVersion:   resolved,
+		Documents:     documents,
 	}, nil
 }
 

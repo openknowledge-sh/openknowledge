@@ -132,6 +132,7 @@ piped directly to an agent or stored in a file.
 
 ```json
 {
+  "schemaVersion": "1",
   "root": "/work/project-memory",
   "query": "validation workflow",
   "budget": 2400,
@@ -164,7 +165,9 @@ Each source can include `path`, `id`, `kind`, `type`, `title`, `heading`,
 `estimatedTokens`, `relation`, and `markdown`. The top level reports the
 resolved root, query, budget, estimated token use, source limit, selected
 sources, and any validation issues encountered while building the AST-backed
-context index.
+context index. Both JSON search shapes declare `schemaVersion: "1"`; their
+contracts are described by `search-context.schema.json` and
+`search-results.schema.json` under `packages/cli/schemas/v1/`.
 
 ### Ranked matches
 
@@ -207,6 +210,11 @@ The budget is an estimate rather than a tokenizer-specific guarantee because
 different model families count Markdown tokens differently.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned search JSON
+
+Context packets and ranked match JSON now declare `schemaVersion: "1"` and
+have checked JSON Schemas plus golden snapshots.
 
 ### 2026-07-09
 
@@ -252,6 +260,8 @@ and opt-in graph expansion through local links and backlinks.
 > * `packages/cli/internal/okf/context_sections.go`
 > * `packages/cli/internal/okf/search_test.go`
 > * `packages/cli/internal/okf/context_test.go`
+> * `packages/cli/schemas/v1/search-context.schema.json`
+> * `packages/cli/schemas/v1/search-results.schema.json`
 >
 > **Update notes**
 >

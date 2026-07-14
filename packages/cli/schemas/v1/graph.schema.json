@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/graph.schema.json",
+  "title": "Open Knowledge graph output v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "specVersion", "nodes", "edges"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "specVersion": {"type": "string"},
+    "type": {"enum": ["source", "search"]},
+    "nodes": {"type": "array", "items": {"type": "object", "required": ["id", "path", "kind"], "additionalProperties": true}},
+    "edges": {"type": "array", "items": {"type": "object", "required": ["source", "target"], "additionalProperties": true}},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "additionalProperties": false
+}

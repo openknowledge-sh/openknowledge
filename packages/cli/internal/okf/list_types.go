@@ -1,8 +1,9 @@
 package okf
 
 type ListResult struct {
-	Root    string      `json:"root"`
-	Entries []ListEntry `json:"entries"`
+	SchemaVersion string      `json:"schemaVersion"`
+	Root          string      `json:"root"`
+	Entries       []ListEntry `json:"entries"`
 }
 
 type ListEntry struct {

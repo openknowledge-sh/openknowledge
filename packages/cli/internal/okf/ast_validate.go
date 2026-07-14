@@ -19,7 +19,7 @@ func ValidateAST(bundle ASTBundle) Result {
 }
 
 func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result, error) {
-	result := Result{Root: bundle.Root, SpecVersion: bundle.SpecVersion}
+	result := Result{SchemaVersion: MachineSchemaVersion, Root: bundle.Root, SpecVersion: bundle.SpecVersion}
 	for _, document := range bundle.Documents {
 		result.Files++
 		validateDocument(bundle.Root, document, &result)

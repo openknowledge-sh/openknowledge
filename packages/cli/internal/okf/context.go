@@ -71,12 +71,13 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 	}
 
 	result := ContextResult{
-		Root:    index.Root,
-		Query:   query,
-		Budget:  budget,
-		Limit:   limit,
-		Sources: []ContextSource{},
-		Issues:  index.Issues,
+		SchemaVersion: MachineSchemaVersion,
+		Root:          index.Root,
+		Query:         query,
+		Budget:        budget,
+		Limit:         limit,
+		Sources:       []ContextSource{},
+		Issues:        index.Issues,
 	}
 	if query == "" {
 		return result, nil

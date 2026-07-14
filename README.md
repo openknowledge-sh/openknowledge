@@ -405,6 +405,11 @@ and combined or separate issue arrays. Bundle-local `openknowledge.toml` can
 configure lint severities under `[validation.rules]`, and repeatable `--rule`
 flags can override them per run.
 
+Machine-readable AST, normalized bundle, graph, list, search, and validation
+outputs declare `schemaVersion: "1"`. Draft 2020-12 schemas and the compatibility
+policy live in `packages/cli/schemas/v1/`; `specVersion` separately identifies
+the selected Open Knowledge Format version.
+
 ## Development
 
 ```sh

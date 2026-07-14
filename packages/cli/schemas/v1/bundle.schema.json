@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/bundle.schema.json",
+  "title": "Open Knowledge normalized bundle v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "specVersion", "files"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "specVersion": {"type": "string"},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "kind", "body"],
+        "properties": {
+          "id": {"type": "string"},
+          "path": {"type": "string"},
+          "kind": {"type": "string"},
+          "reserved": {"type": "boolean"},
+          "type": {"type": "string"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "resource": {"type": "string"},
+          "frontmatter": {"type": "object", "additionalProperties": {"$ref": "common.schema.json#/$defs/typedValue"}},
+          "body": {"type": "string"},
+          "links": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/link"}},
+          "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "additionalProperties": false
+}

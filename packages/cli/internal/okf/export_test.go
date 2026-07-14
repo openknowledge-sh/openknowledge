@@ -21,6 +21,9 @@ func TestParseBundleIncludesContentLinksAndIssues(t *testing.T) {
 	if bundle.SpecVersion != LatestSpecVersion {
 		t.Fatalf("unexpected spec version: %s", bundle.SpecVersion)
 	}
+	if bundle.SchemaVersion != MachineSchemaVersion {
+		t.Fatalf("unexpected machine schema version: %s", bundle.SchemaVersion)
+	}
 	if len(bundle.Files) != 2 {
 		t.Fatalf("expected two files, got %#v", bundle.Files)
 	}

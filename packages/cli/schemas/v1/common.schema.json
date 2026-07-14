@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/common.schema.json",
+  "$defs": {
+    "issue": {
+      "type": "object",
+      "required": ["path", "message"],
+      "properties": {
+        "path": {"type": "string"},
+        "line": {"type": "integer", "minimum": 1},
+        "rule": {"type": "string"},
+        "severity": {"type": "string"},
+        "message": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "typedValue": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "boolean"},
+        {"type": "number"},
+        {"type": "string"},
+        {"type": "array", "items": {"$ref": "#/$defs/typedValue"}},
+        {"type": "object", "additionalProperties": {"$ref": "#/$defs/typedValue"}}
+      ]
+    },
+    "link": {
+      "type": "object",
+      "required": ["label", "href", "kind", "line"],
+      "properties": {
+        "label": {"type": "string"},
+        "href": {"type": "string"},
+        "kind": {"type": "string"},
+        "line": {"type": "integer", "minimum": 1},
+        "targetPath": {"type": "string"},
+        "targetId": {"type": "string"},
+        "exists": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

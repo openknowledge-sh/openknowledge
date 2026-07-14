@@ -6,12 +6,13 @@ const (
 )
 
 type Graph struct {
-	Root        string      `json:"root"`
-	SpecVersion string      `json:"specVersion"`
-	Type        string      `json:"type,omitempty"`
-	Nodes       []GraphNode `json:"nodes"`
-	Edges       []GraphEdge `json:"edges"`
-	Issues      []Issue     `json:"issues,omitempty"`
+	SchemaVersion string      `json:"schemaVersion"`
+	Root          string      `json:"root"`
+	SpecVersion   string      `json:"specVersion"`
+	Type          string      `json:"type,omitempty"`
+	Nodes         []GraphNode `json:"nodes"`
+	Edges         []GraphEdge `json:"edges"`
+	Issues        []Issue     `json:"issues,omitempty"`
 }
 
 type GraphNode struct {

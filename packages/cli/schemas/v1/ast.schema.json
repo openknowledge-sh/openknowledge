@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/ast.schema.json",
+  "title": "Open Knowledge AST output v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "specVersion", "documents"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "specVersion": {"type": "string"},
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["absolute", "rel", "id", "kind", "frontmatter", "metadata", "markdown"],
+        "properties": {
+          "absolute": {"type": "string"},
+          "rel": {"type": "string"},
+          "id": {"type": "string"},
+          "kind": {"type": "string"},
+          "reserved": {"type": "boolean"},
+          "content": {"type": "string"},
+          "frontmatter": {
+            "type": "object",
+            "required": ["has", "bodyLine"],
+            "properties": {
+              "has": {"type": "boolean"},
+              "values": {"type": "object", "additionalProperties": {"type": "string"}},
+              "data": {"type": "object", "additionalProperties": {"$ref": "common.schema.json#/$defs/typedValue"}},
+              "warnings": {"type": "array", "items": {"type": "object", "required": ["line", "message"]}},
+              "bodyLine": {"type": "integer", "minimum": 1}
+            },
+            "additionalProperties": false
+          },
+          "metadata": {"type": "object"},
+          "body": {"type": "string"},
+          "markdown": {"type": "object"},
+          "links": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/link"}},
+          "readDiagnostic": {"type": "object"},
+          "utf8Diagnostic": {"type": "object"},
+          "frontmatterDiagnostic": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -119,6 +119,7 @@ openknowledge validate --format json --out okf-report.json Wiki
 
 The JSON report includes:
 
+* `schemaVersion`, currently `"1"`, for the CLI report contract
 * bundle counts and selected spec version
 * `summary.status`, `errorCount`, `warningCount`, and `issueCount`
 * active policy metadata, including config path and severity overrides
@@ -201,6 +202,7 @@ as machine-readable JSON:
 
 ```json
 {
+  "schemaVersion": "1",
   "root": "/work/project-memory",
   "specVersion": "0.1",
   "summary": {
@@ -225,6 +227,12 @@ as machine-readable JSON:
 * Escalate or suppress rule severities for project-specific lint policies.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned validation reports
+
+JSON validation reports now declare `schemaVersion: "1"`. The report contract
+is described by `packages/cli/schemas/v1/validation.schema.json` and protected
+by a golden snapshot.
 
 ### 2026-07-15 - Complete YAML frontmatter parsing
 
@@ -257,6 +265,7 @@ rule documents and `[rules]` configuration in `openknowledge.toml`.
 > * `packages/cli/internal/okf/validation_checks.go`
 > * `packages/cli/internal/okf/validation_policy.go`
 > * `packages/cli/internal/okf/validation_types.go`
+> * `packages/cli/schemas/v1/validation.schema.json`
 > * `packages/cli/cmd/openknowledge/main.go`
 >
 > **Update notes**

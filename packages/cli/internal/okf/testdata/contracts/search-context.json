@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "root": "/knowledge",
+  "query": "authentication",
+  "budget": 4000,
+  "estimatedTokens": 0,
+  "limit": 12,
+  "sources": [],
+  "issues": []
+}

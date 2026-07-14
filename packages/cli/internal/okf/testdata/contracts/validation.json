@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "root": "/knowledge",
+  "specVersion": "0.1",
+  "files": 0,
+  "concepts": 0,
+  "indexes": 0,
+  "logs": 0,
+  "summary": {
+    "status": "pass",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issueCount": 0
+  },
+  "policy": {},
+  "checks": [],
+  "issues": [],
+  "errors": [],
+  "warnings": []
+}

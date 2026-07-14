@@ -8,11 +8,12 @@ type SearchOptions struct {
 }
 
 type SearchResultSet struct {
-	Root    string         `json:"root"`
-	Query   string         `json:"query"`
-	Limit   int            `json:"limit"`
-	Results []SearchResult `json:"results"`
-	Issues  []Issue        `json:"issues,omitempty"`
+	SchemaVersion string         `json:"schemaVersion"`
+	Root          string         `json:"root"`
+	Query         string         `json:"query"`
+	Limit         int            `json:"limit"`
+	Results       []SearchResult `json:"results"`
+	Issues        []Issue        `json:"issues,omitempty"`
 }
 
 type SearchResult struct {

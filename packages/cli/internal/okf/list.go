@@ -43,7 +43,7 @@ func ListFromAST(bundle ASTBundle, issues []Issue) (ListResult, error) {
 		entries = append(entries, attachIssues(listEntryFromASTSummary(SummarizeASTDocument(document, metadata)), issuesByPath))
 	}
 	sortListEntries(entries)
-	return ListResult{Root: bundle.Root, Entries: entries}, nil
+	return ListResult{SchemaVersion: MachineSchemaVersion, Root: bundle.Root, Entries: entries}, nil
 }
 
 func listAssetEntries(root string, documents []ListEntry) ([]ListEntry, error) {

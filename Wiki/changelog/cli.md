@@ -14,6 +14,25 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Versioned machine-readable contracts
+
+* Added `schemaVersion: "1"` to AST, normalized bundle JSON, source/search
+  graphs, search context and match results, list inventories, and validation
+  reports. `specVersion` remains the independent OKF format selector.
+* Changed `list --json` from an unversioned top-level array to a versioned
+  object containing `root` and `entries`.
+* Added Draft 2020-12 schemas under `packages/cli/schemas/v1/`, a documented
+  compatibility policy, golden snapshots for all seven contract families, and
+  behavioral assertions at command boundaries.
+* Source anchors: `packages/cli/internal/okf/machine_contract.go`, machine
+  output type files, `packages/cli/internal/okf/machine_contract_test.go`,
+  `packages/cli/internal/okf/testdata/contracts/`, and
+  `packages/cli/schemas/v1/`.
+* Docs updated: `README.md`, `Wiki/features/commands/ast.md`,
+  `Wiki/features/commands/list.md`, `Wiki/features/commands/search.md`,
+  `Wiki/features/commands/validate.md`, `Wiki/features/exporters/json.md`,
+  `Wiki/features/exporters/graph.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Typed YAML frontmatter parsing
 
 * Replaced the separate lightweight scalar and structured-subset frontmatter

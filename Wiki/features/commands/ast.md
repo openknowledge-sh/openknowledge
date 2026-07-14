@@ -69,6 +69,7 @@ starts like:
 
 ```json
 {
+  "schemaVersion": "1",
   "root": "/work/project-memory",
   "specVersion": "0.1",
   "documents": [
@@ -107,6 +108,7 @@ Its top-level fields are:
 
 | Field | Meaning |
 | --- | --- |
+| `schemaVersion` | Open Knowledge CLI machine-output contract version. |
 | `root` | Absolute path to the resolved knowledge root. |
 | `specVersion` | OKF spec version used for parsing. |
 | `documents` | Parsed Markdown documents in bundle-relative path order. |
@@ -138,6 +140,7 @@ that only need top-level scalar metadata. Invalid YAML is reported through
 
 When `--out` is omitted, JSON is written to stdout. When `--out` is present,
 the command writes the JSON file and prints a short success summary.
+The v1 contract is described by `packages/cli/schemas/v1/ast.schema.json`.
 
 ## Use Cases
 
@@ -169,6 +172,11 @@ the file passed to `--out`.
 
 ## Command Change History
 
+### 2026-07-15 - Versioned AST contract
+
+AST JSON now declares `schemaVersion: "1"`. A checked JSON Schema and golden
+snapshot protect the top-level contract independently of `specVersion`.
+
 ### 2026-07-15 - Typed YAML frontmatter
 
 AST frontmatter gained a typed `data` tree alongside the compatible flat
@@ -186,6 +194,7 @@ YAML produces a parser diagnostic.
 > * `packages/cli/internal/okf/ast_bundle_parse.go`
 > * `packages/cli/internal/okf/ast_document_types.go`
 > * `packages/cli/internal/okf/ast_frontmatter_types.go`
+> * `packages/cli/schemas/v1/ast.schema.json`
 > * `packages/cli/internal/okf/ast_markdown_types.go`
 >
 > **Update notes**

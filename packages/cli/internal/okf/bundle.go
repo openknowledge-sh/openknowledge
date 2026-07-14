@@ -20,10 +20,11 @@ func BundleFromAST(ast ASTBundle, issues []Issue) (Bundle, error) {
 	}
 
 	return Bundle{
-		Root:        ast.Root,
-		SpecVersion: ast.SpecVersion,
-		Files:       files,
-		Issues:      issues,
+		SchemaVersion: MachineSchemaVersion,
+		Root:          ast.Root,
+		SpecVersion:   ast.SpecVersion,
+		Files:         files,
+		Issues:        issues,
 	}, nil
 }
 

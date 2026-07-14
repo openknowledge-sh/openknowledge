@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/validation.schema.json",
+  "title": "Open Knowledge validation report v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "specVersion", "files", "concepts", "indexes", "logs", "summary", "policy", "checks", "issues", "errors", "warnings"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "specVersion": {"type": "string"},
+    "files": {"type": "integer", "minimum": 0}, "concepts": {"type": "integer", "minimum": 0},
+    "indexes": {"type": "integer", "minimum": 0}, "logs": {"type": "integer", "minimum": 0},
+    "summary": {
+      "type": "object",
+      "required": ["status", "errorCount", "warningCount", "issueCount"],
+      "properties": {"status": {"enum": ["pass", "warn", "fail"]}, "errorCount": {"type": "integer"}, "warningCount": {"type": "integer"}, "issueCount": {"type": "integer"}},
+      "additionalProperties": false
+    },
+    "policy": {"type": "object", "properties": {"configPath": {"type": "string"}, "overrides": {"type": "object", "additionalProperties": {"type": "string"}}}, "additionalProperties": false},
+    "checks": {"type": "array", "items": {"type": "object", "required": ["name", "status", "message"], "additionalProperties": true}},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}},
+    "errors": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}},
+    "warnings": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/search-results.schema.json",
+  "title": "Open Knowledge search matches v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "query", "limit", "results"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "query": {"type": "string"},
+    "limit": {"type": "integer", "minimum": 1},
+    "results": {"type": "array", "items": {"$ref": "#/$defs/result"}},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "required": ["path", "id", "kind", "title", "score"],
+      "properties": {
+        "path": {"type": "string"}, "id": {"type": "string"}, "kind": {"type": "string"},
+        "type": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"},
+        "heading": {"type": "string"}, "headingPath": {"type": "array", "items": {"type": "string"}},
+        "lineStart": {"type": "integer"}, "lineEnd": {"type": "integer"}, "estimatedTokens": {"type": "integer"},
+        "snippet": {"type": "string"}, "highlightText": {"type": "string"}, "score": {"type": "number"},
+        "matches": {"type": "array", "items": {"type": "string"}}, "neighbor": {"type": "boolean"}, "relation": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -18,18 +18,19 @@ func (i Issue) String() string {
 }
 
 type Result struct {
-	Root        string                 `json:"root"`
-	SpecVersion string                 `json:"specVersion"`
-	Files       int                    `json:"files"`
-	Concepts    int                    `json:"concepts"`
-	Indexes     int                    `json:"indexes"`
-	Logs        int                    `json:"logs"`
-	Summary     ValidationSummary      `json:"summary"`
-	Policy      ValidationPolicyReport `json:"policy"`
-	Checks      []Check                `json:"checks"`
-	Issues      []Issue                `json:"issues"`
-	Errors      []Issue                `json:"errors"`
-	Warnings    []Issue                `json:"warnings"`
+	SchemaVersion string                 `json:"schemaVersion"`
+	Root          string                 `json:"root"`
+	SpecVersion   string                 `json:"specVersion"`
+	Files         int                    `json:"files"`
+	Concepts      int                    `json:"concepts"`
+	Indexes       int                    `json:"indexes"`
+	Logs          int                    `json:"logs"`
+	Summary       ValidationSummary      `json:"summary"`
+	Policy        ValidationPolicyReport `json:"policy"`
+	Checks        []Check                `json:"checks"`
+	Issues        []Issue                `json:"issues"`
+	Errors        []Issue                `json:"errors"`
+	Warnings      []Issue                `json:"warnings"`
 }
 
 type Check struct {

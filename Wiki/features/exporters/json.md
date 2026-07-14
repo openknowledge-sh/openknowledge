@@ -35,6 +35,12 @@ errors and warnings are included in the top-level `issues` array and attached to
 matching files. When `--out` is omitted, the JSON is printed to stdout. The
 HTML-only `--plain` flag is rejected for JSON.
 
+The top-level object declares `schemaVersion: "1"` for the normalized CLI JSON
+contract and `specVersion` for the selected Open Knowledge Format version.
+These versions are independent. The v1 JSON Schema is available at
+`packages/cli/schemas/v1/bundle.schema.json` and is protected by a golden
+contract test.
+
 Link entries include their kind, source line, local target path and ID, and
 whether the target exists. Directory links are marked existing when they resolve
 to an `index.md` file in that directory.
@@ -50,6 +56,13 @@ markers such as `|` for decoded content.
 * Inspect parsed frontmatter and link extraction.
 * Validate output contracts in tests.
 
+## Exporter Change History
+
+### 2026-07-15 - Versioned normalized JSON
+
+Normalized bundle JSON now declares `schemaVersion: "1"` and ships with a
+Draft 2020-12 JSON Schema and golden snapshot.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -59,6 +72,7 @@ markers such as `|` for decoded content.
 > * `packages/cli/internal/okf/bundle.go`
 > * `packages/cli/internal/okf/bundle_types.go`
 > * `packages/cli/internal/okf/export_test.go`
+> * `packages/cli/schemas/v1/bundle.schema.json`
 > * `packages/cli/cmd/openknowledge/main.go`
 >
 > **Update notes**

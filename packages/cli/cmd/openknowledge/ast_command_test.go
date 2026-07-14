@@ -29,6 +29,9 @@ func TestRunASTPrintsParsedASTJSON(t *testing.T) {
 	if ast.Root != root || ast.SpecVersion != "0.1" {
 		t.Fatalf("unexpected AST root/spec: %#v", ast)
 	}
+	if ast.SchemaVersion != okf.MachineSchemaVersion {
+		t.Fatalf("unexpected AST schema version: %#v", ast)
+	}
 	if len(ast.Documents) != 2 {
 		t.Fatalf("expected two AST documents, got %#v", ast.Documents)
 	}

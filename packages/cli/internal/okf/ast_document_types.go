@@ -1,9 +1,10 @@
 package okf
 
 type ASTBundle struct {
-	Root        string        `json:"root"`
-	SpecVersion string        `json:"specVersion"`
-	Documents   []ASTDocument `json:"documents"`
+	SchemaVersion string        `json:"schemaVersion"`
+	Root          string        `json:"root"`
+	SpecVersion   string        `json:"specVersion"`
+	Documents     []ASTDocument `json:"documents"`
 }
 
 type ASTDocument struct {

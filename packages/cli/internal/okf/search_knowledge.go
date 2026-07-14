@@ -54,10 +54,11 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 	}
 
 	result := SearchResultSet{
-		Root:   index.Root,
-		Query:  query,
-		Limit:  limit,
-		Issues: index.Issues,
+		SchemaVersion: MachineSchemaVersion,
+		Root:          index.Root,
+		Query:         query,
+		Limit:         limit,
+		Issues:        index.Issues,
 	}
 	terms := searchTerms(query)
 	if len(terms) == 0 {

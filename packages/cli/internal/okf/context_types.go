@@ -8,6 +8,7 @@ type ContextOptions struct {
 }
 
 type ContextResult struct {
+	SchemaVersion   string          `json:"schemaVersion"`
 	Root            string          `json:"root"`
 	Query           string          `json:"query"`
 	Budget          int             `json:"budget"`
