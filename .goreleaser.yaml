@@ -2,10 +2,6 @@ version: 2
 
 project_name: openknowledge
 
-before:
-  hooks:
-    - go -C packages/cli mod tidy
-
 builds:
   - id: openknowledge
     main: ./packages/cli/cmd/openknowledge

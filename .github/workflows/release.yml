@@ -4,16 +4,24 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release, for example 0.1.0 or v0.1.0"
+        description: "Version to release, for example 0.6.0 or v0.6.0"
         required: true
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      npm_tag: ${{ steps.release.outputs.npm_tag }}
     permissions:
       contents: write
     steps:
@@ -31,12 +39,78 @@ jobs:
           tag="v${version}"
 
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release version must look like 0.1.0, v0.1.0, or v0.1.0-rc.1" >&2
+            echo "Release version must look like 0.6.0, v0.6.0, or v0.6.0-rc.1" >&2
             exit 1
+          fi
+
+          npm_tag="latest"
+          if [[ "$version" == *-* ]]; then
+            npm_tag="next"
           fi
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "npm_tag=$npm_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/cli/go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release versions
+        run: node scripts/check-versions.mjs "${{ steps.release.outputs.version }}"
+
+      - name: Verify Go modules are tidy
+        shell: bash
+        run: |
+          go -C packages/cli mod tidy
+          git diff --exit-code -- packages/cli/go.mod packages/cli/go.sum
+
+      - name: Run release quality gate
+        run: |
+          pnpm test
+          go vet ./packages/cli/...
+          pnpm build
+
+      - name: Verify release binary and wiki
+        shell: bash
+        run: |
+          version="${{ steps.release.outputs.version }}"
+          go build -ldflags "-X main.version=$version" -o bin/openknowledge ./packages/cli/cmd/openknowledge
+          test "$(./bin/openknowledge version)" = "$version"
+          ./bin/openknowledge validate Wiki
+
+      - name: Verify npm package contents
+        working-directory: packages/npm
+        env:
+          OPENKNOWLEDGE_SKIP_DOWNLOAD: "1"
+        run: npm pack --dry-run --json
+
+      - name: Verify npm publishing credentials
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret is required before creating the release tag." >&2
+            exit 1
+          fi
+          npm whoami --registry=https://registry.npmjs.org
 
       - name: Prepare release tag
         shell: bash
@@ -64,11 +138,6 @@ jobs:
           git push origin "refs/tags/$tag"
           git checkout --detach "$tag"
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: packages/cli/go.mod
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -78,40 +147,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # TODO: Re-enable after GitHub Release artifacts are stable and npm publishing
-  # is ready to ship.
-  #
-  # npm:
-  #   needs: goreleaser
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: read
-  #     id-token: write
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Setup Node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 22
-  #         registry-url: https://registry.npmjs.org
-  #
-  #     - name: Verify npm package version
-  #       run: |
-  #         node -e 'const pkg = require("./packages/npm/package.json"); const expected = process.env.GITHUB_REF_NAME.replace(/^v/, ""); if (pkg.version !== expected) { console.error(`packages/npm version ${pkg.version} does not match tag ${process.env.GITHUB_REF_NAME}`); process.exit(1); }'
-  #
-  #     - name: Require npm token
-  #       run: |
-  #         if [ -z "$NODE_AUTH_TOKEN" ]; then
-  #           echo "NPM_TOKEN secret is required to publish @openknowledge-sh/openknowledge" >&2
-  #           exit 1
-  #         fi
-  #       env:
-  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-  #
-  #     - name: Publish npm package
-  #       run: npm publish --provenance --access public
-  #       working-directory: packages/npm
-  #       env:
-  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  npm:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.goreleaser.outputs.tag }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify npm package version
+        run: node scripts/check-versions.mjs "${{ needs.goreleaser.outputs.version }}"
+
+      - name: Publish npm package
+        working-directory: packages/npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_DIST_TAG: ${{ needs.goreleaser.outputs.npm_tag }}
+        run: npm publish --provenance --access public --tag "$NPM_DIST_TAG"

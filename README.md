@@ -414,6 +414,7 @@ the selected Open Knowledge Format version.
 
 ```sh
 pnpm test:cli
+pnpm check:versions
 pnpm build:cli
 pnpm build:web
 pnpm dev:web

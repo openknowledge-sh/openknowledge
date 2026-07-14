@@ -20,14 +20,27 @@ openknowledge version --help
 ## Example Output
 
 ```text
-0.1.0
+0.6.0
 ```
+
+The root `package.json` is the repository release-version source of truth.
+`pnpm check:versions` verifies that this command's source fallback, the npm
+wrapper, and the web workspace all declare the same value. GoReleaser still
+injects the normalized Git tag version into published binaries.
 
 ## Use Cases
 
 * Confirm the installed CLI version in support or release workflows.
 * Compare npm wrapper and binary release expectations.
 * Keep release verification simple.
+
+## Command Change History
+
+### 2026-07-15 - Unified release version
+
+The source fallback and package manifests now align at `0.6.0`, the prepared
+next release version. Release preflight rejects a workflow input that does not
+match the repository source of truth.
 
 ---
 
@@ -38,6 +51,8 @@ openknowledge version --help
 > * `packages/cli/cmd/openknowledge/main.go`
 > * `.goreleaser.yaml`
 > * `packages/npm/package.json`
+> * `package.json`
+> * `scripts/check-versions.mjs`
 >
 > **Update notes**
 >

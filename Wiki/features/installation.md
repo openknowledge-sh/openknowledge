@@ -21,6 +21,10 @@ curl -fsSL https://openknowledge.sh/install | bash
 The npm package lives under `packages/npm` and downloads the matching release
 binary during installation. The shell installer lives at `install`.
 
+The release workflow publishes the npm wrapper only after the matching GitHub
+Release artifacts exist. The wrapper version and release tag are checked before
+tag creation, and npm provenance is attached during publish.
+
 ## Installer Options
 
 | Name | Applies To | Default | Description |
@@ -48,6 +52,8 @@ script.
 > * `install`
 > * `packages/npm/install.js`
 > * `packages/npm/package.json`
+> * `.github/workflows/release.yml`
+> * `scripts/check-versions.mjs`
 > * `README.md`
 >
 > **Update notes**

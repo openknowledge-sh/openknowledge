@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Unified release versions and npm publishing
+
+* Made the root `package.json` the release-version source of truth and aligned
+  the CLI fallback, npm wrapper, and web workspace at the prepared `0.6.0`
+  release version. `pnpm check:versions` and the default test task now reject
+  drift.
+* Moved Git tag creation behind a release quality gate covering tidy modules,
+  version alignment, Go tests and vet, CLI/web builds, binary version
+  injection, Wiki validation, and npm tarball inspection.
+* Re-enabled npm publishing after GoReleaser with provenance, `latest` for
+  stable releases, and `next` for prereleases. The workflow requires
+  `NPM_TOKEN` before pushing a new release tag.
+* Removed the mutating `go mod tidy` GoReleaser hook; module cleanliness is now
+  a checked preflight invariant.
+* Source anchors: `package.json`, `scripts/check-versions.mjs`, package
+  manifests, `packages/cli/cmd/openknowledge/main.go`,
+  `.github/workflows/release.yml`, and `.goreleaser.yaml`.
+* Docs updated: `README.md`, `packages/npm/README.md`,
+  `Wiki/features/operations.md`, `Wiki/features/installation.md`,
+  `Wiki/features/commands/version.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Versioned machine-readable contracts
 
 * Added `schemaVersion: "1"` to AST, normalized bundle JSON, source/search

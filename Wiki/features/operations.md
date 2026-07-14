@@ -23,14 +23,17 @@ packages/web  - static HTML/CSS site
 
 ```sh
 pnpm test:cli
+pnpm check:versions
 pnpm build:cli
 pnpm build:web
 pnpm dev:web
 ```
 
-The root `package.json` maps those commands to the Go CLI package and web
-workspace. `pnpm test` currently runs the CLI test suite, and `pnpm build`
-builds both the CLI and web package.
+The root `package.json` is the release-version source of truth and maps those
+commands to the Go CLI package and web workspace. `pnpm check:versions` verifies
+that the root, npm wrapper, web package, and Go CLI fallback versions match.
+`pnpm test` runs that check before the CLI test suite, and `pnpm build` builds
+both the CLI and web package.
 
 ## Project Website
 
@@ -121,25 +124,31 @@ GitHub Releases are the source of truth for downloadable binaries. Run the
 release manually from GitHub Actions:
 
 ```text
-Actions -> Release -> Run workflow -> version: 0.1.0
+Actions -> Release -> Run workflow -> version: 0.6.0
 ```
 
-The release workflow normalizes the input to a `v*` tag, validates the version
-shape, creates and pushes the tag when needed, then runs GoReleaser. If the tag
-already exists, it must point at the workflow commit; otherwise the workflow
-fails before creating or replacing a release.
+Use the version already declared in the root `package.json`; the next prepared
+release is `0.6.0`. Before dispatch, keep `packages/npm/package.json`,
+`packages/web/package.json`, and the Go fallback version aligned and run
+`pnpm check:versions`.
+
+The release workflow normalizes the input to a `v*` tag and requires it to
+match the repository version. Before it creates a tag, it verifies tidy Go
+modules, runs tests and `go vet`, builds the CLI and website, checks the injected
+binary version, validates the Wiki, inspects the npm tarball, and requires npm
+publishing credentials. If the tag already exists, it must point at the
+workflow commit; otherwise the workflow fails without moving it.
 
 GoReleaser uploads the installer, checksums, license files, third-party
-notices, and platform archives to GitHub Releases.
+notices, and platform archives to GitHub Releases. After that job succeeds, the
+workflow checks out the exact release tag and publishes
+`@openknowledge-sh/openknowledge` with npm provenance. Stable versions use the
+`latest` dist-tag; prereleases use `next`.
 
-The npm publishing job is present in the workflow as commented YAML, but it is
-disabled while the GitHub Release artifact flow is validated first. Before
-re-enabling it:
-
-* set `packages/npm/package.json` `version` to match the tag without the
-  leading `v`;
-* configure the repository `NPM_TOKEN` secret with permission to publish
-  `@openknowledge-sh/openknowledge`.
+Configure the repository `NPM_TOKEN` secret with permission to create and
+publish the public scoped package. The preflight checks this secret before a
+new Git tag is pushed, preventing a known npm-credential failure from leaving a
+GitHub-only release.
 
 Local installer test against a directory of release assets:
 
@@ -153,7 +162,7 @@ Manual npm publish fallback after the matching GitHub Release exists:
 
 ```sh
 cd packages/npm
-npm publish --access public
+npm publish --provenance --access public
 ```
 
 ---
@@ -163,6 +172,7 @@ npm publish --access public
 > **Source anchors**
 >
 > * `package.json`
+> * `scripts/check-versions.mjs`
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`

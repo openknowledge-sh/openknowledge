@@ -12,6 +12,10 @@ The package downloads the matching binary from GitHub Releases during
 installation. Set `OPENKNOWLEDGE_VERSION=latest` to install the latest GitHub
 release instead of the npm package version.
 
+Published package versions match the GitHub release tag without its leading
+`v`. The release workflow verifies this invariant before creating the tag and
+publishes the wrapper with npm provenance after the binary release succeeds.
+
 Open Knowledge bundles follow OKF v0.1: Markdown with YAML frontmatter that is
 easy to inspect with shell tools and coding agents.
 
