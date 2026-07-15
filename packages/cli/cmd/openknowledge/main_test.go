@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -2822,6 +2823,67 @@ func runGit(t *testing.T, dir string, args ...string) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(output))
+	}
+}
+
+func TestRemoteGitCommandsAreBoundedAndNonInteractive(t *testing.T) {
+	originalCommand := remoteGitCommand
+	originalTimeout := remoteGitTimeout
+	remoteGitCommand = func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, os.Args[0], "-test.run=^TestRemoteGitCommandHelper$")
+	}
+	remoteGitTimeout = 50 * time.Millisecond
+	t.Cleanup(func() {
+		remoteGitCommand = originalCommand
+		remoteGitTimeout = originalTimeout
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		t.Setenv("OPENKNOWLEDGE_GIT_HELPER_MODE", "timeout")
+		started := time.Now()
+		err := cloneGitSource("https://example.test/knowledge.git", filepath.Join(t.TempDir(), "bundle"), "")
+		if err == nil || !strings.Contains(err.Error(), "Git operation exceeded 50ms") {
+			t.Fatalf("expected bounded Git timeout, got %v", err)
+		}
+		if elapsed := time.Since(started); elapsed > 2*time.Second {
+			t.Fatalf("timed-out Git command did not stop promptly: %s", elapsed)
+		}
+	})
+
+	t.Run("output", func(t *testing.T) {
+		t.Setenv("OPENKNOWLEDGE_GIT_HELPER_MODE", "output")
+		output, err := runRemoteGitCommand(context.Background(), "clone")
+		if err == nil || !strings.HasSuffix(output, "[Git output truncated]") {
+			t.Fatalf("expected capped failing Git output, length=%d err=%v", len(output), err)
+		}
+		if len(output) > maxRemoteGitOutputBytes+64 {
+			t.Fatalf("Git output exceeded cap: %d", len(output))
+		}
+	})
+
+	t.Run("environment", func(t *testing.T) {
+		t.Setenv("OPENKNOWLEDGE_GIT_HELPER_MODE", "environment")
+		t.Setenv("GIT_TERMINAL_PROMPT", "1")
+		t.Setenv("GCM_INTERACTIVE", "always")
+		output, err := runRemoteGitCommand(context.Background(), "clone")
+		if err != nil {
+			t.Fatalf("expected non-interactive Git environment, output=%q err=%v", output, err)
+		}
+	})
+}
+
+func TestRemoteGitCommandHelper(t *testing.T) {
+	switch os.Getenv("OPENKNOWLEDGE_GIT_HELPER_MODE") {
+	case "timeout":
+		time.Sleep(10 * time.Second)
+	case "output":
+		_, _ = fmt.Fprint(os.Stderr, strings.Repeat("x", maxRemoteGitOutputBytes*2))
+		os.Exit(17)
+	case "environment":
+		if os.Getenv("GIT_TERMINAL_PROMPT") != "0" || os.Getenv("GCM_INTERACTIVE") != "never" {
+			fmt.Fprintln(os.Stderr, "interactive Git environment was not disabled")
+			os.Exit(18)
+		}
 	}
 }
 

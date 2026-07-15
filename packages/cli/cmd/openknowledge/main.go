@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -1441,6 +1442,14 @@ type remoteHTTPStatusError struct {
 
 var remoteHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
+const maxRemoteGitOutputBytes = 256 << 10
+
+var remoteGitTimeout = 2 * time.Minute
+
+var remoteGitCommand = func(ctx context.Context, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, "git", args...)
+}
+
 func (err *remoteHTTPStatusError) Error() string {
 	return fmt.Sprintf("GET %s returned %s", err.URL, err.Status)
 }
@@ -1873,11 +1882,15 @@ func cloneGitSource(source string, staging string, ref string) error {
 			{"-C", staging, "checkout", "--detach", "FETCH_HEAD"},
 		}
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), remoteGitTimeout)
+	defer cancel()
 	for _, args := range commands {
-		command := exec.Command("git", args...)
-		output, err := command.CombinedOutput()
+		output, err := runRemoteGitCommand(ctx, args...)
 		if err == nil {
 			continue
+		}
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("could not clone remote bundle %s: Git operation exceeded %s", source, remoteGitTimeout)
 		}
 		detail := strings.TrimSpace(string(output))
 		if detail == "" {
@@ -1886,6 +1899,64 @@ func cloneGitSource(source string, staging string, ref string) error {
 		return fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
 	}
 	return nil
+}
+
+type cappedCommandOutput struct {
+	buffer    bytes.Buffer
+	remaining int
+	truncated bool
+}
+
+func (output *cappedCommandOutput) Write(content []byte) (int, error) {
+	written := len(content)
+	if output.remaining > 0 {
+		keep := min(output.remaining, len(content))
+		_, _ = output.buffer.Write(content[:keep])
+		output.remaining -= keep
+		if keep < len(content) {
+			output.truncated = true
+		}
+	} else if len(content) > 0 {
+		output.truncated = true
+	}
+	return written, nil
+}
+
+func (output *cappedCommandOutput) String() string {
+	value := output.buffer.String()
+	if output.truncated {
+		value += "\n[Git output truncated]"
+	}
+	return value
+}
+
+func runRemoteGitCommand(ctx context.Context, args ...string) (string, error) {
+	command := remoteGitCommand(ctx, args...)
+	command.Env = environmentWithOverrides(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"GCM_INTERACTIVE=never",
+	)
+	output := &cappedCommandOutput{remaining: maxRemoteGitOutputBytes}
+	command.Stdout = output
+	command.Stderr = output
+	err := command.Run()
+	return output.String(), err
+}
+
+func environmentWithOverrides(environment []string, overrides ...string) []string {
+	keys := make(map[string]struct{}, len(overrides))
+	for _, override := range overrides {
+		key, _, _ := strings.Cut(override, "=")
+		keys[key] = struct{}{}
+	}
+	result := make([]string, 0, len(environment)+len(overrides))
+	for _, item := range environment {
+		key, _, _ := strings.Cut(item, "=")
+		if _, overridden := keys[key]; !overridden {
+			result = append(result, item)
+		}
+	}
+	return append(result, overrides...)
 }
 
 func gitCommitForDirectory(root string) (string, error) {
@@ -4453,6 +4524,8 @@ Flags:
 Remote manifests and tar archives are downloaded into the Open Knowledge cache.
 Git sources are cloned into the same cache before registration. Git selectors
 are recorded in provenance, included in cache identity, and retained by refresh.
+Each Git materialization has a two-minute process budget, disables interactive
+credential prompts, and retains at most 256 KiB of subprocess diagnostics.
 
 Examples:
   %[1]s ./project-memory

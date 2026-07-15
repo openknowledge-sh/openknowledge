@@ -257,6 +257,9 @@ underlying ranked snippets and scores.
 manifests, tar archives, and Git sources. A key is only an alias: path-based
 commands still work, and agents can use `openknowledge registry where <key>` to
 resolve the real folder before using normal filesystem tools such as `rg`.
+Remote Git materialization is non-interactive, has a two-minute process budget,
+and caps captured subprocess diagnostics at 256 KiB, so unattended agent runs
+cannot hang on credentials or consume unbounded memory through Git output.
 
 `openknowledge view` starts a registry-backed local viewer.
 `openknowledge view <path-or-name>` opens one knowledge base directly. The

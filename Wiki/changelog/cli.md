@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Bounded non-interactive Git transport
+
+* Added one two-minute deadline across remote Git clone/fetch/checkout
+  materialization so unattended connection and refresh jobs cannot hang
+  indefinitely.
+* Forced terminal and Git Credential Manager prompts off for remote Git
+  subprocesses; credentials must resolve non-interactively.
+* Replaced unbounded `CombinedOutput` allocation with a draining writer that
+  retains at most 256 KiB and marks truncated diagnostics.
+* Added subprocess-backed regression coverage for prompt overrides, timeout
+  termination, and bounded high-volume error output.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go` and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, command help,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Live registry viewer snapshots
 
 * Changed the long-running registry viewer from a startup-only connection list

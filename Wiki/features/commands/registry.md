@@ -76,6 +76,12 @@ the source into the Open Knowledge cache and stores source metadata on the
 connection. HTTP(S) sources try Open Knowledge manifests, direct tar archives,
 then Git fallback.
 
+Git clone/fetch/checkout materialization is non-interactive and shares one
+two-minute process budget. `GIT_TERMINAL_PROMPT=0` and
+`GCM_INTERACTIVE=never` prevent credential helpers from waiting for input, and
+captured stdout/stderr is capped at 256 KiB while the process continues to
+drain output. Timeout or command failure leaves no published cache generation.
+
 Access is an enforced CLI capability rather than a display label. A `read`
 connection can be browsed and inspected, but the viewer omits local editor
 deeplinks and `rules apply` refuses to change files inside its registered root.
@@ -263,6 +269,15 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Bounded non-interactive Git transport
+
+Remote Git clone/fetch/checkout now shares a two-minute deadline, disables
+terminal and Git Credential Manager interaction, and drains subprocess output
+through a 256 KiB diagnostic cap. Timed-out or failed materializations remain
+transactional and do not publish a partial cache. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Versioned strict persistence
 
