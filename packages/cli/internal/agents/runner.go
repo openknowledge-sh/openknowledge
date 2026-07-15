@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+const (
+	privateRunDirMode   = 0700
+	privateArtifactMode = 0600
+)
+
 type RunOptions struct {
 	Executor    string
 	DryRun      bool
@@ -84,10 +89,14 @@ func RunJob(job Job, options RunOptions) (RunRecord, error) {
 		StartedAt:   time.Now(),
 		Plan:        plan,
 	}
-	if err := os.MkdirAll(filepath.Dir(plan.RunDir), 0755); err != nil {
+	runParent := filepath.Dir(plan.RunDir)
+	if err := os.MkdirAll(runParent, privateRunDirMode); err != nil {
 		return RunRecord{}, fmt.Errorf("create run parent directory: %w", err)
 	}
-	if err := os.Mkdir(plan.RunDir, 0755); err != nil {
+	if err := os.Chmod(runParent, privateRunDirMode); err != nil {
+		return RunRecord{}, fmt.Errorf("secure run parent directory: %w", err)
+	}
+	if err := os.Mkdir(plan.RunDir, privateRunDirMode); err != nil {
 		return RunRecord{}, fmt.Errorf("create run directory: %w", err)
 	}
 	if err := writeRunInputs(plan); err != nil {
@@ -174,14 +183,14 @@ func writeRunInputs(plan RunPlan) error {
 	if err := copyFile(plan.JobFile, filepath.Join(plan.RunDir, "job.md")); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(plan.RunDir, "prompt.md"), []byte(plan.Prompt), 0644); err != nil {
+	if err := writePrivateArtifact(filepath.Join(plan.RunDir, "prompt.md"), []byte(plan.Prompt)); err != nil {
 		return err
 	}
 	data, err := plan.JSON()
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(plan.RunDir, "plan.json"), append(data, '\n'), 0644)
+	return writePrivateArtifact(filepath.Join(plan.RunDir, "plan.json"), append(data, '\n'))
 }
 
 func createWorktree(plan RunPlan) error {
@@ -212,7 +221,7 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 		StderrLog: stderrLog,
 	}
 
-	stdoutFile, err := os.Create(stdoutLog)
+	stdoutFile, err := createPrivateArtifact(stdoutLog)
 	if err != nil {
 		result.Error = err.Error()
 		result.FinishedAt = time.Now()
@@ -220,7 +229,7 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 		return result
 	}
 	defer stdoutFile.Close()
-	stderrFile, err := os.Create(stderrLog)
+	stderrFile, err := createPrivateArtifact(stderrLog)
 	if err != nil {
 		result.Error = err.Error()
 		result.FinishedAt = time.Now()
@@ -320,7 +329,7 @@ func writePatch(plan RunPlan, path string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, output, 0644)
+	return writePrivateArtifact(path, output)
 }
 
 func writeRunRecord(runDir string, record RunRecord) error {
@@ -328,7 +337,7 @@ func writeRunRecord(runDir string, record RunRecord) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(runDir, "run.json"), append(data, '\n'), 0644)
+	return writePrivateArtifact(filepath.Join(runDir, "run.json"), append(data, '\n'))
 }
 
 func copyFile(source string, target string) error {
@@ -336,7 +345,31 @@ func copyFile(source string, target string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(target, content, 0644)
+	return writePrivateArtifact(target, content)
+}
+
+func writePrivateArtifact(path string, content []byte) error {
+	file, err := createPrivateArtifact(path)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(content); err != nil {
+		_ = file.Close()
+		return err
+	}
+	return file.Close()
+}
+
+func createPrivateArtifact(path string) (*os.File, error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, privateArtifactMode)
+	if err != nil {
+		return nil, err
+	}
+	if err := file.Chmod(privateArtifactMode); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	return file, nil
 }
 
 func logsContain(result CommandResult, needle string) bool {

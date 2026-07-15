@@ -14,6 +14,20 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Private agent run artifacts
+
+* Changed agent run and run-parent directory permissions from shared-readable
+  defaults to owner-only `0700`.
+* Forced copied jobs, rendered prompts, plans, run records, stdout/stderr logs,
+  verification logs, and patches to `0600`, even when replacing an existing
+  artifact with broader permissions.
+* Added end-to-end mode assertions over every artifact produced by a successful
+  host run, with platform-appropriate handling for Windows permissions.
+* Source anchors: `packages/cli/internal/agents/runner.go` and
+  `packages/cli/cmd/openknowledge/agents_command_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Hardened Docker agent sandbox
 
 * Added `sandbox.network: none|bridge` and made Docker agent runs default to no

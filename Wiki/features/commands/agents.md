@@ -172,6 +172,12 @@ verify-01.stderr.log
 diff.patch
 ```
 
+Run directories are created with owner-only `0700` permissions. Job and prompt
+copies, plan and run JSON, stdout/stderr logs, verification logs, and the final
+patch are forced to `0600`, including when an existing umask would otherwise
+make them broader. These artifacts can contain prompts, command arguments,
+repository content, or tool output and should be treated as private run data.
+
 The run id is derived from the job id, scheduled time, job file hash, and Git
 base SHA. Re-running the same scheduled job fails if the run directory already
 exists, which prevents accidental duplicate local runs.
@@ -201,6 +207,13 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Private run artifacts
+
+Agent run directories now use owner-only `0700` permissions and every copied
+input, JSON record, log, and patch uses `0600`. Source anchors:
+`packages/cli/internal/agents/runner.go` and
+`packages/cli/cmd/openknowledge/agents_command_test.go`.
 
 ### 2026-07-15 - Hardened Docker execution boundary
 
