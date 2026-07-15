@@ -93,6 +93,11 @@ Supported severities are `off`, `warn`, and `error`. CLI `--rule` values
 override `openknowledge.toml`. Unknown rule names or severities fail with a
 usage error so typos do not silently weaken validation.
 
+The file is decoded through the shared strict
+[`openknowledge.toml` configuration contract](/features/configuration.md), so
+standard TOML syntax works consistently and invalid fields or types in any
+supported section fail closed.
+
 Current rule names are:
 
 | Rule | Default | Covered behavior |

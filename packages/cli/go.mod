@@ -5,6 +5,7 @@ go 1.22
 require (
 	github.com/gofrs/flock v0.12.1
 	github.com/natefinch/atomic v1.0.1
+	github.com/pelletier/go-toml/v2 v2.2.4
 	go.yaml.in/yaml/v3 v3.0.4
 )
 

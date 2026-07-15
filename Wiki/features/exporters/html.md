@@ -145,6 +145,11 @@ stylesheet = "assets/wiki-theme.css"
 base_url = "https://openknowledge.sh/wiki/"
 ```
 
+The whole file is loaded once per export through the shared strict
+[`openknowledge.toml` configuration contract](/features/configuration.md).
+Malformed TOML, unknown fields, or wrong types abort generation before the
+previous published site is replaced.
+
 Exported pages include `data-openknowledge-theme="<name>"` on `<html>` and link
 the stylesheet after the built-in viewer CSS. Local stylesheets must stay inside
 the bundle; they are copied into the output and linked relatively from every

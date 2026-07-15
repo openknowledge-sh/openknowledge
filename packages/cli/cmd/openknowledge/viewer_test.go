@@ -881,6 +881,19 @@ func TestViewerHTMLExportRejectsInvalidBundleBeforeWriting(t *testing.T) {
 	}
 }
 
+func TestViewerHTMLExportRejectsUnknownProjectConfigBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\ncss = \"assets/theme.css\"\n")
+	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err == nil || !strings.Contains(err.Error(), "fields in the document are missing in the target struct") {
+		t.Fatalf("expected strict project config refusal, got %v", err)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("invalid project config must not publish HTML output, got %v", err)
+	}
+}
+
 func TestViewerHTMLExportReplacesWholeGeneration(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")

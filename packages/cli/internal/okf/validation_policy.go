@@ -1,10 +1,7 @@
 package okf
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -39,71 +36,27 @@ var knownValidationRules = map[string]struct{}{
 }
 
 func LoadValidationOptions(root string) (ValidationOptions, error) {
-	path := filepath.Join(root, ValidationConfigFile)
-	options, err := LoadValidationOptionsFile(path)
+	config, err := LoadProjectConfig(root)
 	if err != nil {
 		return ValidationOptions{}, err
 	}
-	if len(options.Rules) == 0 {
-		return ValidationOptions{}, nil
-	}
-	options.ConfigPath = path
-	return options, nil
+	return config.Validation, nil
 }
 
 func LoadValidationOptionsFile(path string) (ValidationOptions, error) {
-	content, err := os.ReadFile(path)
+	config, err := LoadProjectConfigFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return ValidationOptions{}, nil
-		}
 		return ValidationOptions{}, err
 	}
-	options, err := ParseValidationOptionsConfig(string(content))
-	if err != nil {
-		return ValidationOptions{}, fmt.Errorf("%s: %w", path, err)
-	}
-	if len(options.Rules) > 0 {
-		options.ConfigPath = path
-	}
-	return options, nil
+	return config.Validation, nil
 }
 
 func ParseValidationOptionsConfig(content string) (ValidationOptions, error) {
-	options := ValidationOptions{}
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	section := ""
-	lineNumber := 0
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(stripValidationTomlComment(scanner.Text()))
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
-			continue
-		}
-		if section != "validation.rules" {
-			continue
-		}
-		key, rawValue, ok := strings.Cut(line, "=")
-		if !ok {
-			return ValidationOptions{}, fmt.Errorf("%d expected key = value in [validation.rules]", lineNumber)
-		}
-		rule := strings.TrimSpace(key)
-		severity, err := ParseValidationSeverity(rawValue)
-		if err != nil {
-			return ValidationOptions{}, fmt.Errorf("%d %w", lineNumber, err)
-		}
-		if err := SetValidationRuleSeverity(&options, rule, severity); err != nil {
-			return ValidationOptions{}, fmt.Errorf("%d %w", lineNumber, err)
-		}
-	}
-	if err := scanner.Err(); err != nil {
+	config, err := ParseProjectConfig(content)
+	if err != nil {
 		return ValidationOptions{}, err
 	}
-	return options, nil
+	return config.Validation, nil
 }
 
 func MergeValidationOptions(base ValidationOptions, override ValidationOptions) ValidationOptions {
@@ -284,37 +237,6 @@ func withValidationRuleSeverity(options ValidationOptions, rule string, severity
 	}
 	options.Rules[rule] = severity
 	return options
-}
-
-func stripValidationTomlComment(line string) string {
-	inSingle := false
-	inDouble := false
-	escaped := false
-	for index, r := range line {
-		if escaped {
-			escaped = false
-			continue
-		}
-		if inDouble && r == '\\' {
-			escaped = true
-			continue
-		}
-		switch r {
-		case '"':
-			if !inSingle {
-				inDouble = !inDouble
-			}
-		case '\'':
-			if !inDouble {
-				inSingle = !inSingle
-			}
-		case '#':
-			if !inSingle && !inDouble {
-				return line[:index]
-			}
-		}
-	}
-	return line
 }
 
 func parseValidationTomlStringValue(value string) (string, error) {

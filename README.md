@@ -296,6 +296,10 @@ github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"
 ```
 
+The file uses one strict typed TOML contract across HTML, validation, and rules;
+unknown sections/fields and wrong value types fail closed. See the
+[configuration reference](Wiki/features/configuration.md).
+
 ### Experimental Local Agent Jobs
 
 `openknowledge agents` is experimental. It runs deterministic automation

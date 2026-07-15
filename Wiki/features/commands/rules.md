@@ -129,6 +129,11 @@ rule IDs. When present, it becomes the default selection for
 or `--all`. Unknown IDs are reported through `rule-catalog` validation and make
 rule rendering fail when used as defaults.
 
+All sections share the strict typed
+[`openknowledge.toml` configuration contract](/features/configuration.md).
+Unknown fields or invalid types anywhere in the file are errors rather than
+being ignored by the rules-specific reader.
+
 ## Behavior
 
 Without a rules argument, the command prints `[rules].enabled` when configured,

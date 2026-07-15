@@ -19,6 +19,8 @@ custom theme.
 * [Commands](features/commands/) - command-by-command reference.
 * [Exporters](features/exporters/) - HTML, JSON, tar, and graph exporter
   behavior.
+* [Configuration](features/configuration.md) - strict shared
+  `openknowledge.toml` sections, fields, types, and consumers.
 
 ## Changelog
 
@@ -81,6 +83,8 @@ custom theme.
 
 * [Tooling model](features/tooling-model.md) - product-level map of authoring,
   connection, validation, use/navigation, OKF views, and publishing layers.
+* [Configuration](features/configuration.md) - bundle-local validation, rules,
+  viewer, and publishing settings.
 * [CLI operations](features/operations.md) - development commands, workspace
   layout, website export, deployment, and release notes.
 * [OKF, skills, and plugins](features/okf-skills-plugins.md) - comparison of

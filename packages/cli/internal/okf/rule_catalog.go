@@ -1,7 +1,6 @@
 package okf
 
 import (
-	"bufio"
 	"fmt"
 	"io/fs"
 	"os"
@@ -148,71 +147,19 @@ func LoadRuleCatalogConfig(root string) (RuleCatalogConfig, error) {
 	if root == "" {
 		root = DefaultRulesWiki
 	}
-	path := filepath.Join(root, ValidationConfigFile)
-	content, err := os.ReadFile(path)
+	project, err := LoadProjectConfig(root)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return defaultRuleCatalogConfig(), nil
-		}
 		return RuleCatalogConfig{}, err
 	}
-	config, err := ParseRuleCatalogConfig(string(content))
-	if err != nil {
-		return RuleCatalogConfig{}, fmt.Errorf("%s: %w", path, err)
-	}
-	config.ConfigPath = path
-	return withRuleCatalogDefaults(config), nil
+	return withRuleCatalogDefaults(project.Rules), nil
 }
 
 func ParseRuleCatalogConfig(content string) (RuleCatalogConfig, error) {
-	config := RuleCatalogConfig{}
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	section := ""
-	lineNumber := 0
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(stripValidationTomlComment(scanner.Text()))
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
-			continue
-		}
-		if section != "rules" {
-			continue
-		}
-		key, rawValue, ok := strings.Cut(line, "=")
-		if !ok {
-			return RuleCatalogConfig{}, fmt.Errorf("%d expected key = value in [rules]", lineNumber)
-		}
-		values, err := parseRuleConfigStringList(rawValue)
-		if err != nil {
-			return RuleCatalogConfig{}, fmt.Errorf("%d %w", lineNumber, err)
-		}
-		switch strings.TrimSpace(key) {
-		case "paths":
-			paths, err := normalizeRulePaths(values)
-			if err != nil {
-				return RuleCatalogConfig{}, fmt.Errorf("%d %w", lineNumber, err)
-			}
-			config.Paths = paths
-			config.PathsConfigured = true
-		case "enabled":
-			enabled, err := normalizeConfiguredRuleIDs(values)
-			if err != nil {
-				return RuleCatalogConfig{}, fmt.Errorf("%d %w", lineNumber, err)
-			}
-			config.Enabled = enabled
-			config.EnabledConfigured = true
-		default:
-			return RuleCatalogConfig{}, fmt.Errorf("%d unknown [rules] key %q", lineNumber, strings.TrimSpace(key))
-		}
-	}
-	if err := scanner.Err(); err != nil {
+	project, err := ParseProjectConfig(content)
+	if err != nil {
 		return RuleCatalogConfig{}, err
 	}
-	return withRuleCatalogDefaults(config), nil
+	return withRuleCatalogDefaults(project.Rules), nil
 }
 
 func defaultRuleCatalogConfig() RuleCatalogConfig {
@@ -272,24 +219,6 @@ func validateConfiguredRulePaths(root string, config RuleCatalogConfig) []Issue 
 		}
 	}
 	return issues
-}
-
-func parseRuleConfigStringList(raw string) ([]string, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, fmt.Errorf("expected string or string array")
-	}
-	if strings.HasPrefix(raw, "[") || strings.HasSuffix(raw, "]") {
-		if !strings.HasPrefix(raw, "[") || !strings.HasSuffix(raw, "]") {
-			return nil, fmt.Errorf("expected TOML string array")
-		}
-		return parseFlowStringList(raw), nil
-	}
-	value, err := parseValidationTomlStringValue(raw)
-	if err != nil {
-		return nil, err
-	}
-	return compactStrings([]string{value}), nil
 }
 
 func normalizeRulePaths(paths []string) ([]string, error) {

@@ -936,7 +936,7 @@ func viewerRawAssetPath(root string, rel string) (string, bool) {
 
 func viewerRawPathIsPrivate(rel string) bool {
 	for _, segment := range strings.Split(filepath.ToSlash(rel), "/") {
-		if strings.HasPrefix(segment, ".") || strings.EqualFold(segment, viewerThemeConfigFile) {
+		if strings.HasPrefix(segment, ".") || strings.EqualFold(segment, okf.ValidationConfigFile) {
 			return true
 		}
 	}
@@ -1476,15 +1476,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
-	themeConfig, err := loadViewerThemeConfig(bundle.Root)
-	if err != nil {
-		return okf.HTMLResult{}, err
-	}
-	sourceConfig, err := loadViewerSourceConfig(bundle.Root)
-	if err != nil {
-		return okf.HTMLResult{}, err
-	}
-	siteConfig, err := loadViewerSiteConfig(bundle.Root)
+	themeConfig, sourceConfig, siteConfig, err := loadViewerProjectConfig(bundle.Root)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}

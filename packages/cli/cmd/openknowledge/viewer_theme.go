@@ -1,20 +1,16 @@
 package main
 
 import (
-	"bufio"
 	_ "embed"
 	"fmt"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
-
-const viewerThemeConfigFile = "openknowledge.toml"
 
 //go:embed viewer_theme.css
 var viewerDefaultThemeCSS string
@@ -44,160 +40,60 @@ func defaultViewerThemeConfig() viewerThemeConfig {
 }
 
 func loadViewerThemeConfig(root string) (viewerThemeConfig, error) {
-	config := defaultViewerThemeConfig()
-	content, err := os.ReadFile(filepath.Join(root, viewerThemeConfigFile))
+	config, _, _, err := loadViewerProjectConfig(root)
+	return config, err
+}
+
+func loadViewerSourceConfig(root string) (viewerSourceConfig, error) {
+	_, config, _, err := loadViewerProjectConfig(root)
+	return config, err
+}
+
+func loadViewerSiteConfig(root string) (viewerSiteConfig, error) {
+	_, _, config, err := loadViewerProjectConfig(root)
+	return config, err
+}
+
+func loadViewerProjectConfig(root string) (viewerThemeConfig, viewerSourceConfig, viewerSiteConfig, error) {
+	project, err := okf.LoadProjectConfig(root)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return config, nil
-		}
-		return viewerThemeConfig{}, err
+		return viewerThemeConfig{}, viewerSourceConfig{}, viewerSiteConfig{}, err
 	}
-
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	section := ""
-	lineNumber := 0
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(stripTomlComment(scanner.Text()))
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
-			continue
-		}
-		if section != "html.theme" {
-			continue
-		}
-
-		key, rawValue, ok := strings.Cut(line, "=")
-		if !ok {
-			return viewerThemeConfig{}, fmt.Errorf("%s:%d expected key = value in [html.theme]", viewerThemeConfigFile, lineNumber)
-		}
-		value, err := parseTomlStringValue(strings.TrimSpace(rawValue))
-		if err != nil {
-			return viewerThemeConfig{}, fmt.Errorf("%s:%d %w", viewerThemeConfigFile, lineNumber, err)
-		}
-
-		switch strings.TrimSpace(key) {
-		case "name":
-			config.Name = strings.TrimSpace(value)
-		case "stylesheet", "css":
-			config.Stylesheet = strings.TrimSpace(value)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return viewerThemeConfig{}, err
-	}
+	config := defaultViewerThemeConfig()
+	config.Name = strings.TrimSpace(project.HTML.Theme.Name)
+	config.Stylesheet = strings.TrimSpace(project.HTML.Theme.Stylesheet)
 	if config.Name == "" {
 		config.Name = "default"
 	}
 	if config.Stylesheet == "" {
-		return config, nil
+		source, err := normalizeViewerSourceConfig(viewerSourceConfig{
+			GitHubBase: project.HTML.Source.GitHubBase,
+			Entry:      project.HTML.Source.Entry,
+		})
+		if err != nil {
+			return viewerThemeConfig{}, viewerSourceConfig{}, viewerSiteConfig{}, err
+		}
+		site, err := normalizeViewerSiteConfig(viewerSiteConfig{BaseURL: project.HTML.Site.BaseURL})
+		return config, source, site, err
 	}
 	stylesheet, external, err := normalizeViewerThemeStylesheet(config.Stylesheet)
 	if err != nil {
-		return viewerThemeConfig{}, err
+		return viewerThemeConfig{}, viewerSourceConfig{}, viewerSiteConfig{}, err
 	}
 	config.Stylesheet = stylesheet
 	config.External = external
-	return config, nil
-}
-
-func loadViewerSourceConfig(root string) (viewerSourceConfig, error) {
-	content, err := os.ReadFile(filepath.Join(root, viewerThemeConfigFile))
+	source, err := normalizeViewerSourceConfig(viewerSourceConfig{
+		GitHubBase: project.HTML.Source.GitHubBase,
+		Entry:      project.HTML.Source.Entry,
+	})
 	if err != nil {
-		if os.IsNotExist(err) {
-			return viewerSourceConfig{}, nil
-		}
-		return viewerSourceConfig{}, err
+		return viewerThemeConfig{}, viewerSourceConfig{}, viewerSiteConfig{}, err
 	}
-
-	var config viewerSourceConfig
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	section := ""
-	lineNumber := 0
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(stripTomlComment(scanner.Text()))
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
-			continue
-		}
-		if section != "html.source" {
-			continue
-		}
-
-		key, rawValue, ok := strings.Cut(line, "=")
-		if !ok {
-			return viewerSourceConfig{}, fmt.Errorf("%s:%d expected key = value in [html.source]", viewerThemeConfigFile, lineNumber)
-		}
-		value, err := parseTomlStringValue(strings.TrimSpace(rawValue))
-		if err != nil {
-			return viewerSourceConfig{}, fmt.Errorf("%s:%d %w", viewerThemeConfigFile, lineNumber, err)
-		}
-
-		switch strings.TrimSpace(key) {
-		case "github_base", "githubBase", "github_base_url", "github":
-			config.GitHubBase = strings.TrimSpace(value)
-		case "entry":
-			config.Entry = strings.TrimSpace(value)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return viewerSourceConfig{}, err
-	}
-	return normalizeViewerSourceConfig(config)
-}
-
-func loadViewerSiteConfig(root string) (viewerSiteConfig, error) {
-	content, err := os.ReadFile(filepath.Join(root, viewerThemeConfigFile))
+	site, err := normalizeViewerSiteConfig(viewerSiteConfig{BaseURL: project.HTML.Site.BaseURL})
 	if err != nil {
-		if os.IsNotExist(err) {
-			return viewerSiteConfig{}, nil
-		}
-		return viewerSiteConfig{}, err
+		return viewerThemeConfig{}, viewerSourceConfig{}, viewerSiteConfig{}, err
 	}
-
-	var config viewerSiteConfig
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	section := ""
-	lineNumber := 0
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(stripTomlComment(scanner.Text()))
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			section = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
-			continue
-		}
-		if section != "html.site" {
-			continue
-		}
-
-		key, rawValue, ok := strings.Cut(line, "=")
-		if !ok {
-			return viewerSiteConfig{}, fmt.Errorf("%s:%d expected key = value in [html.site]", viewerThemeConfigFile, lineNumber)
-		}
-		value, err := parseTomlStringValue(strings.TrimSpace(rawValue))
-		if err != nil {
-			return viewerSiteConfig{}, fmt.Errorf("%s:%d %w", viewerThemeConfigFile, lineNumber, err)
-		}
-
-		switch strings.TrimSpace(key) {
-		case "base_url", "baseURL", "site_url", "url":
-			config.BaseURL = strings.TrimSpace(value)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return viewerSiteConfig{}, err
-	}
-	return normalizeViewerSiteConfig(config)
+	return config, source, site, nil
 }
 
 func normalizeViewerSourceConfig(config viewerSourceConfig) (viewerSourceConfig, error) {
@@ -265,52 +161,6 @@ func encodeViewerSourcePath(value string) string {
 		encoded = append(encoded, url.PathEscape(segment))
 	}
 	return strings.Join(encoded, "/")
-}
-
-func stripTomlComment(line string) string {
-	quote := rune(0)
-	escaped := false
-	for index, char := range line {
-		if escaped {
-			escaped = false
-			continue
-		}
-		if quote == '"' && char == '\\' {
-			escaped = true
-			continue
-		}
-		if quote != 0 {
-			if char == quote {
-				quote = 0
-			}
-			continue
-		}
-		if char == '"' || char == '\'' {
-			quote = char
-			continue
-		}
-		if char == '#' {
-			return line[:index]
-		}
-	}
-	return line
-}
-
-func parseTomlStringValue(value string) (string, error) {
-	if value == "" {
-		return "", fmt.Errorf("expected a quoted string value")
-	}
-	if strings.HasPrefix(value, `"`) {
-		parsed, err := strconv.Unquote(value)
-		if err != nil {
-			return "", fmt.Errorf("invalid quoted string")
-		}
-		return parsed, nil
-	}
-	if strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'") && len(value) >= 2 {
-		return value[1 : len(value)-1], nil
-	}
-	return "", fmt.Errorf("expected a quoted string value")
 }
 
 func normalizeViewerThemeStylesheet(value string) (string, bool, error) {

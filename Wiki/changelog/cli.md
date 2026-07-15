@@ -14,6 +14,36 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Unified strict project configuration
+
+* Replaced separate validation, rules, theme, source, and site line scanners
+  with one TOML v1-compatible typed `openknowledge.toml` parser.
+* Added one fail-closed schema for `[rules]`, `[validation.rules]`,
+  `[html.theme]`, `[html.source]`, and `[html.site]`; unknown sections/fields,
+  duplicate keys, malformed syntax, wrong types, unknown rules, and invalid
+  severities now fail consistently across consumers.
+* Added standard TOML multiline arrays, inline comments, escaped/literal
+  strings, and dotted-table behavior while retaining documented single-string
+  shorthand for `rules.paths` and `rules.enabled`.
+* Loaded all viewer/export HTML settings once per generation and removed legacy
+  undocumented HTML key aliases.
+* Applied the real bundle boundary to project config loading so a symbolic-link
+  `openknowledge.toml` cannot redirect reads outside the bundle.
+* Added shared parser, all-section projection, strictness, consumer parity,
+  symlink, and no-partial-HTML regressions plus a dedicated configuration
+  reference.
+* Source anchors: `packages/cli/internal/okf/project_config.go`,
+  `packages/cli/internal/okf/project_config_test.go`,
+  `packages/cli/internal/okf/validation_policy.go`,
+  `packages/cli/internal/okf/rule_catalog.go`,
+  `packages/cli/cmd/openknowledge/viewer_theme.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `README.md`, `Wiki/index.md`,
+  `Wiki/features/configuration.md`, `Wiki/features/commands/rules.md`,
+  `Wiki/features/commands/validate.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Bounded agent process trees
 
 * Added `verify.timeout` as a positive duration applied independently to each
