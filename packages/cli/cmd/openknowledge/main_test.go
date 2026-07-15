@@ -2348,7 +2348,14 @@ func TestRunConnectUsesRemoteOpenKnowledgeManifest(t *testing.T) {
 
 	registryFile := filepath.Join(base, "registry.json")
 	t.Setenv(okf.RegistryFileEnv, registryFile)
-	manifestURL := "file://" + filepath.Join(hosted, okf.BundleManifestRelPath)
+	toFileURL := func(path string) string {
+		slashPath := filepath.ToSlash(path)
+		if !strings.HasPrefix(slashPath, "/") {
+			slashPath = "/" + slashPath
+		}
+		return (&url.URL{Scheme: "file", Path: slashPath}).String()
+	}
+	manifestURL := toFileURL(filepath.Join(hosted, okf.BundleManifestRelPath))
 	code := runConnect([]string{"--no-validate", manifestURL}, "openknowledge connect")
 	if code != 0 {
 		t.Fatalf("expected manifest connect to succeed, got exit code %d", code)
@@ -2360,7 +2367,7 @@ func TestRunConnectUsesRemoteOpenKnowledgeManifest(t *testing.T) {
 	if !ok {
 		t.Fatal("expected hosted registry entry")
 	}
-	expectedArchiveURL := "file://" + filepath.Join(hosted, "assets", "openknowledge-bundle.tar.gz")
+	expectedArchiveURL := toFileURL(filepath.Join(hosted, "assets", "openknowledge-bundle.tar.gz"))
 	if entry.Source.Type != "manifest" || entry.Source.URL != manifestURL || entry.Source.Ref != expectedArchiveURL {
 		t.Fatalf("unexpected manifest source: %#v", entry.Source)
 	}
