@@ -105,7 +105,7 @@ func runView(args []string) int {
 		for _, entry := range entries {
 			aliasNames = append(aliasNames, entry.Name)
 		}
-		handler = newRegistryViewerHandlerWithOptions(entries, options)
+		handler = newReloadingRegistryViewerHandlerWithOptions(okf.RegistryEntries, options)
 		details = func() {
 			if path, err := okf.RegistryFile(); err == nil {
 				fmt.Printf("%s %s\n", terminal.muted("registry"), terminal.path(path))
@@ -409,6 +409,33 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 
 func newRegistryViewerHandler(entries []okf.RegistryEntry) http.Handler {
 	return newRegistryViewerHandlerWithOptions(entries, viewerOptions{})
+}
+
+func newReloadingRegistryViewerHandlerWithOptions(load func() ([]okf.RegistryEntry, error), options viewerOptions) http.Handler {
+	var mutex sync.Mutex
+	var snapshot string
+	var handler http.Handler
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		entries, err := load()
+		if err != nil {
+			http.Error(response, fmt.Sprintf("load Open Knowledge registry: %v", err), http.StatusInternalServerError)
+			return
+		}
+		encoded, err := json.Marshal(entries)
+		if err != nil {
+			http.Error(response, fmt.Sprintf("encode Open Knowledge registry snapshot: %v", err), http.StatusInternalServerError)
+			return
+		}
+		identity := string(encoded)
+		mutex.Lock()
+		if handler == nil || identity != snapshot {
+			handler = newRegistryViewerHandlerWithOptions(entries, options)
+			snapshot = identity
+		}
+		current := handler
+		mutex.Unlock()
+		current.ServeHTTP(response, request)
+	})
 }
 
 func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options viewerOptions) http.Handler {

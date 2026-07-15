@@ -262,6 +262,9 @@ resolve the real folder before using normal filesystem tools such as `rg`.
 `openknowledge view <path-or-name>` opens one knowledge base directly. The
 viewer serves registered knowledge bases under stable local paths such as
 `/personal/`; those path aliases do not require DNS or `/etc/hosts` changes.
+While it is running, registry mode picks up connections, disconnections,
+refresh generations, and access changes without a restart; invalid registry
+state fails requests instead of preserving stale routes.
 
 ### Publishing
 

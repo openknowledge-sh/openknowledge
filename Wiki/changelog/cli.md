@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Live registry viewer snapshots
+
+* Changed the long-running registry viewer from a startup-only connection list
+  to a bounded, strictly validated snapshot loaded for every request.
+* Rebuilds registry routing and bundle handlers when connections are added or
+  removed or when refresh changes a path, access capability, or provenance;
+  unchanged snapshots retain their existing handlers and search indexes.
+* Returns HTTP `500` when the current registry cannot be loaded instead of
+  silently continuing to expose stale routes.
+* Added regression coverage for updated roots and access, new connections,
+  removals, and registry loader failures.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go` and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/view.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Versioned fail-closed registry persistence
 
 * Added shared strict JSON decoding that rejects unknown fields, duplicate

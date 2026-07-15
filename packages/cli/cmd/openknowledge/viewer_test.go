@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -1600,6 +1601,53 @@ func TestRegistryViewerEmptyRegistry(t *testing.T) {
 	body := getViewerBody(t, newRegistryViewerHandler(nil), "/")
 	if !strings.Contains(body, "No registered knowledge bases") {
 		t.Fatalf("empty registry page did not explain the empty state:\n%s", body)
+	}
+}
+
+func TestReloadingRegistryViewerTracksConnectionChanges(t *testing.T) {
+	first := t.TempDir()
+	replacement := t.TempDir()
+	second := t.TempDir()
+	writeViewerFile(t, first, "index.md", "# First Generation\n")
+	writeViewerFile(t, replacement, "index.md", "# Refreshed Generation\n")
+	writeViewerFile(t, second, "index.md", "# Second Knowledge Base\n")
+
+	entries := []okf.RegistryEntry{{Name: "docs", Path: first, Access: "read"}}
+	var loadErr error
+	handler := newReloadingRegistryViewerHandlerWithOptions(func() ([]okf.RegistryEntry, error) {
+		return append([]okf.RegistryEntry(nil), entries...), loadErr
+	}, viewerOptions{})
+
+	initial := getViewerBody(t, handler, "/kb/docs/file/index.md")
+	if !strings.Contains(initial, "First Generation") || strings.Contains(initial, `<div class="editor-picker" data-editor-picker>`) {
+		t.Fatalf("unexpected initial read-only generation:\n%s", initial)
+	}
+
+	entries = []okf.RegistryEntry{
+		{Name: "docs", Path: replacement, Access: "write"},
+		{Name: "second", Path: second, Access: "read"},
+	}
+	refreshed := getViewerBody(t, handler, "/kb/docs/file/index.md")
+	if !strings.Contains(refreshed, "Refreshed Generation") || !strings.Contains(refreshed, `<div class="editor-picker" data-editor-picker>`) {
+		t.Fatalf("viewer did not reload path and access changes:\n%s", refreshed)
+	}
+	index := getViewerBody(t, handler, "/")
+	if !strings.Contains(index, `href="/kb/second/"`) {
+		t.Fatalf("viewer did not load a newly connected knowledge base:\n%s", index)
+	}
+
+	entries = entries[1:]
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/kb/docs/", nil))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("viewer retained a disconnected route, got %d", recorder.Code)
+	}
+
+	loadErr = errors.New("registry unavailable")
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	if recorder.Code != http.StatusInternalServerError || !strings.Contains(recorder.Body.String(), "registry unavailable") {
+		t.Fatalf("viewer did not surface registry reload failure, code=%d body=%q", recorder.Code, recorder.Body.String())
 	}
 }
 

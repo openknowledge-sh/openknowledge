@@ -100,6 +100,12 @@ Press Ctrl+C to stop.
 
 * Registry names and normal filesystem paths resolve through the same
   key-or-path model used by other commands.
+* Registry mode reloads the bounded, strictly validated registry snapshot for
+  every HTTP request. It reuses the current viewer and search indexes while the
+  sorted snapshot is unchanged, then atomically rebuilds routing when a
+  connection is added or removed or when `registry refresh` changes its path,
+  access, or provenance. A registry read or validation failure returns HTTP
+  `500` instead of continuing with stale routes.
 * The default loopback server needs no token. Every non-loopback route,
   including HTML, APIs, raw assets, and editor icons, shares one mandatory
   authentication boundary. Responses use `nosniff`, no-referrer, and frame
@@ -201,6 +207,16 @@ Press Ctrl+C to stop.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
 
 ## Command Change History
+
+### 2026-07-15 - Live registry viewer snapshots
+
+The long-running registry viewer now observes connection additions, removals,
+refresh generations, and access/provenance changes without a process restart.
+Each request loads a bounded strict registry snapshot; unchanged snapshots
+reuse existing handlers and search indexes, while invalid registry state fails
+the request closed instead of serving stale routing. Source anchors:
+`packages/cli/cmd/openknowledge/viewer.go` and
+`packages/cli/cmd/openknowledge/viewer_test.go`.
 
 ### 2026-07-15 - Authenticated network opt-in
 
