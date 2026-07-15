@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -176,6 +177,11 @@ func ensureRunnablePlan(plan RunPlan, job Job) error {
 			return fmt.Errorf("repository has uncommitted changes; set workspace.dirty_policy: allow to run anyway")
 		}
 	}
+	for _, name := range plan.Sandbox.Env {
+		if _, present := os.LookupEnv(name); !present {
+			return fmt.Errorf("sandbox.env variable %s is not set in the runner environment", name)
+		}
+	}
 	return nil
 }
 
@@ -220,6 +226,14 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 		StdoutLog: stdoutLog,
 		StderrLog: stderrLog,
 	}
+	if plan.Sandbox.Type == "host" {
+		if err := ensurePrivateHostRuntime(plan); err != nil {
+			result.Error = err.Error()
+			result.FinishedAt = time.Now()
+			result.Duration = result.FinishedAt.Sub(started)
+			return result
+		}
+	}
 
 	stdoutFile, err := createPrivateArtifact(stdoutLog)
 	if err != nil {
@@ -261,10 +275,12 @@ func commandForPlan(ctx context.Context, plan RunPlan, command Command) *exec.Cm
 	if command.Shell {
 		cmd := exec.CommandContext(ctx, "sh", "-lc", command.Command)
 		cmd.Dir = plan.Worktree
+		cmd.Env = hostCommandEnvironment(plan)
 		return cmd
 	}
 	cmd := exec.CommandContext(ctx, command.Command, command.Args...)
 	cmd.Dir = plan.Worktree
+	cmd.Env = hostCommandEnvironment(plan)
 	return cmd
 }
 
@@ -279,15 +295,76 @@ func dockerCommandArgs(plan RunPlan, command Command) []string {
 		"--security-opt", "no-new-privileges",
 		"--pids-limit", "512",
 		"--network", network,
-		"-v", plan.Worktree + ":/workspace",
+	}
+	for _, name := range plan.Sandbox.Env {
+		args = append(args, "--env", name)
+	}
+	args = append(args,
+		"-v", plan.Worktree+":/workspace",
 		"-w", "/workspace",
 		"--", plan.Sandbox.Image,
-	}
+	)
 	if command.Shell {
 		return append(args, "sh", "-lc", command.Command)
 	}
 	args = append(args, command.Command)
 	return append(args, command.Args...)
+}
+
+func ensurePrivateHostRuntime(plan RunPlan) error {
+	for _, path := range []string{hostHomePath(plan), hostTempPath(plan)} {
+		if err := os.MkdirAll(path, privateRunDirMode); err != nil {
+			return err
+		}
+		if err := os.Chmod(path, privateRunDirMode); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func hostCommandEnvironment(plan RunPlan) []string {
+	environment := make(map[string]string)
+	for _, name := range []string{
+		"PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "COLORTERM",
+		"NO_COLOR", "FORCE_COLOR", "SystemRoot", "WINDIR", "ComSpec", "PATHEXT",
+	} {
+		if value, present := os.LookupEnv(name); present {
+			environment[name] = value
+		}
+	}
+	home := hostHomePath(plan)
+	temp := hostTempPath(plan)
+	for _, name := range []string{"HOME", "USERPROFILE"} {
+		environment[name] = home
+	}
+	for _, name := range []string{"TMPDIR", "TMP", "TEMP"} {
+		environment[name] = temp
+	}
+	for _, name := range plan.Sandbox.Env {
+		if value, present := os.LookupEnv(name); present {
+			environment[name] = value
+		}
+	}
+
+	names := make([]string, 0, len(environment))
+	for name := range environment {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	values := make([]string, 0, len(names))
+	for _, name := range names {
+		values = append(values, name+"="+environment[name])
+	}
+	return values
+}
+
+func hostHomePath(plan RunPlan) string {
+	return filepath.Join(plan.RunDir, "home")
+}
+
+func hostTempPath(plan RunPlan) string {
+	return filepath.Join(plan.RunDir, "tmp")
 }
 
 func commitWorktree(plan RunPlan) error {

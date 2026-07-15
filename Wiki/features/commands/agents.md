@@ -96,6 +96,8 @@ sandbox:
 # For Docker jobs only:
 # image: example.test/agent:latest
 # network: none
+# Explicit host variables needed by either executor:
+# env: [OPENAI_API_KEY]
 verify:
   commands:
     - go test ./...
@@ -132,6 +134,7 @@ Supported top-level fields:
 | `sandbox.type` | `host` or `docker`. Defaults to `host`. |
 | `sandbox.image` | Required for Docker execution. Must be one image reference without whitespace or a leading hyphen. |
 | `sandbox.network` | Docker network mode: `none` or `bridge`. Defaults to `none`; use `bridge` to opt into network access. |
+| `sandbox.env` | Environment variable names to inherit explicitly from the runner. Values are never stored in the job or run plan. |
 | `verify.commands` | Shell commands run after the agent command in the same worktree. |
 | `output.commit` | When true, commits worktree changes after verification. |
 | `output.pr` | Reserved; currently rejected by validation. |
@@ -191,6 +194,17 @@ limit the container to 512 PIDs, and have no network by default. Set
 access. The Docker image is separated from runtime options and option-shaped
 image values are rejected, so job data cannot inject `docker run` flags.
 
+Host commands do not inherit the CLI process environment wholesale. They keep
+only a small runtime baseline such as `PATH`, locale, terminal, and required
+Windows process variables, then receive isolated `HOME` and temporary
+directories below the private run directory. A job that needs a credential or
+tool-specific setting must list its variable name in `sandbox.env`; the value
+must exist in the runner environment when a real run starts. Docker forwards
+the same explicit names with `--env NAME` and otherwise relies on image-defined
+environment defaults. Environment values are not serialized into `job.md`,
+`plan.json`, or `run.json`. Managed home/temp names, malformed names, and
+case-insensitive duplicates are rejected.
+
 `agents daemon` loads job specs, evaluates due schedules, skips already
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
 exits. Without `--once`, the daemon polls using `--tick`, defaulting to `1m`.
@@ -207,6 +221,19 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Explicit agent environment capabilities
+
+Host agent and verification commands no longer inherit arbitrary runner
+environment variables. Jobs declare required names through `sandbox.env`,
+while host commands receive isolated home/temp directories and Docker forwards
+only the declared names. Source anchors:
+`packages/cli/internal/agents/spec.go`,
+`packages/cli/internal/agents/runner.go`,
+`packages/cli/internal/agents/templates.go`,
+`packages/cli/internal/agents/spec_test.go`,
+`packages/cli/internal/agents/runner_test.go`, and
+`packages/cli/cmd/openknowledge/agents_command_test.go`.
 
 ### 2026-07-15 - Private run artifacts
 

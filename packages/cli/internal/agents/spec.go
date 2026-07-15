@@ -47,9 +47,10 @@ type WorkspaceSpec struct {
 }
 
 type SandboxSpec struct {
-	Type    string `json:"type,omitempty"`
-	Image   string `json:"image,omitempty"`
-	Network string `json:"network,omitempty"`
+	Type    string   `json:"type,omitempty"`
+	Image   string   `json:"image,omitempty"`
+	Network string   `json:"network,omitempty"`
+	Env     []string `json:"env,omitempty"`
 }
 
 type VerifySpec struct {
@@ -212,6 +213,21 @@ func ValidateJob(job Job) error {
 	default:
 		add("sandbox.network", "must be none or bridge")
 	}
+	seenEnvironment := make(map[string]bool)
+	for _, name := range job.Sandbox.Env {
+		if !validEnvironmentName.MatchString(name) {
+			add("sandbox.env", "%q is not a valid environment variable name", name)
+			continue
+		}
+		canonicalName := strings.ToUpper(name)
+		if managedAgentEnvironment[canonicalName] {
+			add("sandbox.env", "%s is managed by the runner and cannot be inherited", name)
+		}
+		if seenEnvironment[canonicalName] {
+			add("sandbox.env", "%s is listed more than once", name)
+		}
+		seenEnvironment[canonicalName] = true
+	}
 	if job.Output.PR {
 		add("output.pr", "is reserved for a future server/GitHub integration")
 	}
@@ -279,6 +295,7 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 		}
 		job.Sandbox.Image = getString(sandbox, "image")
 		job.Sandbox.Network = getString(sandbox, "network")
+		job.Sandbox.Env = getStringSlice(sandbox, "env")
 	}
 	if verify := getMap(data, "verify"); verify != nil {
 		job.Verify.Commands = getStringSlice(verify, "commands")
@@ -379,3 +396,9 @@ func getStringSlice(data map[string]any, key string) []string {
 }
 
 var validJobID = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+var validEnvironmentName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+var managedAgentEnvironment = map[string]bool{
+	"HOME": true, "TMPDIR": true, "TMP": true, "TEMP": true,
+	"USERPROFILE": true, "HOMEDRIVE": true, "HOMEPATH": true,
+}

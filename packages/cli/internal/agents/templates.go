@@ -257,6 +257,7 @@ Field reference:
 - sandbox.type: host or docker. Defaults to host.
 - sandbox.image: Docker image. Required when sandbox.type is docker; may not begin with a hyphen.
 - sandbox.network: none or bridge. Docker defaults to none; bridge is an explicit network opt-in.
+- sandbox.env: Environment variable names to inherit explicitly. Values stay outside the job and run plan.
 - verify.commands: Shell commands run after the agent command in the worktree.
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.

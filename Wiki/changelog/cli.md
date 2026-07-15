@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Explicit agent environment capabilities
+
+* Stopped host agent and verification processes from inheriting the complete
+  Open Knowledge CLI environment, including unrelated ambient secrets.
+* Added `sandbox.env` as an allowlist of variable names whose values may be
+  inherited at execution time without being serialized into jobs or run plans.
+* Gave host jobs private `HOME` and temp directories inside the owner-only run
+  directory while retaining only a minimal cross-platform runtime environment.
+* Forwarded only explicitly named variables into Docker containers and refused
+  missing values before a real run starts.
+* Rejected malformed, duplicate, and runner-managed environment names, including
+  case variants that could bypass the boundary on case-insensitive platforms.
+* Added host environment non-leakage, explicit inheritance, isolated path,
+  Docker forwarding, schema, and filesystem mode regressions.
+* Source anchors: `packages/cli/internal/agents/spec.go`,
+  `packages/cli/internal/agents/runner.go`,
+  `packages/cli/internal/agents/templates.go`,
+  `packages/cli/internal/agents/spec_test.go`,
+  `packages/cli/internal/agents/runner_test.go`, and
+  `packages/cli/cmd/openknowledge/agents_command_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Private agent run artifacts
 
 * Changed agent run and run-parent directory permissions from shared-readable

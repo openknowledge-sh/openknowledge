@@ -117,3 +117,27 @@ func TestValidateJobRejectsUnsafeDockerSandboxValues(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateJobRequiresExplicitSafeEnvironmentNames(t *testing.T) {
+	base := Job{
+		ID:      "environment-job",
+		Agent:   AgentSpec{Command: "agent"},
+		Sandbox: SandboxSpec{Type: "host", Env: []string{"OPENAI_API_KEY", "CI"}},
+	}
+	if err := ValidateJob(base); err != nil {
+		t.Fatalf("expected environment allowlist to validate: %v", err)
+	}
+
+	for _, environment := range [][]string{
+		{"API-KEY"},
+		{"HOME"},
+		{"home"},
+		{"TOKEN", "token"},
+	} {
+		job := base
+		job.Sandbox.Env = environment
+		if err := ValidateJob(job); err == nil || !strings.Contains(err.Error(), "sandbox.env") {
+			t.Fatalf("expected environment %v to be rejected, got %v", environment, err)
+		}
+	}
+}

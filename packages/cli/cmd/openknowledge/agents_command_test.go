@@ -224,6 +224,16 @@ Print the Go version.
 				t.Fatalf("expected private run directory %s mode 0700, got %04o", dir, info.Mode().Perm())
 			}
 		}
+		for _, name := range []string{"home", "tmp"} {
+			dir := filepath.Join(runDir, name)
+			info, err := os.Stat(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode().Perm() != 0700 {
+				t.Fatalf("expected isolated runtime directory %s mode 0700, got %04o", dir, info.Mode().Perm())
+			}
+		}
 		for _, name := range []string{
 			"job.md", "prompt.md", "plan.json", "run.json",
 			"agent.stdout.log", "agent.stderr.log", "diff.patch",
