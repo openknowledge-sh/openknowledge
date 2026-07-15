@@ -86,6 +86,8 @@ The same build recursively copies the CLI Draft 2020-12 schema tree to
 `dist/schemas/cli/`, including versioned machine-output and portable-manifest
 contracts. The copy step validates every `$id` against its exact public
 `https://openknowledge.sh/schemas/cli/` route before deployment.
+This recursive tree includes machine-output, portable-manifest, and local
+persistence schemas; their version domains are independent.
 
 `pnpm build:web` can also inject trusted HTML into the generated landing page
 `<head>`. Use this for analytics, verification meta tags, or small loader

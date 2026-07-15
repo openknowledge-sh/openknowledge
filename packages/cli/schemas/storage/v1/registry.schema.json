@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/storage/v1/registry.schema.json",
+  "title": "Open Knowledge local registry storage v1",
+  "type": "object",
+  "required": ["schemaVersion", "connections"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "connections": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/connection"}
+    }
+  },
+  "$defs": {
+    "connection": {
+      "type": "object",
+      "required": ["key", "access"],
+      "properties": {
+        "key": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+        "access": {"enum": ["read", "write"]},
+        "managed": {"type": "boolean"},
+        "source": {"$ref": "source.schema.json"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

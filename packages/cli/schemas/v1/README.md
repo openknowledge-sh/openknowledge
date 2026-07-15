@@ -35,3 +35,6 @@ Portable `openknowledge.json` discovery manifests use an independent protocol
 schema under [`../manifest/v1/`](../manifest/v1/). They do not contain the CLI
 output `schemaVersion` field; their numeric `version` and concrete OKF `spec`
 identify separate compatibility dimensions.
+
+CLI-owned registry and managed-cache provenance use independent persistence
+schemas under [`../storage/v1/`](../storage/v1/).

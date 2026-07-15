@@ -59,6 +59,22 @@ archive. It deliberately does not reuse the CLI output `schemaVersion` field.
 Remote consumers reject unknown fields, duplicate object keys, trailing JSON,
 non-canonical spec versions, and non-lowercase SHA-256 identities.
 
+CLI-owned local persistence has a third independent version domain:
+
+```text
+https://openknowledge.sh/schemas/cli/storage/v1/registry.schema.json
+https://openknowledge.sh/schemas/cli/storage/v1/cache-source.schema.json
+```
+
+The registry and managed-cache sidecar share `source.schema.json`. Current
+writes declare `schemaVersion: "1"`; an unversioned registry remains readable
+only as a legacy migration input and is upgraded by the next atomic mutation.
+Readers reject unsupported versions, unknown fields, duplicate keys, trailing
+JSON, ambiguous duplicate registry names, invalid path/key/access invariants,
+and a sidecar whose recorded managed root differs from its actual cache root.
+Reads are capped at 8 MiB for the registry and 1 MiB per sidecar before JSON
+decoding.
+
 ## Compatibility Policy
 
 Version 1 permits additive fields that preserve existing field meanings and
@@ -76,7 +92,8 @@ bundle, list, link, and issue shapes are explicit rather than open-ended.
 
 `go test ./packages/cli/...` performs three complementary checks:
 
-* compiles every CLI-output and portable-manifest schema as Draft 2020-12 with all `$id` resources registered
+* compiles every CLI-output, portable-manifest, and persistence schema as Draft
+  2020-12 with all `$id` resources registered
   locally, so tests never depend on the network
 * validates every golden JSON fixture and representative non-empty output from
   the real AST, bundle, graph, list, search, context, and validation builders
@@ -84,6 +101,8 @@ bundle, list, link, and issue shapes are explicit rather than open-ended.
   corresponding schema to reject them
 * validates a runtime-produced portable manifest and rejects invalid identity,
   version, archive, checksum, and extension variants against its public schema
+* validates current registry and remote-cache provenance objects against their
+  public persistence schemas
 
 The pinned `github.com/santhosh-tekuri/jsonschema/v6` dependency is imported
 only by tests. It does not become part of the CLI runtime binary. Web tests
@@ -98,6 +117,7 @@ empty snapshot cannot provide by itself.
 
 * `packages/cli/schemas/v1/`
 * `packages/cli/schemas/manifest/v1/`
+* `packages/cli/schemas/storage/v1/`
 * `packages/cli/internal/okf/schema_contract_test.go`
 * `packages/cli/internal/okf/machine_contract_test.go`
 * `packages/cli/go.mod`

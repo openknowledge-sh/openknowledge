@@ -16,6 +16,10 @@ import (
 )
 
 const RegistryFileEnv = "OPENKNOWLEDGE_REGISTRY_FILE"
+const RegistrySchemaVersion = "1"
+const RegistryStorageSchemaID = "https://openknowledge.sh/schemas/cli/storage/v1/registry.schema.json"
+const RemoteCacheSourceSchemaID = "https://openknowledge.sh/schemas/cli/storage/v1/cache-source.schema.json"
+const MaxRegistryBytes int64 = 8 << 20
 
 var registryNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
@@ -25,8 +29,9 @@ var registryNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 var registryProcessLock sync.Mutex
 
 type Registry struct {
-	Connections map[string]RegistryConnection `json:"connections,omitempty"`
-	Entries     []RegistryEntry               `json:"-"`
+	SchemaVersion string                        `json:"schemaVersion,omitempty"`
+	Connections   map[string]RegistryConnection `json:"connections"`
+	Entries       []RegistryEntry               `json:"-"`
 }
 
 type RegistryEntry struct {
@@ -38,10 +43,10 @@ type RegistryEntry struct {
 }
 
 type RegistryConnection struct {
-	Name    string         `json:"key"`
-	Access  string         `json:"access,omitempty"`
-	Managed bool           `json:"managed,omitempty"`
-	Source  RegistrySource `json:"source,omitempty"`
+	Name    string          `json:"key"`
+	Access  string          `json:"access,omitempty"`
+	Managed bool            `json:"managed,omitempty"`
+	Source  *RegistrySource `json:"source,omitempty"`
 }
 
 type RegistrySource struct {
@@ -84,7 +89,7 @@ func LoadRegistry() (Registry, error) {
 		return Registry{}, err
 	}
 
-	content, err := os.ReadFile(path)
+	content, err := ReadFileAtMost(path, MaxRegistryBytes)
 	if os.IsNotExist(err) {
 		return Registry{}, nil
 	}
@@ -93,8 +98,11 @@ func LoadRegistry() (Registry, error) {
 	}
 
 	var registry Registry
-	if err := json.Unmarshal(content, &registry); err != nil {
-		return Registry{}, err
+	if err := DecodeStrictJSON(content, &registry); err != nil {
+		return Registry{}, fmt.Errorf("invalid Open Knowledge registry %s: %w", path, err)
+	}
+	if err := validateStoredRegistry(registry); err != nil {
+		return Registry{}, fmt.Errorf("invalid Open Knowledge registry %s: %w", path, err)
 	}
 	registry = normalizeRegistry(registry)
 	sortRegistryEntries(registry.Entries)
@@ -138,6 +146,14 @@ func ConnectRegistryEntryWithSource(name string, path string, access string, exp
 	absolute, err := absoluteDirectory(path)
 	if err != nil {
 		return RegistryEntry{}, "", err
+	}
+	if registrySourceIsManaged(source) {
+		if strings.TrimSpace(source.Type) == "" {
+			source.Type = "unknown"
+		}
+		if strings.TrimSpace(source.ManagedRoot) == "" {
+			source.ManagedRoot = absolute
+		}
 	}
 
 	var connected RegistryEntry
@@ -507,6 +523,9 @@ func saveRegistry(registry Registry) error {
 	}
 
 	registry = registryForStorage(registry)
+	if err := validateStoredRegistry(registry); err != nil {
+		return fmt.Errorf("refusing to write invalid Open Knowledge registry: %w", err)
+	}
 	data, err := json.MarshalIndent(registry, "", "  ")
 	if err != nil {
 		return err
@@ -521,16 +540,70 @@ func saveRegistry(registry Registry) error {
 	return os.Chmod(path, 0600)
 }
 
+func validateStoredRegistry(registry Registry) error {
+	if registry.SchemaVersion != "" && registry.SchemaVersion != RegistrySchemaVersion {
+		return fmt.Errorf("unsupported registry schema version %q", registry.SchemaVersion)
+	}
+	current := registry.SchemaVersion == RegistrySchemaVersion
+	if current && registry.Connections == nil {
+		return fmt.Errorf("registry schema version %s requires connections", RegistrySchemaVersion)
+	}
+	names := make(map[string]string, len(registry.Connections))
+	for storedPath, connection := range registry.Connections {
+		if strings.TrimSpace(storedPath) == "" || storedPath != filepath.Clean(storedPath) || !filepath.IsAbs(storedPath) {
+			return fmt.Errorf("connection path must be canonical and absolute: %q", storedPath)
+		}
+		if !validRegistryName(connection.Name) {
+			return fmt.Errorf("connection at %s has invalid key %q", storedPath, connection.Name)
+		}
+		if previous, exists := names[connection.Name]; exists {
+			return fmt.Errorf("connection key %q is duplicated for %s and %s", connection.Name, previous, storedPath)
+		}
+		names[connection.Name] = storedPath
+		if current && connection.Access == "" {
+			return fmt.Errorf("connection %q is missing access", connection.Name)
+		}
+		if connection.Access != "" && connection.Access != "read" && connection.Access != "write" {
+			return fmt.Errorf("connection %q has invalid access %q", connection.Name, connection.Access)
+		}
+		if current && connection.Source != nil {
+			source := *connection.Source
+			if !connection.Managed {
+				return fmt.Errorf("connection %q has source provenance but is not managed", connection.Name)
+			}
+			if source.Type != "" && source.Type != "manifest" && source.Type != "tar" && source.Type != "git" && source.Type != "unknown" {
+				return fmt.Errorf("connection %q has invalid source type %q", connection.Name, source.Type)
+			}
+			if source.ManagedRoot != "" && (source.ManagedRoot != filepath.Clean(source.ManagedRoot) || !filepath.IsAbs(source.ManagedRoot)) {
+				return fmt.Errorf("connection %q managed root must be canonical and absolute", connection.Name)
+			}
+			if source.ManagedRoot != "" {
+				rel, err := filepath.Rel(source.ManagedRoot, storedPath)
+				if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+					return fmt.Errorf("connection %q path is outside its managed root", connection.Name)
+				}
+			}
+		} else if current && connection.Managed {
+			return fmt.Errorf("managed connection %q is missing source provenance", connection.Name)
+		}
+	}
+	return nil
+}
+
 func normalizeRegistry(registry Registry) Registry {
 	if len(registry.Connections) > 0 {
 		registry.Entries = registry.Entries[:0]
 		for path, connection := range registry.Connections {
+			source := RegistrySource{}
+			if connection.Source != nil {
+				source = *connection.Source
+			}
 			registry.Entries = append(registry.Entries, RegistryEntry{
 				Name:    connection.Name,
 				Path:    path,
 				Access:  connection.Access,
 				Managed: connection.Managed,
-				Source:  connection.Source,
+				Source:  source,
 			})
 		}
 	}
@@ -540,6 +613,14 @@ func normalizeRegistry(registry Registry) Registry {
 	for index := range registry.Entries {
 		entry := &registry.Entries[index]
 		entry.Managed = registryEntryIsManaged(*entry)
+		if entry.Managed {
+			if strings.TrimSpace(entry.Source.Type) == "" {
+				entry.Source.Type = "unknown"
+			}
+			if strings.TrimSpace(entry.Source.ManagedRoot) == "" {
+				entry.Source.ManagedRoot = entry.Path
+			}
+		}
 		if entry.Access != "write" || entry.Managed {
 			entry.Access = "read"
 		}
@@ -650,14 +731,19 @@ func registryForStorage(registry Registry) Registry {
 		if strings.TrimSpace(entry.Path) == "" {
 			continue
 		}
+		var source *RegistrySource
+		if registrySourceIsManaged(entry.Source) {
+			value := entry.Source
+			source = &value
+		}
 		connections[entry.Path] = RegistryConnection{
 			Name:    entry.Name,
 			Access:  entry.Access,
 			Managed: entry.Managed,
-			Source:  entry.Source,
+			Source:  source,
 		}
 	}
-	return Registry{Connections: connections}
+	return Registry{SchemaVersion: RegistrySchemaVersion, Connections: connections}
 }
 
 func sortRegistryEntries(entries []RegistryEntry) {

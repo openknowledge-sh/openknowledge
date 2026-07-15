@@ -2242,6 +2242,59 @@ func TestRemoteCacheIdentityDoesNotDependOnRegistryAlias(t *testing.T) {
 	}
 }
 
+func TestLoadRemoteCacheSourceRejectsAmbiguousOrMismatchedProvenance(t *testing.T) {
+	base := t.TempDir()
+	target := filepath.Join(base, "bundle")
+	requestedURL := "https://example.test/docs.git"
+	source := okf.RegistrySource{
+		Type:        "git",
+		URL:         requestedURL,
+		GitCommit:   strings.Repeat("a", 40),
+		Spec:        "0.1",
+		ManagedRoot: target,
+	}
+	valid, err := json.Marshal(remoteCacheRecord{SchemaVersion: remoteCacheSchemaVersion, Source: source})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(remoteCacheSourcePath(target), valid, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if loaded, err := loadRemoteCacheSource(target, requestedURL); err != nil || loaded.ManagedRoot != target {
+		t.Fatalf("expected exact provenance to load, source=%#v err=%v", loaded, err)
+	}
+
+	wrongRootSource := source
+	wrongRootSource.ManagedRoot = filepath.Join(base, "other")
+	wrongRoot, err := json.Marshal(remoteCacheRecord{SchemaVersion: remoteCacheSchemaVersion, Source: wrongRootSource})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name     string
+		content  []byte
+		expected string
+	}{
+		{name: "unknown top-level", content: []byte(strings.TrimSuffix(string(valid), "}") + `,"extra":true}`), expected: "unknown field"},
+		{name: "duplicate top-level", content: []byte(strings.Replace(string(valid), `"schemaVersion":"1"`, `"schemaVersion":"1","schemaVersion":"1"`, 1)), expected: "duplicate field"},
+		{name: "unknown source", content: []byte(strings.Replace(string(valid), `"type":"git"`, `"type":"git","extra":true`, 1)), expected: "unknown field"},
+		{name: "duplicate source", content: []byte(strings.Replace(string(valid), `"url":"`+requestedURL+`"`, `"url":"`+requestedURL+`","url":"`+requestedURL+`"`, 1)), expected: "duplicate field"},
+		{name: "unsupported version", content: []byte(strings.Replace(string(valid), `"schemaVersion":"1"`, `"schemaVersion":"2"`, 1)), expected: "unsupported remote cache provenance version"},
+		{name: "different managed root", content: wrongRoot, expected: "different managed root"},
+		{name: "trailing JSON", content: append(append([]byte(nil), valid...), []byte(`{}`)...), expected: "trailing JSON"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := os.WriteFile(remoteCacheSourcePath(target), test.content, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := loadRemoteCacheSource(target, requestedURL); err == nil || !strings.Contains(err.Error(), test.expected) {
+				t.Fatalf("expected %q error, got %v", test.expected, err)
+			}
+		})
+	}
+}
+
 func TestRunConnectAndRefreshPreserveGitRefAndSubdir(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is required for Git selector test")

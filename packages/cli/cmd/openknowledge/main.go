@@ -1783,6 +1783,7 @@ func remoteCacheSourcePath(target string) string {
 }
 
 const remoteCacheSchemaVersion = "1"
+const maxRemoteCacheSourceBytes int64 = 1 << 20
 
 type remoteCacheRecord struct {
 	SchemaVersion string             `json:"schemaVersion"`
@@ -1790,6 +1791,9 @@ type remoteCacheRecord struct {
 }
 
 func saveRemoteCacheSource(target string, source okf.RegistrySource) error {
+	if err := validateRemoteCacheSource(target, source); err != nil {
+		return fmt.Errorf("refusing to write invalid remote cache provenance for %s: %w", target, err)
+	}
 	record := remoteCacheRecord{SchemaVersion: remoteCacheSchemaVersion, Source: source}
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
@@ -1807,12 +1811,12 @@ func saveRemoteCacheSource(target string, source okf.RegistrySource) error {
 }
 
 func loadRemoteCacheSource(target string, requestedSource string) (okf.RegistrySource, error) {
-	content, err := os.ReadFile(remoteCacheSourcePath(target))
+	content, err := okf.ReadFileAtMost(remoteCacheSourcePath(target), maxRemoteCacheSourceBytes)
 	if err != nil {
 		return okf.RegistrySource{}, err
 	}
 	var record remoteCacheRecord
-	if err := json.Unmarshal(content, &record); err != nil {
+	if err := okf.DecodeStrictJSON(content, &record); err != nil {
 		return okf.RegistrySource{}, fmt.Errorf("invalid remote cache provenance for %s: %w", target, err)
 	}
 	if record.SchemaVersion != remoteCacheSchemaVersion {
@@ -1825,9 +1829,36 @@ func loadRemoteCacheSource(target string, requestedSource string) (okf.RegistryS
 	if normalizeRemoteSource(source.URL) != normalizeRemoteSource(requestedSource) {
 		return okf.RegistrySource{}, fmt.Errorf("remote cache provenance for %s belongs to a different source", target)
 	}
+	if err := validateRemoteCacheSource(target, source); err != nil {
+		return okf.RegistrySource{}, fmt.Errorf("invalid remote cache provenance for %s: %w", target, err)
+	}
 	source.URL = strings.TrimSpace(requestedSource)
 	source.ManagedRoot = target
 	return source, nil
+}
+
+func validateRemoteCacheSource(target string, source okf.RegistrySource) error {
+	if source.Type != "manifest" && source.Type != "tar" && source.Type != "git" && source.Type != "unknown" {
+		return fmt.Errorf("unsupported source type %q", source.Type)
+	}
+	if strings.TrimSpace(source.URL) == "" {
+		return fmt.Errorf("source URL is required")
+	}
+	if source.ManagedRoot == "" || source.ManagedRoot != filepath.Clean(source.ManagedRoot) || !filepath.IsAbs(source.ManagedRoot) {
+		return fmt.Errorf("managed root must be canonical and absolute")
+	}
+	recordedRoot, err := filepath.Abs(source.ManagedRoot)
+	if err != nil {
+		return err
+	}
+	expectedRoot, err := filepath.Abs(target)
+	if err != nil {
+		return err
+	}
+	if recordedRoot != expectedRoot {
+		return fmt.Errorf("records a different managed root")
+	}
+	return nil
 }
 
 func cloneGitSource(source string, staging string, ref string) error {

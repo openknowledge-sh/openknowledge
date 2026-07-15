@@ -59,6 +59,56 @@ func TestBundleManifestSchemaMatchesRuntimeContract(t *testing.T) {
 	}
 }
 
+func TestStorageSchemasValidateCurrentRegistryAndProvenance(t *testing.T) {
+	schemas := compileMachineSchemas(t)
+	registrySchema := schemas.byID[RegistryStorageSchemaID]
+	cacheSchema := schemas.byID[RemoteCacheSourceSchemaID]
+	if registrySchema == nil || cacheSchema == nil {
+		t.Fatalf("storage schemas were not compiled: registry=%v cache=%v", registrySchema != nil, cacheSchema != nil)
+	}
+
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+	localRoot := t.TempDir()
+	if _, _, err := ConnectRegistryEntry("local", localRoot, "write", true); err != nil {
+		t.Fatal(err)
+	}
+	managedRoot := t.TempDir()
+	source := RegistrySource{
+		Type:          "git",
+		URL:           "https://example.test/docs.git",
+		ContentSHA256: strings.Repeat("b", 64),
+		GitCommit:     strings.Repeat("a", 40),
+		GitRef:        "release-docs",
+		GitSubdir:     "knowledge",
+		Spec:          "0.1",
+		FetchedAt:     "2026-07-15T12:00:00Z",
+		ManagedRoot:   managedRoot,
+	}
+	if _, _, err := ConnectRegistryEntryWithSource("remote", managedRoot, "read", true, source); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(registryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registryValue, err := jsonschema.UnmarshalJSON(bytes.NewReader(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := registrySchema.Validate(registryValue); err != nil {
+		t.Fatalf("current registry storage does not satisfy its public schema: %v", err)
+	}
+
+	cacheValue := machineJSONValue(t, map[string]any{
+		"schemaVersion": "1",
+		"source":        source,
+	})
+	if err := cacheSchema.Validate(cacheValue); err != nil {
+		t.Fatalf("current cache provenance does not satisfy its public schema: %v", err)
+	}
+}
+
 func TestMachineSchemasCompileAndValidateGoldenContracts(t *testing.T) {
 	schemas := compileMachineSchemas(t)
 	fixtures := machineContractFixtures(t)

@@ -182,7 +182,8 @@ func TestRegistrySavesPathKeyedConnections(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stored struct {
-		Connections map[string]RegistryConnection `json:"connections"`
+		SchemaVersion string                        `json:"schemaVersion"`
+		Connections   map[string]RegistryConnection `json:"connections"`
 	}
 	if err := json.Unmarshal(content, &stored); err != nil {
 		t.Fatal(err)
@@ -191,8 +192,76 @@ func TestRegistrySavesPathKeyedConnections(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected path-keyed connection for %s in %#v", root, stored.Connections)
 	}
-	if connection.Name != entry.Name || connection.Source != source || !connection.Managed {
+	if connection.Name != entry.Name || connection.Source == nil || *connection.Source != source || !connection.Managed {
 		t.Fatalf("unexpected stored connection: %#v", connection)
+	}
+	if stored.SchemaVersion != RegistrySchemaVersion {
+		t.Fatalf("expected versioned registry storage, got %q", stored.SchemaVersion)
+	}
+}
+
+func TestLoadRegistryRejectsAmbiguousOrInvalidStorage(t *testing.T) {
+	root := t.TempDir()
+	otherRoot := t.TempDir()
+	quotedRoot := fmt.Sprintf("%q", root)
+	quotedOtherRoot := fmt.Sprintf("%q", otherRoot)
+	valid := `{"schemaVersion":"1","connections":{` + quotedRoot + `:{"key":"docs","access":"read"}}}`
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+
+	if err := os.WriteFile(registryFile, []byte(valid), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if registry, err := LoadRegistry(); err != nil || len(registry.Entries) != 1 {
+		t.Fatalf("expected exact v1 registry to load, registry=%#v err=%v", registry, err)
+	}
+	legacy := strings.Replace(valid, `"schemaVersion":"1",`, "", 1)
+	if err := os.WriteFile(registryFile, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadRegistry(); err != nil {
+		t.Fatalf("expected legacy unversioned registry to remain readable: %v", err)
+	}
+	if _, _, err := ConnectRegistryEntry("other", otherRoot, "read", true); err != nil {
+		t.Fatalf("expected legacy registry migration write: %v", err)
+	}
+	migrated, err := os.ReadFile(registryFile)
+	if err != nil || !strings.Contains(string(migrated), `"schemaVersion": "1"`) {
+		t.Fatalf("legacy registry was not migrated to v1, content=%q err=%v", migrated, err)
+	}
+
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{name: "unknown top-level", content: strings.TrimSuffix(valid, "}") + `,"extra":true}`, expected: "unknown field"},
+		{name: "duplicate top-level", content: `{"schemaVersion":"1","schemaVersion":"1","connections":{}}`, expected: "duplicate field"},
+		{name: "unknown connection", content: `{"schemaVersion":"1","connections":{` + quotedRoot + `:{"key":"docs","extra":true}}}`, expected: "unknown field"},
+		{name: "duplicate nested", content: `{"schemaVersion":"1","connections":{` + quotedRoot + `:{"key":"docs","key":"other"}}}`, expected: "duplicate field"},
+		{name: "unsupported version", content: `{"schemaVersion":"2","connections":{}}`, expected: "unsupported registry schema version"},
+		{name: "relative path", content: `{"schemaVersion":"1","connections":{"relative":{"key":"docs"}}}`, expected: "canonical and absolute"},
+		{name: "duplicate logical key", content: `{"schemaVersion":"1","connections":{` + quotedRoot + `:{"key":"docs","access":"read"},` + quotedOtherRoot + `:{"key":"docs","access":"read"}}}`, expected: "duplicated"},
+		{name: "invalid access", content: `{"schemaVersion":"1","connections":{` + quotedRoot + `:{"key":"docs","access":"owner"}}}`, expected: "invalid access"},
+		{name: "trailing JSON", content: valid + `{}`, expected: "trailing JSON"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := os.WriteFile(registryFile, []byte(test.content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			before := append([]byte(nil), []byte(test.content)...)
+			if _, err := LoadRegistry(); err == nil || !strings.Contains(err.Error(), test.expected) {
+				t.Fatalf("expected %q error, got %v", test.expected, err)
+			}
+			if _, _, err := ConnectRegistryEntry("other", t.TempDir(), "read", true); err == nil {
+				t.Fatal("registry mutation must refuse corrupt storage")
+			}
+			after, err := os.ReadFile(registryFile)
+			if err != nil || string(after) != string(before) {
+				t.Fatalf("refused mutation changed corrupt registry, content=%q err=%v", after, err)
+			}
+		})
 	}
 }
 
@@ -293,7 +362,7 @@ func TestManagedRegistryConnectionsAreAlwaysReadOnly(t *testing.T) {
 	}
 
 	legacy := Registry{Connections: map[string]RegistryConnection{
-		root: {Name: "legacy", Access: "write", Source: source},
+		root: {Name: "legacy", Access: "write", Source: &source},
 	}}
 	content, err := json.Marshal(legacy)
 	if err != nil {
@@ -358,6 +427,7 @@ func TestReplaceRegistryEntryRequiresExactSnapshot(t *testing.T) {
 	replacement := original
 	replacement.Path = secondRoot
 	replacement.Source.GitCommit = strings.Repeat("b", 40)
+	replacement.Source.ManagedRoot = secondRoot
 	replaced, err := ReplaceRegistryEntry(original, replacement)
 	if err != nil || replaced != replacement {
 		t.Fatalf("expected exact replacement, entry=%#v err=%v", replaced, err)

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/storage/v1/source.schema.json",
+  "title": "Open Knowledge managed source provenance v1",
+  "type": "object",
+  "properties": {
+    "type": {"enum": ["manifest", "tar", "git", "unknown"]},
+    "url": {"type": "string", "minLength": 1},
+    "ref": {"type": "string"},
+    "resolvedUrl": {"type": "string"},
+    "manifestUrl": {"type": "string"},
+    "archiveUrl": {"type": "string"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "contentSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitCommit": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "gitRef": {"type": "string"},
+    "gitSubdir": {"type": "string"},
+    "spec": {"enum": ["0.1"]},
+    "fetchedAt": {"type": "string", "format": "date-time"},
+    "managedRoot": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

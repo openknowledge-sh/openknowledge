@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/storage/v1/cache-source.schema.json",
+  "title": "Open Knowledge remote cache provenance sidecar v1",
+  "type": "object",
+  "required": ["schemaVersion", "source"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "source": {
+      "allOf": [
+        {"$ref": "source.schema.json"},
+        {"required": ["type", "url", "managedRoot"]}
+      ]
+    }
+  },
+  "additionalProperties": false
+}

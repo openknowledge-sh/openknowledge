@@ -223,6 +223,15 @@ CLI-managed. Local connections normally leave `managed` unset; remote manifest,
 tar, and Git connections are marked managed because their files live in the
 Open Knowledge cache.
 
+Current registry files declare `schemaVersion: "1"`. The runtime accepts a
+missing version only for legacy migration and the next successful atomic
+mutation writes v1. It fails closed before mutation on unsupported versions,
+unknown fields, duplicate object keys, trailing JSON, non-canonical or relative
+stored paths, invalid keys/access values, and duplicate logical connection
+names. The public Draft 2020-12 contract is
+`https://openknowledge.sh/schemas/cli/storage/v1/registry.schema.json`.
+Registry reads are capped at 8 MiB before decoding.
+
 New remote source records preserve requested and resolved URLs, final manifest
 and archive URLs, the archive SHA-256 or Git commit, concrete OKF spec, fetch
 timestamp, deterministic managed-tree SHA-256, and the complete managed cache
@@ -230,6 +239,12 @@ root. `ref` remains populated for compatibility with older archive-URL readers.
 Cache provenance is also stored in a versioned owner-only sidecar beside the
 source-addressed cache directory, so reconnecting does not infer or lose the
 source identity.
+The sidecar uses
+`https://openknowledge.sh/schemas/cli/storage/v1/cache-source.schema.json` and
+the same strict JSON boundary. A recorded `managedRoot` that does not equal the
+actual cache generation is corruption rather than a value the loader silently
+replaces; offline status therefore reports the provenance mismatch. Sidecar
+reads are capped at 1 MiB.
 
 Source-specific in-process and filesystem locks serialize cache publication.
 The cache root is owner-only. Archive extraction and Git clone staging are
@@ -248,6 +263,17 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned strict persistence
+
+Registry writes now declare storage schema v1, legacy unversioned files migrate
+on their next mutation, and registry/sidecar readers reject ambiguous,
+extended, unsupported, or invariant-breaking state without rewriting it.
+Public Draft 2020-12 storage schemas ship with the website. Source anchors:
+`packages/cli/internal/okf/strict_json.go`,
+`packages/cli/internal/okf/registry.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/schemas/storage/v1/`.
 
 ### 2026-07-15 - Versioned registry discovery
 

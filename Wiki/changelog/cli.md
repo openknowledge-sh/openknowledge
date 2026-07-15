@@ -14,6 +14,32 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Versioned fail-closed registry persistence
+
+* Added shared strict JSON decoding that rejects unknown fields, duplicate
+  object keys at any depth, and trailing JSON; reused it for portable manifests,
+  registry storage, and remote-cache provenance.
+* Versioned all new registry writes with `schemaVersion: "1"`, retained
+  unversioned registry reads only as a migration path, and upgraded them on the
+  next successful atomic mutation.
+* Added pre-mutation validation for registry versions, canonical absolute
+  paths, key syntax, access values, and duplicate logical names; corrupt input
+  is preserved unchanged on refusal.
+* Fixed provenance verification so a sidecar's recorded `managedRoot` must
+  match its actual generation instead of being silently overwritten.
+* Capped registry reads at 8 MiB and individual provenance sidecars at 1 MiB
+  before allocation and decoding.
+* Published recursive Draft 2020-12 registry, cache-sidecar, and shared-source
+  schemas under `/schemas/cli/storage/v1/` and validated current producer
+  objects offline against them.
+* Source anchors: `packages/cli/internal/okf/strict_json.go`,
+  `packages/cli/internal/okf/registry.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/schemas/storage/v1/`.
+* Docs updated: `README.md`, `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/machine-contracts.md`, `Wiki/features/operations.md`,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Git revision and monorepo bundle selection
 
 * Added `--git-ref <branch|tag|commit>` and `--git-subdir <path>` to
