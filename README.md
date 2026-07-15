@@ -426,6 +426,10 @@ separately identifies the selected Open Knowledge Format version. Tests compile
 the schemas and validate golden plus representative non-empty outputs, while
 the website publishes them at
 `https://openknowledge.sh/schemas/cli/v1/<name>.schema.json`.
+The separately versioned portable `openknowledge.json` manifest contract is
+published at
+`https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`; remote
+connect rejects unknown or duplicate fields and trailing JSON.
 
 ## Development
 

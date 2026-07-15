@@ -40,6 +40,7 @@ func TestValidateBundleManifestContract(t *testing.T) {
 		{name: "archive format", mutate: func(manifest *BundleManifest) { manifest.ArchiveFormat = "zip" }, expected: "archive format"},
 		{name: "missing checksum", mutate: func(manifest *BundleManifest) { manifest.ArchiveSHA256 = "" }, expected: "64-character SHA-256"},
 		{name: "invalid checksum", mutate: func(manifest *BundleManifest) { manifest.ArchiveSHA256 = strings.Repeat("z", 64) }, expected: "64-character SHA-256"},
+		{name: "uppercase checksum", mutate: func(manifest *BundleManifest) { manifest.ArchiveSHA256 = strings.Repeat("A", 64) }, expected: "64-character SHA-256"},
 		{name: "noncanonical checksum", mutate: func(manifest *BundleManifest) { manifest.ArchiveSHA256 = " " + strings.Repeat("a", 64) }, expected: "64-character SHA-256"},
 	}
 
@@ -48,6 +49,34 @@ func TestValidateBundleManifestContract(t *testing.T) {
 			manifest := valid
 			test.mutate(&manifest)
 			if _, err := ValidateBundleManifest(manifest); err == nil || !strings.Contains(err.Error(), test.expected) {
+				t.Fatalf("expected %q error, got %v", test.expected, err)
+			}
+		})
+	}
+}
+
+func TestDecodeBundleManifestRejectsAmbiguousOrExtendedJSON(t *testing.T) {
+	checksum := strings.Repeat("a", 64)
+	valid := `{"type":"openknowledge.bundle","version":1,"spec":"0.1","archive":"assets/openknowledge-bundle.tar.gz","archiveSha256":"` + checksum + `","archiveFormat":"tar.gz"}`
+	manifest, err := DecodeBundleManifest([]byte(valid))
+	if err != nil || manifest.ArchiveSHA256 != checksum {
+		t.Fatalf("expected strict decoder to accept valid manifest, manifest=%#v err=%v", manifest, err)
+	}
+
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{name: "unknown field", content: strings.TrimSuffix(valid, "}") + `,"extra":true}`, expected: "unknown field"},
+		{name: "duplicate field", content: strings.Replace(valid, `"type":"openknowledge.bundle"`, `"type":"openknowledge.bundle","type":"openknowledge.bundle"`, 1), expected: "duplicate field"},
+		{name: "trailing JSON", content: valid + `{}`, expected: "trailing JSON"},
+		{name: "wrong format", content: strings.Replace(valid, `"archiveFormat":"tar.gz"`, `"archiveFormat":"zip"`, 1), expected: "archive format"},
+		{name: "top-level array", content: `[]`, expected: "cannot unmarshal array"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := DecodeBundleManifest([]byte(test.content)); err == nil || !strings.Contains(err.Error(), test.expected) {
 				t.Fatalf("expected %q error, got %v", test.expected, err)
 			}
 		})

@@ -9,12 +9,15 @@ test("publishes every CLI schema at its declared public URL path", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "openknowledge-schemas-"));
   try {
     const published = await publishCLISchemas(path.join(root, "schemas"));
-    assert.ok(published.includes("common.schema.json"));
-    assert.ok(published.includes("registry-list.schema.json"));
-    assert.ok(published.includes("validation.schema.json"));
+    assert.ok(published.includes(path.join("v1", "common.schema.json")));
+    assert.ok(published.includes(path.join("v1", "registry-list.schema.json")));
+    assert.ok(published.includes(path.join("v1", "validation.schema.json")));
+    assert.ok(published.includes(path.join("manifest", "v1", "bundle.schema.json")));
 
     const registry = JSON.parse(await readFile(path.join(root, "schemas", "cli", "v1", "registry-list.schema.json"), "utf8"));
     assert.equal(registry.$id, "https://openknowledge.sh/schemas/cli/v1/registry-list.schema.json");
+    const manifest = JSON.parse(await readFile(path.join(root, "schemas", "cli", "manifest", "v1", "bundle.schema.json"), "utf8"));
+    assert.equal(manifest.$id, "https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json");
     assert.deepEqual(await validatePublishedSchemaIDs(path.join(root, "schemas", "cli")), published);
   } finally {
     await rm(root, { recursive: true, force: true });

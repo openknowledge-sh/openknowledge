@@ -45,7 +45,8 @@ supported OKF `spec`, `archiveFormat: "tar.gz"`, the archive path, and its
 required SHA-256. Unlike the standalone source-preserving `to tar` command, the
 public HTML export filters Markdown files marked `okf_publish: false` from this
 downloadable archive so hidden drafts cannot be recovered through the remote
-connect asset.
+connect asset. The Draft 2020-12 manifest contract is published at
+`https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
 
 Remote `openknowledge connect` downloads archives from manifests or direct
 `.tar`, `.tar.gz`, and `.tgz` URLs, rejects unsafe archive entries such as path
@@ -54,12 +55,27 @@ rejects a conflicting root `okf_version`, then stores the materialized bundle
 in the Open Knowledge cache. A portable manifest cannot use the moving
 `latest` spec alias.
 
+Manifest decoding fails closed on unknown fields, duplicate object keys,
+trailing JSON, and invalid canonical identities. The runtime contract and its
+published schema are compiled and exercised together in the CLI test suite.
+
 Archive consumers cap compressed downloads at 512 MiB and extraction at
 100,000 entries, 256 MiB per regular file, and 2 GiB total. Extraction uses a
 sibling staging directory; the requested target appears only after the full
 archive succeeds, and an existing target is never overlaid.
 
 ## Change History
+
+### 2026-07-15 - Public strict manifest contract
+
+Added the versioned Draft 2020-12 schema for portable `openknowledge.json`
+documents, published it under the website's recursively verified CLI schema
+tree, and made remote consumers reject unknown fields, duplicate keys, and
+trailing JSON before semantic validation. Source anchors:
+`packages/cli/schemas/manifest/v1/bundle.schema.json`,
+`packages/cli/internal/okf/archive.go`,
+`packages/cli/internal/okf/schema_contract_test.go`, and
+`packages/web/scripts/schema-distribution.mjs`.
 
 ### 2026-07-15 - Reproducible archive identity
 

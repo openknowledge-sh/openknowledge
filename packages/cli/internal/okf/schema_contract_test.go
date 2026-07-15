@@ -3,6 +3,7 @@ package okf
 import (
 	"bytes"
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +15,48 @@ import (
 
 type machineSchemaSet struct {
 	compiled map[string]*jsonschema.Schema
+	byID     map[string]*jsonschema.Schema
+}
+
+func TestBundleManifestSchemaMatchesRuntimeContract(t *testing.T) {
+	schemas := compileMachineSchemas(t)
+	schema, ok := schemas.byID[BundleManifestSchemaID]
+	if !ok {
+		t.Fatalf("portable manifest schema %s was not compiled", BundleManifestSchemaID)
+	}
+	valid := machineJSONValue(t, BundleManifest{
+		Type:          BundleManifestType,
+		Version:       BundleManifestVersion,
+		Spec:          "0.1",
+		Name:          "docs",
+		Title:         "Documentation",
+		Archive:       BundleArchiveRelPath,
+		ArchiveSHA256: strings.Repeat("a", 64),
+		ArchiveFormat: BundleArchiveFormat,
+	})
+	if err := schema.Validate(valid); err != nil {
+		t.Fatalf("runtime-valid portable manifest does not satisfy its schema: %v", err)
+	}
+
+	tests := map[string]func(map[string]any){
+		"unknown field":      func(value map[string]any) { value["extra"] = true },
+		"type":               func(value map[string]any) { value["type"] = "bundle" },
+		"version":            func(value map[string]any) { value["version"] = float64(2) },
+		"moving spec":        func(value map[string]any) { value["spec"] = "latest" },
+		"unsupported spec":   func(value map[string]any) { value["spec"] = "9.9" },
+		"empty archive":      func(value map[string]any) { value["archive"] = "" },
+		"uppercase checksum": func(value map[string]any) { value["archiveSha256"] = strings.Repeat("A", 64) },
+		"archive format":     func(value map[string]any) { value["archiveFormat"] = "zip" },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			instance := cloneMachineJSONValue(t, valid).(map[string]any)
+			mutate(instance)
+			if err := schema.Validate(instance); err == nil {
+				t.Fatalf("portable manifest schema accepted invalid %s", name)
+			}
+		})
+	}
 }
 
 func TestMachineSchemasCompileAndValidateGoldenContracts(t *testing.T) {
@@ -128,7 +171,17 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 
 func compileMachineSchemas(t *testing.T) machineSchemaSet {
 	t.Helper()
-	paths, err := filepath.Glob(filepath.Join("..", "..", "schemas", "v1", "*.schema.json"))
+	schemaRoot := filepath.Join("..", "..", "schemas")
+	var paths []string
+	err := filepath.WalkDir(schemaRoot, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), ".schema.json") {
+			paths = append(paths, path)
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,6 +189,7 @@ func compileMachineSchemas(t *testing.T) machineSchemaSet {
 	compiler := jsonschema.NewCompiler()
 	compiler.DefaultDraft(jsonschema.Draft2020)
 	ids := make(map[string]string)
+	machineIDs := make(map[string]string)
 	for _, path := range paths {
 		content, err := os.ReadFile(path)
 		if err != nil {
@@ -152,18 +206,29 @@ func compileMachineSchemas(t *testing.T) machineSchemaSet {
 		if err := compiler.AddResource(id, document); err != nil {
 			t.Fatalf("register %s: %v", path, err)
 		}
-		name := strings.TrimSuffix(filepath.Base(path), ".schema.json")
-		ids[name] = id
+		ids[path] = id
+		relative, err := filepath.Rel(schemaRoot, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if filepath.Dir(relative) == "v1" {
+			name := strings.TrimSuffix(filepath.Base(path), ".schema.json")
+			machineIDs[name] = id
+		}
 	}
-	compiled := make(map[string]*jsonschema.Schema, len(ids))
-	for name, id := range ids {
+	byID := make(map[string]*jsonschema.Schema, len(ids))
+	for path, id := range ids {
 		schema, err := compiler.Compile(id)
 		if err != nil {
-			t.Fatalf("compile %s: %v", name, err)
+			t.Fatalf("compile %s: %v", path, err)
 		}
-		compiled[name] = schema
+		byID[id] = schema
 	}
-	return machineSchemaSet{compiled: compiled}
+	compiled := make(map[string]*jsonschema.Schema, len(machineIDs))
+	for name, id := range machineIDs {
+		compiled[name] = byID[id]
+	}
+	return machineSchemaSet{compiled: compiled, byID: byID}
 }
 
 func machineContractFixtures(t *testing.T) map[string]any {

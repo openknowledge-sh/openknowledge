@@ -30,3 +30,8 @@ The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,
 and verifies that undeclared top-level and nested fields are rejected. The
 validator dependency is test-only and is not linked into the distributed CLI.
+
+Portable `openknowledge.json` discovery manifests use an independent protocol
+schema under [`../manifest/v1/`](../manifest/v1/). They do not contain the CLI
+output `schemaVersion` field; their numeric `version` and concrete OKF `spec`
+identify separate compatibility dimensions.

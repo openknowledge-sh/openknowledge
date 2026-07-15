@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Schema-backed strict portable manifests
+
+* Added the Draft 2020-12 schema for portable `openknowledge.json` discovery
+  manifests with an independent manifest-protocol version and concrete OKF
+  spec version.
+* Made remote manifest decoding reject unknown fields, duplicate object keys,
+  trailing JSON, and invalid semantic identity or archive fields before any
+  archive is downloaded.
+* Extended offline schema compilation to the complete recursive CLI schema
+  tree and added positive runtime-manifest plus negative contract mutations.
+* Made the website recursively verify each schema `$id` against its exact
+  public route and publish the manifest schema at
+  `/schemas/cli/manifest/v1/bundle.schema.json`.
+* Source anchors: `packages/cli/internal/okf/archive.go`,
+  `packages/cli/internal/okf/archive_test.go`,
+  `packages/cli/internal/okf/schema_contract_test.go`,
+  `packages/cli/schemas/manifest/v1/`, and
+  `packages/web/scripts/schema-distribution.mjs`.
+* Docs updated: `README.md`, `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/machine-contracts.md`, `Wiki/features/operations.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/features/exporters/tar.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Enforced and publicly distributed JSON schemas
 
 * Added offline Draft 2020-12 compilation and semantic validation for every

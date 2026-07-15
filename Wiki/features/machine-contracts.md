@@ -46,6 +46,19 @@ The build fails when a schema `$id` does not match its public route. Relative
 references to `common.schema.json` therefore resolve identically from the
 repository and website.
 
+Portable `openknowledge.json` discovery documents use a separate versioned
+protocol schema:
+
+```text
+https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json
+```
+
+Its numeric `version` identifies the manifest/archive protocol, while its
+required concrete `spec` identifies the OKF revision expected inside the
+archive. It deliberately does not reuse the CLI output `schemaVersion` field.
+Remote consumers reject unknown fields, duplicate object keys, trailing JSON,
+non-canonical spec versions, and non-lowercase SHA-256 identities.
+
 ## Compatibility Policy
 
 Version 1 permits additive fields that preserve existing field meanings and
@@ -63,12 +76,14 @@ bundle, list, link, and issue shapes are explicit rather than open-ended.
 
 `go test ./packages/cli/...` performs three complementary checks:
 
-* compiles every schema as Draft 2020-12 with all `$id` resources registered
+* compiles every CLI-output and portable-manifest schema as Draft 2020-12 with all `$id` resources registered
   locally, so tests never depend on the network
 * validates every golden JSON fixture and representative non-empty output from
   the real AST, bundle, graph, list, search, context, and validation builders
 * mutates top-level and nested objects with undeclared fields and requires the
   corresponding schema to reject them
+* validates a runtime-produced portable manifest and rejects invalid identity,
+  version, archive, checksum, and extension variants against its public schema
 
 The pinned `github.com/santhosh-tekuri/jsonschema/v6` dependency is imported
 only by tests. It does not become part of the CLI runtime binary. Web tests
@@ -82,6 +97,7 @@ empty snapshot cannot provide by itself.
 ## Source Anchors
 
 * `packages/cli/schemas/v1/`
+* `packages/cli/schemas/manifest/v1/`
 * `packages/cli/internal/okf/schema_contract_test.go`
 * `packages/cli/internal/okf/machine_contract_test.go`
 * `packages/cli/go.mod`

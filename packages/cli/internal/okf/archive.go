@@ -2,9 +2,12 @@ package okf
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -21,6 +24,7 @@ const BundleManifestRelPath = "openknowledge.json"
 const BundleArchiveFormat = "tar.gz"
 const BundleManifestType = "openknowledge.bundle"
 const BundleManifestVersion = 1
+const BundleManifestSchemaID = "https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json"
 
 const MaxBundleManifestBytes int64 = 1 << 20
 const MaxBundleArchiveBytes int64 = 512 << 20
@@ -91,10 +95,100 @@ func ValidateBundleManifest(manifest BundleManifest) (string, error) {
 
 	checksum := strings.TrimSpace(manifest.ArchiveSHA256)
 	decoded, err := hex.DecodeString(checksum)
-	if manifest.ArchiveSHA256 != checksum || err != nil || len(decoded) != sha256.Size {
+	if manifest.ArchiveSHA256 != checksum || strings.ToLower(checksum) != checksum || err != nil || len(decoded) != sha256.Size {
 		return "", fmt.Errorf("Open Knowledge manifest archiveSha256 must be a 64-character SHA-256 digest")
 	}
 	return resolvedSpec, nil
+}
+
+// DecodeBundleManifest parses the external manifest protocol strictly before
+// applying its semantic validation. Unknown, duplicate, and trailing fields
+// fail closed so producers and consumers cannot disagree about signed archive
+// identity or format fields.
+func DecodeBundleManifest(content []byte) (BundleManifest, error) {
+	uniqueDecoder := json.NewDecoder(bytes.NewReader(content))
+	uniqueDecoder.UseNumber()
+	if err := decodeUniqueJSONValue(uniqueDecoder); err != nil {
+		return BundleManifest{}, err
+	}
+	if _, err := uniqueDecoder.Token(); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return BundleManifest{}, fmt.Errorf("Open Knowledge manifest contains trailing JSON")
+		}
+		return BundleManifest{}, err
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.DisallowUnknownFields()
+	var manifest BundleManifest
+	if err := decoder.Decode(&manifest); err != nil {
+		return BundleManifest{}, err
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return BundleManifest{}, fmt.Errorf("Open Knowledge manifest contains trailing JSON")
+		}
+		return BundleManifest{}, err
+	}
+	if _, err := ValidateBundleManifest(manifest); err != nil {
+		return BundleManifest{}, err
+	}
+	return manifest, nil
+}
+
+func decodeUniqueJSONValue(decoder *json.Decoder) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delimiter, ok := token.(json.Delim)
+	if !ok {
+		return nil
+	}
+	switch delimiter {
+	case '{':
+		seen := make(map[string]struct{})
+		for decoder.More() {
+			keyToken, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := keyToken.(string)
+			if !ok {
+				return fmt.Errorf("Open Knowledge manifest contains a non-string object key")
+			}
+			if _, exists := seen[key]; exists {
+				return fmt.Errorf("Open Knowledge manifest contains duplicate field %q", key)
+			}
+			seen[key] = struct{}{}
+			if err := decodeUniqueJSONValue(decoder); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		if closing != json.Delim('}') {
+			return fmt.Errorf("Open Knowledge manifest contains malformed JSON object")
+		}
+	case '[':
+		for decoder.More() {
+			if err := decodeUniqueJSONValue(decoder); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		if closing != json.Delim(']') {
+			return fmt.Errorf("Open Knowledge manifest contains malformed JSON array")
+		}
+	default:
+		return fmt.Errorf("Open Knowledge manifest contains unexpected JSON delimiter %q", delimiter)
+	}
+	return nil
 }
 
 func DeclaredBundleSpecVersion(root string) (string, error) {

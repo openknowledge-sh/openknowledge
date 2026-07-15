@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json",
+  "title": "Open Knowledge portable bundle manifest v1",
+  "type": "object",
+  "required": ["type", "version", "spec", "archive", "archiveSha256", "archiveFormat"],
+  "properties": {
+    "type": {"const": "openknowledge.bundle"},
+    "version": {"const": 1},
+    "spec": {"enum": ["0.1"]},
+    "name": {"type": "string"},
+    "title": {"type": "string"},
+    "archive": {"type": "string", "pattern": "\\S"},
+    "archiveSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "archiveFormat": {"const": "tar.gz"}
+  },
+  "additionalProperties": false
+}

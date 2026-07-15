@@ -121,7 +121,9 @@ Default viewer exports include remote-connect assets:
 
 * `openknowledge.json` - an Open Knowledge manifest with type
   `openknowledge.bundle`, archive path, archive format, spec version, bundle
-  name/title metadata when present, and archive SHA-256.
+  name/title metadata when present, and archive SHA-256. Its Draft 2020-12
+  contract is published at
+  `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
 * `assets/openknowledge-bundle.tar.gz` - a portable source bundle archive
   generated with the same deterministic archive machinery as `openknowledge to
   tar`, but scoped to published Markdown: files marked `okf_publish: false` are
@@ -131,7 +133,9 @@ Default viewer exports include remote-connect assets:
 `openknowledge connect <deployed-wiki-url>` discovers and validates the
 versioned manifest, requires and verifies the archive hash, extracts the archive
 safely, validates the extracted bundle against the manifest's concrete spec,
-and registers the materialized bundle in the local registry.
+and registers the materialized bundle in the local registry. Manifest JSON is
+strict: unknown fields, duplicate object keys, trailing JSON, non-canonical
+versions, and invalid identity or archive fields fail closed.
 
 Default viewer exports read optional settings from `openknowledge.toml`.
 `[html.theme]` sets a theme name and stylesheet:

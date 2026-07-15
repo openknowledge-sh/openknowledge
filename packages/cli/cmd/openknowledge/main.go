@@ -1390,11 +1390,8 @@ func fetchBundleManifest(source string) (okf.BundleManifest, string, bool, error
 	if err != nil {
 		return okf.BundleManifest{}, "", false, err
 	}
-	var manifest okf.BundleManifest
-	if err := json.Unmarshal(content, &manifest); err != nil {
-		return okf.BundleManifest{}, "", false, fmt.Errorf("invalid Open Knowledge manifest at %s: %w", download.FinalURL, err)
-	}
-	if _, err := okf.ValidateBundleManifest(manifest); err != nil {
+	manifest, err := okf.DecodeBundleManifest(content)
+	if err != nil {
 		return okf.BundleManifest{}, "", false, fmt.Errorf("invalid Open Knowledge manifest at %s: %w", download.FinalURL, err)
 	}
 	return manifest, download.FinalURL, true, nil
