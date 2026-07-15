@@ -14,6 +14,39 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Scheduled security and dependency scanning
+
+* Added a weekly and manually dispatchable CodeQL matrix for Go and
+  JavaScript/TypeScript with `security-extended` queries, finite job timeouts,
+  and an explicit Go module build.
+* Pinned CodeQL v4.37.0 init/analyze actions to immutable commit
+  `99df26d4f13ea111d4ec1a7dddef6063f76b97e9`; limited
+  `security-events: write` to the CodeQL result-upload job.
+* Added a read-only dependency job running `govulncheck@v1.1.4` over the Go
+  module and OSV Scanner v2.3.8 recursively over repository dependency sources;
+  the OSV binary is fetched over HTTPS with a finite timeout and verified
+  against its fixed release SHA-256 before execution. Empty lockfiles are
+  accepted until the JavaScript workspaces gain dependencies, while future
+  lockfiles are discovered automatically.
+* Raised the module, root Go workspace, and all `go-version-file` consumers to
+  Go 1.26.5 after the new scan identified the GO-2026-5856 `crypto/tls`
+  vulnerability in 1.26.4.
+* Made the cron validation error forwarding explicitly format-safe so the
+  agent contract validator passes Go 1.26's stricter printf analysis without
+  changing its public error text.
+* Configured weekly Dependabot version updates for npm, Go modules, GitHub
+  Actions, and Docker without auto-merge.
+* Added `pnpm check:security-config` to require the scheduled scan, exact
+  vulnerability commands and verified OSV artifact, Go 1.26.5 baseline,
+  matched immutable CodeQL action pins, and all four Dependabot ecosystems;
+  existing pin and permission checks cover the new workflow too.
+* Source anchors: `.github/workflows/security.yml`,
+  `.github/dependabot.yml`, `scripts/check-security-config.mjs`,
+  `scripts/check-workflow-permissions.mjs`, `packages/cli/go.mod`,
+  `packages/cli/internal/agents/spec.go`, `go.work`, and `package.json`.
+* Docs updated: `Wiki/features/operations.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Signed release build provenance
 
 * Added a post-GoReleaser `actions/attest` step that consumes

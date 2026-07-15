@@ -1,6 +1,6 @@
 module github.com/openknowledge-sh/openknowledge/packages/cli
 
-go 1.22
+go 1.26.5
 
 require (
 	github.com/gofrs/flock v0.12.1

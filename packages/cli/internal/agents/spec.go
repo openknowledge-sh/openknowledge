@@ -190,7 +190,7 @@ func ValidateJob(job Job) error {
 	}
 	if job.Schedule.Cron != "" {
 		if err := validateCronExpression(job.Schedule.Cron); err != nil {
-			add("schedule.cron", err.Error())
+			add("schedule.cron", "%s", err.Error())
 		}
 	}
 	if job.Schedule.Cron != "" && job.Schedule.Every != "" {

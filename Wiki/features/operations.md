@@ -30,6 +30,7 @@ pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
 pnpm check:workflow-permissions
+pnpm check:security-config
 pnpm check:container-runtime
 pnpm build:cli
 pnpm build:web
@@ -43,10 +44,12 @@ that the root, npm wrapper, web package, and Go CLI fallback versions match.
 immutable commit SHA. `pnpm check:workflow-secret-scope` rejects repository
 secrets outside an explicit consuming step and forbids blanket
 `secrets: inherit` forwarding. `pnpm check:workflow-permissions` permits write
-capabilities only on reviewed publish jobs and locks the minimal GitHub release
-step set. `pnpm test` runs all workflow and version checks before the CLI test
-suite. `pnpm check:container-runtime` requires the final Node image to select
-its built-in unprivileged user. The root test gate also runs transactional
+capabilities only on reviewed jobs and locks the minimal GitHub release step
+set. `pnpm test` runs all workflow and version checks before the CLI test suite.
+`pnpm check:security-config` requires the scheduled CodeQL, govulncheck,
+checksum-verified OSV Scanner, and four-ecosystem Dependabot contract.
+`pnpm check:container-runtime` requires the final Node image to select its
+built-in unprivileged user. The root test gate also runs transactional
 shell-installer fixtures and offline npm downloader/archive hardening tests;
 `pnpm build` builds both the CLI and web package. `pnpm test:web` exercises the
 production static handler without binding a network socket, so the same checks
@@ -68,6 +71,35 @@ operations leave generated files or module metadata out of date.
 Configure the GitHub `main` branch protection rule to require the workflow's
 `CI / verify` check before merge. The workflow provides the check; repository
 branch-protection settings remain an administrator-controlled GitHub setting.
+
+## Security Automation
+
+`.github/workflows/security.yml` runs every Monday at 03:23 UTC and can be
+dispatched manually. Its CodeQL matrix analyzes Go with an explicit module
+build and JavaScript/TypeScript without a build, using the `security-extended`
+query suite. Only that job receives `security-events: write`, solely to upload
+results; the workflow otherwise has read-only repository access. Both CodeQL
+actions use the same immutable v4.37.0 commit and all jobs have 30-minute
+timeouts.
+
+A separate read-only dependency job runs `govulncheck@v1.1.4` over the CLI
+module and OSV Scanner v2.3.8 recursively over repository dependency sources.
+The recursive scan tolerates the current dependency-free npm lockfile while
+automatically covering future lockfiles. The OSV Linux binary is downloaded
+over HTTPS, bounded by a two-minute timeout, and must match its hard-coded
+release SHA-256 before execution. Both tools fail on known reachable or locked
+dependency vulnerabilities. These checks intentionally query the current Go
+and OSV vulnerability services, so their scheduled result can change even when
+the repository has not. The module and workspace `go 1.26.5`
+directives also keep local, CI, and release builds above the Go
+standard-library security baseline enforced by the scan.
+
+`.github/dependabot.yml` checks npm, Go modules, GitHub Actions, and the root
+Dockerfile weekly in staggered Monday windows. Updates arrive as normal pull
+requests and must pass the existing CI gate; they are not auto-merged.
+`pnpm check:security-config` keeps both the scheduled scan surface and all four
+update ecosystems present, while the workflow pin and permission checks reject
+mutable actions or additional write scopes.
 
 ## Project Website
 
@@ -289,12 +321,15 @@ npm publish --provenance --access public
 > * `scripts/check-workflow-pins.mjs`
 > * `scripts/check-workflow-secret-scope.mjs`
 > * `scripts/check-workflow-permissions.mjs`
+> * `scripts/check-security-config.mjs`
 > * `scripts/test-install.sh`
 > * `scripts/check-container-runtime.mjs`
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`
 > * `.github/workflows/ci.yml`
+> * `.github/workflows/security.yml`
+> * `.github/dependabot.yml`
 > * `.dockerignore`
 > * `Dockerfile`
 > * `.goreleaser.yaml`

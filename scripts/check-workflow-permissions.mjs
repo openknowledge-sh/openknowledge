@@ -10,6 +10,7 @@ const expectedWriteCapabilities = new Set([
   ".github/workflows/release.yml:publish_release:id-token",
   ".github/workflows/release.yml:publish_release:attestations",
   ".github/workflows/release.yml:npm:id-token",
+  ".github/workflows/security.yml:codeql:security-events",
 ]);
 const expectedPublishSteps = [
   "Checkout verified release commit",
@@ -117,5 +118,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("Workflow write capabilities are isolated to reviewed publish jobs");
+  console.log("Workflow write capabilities are isolated to reviewed jobs");
 }
