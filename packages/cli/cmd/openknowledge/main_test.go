@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1751,6 +1752,180 @@ func TestRemoteCacheIdentityDoesNotDependOnRegistryAlias(t *testing.T) {
 	}
 	if record.SchemaVersion != remoteCacheSchemaVersion || record.Source.GitCommit != first.Source.GitCommit {
 		t.Fatalf("unexpected versioned cache provenance: %#v", record)
+	}
+}
+
+func TestConcurrentRemoteMaterializationPublishesOneCompleteCache(t *testing.T) {
+	base := t.TempDir()
+	bundle := filepath.Join(base, "bundle")
+	writeMainTestFile(t, bundle, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: concurrent\n---\n\n# Concurrent\n")
+	hosted := filepath.Join(base, "hosted")
+	archivePath := filepath.Join(hosted, "bundle.tar.gz")
+	archiveResult, err := okf.WriteBundleTarGzipWithVersion(bundle, archivePath, "0.1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestData, err := json.Marshal(okf.BundleManifest{
+		Type:          okf.BundleManifestType,
+		Version:       okf.BundleManifestVersion,
+		Spec:          "0.1",
+		Archive:       "bundle.tar.gz",
+		ArchiveSHA256: archiveResult.SHA256,
+		ArchiveFormat: okf.BundleArchiveFormat,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(hosted, okf.BundleManifestRelPath)
+	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	source := "file://" + manifestPath
+	const workers = 12
+	start := make(chan struct{})
+	errors := make(chan error, workers)
+	paths := make(chan string, workers)
+	var waitGroup sync.WaitGroup
+	for index := 0; index < workers; index++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			<-start
+			root, sourceInfo, err := materializeRemoteSource(source)
+			if err != nil {
+				errors <- err
+				return
+			}
+			if sourceInfo.Type != "manifest" || sourceInfo.SHA256 != archiveResult.SHA256 {
+				errors <- fmt.Errorf("unexpected provenance: %#v", sourceInfo)
+				return
+			}
+			paths <- root
+		}()
+	}
+	close(start)
+	waitGroup.Wait()
+	close(errors)
+	close(paths)
+	for err := range errors {
+		t.Error(err)
+	}
+	var expectedPath string
+	for materializedPath := range paths {
+		if expectedPath == "" {
+			expectedPath = materializedPath
+		} else if materializedPath != expectedPath {
+			t.Errorf("expected one cache path %s, got %s", expectedPath, materializedPath)
+		}
+	}
+	if t.Failed() {
+		return
+	}
+	if _, err := os.Stat(filepath.Join(expectedPath, "index.md")); err != nil {
+		t.Fatalf("expected complete published cache: %v", err)
+	}
+	cacheRoot := filepath.Join(base, "bundles")
+	entries, err := os.ReadDir(cacheRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directories := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			directories++
+		}
+		if strings.HasPrefix(entry.Name(), ".openknowledge-") {
+			t.Fatalf("unexpected staging directory after concurrent materialization: %s", entry.Name())
+		}
+	}
+	if directories != 1 {
+		t.Fatalf("expected one published cache directory, got %d entries=%v", directories, entries)
+	}
+}
+
+func TestRunConnectRejectsInvalidGitBundleWithoutPublishingCache(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for remote validation test")
+	}
+	base := t.TempDir()
+	remote := filepath.Join(base, "remote")
+	runGit(t, base, "init", remote)
+	runGit(t, remote, "config", "user.email", "test@example.com")
+	runGit(t, remote, "config", "user.name", "Test User")
+	writeMainTestFile(t, remote, "README.md", "# Missing required concept frontmatter\n")
+	runGit(t, remote, "add", "README.md")
+	runGit(t, remote, "commit", "-m", "invalid")
+
+	registryFile := filepath.Join(base, "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	source := "file://" + remote
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runConnect([]string{"--as", "invalid", "--no-validate", source}, "openknowledge connect")
+	})
+	if code != 1 || !strings.Contains(stderr, "does not contain a valid Open Knowledge bundle") {
+		t.Fatalf("expected invalid Git bundle refusal, code=%d stderr=%s", code, stderr)
+	}
+	target := filepath.Join(base, "bundles", registryCacheName(source))
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("invalid Git clone must not be published, stat error: %v", err)
+	}
+	if _, ok, err := okf.ResolveRegistryEntry("invalid"); err != nil || ok {
+		t.Fatalf("invalid Git bundle must not be registered, ok=%t err=%v", ok, err)
+	}
+}
+
+func TestFailedRemoteReplacementPreservesPreviousCache(t *testing.T) {
+	base := t.TempDir()
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	source := "file://" + filepath.Join(base, "missing.git")
+	target := filepath.Join(base, "bundles", registryCacheName(source))
+	if err := os.MkdirAll(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(target, "marker")
+	if err := os.WriteFile(marker, []byte("previous"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(target, "bad.md"), []byte("# Missing frontmatter\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := materializeRemoteSource(source); err == nil {
+		t.Fatal("expected missing remote replacement to fail")
+	}
+	content, err := os.ReadFile(marker)
+	if err != nil || string(content) != "previous" {
+		t.Fatalf("failed replacement must preserve previous cache, content=%q err=%v", content, err)
+	}
+}
+
+func TestPublishRemoteCacheRollsBackFailedReplacement(t *testing.T) {
+	base := t.TempDir()
+	target := filepath.Join(base, "cache")
+	if err := os.Mkdir(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(target, "marker")
+	if err := os.WriteFile(marker, []byte("previous"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := publishRemoteCache(filepath.Join(base, "missing-staging"), target)
+	if err == nil {
+		t.Fatal("expected publication with missing staging directory to fail")
+	}
+	content, readErr := os.ReadFile(marker)
+	if readErr != nil || string(content) != "previous" {
+		t.Fatalf("failed publication must restore previous cache, content=%q err=%v", content, readErr)
+	}
+	matches, globErr := filepath.Glob(filepath.Join(base, ".openknowledge-previous-*"))
+	if globErr != nil {
+		t.Fatal(globErr)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("rollback left previous-cache staging paths: %v", matches)
 	}
 }
 

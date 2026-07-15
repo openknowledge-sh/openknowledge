@@ -19,8 +19,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/natefinch/atomic"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
@@ -1019,7 +1021,7 @@ func looksLikeRemoteSource(value string) bool {
 		strings.HasPrefix(value, "git@")
 }
 
-func materializeRemoteSource(source string) (string, okf.RegistrySource, error) {
+func materializeRemoteSource(source string) (root string, sourceInfo okf.RegistrySource, resultErr error) {
 	source = strings.TrimSpace(source)
 	cacheRoot, err := remoteBundleCacheRoot()
 	if err != nil {
@@ -1027,6 +1029,24 @@ func materializeRemoteSource(source string) (string, okf.RegistrySource, error) 
 	}
 	name := registryCacheName(source)
 	target := filepath.Join(cacheRoot, name)
+	if err := os.MkdirAll(cacheRoot, 0700); err != nil {
+		return "", okf.RegistrySource{}, err
+	}
+	if err := os.Chmod(cacheRoot, 0700); err != nil {
+		return "", okf.RegistrySource{}, err
+	}
+	unlock, err := lockRemoteCache(target)
+	if err != nil {
+		return "", okf.RegistrySource{}, err
+	}
+	defer func() {
+		if err := unlock(); err != nil && resultErr == nil {
+			root = ""
+			sourceInfo = okf.RegistrySource{}
+			resultErr = err
+		}
+	}()
+
 	if root, ok := cachedBundleRoot(target); ok {
 		cachedSource, err := loadRemoteCacheSource(target, source)
 		if err == nil {
@@ -1045,10 +1065,6 @@ func materializeRemoteSource(source string) (string, okf.RegistrySource, error) 
 		}
 		return root, legacySource, nil
 	}
-	if err := os.MkdirAll(cacheRoot, 0755); err != nil {
-		return "", okf.RegistrySource{}, err
-	}
-
 	if looksLikeManifestSource(source) {
 		archive, manifestURL, spec, err := materializeManifestSource(source, target)
 		if err != nil {
@@ -1131,7 +1147,13 @@ func materializeRemoteSource(source string) (string, okf.RegistrySource, error) 
 		}
 	}
 
-	cmd := exec.Command("git", "clone", "--depth", "1", source, target)
+	stagingParent, err := os.MkdirTemp(cacheRoot, ".openknowledge-git-*")
+	if err != nil {
+		return "", okf.RegistrySource{}, err
+	}
+	defer os.RemoveAll(stagingParent)
+	staging := filepath.Join(stagingParent, "bundle")
+	cmd := exec.Command("git", "clone", "--depth", "1", source, staging)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		detail := strings.TrimSpace(string(output))
@@ -1140,9 +1162,16 @@ func materializeRemoteSource(source string) (string, okf.RegistrySource, error) 
 		}
 		return "", okf.RegistrySource{}, fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
 	}
-	commit, err := gitCommitForDirectory(target)
+	if _, valid, err := validateExtractedBundleCandidate(staging, okf.LatestSpecVersion, false); err != nil {
+		return "", okf.RegistrySource{}, err
+	} else if !valid {
+		return "", okf.RegistrySource{}, fmt.Errorf("Git source does not contain a valid Open Knowledge bundle: %s", source)
+	}
+	commit, err := gitCommitForDirectory(staging)
 	if err != nil {
-		_ = os.RemoveAll(target)
+		return "", okf.RegistrySource{}, err
+	}
+	if err := publishRemoteCache(staging, target); err != nil {
 		return "", okf.RegistrySource{}, err
 	}
 	return finishRemoteMaterialization(target, target, okf.RegistrySource{
@@ -1214,10 +1243,7 @@ func materializeArchiveSource(source string, target string, expectedSHA256 strin
 	if err != nil {
 		return archiveMaterialization{}, err
 	}
-	if err := os.RemoveAll(target); err != nil {
-		return archiveMaterialization{}, err
-	}
-	if err := os.Rename(extractRoot, target); err != nil {
+	if err := publishRemoteCache(extractRoot, target); err != nil {
 		return archiveMaterialization{}, err
 	}
 	result := archiveMaterialization{Root: target, FinalURL: download.FinalURL, SHA256: actual}
@@ -1278,10 +1304,7 @@ func materializeArchiveFile(archivePath string, target string, expectedSHA256 st
 	if err != nil {
 		return archiveMaterialization{}, err
 	}
-	if err := os.RemoveAll(target); err != nil {
-		return archiveMaterialization{}, err
-	}
-	if err := os.Rename(extractRoot, target); err != nil {
+	if err := publishRemoteCache(extractRoot, target); err != nil {
 		return archiveMaterialization{}, err
 	}
 	result := archiveMaterialization{Root: target, SHA256: actual}
@@ -1466,7 +1489,6 @@ func cachedBundleRoot(target string) (string, bool) {
 	}
 	root, err := validatedExtractedBundleRoot(target, okf.LatestSpecVersion, false)
 	if err != nil {
-		_ = os.RemoveAll(target)
 		return "", false
 	}
 	return root, true
@@ -1567,10 +1589,71 @@ func remoteFetchTimestamp() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
 }
 
+var remoteCacheProcessLocks sync.Map
+
+func lockRemoteCache(target string) (func() error, error) {
+	processLockValue, _ := remoteCacheProcessLocks.LoadOrStore(target, &sync.Mutex{})
+	processLock := processLockValue.(*sync.Mutex)
+	processLock.Lock()
+
+	fileLock := flock.New(target+".lock", flock.SetPermissions(0600))
+	if err := fileLock.Lock(); err != nil {
+		processLock.Unlock()
+		return nil, fmt.Errorf("lock remote cache: %w", err)
+	}
+	return func() error {
+		err := fileLock.Close()
+		processLock.Unlock()
+		if err != nil {
+			return fmt.Errorf("unlock remote cache: %w", err)
+		}
+		return nil
+	}, nil
+}
+
+func publishRemoteCache(staging string, target string) error {
+	if _, err := os.Lstat(target); os.IsNotExist(err) {
+		return os.Rename(staging, target)
+	} else if err != nil {
+		return err
+	}
+
+	backup, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-previous-*")
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(backup); err != nil {
+		return err
+	}
+	if err := os.Rename(target, backup); err != nil {
+		return err
+	}
+	if err := os.Rename(staging, target); err != nil {
+		if restoreErr := os.Rename(backup, target); restoreErr != nil {
+			return errors.Join(err, fmt.Errorf("restore previous remote cache: %w", restoreErr))
+		}
+		return err
+	}
+	if err := os.RemoveAll(backup); err != nil {
+		moveNewErr := os.Rename(target, staging)
+		restoreErr := os.Rename(backup, target)
+		if moveNewErr != nil || restoreErr != nil {
+			errorsToJoin := []error{err}
+			if moveNewErr != nil {
+				errorsToJoin = append(errorsToJoin, fmt.Errorf("move new cache during rollback: %w", moveNewErr))
+			}
+			if restoreErr != nil {
+				errorsToJoin = append(errorsToJoin, fmt.Errorf("restore previous remote cache: %w", restoreErr))
+			}
+			return errors.Join(errorsToJoin...)
+		}
+		return err
+	}
+	return nil
+}
+
 func finishRemoteMaterialization(root string, target string, source okf.RegistrySource) (string, okf.RegistrySource, error) {
 	if err := saveRemoteCacheSource(target, source); err != nil {
-		_ = os.RemoveAll(target)
-		_ = os.Remove(remoteCacheSourcePath(target))
 		return "", okf.RegistrySource{}, err
 	}
 	return root, source, nil

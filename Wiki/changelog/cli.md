@@ -14,6 +14,24 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Atomic locked remote cache publication
+
+* Added source-specific in-process and cross-process locks around cache reads,
+  migration, download, clone, provenance persistence, and publication while
+  allowing unrelated sources to proceed independently.
+* Changed Git remotes to clone into staging, require a valid OKF bundle, capture
+  the commit before publication, and leave no published target on failure.
+* Changed archive and Git cache replacement to retain the old target until the
+  new staging tree is complete, with deterministic rollback if publication
+  fails.
+* Restricted the cache root and lock files to owner-only permissions.
+* Added concurrent same-source materialization, invalid Git, failed remote
+  replacement, and failed publication rollback tests.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go` and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Durable remote source identity
 
 * Changed remote cache keys from alias-plus-source to normalized source

@@ -125,6 +125,11 @@ compatibility with older archive-URL readers. Cache provenance is also stored
 in a versioned owner-only sidecar beside the source-addressed cache directory,
 so reconnecting does not infer or lose the source identity.
 
+Source-specific in-process and filesystem locks serialize cache publication.
+The cache root is owner-only. Archive extraction and Git clone staging are
+published only after validation, and a failed replacement restores the previous
+cache rather than deleting it first.
+
 Bundle metadata such as purpose, tags, and entrypoints remains in bundle
 content as `okf_bundle_*` root metadata.
 
@@ -132,6 +137,14 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Locked cache transactions
+
+Remote cache reads and publication now share source-specific process and file
+locks. Staged Git and archive replacements publish only after validation and
+roll back on failure. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Durable remote provenance
 

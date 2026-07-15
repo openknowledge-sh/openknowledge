@@ -83,6 +83,13 @@ redirects, concrete spec, archive SHA-256 or exact Git commit, fetch time, and
 the complete managed cache root. Cache hits restore this record instead of
 guessing the source type from the input URL.
 
+Materialization for one source is serialized by in-process and cross-process
+cache locks. Archives and Git repositories are downloaded or cloned into
+sibling staging directories; Git content must pass OKF validation, and only a
+complete validated staging tree is published. If replacement fails, the
+previous cache is restored. Different sources keep independent locks and can be
+materialized concurrently.
+
 `connect` uses root metadata when present: `okf_bundle_name` can provide the
 default key, `okf_bundle_title` and `okf_bundle_purpose` appear in success
 output, and `okf_bundle_entry_<name>` values are listed as entrypoints. Missing
@@ -135,6 +142,15 @@ freshness for an existing cache entry. See [registry](registry.md) for storage
 details.
 
 ## Command Change History
+
+### 2026-07-15 - Atomic locked remote cache publication
+
+Remote sources now take a source-specific process and filesystem lock. Git
+clones use staging and must validate before publication, archive staging no
+longer deletes the prior target first, and replacement rolls back to the prior
+cache on failure. The cache directory and lock files are owner-only. Source
+anchors: `packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Source-addressed cache provenance
 
