@@ -130,6 +130,12 @@ Press Ctrl+C to stop.
   with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the
   first matching text in the active note panel. This deep-link contract is for
   the local viewer; static HTML exports keep their existing search links.
+  Query results use the same heading-section BM25 ranking and one-hop authored
+  link/backlink expansion as [`openknowledge search`](search.md). Each result
+  also carries its section heading and path, line range, token estimate,
+  revision-bound locator, content digest, and direct-or-neighbor relation. The
+  dropdown shows the matched section heading so repeated results from one note
+  remain distinguishable.
 * The local search and tag index is reused only while a streaming SHA-256 over
   every indexed Markdown path and its bytes stays unchanged. The next search
   request rebuilds the index after an edit even when a tool preserves the
@@ -212,6 +218,19 @@ Press Ctrl+C to stop.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
 
 ## Command Change History
+
+### 2026-07-15 - Canonical local viewer retrieval
+
+The local viewer `/api/search` query path now uses the same section-level BM25
+index, deterministic ordering, fuzzy matching, index-page penalty, and one-hop
+link/backlink expansion as `openknowledge search`. Results retain the viewer's
+file and highlight URLs while exposing canonical section headings, line ranges,
+token estimates, content digests, revision-bound locators, and relationship
+metadata. The search dropdown displays section headings alongside path and
+type. Exact tag facets remain a separate metadata lookup. Source anchors:
+`packages/cli/cmd/openknowledge/viewer.go`,
+`packages/cli/cmd/openknowledge/viewer_search.js`, and
+`packages/cli/cmd/openknowledge/viewer_test.go`.
 
 ### 2026-07-15 - Content-bound viewer search cache
 

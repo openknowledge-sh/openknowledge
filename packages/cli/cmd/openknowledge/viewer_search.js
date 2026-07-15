@@ -357,7 +357,7 @@
 
       const meta = document.createElement("span");
       meta.className = "search-result-meta";
-      meta.textContent = item.path + (item.type ? " - " + item.type : "");
+      meta.textContent = [item.path, item.type, item.heading].filter(Boolean).join(" - ");
       link.append(meta);
 
       if (item.snippet) {

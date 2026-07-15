@@ -1084,25 +1084,34 @@ type viewerSearchResponse struct {
 }
 
 type viewerSearchResult struct {
-	Path          string   `json:"path"`
-	URL           string   `json:"url"`
-	ID            string   `json:"id"`
-	Kind          string   `json:"kind"`
-	Type          string   `json:"type,omitempty"`
-	Title         string   `json:"title"`
-	Description   string   `json:"description,omitempty"`
-	Snippet       string   `json:"snippet,omitempty"`
-	HighlightText string   `json:"highlightText,omitempty"`
-	HighlightURL  string   `json:"highlightURL,omitempty"`
-	Score         float64  `json:"score"`
-	Matches       []string `json:"matches,omitempty"`
+	Path            string   `json:"path"`
+	URL             string   `json:"url"`
+	ID              string   `json:"id"`
+	Locator         string   `json:"locator,omitempty"`
+	ContentSHA256   string   `json:"contentSha256,omitempty"`
+	Kind            string   `json:"kind"`
+	Type            string   `json:"type,omitempty"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description,omitempty"`
+	Heading         string   `json:"heading,omitempty"`
+	HeadingPath     []string `json:"headingPath,omitempty"`
+	LineStart       int      `json:"lineStart,omitempty"`
+	LineEnd         int      `json:"lineEnd,omitempty"`
+	EstimatedTokens int      `json:"estimatedTokens,omitempty"`
+	Snippet         string   `json:"snippet,omitempty"`
+	HighlightText   string   `json:"highlightText,omitempty"`
+	HighlightURL    string   `json:"highlightURL,omitempty"`
+	Score           float64  `json:"score"`
+	Matches         []string `json:"matches,omitempty"`
+	Neighbor        bool     `json:"neighbor,omitempty"`
+	Relation        string   `json:"relation,omitempty"`
 }
 
 type viewerSearchCache struct {
 	root        string
 	mutex       sync.Mutex
 	fingerprint string
-	index       okf.SearchIndex
+	index       okf.ContextIndex
 	tags        map[string][]okf.BundleFile
 }
 
@@ -1111,7 +1120,7 @@ func (cache *viewerSearchCache) Search(options okf.SearchOptions) ([]okf.SearchR
 	if err != nil {
 		return nil, err
 	}
-	return index.Search(options), nil
+	return index.Search(options).Results, nil
 }
 
 func (cache *viewerSearchCache) SearchTag(tag string, excludePath string, limit int) ([]okf.BundleFile, error) {
@@ -1136,10 +1145,10 @@ func (cache *viewerSearchCache) SearchTag(tag string, excludePath string, limit 
 	return result, nil
 }
 
-func (cache *viewerSearchCache) load() (okf.SearchIndex, map[string][]okf.BundleFile, error) {
+func (cache *viewerSearchCache) load() (okf.ContextIndex, map[string][]okf.BundleFile, error) {
 	fingerprint, err := markdownFingerprint(cache.root)
 	if err != nil {
-		return okf.SearchIndex{}, nil, err
+		return okf.ContextIndex{}, nil, err
 	}
 
 	cache.mutex.Lock()
@@ -1153,12 +1162,15 @@ func (cache *viewerSearchCache) load() (okf.SearchIndex, map[string][]okf.Bundle
 
 	bundle, err := okf.ParseBundle(cache.root)
 	if err != nil {
-		return okf.SearchIndex{}, nil, err
+		return okf.ContextIndex{}, nil, err
 	}
-	index := okf.NewSearchIndex(bundle)
+	index, err := okf.BuildContextIndex(cache.root)
+	if err != nil {
+		return okf.ContextIndex{}, nil, err
+	}
 	tags, err := viewerTagIndex(cache.root, bundle.Files)
 	if err != nil {
-		return okf.SearchIndex{}, nil, err
+		return okf.ContextIndex{}, nil, err
 	}
 
 	cache.mutex.Lock()
@@ -1320,18 +1332,27 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 	for _, result := range results {
 		resultURL := fileURLWithPrefix(linkPrefix, result.Path)
 		payload.Results = append(payload.Results, viewerSearchResult{
-			Path:          result.Path,
-			URL:           resultURL,
-			ID:            result.ID,
-			Kind:          result.Kind,
-			Type:          result.Type,
-			Title:         result.Title,
-			Description:   result.Description,
-			Snippet:       result.Snippet,
-			HighlightText: result.HighlightText,
-			HighlightURL:  viewerHighlightURL(resultURL, result.HighlightText),
-			Score:         result.Score,
-			Matches:       result.Matches,
+			Path:            result.Path,
+			URL:             resultURL,
+			ID:              result.ID,
+			Locator:         result.Locator,
+			ContentSHA256:   result.ContentSHA256,
+			Kind:            result.Kind,
+			Type:            result.Type,
+			Title:           result.Title,
+			Description:     result.Description,
+			Heading:         result.Heading,
+			HeadingPath:     result.HeadingPath,
+			LineStart:       result.LineStart,
+			LineEnd:         result.LineEnd,
+			EstimatedTokens: result.EstimatedTokens,
+			Snippet:         result.Snippet,
+			HighlightText:   result.HighlightText,
+			HighlightURL:    viewerHighlightURL(resultURL, result.HighlightText),
+			Score:           result.Score,
+			Matches:         result.Matches,
+			Neighbor:        result.Neighbor,
+			Relation:        result.Relation,
 		})
 	}
 

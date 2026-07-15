@@ -281,6 +281,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
 		t.Fatalf("viewer file page did not include top bar search:\n%s", page)
 	}
+	if !strings.Contains(page, `[item.path, item.type, item.heading].filter(Boolean).join(" - ")`) {
+		t.Fatalf("viewer search results should expose canonical section headings in their metadata:\n%s", page)
+	}
 	if strings.Contains(page, `id="viewer-sidebar-search"`) || strings.Contains(page, `file-sidebar-search`) {
 		t.Fatalf("viewer file sidebar should not include search:\n%s", page)
 	}
@@ -1351,6 +1354,31 @@ func TestViewerSearchAPI(t *testing.T) {
 	}
 	if payload.Results[0].HighlightText != "validation" || payload.Results[0].HighlightURL != "/file/workflows/docs.md?ok-highlight=validation" {
 		t.Fatalf("expected search result to include highlight deep link, got %#v", payload.Results[0])
+	}
+	if payload.Results[0].Heading != "Docs" || payload.Results[0].LineStart == 0 || payload.Results[0].LineEnd < payload.Results[0].LineStart || payload.Results[0].Locator == "" || payload.Results[0].ContentSHA256 == "" {
+		t.Fatalf("expected canonical section identity and provenance, got %#v", payload.Results[0])
+	}
+}
+
+func TestViewerSearchMatchesCanonicalKnowledgeRetrieval(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Runbook](workflows/runbook.md).\n")
+	writeViewerFile(t, root, "workflows/runbook.md", "---\ntype: Workflow\ntitle: Incident Runbook\n---\n\n# Preparation\n\nCollect ordinary diagnostics.\n\n## Recovery\n\nRun quasarrestore before publishing.\n")
+	writeViewerFile(t, root, "notes/related.md", "# Related\n\nBackground material.\n")
+
+	expected, err := okf.SearchKnowledge(root, okf.SearchOptions{Query: "quasarrestore", Limit: 12, Fuzzy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := getViewerSearch(t, newViewerHandler(root), "/api/search?q=quasarrestore&limit=12")
+	if len(payload.Results) != len(expected.Results) {
+		t.Fatalf("viewer returned %d results, canonical retrieval returned %d: viewer=%#v canonical=%#v", len(payload.Results), len(expected.Results), payload.Results, expected.Results)
+	}
+	for index, canonical := range expected.Results {
+		viewer := payload.Results[index]
+		if viewer.Path != canonical.Path || viewer.ID != canonical.ID || viewer.Locator != canonical.Locator || viewer.ContentSHA256 != canonical.ContentSHA256 || viewer.Heading != canonical.Heading || viewer.LineStart != canonical.LineStart || viewer.LineEnd != canonical.LineEnd || viewer.Score != canonical.Score || viewer.Neighbor != canonical.Neighbor || viewer.Relation != canonical.Relation || strings.Join(viewer.Matches, "\x00") != strings.Join(canonical.Matches, "\x00") {
+			t.Fatalf("viewer result %d diverged from canonical retrieval:\nviewer: %#v\ncanonical: %#v", index, viewer, canonical)
+		}
 	}
 }
 

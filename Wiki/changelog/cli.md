@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Canonical local viewer retrieval
+
+* Replaced the local viewer's legacy whole-document lexical index with the
+  canonical heading-section BM25 retrieval used by `openknowledge search`.
+* Kept identical fuzzy matching, deterministic ordering, index-page penalty,
+  and default one-hop outgoing-link/backlink expansion across the CLI and
+  `/api/search` query paths.
+* Extended viewer query results with heading paths, line ranges, token
+  estimates, content digests, revision-bound locators, and neighbor/relation
+  metadata while retaining viewer file and highlight URLs.
+* Display matched headings in the search dropdown so multiple relevant
+  sections from one note are distinguishable; exact tag facets remain a
+  separate metadata query.
+* Added a parity regression that compares viewer results with canonical
+  knowledge retrieval field-by-field, plus provenance and rendered-UI checks.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_search.js`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/view.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Content-bound viewer search cache
 
 * Replaced viewer search cache identity based on Markdown size and modification
