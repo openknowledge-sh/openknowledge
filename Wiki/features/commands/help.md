@@ -74,6 +74,12 @@ Commands:
 
 ### 2026-07-15
 
+Root help now includes `openknowledge registry refresh <key|path> [--force]`
+and a refresh example, keeping the discoverable command surface aligned with
+the registry command group. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
+
 Nested `openknowledge agents <subcommand> --help` now dispatches to dedicated
 help for `new`, `list`, `validate`, `run`, and `daemon`. Source anchors:
 `packages/cli/cmd/openknowledge/agents_command.go` and

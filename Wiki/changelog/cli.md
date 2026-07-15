@@ -18,6 +18,8 @@ that were updated.
 
 * Added `openknowledge registry refresh <key|path> [--force]` for managed
   manifest, archive, and Git connections.
+* Exposed the new command and example in root help as well as registry-specific
+  help so it is discoverable without prior documentation.
 * Refresh refuses detected local cache changes unless `--force` is present,
   while invalid or missing current generations can still be repaired from the
   recorded source.

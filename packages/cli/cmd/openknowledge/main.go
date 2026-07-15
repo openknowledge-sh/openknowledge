@@ -3977,6 +3977,7 @@ Usage:
   openknowledge registry connect <source>
   openknowledge registry connect <source> --as <key>
   openknowledge registry disconnect <key|path>
+  openknowledge registry refresh <key|path> [--force]
   openknowledge registry list
   openknowledge registry status [key|path]
   openknowledge registry status [key|path] --json
@@ -4052,6 +4053,7 @@ Examples:
   openknowledge ast ./project-memory
   openknowledge disconnect accessibility
   openknowledge registry connect ./team-wiki --as team
+  openknowledge registry refresh team
   openknowledge registry where accessibility
   openknowledge list personal
   openknowledge validate ./project-memory
