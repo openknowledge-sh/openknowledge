@@ -28,6 +28,8 @@ openknowledge registry connect <source> --no-validate
 openknowledge registry disconnect <key|path>
 openknowledge registry disconnect <key|path> --keep-files
 openknowledge registry disconnect <key|path> --delete-files
+openknowledge registry refresh <key|path>
+openknowledge registry refresh <key|path> --force
 openknowledge registry list
 openknowledge registry status [key|path]
 openknowledge registry status [key|path] --json
@@ -41,6 +43,7 @@ openknowledge registry --help
 | --- | --- | --- |
 | `connect` | subcommand | Add or update a local or remote bundle connection. |
 | `disconnect` | subcommand | Remove a local bundle connection. |
+| `refresh` | subcommand | Fetch and atomically publish a new generation for a managed remote connection. |
 | `list` | subcommand | Print registered knowledge bases. |
 | `status` | subcommand | Check local bundle and managed-cache integrity offline. |
 | `where` | subcommand | Print the absolute path for a registry key or path. |
@@ -51,6 +54,7 @@ openknowledge registry --help
 | `--no-validate` | flag | Skip validation status output for `connect`. |
 | `--keep-files` | flag | Keep bundle files after `disconnect`; this is the default. |
 | `--delete-files` | flag | Delete files only when the entry is marked `managed`. |
+| `--force` | flag | Allow `refresh` to discard detected local cache changes. |
 | `--json` | flag | Print the versioned registry status contract. |
 
 ## Behavior
@@ -75,9 +79,19 @@ then Git fallback.
 by default. `--delete-files` is guarded and only applies to CLI-managed remote
 caches.
 
-Connection and disconnection flags may appear before or after their required
-positional argument. The registry subcommands and their top-level aliases share
-this parsing contract.
+`registry refresh` applies only to managed remote connections. It inspects the
+current cache first and refuses to discard detected content, Git, or provenance
+changes unless `--force` is supplied. The command materializes and validates a
+fresh cache generation at a new path, records the exact new source identity in
+an atomic registry replacement, and only then deletes the previous generation.
+A download, clone, validation, provenance-write, or registry-replacement failure
+leaves the previously registered generation available. If the registry switch
+succeeds but old-cache cleanup fails, the new generation remains active and the
+command reports a warning with exit status `1`.
+
+Connection, disconnection, refresh, and status flags may appear before or after
+their required positional argument. The registry connection subcommands and
+their top-level aliases share the applicable parsing contract.
 
 `registry list` prints the registry file path and sorted entries.
 
@@ -131,6 +145,18 @@ config /home/user/.config/openknowledge/registry.json
   OK         personal           /work/project-memory
 ```
 
+For a managed remote connection, `openknowledge registry refresh personal`
+prints the generation switch:
+
+```text
+OK Refreshed knowledge bundle
+key        personal
+old path   /home/user/.config/openknowledge/bundles/wiki-a1b2c3d4e5f6
+path       /home/user/.config/openknowledge/bundles/wiki-a1b2c3d4e5f6-refresh-123456
+source     git
+identity   0123456789abcdef0123456789abcdef01234567
+```
+
 ## Top-Level Aliases
 
 `openknowledge connect` and `openknowledge disconnect` are retained as
@@ -173,6 +199,18 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Atomic remote refresh
+
+Added `registry refresh <key|path> [--force]` for managed remote connections.
+Refresh protects locally modified caches by default, materializes and validates
+a distinct generation, atomically replaces the exact registry snapshot, rolls
+back the new generation on failure, and removes the previous cache only after
+the switch succeeds. Source anchors:
+`packages/cli/internal/okf/registry.go`,
+`packages/cli/internal/okf/registry_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Offline registry integrity status
 

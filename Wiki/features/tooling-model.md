@@ -18,7 +18,7 @@ a different user or agent need.
 | --- | --- | --- |
 | Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into an OKF Markdown bundle. |
 | Authoring and OKF hygiene | `setup`, `new`, `spec` | Create a bundle and keep Markdown shaped around OKF v0.1. |
-| Connection and bundle lifecycle | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry list`, `registry where`, `to tar` | Give local, published, archive, or Git bundles stable names, materialize remote sources, resolve names back to filesystem paths, and package portable source archives. |
+| Connection and bundle lifecycle | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry refresh`, `registry list`, `registry status`, `registry where`, `to tar` | Give local, published, archive, or Git bundles stable names, materialize and safely refresh remote sources, inspect local identity, resolve names back to filesystem paths, and package portable source archives. |
 | Validation and inspection | `validate`, `list`, `rules`, `review` | Check OKF structure, link health, bundle inventory, maintenance rules, and depth-limited tree views before humans or agents rely on the knowledge. |
 | Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown or known entrypoints, inspect structure, build budget-bounded source context, inspect ranked matches, and browse connected or direct bundles. |
 | OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
@@ -30,7 +30,9 @@ materialize Open Knowledge manifests, tar archives, and Git remote sources into
 the Open Knowledge cache before registration. After registration,
 `registry where`, `get`, `search`, `view`, `validate`, `list`, and `to` work
 through the same key-or-path resolution model for local folders and remote
-sources.
+sources. `registry status` verifies the local generation offline, while
+`registry refresh` downloads and validates a distinct remote generation before
+atomically switching the connection.
 
 Default HTML viewer exports publish a portable bundle archive at
 `assets/openknowledge-bundle.tar.gz` and an `openknowledge.json` manifest that

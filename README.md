@@ -354,6 +354,7 @@ Nested agent commands also support
 | `openknowledge ast --out <file> [path]` | Write parsed OKF AST JSON to a file. |
 | `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |
+| `openknowledge registry refresh <key-or-path> [--force]` | Atomically fetch and switch a managed remote connection to a newly validated cache generation. |
 | `openknowledge registry list` | List connected knowledge base paths. |
 | `openknowledge registry status [key-or-path] --json` | Check local bundle, cache, Git, and provenance integrity without contacting remotes. |
 | `openknowledge registry where <name-or-path>` | Print the absolute path for a registry name or path. |

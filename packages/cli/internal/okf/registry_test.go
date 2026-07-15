@@ -243,6 +243,32 @@ func TestRemoveRegistryEntryRejectsChangedExpectedSnapshot(t *testing.T) {
 	}
 }
 
+func TestReplaceRegistryEntryRequiresExactSnapshot(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+
+	firstRoot := t.TempDir()
+	secondRoot := t.TempDir()
+	original, _, err := ConnectRegistryEntryWithSource("remote", firstRoot, "read", true, RegistrySource{Type: "git", URL: "https://example.test/repo.git", GitCommit: strings.Repeat("a", 40)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement := original
+	replacement.Path = secondRoot
+	replacement.Source.GitCommit = strings.Repeat("b", 40)
+	replaced, err := ReplaceRegistryEntry(original, replacement)
+	if err != nil || replaced != replacement {
+		t.Fatalf("expected exact replacement, entry=%#v err=%v", replaced, err)
+	}
+	if _, err := ReplaceRegistryEntry(original, RegistryEntry{Name: "remote", Path: firstRoot, Access: "read"}); err == nil || !strings.Contains(err.Error(), "changed while it was being replaced") {
+		t.Fatalf("expected stale replacement refusal, got %v", err)
+	}
+	current, ok, err := ResolveRegistryEntry("remote")
+	if err != nil || !ok || current != replacement {
+		t.Fatalf("expected replacement to remain, ok=%t entry=%#v err=%v", ok, current, err)
+	}
+}
+
 func TestRegistryConcurrentProcessesPreserveEveryConnection(t *testing.T) {
 	registryFile := filepath.Join(t.TempDir(), "registry.json")
 	t.Setenv(RegistryFileEnv, registryFile)

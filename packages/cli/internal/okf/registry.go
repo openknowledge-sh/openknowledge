@@ -269,6 +269,43 @@ func RemoveRegistryEntryWithOptions(target string, options RemoveRegistryOptions
 	return removed, found, nil
 }
 
+func ReplaceRegistryEntry(expected RegistryEntry, replacement RegistryEntry) (RegistryEntry, error) {
+	if !validRegistryName(replacement.Name) {
+		return RegistryEntry{}, fmt.Errorf("connection key must use letters, numbers, dots, underscores, or dashes and must not look like a path")
+	}
+	if replacement.Access == "" {
+		replacement.Access = "read"
+	}
+	if replacement.Access != "read" && replacement.Access != "write" {
+		return RegistryEntry{}, fmt.Errorf("access must be read or write")
+	}
+	absolute, err := absoluteDirectory(replacement.Path)
+	if err != nil {
+		return RegistryEntry{}, err
+	}
+	replacement.Path = absolute
+
+	err = mutateRegistry(func(registry *Registry) (bool, error) {
+		index := registryEntryIndexByPath(registry.Entries, expected.Path)
+		if index < 0 || registry.Entries[index] != expected {
+			return false, fmt.Errorf("connection %q changed while it was being replaced", expected.Name)
+		}
+		if collision := registryEntryIndexByPath(registry.Entries, replacement.Path); collision >= 0 && collision != index {
+			return false, fmt.Errorf("replacement path is already connected as %q", registry.Entries[collision].Name)
+		}
+		if collision := registryEntryIndexByName(registry.Entries, replacement.Name); collision >= 0 && collision != index {
+			return false, fmt.Errorf("connection key %q already points to %s", replacement.Name, registry.Entries[collision].Path)
+		}
+		registry.Entries[index] = replacement
+		sortRegistryEntries(registry.Entries)
+		return true, nil
+	})
+	if err != nil {
+		return RegistryEntry{}, err
+	}
+	return replacement, nil
+}
+
 func ResolveKnowledgeRoot(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {

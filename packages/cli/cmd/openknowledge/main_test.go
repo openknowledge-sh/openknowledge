@@ -325,10 +325,19 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge registry connect <source> --as <key>",
 				"openknowledge registry disconnect <key|path> --keep-files",
+				"openknowledge registry refresh <key|path> --force",
 				"openknowledge registry status [key|path] --json",
 				"openknowledge registry where <name|path>",
 				"Registry keys are shortcuts",
 				"openknowledge list personal",
+			},
+		},
+		"registry refresh": {
+			help: registryRefreshHelpText(),
+			required: []string{
+				"openknowledge registry refresh <key|path> --force",
+				"Discard local changes",
+				"current generation remains registered",
 			},
 		},
 		"registry status": {
@@ -1617,6 +1626,128 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 	identity := report.Entries[0].Identity
 	if report.Entries[0].State != "modified" || identity == nil || identity.ContentMatches == nil || *identity.ContentMatches || identity.GitDirty == nil || !*identity.GitDirty {
 		t.Fatalf("expected content and Git mutation detection: %#v", report.Entries[0])
+	}
+}
+
+func TestRunRegistryRefreshAtomicallyReplacesManagedGitCache(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for remote refresh test")
+	}
+	base := t.TempDir()
+	remote := filepath.Join(base, "remote")
+	runGit(t, base, "init", remote)
+	runGit(t, remote, "config", "user.email", "test@example.com")
+	runGit(t, remote, "config", "user.name", "Test User")
+	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Version 1\n")
+	runGit(t, remote, "add", "index.md")
+	runGit(t, remote, "commit", "-m", "version 1")
+
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runConnect([]string{"--as", "remote", "--no-validate", "file://" + remote}, "openknowledge connect")
+	})
+	if code != 0 {
+		t.Fatalf("expected remote connect to succeed, code=%d stderr=%s", code, stderr)
+	}
+	first, ok, err := okf.ResolveRegistryEntry("remote")
+	if err != nil || !ok {
+		t.Fatalf("expected initial registry entry, ok=%t err=%v", ok, err)
+	}
+
+	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Version 2\n")
+	runGit(t, remote, "add", "index.md")
+	runGit(t, remote, "commit", "-m", "version 2")
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRegistry([]string{"refresh", "remote"})
+	})
+	if code != 0 || !strings.Contains(output, "Refreshed knowledge bundle") {
+		t.Fatalf("expected refresh to succeed, code=%d stdout=%s stderr=%s", code, output, stderr)
+	}
+	second, ok, err := okf.ResolveRegistryEntry("remote")
+	if err != nil || !ok {
+		t.Fatalf("expected refreshed registry entry, ok=%t err=%v", ok, err)
+	}
+	if second.Path == first.Path || second.Source.ManagedRoot == first.Source.ManagedRoot || second.Source.GitCommit == first.Source.GitCommit {
+		t.Fatalf("expected a new cache generation and identity, before=%#v after=%#v", first, second)
+	}
+	content, err := os.ReadFile(filepath.Join(second.Path, "index.md"))
+	if err != nil || !strings.Contains(string(content), "Version 2") {
+		t.Fatalf("expected refreshed content, content=%s err=%v", content, err)
+	}
+	if _, err := os.Stat(first.Source.ManagedRoot); !os.IsNotExist(err) {
+		t.Fatalf("expected previous managed root to be deleted, got %v", err)
+	}
+	if _, err := os.Stat(remoteCacheSourcePath(first.Source.ManagedRoot)); !os.IsNotExist(err) {
+		t.Fatalf("expected previous provenance to be deleted, got %v", err)
+	}
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "remote", "--json"})
+	})
+	if code != 0 {
+		t.Fatalf("expected refreshed generation to pass status, code=%d stderr=%s", code, stderr)
+	}
+
+	writeMainTestFile(t, second.Path, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Local change\n")
+	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Version 3\n")
+	runGit(t, remote, "add", "index.md")
+	runGit(t, remote, "commit", "-m", "version 3")
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runRegistry([]string{"refresh", "remote"})
+	})
+	if code != 1 || !strings.Contains(stderr, "--force") {
+		t.Fatalf("expected local-change protection, code=%d stderr=%s", code, stderr)
+	}
+	unchanged, ok, err := okf.ResolveRegistryEntry("remote")
+	if err != nil || !ok || unchanged != second {
+		t.Fatalf("expected refused refresh to preserve registry, entry=%#v ok=%t err=%v", unchanged, ok, err)
+	}
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runRegistry([]string{"refresh", "remote", "--force"})
+	})
+	if code != 0 {
+		t.Fatalf("expected forced refresh to succeed, code=%d stdout=%s stderr=%s", code, output, stderr)
+	}
+	third, ok, err := okf.ResolveRegistryEntry("remote")
+	if err != nil || !ok || third.Path == second.Path {
+		t.Fatalf("expected forced refresh to publish a new generation, entry=%#v ok=%t err=%v", third, ok, err)
+	}
+	content, err = os.ReadFile(filepath.Join(third.Path, "index.md"))
+	if err != nil || !strings.Contains(string(content), "Version 3") {
+		t.Fatalf("expected forced refresh content, content=%s err=%v", content, err)
+	}
+
+	offline := remote + ".offline"
+	if err := os.Rename(remote, offline); err != nil {
+		t.Fatal(err)
+	}
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runRegistry([]string{"refresh", "--force", "remote"})
+	})
+	if code != 1 || strings.TrimSpace(stderr) == "" {
+		t.Fatalf("expected unavailable source refresh to fail, code=%d stderr=%s", code, stderr)
+	}
+	afterFailure, ok, err := okf.ResolveRegistryEntry("remote")
+	if err != nil || !ok || afterFailure != third {
+		t.Fatalf("expected failed refresh to preserve current generation, entry=%#v ok=%t err=%v", afterFailure, ok, err)
+	}
+	if _, err := os.Stat(third.Path); err != nil {
+		t.Fatalf("expected current generation to survive failed refresh: %v", err)
+	}
+}
+
+func TestRunRegistryRefreshRejectsLocalConnection(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "local")
+	writeMainTestFile(t, root, "index.md", "# Local\n")
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	if _, _, err := okf.ConnectRegistryEntry("local", root, "read", true); err != nil {
+		t.Fatal(err)
+	}
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runRegistry([]string{"refresh", "local"})
+	})
+	if code != 1 || !strings.Contains(stderr, "is local") {
+		t.Fatalf("expected local refresh rejection, code=%d stderr=%s", code, stderr)
 	}
 }
 

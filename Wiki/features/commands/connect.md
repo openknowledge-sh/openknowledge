@@ -137,9 +137,10 @@ entries  default
 
 Remote archive and manifest sources require network access for non-local URLs.
 Git fallback requires `git` on `PATH`. Existing cached materializations are
-reused when they still validate; `connect` does not currently check remote
-freshness for an existing cache entry. See [registry](registry.md) for storage
-details.
+reused when they still validate; `connect` does not check remote freshness for
+an existing cache entry. Use `openknowledge registry refresh <key>` to fetch and
+atomically switch a managed connection to a newly validated generation. See
+[registry](registry.md) for lifecycle and storage details.
 
 ## Command Change History
 

@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Atomic managed remote refresh
+
+* Added `openknowledge registry refresh <key|path> [--force]` for managed
+  manifest, archive, and Git connections.
+* Refresh refuses detected local cache changes unless `--force` is present,
+  while invalid or missing current generations can still be repaired from the
+  recorded source.
+* Materialized each refresh into a distinct validated cache generation, then
+  atomically replaced the exact registry snapshot before deleting old content.
+  Fetch, validation, provenance, and registry failures preserve the previously
+  active generation.
+* Added exact-entry replacement collision guards plus end-to-end Git coverage
+  for generation changes, current-cache health, local-change protection,
+  forced replacement, failed-source rollback, interspersed flags, and local
+  connection rejection.
+* Source anchors: `packages/cli/internal/okf/registry.go`,
+  `packages/cli/internal/okf/registry_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/registry.md`,
+  `Wiki/features/commands/connect.md`, `Wiki/features/tooling-model.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Offline registry integrity status
 
 * Added `openknowledge registry status [key|path] [--json]` to check registered

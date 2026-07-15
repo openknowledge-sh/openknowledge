@@ -860,6 +860,8 @@ func runRegistry(args []string) int {
 		return runConnect(args[1:], "openknowledge registry connect")
 	case "disconnect":
 		return runDisconnect(args[1:], "openknowledge registry disconnect")
+	case "refresh":
+		return runRegistryRefresh(args[1:])
 	case "status":
 		return runRegistryStatus(args[1:])
 	case "where":
@@ -1029,8 +1031,16 @@ func materializeRemoteSource(source string) (root string, sourceInfo okf.Registr
 	if err != nil {
 		return "", okf.RegistrySource{}, err
 	}
-	name := registryCacheName(source)
-	target := filepath.Join(cacheRoot, name)
+	target := filepath.Join(cacheRoot, registryCacheName(source))
+	if registeredTarget, ok := registeredRemoteCacheTarget(source); ok {
+		target = registeredTarget
+	}
+	return materializeRemoteSourceAtTarget(source, target, true)
+}
+
+func materializeRemoteSourceAtTarget(source string, target string, reuseCache bool) (root string, sourceInfo okf.RegistrySource, resultErr error) {
+	source = strings.TrimSpace(source)
+	cacheRoot := filepath.Dir(target)
 	if err := os.MkdirAll(cacheRoot, 0700); err != nil {
 		return "", okf.RegistrySource{}, err
 	}
@@ -1049,7 +1059,7 @@ func materializeRemoteSource(source string) (root string, sourceInfo okf.Registr
 		}
 	}()
 
-	if root, ok := cachedBundleRoot(target); ok {
+	if root, ok := cachedBundleRoot(target); reuseCache && ok {
 		cachedSource, err := loadRemoteCacheSource(target, source)
 		if err == nil {
 			return root, cachedSource, nil
@@ -1770,6 +1780,23 @@ func registryCacheName(source string) string {
 	return base + "-" + hex.EncodeToString(sum[:])[:12]
 }
 
+func registeredRemoteCacheTarget(source string) (string, bool) {
+	entries, err := okf.RegistryEntries()
+	if err != nil {
+		return "", false
+	}
+	for _, entry := range entries {
+		if !entry.Managed || normalizeRemoteSource(entry.Source.URL) != normalizeRemoteSource(source) {
+			continue
+		}
+		managedRoot, err := managedCacheRootForEntry(entry)
+		if err == nil {
+			return managedRoot, true
+		}
+	}
+	return "", false
+}
+
 func normalizeRemoteSource(source string) string {
 	source = strings.TrimSpace(source)
 	parsed, err := url.Parse(source)
@@ -1857,6 +1884,139 @@ func runDisconnect(args []string, command string) int {
 
 	printDisconnectResult(entry, "kept")
 	return 0
+}
+
+func runRegistryRefresh(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, registryRefreshHelpText())
+		return 0
+	}
+	fs := flag.NewFlagSet("registry refresh", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	forceFlag := fs.Bool("force", false, "discard local changes in the managed cache")
+	if err := parseInterspersedFlags(fs, args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge registry refresh <key|path> [--force]")
+		return 2
+	}
+
+	target := fs.Arg(0)
+	entry, ok, err := okf.ResolveRegistryTarget(target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !ok {
+		printUnknownConnection(target)
+		return 1
+	}
+	if !entry.Managed {
+		fmt.Fprintf(os.Stderr, "connection %q is local and cannot be refreshed from a remote source\n", entry.Name)
+		return 1
+	}
+	if strings.TrimSpace(entry.Source.URL) == "" {
+		fmt.Fprintf(os.Stderr, "connection %q has no recorded remote source\n", entry.Name)
+		return 1
+	}
+	oldManagedRoot, err := managedCacheRootForEntry(entry)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	unlock, err := lockRemoteCache(oldManagedRoot)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer unlock()
+
+	current, ok, err := okf.ResolveRegistryTarget(target)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !ok || current != entry {
+		fmt.Fprintf(os.Stderr, "connection %q changed while it was being refreshed\n", entry.Name)
+		return 1
+	}
+	if status := inspectRegistryEntryWithCacheLock(current, true); status.State == "modified" && !*forceFlag {
+		fmt.Fprintf(os.Stderr, "managed cache for %q has local changes; use --force to discard them\n", entry.Name)
+		return 1
+	}
+
+	newTarget, err := newRefreshCacheTarget(oldManagedRoot, entry.Source.URL)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	newRoot, source, err := materializeRemoteSourceAtTarget(entry.Source.URL, newTarget, false)
+	if err != nil {
+		cleanupErr := removeRemoteCacheGeneration(newTarget, true)
+		fmt.Fprintln(os.Stderr, errors.Join(err, cleanupErr))
+		return 1
+	}
+	if status := inspectRegistryEntryWithCacheLock(current, true); status.State == "modified" && !*forceFlag {
+		cleanupErr := removeRemoteCacheGeneration(source.ManagedRoot, true)
+		fmt.Fprintln(os.Stderr, errors.Join(fmt.Errorf("managed cache for %q changed during refresh; use --force to discard local changes", entry.Name), cleanupErr))
+		return 1
+	}
+
+	replacement := current
+	replacement.Path = newRoot
+	replacement.Managed = true
+	replacement.Source = source
+	if _, err := okf.ReplaceRegistryEntry(current, replacement); err != nil {
+		cleanupErr := removeRemoteCacheGeneration(source.ManagedRoot, true)
+		fmt.Fprintln(os.Stderr, errors.Join(err, cleanupErr))
+		return 1
+	}
+
+	cleanupErr := removeRemoteCacheGeneration(oldManagedRoot, false)
+	terminal.success("Refreshed knowledge bundle")
+	fmt.Printf("%-10s %s\n", "key", replacement.Name)
+	fmt.Printf("%-10s %s\n", "old path", terminal.path(entry.Path))
+	fmt.Printf("%-10s %s\n", "path", terminal.path(replacement.Path))
+	fmt.Printf("%-10s %s\n", "source", replacement.Source.Type)
+	if replacement.Source.GitCommit != "" {
+		fmt.Printf("%-10s %s\n", "identity", replacement.Source.GitCommit)
+	} else if replacement.Source.SHA256 != "" {
+		fmt.Printf("%-10s %s\n", "identity", replacement.Source.SHA256)
+	}
+	if cleanupErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: refreshed but could not delete the previous managed cache: %v\n", cleanupErr)
+		return 1
+	}
+	return 0
+}
+
+func newRefreshCacheTarget(oldManagedRoot string, source string) (string, error) {
+	parent := filepath.Dir(oldManagedRoot)
+	placeholder, err := os.MkdirTemp(parent, registryCacheName(source)+"-refresh-*")
+	if err != nil {
+		return "", err
+	}
+	if err := os.Remove(placeholder); err != nil {
+		return "", err
+	}
+	return placeholder, nil
+}
+
+func removeRemoteCacheGeneration(managedRoot string, removeLock bool) error {
+	var cleanupErrors []error
+	if err := os.RemoveAll(managedRoot); err != nil {
+		cleanupErrors = append(cleanupErrors, fmt.Errorf("delete managed cache: %w", err))
+	}
+	if err := os.Remove(remoteCacheSourcePath(managedRoot)); err != nil && !os.IsNotExist(err) {
+		cleanupErrors = append(cleanupErrors, fmt.Errorf("delete cache provenance: %w", err))
+	}
+	if removeLock {
+		if err := os.Remove(managedRoot + ".lock"); err != nil && !os.IsNotExist(err) {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete cache lock: %w", err))
+		}
+	}
+	return errors.Join(cleanupErrors...)
 }
 
 func disconnectManagedRegistryEntry(target string) (okf.RegistryEntry, bool, error, error) {
@@ -2767,6 +2927,10 @@ func runRegistryStatus(args []string) int {
 }
 
 func inspectRegistryEntry(entry okf.RegistryEntry) registryEntryStatus {
+	return inspectRegistryEntryWithCacheLock(entry, false)
+}
+
+func inspectRegistryEntryWithCacheLock(entry okf.RegistryEntry, cacheLocked bool) registryEntryStatus {
 	status := registryEntryStatus{
 		Name:    entry.Name,
 		Path:    entry.Path,
@@ -2844,12 +3008,7 @@ func inspectRegistryEntry(entry okf.RegistryEntry) registryEntryStatus {
 			status.Healthy = false
 			return status
 		} else {
-			unlock, lockErr := lockRemoteCache(managedRoot)
-			if lockErr != nil {
-				status.Problems = append(status.Problems, lockErr.Error())
-				modified = true
-			} else {
-				defer unlock()
+			inspectIdentity := func() {
 				actual, hashErr := okf.DirectorySHA256(managedRoot)
 				if hashErr != nil {
 					status.Problems = append(status.Problems, hashErr.Error())
@@ -2872,6 +3031,21 @@ func inspectRegistryEntry(entry okf.RegistryEntry) registryEntryStatus {
 					matches := cachedSource == entry.Source
 					status.Identity.ProvenanceMatches = &matches
 					modified = modified || !matches
+				}
+			}
+			if cacheLocked {
+				inspectIdentity()
+			} else {
+				unlock, lockErr := lockRemoteCache(managedRoot)
+				if lockErr != nil {
+					status.Problems = append(status.Problems, lockErr.Error())
+					modified = true
+				} else {
+					inspectIdentity()
+					if unlockErr := unlock(); unlockErr != nil {
+						status.Problems = append(status.Problems, unlockErr.Error())
+						modified = true
+					}
 				}
 			}
 		}
@@ -4052,6 +4226,8 @@ Usage:
   openknowledge registry connect <source> --as <key>
   openknowledge registry disconnect <key|path>
   openknowledge registry disconnect <key|path> --keep-files
+  openknowledge registry refresh <key|path>
+  openknowledge registry refresh <key|path> --force
   openknowledge registry list
   openknowledge registry status [key|path]
   openknowledge registry status [key|path] --json
@@ -4068,9 +4244,28 @@ the registry subcommands.
 Examples:
   openknowledge registry connect ./project-memory --as personal
   openknowledge registry list
+  openknowledge registry refresh personal
   openknowledge registry status personal
   openknowledge registry where personal
   openknowledge list personal
+`
+}
+
+func registryRefreshHelpText() string {
+	return `openknowledge registry refresh
+
+Fetch and verify a new generation of a managed remote knowledge bundle.
+
+Usage:
+  openknowledge registry refresh <key|path>
+  openknowledge registry refresh <key|path> --force
+  openknowledge registry refresh --help
+
+Flags:
+  --force  Discard local changes in the managed cache.
+
+The current generation remains registered until the replacement has been
+downloaded, validated, and recorded. Local connections cannot be refreshed.
 `
 }
 
