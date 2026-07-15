@@ -231,8 +231,8 @@ sandbox:
 # env: [OPENAI_API_KEY]
 verify:
   commands:
-    - go test ./...
-    - openknowledge validate Wiki
+    - go test ./packages/cli/...
+    - go run ./packages/cli/cmd/openknowledge validate Wiki
   timeout: 15m
 output:
   commit: false

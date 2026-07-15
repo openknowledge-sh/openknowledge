@@ -20,7 +20,7 @@ sandbox:
   type: host
 verify:
   commands:
-    - openknowledge validate Wiki
+    - go run ./packages/cli/cmd/openknowledge validate Wiki
 output:
   commit: false
 ---

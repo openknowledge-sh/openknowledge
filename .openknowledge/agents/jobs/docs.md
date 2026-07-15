@@ -22,8 +22,8 @@ sandbox:
     - CODEX_HOME
 verify:
   commands:
-    - go test ./...
-    - openknowledge validate Wiki
+    - go test ./packages/cli/...
+    - go run ./packages/cli/cmd/openknowledge validate Wiki
 output:
   commit: false
 concurrency:
