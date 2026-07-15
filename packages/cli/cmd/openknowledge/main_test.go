@@ -2968,6 +2968,55 @@ func TestRemoteGitCommandsAreBoundedAndNonInteractive(t *testing.T) {
 	})
 }
 
+func TestGitMaterializationLimitsBoundEntriesAndBytes(t *testing.T) {
+	t.Run("exact limits", func(t *testing.T) {
+		root := t.TempDir()
+		writeMainTestFile(t, root, "one", "1234")
+		writeMainTestFile(t, root, "two", "5678")
+		if err := validateGitMaterializationLimits(root, gitMaterializationLimits{MaxEntries: 2, MaxFile: 4, MaxBytes: 8}); err != nil {
+			t.Fatalf("expected exact limits to pass: %v", err)
+		}
+	})
+	t.Run("entry count", func(t *testing.T) {
+		root := t.TempDir()
+		writeMainTestFile(t, root, "one", "1")
+		writeMainTestFile(t, root, "two", "2")
+		err := validateGitMaterializationLimits(root, gitMaterializationLimits{MaxEntries: 1, MaxFile: 10, MaxBytes: 10})
+		if err == nil || !strings.Contains(err.Error(), "maximum entry count of 1") {
+			t.Fatalf("expected entry-count limit, got %v", err)
+		}
+	})
+	t.Run("single file", func(t *testing.T) {
+		root := t.TempDir()
+		writeMainTestFile(t, root, "large", "123456")
+		err := validateGitMaterializationLimits(root, gitMaterializationLimits{MaxEntries: 2, MaxFile: 5, MaxBytes: 10})
+		if err == nil || !strings.Contains(err.Error(), "maximum file size of 5 bytes") {
+			t.Fatalf("expected file-size limit, got %v", err)
+		}
+	})
+	t.Run("total bytes", func(t *testing.T) {
+		root := t.TempDir()
+		writeMainTestFile(t, root, "one", "1234")
+		writeMainTestFile(t, root, "two", "5678")
+		err := validateGitMaterializationLimits(root, gitMaterializationLimits{MaxEntries: 2, MaxFile: 4, MaxBytes: 7})
+		if err == nil || !strings.Contains(err.Error(), "maximum materialized size of 7 bytes") {
+			t.Fatalf("expected total-size limit, got %v", err)
+		}
+	})
+	t.Run("invalid limits", func(t *testing.T) {
+		if err := validateGitMaterializationLimits(t.TempDir(), gitMaterializationLimits{}); err == nil || !strings.Contains(err.Error(), "must be positive") {
+			t.Fatalf("expected invalid limits to fail, got %v", err)
+		}
+	})
+	t.Run("missing staging root", func(t *testing.T) {
+		root := filepath.Join(t.TempDir(), "missing")
+		err := validateGitMaterializationLimits(root, gitMaterializationLimits{MaxEntries: 1, MaxFile: 1, MaxBytes: 1})
+		if err == nil || !strings.Contains(err.Error(), "staging directory is missing") {
+			t.Fatalf("expected missing staging root to fail, got %v", err)
+		}
+	})
+}
+
 func TestRemoteGitCommandHelper(t *testing.T) {
 	switch os.Getenv("OPENKNOWLEDGE_GIT_HELPER_MODE") {
 	case "timeout":

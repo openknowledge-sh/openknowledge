@@ -1470,6 +1470,18 @@ const maxRemoteGitOutputBytes = 256 << 10
 
 var remoteGitTimeout = 2 * time.Minute
 
+type gitMaterializationLimits struct {
+	MaxEntries int
+	MaxFile    int64
+	MaxBytes   int64
+}
+
+var remoteGitLimits = gitMaterializationLimits{
+	MaxEntries: okf.DefaultArchiveExtractionLimits.MaxEntries,
+	MaxFile:    okf.DefaultArchiveExtractionLimits.MaxFileBytes,
+	MaxBytes:   okf.DefaultArchiveExtractionLimits.MaxExtractedBytes,
+}
+
 var remoteGitCommand = func(ctx context.Context, args ...string) *exec.Cmd {
 	return exec.CommandContext(ctx, "git", args...)
 }
@@ -2015,19 +2027,64 @@ func cloneGitSource(source string, staging string, ref string) error {
 	defer cancel()
 	for _, args := range commands {
 		output, err := runRemoteGitCommand(ctx, args...)
-		if err == nil {
-			continue
+		if err != nil {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return fmt.Errorf("could not clone remote bundle %s: Git operation exceeded %s", source, remoteGitTimeout)
+			}
+			detail := strings.TrimSpace(string(output))
+			if detail == "" {
+				detail = err.Error()
+			}
+			return fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
 		}
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("could not clone remote bundle %s: Git operation exceeded %s", source, remoteGitTimeout)
+		if err := validateGitMaterializationLimits(staging, remoteGitLimits); err != nil {
+			return fmt.Errorf("remote Git materialization exceeds resource limits: %w", err)
 		}
-		detail := strings.TrimSpace(string(output))
-		if detail == "" {
-			detail = err.Error()
-		}
-		return fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
 	}
 	return nil
+}
+
+func validateGitMaterializationLimits(root string, limits gitMaterializationLimits) error {
+	if limits.MaxEntries <= 0 || limits.MaxFile <= 0 || limits.MaxBytes <= 0 {
+		return fmt.Errorf("Git materialization limits must be positive")
+	}
+	entries := 0
+	var total int64
+	err := filepath.WalkDir(root, func(current string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if current == root {
+			return nil
+		}
+		entries++
+		if entries > limits.MaxEntries {
+			return fmt.Errorf("checkout exceeds maximum entry count of %d", limits.MaxEntries)
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		relative, err := filepath.Rel(root, current)
+		if err != nil {
+			return err
+		}
+		if info.Size() > limits.MaxFile {
+			return fmt.Errorf("checkout entry %s exceeds maximum file size of %d bytes", filepath.ToSlash(relative), limits.MaxFile)
+		}
+		if info.Size() > limits.MaxBytes-total {
+			return fmt.Errorf("checkout exceeds maximum materialized size of %d bytes", limits.MaxBytes)
+		}
+		total += info.Size()
+		return nil
+	})
+	if os.IsNotExist(err) {
+		return fmt.Errorf("Git staging directory is missing")
+	}
+	return err
 }
 
 type cappedCommandOutput struct {
@@ -4655,6 +4712,8 @@ Git sources are cloned into the same cache before registration. Git selectors
 are recorded in provenance, included in cache identity, and retained by refresh.
 Each Git materialization has a two-minute process budget, disables interactive
 credential prompts, and retains at most 256 KiB of subprocess diagnostics.
+After every Git step, the staging generation is limited to 100,000 entries,
+256 MiB per file, and 2 GiB total before validation, hashing, or publication.
 Remote URLs must not embed userinfo or credential query parameters. Git
 credentials must resolve through SSH keys or a credential helper; HTTP sources
 must be directly accessible without URL-embedded authentication.

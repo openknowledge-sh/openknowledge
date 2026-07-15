@@ -260,6 +260,9 @@ resolve the real folder before using normal filesystem tools such as `rg`.
 Remote Git materialization is non-interactive, has a two-minute process budget,
 and caps captured subprocess diagnostics at 256 KiB, so unattended agent runs
 cannot hang on credentials or consume unbounded memory through Git output.
+Each clone/fetch/checkout step is followed by a staging-tree limit check:
+100,000 entries, 256 MiB per file, and 2 GiB total. Over-limit generations are
+removed without validation, content hashing, registry mutation, or publication.
 Remote source URLs are persisted as provenance and therefore reject embedded
 userinfo, passwords, fragments, and known credential query parameters before
 any network or filesystem I/O. Git authentication must use SSH keys or a

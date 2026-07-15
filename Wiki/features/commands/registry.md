@@ -81,6 +81,11 @@ two-minute process budget. `GIT_TERMINAL_PROMPT=0` and
 `GCM_INTERACTIVE=never` prevent credential helpers from waiting for input, and
 captured stdout/stderr is capped at 256 KiB while the process continues to
 drain output. Timeout or command failure leaves no published cache generation.
+After each clone/init/fetch/checkout subprocess, the complete staging tree,
+including Git object storage, is scanned with the same extracted-tree limits as
+archive sources: at most 100,000 entries, 256 MiB per non-directory entry, and
+2 GiB total. An over-limit generation is deleted before bundle validation,
+content hashing, provenance writing, registry mutation, or cache publication.
 
 Remote source URLs become durable registry and cache-sidecar provenance, so
 validation runs before any I/O and rejects HTTP userinfo, URL passwords,
@@ -278,6 +283,15 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Bounded Git staging generations
+
+Remote Git staging trees now receive entry-count, single-file, and aggregate
+byte checks after every Git subprocess. Limits match archive extraction at
+100,000 entries, 256 MiB per file, and 2 GiB total, include `.git` objects, and
+fail before validation, hashing, provenance, or publication. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Secret-safe remote source URLs
 

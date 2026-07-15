@@ -14,6 +14,23 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Bounded Git staging generations
+
+* Added a complete staging-tree resource scan after every remote Git
+  clone/init/fetch/checkout subprocess, including `.git` object storage.
+* Matched archive extracted-tree limits: 100,000 entries, 256 MiB per
+  non-directory entry, and 2 GiB aggregate materialized bytes.
+* Fail over-limit generations before bundle parsing, content hashing,
+  provenance writes, registry mutation, or atomic cache publication; the
+  existing transaction cleanup removes staging content.
+* Added exact-boundary and negative regression coverage for entry count,
+  individual file size, aggregate size, and invalid limit configuration, while
+  retaining real clone/ref/refresh integration coverage.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go` and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, command help,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Public read-only registry Go API
 
 * Extended the supported Go facade with strict bounded registry inventory,
