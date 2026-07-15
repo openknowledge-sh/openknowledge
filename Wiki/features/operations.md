@@ -219,14 +219,16 @@ requires npm publishing credentials. If the tag already exists, it must point
 at the workflow commit; otherwise the workflow fails without moving it.
 
 Release verification runs with repository-wide `contents: read`. Only after it
-succeeds does the three-step `publish_release` job receive `contents: write` to
-check out the exact verified commit, prepare its tag, and run GoReleaser. Setup
-actions, dependency installation, tests, builds, package inspection, and npm
-credential preflight never receive the write-capable GitHub token. The
-workflow permission checker rejects any new write capability or extra step in
-that privileged job until the policy is explicitly reviewed and updated.
-It also locks the default-branch guard as the verifier's first post-checkout
-step.
+succeeds does the four-step `publish_release` job receive `contents: write` to
+check out the exact verified commit, prepare its tag, run GoReleaser, and attest
+the checksummed archives. That same job alone receives `id-token: write` and
+`attestations: write` so `actions/attest` can mint a short-lived Sigstore
+identity and store SLSA provenance. Setup actions, dependency installation,
+tests, builds, package inspection, and npm credential preflight never receive
+these capabilities. The workflow permission checker rejects any new write
+capability or extra privileged step, and pins both the attestation action and
+its `dist/checksums.txt` input. It also locks the default-branch guard as the
+verifier's first post-checkout step.
 
 An in-repository workflow cannot defend against a writer who changes or removes
 that workflow on another ref. Administrators should pair the guard with GitHub
@@ -235,7 +237,9 @@ approved release path. Those repository settings are external state and are
 not claimed as configured merely because this workflow exists.
 
 GoReleaser uploads the installer, checksums, license files, third-party
-notices, and platform archives to GitHub Releases. After that job succeeds, the
+notices, and platform archives to GitHub Releases. The pinned `actions/attest`
+step consumes `dist/checksums.txt` and creates one signed build-provenance
+statement covering those named archive digests. After that job succeeds, the
 workflow checks out the exact release tag and publishes
 `@openknowledge-sh/openknowledge` with npm provenance. Stable versions use the
 `latest` dist-tag; prereleases use `next`.
@@ -244,7 +248,15 @@ Both the GoReleaser action and the GoReleaser binary it downloads are pinned:
 the action uses a full commit SHA and its `version` input is an exact stable
 release rather than `latest`. `pnpm check:workflow-pins` rejects dynamic tool
 aliases so a privileged release cannot silently switch toolchains between
-runs.
+runs. The attestation action is likewise pinned to an immutable release commit.
+
+Verify a downloaded platform archive against the repository's GitHub-hosted
+attestation:
+
+```sh
+gh attestation verify openknowledge_darwin_arm64.tar.gz \
+  -R openknowledge-sh/openknowledge
+```
 
 Configure the repository `NPM_TOKEN` secret with permission to create and
 publish the public scoped package. The preflight checks this secret before a

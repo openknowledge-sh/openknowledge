@@ -21,6 +21,9 @@ and renamed into place atomically.
 Published package versions match the GitHub release tag without its leading
 `v`. The release workflow verifies this invariant before creating the tag and
 publishes the wrapper with npm provenance after the binary release succeeds.
+Each checksummed platform archive also receives GitHub/Sigstore build
+provenance that can be verified with `gh attestation verify <archive> -R
+openknowledge-sh/openknowledge`.
 
 Open Knowledge bundles follow OKF v0.1: Markdown with YAML frontmatter that is
 easy to inspect with shell tools and coding agents.

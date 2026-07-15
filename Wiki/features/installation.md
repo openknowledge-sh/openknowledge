@@ -23,7 +23,9 @@ binary during installation. The shell installer lives at `install`.
 
 The release workflow publishes the npm wrapper only after the matching GitHub
 Release artifacts exist. The wrapper version and release tag are checked before
-tag creation, and npm provenance is attached during publish.
+tag creation, and npm provenance is attached during publish. Every platform
+archive listed in the GoReleaser checksum file receives a signed SLSA build
+provenance attestation from the release workflow.
 
 ## Installer Options
 
@@ -85,6 +87,20 @@ The `curl | bash` entry point authenticates transport to the configured host
 but cannot checksum the installer script before executing it. Users requiring
 an offline trust ceremony should download and inspect `install` first, then run
 it locally; release archives are still checksum-verified by the script.
+
+For an online provenance check independent of the installers, download the
+platform archive and verify its digest and signing repository identity with:
+
+```sh
+gh attestation verify openknowledge_linux_amd64.tar.gz \
+  -R openknowledge-sh/openknowledge
+```
+
+The attestation is stored by GitHub and signed through Sigstore with the
+release job's short-lived OIDC identity. Installer checksum verification stays
+the default lightweight path; attestation verification is an explicit stronger
+origin check for consumers that have the GitHub CLI. The verified statement
+also records the exact release workflow and source commit for inspection.
 
 `https://openknowledge.sh/install` should serve this repository's `install`
 script.

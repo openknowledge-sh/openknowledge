@@ -7,13 +7,18 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workflowDirectory = path.join(root, ".github", "workflows");
 const expectedWriteCapabilities = new Set([
   ".github/workflows/release.yml:publish_release:contents",
+  ".github/workflows/release.yml:publish_release:id-token",
+  ".github/workflows/release.yml:publish_release:attestations",
   ".github/workflows/release.yml:npm:id-token",
 ]);
 const expectedPublishSteps = [
   "Checkout verified release commit",
   "Prepare release tag",
   "Run GoReleaser",
+  "Attest release archives",
 ];
+const expectedAttestationAction = "actions/attest@a1948c3f048ba23858d222213b7c278aabede763";
+const expectedAttestationChecksums = "dist/checksums.txt";
 const expectedVerifyPrefix = [
   "Checkout",
   "Require current default branch tip",
@@ -22,6 +27,8 @@ const expectedVerifyPrefix = [
 const observedWriteCapabilities = new Set();
 const publishSteps = [];
 const verifySteps = [];
+let attestationAction = "";
+let attestationChecksums = "";
 const failures = [];
 
 for (const name of fs.readdirSync(workflowDirectory).sort()) {
@@ -67,6 +74,14 @@ for (const name of fs.readdirSync(workflowDirectory).sort()) {
       if (step) {
         publishSteps.push(step[1].replace(/^(["'])(.*)\1$/, "$2"));
       }
+      const action = line.match(/^\s+uses:\s*(actions\/attest@[0-9a-f]+)\s*(?:#.*)?$/i);
+      if (action) {
+        attestationAction = action[1];
+      }
+      const checksums = line.match(/^\s+subject-checksums:\s*([^\s#]+)\s*(?:#.*)?$/);
+      if (checksums) {
+        attestationChecksums = checksums[1];
+      }
     }
     if (relativePath === ".github/workflows/release.yml" && currentJob === "verify") {
       const step = line.match(/^      - name:\s*(.+?)\s*$/);
@@ -84,6 +99,12 @@ for (const capability of expectedWriteCapabilities) {
 }
 if (JSON.stringify(publishSteps) !== JSON.stringify(expectedPublishSteps)) {
   failures.push(`release publish job steps changed: expected ${expectedPublishSteps.join(", ")}; got ${publishSteps.join(", ")}`);
+}
+if (attestationAction !== expectedAttestationAction) {
+  failures.push(`release attestation action changed: expected ${expectedAttestationAction}; got ${attestationAction || "none"}`);
+}
+if (attestationChecksums !== expectedAttestationChecksums) {
+  failures.push(`release attestation checksums changed: expected ${expectedAttestationChecksums}; got ${attestationChecksums || "none"}`);
 }
 if (JSON.stringify(verifySteps.slice(0, expectedVerifyPrefix.length)) !== JSON.stringify(expectedVerifyPrefix)) {
   failures.push(`release verification prefix changed: expected ${expectedVerifyPrefix.join(", ")}; got ${verifySteps.slice(0, expectedVerifyPrefix.length).join(", ")}`);

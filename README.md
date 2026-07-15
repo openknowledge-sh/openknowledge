@@ -140,6 +140,11 @@ Both installers verify the release checksum before publishing the binary. The
 npm wrapper also bounds downloads and decompression, limits HTTPS redirects,
 and accepts only the exact regular `openknowledge` archive member.
 
+Published platform archives also carry GitHub/Sigstore build provenance. After
+downloading an archive, verify its digest and signing repository identity with
+`gh attestation verify <archive> -R openknowledge-sh/openknowledge` and inspect
+the recorded workflow and commit.
+
 Then create and inspect a local bundle:
 
 ```sh

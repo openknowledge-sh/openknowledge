@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Signed release build provenance
+
+* Added a post-GoReleaser `actions/attest` step that consumes
+  `dist/checksums.txt` and creates signed SLSA build provenance for every named
+  platform archive digest.
+* Scoped `id-token: write` and `attestations: write` only to the existing
+  reviewed `publish_release` job; verification, builds, and npm preflight retain
+  their narrower permissions.
+* Pinned `actions/attest` v4.1.1 to immutable commit
+  `a1948c3f048ba23858d222213b7c278aabede763`.
+* Extended the workflow policy gate to require the new permissions, exact
+  privileged step sequence, attestation action pin, and checksum input.
+* Documented consumer verification with `gh attestation verify <archive> -R
+  openknowledge-sh/openknowledge` while retaining automatic installer checksum
+  verification as the lightweight default.
+* Source anchors: `.github/workflows/release.yml` and
+  `scripts/check-workflow-permissions.mjs`.
+* Docs updated: `README.md`, `packages/npm/README.md`,
+  `Wiki/features/installation.md`, `Wiki/features/operations.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Bounded npm binary installation
 
 * Bounded npm postinstall archive downloads to 64 MiB, checksum downloads to
