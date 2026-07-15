@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1",
+  "registry": "/config/registry.json",
+  "summary": {
+    "total": 1,
+    "ok": 1,
+    "warnings": 0,
+    "unverified": 0,
+    "modified": 0,
+    "invalid": 0,
+    "missing": 0
+  },
+  "entries": [
+    {
+      "name": "personal",
+      "path": "/knowledge",
+      "access": "read",
+      "managed": false,
+      "state": "ok",
+      "healthy": true,
+      "validation": {
+        "specVersion": "0.1",
+        "status": "valid",
+        "errors": 0,
+        "warnings": 0
+      }
+    }
+  ]
+}

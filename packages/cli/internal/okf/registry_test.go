@@ -160,16 +160,17 @@ func TestRegistrySavesPathKeyedConnections(t *testing.T) {
 
 	root := t.TempDir()
 	source := RegistrySource{
-		Type:        "manifest",
-		URL:         "https://example.test/wiki/",
-		Ref:         "https://cdn.example.test/bundle.tar.gz",
-		ResolvedURL: "https://cdn.example.test/openknowledge.json",
-		ManifestURL: "https://cdn.example.test/openknowledge.json",
-		ArchiveURL:  "https://cdn.example.test/bundle.tar.gz",
-		SHA256:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Spec:        "0.1",
-		FetchedAt:   "2026-07-15T12:00:00Z",
-		ManagedRoot: root,
+		Type:          "manifest",
+		URL:           "https://example.test/wiki/",
+		Ref:           "https://cdn.example.test/bundle.tar.gz",
+		ResolvedURL:   "https://cdn.example.test/openknowledge.json",
+		ManifestURL:   "https://cdn.example.test/openknowledge.json",
+		ArchiveURL:    "https://cdn.example.test/bundle.tar.gz",
+		SHA256:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		ContentSHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		Spec:          "0.1",
+		FetchedAt:     "2026-07-15T12:00:00Z",
+		ManagedRoot:   root,
 	}
 	entry, _, err := ConnectRegistryEntryWithSource("personal", root, "read", true, source)
 	if err != nil {

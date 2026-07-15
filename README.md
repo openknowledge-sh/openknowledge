@@ -355,6 +355,7 @@ Nested agent commands also support
 | `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |
 | `openknowledge registry list` | List connected knowledge base paths. |
+| `openknowledge registry status [key-or-path] --json` | Check local bundle, cache, Git, and provenance integrity without contacting remotes. |
 | `openknowledge registry where <name-or-path>` | Print the absolute path for a registry name or path. |
 | `openknowledge view [path]` | Start the registry or knowledge base Markdown viewer. |
 | `openknowledge view --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
@@ -405,10 +406,10 @@ and combined or separate issue arrays. Bundle-local `openknowledge.toml` can
 configure lint severities under `[validation.rules]`, and repeatable `--rule`
 flags can override them per run.
 
-Machine-readable AST, normalized bundle, graph, list, search, and validation
-outputs declare `schemaVersion: "1"`. Draft 2020-12 schemas and the compatibility
-policy live in `packages/cli/schemas/v1/`; `specVersion` separately identifies
-the selected Open Knowledge Format version.
+Machine-readable AST, normalized bundle, graph, list, registry status, search,
+and validation outputs declare `schemaVersion: "1"`. Draft 2020-12 schemas and
+the compatibility policy live in `packages/cli/schemas/v1/`; `specVersion`
+separately identifies the selected Open Knowledge Format version.
 
 ## Development
 

@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Offline registry integrity status
+
+* Added `openknowledge registry status [key|path] [--json]` to check registered
+  paths, OKF validation, cache provenance, and immutable local content identity
+  without contacting remotes.
+* Added deterministic managed-tree SHA-256 recording for new archives and Git
+  clones. Status detects archive/cache edits even after extraction; Git sources
+  additionally compare the exact commit and dirty working tree.
+* Defined `ok`, `warnings`, `unverified`, `modified`, `invalid`, and `missing`
+  states with nonzero exit status for the four unhealthy/unknown states.
+* Added a versioned JSON report with summary counts, per-entry validation,
+  identity, provenance and problems, plus a checked Draft 2020-12 schema at
+  `packages/cli/schemas/v1/registry-status.schema.json`.
+* Added deterministic content-hash, healthy/missing local, clean/modified Git,
+  interspersed flag, help, and schema-version coverage.
+* Source anchors: `packages/cli/internal/okf/content_hash.go`,
+  `packages/cli/internal/okf/content_hash_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`, and
+  `packages/cli/schemas/v1/registry-status.schema.json`.
+* Docs updated: `README.md`, `Wiki/features/commands/registry.md`,
+  `packages/cli/schemas/v1/README.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Transactional managed cache deletion
 
 * Persisted and consumed the complete managed cache root so deleting an archive

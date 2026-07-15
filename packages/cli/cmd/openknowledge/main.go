@@ -860,6 +860,8 @@ func runRegistry(args []string) int {
 		return runConnect(args[1:], "openknowledge registry connect")
 	case "disconnect":
 		return runDisconnect(args[1:], "openknowledge registry disconnect")
+	case "status":
+		return runRegistryStatus(args[1:])
 	case "where":
 		return runRegistryWhere(args[1:])
 	default:
@@ -1071,16 +1073,17 @@ func materializeRemoteSource(source string) (root string, sourceInfo okf.Registr
 			return "", okf.RegistrySource{}, err
 		}
 		return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
-			Type:        "manifest",
-			URL:         source,
-			Ref:         archive.FinalURL,
-			ResolvedURL: manifestURL,
-			ManifestURL: manifestURL,
-			ArchiveURL:  archive.FinalURL,
-			SHA256:      archive.SHA256,
-			Spec:        spec,
-			FetchedAt:   remoteFetchTimestamp(),
-			ManagedRoot: target,
+			Type:          "manifest",
+			URL:           source,
+			Ref:           archive.FinalURL,
+			ResolvedURL:   manifestURL,
+			ManifestURL:   manifestURL,
+			ArchiveURL:    archive.FinalURL,
+			SHA256:        archive.SHA256,
+			ContentSHA256: archive.ContentSHA256,
+			Spec:          spec,
+			FetchedAt:     remoteFetchTimestamp(),
+			ManagedRoot:   target,
 		})
 	}
 	if looksLikeArchiveSource(source) {
@@ -1089,15 +1092,16 @@ func materializeRemoteSource(source string) (root string, sourceInfo okf.Registr
 			return "", okf.RegistrySource{}, err
 		}
 		return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
-			Type:        "tar",
-			URL:         source,
-			Ref:         archive.FinalURL,
-			ResolvedURL: archive.FinalURL,
-			ArchiveURL:  archive.FinalURL,
-			SHA256:      archive.SHA256,
-			Spec:        okf.LatestSpecVersion,
-			FetchedAt:   remoteFetchTimestamp(),
-			ManagedRoot: target,
+			Type:          "tar",
+			URL:           source,
+			Ref:           archive.FinalURL,
+			ResolvedURL:   archive.FinalURL,
+			ArchiveURL:    archive.FinalURL,
+			SHA256:        archive.SHA256,
+			ContentSHA256: archive.ContentSHA256,
+			Spec:          okf.LatestSpecVersion,
+			FetchedAt:     remoteFetchTimestamp(),
+			ManagedRoot:   target,
 		})
 	}
 	if isHTTPSource(source) {
@@ -1118,31 +1122,33 @@ func materializeRemoteSource(source string) (root string, sourceInfo okf.Registr
 				return "", okf.RegistrySource{}, err
 			}
 			return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
-				Type:        "manifest",
-				URL:         source,
-				Ref:         archive.FinalURL,
-				ResolvedURL: manifestURL,
-				ManifestURL: manifestURL,
-				ArchiveURL:  archive.FinalURL,
-				SHA256:      archive.SHA256,
-				Spec:        manifest.Spec,
-				FetchedAt:   remoteFetchTimestamp(),
-				ManagedRoot: target,
+				Type:          "manifest",
+				URL:           source,
+				Ref:           archive.FinalURL,
+				ResolvedURL:   manifestURL,
+				ManifestURL:   manifestURL,
+				ArchiveURL:    archive.FinalURL,
+				SHA256:        archive.SHA256,
+				ContentSHA256: archive.ContentSHA256,
+				Spec:          manifest.Spec,
+				FetchedAt:     remoteFetchTimestamp(),
+				ManagedRoot:   target,
 			})
 		}
 		if archive, ok, err := tryMaterializeDirectArchive(source, target); err != nil {
 			return "", okf.RegistrySource{}, err
 		} else if ok {
 			return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
-				Type:        "tar",
-				URL:         source,
-				Ref:         archive.FinalURL,
-				ResolvedURL: archive.FinalURL,
-				ArchiveURL:  archive.FinalURL,
-				SHA256:      archive.SHA256,
-				Spec:        okf.LatestSpecVersion,
-				FetchedAt:   remoteFetchTimestamp(),
-				ManagedRoot: target,
+				Type:          "tar",
+				URL:           source,
+				Ref:           archive.FinalURL,
+				ResolvedURL:   archive.FinalURL,
+				ArchiveURL:    archive.FinalURL,
+				SHA256:        archive.SHA256,
+				ContentSHA256: archive.ContentSHA256,
+				Spec:          okf.LatestSpecVersion,
+				FetchedAt:     remoteFetchTimestamp(),
+				ManagedRoot:   target,
 			})
 		}
 	}
@@ -1171,24 +1177,30 @@ func materializeRemoteSource(source string) (root string, sourceInfo okf.Registr
 	if err != nil {
 		return "", okf.RegistrySource{}, err
 	}
+	contentSHA256, err := okf.DirectorySHA256(staging)
+	if err != nil {
+		return "", okf.RegistrySource{}, err
+	}
 	if err := publishRemoteCache(staging, target); err != nil {
 		return "", okf.RegistrySource{}, err
 	}
 	return finishRemoteMaterialization(target, target, okf.RegistrySource{
-		Type:        "git",
-		URL:         source,
-		ResolvedURL: source,
-		GitCommit:   commit,
-		Spec:        okf.LatestSpecVersion,
-		FetchedAt:   remoteFetchTimestamp(),
-		ManagedRoot: target,
+		Type:          "git",
+		URL:           source,
+		ResolvedURL:   source,
+		GitCommit:     commit,
+		ContentSHA256: contentSHA256,
+		Spec:          okf.LatestSpecVersion,
+		FetchedAt:     remoteFetchTimestamp(),
+		ManagedRoot:   target,
 	})
 }
 
 type archiveMaterialization struct {
-	Root     string
-	FinalURL string
-	SHA256   string
+	Root          string
+	FinalURL      string
+	SHA256        string
+	ContentSHA256 string
 }
 
 func materializeManifestSource(source string, target string) (archiveMaterialization, string, string, error) {
@@ -1243,10 +1255,14 @@ func materializeArchiveSource(source string, target string, expectedSHA256 strin
 	if err != nil {
 		return archiveMaterialization{}, err
 	}
+	contentSHA256, err := okf.DirectorySHA256(extractRoot)
+	if err != nil {
+		return archiveMaterialization{}, err
+	}
 	if err := publishRemoteCache(extractRoot, target); err != nil {
 		return archiveMaterialization{}, err
 	}
-	result := archiveMaterialization{Root: target, FinalURL: download.FinalURL, SHA256: actual}
+	result := archiveMaterialization{Root: target, FinalURL: download.FinalURL, SHA256: actual, ContentSHA256: contentSHA256}
 	if bundleRoot == extractRoot {
 		return result, nil
 	}
@@ -1304,10 +1320,14 @@ func materializeArchiveFile(archivePath string, target string, expectedSHA256 st
 	if err != nil {
 		return archiveMaterialization{}, err
 	}
+	contentSHA256, err := okf.DirectorySHA256(extractRoot)
+	if err != nil {
+		return archiveMaterialization{}, err
+	}
 	if err := publishRemoteCache(extractRoot, target); err != nil {
 		return archiveMaterialization{}, err
 	}
-	result := archiveMaterialization{Root: target, SHA256: actual}
+	result := archiveMaterialization{Root: target, SHA256: actual, ContentSHA256: contentSHA256}
 	if bundleRoot == extractRoot {
 		return result, nil
 	}
@@ -2632,6 +2652,325 @@ func printRegistryEntries(entries []okf.RegistryEntry) {
 	}
 }
 
+type registryStatusReport struct {
+	SchemaVersion string                `json:"schemaVersion"`
+	Registry      string                `json:"registry"`
+	Summary       registryStatusSummary `json:"summary"`
+	Entries       []registryEntryStatus `json:"entries"`
+}
+
+type registryStatusSummary struct {
+	Total      int `json:"total"`
+	OK         int `json:"ok"`
+	Warnings   int `json:"warnings"`
+	Unverified int `json:"unverified"`
+	Modified   int `json:"modified"`
+	Invalid    int `json:"invalid"`
+	Missing    int `json:"missing"`
+}
+
+type registryEntryStatus struct {
+	Name       string                   `json:"name"`
+	Path       string                   `json:"path"`
+	Access     string                   `json:"access"`
+	Managed    bool                     `json:"managed"`
+	State      string                   `json:"state"`
+	Healthy    bool                     `json:"healthy"`
+	Source     *okf.RegistrySource      `json:"source,omitempty"`
+	Validation registryValidationStatus `json:"validation"`
+	Identity   *registryIdentityStatus  `json:"identity,omitempty"`
+	Problems   []string                 `json:"problems,omitempty"`
+}
+
+type registryValidationStatus struct {
+	SpecVersion string `json:"specVersion"`
+	Status      string `json:"status"`
+	Errors      int    `json:"errors"`
+	Warnings    int    `json:"warnings"`
+}
+
+type registryIdentityStatus struct {
+	ExpectedContentSHA256 string `json:"expectedContentSha256,omitempty"`
+	ActualContentSHA256   string `json:"actualContentSha256,omitempty"`
+	ContentMatches        *bool  `json:"contentMatches,omitempty"`
+	ExpectedGitCommit     string `json:"expectedGitCommit,omitempty"`
+	ActualGitCommit       string `json:"actualGitCommit,omitempty"`
+	GitCommitMatches      *bool  `json:"gitCommitMatches,omitempty"`
+	GitDirty              *bool  `json:"gitDirty,omitempty"`
+	ProvenanceMatches     *bool  `json:"provenanceMatches,omitempty"`
+}
+
+func runRegistryStatus(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, registryStatusHelpText())
+		return 0
+	}
+	fs := flag.NewFlagSet("registry status", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	jsonFlag := fs.Bool("json", false, "print versioned JSON status")
+	if err := parseInterspersedFlags(fs, args); err != nil {
+		return 2
+	}
+	if fs.NArg() > 1 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge registry status [key|path] [--json]")
+		return 2
+	}
+
+	entries, err := okf.RegistryEntries()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if fs.NArg() == 1 {
+		entry, ok, err := okf.ResolveRegistryTarget(fs.Arg(0))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if !ok {
+			printUnknownConnection(fs.Arg(0))
+			return 1
+		}
+		entries = []okf.RegistryEntry{entry}
+	}
+
+	registryPath, err := okf.RegistryFile()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	report := registryStatusReport{
+		SchemaVersion: okf.MachineSchemaVersion,
+		Registry:      registryPath,
+		Entries:       make([]registryEntryStatus, 0, len(entries)),
+	}
+	for _, entry := range entries {
+		status := inspectRegistryEntry(entry)
+		report.Entries = append(report.Entries, status)
+		addRegistryStatusSummary(&report.Summary, status.State)
+	}
+
+	if *jsonFlag {
+		encoded, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		fmt.Println(string(encoded))
+	} else {
+		printRegistryStatus(report)
+	}
+	if report.Summary.Modified > 0 || report.Summary.Invalid > 0 || report.Summary.Missing > 0 || report.Summary.Unverified > 0 {
+		return 1
+	}
+	return 0
+}
+
+func inspectRegistryEntry(entry okf.RegistryEntry) registryEntryStatus {
+	status := registryEntryStatus{
+		Name:    entry.Name,
+		Path:    entry.Path,
+		Access:  registryEntryAccess(entry),
+		Managed: entry.Managed,
+		State:   "ok",
+		Healthy: true,
+		Validation: registryValidationStatus{
+			SpecVersion: okf.LatestSpecVersion,
+			Status:      "unknown",
+		},
+	}
+	if entry.Managed {
+		source := entry.Source
+		status.Source = &source
+		status.Identity = &registryIdentityStatus{
+			ExpectedContentSHA256: entry.Source.ContentSHA256,
+			ExpectedGitCommit:     entry.Source.GitCommit,
+		}
+		if resolved, ok := okf.ResolveSpecVersion(entry.Source.Spec); ok {
+			status.Validation.SpecVersion = resolved
+		} else if entry.Source.Spec != "" {
+			status.Problems = append(status.Problems, fmt.Sprintf("unsupported recorded spec %q", entry.Source.Spec))
+		}
+	}
+
+	if info, err := os.Stat(entry.Path); err != nil || !info.IsDir() {
+		status.State = "missing"
+		status.Healthy = false
+		if err != nil {
+			status.Problems = append(status.Problems, err.Error())
+		} else {
+			status.Problems = append(status.Problems, "registered path is not a directory")
+		}
+		return status
+	}
+
+	validation, err := okf.ValidateWithVersion(entry.Path, status.Validation.SpecVersion)
+	if err != nil {
+		status.Validation.Status = "error"
+		status.Problems = append(status.Problems, err.Error())
+	} else {
+		status.Validation.Errors = len(validation.Errors)
+		status.Validation.Warnings = len(validation.Warnings)
+		for _, issue := range validation.Errors {
+			status.Problems = append(status.Problems, formatRegistryValidationIssue("error", issue))
+		}
+		for _, issue := range validation.Warnings {
+			status.Problems = append(status.Problems, formatRegistryValidationIssue("warning", issue))
+		}
+		switch {
+		case len(validation.Errors) > 0:
+			status.Validation.Status = "invalid"
+		case len(validation.Warnings) > 0:
+			status.Validation.Status = "warnings"
+		default:
+			status.Validation.Status = "valid"
+		}
+	}
+
+	modified := false
+	unverified := false
+	if entry.Managed {
+		managedRoot, rootErr := managedCacheRootForEntry(entry)
+		if rootErr != nil {
+			status.Problems = append(status.Problems, rootErr.Error())
+			modified = true
+		} else if info, statErr := os.Stat(managedRoot); statErr != nil || !info.IsDir() {
+			if statErr != nil {
+				status.Problems = append(status.Problems, statErr.Error())
+			} else {
+				status.Problems = append(status.Problems, "managed root is not a directory")
+			}
+			status.State = "missing"
+			status.Healthy = false
+			return status
+		} else {
+			unlock, lockErr := lockRemoteCache(managedRoot)
+			if lockErr != nil {
+				status.Problems = append(status.Problems, lockErr.Error())
+				modified = true
+			} else {
+				defer unlock()
+				actual, hashErr := okf.DirectorySHA256(managedRoot)
+				if hashErr != nil {
+					status.Problems = append(status.Problems, hashErr.Error())
+					modified = true
+				} else {
+					status.Identity.ActualContentSHA256 = actual
+					if entry.Source.ContentSHA256 == "" {
+						unverified = true
+					} else {
+						matches := strings.EqualFold(actual, entry.Source.ContentSHA256)
+						status.Identity.ContentMatches = &matches
+						modified = modified || !matches
+					}
+				}
+				cachedSource, provenanceErr := loadRemoteCacheSource(managedRoot, entry.Source.URL)
+				if provenanceErr != nil {
+					status.Problems = append(status.Problems, provenanceErr.Error())
+					modified = true
+				} else {
+					matches := cachedSource == entry.Source
+					status.Identity.ProvenanceMatches = &matches
+					modified = modified || !matches
+				}
+			}
+		}
+
+		if entry.Source.Type == "git" {
+			actualCommit, commitErr := gitCommitForDirectory(entry.Path)
+			if commitErr != nil {
+				status.Problems = append(status.Problems, commitErr.Error())
+				modified = true
+			} else {
+				status.Identity.ActualGitCommit = actualCommit
+				if entry.Source.GitCommit == "" {
+					unverified = true
+				} else {
+					matches := actualCommit == entry.Source.GitCommit
+					status.Identity.GitCommitMatches = &matches
+					modified = modified || !matches
+				}
+			}
+			dirty, dirtyErr := gitWorkingTreeDirty(entry.Path)
+			if dirtyErr != nil {
+				status.Problems = append(status.Problems, dirtyErr.Error())
+				modified = true
+			} else {
+				status.Identity.GitDirty = &dirty
+				modified = modified || dirty
+			}
+		}
+	}
+
+	switch {
+	case status.Validation.Status == "invalid" || status.Validation.Status == "error":
+		status.State = "invalid"
+		status.Healthy = false
+	case modified:
+		status.State = "modified"
+		status.Healthy = false
+	case unverified:
+		status.State = "unverified"
+		status.Healthy = false
+	case status.Validation.Status == "warnings":
+		status.State = "warnings"
+	}
+	return status
+}
+
+func formatRegistryValidationIssue(severity string, issue okf.Issue) string {
+	location := issue.Path
+	if issue.Line > 0 {
+		location = fmt.Sprintf("%s:%d", location, issue.Line)
+	}
+	if location == "" {
+		location = "bundle"
+	}
+	return fmt.Sprintf("validation %s at %s [%s]: %s", severity, location, issue.Rule, issue.Message)
+}
+
+func gitWorkingTreeDirty(root string) (bool, error) {
+	command := exec.Command("git", "-C", root, "status", "--porcelain", "--untracked-files=all")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return false, fmt.Errorf("could not inspect Git working tree: %s", strings.TrimSpace(string(output)))
+	}
+	return strings.TrimSpace(string(output)) != "", nil
+}
+
+func addRegistryStatusSummary(summary *registryStatusSummary, state string) {
+	summary.Total++
+	switch state {
+	case "ok":
+		summary.OK++
+	case "warnings":
+		summary.Warnings++
+	case "unverified":
+		summary.Unverified++
+	case "modified":
+		summary.Modified++
+	case "invalid":
+		summary.Invalid++
+	case "missing":
+		summary.Missing++
+	}
+}
+
+func printRegistryStatus(report registryStatusReport) {
+	terminal.title("Open Knowledge Registry Status", "offline cache and bundle integrity")
+	fmt.Printf("%s %s\n\n", terminal.muted("config"), terminal.path(report.Registry))
+	if len(report.Entries) == 0 {
+		fmt.Println(terminal.muted("No registered knowledge bases."))
+		return
+	}
+	for _, entry := range report.Entries {
+		fmt.Printf("  %-10s %-18s %s\n", strings.ToUpper(entry.State), entry.Name, terminal.path(entry.Path))
+		for _, problem := range entry.Problems {
+			fmt.Printf("    %s %s\n", terminal.muted("-"), problem)
+		}
+	}
+}
+
 func runRegistryWhere(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, registryWhereHelpText())
@@ -3465,6 +3804,8 @@ Usage:
   openknowledge registry connect <source> --as <key>
   openknowledge registry disconnect <key|path>
   openknowledge registry list
+  openknowledge registry status [key|path]
+  openknowledge registry status [key|path] --json
   openknowledge registry where <name|path>
   openknowledge view [path]
   openknowledge view --name <alias-name> [path]
@@ -3659,7 +4000,7 @@ Arguments:
 
 Flags:
   --keep-files    Keep files after removing the connection. This is the default.
-  --delete-files  Delete files only for CLI-managed remote clones.
+  --delete-files  Delete the complete cache only for CLI-managed remote sources.
 
 Examples:
   %[1]s accessibility
@@ -3712,6 +4053,8 @@ Usage:
   openknowledge registry disconnect <key|path>
   openknowledge registry disconnect <key|path> --keep-files
   openknowledge registry list
+  openknowledge registry status [key|path]
+  openknowledge registry status [key|path] --json
   openknowledge registry where <name|path>
   openknowledge registry --help
 
@@ -3725,8 +4068,33 @@ the registry subcommands.
 Examples:
   openknowledge registry connect ./project-memory --as personal
   openknowledge registry list
+  openknowledge registry status personal
   openknowledge registry where personal
   openknowledge list personal
+`
+}
+
+func registryStatusHelpText() string {
+	return `openknowledge registry status
+
+Check registered bundle and managed-cache integrity without contacting remotes.
+
+Usage:
+  openknowledge registry status
+  openknowledge registry status [key|path]
+  openknowledge registry status [key|path] --json
+  openknowledge registry status --help
+
+States:
+  ok          Bundle validation and recorded identity pass.
+  warnings    Validation passes with warnings.
+  unverified  Legacy managed cache has no recorded content identity.
+  modified    Content, Git state, or provenance differs from the registry.
+  invalid     Bundle validation fails.
+  missing     Registered bundle or managed root is unavailable.
+
+The command is offline. It checks local content identity and does not determine
+whether a newer remote version exists. JSON output uses schemaVersion "1".
 `
 }
 

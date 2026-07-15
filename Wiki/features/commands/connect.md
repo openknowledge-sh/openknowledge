@@ -79,9 +79,9 @@ Remote cache identity is derived from the normalized source, not from `--as`,
 so reconnecting the same source under another key reuses one materialization.
 Each new cache stores a versioned owner-only provenance sidecar. Registry source
 metadata preserves the requested URL, final manifest and archive URLs after
-redirects, concrete spec, archive SHA-256 or exact Git commit, fetch time, and
-the complete managed cache root. Cache hits restore this record instead of
-guessing the source type from the input URL.
+redirects, concrete spec, archive SHA-256 or exact Git commit, a deterministic
+managed-tree SHA-256, fetch time, and the complete managed cache root. Cache
+hits restore this record instead of guessing the source type from the input URL.
 
 Materialization for one source is serialized by in-process and cross-process
 cache locks. Archives and Git repositories are downloaded or cloned into

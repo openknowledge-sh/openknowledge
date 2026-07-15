@@ -29,6 +29,8 @@ openknowledge registry disconnect <key|path>
 openknowledge registry disconnect <key|path> --keep-files
 openknowledge registry disconnect <key|path> --delete-files
 openknowledge registry list
+openknowledge registry status [key|path]
+openknowledge registry status [key|path] --json
 openknowledge registry where <name|path>
 openknowledge registry --help
 ```
@@ -40,6 +42,7 @@ openknowledge registry --help
 | `connect` | subcommand | Add or update a local or remote bundle connection. |
 | `disconnect` | subcommand | Remove a local bundle connection. |
 | `list` | subcommand | Print registered knowledge bases. |
+| `status` | subcommand | Check local bundle and managed-cache integrity offline. |
 | `where` | subcommand | Print the absolute path for a registry key or path. |
 | `key` | argument | Connection key using letters, numbers, dots, underscores, or dashes. |
 | `source` | argument | Knowledge bundle folder path, existing registry key, Open Knowledge manifest URL, tar archive URL, or Git URL. |
@@ -48,6 +51,7 @@ openknowledge registry --help
 | `--no-validate` | flag | Skip validation status output for `connect`. |
 | `--keep-files` | flag | Keep bundle files after `disconnect`; this is the default. |
 | `--delete-files` | flag | Delete files only when the entry is marked `managed`. |
+| `--json` | flag | Print the versioned registry status contract. |
 
 ## Behavior
 
@@ -69,13 +73,28 @@ then Git fallback.
 
 `registry disconnect` removes entries by key or absolute path and keeps files
 by default. `--delete-files` is guarded and only applies to CLI-managed remote
-clones.
+caches.
 
 Connection and disconnection flags may appear before or after their required
 positional argument. The registry subcommands and their top-level aliases share
 this parsing contract.
 
 `registry list` prints the registry file path and sorted entries.
+
+`registry status` checks all entries, or one optional key/path, without network
+access. It validates each bundle against its recorded concrete spec, checks
+registered and managed paths, compares the deterministic managed-tree SHA-256,
+compares registry provenance with the cache sidecar, and for Git also checks
+the exact commit and dirty working-tree state. It reports `ok`, `warnings`,
+`unverified`, `modified`, `invalid`, or `missing`. Legacy managed caches without
+a recorded content hash are `unverified`. Any `unverified`, `modified`,
+`invalid`, or `missing` entry produces exit status `1`.
+
+`registry status --json` returns a `schemaVersion: "1"` envelope with the
+registry path, summary counts, entry validation, identity checks, source
+provenance, and problems. Its Draft 2020-12 schema is
+`packages/cli/schemas/v1/registry-status.schema.json`. Status is deliberately
+offline: it does not claim whether a newer remote version exists.
 
 `registry where` prints only an absolute path. If the value looks like a path,
 it is expanded and normalized directly. Otherwise it must match a registry key.
@@ -101,6 +120,17 @@ useful for scripts:
 /work/project-memory
 ```
 
+`openknowledge registry status personal` prints the local state:
+
+```text
+Open Knowledge Registry Status
+offline cache and bundle integrity
+
+config /home/user/.config/openknowledge/registry.json
+
+  OK         personal           /work/project-memory
+```
+
 ## Top-Level Aliases
 
 `openknowledge connect` and `openknowledge disconnect` are retained as
@@ -120,10 +150,11 @@ Open Knowledge cache.
 
 New remote source records preserve requested and resolved URLs, final manifest
 and archive URLs, the archive SHA-256 or Git commit, concrete OKF spec, fetch
-timestamp, and the complete managed cache root. `ref` remains populated for
-compatibility with older archive-URL readers. Cache provenance is also stored
-in a versioned owner-only sidecar beside the source-addressed cache directory,
-so reconnecting does not infer or lose the source identity.
+timestamp, deterministic managed-tree SHA-256, and the complete managed cache
+root. `ref` remains populated for compatibility with older archive-URL readers.
+Cache provenance is also stored in a versioned owner-only sidecar beside the
+source-addressed cache directory, so reconnecting does not infer or lose the
+source identity.
 
 Source-specific in-process and filesystem locks serialize cache publication.
 The cache root is owner-only. Archive extraction and Git clone staging are
@@ -142,6 +173,18 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Offline registry integrity status
+
+Added `registry status [key|path] [--json]` with bundle validation, deterministic
+content identity, provenance-sidecar comparison, Git commit and dirty-tree
+checks, stable states and exit codes, a v1 JSON envelope, and a checked Draft
+2020-12 schema. The command does not contact remotes. Source anchors:
+`packages/cli/internal/okf/content_hash.go`,
+`packages/cli/internal/okf/content_hash_test.go`,
+`packages/cli/cmd/openknowledge/main.go`,
+`packages/cli/cmd/openknowledge/main_test.go`, and
+`packages/cli/schemas/v1/registry-status.schema.json`.
 
 ### 2026-07-15 - Safe managed cache deletion
 

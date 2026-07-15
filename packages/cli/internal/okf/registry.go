@@ -45,17 +45,18 @@ type RegistryConnection struct {
 }
 
 type RegistrySource struct {
-	Type        string `json:"type,omitempty"`
-	URL         string `json:"url,omitempty"`
-	Ref         string `json:"ref,omitempty"`
-	ResolvedURL string `json:"resolvedUrl,omitempty"`
-	ManifestURL string `json:"manifestUrl,omitempty"`
-	ArchiveURL  string `json:"archiveUrl,omitempty"`
-	SHA256      string `json:"sha256,omitempty"`
-	GitCommit   string `json:"gitCommit,omitempty"`
-	Spec        string `json:"spec,omitempty"`
-	FetchedAt   string `json:"fetchedAt,omitempty"`
-	ManagedRoot string `json:"managedRoot,omitempty"`
+	Type          string `json:"type,omitempty"`
+	URL           string `json:"url,omitempty"`
+	Ref           string `json:"ref,omitempty"`
+	ResolvedURL   string `json:"resolvedUrl,omitempty"`
+	ManifestURL   string `json:"manifestUrl,omitempty"`
+	ArchiveURL    string `json:"archiveUrl,omitempty"`
+	SHA256        string `json:"sha256,omitempty"`
+	ContentSHA256 string `json:"contentSha256,omitempty"`
+	GitCommit     string `json:"gitCommit,omitempty"`
+	Spec          string `json:"spec,omitempty"`
+	FetchedAt     string `json:"fetchedAt,omitempty"`
+	ManagedRoot   string `json:"managedRoot,omitempty"`
 }
 
 type RemoveRegistryOptions struct {

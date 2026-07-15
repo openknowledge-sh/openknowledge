@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -58,6 +59,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge registry connect <source>",
 		"openknowledge registry connect <source> --as <key>",
 		"openknowledge registry disconnect <key|path>",
+		"openknowledge registry status [key|path] --json",
 		"openknowledge registry where <name|path>",
 		"openknowledge view --name <alias-name> [path]",
 		"openknowledge view --host <host> --port <port> [path]",
@@ -280,7 +282,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge disconnect <key|path> --keep-files",
 				"openknowledge disconnect <key|path> --delete-files",
-				"Delete files only for CLI-managed remote clones",
+				"Delete the complete cache only for CLI-managed remote sources",
 			},
 		},
 		"registry disconnect": {
@@ -323,9 +325,19 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge registry connect <source> --as <key>",
 				"openknowledge registry disconnect <key|path> --keep-files",
+				"openknowledge registry status [key|path] --json",
 				"openknowledge registry where <name|path>",
 				"Registry keys are shortcuts",
 				"openknowledge list personal",
+			},
+		},
+		"registry status": {
+			help: registryStatusHelpText(),
+			required: []string{
+				"openknowledge registry status [key|path] --json",
+				"without contacting remotes",
+				"unverified",
+				"schemaVersion \"1\"",
 			},
 		},
 		"registry where": {
@@ -1574,6 +1586,143 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(entry.Path, "index.md")); err != nil {
 		t.Fatalf("expected cloned index.md: %v", err)
 	}
+	if entry.Source.ContentSHA256 == "" {
+		t.Fatal("expected managed working-tree content identity")
+	}
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "remote", "--json"})
+	})
+	if code != 0 {
+		t.Fatalf("expected clean Git status, code=%d stderr=%s", code, stderr)
+	}
+	var report registryStatusReport
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.SchemaVersion != okf.MachineSchemaVersion || len(report.Entries) != 1 || report.Entries[0].State != "ok" || report.Entries[0].Identity == nil || report.Entries[0].Identity.GitDirty == nil || *report.Entries[0].Identity.GitDirty {
+		t.Fatalf("unexpected clean Git status report: %#v", report)
+	}
+
+	writeMainTestFile(t, entry.Path, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Locally changed\n")
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "--json", "remote"})
+	})
+	if code != 1 {
+		t.Fatalf("expected modified Git status, code=%d stderr=%s", code, stderr)
+	}
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatal(err)
+	}
+	identity := report.Entries[0].Identity
+	if report.Entries[0].State != "modified" || identity == nil || identity.ContentMatches == nil || *identity.ContentMatches || identity.GitDirty == nil || !*identity.GitDirty {
+		t.Fatalf("expected content and Git mutation detection: %#v", report.Entries[0])
+	}
+}
+
+func TestRegistryStatusReportsHealthyAndMissingLocalBundles(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "local")
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: local\n---\n\n# Local\n")
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	if _, _, err := okf.ConnectRegistryEntry("local", root, "read", true); err != nil {
+		t.Fatal(err)
+	}
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "local", "--json"})
+	})
+	if code != 0 {
+		t.Fatalf("expected healthy local status, code=%d stderr=%s", code, stderr)
+	}
+	var report registryStatusReport
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.SchemaVersion != "1" || report.Summary.OK != 1 || report.Summary.Total != 1 || len(report.Entries) != 1 || report.Entries[0].State != "ok" || !report.Entries[0].Healthy || report.Entries[0].Source != nil {
+		t.Fatalf("unexpected healthy local status: %#v", report)
+	}
+
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatal(err)
+	}
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "--json", "local"})
+	})
+	if code != 1 {
+		t.Fatalf("expected missing local status, code=%d stderr=%s", code, stderr)
+	}
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Summary.Missing != 1 || report.Entries[0].State != "missing" || report.Entries[0].Healthy {
+		t.Fatalf("unexpected missing local status: %#v", report)
+	}
+}
+
+func TestRegistryStatusMachineContractGolden(t *testing.T) {
+	fixture := registryStatusReport{
+		SchemaVersion: "1",
+		Registry:      "/config/registry.json",
+		Summary:       registryStatusSummary{Total: 1, OK: 1},
+		Entries: []registryEntryStatus{
+			{
+				Name:    "personal",
+				Path:    "/knowledge",
+				Access:  "read",
+				State:   "ok",
+				Healthy: true,
+				Validation: registryValidationStatus{
+					SpecVersion: "0.1",
+					Status:      "valid",
+				},
+			},
+		},
+	}
+	actual, err := json.MarshalIndent(fixture, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual = append(actual, '\n')
+	expected, err := os.ReadFile(filepath.Join("testdata", "contracts", "registry-status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("registry status machine contract changed\nwant:\n%s\ngot:\n%s", expected, actual)
+	}
+}
+
+func TestRegistryStatusMarksLegacyManagedCacheUnverified(t *testing.T) {
+	base := t.TempDir()
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	managedRoot := filepath.Join(base, "bundles", "legacy-cache")
+	writeMainTestFile(t, managedRoot, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Legacy\n")
+	source := okf.RegistrySource{
+		Type:        "unknown",
+		URL:         "https://example.test/legacy",
+		ManagedRoot: managedRoot,
+	}
+	if err := saveRemoteCacheSource(managedRoot, source); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := okf.ConnectRegistryEntryWithSource("legacy", managedRoot, "read", true, source); err != nil {
+		t.Fatal(err)
+	}
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "legacy", "--json"})
+	})
+	if code != 1 {
+		t.Fatalf("expected unverified legacy exit, code=%d stderr=%s", code, stderr)
+	}
+	var report registryStatusReport
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Summary.Unverified != 1 || len(report.Entries) != 1 || report.Entries[0].State != "unverified" {
+		t.Fatalf("unexpected legacy status: %#v", report)
+	}
 }
 
 func TestRunConnectUsesRemoteOpenKnowledgeManifest(t *testing.T) {
@@ -1622,7 +1771,7 @@ func TestRunConnectUsesRemoteOpenKnowledgeManifest(t *testing.T) {
 	if entry.Source.Type != "manifest" || entry.Source.URL != manifestURL || entry.Source.Ref != expectedArchiveURL {
 		t.Fatalf("unexpected manifest source: %#v", entry.Source)
 	}
-	if entry.Source.ManifestURL != manifestURL || entry.Source.ArchiveURL != expectedArchiveURL || entry.Source.SHA256 != archiveResult.SHA256 || entry.Source.Spec != "0.1" || entry.Source.ManagedRoot == "" {
+	if entry.Source.ManifestURL != manifestURL || entry.Source.ArchiveURL != expectedArchiveURL || entry.Source.SHA256 != archiveResult.SHA256 || entry.Source.ContentSHA256 == "" || entry.Source.Spec != "0.1" || entry.Source.ManagedRoot == "" {
 		t.Fatalf("expected complete manifest provenance: %#v", entry.Source)
 	}
 	if _, err := os.Stat(filepath.Join(entry.Path, "index.md")); err != nil {
@@ -1953,6 +2102,28 @@ func TestDisconnectDeleteFilesRemovesEntireNestedManagedCache(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(entry.Source.ManagedRoot, "LICENSE")); err != nil {
 		t.Fatalf("expected top-level cache sibling before deletion: %v", err)
+	}
+	statusOutput, statusStderr, statusCode := captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "nested", "--json"})
+	})
+	if statusCode != 0 {
+		t.Fatalf("expected clean archive cache status, code=%d stderr=%s", statusCode, statusStderr)
+	}
+	var statusReport registryStatusReport
+	if err := json.Unmarshal([]byte(statusOutput), &statusReport); err != nil || len(statusReport.Entries) != 1 || statusReport.Entries[0].State != "ok" {
+		t.Fatalf("unexpected clean archive status: %#v err=%v", statusReport, err)
+	}
+	if err := os.WriteFile(filepath.Join(entry.Source.ManagedRoot, "LICENSE"), []byte("locally changed\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	statusOutput, statusStderr, statusCode = captureMainOutput(t, func() int {
+		return runRegistry([]string{"status", "--json", "nested"})
+	})
+	if statusCode != 1 {
+		t.Fatalf("expected modified archive cache status, code=%d stderr=%s", statusCode, statusStderr)
+	}
+	if err := json.Unmarshal([]byte(statusOutput), &statusReport); err != nil || len(statusReport.Entries) != 1 || statusReport.Entries[0].State != "modified" || statusReport.Entries[0].Identity == nil || statusReport.Entries[0].Identity.ContentMatches == nil || *statusReport.Entries[0].Identity.ContentMatches {
+		t.Fatalf("expected archive content mutation detection: %#v err=%v", statusReport, err)
 	}
 	unrelated := filepath.Join(filepath.Dir(entry.Source.ManagedRoot), "unrelated-cache-sibling")
 	if err := os.Mkdir(unrelated, 0700); err != nil {

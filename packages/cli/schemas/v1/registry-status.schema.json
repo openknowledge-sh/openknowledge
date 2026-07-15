@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/registry-status.schema.json",
+  "title": "Open Knowledge registry status output v1",
+  "type": "object",
+  "required": ["schemaVersion", "registry", "summary", "entries"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "registry": {"type": "string"},
+    "summary": {
+      "type": "object",
+      "required": ["total", "ok", "warnings", "unverified", "modified", "invalid", "missing"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "ok": {"type": "integer", "minimum": 0},
+        "warnings": {"type": "integer", "minimum": 0},
+        "unverified": {"type": "integer", "minimum": 0},
+        "modified": {"type": "integer", "minimum": 0},
+        "invalid": {"type": "integer", "minimum": 0},
+        "missing": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "entries": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/entry"}
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["name", "path", "access", "managed", "state", "healthy", "validation"],
+      "properties": {
+        "name": {"type": "string"},
+        "path": {"type": "string"},
+        "access": {"enum": ["read", "write"]},
+        "managed": {"type": "boolean"},
+        "state": {"enum": ["ok", "warnings", "unverified", "modified", "invalid", "missing"]},
+        "healthy": {"type": "boolean"},
+        "source": {"$ref": "#/$defs/source"},
+        "validation": {"$ref": "#/$defs/validation"},
+        "identity": {"$ref": "#/$defs/identity"},
+        "problems": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "type": {"type": "string"},
+        "url": {"type": "string"},
+        "ref": {"type": "string"},
+        "resolvedUrl": {"type": "string"},
+        "manifestUrl": {"type": "string"},
+        "archiveUrl": {"type": "string"},
+        "sha256": {"type": "string"},
+        "contentSha256": {"type": "string"},
+        "gitCommit": {"type": "string"},
+        "spec": {"type": "string"},
+        "fetchedAt": {"type": "string"},
+        "managedRoot": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "required": ["specVersion", "status", "errors", "warnings"],
+      "properties": {
+        "specVersion": {"type": "string"},
+        "status": {"enum": ["unknown", "valid", "warnings", "invalid", "error"]},
+        "errors": {"type": "integer", "minimum": 0},
+        "warnings": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "expectedContentSha256": {"type": "string"},
+        "actualContentSha256": {"type": "string"},
+        "contentMatches": {"type": "boolean"},
+        "expectedGitCommit": {"type": "string"},
+        "actualGitCommit": {"type": "string"},
+        "gitCommitMatches": {"type": "boolean"},
+        "gitDirty": {"type": "boolean"},
+        "provenanceMatches": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
