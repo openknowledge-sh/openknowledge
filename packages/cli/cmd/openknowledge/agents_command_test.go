@@ -153,6 +153,26 @@ func TestAgentsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
 	}
 }
 
+func TestAgentsExecutorOverrideRejectsUnknownValuesBeforeExecution(t *testing.T) {
+	tests := [][]string{
+		{"run", filepath.Join(t.TempDir(), "missing-job.md"), "--executor", "doker"},
+		{"run", filepath.Join(t.TempDir(), "missing-job.md"), "--executor=doker"},
+		{"daemon", filepath.Join(t.TempDir(), "missing-jobs"), "--once", "--executor", "doker"},
+		{"daemon", filepath.Join(t.TempDir(), "missing-jobs"), "--once", "--executor=doker"},
+	}
+	for _, args := range tests {
+		_, stderr, code := captureMainOutput(t, func() int {
+			return runAgents(args)
+		})
+		if code != 2 || !strings.Contains(stderr, "--executor must be host or docker") {
+			t.Fatalf("expected fail-closed executor usage error for %v, code=%d stderr=%s", args, code, stderr)
+		}
+		if strings.Contains(stderr, "no such file") {
+			t.Fatalf("executor validation must happen before job discovery for %v: %s", args, stderr)
+		}
+	}
+}
+
 func TestAgentsRunCreatesRunRecord(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---

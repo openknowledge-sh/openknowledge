@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseJobFileUsesSharedYAMLParser(t *testing.T) {
@@ -52,5 +53,31 @@ func TestParseJobFileRejectsMalformedNestedYAML(t *testing.T) {
 	_, err := ParseJobFile(path)
 	if err == nil || !strings.Contains(err.Error(), "frontmatter YAML is invalid") {
 		t.Fatalf("expected shared YAML parser error, got %v", err)
+	}
+}
+
+func TestExecutorOverrideValidationFailsClosed(t *testing.T) {
+	for _, valid := range []string{"", "host", "docker", " docker "} {
+		normalized, err := NormalizeExecutorOverride(valid)
+		if err != nil {
+			t.Fatalf("expected executor %q to be accepted: %v", valid, err)
+		}
+		if normalized != strings.TrimSpace(valid) {
+			t.Fatalf("expected executor %q to normalize to %q, got %q", valid, strings.TrimSpace(valid), normalized)
+		}
+	}
+	for _, invalid := range []string{"doker", "HOST", "local"} {
+		if _, err := NormalizeExecutorOverride(invalid); err == nil || !strings.Contains(err.Error(), "host or docker") {
+			t.Fatalf("expected executor %q to be rejected, got %v", invalid, err)
+		}
+	}
+
+	job := Job{
+		ID:      "fail-closed",
+		Agent:   AgentSpec{Command: "true"},
+		Sandbox: SandboxSpec{Type: "host"},
+	}
+	if _, err := BuildRunPlan(job, time.Now(), "doker"); err == nil || !strings.Contains(err.Error(), "executor: must be host or docker") {
+		t.Fatalf("expected planning to reject an unknown override before selecting a runner, got %v", err)
 	}
 }

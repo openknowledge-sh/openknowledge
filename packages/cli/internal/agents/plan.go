@@ -41,6 +41,10 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	if err := ValidateJob(job); err != nil {
 		return RunPlan{}, err
 	}
+	executorOverride, err := NormalizeExecutorOverride(executorOverride)
+	if err != nil {
+		return RunPlan{}, ValidationError{Issues: []ValidationIssue{{Field: "executor", Message: err.Error()}}}
+	}
 	repo := job.Workspace.Repo
 	if repo == "" {
 		repo = "."
@@ -115,6 +119,16 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 		Sandbox:     sandbox,
 		Output:      job.Output,
 	}, nil
+}
+
+func NormalizeExecutorOverride(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	switch value {
+	case "", "host", "docker":
+		return value, nil
+	default:
+		return "", fmt.Errorf("must be host or docker")
+	}
 }
 
 func (plan RunPlan) JSON() ([]byte, error) {

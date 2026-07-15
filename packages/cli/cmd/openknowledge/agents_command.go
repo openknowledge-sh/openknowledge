@@ -303,6 +303,11 @@ func parseAgentsRunArgs(args []string) (agentsRunCLIOptions, error) {
 	if len(positionals) != 1 {
 		return options, fmt.Errorf("agents run requires exactly one job file")
 	}
+	normalizedExecutor, err := agents.NormalizeExecutorOverride(options.executor)
+	if err != nil {
+		return options, fmt.Errorf("--executor %w", err)
+	}
+	options.executor = normalizedExecutor
 	options.path = positionals[0]
 	return options, nil
 }
@@ -361,6 +366,11 @@ func parseAgentsDaemonArgs(args []string) (agentsDaemonCLIOptions, error) {
 	if len(positionals) == 1 {
 		options.path = positionals[0]
 	}
+	normalizedExecutor, err := agents.NormalizeExecutorOverride(options.executor)
+	if err != nil {
+		return options, fmt.Errorf("--executor %w", err)
+	}
+	options.executor = normalizedExecutor
 	return options, nil
 }
 

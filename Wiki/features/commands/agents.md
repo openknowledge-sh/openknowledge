@@ -38,6 +38,8 @@ openknowledge agents run <job.md> --executor host
 openknowledge agents run <job.md> --executor docker
 openknowledge agents daemon [jobs-dir] --once
 openknowledge agents daemon [jobs-dir] --tick 5m
+openknowledge agents daemon [jobs-dir] --executor host
+openknowledge agents daemon [jobs-dir] --executor docker
 openknowledge agents <subcommand> --help
 openknowledge agents --help
 ```
@@ -144,6 +146,12 @@ job schema without running an agent or touching Git worktrees.
 the stable run id, repository root, base SHA, branch name, worktree path,
 prompt, executor, and verification commands.
 
+`agents run` and `agents daemon` accept only the exact `--executor host` and
+`--executor docker` overrides. Missing or unknown values are usage errors and
+are rejected before job discovery, plan construction, or command execution; an
+executor typo never falls back to host execution. The same allowlist is
+enforced again by the internal plan builder for non-CLI callers.
+
 `agents run` creates a new Git worktree under
 `.openknowledge/agents/worktrees/<run-id>` and writes run artifacts under
 `.openknowledge/agents/runs/<run-id>/`:
@@ -184,6 +192,16 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Fail-closed executor overrides
+
+`agents run` and `agents daemon` now reject every `--executor` value except
+`host` and `docker` before loading jobs. The plan API repeats this validation,
+so unknown executor values cannot silently select host execution. Source
+anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+`packages/cli/cmd/openknowledge/agents_command_test.go`,
+`packages/cli/internal/agents/plan.go`, and
+`packages/cli/internal/agents/spec_test.go`.
 
 ### 2026-07-15 - Shared YAML parser
 

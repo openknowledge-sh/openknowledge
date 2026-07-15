@@ -14,6 +14,23 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Fail-closed agent executor selection
+
+* Restricted `agents run` and `agents daemon` executor overrides to the exact
+  `host` and `docker` values already supported by job frontmatter.
+* Rejected invalid overrides as CLI usage errors before job discovery or any
+  process execution, preventing typos from falling through to host execution.
+* Repeated executor normalization and validation in the run-plan API so direct
+  package callers receive the same fail-closed behavior.
+* Added command-level coverage for separated and `--executor=value` syntax on
+  both run and daemon, plus package-level allowlist and planning regressions.
+* Source anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+  `packages/cli/cmd/openknowledge/agents_command_test.go`,
+  `packages/cli/internal/agents/plan.go`, and
+  `packages/cli/internal/agents/spec_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Reproducible portable archives
 
 * Removed the destination basename from gzip headers and normalized gzip OS
