@@ -14,6 +14,24 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Secret-safe remote source URLs
+
+* Added shared pre-I/O validation for connection, refresh, manifest archive,
+  and redirect URLs before they can reach transport or durable provenance.
+* Rejected HTTP userinfo, URL passwords, fragments, remote `file://` hosts,
+  malformed queries, and recognized credential query fields without echoing
+  their values in errors.
+* Required Git secrets to resolve through SSH keys or credential helpers and
+  made URL-embedded authentication explicitly unsupported for HTTP bundles.
+* Preserved the ten-hop redirect bound and rejected credential-bearing
+  destinations plus HTTPS-to-HTTP downgrade redirects.
+* Added table-driven no-I/O rejection, no-secret-error, allowed transport, and
+  redirect-boundary regression coverage.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go` and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, command help,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Enforced cross-process agent concurrency
 
 * Promoted the reserved agent-job `concurrency` mapping into a strict contract

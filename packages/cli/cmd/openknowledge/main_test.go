@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
@@ -2738,6 +2739,101 @@ func TestFetchBundleManifestSurfacesServerErrors(t *testing.T) {
 
 	if _, _, ok, err := fetchBundleManifest("https://example.test/openknowledge.json"); err == nil || ok || !strings.Contains(err.Error(), "503 Service Unavailable") {
 		t.Fatalf("expected manifest server error to be preserved, ok=%t err=%v", ok, err)
+	}
+}
+
+func TestConnectRejectsCredentialBearingRemoteURLsBeforeIO(t *testing.T) {
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+	tests := []struct {
+		source   string
+		expected string
+	}{
+		{source: "https://user:hunter2@example.test/bundle", expected: "must not include userinfo"},
+		{source: "https://supersecret@example.test/bundle", expected: "must not include userinfo"},
+		{source: "ssh://git:hunter2@example.test/knowledge.git", expected: "must not include a password"},
+		{source: "https://example.test/bundle?access_token=supersecret", expected: `credential query parameter "access_token"`},
+		{source: "https://example.test/bundle?X-Amz-Signature=supersecret", expected: `credential query parameter "X-Amz-Signature"`},
+		{source: "https://example.test/bundle#secret", expected: "must not include fragments"},
+		{source: "git@example.test:org/knowledge.git?token=supersecret", expected: "must not include query or fragment syntax"},
+	}
+	for _, test := range tests {
+		t.Run(test.expected, func(t *testing.T) {
+			_, stderr, code := captureMainOutput(t, func() int {
+				return runConnect([]string{test.source}, "openknowledge connect")
+			})
+			if code != 2 || !strings.Contains(stderr, test.expected) {
+				t.Fatalf("expected pre-I/O URL rejection, code=%d stderr=%q", code, stderr)
+			}
+			for _, secret := range []string{"hunter2", "supersecret"} {
+				if strings.Contains(stderr, secret) {
+					t.Fatalf("credential leaked in URL error: %q", stderr)
+				}
+			}
+		})
+	}
+}
+
+func TestRemoteSourceURLAllowsCredentialFreeStableTransports(t *testing.T) {
+	for _, source := range []string{
+		"https://example.test/openknowledge.json?ref=main",
+		"ssh://git@example.test/knowledge.git",
+		"git://example.test/knowledge.git",
+		"git@example.test:org/knowledge.git",
+		"file:///tmp/knowledge.tar.gz",
+		"file://localhost/tmp/knowledge.tar.gz",
+	} {
+		if err := validateRemoteSourceURL(source); err != nil {
+			t.Fatalf("expected credential-free source %q to pass: %v", source, err)
+		}
+	}
+}
+
+func TestRemoteRedirectsPreserveSecureCredentialFreeBoundary(t *testing.T) {
+	previous := httptest.NewRequest(http.MethodGet, "https://origin.example.test/openknowledge.json", nil)
+	secure := httptest.NewRequest(http.MethodGet, "https://cdn.example.test/openknowledge.json?ref=main", nil)
+	if err := validateRemoteRedirect(secure, []*http.Request{previous}); err != nil {
+		t.Fatalf("expected secure credential-free redirect: %v", err)
+	}
+
+	downgrade := httptest.NewRequest(http.MethodGet, "http://cdn.example.test/openknowledge.json", nil)
+	if err := validateRemoteRedirect(downgrade, []*http.Request{previous}); err == nil || !strings.Contains(err.Error(), "HTTPS redirect downgrade") {
+		t.Fatalf("expected HTTPS downgrade refusal, got %v", err)
+	}
+	credentialed := httptest.NewRequest(http.MethodGet, "https://user:secret@cdn.example.test/openknowledge.json", nil)
+	if err := validateRemoteRedirect(credentialed, []*http.Request{previous}); err == nil || !strings.Contains(err.Error(), "must not include userinfo") || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("expected secret-safe redirect refusal, got %v", err)
+	}
+	via := make([]*http.Request, 10)
+	for index := range via {
+		via[index] = previous
+	}
+	if err := validateRemoteRedirect(secure, via); err == nil || !strings.Contains(err.Error(), "10 redirects") {
+		t.Fatalf("expected redirect count limit, got %v", err)
+	}
+}
+
+func TestDownloadRemoteFileDoesNotLeakRejectedRedirectCredentials(t *testing.T) {
+	originalHTTPClient := remoteHTTPClient
+	remoteHTTPClient = &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusFound,
+				Status:     "302 Found",
+				Header:     http.Header{"Location": []string{"http://user:supersecret@example.test/bundle"}},
+				Body:       io.NopCloser(strings.NewReader("")),
+				Request:    request,
+			}, nil
+		}),
+		CheckRedirect: validateRemoteRedirect,
+	}
+	defer func() { remoteHTTPClient = originalHTTPClient }()
+
+	_, err := downloadRemoteFile("http://origin.example.test/bundle", filepath.Join(t.TempDir(), "bundle"), 1024)
+	if err == nil || !strings.Contains(err.Error(), "must not include userinfo") {
+		t.Fatalf("expected redirect credential refusal, got %v", err)
+	}
+	if strings.Contains(err.Error(), "supersecret") || strings.Contains(err.Error(), "user:") {
+		t.Fatalf("redirect error leaked rejected credentials: %v", err)
 	}
 }
 

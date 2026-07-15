@@ -260,6 +260,10 @@ resolve the real folder before using normal filesystem tools such as `rg`.
 Remote Git materialization is non-interactive, has a two-minute process budget,
 and caps captured subprocess diagnostics at 256 KiB, so unattended agent runs
 cannot hang on credentials or consume unbounded memory through Git output.
+Remote source URLs are persisted as provenance and therefore reject embedded
+userinfo, passwords, fragments, and known credential query parameters before
+any network or filesystem I/O. Git authentication must use SSH keys or a
+credential helper; HTTP sources must be reachable without URL-embedded secrets.
 
 `openknowledge view` starts a registry-backed local viewer.
 `openknowledge view <path-or-name>` opens one knowledge base directly. The

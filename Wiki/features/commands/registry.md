@@ -82,6 +82,15 @@ two-minute process budget. `GIT_TERMINAL_PROMPT=0` and
 captured stdout/stderr is capped at 256 KiB while the process continues to
 drain output. Timeout or command failure leaves no published cache generation.
 
+Remote source URLs become durable registry and cache-sidecar provenance, so
+validation runs before any I/O and rejects HTTP userinfo, URL passwords,
+fragments, non-local `file://` hosts, and known credential-bearing query keys
+such as access tokens and cloud signatures. Errors name only the rejected
+field, never its value. Git authentication must use SSH keys or a credential
+helper; HTTP manifests and archives must be directly accessible without
+URL-embedded authentication. HTTP redirects retain the ten-hop limit, must
+remain credential-free, and cannot downgrade an HTTPS request to HTTP.
+
 Access is an enforced CLI capability rather than a display label. A `read`
 connection can be browsed and inspected, but the viewer omits local editor
 deeplinks and `rules apply` refuses to change files inside its registered root.
@@ -269,6 +278,16 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Secret-safe remote source URLs
+
+Connection, refresh, manifest archive resolution, and HTTP redirects now share
+pre-I/O URL validation. Durable provenance cannot contain URL userinfo,
+passwords, fragments, or recognized credential query parameters; rejection
+does not echo secret values. HTTPS redirects cannot downgrade to HTTP, and the
+default ten-hop redirect bound remains explicit. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Bounded non-interactive Git transport
 

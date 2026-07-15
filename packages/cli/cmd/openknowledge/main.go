@@ -914,6 +914,12 @@ func runConnect(args []string, command string) int {
 	}
 
 	source := fs.Arg(0)
+	if looksLikeRemoteSource(source) {
+		if err := validateRemoteSourceURL(source); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+	}
 	gitOptions, err := parseGitMaterializationOptions(*gitRefFlag, *gitSubdirFlag)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -1098,6 +1104,9 @@ func materializeRemoteSourceAtTarget(source string, target string, reuseCache bo
 
 func materializeRemoteSourceAtTargetWithOptions(source string, target string, reuseCache bool, options gitMaterializationOptions) (root string, sourceInfo okf.RegistrySource, resultErr error) {
 	source = strings.TrimSpace(source)
+	if err := validateRemoteSourceURL(source); err != nil {
+		return "", okf.RegistrySource{}, err
+	}
 	validatedOptions, err := parseGitMaterializationOptions(options.Ref, options.Subdir)
 	if err != nil {
 		return "", okf.RegistrySource{}, err
@@ -1440,7 +1449,22 @@ type remoteHTTPStatusError struct {
 	StatusCode int
 }
 
-var remoteHTTPClient = &http.Client{Timeout: 30 * time.Second}
+type remoteRedirectPolicyError struct {
+	err error
+}
+
+func (err *remoteRedirectPolicyError) Error() string {
+	return err.err.Error()
+}
+
+func (err *remoteRedirectPolicyError) Unwrap() error {
+	return err.err
+}
+
+var remoteHTTPClient = &http.Client{
+	Timeout:       30 * time.Second,
+	CheckRedirect: validateRemoteRedirect,
+}
 
 const maxRemoteGitOutputBytes = 256 << 10
 
@@ -1484,6 +1508,9 @@ func downloadRemoteFile(source string, target string, maxBytes int64) (remoteDow
 	if maxBytes <= 0 {
 		return remoteDownload{}, fmt.Errorf("download byte limit must be positive")
 	}
+	if err := validateRemoteSourceURL(source); err != nil {
+		return remoteDownload{}, err
+	}
 	parsed, err := url.Parse(source)
 	if err != nil {
 		return remoteDownload{}, err
@@ -1508,6 +1535,10 @@ func downloadRemoteFile(source string, target string, maxBytes int64) (remoteDow
 	}
 	response, err := remoteHTTPClient.Get(source)
 	if err != nil {
+		var policyError *remoteRedirectPolicyError
+		if errors.As(err, &policyError) {
+			return remoteDownload{}, policyError
+		}
 		return remoteDownload{}, err
 	}
 	defer response.Body.Close()
@@ -1524,6 +1555,104 @@ func downloadRemoteFile(source string, target string, maxBytes int64) (remoteDow
 		ContentType: response.Header.Get("Content-Type"),
 		FinalURL:    response.Request.URL.String(),
 	}, nil
+}
+
+func validateRemoteSourceURL(source string) error {
+	source = strings.TrimSpace(source)
+	if strings.ContainsAny(source, "\r\n\x00") {
+		return fmt.Errorf("remote source URL must not contain control characters")
+	}
+	if strings.HasPrefix(strings.ToLower(source), "git@") {
+		remainder := source[len("git@"):]
+		separator := strings.IndexRune(remainder, ':')
+		if separator <= 0 || separator == len(remainder)-1 {
+			return fmt.Errorf("remote Git SCP source must use git@host:path")
+		}
+		if strings.ContainsAny(remainder, "?#") {
+			return fmt.Errorf("remote Git SCP sources must not include query or fragment syntax")
+		}
+		return nil
+	}
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Scheme == "" {
+		return fmt.Errorf("remote source is not a valid URL")
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	switch scheme {
+	case "http", "https":
+		if parsed.Host == "" {
+			return fmt.Errorf("remote HTTP source URL requires a host")
+		}
+		if parsed.User != nil {
+			return fmt.Errorf("remote HTTP source URLs must not include userinfo; configure credentials outside the URL")
+		}
+	case "ssh", "git":
+		if parsed.Host == "" {
+			return fmt.Errorf("remote Git source URL requires a host")
+		}
+		if parsed.User != nil {
+			if _, hasPassword := parsed.User.Password(); hasPassword {
+				return fmt.Errorf("remote Git source URLs must not include a password; use SSH keys or a credential helper")
+			}
+		}
+	case "file":
+		if parsed.User != nil {
+			return fmt.Errorf("file source URLs must not include userinfo")
+		}
+		if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
+			return fmt.Errorf("file source URLs must use an empty host or localhost")
+		}
+	default:
+		return fmt.Errorf("unsupported remote source URL scheme %q", scheme)
+	}
+	if parsed.Fragment != "" {
+		return fmt.Errorf("remote source URLs must not include fragments")
+	}
+	query, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return fmt.Errorf("remote source URL has an invalid query string")
+	}
+	for key := range query {
+		if sensitiveRemoteQueryKey(key) {
+			return fmt.Errorf("remote source URL must not include credential query parameter %q", key)
+		}
+	}
+	return nil
+}
+
+func sensitiveRemoteQueryKey(key string) bool {
+	normalized := strings.Map(func(character rune) rune {
+		switch {
+		case character >= 'A' && character <= 'Z':
+			return character + ('a' - 'A')
+		case character >= 'a' && character <= 'z', character >= '0' && character <= '9':
+			return character
+		default:
+			return -1
+		}
+	}, key)
+	switch normalized {
+	case "token", "accesstoken", "apikey", "password", "passwd", "auth",
+		"authorization", "credential", "sig", "signature", "awsaccesskeyid",
+		"xamzsignature", "xamzcredential", "xamzsecuritytoken",
+		"googleaccessid", "xgoogsignature", "xgoogcredential":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateRemoteRedirect(request *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return &remoteRedirectPolicyError{err: fmt.Errorf("stopped after 10 redirects")}
+	}
+	if err := validateRemoteSourceURL(request.URL.String()); err != nil {
+		return &remoteRedirectPolicyError{err: fmt.Errorf("refuse remote redirect: %w", err)}
+	}
+	if len(via) > 0 && strings.EqualFold(via[len(via)-1].URL.Scheme, "https") && !strings.EqualFold(request.URL.Scheme, "https") {
+		return &remoteRedirectPolicyError{err: fmt.Errorf("refuse HTTPS redirect downgrade to %s", request.URL.Scheme)}
+	}
+	return nil
 }
 
 func writeLimitedDownload(input io.Reader, target string, maxBytes int64) (resultErr error) {
@@ -4526,6 +4655,9 @@ Git sources are cloned into the same cache before registration. Git selectors
 are recorded in provenance, included in cache identity, and retained by refresh.
 Each Git materialization has a two-minute process budget, disables interactive
 credential prompts, and retains at most 256 KiB of subprocess diagnostics.
+Remote URLs must not embed userinfo or credential query parameters. Git
+credentials must resolve through SSH keys or a credential helper; HTTP sources
+must be directly accessible without URL-embedded authentication.
 
 Examples:
   %[1]s ./project-memory
