@@ -109,6 +109,24 @@ func DeclaredBundleSpecVersion(root string) (string, error) {
 }
 
 func WriteBundleTarGzipWithVersion(root string, out string, version string, excludes []string) (BundleArchiveResult, error) {
+	return writeBundleTarGzipWithVersion(root, out, version, excludes, nil)
+}
+
+func WritePublishedBundleTarGzipWithVersion(root string, out string, version string, excludes []string) (BundleArchiveResult, error) {
+	bundle, err := ParseBundleWithVersion(root, version)
+	if err != nil {
+		return BundleArchiveResult{}, err
+	}
+	unpublished := make(map[string]bool)
+	for _, file := range bundle.Files {
+		if !ShouldPublish(file) {
+			unpublished[filepath.ToSlash(file.Path)] = true
+		}
+	}
+	return writeBundleTarGzipWithVersion(root, out, version, excludes, unpublished)
+}
+
+func writeBundleTarGzipWithVersion(root string, out string, version string, excludes []string, unpublished map[string]bool) (BundleArchiveResult, error) {
 	validation, err := ValidateWithVersion(root, version)
 	if err != nil {
 		return BundleArchiveResult{}, err
@@ -141,7 +159,7 @@ func WriteBundleTarGzipWithVersion(root string, out string, version string, excl
 	gzipWriter.ModTime = time.Unix(0, 0)
 	tarWriter := tar.NewWriter(gzipWriter)
 
-	archiveFiles, err := bundleArchiveFiles(validation.Root, append(excludes, absoluteOut))
+	archiveFiles, err := bundleArchiveFiles(validation.Root, append(excludes, absoluteOut), unpublished)
 	if err != nil {
 		_ = tarWriter.Close()
 		_ = gzipWriter.Close()
@@ -352,7 +370,7 @@ func SHA256File(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func bundleArchiveFiles(root string, excludes []string) ([]string, error) {
+func bundleArchiveFiles(root string, excludes []string, unpublished map[string]bool) ([]string, error) {
 	absoluteExcludes := make([]string, 0, len(excludes))
 	for _, exclude := range excludes {
 		if strings.TrimSpace(exclude) == "" {
@@ -377,6 +395,13 @@ func bundleArchiveFiles(root string, excludes []string) ([]string, error) {
 			return nil
 		}
 		if excludedPath(path, absoluteExcludes) {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		if unpublished[filepath.ToSlash(rel)] {
 			return nil
 		}
 		files = append(files, path)

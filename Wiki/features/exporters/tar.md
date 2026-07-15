@@ -31,7 +31,10 @@ Default viewer HTML exports call the same archive writer and place the archive
 at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
 manifest is contract version `1` with type `openknowledge.bundle`, a concrete
 supported OKF `spec`, `archiveFormat: "tar.gz"`, the archive path, and its
-required SHA-256.
+required SHA-256. Unlike the standalone source-preserving `to tar` command, the
+public HTML export filters Markdown files marked `okf_publish: false` from this
+downloadable archive so hidden drafts cannot be recovered through the remote
+connect asset.
 
 Remote `openknowledge connect` downloads archives from manifests or direct
 `.tar`, `.tar.gz`, and `.tgz` URLs, rejects unsafe archive entries such as path
@@ -46,6 +49,16 @@ sibling staging directory; the requested target appears only after the full
 archive succeeds, and an existing target is never overlaid.
 
 ## Change History
+
+### 2026-07-15 - Publish-scoped HTML archives
+
+Default HTML exports now omit every Markdown file marked
+`okf_publish: false` from `assets/openknowledge-bundle.tar.gz`, matching the
+existing HTML, static payload, graph, and discovery-file filter. Standalone
+`openknowledge to tar` remains a complete source-bundle export. Source anchors:
+`packages/cli/internal/okf/archive.go`,
+`packages/cli/cmd/openknowledge/viewer.go`, and
+`packages/cli/cmd/openknowledge/viewer_test.go`.
 
 ### 2026-07-15 - Bounded atomic extraction
 

@@ -848,6 +848,18 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if strings.Contains(llms, "draft.md") || strings.Contains(llms, "examples/index.md") {
 		t.Fatalf("expected unpublished pages to be absent from llms.txt:\n%s", llms)
 	}
+	extracted := filepath.Join(t.TempDir(), "published-bundle")
+	if err := okf.ExtractBundleArchive(filepath.Join(out, filepath.FromSlash(okf.BundleArchiveRelPath)), extracted); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(extracted, "public.md")); err != nil {
+		t.Fatalf("expected published page in portable archive: %v", err)
+	}
+	for _, hidden := range []string{"draft.md", "examples/index.md"} {
+		if _, err := os.Stat(filepath.Join(extracted, filepath.FromSlash(hidden))); !os.IsNotExist(err) {
+			t.Fatalf("expected unpublished page %s to be absent from portable archive, got err=%v", hidden, err)
+		}
+	}
 }
 
 func TestViewerHTMLExportInjectsHeadHTMLWhenConfigured(t *testing.T) {

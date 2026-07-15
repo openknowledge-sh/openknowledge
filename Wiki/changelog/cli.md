@@ -14,6 +14,20 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Publish-scoped portable HTML archive
+
+* Fixed default HTML exports leaking Markdown marked `okf_publish: false`
+  through the public `assets/openknowledge-bundle.tar.gz` remote-connect asset.
+* Added a publish-scoped archive writer for HTML output while keeping standalone
+  `openknowledge to tar` as the complete source-preserving bundle export.
+* Added extraction-level regression coverage proving public Markdown remains
+  connectable and unpublished Markdown is absent from the archive itself.
+* Source anchors: `packages/cli/internal/okf/archive.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/exporters/html.md`,
+  `Wiki/features/exporters/tar.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Pull request quality gate
 
 * Added a dedicated GitHub Actions CI workflow for pull requests, pushes to

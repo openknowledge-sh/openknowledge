@@ -1372,7 +1372,7 @@ func writeViewerHTMLWithOptions(root string, out string, version string, options
 func writeViewerExportBundleAssets(root string, out string, version string) ([]string, error) {
 	archiveRel := okf.BundleArchiveRelPath
 	archivePath := filepath.Join(out, filepath.FromSlash(archiveRel))
-	archive, err := okf.WriteBundleTarGzipWithVersion(root, archivePath, version, []string{out})
+	archive, err := okf.WritePublishedBundleTarGzipWithVersion(root, archivePath, version, []string{out})
 	if err != nil {
 		return nil, err
 	}

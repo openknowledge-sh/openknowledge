@@ -109,7 +109,10 @@ Default viewer exports include remote-connect assets:
   `openknowledge.bundle`, archive path, archive format, spec version, bundle
   name/title metadata when present, and archive SHA-256.
 * `assets/openknowledge-bundle.tar.gz` - a portable source bundle archive
-  generated with the same writer as `openknowledge to tar`.
+  generated with the same deterministic archive machinery as `openknowledge to
+  tar`, but scoped to published Markdown: files marked `okf_publish: false` are
+  excluded from the downloadable archive as well as HTML, static payloads,
+  graphs, and discovery files.
 
 `openknowledge connect <deployed-wiki-url>` discovers and validates the
 versioned manifest, requires and verifies the archive hash, extracts the archive
