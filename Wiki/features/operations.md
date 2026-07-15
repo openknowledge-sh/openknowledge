@@ -28,6 +28,7 @@ pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
 pnpm check:workflow-permissions
+pnpm check:container-runtime
 pnpm build:cli
 pnpm build:web
 pnpm dev:web
@@ -42,8 +43,9 @@ secrets outside an explicit consuming step and forbids blanket
 `secrets: inherit` forwarding. `pnpm check:workflow-permissions` permits write
 capabilities only on reviewed publish jobs and locks the minimal GitHub release
 step set. `pnpm test` runs all workflow and version checks before the CLI test
-suite, including transactional shell-installer fixtures, and `pnpm build`
-builds both the CLI and web package.
+suite. `pnpm check:container-runtime` requires the final Node image to select
+its built-in unprivileged user. The root test gate also runs transactional
+shell-installer fixtures, and `pnpm build` builds both the CLI and web package.
 
 ## Continuous Integration
 
@@ -150,7 +152,11 @@ and Node/pnpm because `pnpm build:web` exports the wiki by running the current
 Go CLI source. The runtime image copies only `packages/web/dist` and the web
 server script, then starts `node packages/web/scripts/serve.mjs`. Runtime env in
 the Dockerfile serves `packages/web/dist` without re-exporting the wiki and
-binds to `0.0.0.0` so the Railway router can reach the container.
+binds to `0.0.0.0` so the Railway router can reach the container. The final
+stage keeps static assets root-owned and read-only to the process, then selects
+the official image's unprivileged `node` user before Railway's start command.
+The container policy check prevents a missing or root final `USER` from passing
+the standard test gate.
 
 ## Release
 
@@ -237,6 +243,7 @@ npm publish --provenance --access public
 > * `scripts/check-workflow-secret-scope.mjs`
 > * `scripts/check-workflow-permissions.mjs`
 > * `scripts/test-install.sh`
+> * `scripts/check-container-runtime.mjs`
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`

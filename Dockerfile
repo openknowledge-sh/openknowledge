@@ -27,4 +27,6 @@ ENV HOST=0.0.0.0
 COPY --from=build /app/packages/web/dist packages/web/dist
 COPY --from=build /app/packages/web/scripts packages/web/scripts
 
+USER node
+
 CMD ["node", "packages/web/scripts/serve.mjs"]

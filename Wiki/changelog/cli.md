@@ -14,6 +14,20 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Unprivileged production web runtime
+
+* Selected the official Node image's built-in `node` user in the final
+  production stage while retaining root-owned static assets and the high-port
+  Railway listener.
+* Added `pnpm check:container-runtime` to require a separate runtime stage and
+  reject a missing, root, numeric-root, or unexpected final user.
+* Wired the container policy into the root test gate and verified it failed on
+  the previous Dockerfile before `USER node` was added.
+* Source anchors: `Dockerfile`, `scripts/check-container-runtime.mjs`, and
+  `package.json`.
+* Docs updated: `README.md`, `Wiki/features/operations.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Transactional shell installation
 
 * Replaced full tar extraction with stdout extraction of only the named

@@ -428,6 +428,7 @@ pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
 pnpm check:workflow-permissions
+pnpm check:container-runtime
 pnpm build:cli
 pnpm build:web
 pnpm dev:web
