@@ -118,6 +118,13 @@ CLI-managed. Local connections normally leave `managed` unset; remote manifest,
 tar, and Git connections are marked managed because their files live in the
 Open Knowledge cache.
 
+New remote source records preserve requested and resolved URLs, final manifest
+and archive URLs, the archive SHA-256 or Git commit, concrete OKF spec, fetch
+timestamp, and the complete managed cache root. `ref` remains populated for
+compatibility with older archive-URL readers. Cache provenance is also stored
+in a versioned owner-only sidecar beside the source-addressed cache directory,
+so reconnecting does not infer or lose the source identity.
+
 Bundle metadata such as purpose, tags, and entrypoints remains in bundle
 content as `okf_bundle_*` root metadata.
 
@@ -125,6 +132,16 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Durable remote provenance
+
+Registry source records now retain immutable content identity and the full
+remote resolution chain. Remote cache paths are source-addressed rather than
+alias-addressed, and a versioned cache sidecar preserves provenance across
+cache hits. Source anchors: `packages/cli/internal/okf/registry.go`,
+`packages/cli/internal/okf/registry_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Atomic concurrent registry updates
 

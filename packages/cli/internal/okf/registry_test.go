@@ -158,7 +158,18 @@ func TestRegistrySavesPathKeyedConnections(t *testing.T) {
 	t.Setenv(RegistryFileEnv, registryFile)
 
 	root := t.TempDir()
-	source := RegistrySource{Type: "git", URL: "https://github.com/openknowledge-sh/openknowledge.git"}
+	source := RegistrySource{
+		Type:        "manifest",
+		URL:         "https://example.test/wiki/",
+		Ref:         "https://cdn.example.test/bundle.tar.gz",
+		ResolvedURL: "https://cdn.example.test/openknowledge.json",
+		ManifestURL: "https://cdn.example.test/openknowledge.json",
+		ArchiveURL:  "https://cdn.example.test/bundle.tar.gz",
+		SHA256:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Spec:        "0.1",
+		FetchedAt:   "2026-07-15T12:00:00Z",
+		ManagedRoot: root,
+	}
 	entry, _, err := ConnectRegistryEntryWithSource("personal", root, "read", true, source)
 	if err != nil {
 		t.Fatal(err)
@@ -178,7 +189,7 @@ func TestRegistrySavesPathKeyedConnections(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected path-keyed connection for %s in %#v", root, stored.Connections)
 	}
-	if connection.Name != entry.Name || connection.Source.URL != source.URL || !connection.Managed {
+	if connection.Name != entry.Name || connection.Source != source || !connection.Managed {
 		t.Fatalf("unexpected stored connection: %#v", connection)
 	}
 }

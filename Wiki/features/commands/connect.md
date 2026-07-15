@@ -75,6 +75,14 @@ sibling staging directory and publishes the target only after every entry and
 bundle check succeeds; rejected archives leave no partial target. These byte
 limits do not apply to the separate shallow Git clone fallback.
 
+Remote cache identity is derived from the normalized source, not from `--as`,
+so reconnecting the same source under another key reuses one materialization.
+Each new cache stores a versioned owner-only provenance sidecar. Registry source
+metadata preserves the requested URL, final manifest and archive URLs after
+redirects, concrete spec, archive SHA-256 or exact Git commit, fetch time, and
+the complete managed cache root. Cache hits restore this record instead of
+guessing the source type from the input URL.
+
 `connect` uses root metadata when present: `okf_bundle_name` can provide the
 default key, `okf_bundle_title` and `okf_bundle_purpose` appear in success
 output, and `okf_bundle_entry_<name>` values are listed as entrypoints. Missing
@@ -127,6 +135,18 @@ freshness for an existing cache entry. See [registry](registry.md) for storage
 details.
 
 ## Command Change History
+
+### 2026-07-15 - Source-addressed cache provenance
+
+Remote cache names no longer depend on registry aliases. New materializations
+persist a versioned owner-only provenance record with requested and resolved
+URLs, immutable archive or Git identity, spec, fetch time, and managed root;
+cache hits reuse that exact record. Legacy caches without a sidecar are retained
+and marked `unknown` when their source type cannot be established honestly.
+Source anchors: `packages/cli/internal/okf/registry.go`,
+`packages/cli/internal/okf/registry_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Bounded atomic archive materialization
 

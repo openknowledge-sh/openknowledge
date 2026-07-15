@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Durable remote source identity
+
+* Changed remote cache keys from alias-plus-source to normalized source
+  identity, so reconnecting the same source under another key reuses one cache
+  rather than cloning or downloading duplicate content.
+* Expanded registry provenance with requested and resolved URLs, final manifest
+  and archive URLs, concrete spec, archive SHA-256 or exact Git commit, fetch
+  timestamp, and the complete managed cache root.
+* Added a versioned owner-only provenance sidecar beside each new cache so a
+  cache hit restores exact source identity instead of reclassifying website
+  manifests as Git or discarding archive references.
+* Kept legacy cache content in place; missing sidecars are migrated with the
+  source types that can be established locally and ambiguous caches use
+  `unknown` rather than fabricated provenance.
+* Added registry round-trip, Git identity, redirect provenance, sidecar schema
+  and permissions, alias-independent cache, and cache-hit retention tests.
+* Source anchors: `packages/cli/internal/okf/registry.go`,
+  `packages/cli/internal/okf/registry_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Bounded atomic remote archives
 
 * Limited remote manifests to 1 MiB and compressed archive downloads to 512

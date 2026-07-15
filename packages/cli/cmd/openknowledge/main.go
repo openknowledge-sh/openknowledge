@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/natefinch/atomic"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
@@ -911,7 +913,7 @@ func runConnect(args []string, command string) int {
 	if looksLikeRemoteSource(source) {
 		var err error
 		var materializedRoot string
-		materializedRoot, sourceInfo, err = materializeRemoteSource(source, strings.TrimSpace(*keyFlag))
+		materializedRoot, sourceInfo, err = materializeRemoteSource(source)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
@@ -1017,34 +1019,70 @@ func looksLikeRemoteSource(value string) bool {
 		strings.HasPrefix(value, "git@")
 }
 
-func materializeRemoteSource(source string, key string) (string, okf.RegistrySource, error) {
+func materializeRemoteSource(source string) (string, okf.RegistrySource, error) {
 	source = strings.TrimSpace(source)
 	cacheRoot, err := remoteBundleCacheRoot()
 	if err != nil {
 		return "", okf.RegistrySource{}, err
 	}
-	name := registryCacheName(source, key)
+	name := registryCacheName(source)
 	target := filepath.Join(cacheRoot, name)
 	if root, ok := cachedBundleRoot(target); ok {
-		return root, okf.RegistrySource{Type: remoteSourceType(source), URL: source}, nil
+		cachedSource, err := loadRemoteCacheSource(target, source)
+		if err == nil {
+			return root, cachedSource, nil
+		}
+		if !os.IsNotExist(err) {
+			return "", okf.RegistrySource{}, err
+		}
+		legacySource := okf.RegistrySource{
+			Type:        legacyRemoteSourceType(source, target),
+			URL:         source,
+			ManagedRoot: target,
+		}
+		if err := saveRemoteCacheSource(target, legacySource); err != nil {
+			return "", okf.RegistrySource{}, err
+		}
+		return root, legacySource, nil
 	}
 	if err := os.MkdirAll(cacheRoot, 0755); err != nil {
 		return "", okf.RegistrySource{}, err
 	}
 
 	if looksLikeManifestSource(source) {
-		root, archiveURL, err := materializeManifestSource(source, target)
+		archive, manifestURL, spec, err := materializeManifestSource(source, target)
 		if err != nil {
 			return "", okf.RegistrySource{}, err
 		}
-		return root, okf.RegistrySource{Type: "manifest", URL: source, Ref: archiveURL}, nil
+		return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
+			Type:        "manifest",
+			URL:         source,
+			Ref:         archive.FinalURL,
+			ResolvedURL: manifestURL,
+			ManifestURL: manifestURL,
+			ArchiveURL:  archive.FinalURL,
+			SHA256:      archive.SHA256,
+			Spec:        spec,
+			FetchedAt:   remoteFetchTimestamp(),
+			ManagedRoot: target,
+		})
 	}
 	if looksLikeArchiveSource(source) {
-		root, err := materializeArchiveSource(source, target, "", okf.LatestSpecVersion, false)
+		archive, err := materializeArchiveSource(source, target, "", okf.LatestSpecVersion, false)
 		if err != nil {
 			return "", okf.RegistrySource{}, err
 		}
-		return root, okf.RegistrySource{Type: "tar", URL: source}, nil
+		return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
+			Type:        "tar",
+			URL:         source,
+			Ref:         archive.FinalURL,
+			ResolvedURL: archive.FinalURL,
+			ArchiveURL:  archive.FinalURL,
+			SHA256:      archive.SHA256,
+			Spec:        okf.LatestSpecVersion,
+			FetchedAt:   remoteFetchTimestamp(),
+			ManagedRoot: target,
+		})
 	}
 	if isHTTPSource(source) {
 		for _, candidate := range manifestCandidateURLs(source) {
@@ -1059,16 +1097,37 @@ func materializeRemoteSource(source string, key string) (string, okf.RegistrySou
 			if err != nil {
 				return "", okf.RegistrySource{}, err
 			}
-			root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256, manifest.Spec, true)
+			archive, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256, manifest.Spec, true)
 			if err != nil {
 				return "", okf.RegistrySource{}, err
 			}
-			return root, okf.RegistrySource{Type: "manifest", URL: candidate, Ref: archiveURL}, nil
+			return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
+				Type:        "manifest",
+				URL:         source,
+				Ref:         archive.FinalURL,
+				ResolvedURL: manifestURL,
+				ManifestURL: manifestURL,
+				ArchiveURL:  archive.FinalURL,
+				SHA256:      archive.SHA256,
+				Spec:        manifest.Spec,
+				FetchedAt:   remoteFetchTimestamp(),
+				ManagedRoot: target,
+			})
 		}
-		if root, ok, err := tryMaterializeDirectArchive(source, target); err != nil {
+		if archive, ok, err := tryMaterializeDirectArchive(source, target); err != nil {
 			return "", okf.RegistrySource{}, err
 		} else if ok {
-			return root, okf.RegistrySource{Type: "tar", URL: source}, nil
+			return finishRemoteMaterialization(archive.Root, target, okf.RegistrySource{
+				Type:        "tar",
+				URL:         source,
+				Ref:         archive.FinalURL,
+				ResolvedURL: archive.FinalURL,
+				ArchiveURL:  archive.FinalURL,
+				SHA256:      archive.SHA256,
+				Spec:        okf.LatestSpecVersion,
+				FetchedAt:   remoteFetchTimestamp(),
+				ManagedRoot: target,
+			})
 		}
 	}
 
@@ -1081,136 +1140,160 @@ func materializeRemoteSource(source string, key string) (string, okf.RegistrySou
 		}
 		return "", okf.RegistrySource{}, fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
 	}
-	return target, okf.RegistrySource{Type: "git", URL: source}, nil
+	commit, err := gitCommitForDirectory(target)
+	if err != nil {
+		_ = os.RemoveAll(target)
+		return "", okf.RegistrySource{}, err
+	}
+	return finishRemoteMaterialization(target, target, okf.RegistrySource{
+		Type:        "git",
+		URL:         source,
+		ResolvedURL: source,
+		GitCommit:   commit,
+		Spec:        okf.LatestSpecVersion,
+		FetchedAt:   remoteFetchTimestamp(),
+		ManagedRoot: target,
+	})
 }
 
-func materializeManifestSource(source string, target string) (string, string, error) {
+type archiveMaterialization struct {
+	Root     string
+	FinalURL string
+	SHA256   string
+}
+
+func materializeManifestSource(source string, target string) (archiveMaterialization, string, string, error) {
 	manifest, manifestURL, ok, err := fetchBundleManifest(source)
 	if err != nil {
-		return "", "", err
+		return archiveMaterialization{}, "", "", err
 	}
 	if !ok {
-		return "", "", fmt.Errorf("Open Knowledge manifest not found: %s", source)
+		return archiveMaterialization{}, "", "", fmt.Errorf("Open Knowledge manifest not found: %s", source)
 	}
 	archiveURL, err := resolveManifestArchiveURL(manifestURL, manifest.Archive)
 	if err != nil {
-		return "", "", err
+		return archiveMaterialization{}, "", "", err
 	}
-	root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256, manifest.Spec, true)
+	archive, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256, manifest.Spec, true)
 	if err != nil {
-		return "", "", err
+		return archiveMaterialization{}, "", "", err
 	}
-	return root, archiveURL, nil
+	return archive, manifestURL, manifest.Spec, nil
 }
 
-func materializeArchiveSource(source string, target string, expectedSHA256 string, specVersion string, requireDeclaredSpec bool) (string, error) {
+func materializeArchiveSource(source string, target string, expectedSHA256 string, specVersion string, requireDeclaredSpec bool) (archiveMaterialization, error) {
 	tempDir, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-source-*")
 	if err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	defer os.RemoveAll(tempDir)
 
 	archivePath := filepath.Join(tempDir, "bundle.tar.gz")
 	download, err := downloadRemoteFile(source, archivePath, okf.MaxBundleArchiveBytes)
 	if err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	if !looksLikeArchiveSource(source) && !downloadedFileLooksLikeArchive(archivePath, download.ContentType) {
-		return "", fmt.Errorf("remote source is not a tar archive: %s", source)
+		return archiveMaterialization{}, fmt.Errorf("remote source is not a tar archive: %s", source)
+	}
+	actual, err := okf.SHA256File(archivePath)
+	if err != nil {
+		return archiveMaterialization{}, err
 	}
 	if strings.TrimSpace(expectedSHA256) != "" {
-		actual, err := okf.SHA256File(archivePath)
-		if err != nil {
-			return "", err
-		}
 		if !strings.EqualFold(actual, strings.TrimSpace(expectedSHA256)) {
-			return "", fmt.Errorf("archive checksum mismatch for %s", source)
+			return archiveMaterialization{}, fmt.Errorf("archive checksum mismatch for %s", source)
 		}
 	}
 
 	extractRoot := filepath.Join(tempDir, "extract")
 	if err := okf.ExtractBundleArchive(archivePath, extractRoot); err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	bundleRoot, err := validatedExtractedBundleRoot(extractRoot, specVersion, requireDeclaredSpec)
 	if err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	if err := os.RemoveAll(target); err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	if err := os.Rename(extractRoot, target); err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
+	result := archiveMaterialization{Root: target, FinalURL: download.FinalURL, SHA256: actual}
 	if bundleRoot == extractRoot {
-		return target, nil
+		return result, nil
 	}
 	rel, err := filepath.Rel(extractRoot, bundleRoot)
 	if err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
-	return filepath.Join(target, rel), nil
+	result.Root = filepath.Join(target, rel)
+	return result, nil
 }
 
-func tryMaterializeDirectArchive(source string, target string) (string, bool, error) {
+func tryMaterializeDirectArchive(source string, target string) (archiveMaterialization, bool, error) {
 	tempDir, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-probe-*")
 	if err != nil {
-		return "", false, err
+		return archiveMaterialization{}, false, err
 	}
 	defer os.RemoveAll(tempDir)
 
 	archivePath := filepath.Join(tempDir, "probe")
 	download, err := downloadRemoteFile(source, archivePath, okf.MaxBundleArchiveBytes)
 	if err != nil {
-		return "", false, nil
+		return archiveMaterialization{}, false, nil
 	}
 	if !downloadedFileLooksLikeArchive(archivePath, download.ContentType) {
-		return "", false, nil
+		return archiveMaterialization{}, false, nil
 	}
-	root, err := materializeArchiveFile(archivePath, target, "", okf.LatestSpecVersion, false)
+	archive, err := materializeArchiveFile(archivePath, target, "", okf.LatestSpecVersion, false)
 	if err != nil {
-		return "", false, err
+		return archiveMaterialization{}, false, err
 	}
-	return root, true, nil
+	archive.FinalURL = download.FinalURL
+	return archive, true, nil
 }
 
-func materializeArchiveFile(archivePath string, target string, expectedSHA256 string, specVersion string, requireDeclaredSpec bool) (string, error) {
+func materializeArchiveFile(archivePath string, target string, expectedSHA256 string, specVersion string, requireDeclaredSpec bool) (archiveMaterialization, error) {
+	actual, err := okf.SHA256File(archivePath)
+	if err != nil {
+		return archiveMaterialization{}, err
+	}
 	if strings.TrimSpace(expectedSHA256) != "" {
-		actual, err := okf.SHA256File(archivePath)
-		if err != nil {
-			return "", err
-		}
 		if !strings.EqualFold(actual, strings.TrimSpace(expectedSHA256)) {
-			return "", fmt.Errorf("archive checksum mismatch")
+			return archiveMaterialization{}, fmt.Errorf("archive checksum mismatch")
 		}
 	}
 	tempDir, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-extract-*")
 	if err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	defer os.RemoveAll(tempDir)
 	extractRoot := filepath.Join(tempDir, "extract")
 	if err := okf.ExtractBundleArchive(archivePath, extractRoot); err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	bundleRoot, err := validatedExtractedBundleRoot(extractRoot, specVersion, requireDeclaredSpec)
 	if err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	if err := os.RemoveAll(target); err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
 	if err := os.Rename(extractRoot, target); err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
+	result := archiveMaterialization{Root: target, SHA256: actual}
 	if bundleRoot == extractRoot {
-		return target, nil
+		return result, nil
 	}
 	rel, err := filepath.Rel(extractRoot, bundleRoot)
 	if err != nil {
-		return "", err
+		return archiveMaterialization{}, err
 	}
-	return filepath.Join(target, rel), nil
+	result.Root = filepath.Join(target, rel)
+	return result, nil
 }
 
 type remoteDownload struct {
@@ -1467,14 +1550,96 @@ func isHTTPSource(source string) bool {
 	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://")
 }
 
-func remoteSourceType(source string) string {
+func legacyRemoteSourceType(source string, target string) string {
 	if looksLikeManifestSource(source) {
 		return "manifest"
 	}
 	if looksLikeArchiveSource(source) {
 		return "tar"
 	}
-	return "git"
+	if info, err := os.Stat(filepath.Join(target, ".git")); err == nil && info.IsDir() {
+		return "git"
+	}
+	return "unknown"
+}
+
+func remoteFetchTimestamp() string {
+	return time.Now().UTC().Format(time.RFC3339Nano)
+}
+
+func finishRemoteMaterialization(root string, target string, source okf.RegistrySource) (string, okf.RegistrySource, error) {
+	if err := saveRemoteCacheSource(target, source); err != nil {
+		_ = os.RemoveAll(target)
+		_ = os.Remove(remoteCacheSourcePath(target))
+		return "", okf.RegistrySource{}, err
+	}
+	return root, source, nil
+}
+
+func remoteCacheSourcePath(target string) string {
+	return target + ".source.json"
+}
+
+const remoteCacheSchemaVersion = "1"
+
+type remoteCacheRecord struct {
+	SchemaVersion string             `json:"schemaVersion"`
+	Source        okf.RegistrySource `json:"source"`
+}
+
+func saveRemoteCacheSource(target string, source okf.RegistrySource) error {
+	record := remoteCacheRecord{SchemaVersion: remoteCacheSchemaVersion, Source: source}
+	data, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	path := remoteCacheSourcePath(target)
+	if err := os.Chmod(path, 0600); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := atomic.WriteFile(path, bytes.NewReader(data)); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0600)
+}
+
+func loadRemoteCacheSource(target string, requestedSource string) (okf.RegistrySource, error) {
+	content, err := os.ReadFile(remoteCacheSourcePath(target))
+	if err != nil {
+		return okf.RegistrySource{}, err
+	}
+	var record remoteCacheRecord
+	if err := json.Unmarshal(content, &record); err != nil {
+		return okf.RegistrySource{}, fmt.Errorf("invalid remote cache provenance for %s: %w", target, err)
+	}
+	if record.SchemaVersion != remoteCacheSchemaVersion {
+		return okf.RegistrySource{}, fmt.Errorf("unsupported remote cache provenance version %q for %s", record.SchemaVersion, target)
+	}
+	source := record.Source
+	if strings.TrimSpace(source.Type) == "" || strings.TrimSpace(source.URL) == "" {
+		return okf.RegistrySource{}, fmt.Errorf("invalid remote cache provenance for %s: source type and URL are required", target)
+	}
+	if normalizeRemoteSource(source.URL) != normalizeRemoteSource(requestedSource) {
+		return okf.RegistrySource{}, fmt.Errorf("remote cache provenance for %s belongs to a different source", target)
+	}
+	source.URL = strings.TrimSpace(requestedSource)
+	source.ManagedRoot = target
+	return source, nil
+}
+
+func gitCommitForDirectory(root string) (string, error) {
+	command := exec.Command("git", "-C", root, "rev-parse", "HEAD")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("could not resolve cloned Git commit: %s", strings.TrimSpace(string(output)))
+	}
+	commit := strings.TrimSpace(string(output))
+	decoded, decodeErr := hex.DecodeString(commit)
+	if decodeErr != nil || (len(decoded) != 20 && len(decoded) != 32) {
+		return "", fmt.Errorf("could not resolve cloned Git commit: unexpected object ID %q", commit)
+	}
+	return commit, nil
 }
 
 func remoteBundleCacheRoot() (string, error) {
@@ -1492,17 +1657,45 @@ func remoteBundleCacheRoot() (string, error) {
 	return filepath.Join(configDir, "openknowledge", "bundles"), nil
 }
 
-func registryCacheName(source string, key string) string {
-	base := okf.RegistryKeyFromNameForCache(key)
-	if base == "" {
-		trimmed := strings.TrimRight(source, "/")
-		base = okf.RegistryKeyFromNameForCache(filepath.Base(trimmed))
-	}
+func registryCacheName(source string) string {
+	normalized := normalizeRemoteSource(source)
+	base := remoteSourceBaseName(normalized)
 	if base == "" {
 		base = "bundle"
 	}
-	sum := sha256.Sum256([]byte(source))
+	sum := sha256.Sum256([]byte(normalized))
 	return base + "-" + hex.EncodeToString(sum[:])[:12]
+}
+
+func normalizeRemoteSource(source string) string {
+	source = strings.TrimSpace(source)
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Scheme == "" {
+		return source
+	}
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	parsed.Host = strings.ToLower(parsed.Host)
+	return parsed.String()
+}
+
+func remoteSourceBaseName(source string) string {
+	candidate := source
+	if parsed, err := url.Parse(source); err == nil && parsed.Path != "" {
+		candidate = parsed.Path
+	}
+	candidate = strings.TrimRight(candidate, "/")
+	base := path.Base(candidate)
+	if strings.EqualFold(base, okf.BundleManifestRelPath) {
+		base = path.Base(path.Dir(candidate))
+	}
+	lower := strings.ToLower(base)
+	for _, suffix := range []string{".tar.gz", ".tgz", ".tar", ".git"} {
+		if strings.HasSuffix(lower, suffix) {
+			base = base[:len(base)-len(suffix)]
+			break
+		}
+	}
+	return okf.RegistryKeyFromNameForCache(base)
 }
 
 func runDisconnect(args []string, command string) int {

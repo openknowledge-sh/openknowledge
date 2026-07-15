@@ -10,8 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
@@ -1559,6 +1561,12 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 	if !entry.Managed || entry.Source.Type != "git" || entry.Source.URL != "file://"+remote {
 		t.Fatalf("unexpected remote registry entry: %#v", entry)
 	}
+	if entry.Source.GitCommit == "" || entry.Source.ManagedRoot != entry.Path || entry.Source.Spec != okf.LatestSpecVersion {
+		t.Fatalf("expected exact Git provenance and managed root: %#v", entry.Source)
+	}
+	if _, err := time.Parse(time.RFC3339Nano, entry.Source.FetchedAt); err != nil {
+		t.Fatalf("expected RFC3339 fetch time, got %q: %v", entry.Source.FetchedAt, err)
+	}
 	if _, err := os.Stat(filepath.Join(entry.Path, "index.md")); err != nil {
 		t.Fatalf("expected cloned index.md: %v", err)
 	}
@@ -1609,6 +1617,9 @@ func TestRunConnectUsesRemoteOpenKnowledgeManifest(t *testing.T) {
 	expectedArchiveURL := "file://" + filepath.Join(hosted, "assets", "openknowledge-bundle.tar.gz")
 	if entry.Source.Type != "manifest" || entry.Source.URL != manifestURL || entry.Source.Ref != expectedArchiveURL {
 		t.Fatalf("unexpected manifest source: %#v", entry.Source)
+	}
+	if entry.Source.ManifestURL != manifestURL || entry.Source.ArchiveURL != expectedArchiveURL || entry.Source.SHA256 != archiveResult.SHA256 || entry.Source.Spec != "0.1" || entry.Source.ManagedRoot == "" {
+		t.Fatalf("expected complete manifest provenance: %#v", entry.Source)
 	}
 	if _, err := os.Stat(filepath.Join(entry.Path, "index.md")); err != nil {
 		t.Fatalf("expected materialized index.md: %v", err)
@@ -1666,8 +1677,80 @@ func TestRunConnectResolvesManifestArchiveAgainstRedirectDestination(t *testing.
 	if err != nil || !ok {
 		t.Fatalf("expected redirected registry entry, ok=%t err=%v", ok, err)
 	}
-	if entry.Source.URL != requestedManifestURL || entry.Source.Ref != finalArchiveURL {
+	if entry.Source.URL != requestedManifestURL || entry.Source.Ref != finalArchiveURL || entry.Source.ManifestURL != finalManifestURL || entry.Source.ResolvedURL != finalManifestURL || entry.Source.ArchiveURL != finalArchiveURL || entry.Source.SHA256 != archiveResult.SHA256 {
 		t.Fatalf("unexpected redirected manifest provenance: %#v", entry.Source)
+	}
+}
+
+func TestRemoteCacheIdentityDoesNotDependOnRegistryAlias(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for remote cache identity test")
+	}
+	base := t.TempDir()
+	remote := filepath.Join(base, "remote")
+	runGit(t, base, "init", remote)
+	runGit(t, remote, "config", "user.email", "test@example.com")
+	runGit(t, remote, "config", "user.name", "Test User")
+	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Remote\n")
+	runGit(t, remote, "add", "index.md")
+	runGit(t, remote, "commit", "-m", "init")
+
+	registryFile := filepath.Join(base, "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	source := "file://" + remote
+	if code := runConnect([]string{"--as", "first", "--no-validate", source}, "openknowledge connect"); code != 0 {
+		t.Fatalf("expected first connect, got %d", code)
+	}
+	first, ok, err := okf.ResolveRegistryEntry("first")
+	if err != nil || !ok {
+		t.Fatalf("expected first entry, ok=%t err=%v", ok, err)
+	}
+	if code := runConnect([]string{"--as", "second", "--no-validate", source}, "openknowledge connect"); code != 0 {
+		t.Fatalf("expected cached connect, got %d", code)
+	}
+	second, ok, err := okf.ResolveRegistryEntry("second")
+	if err != nil || !ok {
+		t.Fatalf("expected renamed cached entry, ok=%t err=%v", ok, err)
+	}
+	if first.Path != second.Path || first.Source.GitCommit != second.Source.GitCommit || first.Source.FetchedAt != second.Source.FetchedAt {
+		t.Fatalf("cache hit must preserve path and exact provenance:\nfirst=%#v\nsecond=%#v", first, second)
+	}
+	if _, ok, err := okf.ResolveRegistryEntry("first"); err != nil || ok {
+		t.Fatalf("same cached path should be renamed, not duplicated, ok=%t err=%v", ok, err)
+	}
+
+	cacheRoot := filepath.Join(filepath.Dir(registryFile), "bundles")
+	entries, err := os.ReadDir(cacheRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directories := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			directories++
+		}
+	}
+	if directories != 1 {
+		t.Fatalf("expected one source-addressed cache directory, got %d entries=%v", directories, entries)
+	}
+	metadataPath := remoteCacheSourcePath(first.Source.ManagedRoot)
+	info, err := os.Stat(metadataPath)
+	if err != nil {
+		t.Fatalf("expected persistent cache provenance sidecar: %v", err)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
+		t.Fatalf("expected owner-only cache provenance, got %04o", info.Mode().Perm())
+	}
+	metadata, err := os.ReadFile(metadataPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record remoteCacheRecord
+	if err := json.Unmarshal(metadata, &record); err != nil {
+		t.Fatal(err)
+	}
+	if record.SchemaVersion != remoteCacheSchemaVersion || record.Source.GitCommit != first.Source.GitCommit {
+		t.Fatalf("unexpected versioned cache provenance: %#v", record)
 	}
 }
 
