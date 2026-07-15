@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Transactional managed cache deletion
+
+* Persisted and consumed the complete managed cache root so deleting an archive
+  with a nested bundle root also removes its top-level files and provenance
+  sidecar.
+* Restricted deletion to direct children of the Open Knowledge cache whose
+  registered bundle path is contained inside, preventing forged or stale
+  registry metadata from deleting arbitrary local directories.
+* Added exact expected-entry comparison inside the locked registry removal
+  transaction so concurrent source, access, key, or path changes abort safely.
+* Changed managed deletion to take the source cache lock and rename content to a
+  tombstone before registry removal; registry failure restores content and
+  provenance to their original paths.
+* Added changed-snapshot, nested archive root, unrelated sibling preservation,
+  tombstone cleanup, and out-of-cache refusal tests.
+* Source anchors: `packages/cli/internal/okf/registry.go`,
+  `packages/cli/internal/okf/registry_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `Wiki/features/commands/disconnect.md`,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Atomic locked remote cache publication
 
 * Added source-specific in-process and cross-process locks around cache reads,

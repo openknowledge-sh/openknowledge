@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1077,11 +1079,12 @@ func TestRunDisconnectAcceptsFlagsBeforeAndAfterDocumentedTargetArgument(t *test
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
+			base := t.TempDir()
+			root := filepath.Join(base, "bundles", "personal-cache")
 			writeMainTestFile(t, root, "index.md", "# Bundle\n")
-			t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+			t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
 			key := "personal"
-			if _, _, err := okf.ConnectRegistryEntryWithSource(key, root, "read", true, okf.RegistrySource{Type: "git", URL: "https://example.test/bundle.git"}); err != nil {
+			if _, _, err := okf.ConnectRegistryEntryWithSource(key, root, "read", true, okf.RegistrySource{Type: "git", URL: "https://example.test/bundle.git", ManagedRoot: root}); err != nil {
 				t.Fatal(err)
 			}
 
@@ -1929,6 +1932,89 @@ func TestPublishRemoteCacheRollsBackFailedReplacement(t *testing.T) {
 	}
 }
 
+func TestDisconnectDeleteFilesRemovesEntireNestedManagedCache(t *testing.T) {
+	base := t.TempDir()
+	archivePath := filepath.Join(base, "nested.tar.gz")
+	writeMainTestTarGzip(t, archivePath, map[string]string{
+		"LICENSE":         "fixture license\n",
+		"bundle/index.md": "---\nokf_version: \"0.1\"\nokf_bundle_name: nested\n---\n\n# Nested\n",
+	})
+	registryFile := filepath.Join(base, "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	if code := runConnect([]string{"--as", "nested", "--no-validate", "file://" + archivePath}, "openknowledge connect"); code != 0 {
+		t.Fatalf("expected nested archive connect, got %d", code)
+	}
+	entry, ok, err := okf.ResolveRegistryEntry("nested")
+	if err != nil || !ok {
+		t.Fatalf("expected nested entry, ok=%t err=%v", ok, err)
+	}
+	if entry.Source.ManagedRoot == "" || entry.Source.ManagedRoot == entry.Path || filepath.Base(entry.Path) != "bundle" {
+		t.Fatalf("expected nested bundle path inside complete managed root: %#v", entry)
+	}
+	if _, err := os.Stat(filepath.Join(entry.Source.ManagedRoot, "LICENSE")); err != nil {
+		t.Fatalf("expected top-level cache sibling before deletion: %v", err)
+	}
+	unrelated := filepath.Join(filepath.Dir(entry.Source.ManagedRoot), "unrelated-cache-sibling")
+	if err := os.Mkdir(unrelated, 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runDisconnect([]string{"nested", "--delete-files"}, "openknowledge disconnect")
+	})
+	if code != 0 {
+		t.Fatalf("expected managed cache deletion, code=%d stdout=%s stderr=%s", code, output, stderr)
+	}
+	if _, err := os.Stat(entry.Source.ManagedRoot); !os.IsNotExist(err) {
+		t.Fatalf("expected complete managed root deletion, stat error: %v", err)
+	}
+	if _, err := os.Stat(remoteCacheSourcePath(entry.Source.ManagedRoot)); !os.IsNotExist(err) {
+		t.Fatalf("expected provenance sidecar deletion, stat error: %v", err)
+	}
+	if _, err := os.Stat(unrelated); err != nil {
+		t.Fatalf("unrelated cache sibling must remain: %v", err)
+	}
+	if _, ok, err := okf.ResolveRegistryEntry("nested"); err != nil || ok {
+		t.Fatalf("expected nested entry removal, ok=%t err=%v", ok, err)
+	}
+	if !strings.Contains(output, "files  deleted") {
+		t.Fatalf("expected deleted output: %s", output)
+	}
+	entries, err := os.ReadDir(filepath.Dir(entry.Source.ManagedRoot))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, cacheEntry := range entries {
+		if strings.HasPrefix(cacheEntry.Name(), ".openknowledge-delete-") {
+			t.Fatalf("unexpected deletion tombstone left behind: %s", cacheEntry.Name())
+		}
+	}
+}
+
+func TestDisconnectDeleteFilesRefusesManagedFlagOutsideCache(t *testing.T) {
+	base := t.TempDir()
+	registryFile := filepath.Join(base, "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	local := filepath.Join(base, "local")
+	writeMainTestFile(t, local, "index.md", "# Local\n")
+	if _, _, err := okf.ConnectRegistryEntryWithSource("local", local, "read", true, okf.RegistrySource{Type: "git", URL: "https://example.test/forged.git"}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runDisconnect([]string{"local", "--delete-files"}, "openknowledge disconnect")
+	})
+	if code != 1 || !strings.Contains(stderr, "outside the Open Knowledge cache") {
+		t.Fatalf("expected out-of-cache refusal, code=%d stderr=%s", code, stderr)
+	}
+	if _, err := os.Stat(local); err != nil {
+		t.Fatalf("refused local path must remain: %v", err)
+	}
+	if _, ok, err := okf.ResolveRegistryEntry("local"); err != nil || !ok {
+		t.Fatalf("refused entry must remain registered, ok=%t err=%v", ok, err)
+	}
+}
+
 func TestRunConnectRejectsManifestAndArchiveSpecMismatch(t *testing.T) {
 	base := t.TempDir()
 	bundle := filepath.Join(base, "bundle")
@@ -1976,6 +2062,34 @@ func TestFetchBundleManifestSurfacesServerErrors(t *testing.T) {
 
 	if _, _, ok, err := fetchBundleManifest("https://example.test/openknowledge.json"); err == nil || ok || !strings.Contains(err.Error(), "503 Service Unavailable") {
 		t.Fatalf("expected manifest server error to be preserved, ok=%t err=%v", ok, err)
+	}
+}
+
+func writeMainTestTarGzip(t *testing.T, archivePath string, entries map[string]string) {
+	t.Helper()
+	file, err := os.Create(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gzipWriter := gzip.NewWriter(file)
+	tarWriter := tar.NewWriter(gzipWriter)
+	for name, content := range entries {
+		data := []byte(content)
+		if err := tarWriter.WriteHeader(&tar.Header{Name: name, Mode: 0644, Size: int64(len(data)), Typeflag: tar.TypeReg}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tarWriter.Write(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 

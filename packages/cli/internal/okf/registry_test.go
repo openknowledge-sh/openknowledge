@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -213,6 +214,31 @@ func TestRemoveRegistryEntryRequireManagedIsTransactional(t *testing.T) {
 	}
 	if !ok || remaining != entry {
 		t.Fatalf("expected refused entry to remain unchanged, ok=%t entry=%#v", ok, remaining)
+	}
+}
+
+func TestRemoveRegistryEntryRejectsChangedExpectedSnapshot(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+
+	root := t.TempDir()
+	original, _, err := ConnectRegistryEntryWithSource("remote", root, "read", true, RegistrySource{Type: "git", URL: "https://example.test/repo.git"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ConnectRegistryEntryWithSource("remote", root, "write", true, RegistrySource{Type: "git", URL: "https://example.test/repo.git", GitCommit: strings.Repeat("a", 40)}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok, err := RemoveRegistryEntryWithOptions("remote", RemoveRegistryOptions{RequireManaged: true, ExpectedEntry: &original}); err == nil || ok || !strings.Contains(err.Error(), "changed while it was being removed") {
+		t.Fatalf("expected changed snapshot refusal, ok=%t err=%v", ok, err)
+	}
+	remaining, ok, err := ResolveRegistryEntry("remote")
+	if err != nil || !ok {
+		t.Fatalf("expected changed entry to remain, ok=%t err=%v", ok, err)
+	}
+	if remaining.Access != "write" || remaining.Source.GitCommit == "" {
+		t.Fatalf("expected latest entry to remain unchanged: %#v", remaining)
 	}
 }
 

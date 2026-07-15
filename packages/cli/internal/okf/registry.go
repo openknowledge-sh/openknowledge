@@ -60,6 +60,7 @@ type RegistrySource struct {
 
 type RemoveRegistryOptions struct {
 	RequireManaged bool
+	ExpectedEntry  *RegistryEntry
 }
 
 func RegistryFile() (string, error) {
@@ -246,6 +247,9 @@ func RemoveRegistryEntryWithOptions(target string, options RemoveRegistryOptions
 		}
 		if options.RequireManaged && !entry.Managed {
 			return false, fmt.Errorf("refusing to delete non-managed files: %s", entry.Path)
+		}
+		if options.ExpectedEntry != nil && entry != *options.ExpectedEntry {
+			return false, fmt.Errorf("connection %q changed while it was being removed", entry.Name)
 		}
 
 		index := registryEntryIndexByPath(registry.Entries, entry.Path)

@@ -31,7 +31,7 @@ openknowledge disconnect --help
 | --- | --- | --- |
 | `key-or-path` | argument | Connection key or connected local path. |
 | `--keep-files` | flag | Keep bundle files after removing the registry entry. This is the default. |
-| `--delete-files` | flag | Delete files only for CLI-managed remote clones. |
+| `--delete-files` | flag | Delete the complete cache only for CLI-managed remote sources. |
 
 `--keep-files` and `--delete-files` cannot be used together.
 
@@ -51,12 +51,19 @@ argument. Top-level and `registry disconnect` forms use the same parsing.
 After resolution, the command removes the registry entry and prints the key,
 path, and file action. Default and `--keep-files` output uses `files kept`.
 
-`--delete-files` checks the matched entry's managed status and unregisters it
-inside one locked registry transaction. A refused non-managed entry therefore
-remains registered even when other processes are connecting or disconnecting
-at the same time. If a CLI-managed clone is removed from the registry but file
-deletion fails, the command leaves the registry update in place, prints a
-warning, and exits with status `1`.
+`--delete-files` requires the recorded managed root to be a direct child of the
+Open Knowledge cache and requires the registered bundle path to be inside that
+root. This prevents a forged or stale `managed` flag from authorizing deletion
+of an arbitrary local folder. Legacy records without `managedRoot` may use the
+registered path only when it passes the same cache-boundary check.
+
+Deletion takes the source-specific cache lock, verifies that the registry entry
+has not changed, renames the complete cache container to a sibling tombstone,
+and removes that exact snapshot from the registry. A registry failure renames
+the cache and provenance sidecar back. This removes top-level archive files as
+well as a possible nested bundle root while leaving unrelated cache siblings
+untouched. If final tombstone deletion fails, the command leaves the registry
+update in place, prints a warning, and exits with status `1`.
 
 ## Quick Examples
 
@@ -75,6 +82,17 @@ files  kept
 ```
 
 ## Command Change History
+
+### 2026-07-15 - Transactional managed-root deletion
+
+`--delete-files` now validates the managed root against the cache boundary,
+locks that source, tombstones the entire cache container and provenance sidecar,
+and removes only an unchanged registry snapshot. Registry failure rolls the
+filesystem move back; nested archive roots no longer leave top-level cache
+files behind. Source anchors: `packages/cli/internal/okf/registry.go`,
+`packages/cli/internal/okf/registry_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Transactional managed-file guard
 

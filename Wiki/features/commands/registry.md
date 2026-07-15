@@ -130,6 +130,11 @@ The cache root is owner-only. Archive extraction and Git clone staging are
 published only after validation, and a failed replacement restores the previous
 cache rather than deleting it first.
 
+Managed deletion uses the persisted complete cache root rather than assuming
+the registered bundle path is the cache root. The CLI accepts deletion only for
+a direct child of its cache whose registered bundle lies inside it, then
+tombstones that container and removes the exact unchanged registry snapshot.
+
 Bundle metadata such as purpose, tags, and entrypoints remains in bundle
 content as `okf_bundle_*` root metadata.
 
@@ -137,6 +142,16 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Safe managed cache deletion
+
+Registry removal can now require an exact expected entry snapshot. Managed-file
+deletion uses that guard together with the source cache lock, cache-boundary
+validation, and reversible tombstoning of the full managed root. Source anchors:
+`packages/cli/internal/okf/registry.go`,
+`packages/cli/internal/okf/registry_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Locked cache transactions
 

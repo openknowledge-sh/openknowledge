@@ -1803,7 +1803,29 @@ func runDisconnect(args []string, command string) int {
 	}
 
 	target := fs.Arg(0)
-	entry, ok, err := okf.RemoveRegistryEntryWithOptions(target, okf.RemoveRegistryOptions{RequireManaged: *deleteFilesFlag})
+	if *deleteFilesFlag {
+		entry, ok, deleteErr, err := disconnectManagedRegistryEntry(target)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if !ok {
+			printUnknownConnection(target)
+			return 1
+		}
+		files := "deleted"
+		if deleteErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: disconnected but could not delete managed cache: %v\n", deleteErr)
+			files = "delete failed"
+		}
+		printDisconnectResult(entry, files)
+		if deleteErr != nil {
+			return 1
+		}
+		return 0
+	}
+
+	entry, ok, err := okf.RemoveRegistryEntry(target)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -1813,20 +1835,126 @@ func runDisconnect(args []string, command string) int {
 		return 1
 	}
 
-	files := "kept"
-	if *deleteFilesFlag {
-		if err := os.RemoveAll(entry.Path); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: disconnected but could not delete %s: %v\n", entry.Path, err)
-			files = "delete failed"
-		} else {
-			files = "deleted"
+	printDisconnectResult(entry, "kept")
+	return 0
+}
+
+func disconnectManagedRegistryEntry(target string) (okf.RegistryEntry, bool, error, error) {
+	entry, ok, err := okf.ResolveRegistryTarget(target)
+	if err != nil || !ok {
+		return entry, ok, nil, err
+	}
+	managedRoot, err := managedCacheRootForEntry(entry)
+	if err != nil {
+		return okf.RegistryEntry{}, false, nil, err
+	}
+
+	unlock, err := lockRemoteCache(managedRoot)
+	if err != nil {
+		return okf.RegistryEntry{}, false, nil, err
+	}
+	defer unlock()
+
+	current, ok, err := okf.ResolveRegistryTarget(target)
+	if err != nil || !ok {
+		return current, ok, nil, err
+	}
+	if current != entry {
+		return okf.RegistryEntry{}, false, nil, fmt.Errorf("connection %q changed while it was being disconnected", entry.Name)
+	}
+	if _, err := os.Lstat(managedRoot); err != nil {
+		return okf.RegistryEntry{}, false, nil, fmt.Errorf("managed cache is unavailable: %w", err)
+	}
+
+	tombstone, err := newCacheTombstone(managedRoot)
+	if err != nil {
+		return okf.RegistryEntry{}, false, nil, err
+	}
+	if err := os.Rename(managedRoot, tombstone); err != nil {
+		return okf.RegistryEntry{}, false, nil, err
+	}
+	sourcePath := remoteCacheSourcePath(managedRoot)
+	tombstoneSourcePath := remoteCacheSourcePath(tombstone)
+	sourceMoved := false
+	if err := os.Rename(sourcePath, tombstoneSourcePath); err == nil {
+		sourceMoved = true
+	} else if !os.IsNotExist(err) {
+		rollbackErr := os.Rename(tombstone, managedRoot)
+		return okf.RegistryEntry{}, false, nil, errors.Join(err, rollbackErr)
+	}
+
+	removed, ok, err := okf.RemoveRegistryEntryWithOptions(target, okf.RemoveRegistryOptions{
+		RequireManaged: true,
+		ExpectedEntry:  &entry,
+	})
+	if err != nil || !ok {
+		rollbackErrors := []error{err}
+		if sourceMoved {
+			if rollbackErr := os.Rename(tombstoneSourcePath, sourcePath); rollbackErr != nil {
+				rollbackErrors = append(rollbackErrors, rollbackErr)
+			}
+		}
+		if rollbackErr := os.Rename(tombstone, managedRoot); rollbackErr != nil {
+			rollbackErrors = append(rollbackErrors, rollbackErr)
+		}
+		return okf.RegistryEntry{}, ok, nil, errors.Join(rollbackErrors...)
+	}
+
+	var deleteErrors []error
+	if err := os.RemoveAll(tombstone); err != nil {
+		deleteErrors = append(deleteErrors, fmt.Errorf("delete %s: %w", tombstone, err))
+	}
+	if sourceMoved {
+		if err := os.Remove(tombstoneSourcePath); err != nil && !os.IsNotExist(err) {
+			deleteErrors = append(deleteErrors, fmt.Errorf("delete cache provenance: %w", err))
 		}
 	}
-	printDisconnectResult(entry, files)
-	if files == "delete failed" {
-		return 1
+	return removed, true, errors.Join(deleteErrors...), nil
+}
+
+func managedCacheRootForEntry(entry okf.RegistryEntry) (string, error) {
+	if !entry.Managed {
+		return "", fmt.Errorf("refusing to delete non-managed files: %s", entry.Path)
 	}
-	return 0
+	cacheRoot, err := remoteBundleCacheRoot()
+	if err != nil {
+		return "", err
+	}
+	cacheRoot, err = filepath.Abs(cacheRoot)
+	if err != nil {
+		return "", err
+	}
+	managedRoot := strings.TrimSpace(entry.Source.ManagedRoot)
+	if managedRoot == "" {
+		managedRoot = entry.Path
+	}
+	managedRoot, err = filepath.Abs(managedRoot)
+	if err != nil {
+		return "", err
+	}
+	if filepath.Dir(managedRoot) != cacheRoot {
+		return "", fmt.Errorf("refusing to delete managed path outside the Open Knowledge cache: %s", managedRoot)
+	}
+	entryPath, err := filepath.Abs(entry.Path)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(managedRoot, entryPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("refusing to delete cache root that does not contain the registered bundle: %s", managedRoot)
+	}
+	return managedRoot, nil
+}
+
+func newCacheTombstone(managedRoot string) (string, error) {
+	tombstone, err := os.MkdirTemp(filepath.Dir(managedRoot), ".openknowledge-delete-*")
+	if err != nil {
+		return "", err
+	}
+	if err := os.Remove(tombstone); err != nil {
+		return "", err
+	}
+	return tombstone, nil
 }
 
 // parseInterspersedFlags preserves flag.FlagSet's parsing rules while allowing
