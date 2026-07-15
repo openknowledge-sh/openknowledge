@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Bounded npm binary installation
+
+* Bounded npm postinstall archive downloads to 64 MiB, checksum downloads to
+  1 MiB, expanded tar data to 256 MiB, and the selected binary to 128 MiB.
+* Restricted initial and redirected downloads to credential-free HTTPS, added
+  a five-redirect ceiling and 30-second inactivity timeout, and reject invalid
+  or oversized declared response lengths before buffering.
+* Require one exact asset-name SHA-256 entry and one exact root-level regular
+  platform binary; validate tar header checksums, sizes, bounds, duplicates,
+  truncation, and special-member types instead of accepting basename matches.
+* Publish the verified binary through a unique same-directory staging file and
+  atomic rename, with cleanup on success and failure.
+* Added offline Node regressions for response limits, redirects, protocol
+  downgrade, checksum ambiguity, archive bombs and member constraints, plus
+  atomic replacement; included them in the root `pnpm test` gate.
+* Source anchors: `packages/npm/install.js`,
+  `packages/npm/install.test.js`, and `package.json`.
+* Docs updated: `README.md`, `packages/npm/README.md`,
+  `Wiki/features/installation.md`, `Wiki/features/operations.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Canonical local viewer retrieval
 
 * Replaced the local viewer's legacy whole-document lexical index with the

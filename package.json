@@ -8,6 +8,7 @@
     "build:web": "pnpm --filter @openknowledge-sh/web build",
     "test:cli": "go test ./packages/cli/...",
     "test:install": "bash scripts/test-install.sh",
+    "test:npm-install": "node --test packages/npm/install.test.js",
     "test:web": "pnpm --filter @openknowledge-sh/web test",
     "build:cli": "go build -o bin/openknowledge ./packages/cli/cmd/openknowledge",
     "check:versions": "node scripts/check-versions.mjs",
@@ -15,7 +16,7 @@
     "check:workflow-secret-scope": "node scripts/check-workflow-secret-scope.mjs",
     "check:workflow-permissions": "node scripts/check-workflow-permissions.mjs",
     "check:container-runtime": "node scripts/check-container-runtime.mjs",
-    "test": "pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm check:container-runtime && pnpm test:install && pnpm test:web && pnpm test:cli",
+    "test": "pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm check:container-runtime && pnpm test:install && pnpm test:npm-install && pnpm test:web && pnpm test:cli",
     "build": "pnpm build:cli && pnpm build:web"
   }
 }

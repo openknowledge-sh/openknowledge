@@ -40,6 +40,21 @@ the matching tarball plus `checksums.txt`, verifies the archive checksum, and
 installs the `openknowledge` binary. The npm installer also supports Windows
 binary names when release assets are available.
 
+The npm downloader accepts only credential-free HTTPS and follows at most five
+HTTPS redirects with a 30-second inactivity timeout. Release archives are
+limited to 64 MiB and `checksums.txt` to 1 MiB before buffering. Checksum lookup
+requires one exact asset-name entry with a 64-character SHA-256 rather than a
+filename suffix match.
+
+The compressed archive may expand to at most 256 MiB. Tar headers, member
+checksums, octal sizes, and bounds are validated before use; the archive must
+contain exactly one root-level regular member with the platform binary name,
+and that binary may be at most 128 MiB. Nested paths, basename-only matches,
+special members, duplicates, truncation, and decompression bombs fail closed.
+The npm installer writes to a unique same-directory staging file and atomically
+renames it into `vendor/`, cleaning the staging file after either success or
+failure.
+
 The shell path validates explicit versions before constructing a release URL,
 requires an exact 64-character archive checksum entry, and uses bounded curl
 connection/runtime retries. Default GitHub downloads require HTTPS and TLS 1.2
@@ -61,6 +76,11 @@ members, invalid destination types, preservation of the old binary, and
 staging cleanup. It runs as part of the root `pnpm test` gate used by CI, deploy
 verification, and release preflight.
 
+`pnpm test:npm-install` uses offline response and tar fixtures to cover declared
+and streaming byte limits, redirect ceilings and HTTPS downgrades, exact and
+unambiguous checksums, decompression bounds, member type/path/size/duplicate
+rejection, and atomic publication. It runs in the same root test gate.
+
 The `curl | bash` entry point authenticates transport to the configured host
 but cannot checksum the installer script before executing it. Users requiring
 an offline trust ceremony should download and inspect `install` first, then run
@@ -77,6 +97,7 @@ script.
 >
 > * `install`
 > * `packages/npm/install.js`
+> * `packages/npm/install.test.js`
 > * `packages/npm/package.json`
 > * `.github/workflows/release.yml`
 > * `scripts/check-versions.mjs`

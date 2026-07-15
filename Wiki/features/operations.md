@@ -24,6 +24,7 @@ packages/web  - static HTML/CSS site
 ```sh
 pnpm test:cli
 pnpm test:install
+pnpm test:npm-install
 pnpm test:web
 pnpm check:versions
 pnpm check:workflow-pins
@@ -46,9 +47,10 @@ capabilities only on reviewed publish jobs and locks the minimal GitHub release
 step set. `pnpm test` runs all workflow and version checks before the CLI test
 suite. `pnpm check:container-runtime` requires the final Node image to select
 its built-in unprivileged user. The root test gate also runs transactional
-shell-installer fixtures, and `pnpm build` builds both the CLI and web package.
-`pnpm test:web` exercises the production static handler without binding a
-network socket, so the same checks run in sandboxed agents.
+shell-installer fixtures and offline npm downloader/archive hardening tests;
+`pnpm build` builds both the CLI and web package. `pnpm test:web` exercises the
+production static handler without binding a network socket, so the same checks
+run in sandboxed agents.
 
 ## Continuous Integration
 

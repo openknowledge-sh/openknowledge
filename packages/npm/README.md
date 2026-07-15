@@ -12,6 +12,12 @@ The package downloads the matching binary from GitHub Releases during
 installation. Set `OPENKNOWLEDGE_VERSION=latest` to install the latest GitHub
 release instead of the npm package version.
 
+The postinstall downloader requires credential-free HTTPS across a maximum of
+five redirects, applies finite response and decompression limits, verifies one
+exact SHA-256 entry, and accepts only one exact regular `openknowledge` member
+from the release tarball. The verified binary is staged beside its destination
+and renamed into place atomically.
+
 Published package versions match the GitHub release tag without its leading
 `v`. The release workflow verifies this invariant before creating the tag and
 publishes the wrapper with npm provenance after the binary release succeeds.
