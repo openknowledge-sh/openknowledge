@@ -101,6 +101,9 @@ current cache first and refuses to discard detected content, Git, or provenance
 changes unless `--force` is supplied. The command materializes and validates a
 fresh cache generation at a new path, records the exact new source identity in
 an atomic registry replacement, and only then deletes the previous generation.
+A Git refresh retains the connection's recorded branch/tag/commit selector and
+monorepo subdirectory; provenance and cache identity distinguish those
+selectors from other views of the same repository URL.
 A download, clone, validation, provenance-write, or registry-replacement failure
 leaves the previously registered generation available. If the registry switch
 succeeds but old-cache cleanup fails, the new generation remains active and the
@@ -117,6 +120,8 @@ stat, parse, validate, hash, or otherwise inspect connected bundle contents.
 objects. Each object contains `name`, `path`, effective `access`, `managed`,
 and optional remote `source` provenance. Use `registry status --json` when a
 consumer also needs content, validation, Git, or cache-integrity state.
+Git provenance includes the requested `gitRef` and `gitSubdir` when selected,
+in addition to the resolved exact `gitCommit`.
 
 The Draft 2020-12 discovery schema is
 `packages/cli/schemas/v1/registry-list.schema.json`.

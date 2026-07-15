@@ -2007,6 +2007,8 @@ func TestRegistryListMachineContractGolden(t *testing.T) {
 					Type:      "git",
 					URL:       "https://example.test/team.git",
 					GitCommit: "0123456789abcdef0123456789abcdef01234567",
+					GitRef:    "release-docs",
+					GitSubdir: "knowledge",
 					Spec:      "0.1",
 				},
 			},
@@ -2237,6 +2239,122 @@ func TestRemoteCacheIdentityDoesNotDependOnRegistryAlias(t *testing.T) {
 	}
 	if record.SchemaVersion != remoteCacheSchemaVersion || record.Source.GitCommit != first.Source.GitCommit {
 		t.Fatalf("unexpected versioned cache provenance: %#v", record)
+	}
+}
+
+func TestRunConnectAndRefreshPreserveGitRefAndSubdir(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for Git selector test")
+	}
+	base := t.TempDir()
+	remote := filepath.Join(base, "remote")
+	runGit(t, base, "init", remote)
+	runGit(t, remote, "config", "user.email", "test@example.com")
+	runGit(t, remote, "config", "user.name", "Test User")
+	writeMainTestFile(t, remote, "README.md", "# Repository root is not an OKF bundle\n")
+	runGit(t, remote, "add", "README.md")
+	runGit(t, remote, "commit", "-m", "root")
+	runGit(t, remote, "checkout", "-b", "release-docs")
+	writeMainTestFile(t, remote, "knowledge/index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: monorepo-docs\n---\n\n# Monorepo Docs\n")
+	writeMainTestFile(t, remote, "knowledge/guide.md", "---\ntype: Guide\ntitle: First Guide\n---\n\n# First Guide\n")
+	runGit(t, remote, "add", "knowledge")
+	runGit(t, remote, "commit", "-m", "docs v1")
+	firstCommit, err := gitCommitForDirectory(remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	source := "file://" + remote
+	if code := runConnect([]string{source, "--as", "mono", "--no-validate", "--git-ref", "release-docs", "--git-subdir", "knowledge"}, "openknowledge connect"); code != 0 {
+		t.Fatalf("expected Git ref/subdir connect, got %d", code)
+	}
+	entry, ok, err := okf.ResolveRegistryEntry("mono")
+	if err != nil || !ok {
+		t.Fatalf("expected selected Git entry, ok=%t err=%v", ok, err)
+	}
+	if entry.Source.GitRef != "release-docs" || entry.Source.GitSubdir != "knowledge" || entry.Source.GitCommit != firstCommit {
+		t.Fatalf("unexpected Git selector provenance: %#v", entry.Source)
+	}
+	if entry.Path != filepath.Join(entry.Source.ManagedRoot, "knowledge") {
+		t.Fatalf("expected registered monorepo subdirectory, entry=%#v", entry)
+	}
+	if _, err := os.Stat(filepath.Join(entry.Path, "guide.md")); err != nil {
+		t.Fatalf("expected selected bundle content: %v", err)
+	}
+
+	writeMainTestFile(t, remote, "knowledge/guide.md", "---\ntype: Guide\ntitle: Refreshed Guide\n---\n\n# Refreshed Guide\n")
+	runGit(t, remote, "add", "knowledge/guide.md")
+	runGit(t, remote, "commit", "-m", "docs v2")
+	secondCommit, err := gitCommitForDirectory(remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code := runRegistryRefresh([]string{"mono"}); code != 0 {
+		t.Fatalf("expected selected Git refresh, got %d", code)
+	}
+	refreshed, ok, err := okf.ResolveRegistryEntry("mono")
+	if err != nil || !ok {
+		t.Fatalf("expected refreshed Git entry, ok=%t err=%v", ok, err)
+	}
+	if refreshed.Source.GitRef != "release-docs" || refreshed.Source.GitSubdir != "knowledge" || refreshed.Source.GitCommit != secondCommit || refreshed.Source.GitCommit == firstCommit {
+		t.Fatalf("refresh did not preserve selectors and advance identity: %#v", refreshed.Source)
+	}
+	content := string(readMainTestFile(t, filepath.Join(refreshed.Path, "guide.md")))
+	if !strings.Contains(content, "Refreshed Guide") {
+		t.Fatalf("refresh did not materialize selected branch content: %q", content)
+	}
+	if status := inspectRegistryEntry(refreshed); status.State != "ok" || !status.Healthy {
+		t.Fatalf("selected Git generation should pass offline integrity: %#v", status)
+	}
+
+	if code := runConnect([]string{source, "--as", "pinned", "--no-validate", "--git-ref", firstCommit, "--git-subdir", "knowledge"}, "openknowledge connect"); code != 0 {
+		t.Fatalf("expected exact-commit Git connect, got %d", code)
+	}
+	pinned, ok, err := okf.ResolveRegistryEntry("pinned")
+	if err != nil || !ok {
+		t.Fatalf("expected exact-commit entry, ok=%t err=%v", ok, err)
+	}
+	if pinned.Source.GitRef != firstCommit || pinned.Source.GitCommit != firstCommit || pinned.Source.ManagedRoot == refreshed.Source.ManagedRoot {
+		t.Fatalf("commit selector should remain pinned in an independent cache: %#v", pinned.Source)
+	}
+	if content := string(readMainTestFile(t, filepath.Join(pinned.Path, "guide.md"))); !strings.Contains(content, "First Guide") {
+		t.Fatalf("exact-commit connect did not materialize pinned content: %q", content)
+	}
+}
+
+func TestGitSelectorValidationAndCacheIdentity(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for Git selector validation")
+	}
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "local source", args: []string{"./local", "--git-ref", "main"}, want: "require a remote Git source"},
+		{name: "invalid ref", args: []string{"https://example.test/docs.git", "--git-ref", "bad..ref"}, want: "invalid --git-ref"},
+		{name: "escaping subdir", args: []string{"https://example.test/docs.git", "--git-subdir", "../knowledge"}, want: "invalid --git-subdir"},
+		{name: "noncanonical subdir", args: []string{"https://example.test/docs.git", "--git-subdir", "docs/./knowledge"}, want: "invalid --git-subdir"},
+		{name: "archive source", args: []string{"https://example.test/docs.tar.gz", "--git-ref", "main"}, want: "cannot be used with manifest or archive"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, stderr, code := captureMainOutput(t, func() int {
+				return runConnect(test.args, "openknowledge connect")
+			})
+			if code != 2 || !strings.Contains(stderr, test.want) {
+				t.Fatalf("expected selector argument refusal %q, code=%d stderr=%q", test.want, code, stderr)
+			}
+		})
+	}
+
+	source := "https://example.test/docs.git"
+	base := registryCacheNameWithGitOptions(source, gitMaterializationOptions{})
+	branch := registryCacheNameWithGitOptions(source, gitMaterializationOptions{Ref: "main"})
+	subdir := registryCacheNameWithGitOptions(source, gitMaterializationOptions{Ref: "main", Subdir: "knowledge"})
+	if base == branch || branch == subdir || base == subdir {
+		t.Fatalf("Git selectors must participate in cache identity: %q %q %q", base, branch, subdir)
 	}
 }
 

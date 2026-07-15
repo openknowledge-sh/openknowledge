@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Git revision and monorepo bundle selection
+
+* Added `--git-ref <branch|tag|commit>` and `--git-subdir <path>` to
+  `openknowledge connect` and `registry connect`.
+* Fetches selected refs at depth one, checks out the resolved commit detached,
+  and validates/registers the exact canonical repository subdirectory while
+  retaining the complete repository as the managed generation.
+* Included Git selectors in cache identity and recorded `gitRef`, `gitSubdir`,
+  and exact `gitCommit` provenance so different repository views cannot alias.
+* Made `registry refresh` retain selectors while atomically advancing moving
+  branches/tags; offline status still verifies complete content, commit,
+  working-tree cleanliness, and sidecar provenance.
+* Rejected invalid refs, traversal/absolute/non-canonical subdirectories, and
+  Git selectors on local, manifest, or archive inputs before materialization.
+* Extended registry list/status schemas and golden coverage, plus end-to-end
+  connect/refresh/integrity tests against a real monorepo-style Git repository.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/internal/okf/registry.go`, and
+  `packages/cli/schemas/v1/registry-{list,status}.schema.json`.
+* Docs updated: `README.md`, `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/registry.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Public read-only Go API
 
 * Added the importable

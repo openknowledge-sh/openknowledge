@@ -37,6 +37,8 @@
         "sha256": {"type": "string"},
         "contentSha256": {"type": "string"},
         "gitCommit": {"type": "string"},
+        "gitRef": {"type": "string"},
+        "gitSubdir": {"type": "string"},
         "spec": {"type": "string"},
         "fetchedAt": {"type": "string"},
         "managedRoot": {"type": "string"}

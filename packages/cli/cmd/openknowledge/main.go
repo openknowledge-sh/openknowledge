@@ -902,15 +902,30 @@ func runConnect(args []string, command string) int {
 	keyFlag := fs.String("as", "", "connection key")
 	accessFlag := fs.String("access", "read", "connection access: read or write")
 	noValidateFlag := fs.Bool("no-validate", false, "skip validation status")
+	gitRefFlag := fs.String("git-ref", "", "Git branch, tag, or commit to fetch")
+	gitSubdirFlag := fs.String("git-subdir", "", "bundle root below the Git repository root")
 	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "usage: %s <source> [--as <key>]\n", command)
+		fmt.Fprintf(os.Stderr, "usage: %s <source> [--as <key>] [--git-ref <ref>] [--git-subdir <path>]\n", command)
 		return 2
 	}
 
 	source := fs.Arg(0)
+	gitOptions, err := parseGitMaterializationOptions(*gitRefFlag, *gitSubdirFlag)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if (gitOptions.Ref != "" || gitOptions.Subdir != "") && !looksLikeRemoteSource(source) {
+		fmt.Fprintln(os.Stderr, "--git-ref and --git-subdir require a remote Git source")
+		return 2
+	}
+	if (gitOptions.Ref != "" || gitOptions.Subdir != "") && (looksLikeManifestSource(source) || looksLikeArchiveSource(source)) {
+		fmt.Fprintln(os.Stderr, "--git-ref and --git-subdir cannot be used with manifest or archive sources")
+		return 2
+	}
 	access := strings.TrimSpace(*accessFlag)
 	if access != "read" && access != "write" {
 		fmt.Fprintln(os.Stderr, "access must be read or write")
@@ -924,7 +939,7 @@ func runConnect(args []string, command string) int {
 	if looksLikeRemoteSource(source) {
 		var err error
 		var materializedRoot string
-		materializedRoot, sourceInfo, err = materializeRemoteSource(source)
+		materializedRoot, sourceInfo, err = materializeRemoteSourceWithOptions(source, gitOptions)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
@@ -1030,21 +1045,63 @@ func looksLikeRemoteSource(value string) bool {
 		strings.HasPrefix(value, "git@")
 }
 
+type gitMaterializationOptions struct {
+	Ref    string
+	Subdir string
+}
+
+func parseGitMaterializationOptions(ref string, subdir string) (gitMaterializationOptions, error) {
+	options := gitMaterializationOptions{Ref: strings.TrimSpace(ref), Subdir: strings.TrimSpace(subdir)}
+	if options.Ref != "" {
+		command := exec.Command("git", "check-ref-format", "--branch", options.Ref)
+		if output, err := command.CombinedOutput(); err != nil {
+			detail := strings.TrimSpace(string(output))
+			if detail == "" {
+				detail = err.Error()
+			}
+			return gitMaterializationOptions{}, fmt.Errorf("invalid --git-ref %q: %s", options.Ref, detail)
+		}
+	}
+	if options.Subdir != "" {
+		if strings.Contains(options.Subdir, "\\") || strings.ContainsRune(options.Subdir, '\x00') {
+			return gitMaterializationOptions{}, fmt.Errorf("invalid --git-subdir %q: use a portable slash-separated relative path", options.Subdir)
+		}
+		clean := path.Clean(options.Subdir)
+		if clean != options.Subdir || path.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+			return gitMaterializationOptions{}, fmt.Errorf("invalid --git-subdir %q: use a canonical relative path below the repository root", options.Subdir)
+		}
+	}
+	return options, nil
+}
+
 func materializeRemoteSource(source string) (root string, sourceInfo okf.RegistrySource, resultErr error) {
+	return materializeRemoteSourceWithOptions(source, gitMaterializationOptions{})
+}
+
+func materializeRemoteSourceWithOptions(source string, options gitMaterializationOptions) (root string, sourceInfo okf.RegistrySource, resultErr error) {
 	source = strings.TrimSpace(source)
 	cacheRoot, err := remoteBundleCacheRoot()
 	if err != nil {
 		return "", okf.RegistrySource{}, err
 	}
-	target := filepath.Join(cacheRoot, registryCacheName(source))
-	if registeredTarget, ok := registeredRemoteCacheTarget(source); ok {
+	target := filepath.Join(cacheRoot, registryCacheNameWithGitOptions(source, options))
+	if registeredTarget, ok := registeredRemoteCacheTargetWithGitOptions(source, options); ok {
 		target = registeredTarget
 	}
-	return materializeRemoteSourceAtTarget(source, target, true)
+	return materializeRemoteSourceAtTargetWithOptions(source, target, true, options)
 }
 
 func materializeRemoteSourceAtTarget(source string, target string, reuseCache bool) (root string, sourceInfo okf.RegistrySource, resultErr error) {
+	return materializeRemoteSourceAtTargetWithOptions(source, target, reuseCache, gitMaterializationOptions{})
+}
+
+func materializeRemoteSourceAtTargetWithOptions(source string, target string, reuseCache bool, options gitMaterializationOptions) (root string, sourceInfo okf.RegistrySource, resultErr error) {
 	source = strings.TrimSpace(source)
+	validatedOptions, err := parseGitMaterializationOptions(options.Ref, options.Subdir)
+	if err != nil {
+		return "", okf.RegistrySource{}, err
+	}
+	options = validatedOptions
 	cacheRoot := filepath.Dir(target)
 	if err := os.MkdirAll(cacheRoot, 0700); err != nil {
 		return "", okf.RegistrySource{}, err
@@ -1064,9 +1121,12 @@ func materializeRemoteSourceAtTarget(source string, target string, reuseCache bo
 		}
 	}()
 
-	if root, ok := cachedBundleRoot(target); reuseCache && ok {
+	if root, ok := cachedBundleRootWithGitOptions(target, options); reuseCache && ok {
 		cachedSource, err := loadRemoteCacheSource(target, source)
 		if err == nil {
+			if cachedSource.GitRef != options.Ref || cachedSource.GitSubdir != options.Subdir {
+				return "", okf.RegistrySource{}, fmt.Errorf("remote cache provenance for %s belongs to different Git selectors", target)
+			}
 			return root, cachedSource, nil
 		}
 		if !os.IsNotExist(err) {
@@ -1082,7 +1142,8 @@ func materializeRemoteSourceAtTarget(source string, target string, reuseCache bo
 		}
 		return root, legacySource, nil
 	}
-	if looksLikeManifestSource(source) {
+	forceGit := options.Ref != "" || options.Subdir != ""
+	if !forceGit && looksLikeManifestSource(source) {
 		archive, manifestURL, spec, err := materializeManifestSource(source, target)
 		if err != nil {
 			return "", okf.RegistrySource{}, err
@@ -1101,7 +1162,7 @@ func materializeRemoteSourceAtTarget(source string, target string, reuseCache bo
 			ManagedRoot:   target,
 		})
 	}
-	if looksLikeArchiveSource(source) {
+	if !forceGit && looksLikeArchiveSource(source) {
 		archive, err := materializeArchiveSource(source, target, "", okf.LatestSpecVersion, false)
 		if err != nil {
 			return "", okf.RegistrySource{}, err
@@ -1119,7 +1180,7 @@ func materializeRemoteSourceAtTarget(source string, target string, reuseCache bo
 			ManagedRoot:   target,
 		})
 	}
-	if isHTTPSource(source) {
+	if !forceGit && isHTTPSource(source) {
 		for _, candidate := range manifestCandidateURLs(source) {
 			manifest, manifestURL, ok, err := fetchBundleManifest(candidate)
 			if err != nil {
@@ -1174,16 +1235,23 @@ func materializeRemoteSourceAtTarget(source string, target string, reuseCache bo
 	}
 	defer os.RemoveAll(stagingParent)
 	staging := filepath.Join(stagingParent, "bundle")
-	cmd := exec.Command("git", "clone", "--depth", "1", source, staging)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		detail := strings.TrimSpace(string(output))
-		if detail == "" {
-			detail = err.Error()
-		}
-		return "", okf.RegistrySource{}, fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
+	if err := cloneGitSource(source, staging, options.Ref); err != nil {
+		return "", okf.RegistrySource{}, err
 	}
-	if _, valid, err := validateExtractedBundleCandidate(staging, okf.LatestSpecVersion, false); err != nil {
+	bundleRoot := staging
+	if options.Subdir != "" {
+		bundleRoot, err = okf.ResolveBundlePath(staging, filepath.FromSlash(options.Subdir))
+		if err != nil {
+			return "", okf.RegistrySource{}, fmt.Errorf("resolve Git bundle subdirectory %q: %w", options.Subdir, err)
+		}
+		if info, statErr := os.Stat(bundleRoot); statErr != nil || !info.IsDir() {
+			if statErr != nil {
+				return "", okf.RegistrySource{}, fmt.Errorf("Git bundle subdirectory %q: %w", options.Subdir, statErr)
+			}
+			return "", okf.RegistrySource{}, fmt.Errorf("Git bundle subdirectory %q is not a directory", options.Subdir)
+		}
+	}
+	if _, valid, err := validateExtractedBundleCandidate(bundleRoot, okf.LatestSpecVersion, false); err != nil {
 		return "", okf.RegistrySource{}, err
 	} else if !valid {
 		return "", okf.RegistrySource{}, fmt.Errorf("Git source does not contain a valid Open Knowledge bundle: %s", source)
@@ -1199,11 +1267,17 @@ func materializeRemoteSourceAtTarget(source string, target string, reuseCache bo
 	if err := publishRemoteCache(staging, target); err != nil {
 		return "", okf.RegistrySource{}, err
 	}
-	return finishRemoteMaterialization(target, target, okf.RegistrySource{
+	publishedRoot := target
+	if options.Subdir != "" {
+		publishedRoot = filepath.Join(target, filepath.FromSlash(options.Subdir))
+	}
+	return finishRemoteMaterialization(publishedRoot, target, okf.RegistrySource{
 		Type:          "git",
 		URL:           source,
 		ResolvedURL:   source,
 		GitCommit:     commit,
+		GitRef:        options.Ref,
+		GitSubdir:     options.Subdir,
 		ContentSHA256: contentSHA256,
 		Spec:          okf.LatestSpecVersion,
 		FetchedAt:     remoteFetchTimestamp(),
@@ -1515,11 +1589,24 @@ func validateExtractedBundleCandidate(root string, specVersion string, requireDe
 }
 
 func cachedBundleRoot(target string) (string, bool) {
+	return cachedBundleRootWithGitOptions(target, gitMaterializationOptions{})
+}
+
+func cachedBundleRootWithGitOptions(target string, options gitMaterializationOptions) (string, bool) {
 	info, err := os.Stat(target)
 	if err != nil || !info.IsDir() {
 		return "", false
 	}
-	root, err := validatedExtractedBundleRoot(target, okf.LatestSpecVersion, false)
+	candidate := target
+	if options.Subdir != "" {
+		candidate, err = okf.ResolveBundlePath(target, filepath.FromSlash(options.Subdir))
+		if err != nil {
+			return "", false
+		}
+		root, valid, validationErr := validateExtractedBundleCandidate(candidate, okf.LatestSpecVersion, false)
+		return root, validationErr == nil && valid
+	}
+	root, err := validatedExtractedBundleRoot(candidate, okf.LatestSpecVersion, false)
 	if err != nil {
 		return "", false
 	}
@@ -1743,6 +1830,33 @@ func loadRemoteCacheSource(target string, requestedSource string) (okf.RegistryS
 	return source, nil
 }
 
+func cloneGitSource(source string, staging string, ref string) error {
+	var commands [][]string
+	if ref == "" {
+		commands = [][]string{{"clone", "--depth", "1", source, staging}}
+	} else {
+		commands = [][]string{
+			{"init", staging},
+			{"-C", staging, "remote", "add", "origin", source},
+			{"-C", staging, "fetch", "--depth", "1", "origin", ref},
+			{"-C", staging, "checkout", "--detach", "FETCH_HEAD"},
+		}
+	}
+	for _, args := range commands {
+		command := exec.Command("git", args...)
+		output, err := command.CombinedOutput()
+		if err == nil {
+			continue
+		}
+		detail := strings.TrimSpace(string(output))
+		if detail == "" {
+			detail = err.Error()
+		}
+		return fmt.Errorf("could not clone remote bundle %s: %s", source, detail)
+	}
+	return nil
+}
+
 func gitCommitForDirectory(root string) (string, error) {
 	command := exec.Command("git", "-C", root, "rev-parse", "HEAD")
 	output, err := command.CombinedOutput()
@@ -1773,22 +1887,34 @@ func remoteBundleCacheRoot() (string, error) {
 }
 
 func registryCacheName(source string) string {
+	return registryCacheNameWithGitOptions(source, gitMaterializationOptions{})
+}
+
+func registryCacheNameWithGitOptions(source string, options gitMaterializationOptions) string {
 	normalized := normalizeRemoteSource(source)
 	base := remoteSourceBaseName(normalized)
 	if base == "" {
 		base = "bundle"
 	}
-	sum := sha256.Sum256([]byte(normalized))
+	identity := normalized
+	if options.Ref != "" || options.Subdir != "" {
+		identity += "\ngit-ref=" + options.Ref + "\ngit-subdir=" + options.Subdir
+	}
+	sum := sha256.Sum256([]byte(identity))
 	return base + "-" + hex.EncodeToString(sum[:])[:12]
 }
 
 func registeredRemoteCacheTarget(source string) (string, bool) {
+	return registeredRemoteCacheTargetWithGitOptions(source, gitMaterializationOptions{})
+}
+
+func registeredRemoteCacheTargetWithGitOptions(source string, options gitMaterializationOptions) (string, bool) {
 	entries, err := okf.RegistryEntries()
 	if err != nil {
 		return "", false
 	}
 	for _, entry := range entries {
-		if !entry.Managed || normalizeRemoteSource(entry.Source.URL) != normalizeRemoteSource(source) {
+		if !entry.Managed || normalizeRemoteSource(entry.Source.URL) != normalizeRemoteSource(source) || entry.Source.GitRef != options.Ref || entry.Source.GitSubdir != options.Subdir {
 			continue
 		}
 		managedRoot, err := managedCacheRootForEntry(entry)
@@ -1953,7 +2079,10 @@ func runRegistryRefresh(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	newRoot, source, err := materializeRemoteSourceAtTarget(entry.Source.URL, newTarget, false)
+	newRoot, source, err := materializeRemoteSourceAtTargetWithOptions(entry.Source.URL, newTarget, false, gitMaterializationOptions{
+		Ref:    entry.Source.GitRef,
+		Subdir: entry.Source.GitSubdir,
+	})
 	if err != nil {
 		cleanupErr := removeRemoteCacheGeneration(newTarget, true)
 		fmt.Fprintln(os.Stderr, errors.Join(err, cleanupErr))
@@ -4286,10 +4415,13 @@ Arguments:
 Flags:
   --as           Connection key. Defaults to okf_bundle_name, then the folder name.
   --access       Access capability for local connections, read or write. Remote sources are read-only. Defaults to read.
+  --git-ref      Git branch, tag, or commit to fetch instead of the remote default.
+  --git-subdir   Slash-separated OKF bundle root below a Git repository root.
   --no-validate  Skip the validation status check in the success output.
 
 Remote manifests and tar archives are downloaded into the Open Knowledge cache.
-Git sources are cloned into the same cache before registration.
+Git sources are cloned into the same cache before registration. Git selectors
+are recorded in provenance, included in cache identity, and retained by refresh.
 
 Examples:
   %[1]s ./project-memory
@@ -4297,6 +4429,7 @@ Examples:
   %[1]s https://openknowledge.sh/wiki/
   %[1]s https://openknowledge.sh/openknowledge-bundle.tar.gz
   %[1]s https://github.com/openknowledge-sh/accessibility.git --as accessibility
+  %[1]s https://github.com/example/monorepo.git --git-ref docs-v2 --git-subdir knowledge
   %[1]s ./team-wiki --access write
 `, command)
 }

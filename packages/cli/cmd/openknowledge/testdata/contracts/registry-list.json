@@ -17,6 +17,8 @@
         "type": "git",
         "url": "https://example.test/team.git",
         "gitCommit": "0123456789abcdef0123456789abcdef01234567",
+        "gitRef": "release-docs",
+        "gitSubdir": "knowledge",
         "spec": "0.1"
       }
     }

@@ -54,6 +54,8 @@ type RegistrySource struct {
 	SHA256        string `json:"sha256,omitempty"`
 	ContentSHA256 string `json:"contentSha256,omitempty"`
 	GitCommit     string `json:"gitCommit,omitempty"`
+	GitRef        string `json:"gitRef,omitempty"`
+	GitSubdir     string `json:"gitSubdir,omitempty"`
 	Spec          string `json:"spec,omitempty"`
 	FetchedAt     string `json:"fetchedAt,omitempty"`
 	ManagedRoot   string `json:"managedRoot,omitempty"`

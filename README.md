@@ -365,6 +365,7 @@ Nested agent commands also support
 | `openknowledge new --no-agents --no-setup [folder]` | Scaffold without starter agent rules or a setup handoff. |
 | `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
 | `openknowledge connect <source> --as <key>` | Connect a bundle with an explicit key. |
+| `openknowledge connect <git-url> --git-ref <branch|tag|commit> --git-subdir <path>` | Connect a selected Git revision and OKF bundle root from a repository or monorepo. |
 | `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
 | `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for CLI-managed remote clones. |
 | `openknowledge get <name-or-path>` | Print an exact local Markdown file, default entrypoint, or root `index.md`. |
