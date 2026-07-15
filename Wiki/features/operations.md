@@ -185,6 +185,12 @@ workflow checks out the exact release tag and publishes
 `@openknowledge-sh/openknowledge` with npm provenance. Stable versions use the
 `latest` dist-tag; prereleases use `next`.
 
+Both the GoReleaser action and the GoReleaser binary it downloads are pinned:
+the action uses a full commit SHA and its `version` input is an exact stable
+release rather than `latest`. `pnpm check:workflow-pins` rejects dynamic tool
+aliases so a privileged release cannot silently switch toolchains between
+runs.
+
 Configure the repository `NPM_TOKEN` secret with permission to create and
 publish the public scoped package. The preflight checks this secret before a
 new Git tag is pushed, preventing a known npm-credential failure from leaving a

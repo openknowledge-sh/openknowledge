@@ -17,6 +17,10 @@ for (const name of fs.readdirSync(workflowDirectory).sort()) {
   const relativePath = path.posix.join(".github/workflows", name);
   const lines = fs.readFileSync(path.join(workflowDirectory, name), "utf8").split(/\r?\n/);
   lines.forEach((line, index) => {
+    const dynamicToolVersion = line.match(/^\s+(?:version|node-version|go-version):\s*["']?(latest|current|nightly|\*)["']?\s*(?:#.*)?$/i);
+    if (dynamicToolVersion) {
+      failures.push(`${relativePath}:${index + 1}: workflow tool must use a concrete version, not ${dynamicToolVersion[1]}`);
+    }
     const containerMatch = line.match(/^\s*(?:container|image):\s*["']?([^\s"'#]+)["']?/);
     if (containerMatch && !containerDigestPattern.test(containerMatch[1])) {
       failures.push(`${relativePath}:${index + 1}: job container must use an sha256 digest: ${containerMatch[1]}`);

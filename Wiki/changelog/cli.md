@@ -14,6 +14,19 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Pinned GoReleaser toolchain
+
+* Replaced the GoReleaser action's dynamic `version: latest` download with the
+  exact stable `v2.17.0` release, keeping the privileged publication job
+  reproducible across reruns.
+* Extended `pnpm check:workflow-pins` to reject `latest`, `current`, `nightly`,
+  and wildcard aliases in workflow tool-version inputs.
+* Verified the new guard failed on the previous release workflow before the
+  concrete version was applied.
+* Source anchors: `.github/workflows/release.yml` and
+  `scripts/check-workflow-pins.mjs`.
+* Docs updated: `Wiki/features/operations.md` and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Isolated release write capability
 
 * Split release verification from GitHub publication: dependency setup, tests,
