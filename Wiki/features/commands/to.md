@@ -129,9 +129,17 @@ selected spec. Warnings remain publishable. Validation failure occurs before
 the exporter creates or replaces output, so it cannot advertise a manifest
 whose archive the remote `connect` consumer will reject.
 
+Both HTML modes build a complete sibling generation and switch it into place
+only after every page and asset succeeds. A failed build preserves the previous
+site, while a successful rebuild removes stale pages from the previous
+generation. The output may be nested inside the source bundle, in which case it
+is excluded from the portable source archive, but the output must not equal or
+contain the source bundle.
+
 `to json` serializes the normalized bundle model. It prints to stdout by
 default and writes to `--out <file>` when provided. `--plain` is not valid for
-JSON. See [JSON exporter](/features/exporters/json.md).
+JSON. File output is replaced atomically after the complete JSON document is
+ready. See [JSON exporter](/features/exporters/json.md).
 
 `to tar` requires `--out <file>`. It writes a gzip-compressed tar archive of the
 source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
@@ -144,6 +152,9 @@ heading chunk nodes, file-to-chunk containment edges, chunk reading-order
 edges, and chunk-level local-link edges. It prints to stdout by default and
 writes to `--out <file>` when provided. `--plain` is not valid for graph
 output. See [Graph exporter](/features/exporters/graph.md).
+
+When `--out` is used for JSON or graph output, a write failure does not expose
+a partially written machine-readable document at the destination path.
 
 Unknown targets and unknown flags exit with status `2`.
 

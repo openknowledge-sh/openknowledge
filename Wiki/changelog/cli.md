@@ -14,6 +14,32 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Transactional exporter publication
+
+* Changed default and plain HTML export to build complete sibling generations
+  and switch them into place only after all files succeed.
+* Removed stale pages and assets on successful rebuilds while preserving the
+  complete previous site on generation failure.
+* Rejected output directories that equal or contain the source bundle, and
+  excluded supported nested outputs from the default viewer's portable source
+  archive across repeated builds.
+* Atomically replaced AST, validation JSON, normalized JSON, and graph files
+  written through `--out` instead of truncating their destinations in place.
+* Added helper, boundary, stale-generation, failure-preservation, and nested
+  archive exclusion regressions.
+* Source anchors: `packages/cli/internal/okf/atomic_output.go`,
+  `packages/cli/internal/okf/html.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/ast_command.go`,
+  `packages/cli/internal/okf/atomic_output_test.go`,
+  `packages/cli/internal/okf/export_test.go`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/to.md`,
+  `Wiki/features/commands/ast.md`,
+  `Wiki/features/commands/validate.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Connectable portable export gate
 
 * Required zero validation errors before standalone tar, plain HTML, or default

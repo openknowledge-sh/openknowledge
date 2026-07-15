@@ -45,7 +45,7 @@ func runAST(args []string) int {
 	data = append(data, '\n')
 
 	if options.out != "" {
-		if err := os.WriteFile(options.out, data, 0644); err != nil {
+		if err := writeOutputFileAtomically(options.out, data); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}

@@ -120,6 +120,9 @@ Current rule names are:
 openknowledge validate --format json --out okf-report.json Wiki
 ```
 
+The destination is atomically replaced only after the complete report has been
+serialized, so a failed write does not leave a truncated validation report.
+
 The JSON report includes:
 
 * `schemaVersion`, currently `"1"`, for the CLI report contract

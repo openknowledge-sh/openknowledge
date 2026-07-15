@@ -139,7 +139,9 @@ that only need top-level scalar metadata. Invalid YAML is reported through
 `frontmatterDiagnostic` instead of being silently flattened.
 
 When `--out` is omitted, JSON is written to stdout. When `--out` is present,
-the command writes the JSON file and prints a short success summary.
+the command atomically replaces the JSON file after the complete document is
+ready, then prints a short success summary. A write failure therefore does not
+expose a partially written AST at the destination path.
 The v1 contract is described by `packages/cli/schemas/v1/ast.schema.json`.
 
 ## Use Cases
@@ -171,6 +173,11 @@ The command does not modify the knowledge base. The only write side effect is
 the file passed to `--out`.
 
 ## Command Change History
+
+### 2026-07-15 - Atomic file publication
+
+AST files written with `--out` are now atomically replaced after complete JSON
+serialization instead of being truncated in place.
 
 ### 2026-07-15 - Versioned AST contract
 

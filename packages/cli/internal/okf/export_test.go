@@ -76,6 +76,44 @@ func TestPlainHTMLRejectsInvalidBundleBeforeWriting(t *testing.T) {
 	}
 }
 
+func TestPlainHTMLReplacesWholeGeneration(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "old.md", "---\ntype: Note\n---\n\n# Old\n")
+	if _, err := WritePlainHTMLWithVersion(root, out, "0.1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, "old.md")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "new.md", "---\ntype: Note\n---\n\n# New\n")
+	if _, err := WritePlainHTMLWithVersion(root, out, "0.1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "new.html")); err != nil {
+		t.Fatalf("expected new plain generation page: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "old.html")); !os.IsNotExist(err) {
+		t.Fatalf("expected stale plain page to be removed, got %v", err)
+	}
+}
+
+func TestPlainHTMLRejectsOutputContainingSource(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "bundle")
+	writeFile(t, root, "index.md", "# Home\n")
+
+	for _, out := range []string{root, parent} {
+		if _, err := WritePlainHTMLWithVersion(root, out, "0.1"); err == nil || !strings.Contains(err.Error(), "must not contain the source bundle") {
+			t.Fatalf("expected unsafe output %s to be rejected, got %v", out, err)
+		}
+	}
+	if content, err := os.ReadFile(filepath.Join(root, "index.md")); err != nil || string(content) != "# Home\n" {
+		t.Fatalf("unsafe export must preserve the source bundle, content=%q err=%v", content, err)
+	}
+}
+
 func TestParseBundleTrimsMarkdownExtensionIDs(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "guide.markdown", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n")

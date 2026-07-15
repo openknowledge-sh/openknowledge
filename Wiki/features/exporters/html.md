@@ -48,6 +48,15 @@ selected spec; warnings remain allowed. Validation runs before output writes.
 The default viewer therefore emits `openknowledge.json` only when its portable
 archive satisfies the same validation gate enforced by remote `connect`.
 
+Each export is published as one complete generation. The exporter writes all
+pages, discovery files, manifest data, and assets into a temporary sibling
+directory, then replaces the previous output only after generation succeeds.
+This removes pages that disappeared or became unpublished between builds and
+preserves the complete previous site if rendering or asset generation fails.
+The output directory may be nested inside the source bundle and is then
+excluded from the downloadable source archive. The output may not equal or
+contain the source bundle because replacing it would also replace source data.
+
 Default viewer pages render YAML frontmatter as a typed, collapsible inspector
 that starts collapsed above the Markdown body. The browser-local `Show frontmatter`
 setting is enabled by default and controls inspector visibility for initial and
@@ -182,6 +191,19 @@ there through a configured stylesheet instead of changing generated HTML.
 
 ## Change History
 
+### 2026-07-15 - Transactional generation publishing
+
+Default and plain HTML exports now publish a complete directory generation,
+remove stale files on successful rebuilds, and preserve the prior generation
+when a build fails. Unsafe outputs that equal or contain the source bundle are
+rejected; nested output remains supported and is excluded from the public
+source archive. Source anchors: `packages/cli/internal/okf/atomic_output.go`,
+`packages/cli/internal/okf/html.go`,
+`packages/cli/cmd/openknowledge/viewer.go`,
+`packages/cli/internal/okf/atomic_output_test.go`,
+`packages/cli/internal/okf/export_test.go`, and
+`packages/cli/cmd/openknowledge/viewer_test.go`.
+
 ### 2026-07-15 - Connectable publication gate
 
 Default and plain HTML exports now reject bundles with validation errors before
@@ -199,6 +221,7 @@ publishable. Source anchors: `packages/cli/internal/okf/html.go`,
 
 > **Source anchors**
 >
+> * `packages/cli/internal/okf/atomic_output.go`
 > * `packages/cli/internal/okf/html.go`
 > * `packages/cli/internal/okf/markdown.go`
 > * `packages/cli/internal/okf/export_test.go`

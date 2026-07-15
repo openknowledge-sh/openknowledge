@@ -3305,13 +3305,20 @@ func printValidationJSONResult(result okf.Result, out string) error {
 		fmt.Print(string(data))
 		return nil
 	}
-	if err := os.WriteFile(out, data, 0644); err != nil {
+	if err := writeOutputFileAtomically(out, data); err != nil {
 		return err
 	}
 	terminal.success("Wrote validation report")
 	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
 	fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(out))
 	return nil
+}
+
+func writeOutputFileAtomically(path string, data []byte) error {
+	if err := atomic.WriteFile(path, bytes.NewReader(data)); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0644)
 }
 
 func printValidationResult(result okf.Result) {
@@ -3537,7 +3544,7 @@ func runToJSON(args []string) int {
 	data = append(data, '\n')
 
 	if options.out != "" {
-		if err := os.WriteFile(options.out, data, 0644); err != nil {
+		if err := writeOutputFileAtomically(options.out, data); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -3637,7 +3644,7 @@ func runToGraph(args []string) int {
 	data = append(data, '\n')
 
 	if options.out != "" {
-		if err := os.WriteFile(options.out, data, 0644); err != nil {
+		if err := writeOutputFileAtomically(options.out, data); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}

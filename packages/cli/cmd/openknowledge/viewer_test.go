@@ -881,6 +881,55 @@ func TestViewerHTMLExportRejectsInvalidBundleBeforeWriting(t *testing.T) {
 	}
 }
 
+func TestViewerHTMLExportReplacesWholeGeneration(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	writeViewerFile(t, root, "old.md", "---\ntype: Note\n---\n\n# Old\n")
+	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "old.html")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Remove(filepath.Join(root, "old.md")); err != nil {
+		t.Fatal(err)
+	}
+	writeViewerFile(t, root, "new.md", "---\ntype: Note\n---\n\n# New\n")
+	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "new.html")); err != nil {
+		t.Fatalf("expected new generation page: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "old.html")); !os.IsNotExist(err) {
+		t.Fatalf("expected stale page to be removed by generation swap, got %v", err)
+	}
+}
+
+func TestViewerHTMLExportInsideBundleExcludesPreviousOutputFromArchive(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(root, "site")
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err != nil {
+		t.Fatal(err)
+	}
+	writeViewerFile(t, out, "leak.txt", "must not enter the source archive\n")
+
+	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err != nil {
+		t.Fatal(err)
+	}
+	extracted := filepath.Join(t.TempDir(), "bundle")
+	archivePath := filepath.Join(out, filepath.FromSlash(okf.BundleArchiveRelPath))
+	if err := okf.ExtractBundleArchive(archivePath, extracted); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(extracted, "site")); !os.IsNotExist(err) {
+		t.Fatalf("expected previous nested output to be excluded from the source archive, got %v", err)
+	}
+}
+
 func TestViewerHTMLExportInjectsHeadHTMLWhenConfigured(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")

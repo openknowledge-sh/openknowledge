@@ -1455,6 +1455,23 @@ func writeViewerHTMLWithOptions(root string, out string, version string, options
 	if err := okf.RequireValidBundle(validation); err != nil {
 		return okf.HTMLResult{}, err
 	}
+	if err := okf.ValidateHTMLOutputBoundary(validation.Root, out); err != nil {
+		return okf.HTMLResult{}, err
+	}
+	var result okf.HTMLResult
+	absoluteOut, err := okf.WriteDirectoryAtomically(out, func(staging string) error {
+		var writeErr error
+		result, writeErr = writeViewerHTMLGeneration(root, staging, version, options, []string{out})
+		return writeErr
+	})
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	result.Out = absoluteOut
+	return result, nil
+}
+
+func writeViewerHTMLGeneration(root string, out string, version string, options viewerHTMLExportOptions, sourceExcludes []string) (okf.HTMLResult, error) {
 	bundle, err := okf.ParseBundleWithVersion(root, version)
 	if err != nil {
 		return okf.HTMLResult{}, err
@@ -1532,7 +1549,7 @@ func writeViewerHTMLWithOptions(root string, out string, version string, options
 	if themeAsset != "" {
 		written = append(written, themeAsset)
 	}
-	archiveResult, err := writeViewerExportBundleAssets(bundle.Root, absoluteOut, version)
+	archiveResult, err := writeViewerExportBundleAssets(bundle.Root, absoluteOut, version, sourceExcludes)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
@@ -1547,10 +1564,10 @@ func writeViewerHTMLWithOptions(root string, out string, version string, options
 	return okf.HTMLResult{Root: bundle.Root, Out: absoluteOut, Written: written}, nil
 }
 
-func writeViewerExportBundleAssets(root string, out string, version string) ([]string, error) {
+func writeViewerExportBundleAssets(root string, out string, version string, sourceExcludes []string) ([]string, error) {
 	archiveRel := okf.BundleArchiveRelPath
 	archivePath := filepath.Join(out, filepath.FromSlash(archiveRel))
-	archive, err := okf.WritePublishedBundleTarGzipWithVersion(root, archivePath, version, []string{out})
+	archive, err := okf.WritePublishedBundleTarGzipWithVersion(root, archivePath, version, append([]string{out}, sourceExcludes...))
 	if err != nil {
 		return nil, err
 	}

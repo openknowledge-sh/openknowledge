@@ -32,8 +32,21 @@ func writeHTMLWithVersion(root string, out string, version string, pageTemplate 
 	if err := RequireValidBundle(validation); err != nil {
 		return HTMLResult{}, err
 	}
+	if err := ValidateHTMLOutputBoundary(ast.Root, out); err != nil {
+		return HTMLResult{}, err
+	}
 
-	return WriteHTMLFromAST(ast, out, pageTemplate)
+	var result HTMLResult
+	absoluteOut, err := WriteDirectoryAtomically(out, func(staging string) error {
+		var writeErr error
+		result, writeErr = WriteHTMLFromAST(ast, staging, pageTemplate)
+		return writeErr
+	})
+	if err != nil {
+		return HTMLResult{}, err
+	}
+	result.Out = absoluteOut
+	return result, nil
 }
 
 func WriteHTMLFromAST(ast ASTBundle, out string, pageTemplate *template.Template) (HTMLResult, error) {
