@@ -26,6 +26,7 @@ pnpm test:cli
 pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
+pnpm check:workflow-permissions
 pnpm build:cli
 pnpm build:web
 pnpm dev:web
@@ -37,8 +38,10 @@ that the root, npm wrapper, web package, and Go CLI fallback versions match.
 `pnpm check:workflow-pins` rejects remote GitHub Actions that do not use a full
 immutable commit SHA. `pnpm check:workflow-secret-scope` rejects repository
 secrets outside an explicit consuming step and forbids blanket
-`secrets: inherit` forwarding. `pnpm test` runs all three checks before the CLI
-test suite, and `pnpm build` builds both the CLI and web package.
+`secrets: inherit` forwarding. `pnpm check:workflow-permissions` permits write
+capabilities only on reviewed publish jobs and locks the minimal GitHub release
+step set. `pnpm test` runs all workflow and version checks before the CLI test
+suite, and `pnpm build` builds both the CLI and web package.
 
 ## Continuous Integration
 
@@ -168,6 +171,14 @@ binary version, validates the Wiki, inspects the npm tarball, and requires npm
 publishing credentials. If the tag already exists, it must point at the
 workflow commit; otherwise the workflow fails without moving it.
 
+Release verification runs with repository-wide `contents: read`. Only after it
+succeeds does the three-step `publish_release` job receive `contents: write` to
+check out the exact verified commit, prepare its tag, and run GoReleaser. Setup
+actions, dependency installation, tests, builds, package inspection, and npm
+credential preflight never receive the write-capable GitHub token. The
+workflow permission checker rejects any new write capability or extra step in
+that privileged job until the policy is explicitly reviewed and updated.
+
 GoReleaser uploads the installer, checksums, license files, third-party
 notices, and platform archives to GitHub Releases. After that job succeeds, the
 workflow checks out the exact release tag and publishes
@@ -204,6 +215,7 @@ npm publish --provenance --access public
 > * `scripts/check-versions.mjs`
 > * `scripts/check-workflow-pins.mjs`
 > * `scripts/check-workflow-secret-scope.mjs`
+> * `scripts/check-workflow-permissions.mjs`
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`

@@ -426,6 +426,7 @@ pnpm test:cli
 pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
+pnpm check:workflow-permissions
 pnpm build:cli
 pnpm build:web
 pnpm dev:web

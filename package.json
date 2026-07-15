@@ -11,7 +11,8 @@
     "check:versions": "node scripts/check-versions.mjs",
     "check:workflow-pins": "node scripts/check-workflow-pins.mjs",
     "check:workflow-secret-scope": "node scripts/check-workflow-secret-scope.mjs",
-    "test": "pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm test:cli",
+    "check:workflow-permissions": "node scripts/check-workflow-permissions.mjs",
+    "test": "pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm test:cli",
     "build": "pnpm build:cli && pnpm build:web"
   }
 }

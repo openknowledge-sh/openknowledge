@@ -14,6 +14,24 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Isolated release write capability
+
+* Split release verification from GitHub publication: dependency setup, tests,
+  builds, Wiki validation, npm package inspection, and credential preflight now
+  run under the workflow's default read-only repository permission.
+* Added a minimal `publish_release` job that receives `contents: write` only
+  after verification and contains exactly checkout of the verified commit, tag
+  preparation, and GoReleaser publication.
+* Kept npm publication dependent on both verification and GitHub publication,
+  while sourcing version, tag, and dist-tag values from the read-only verifier.
+* Added `pnpm check:workflow-permissions` to reject unreviewed write scopes and
+  privileged release-step expansion; verified its negative path with an unsafe
+  write-capable job fixture.
+* Source anchors: `.github/workflows/release.yml`,
+  `scripts/check-workflow-permissions.mjs`, and `package.json`.
+* Docs updated: `README.md`, `Wiki/features/operations.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Step-scoped workflow secrets
 
 * Removed Railway credentials and configuration secrets from deploy job-level
