@@ -19,22 +19,23 @@ type Command struct {
 }
 
 type RunPlan struct {
-	RunID       string      `json:"run_id"`
-	JobID       string      `json:"job_id"`
-	JobFile     string      `json:"job_file"`
-	ScheduledAt time.Time   `json:"scheduled_at"`
-	Repo        string      `json:"repo"`
-	RepoRoot    string      `json:"repo_root"`
-	Base        string      `json:"base"`
-	BaseSHA     string      `json:"base_sha"`
-	Branch      string      `json:"branch"`
-	Worktree    string      `json:"worktree"`
-	RunDir      string      `json:"run_dir"`
-	Prompt      string      `json:"prompt"`
-	Agent       Command     `json:"agent"`
-	Verify      []Command   `json:"verify,omitempty"`
-	Sandbox     SandboxSpec `json:"sandbox"`
-	Output      OutputSpec  `json:"output,omitempty"`
+	RunID         string      `json:"run_id"`
+	JobID         string      `json:"job_id"`
+	JobFile       string      `json:"job_file"`
+	ScheduledAt   time.Time   `json:"scheduled_at"`
+	Repo          string      `json:"repo"`
+	RepoRoot      string      `json:"repo_root"`
+	Base          string      `json:"base"`
+	BaseSHA       string      `json:"base_sha"`
+	Branch        string      `json:"branch"`
+	Worktree      string      `json:"worktree"`
+	RunDir        string      `json:"run_dir"`
+	Prompt        string      `json:"prompt"`
+	Agent         Command     `json:"agent"`
+	Verify        []Command   `json:"verify,omitempty"`
+	VerifyTimeout string      `json:"verify_timeout"`
+	Sandbox       SandboxSpec `json:"sandbox"`
+	Output        OutputSpec  `json:"output,omitempty"`
 }
 
 const AgentsStateDirEnv = "OPENKNOWLEDGE_AGENTS_STATE_DIR"
@@ -116,25 +117,30 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	for _, command := range job.Verify.Commands {
 		verify = append(verify, Command{Command: command, Shell: true})
 	}
+	verifyTimeout := job.Verify.Timeout
+	if verifyTimeout == "" {
+		verifyTimeout = "15m"
+	}
 
 	prompt := renderTemplate(job.Prompt, values)
 	return RunPlan{
-		RunID:       runID,
-		JobID:       job.ID,
-		JobFile:     job.Path,
-		ScheduledAt: scheduledAt,
-		Repo:        absoluteRepo,
-		RepoRoot:    repoRoot,
-		Base:        base,
-		BaseSHA:     baseSHA,
-		Branch:      branch,
-		Worktree:    worktree,
-		RunDir:      runDir,
-		Prompt:      prompt,
-		Agent:       Command{Command: job.Agent.Command, Args: append([]string(nil), job.Agent.Args...)},
-		Verify:      verify,
-		Sandbox:     sandbox,
-		Output:      job.Output,
+		RunID:         runID,
+		JobID:         job.ID,
+		JobFile:       job.Path,
+		ScheduledAt:   scheduledAt,
+		Repo:          absoluteRepo,
+		RepoRoot:      repoRoot,
+		Base:          base,
+		BaseSHA:       baseSHA,
+		Branch:        branch,
+		Worktree:      worktree,
+		RunDir:        runDir,
+		Prompt:        prompt,
+		Agent:         Command{Command: job.Agent.Command, Args: append([]string(nil), job.Agent.Args...)},
+		Verify:        verify,
+		VerifyTimeout: verifyTimeout,
+		Sandbox:       sandbox,
+		Output:        job.Output,
 	}, nil
 }
 

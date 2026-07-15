@@ -102,6 +102,7 @@ verify:
   commands:
     - go test ./...
     - openknowledge validate Wiki
+  timeout: 15m
 output:
   commit: false
 ---
@@ -139,6 +140,7 @@ Supported top-level fields:
 | `sandbox.network` | Docker network mode: `none` or `bridge`. Defaults to `none`; use `bridge` to opt into network access. |
 | `sandbox.env` | Environment variable names to inherit explicitly from the runner. Values are never stored in the job or run plan. |
 | `verify.commands` | Shell commands run after the agent command in the same worktree. |
+| `verify.timeout` | Positive timeout applied separately to each verification command. Defaults to `15m`. |
 | `output.commit` | When true, commits worktree changes after verification. |
 | `output.pr` | Reserved; currently rejected by validation. |
 
@@ -228,6 +230,13 @@ case-insensitive duplicates are rejected.
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
 exits. Without `--once`, the daemon polls using `--tick`, defaulting to `1m`.
 
+The agent command defaults to a `30m` timeout unless `agent.timeout` is set.
+Every verification command has its own `verify.timeout`, defaulting to `15m`.
+Timeouts are reported distinctly from ordinary nonzero exits. Cancellation
+terminates the host process tree rather than only its immediate shell (Unix
+process groups and Windows tree termination), with a bounded wait fallback, so
+background children cannot keep a daemon run alive indefinitely.
+
 `new`, `list`, `validate`, `run`, and `daemon` each provide dedicated help.
 For example, `openknowledge agents run --help` prints run-specific flags and
 usage instead of the command-group overview.
@@ -240,6 +249,23 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Bounded agent process trees
+
+Added positive per-command `verify.timeout` with a `15m` default and distinct
+timeout reporting for both agent and verification commands. Host cancellation
+now terminates process groups/trees and uses a bounded wait, preventing shell
+descendants from surviving a timed-out daemon job. Source anchors:
+`packages/cli/internal/agents/spec.go`,
+`packages/cli/internal/agents/frontmatter_schema.go`,
+`packages/cli/internal/agents/plan.go`,
+`packages/cli/internal/agents/runner.go`,
+`packages/cli/internal/agents/process_group_unix.go`,
+`packages/cli/internal/agents/process_group_windows.go`,
+`packages/cli/internal/agents/process_group_other.go`,
+`packages/cli/internal/agents/process_group_unix_test.go`,
+`packages/cli/internal/agents/spec_test.go`, and
+`packages/cli/cmd/openknowledge/agents_command_test.go`.
 
 ### 2026-07-15 - Strict executable job schema
 

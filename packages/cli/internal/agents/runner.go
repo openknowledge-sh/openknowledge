@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -134,9 +135,13 @@ func RunJob(job Job, options RunOptions) (RunRecord, error) {
 	}
 	agentCtx, cancel := context.WithTimeout(context.Background(), agentTimeout)
 	record.Agent = runPlanCommand(agentCtx, plan, plan.Agent, "agent", plan.Prompt)
+	agentTimedOut := errors.Is(agentCtx.Err(), context.DeadlineExceeded)
 	cancel()
 	if err := writeRunRecord(plan.RunDir, record); err != nil {
 		return record, err
+	}
+	if agentTimedOut {
+		return finish("failed", fmt.Errorf("agent command timed out after %s", agentTimeout))
 	}
 	if record.Agent.ExitCode != 0 {
 		return finish("failed", fmt.Errorf("agent command exited with %d", record.Agent.ExitCode))
@@ -145,11 +150,21 @@ func RunJob(job Job, options RunOptions) (RunRecord, error) {
 		return finish("failed", fmt.Errorf("agent output did not contain completion signal %q", signal))
 	}
 
+	verifyTimeout, err := time.ParseDuration(plan.VerifyTimeout)
+	if err != nil || verifyTimeout <= 0 {
+		return finish("failed", fmt.Errorf("invalid verification timeout %q", plan.VerifyTimeout))
+	}
 	for index, command := range plan.Verify {
-		result := runPlanCommand(context.Background(), plan, command, fmt.Sprintf("verify-%02d", index+1), "")
+		verifyCtx, cancel := context.WithTimeout(context.Background(), verifyTimeout)
+		result := runPlanCommand(verifyCtx, plan, command, fmt.Sprintf("verify-%02d", index+1), "")
+		verifyTimedOut := errors.Is(verifyCtx.Err(), context.DeadlineExceeded)
+		cancel()
 		record.Verify = append(record.Verify, result)
 		if err := writeRunRecord(plan.RunDir, record); err != nil {
 			return record, err
+		}
+		if verifyTimedOut {
+			return finish("verification_failed", fmt.Errorf("verification command %q timed out after %s", command.Command, verifyTimeout))
 		}
 		if result.ExitCode != 0 {
 			return finish("verification_failed", fmt.Errorf("verification command %q exited with %d", command.Command, result.ExitCode))
@@ -253,6 +268,7 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 	defer stderrFile.Close()
 
 	execCommand := commandForPlan(ctx, plan, command)
+	configureCommandCancellation(execCommand)
 	execCommand.Stdin = strings.NewReader(stdin)
 	execCommand.Stdout = stdoutFile
 	execCommand.Stderr = stderrFile

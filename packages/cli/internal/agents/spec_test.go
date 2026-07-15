@@ -18,7 +18,7 @@ schedule: {every: 24h, timezone: Europe/Prague}
 agent:
   command: codex
   args: [exec, --model, gpt-5]
-verify: {commands: ["go test ./...", "openknowledge validate Wiki"]}
+verify: {commands: ["go test ./...", "openknowledge validate Wiki"], timeout: 10m}
 output: {commit: true}
 ---
 
@@ -38,7 +38,7 @@ Review the docs.
 	if !reflect.DeepEqual(job.Agent.Args, []string{"exec", "--model", "gpt-5"}) || !reflect.DeepEqual(job.Verify.Commands, []string{"go test ./...", "openknowledge validate Wiki"}) {
 		t.Fatalf("unexpected flow collections: %#v", job)
 	}
-	if !job.Output.Commit || job.Prompt != "\nReview the docs.\n" {
+	if !job.Output.Commit || job.Verify.Timeout != "10m" || job.Prompt != "\nReview the docs.\n" {
 		t.Fatalf("unexpected output or prompt: %#v", job)
 	}
 }
@@ -116,6 +116,11 @@ func TestParseJobFileEnforcesStrictFrontmatterSchema(t *testing.T) {
 			name:     "timezone without schedule",
 			content:  "---\nid: strict\nschedule: {timezone: UTC}\nagent: {command: agent}\n---\nPrompt.\n",
 			expected: "schedule.timezone: requires schedule.cron or schedule.every",
+		},
+		{
+			name:     "non-positive verification timeout",
+			content:  "---\nid: strict\nagent: {command: agent}\nverify: {commands: [], timeout: 0s}\n---\nPrompt.\n",
+			expected: "verify.timeout: must be positive",
 		},
 	}
 

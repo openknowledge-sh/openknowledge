@@ -14,6 +14,32 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Bounded agent process trees
+
+* Added `verify.timeout` as a positive duration applied independently to each
+  verification command, with a resolved default of `15m` in every run plan.
+* Reported main-agent and verification timeouts distinctly from normal nonzero
+  command exits.
+* Replaced immediate-process-only cancellation with Unix process-group and
+  Windows process-tree termination plus a bounded wait fallback, preventing
+  background shell children from outliving timed-out jobs.
+* Added schema, positive-duration, fast end-to-end verification timeout, and
+  live descendant-process cleanup regressions.
+* Cross-compiled the cancellation layer for Linux and Windows in addition to
+  running the native macOS test suite.
+* Source anchors: `packages/cli/internal/agents/spec.go`,
+  `packages/cli/internal/agents/frontmatter_schema.go`,
+  `packages/cli/internal/agents/plan.go`,
+  `packages/cli/internal/agents/runner.go`,
+  `packages/cli/internal/agents/process_group_unix.go`,
+  `packages/cli/internal/agents/process_group_windows.go`,
+  `packages/cli/internal/agents/process_group_other.go`,
+  `packages/cli/internal/agents/process_group_unix_test.go`,
+  `packages/cli/internal/agents/spec_test.go`, and
+  `packages/cli/cmd/openknowledge/agents_command_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Strict agent job schema
 
 * Added an explicit recursive schema for every supported agent-job top-level

@@ -55,6 +55,7 @@ type SandboxSpec struct {
 
 type VerifySpec struct {
 	Commands []string `json:"commands,omitempty"`
+	Timeout  string   `json:"timeout,omitempty"`
 }
 
 type OutputSpec struct {
@@ -203,6 +204,13 @@ func ValidateJob(job Job) error {
 			add("schedule.timezone", "is not a valid IANA time zone")
 		}
 	}
+	if job.Verify.Timeout != "" {
+		if duration, err := time.ParseDuration(job.Verify.Timeout); err != nil {
+			add("verify.timeout", "must be a Go duration such as 10m or 30m")
+		} else if duration <= 0 {
+			add("verify.timeout", "must be positive")
+		}
+	}
 	switch job.Workspace.Strategy {
 	case "", "branch":
 	default:
@@ -323,6 +331,7 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 	}
 	if verify := getMap(data, "verify"); verify != nil {
 		job.Verify.Commands = getStringSlice(verify, "commands")
+		job.Verify.Timeout = getString(verify, "timeout")
 	}
 	if output := getMap(data, "output"); output != nil {
 		if commit, ok := getBool(output, "commit"); ok {

@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 )
@@ -309,6 +310,37 @@ Plan safely.
 	}
 	if _, err := os.Stat(filepath.Join(root, ".agent-runtime")); !os.IsNotExist(err) {
 		t.Fatalf("refused state directory must not be created, got %v", err)
+	}
+}
+
+func TestAgentsVerificationTimeoutFailsRunPromptly(t *testing.T) {
+	root := newAgentTestRepo(t)
+	jobPath := writeAgentJob(t, root, `---
+id: verify-timeout
+agent:
+  command: go
+  args: [version]
+verify:
+  commands: ["sleep 5"]
+  timeout: 50ms
+workspace:
+  repo: "."
+---
+
+Run bounded verification.
+`)
+	runGit(t, root, "add", ".")
+	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "add timeout job")
+
+	started := time.Now()
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runAgents([]string{"run", jobPath, "--at", "2026-07-07T09:00:00Z"})
+	})
+	if code != 1 || !strings.Contains(stderr, `verification command "sleep 5" timed out after 50ms`) {
+		t.Fatalf("expected verification timeout, code=%d stderr=%s", code, stderr)
+	}
+	if elapsed := time.Since(started); elapsed >= 3*time.Second {
+		t.Fatalf("verification timeout did not stop promptly: %s", elapsed)
 	}
 }
 

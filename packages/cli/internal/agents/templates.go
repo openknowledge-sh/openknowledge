@@ -259,6 +259,7 @@ Field reference:
 - sandbox.network: none or bridge. Docker defaults to none; bridge is an explicit network opt-in.
 - sandbox.env: Environment variable names to inherit explicitly. Values stay outside the job and run plan.
 - verify.commands: Shell commands run after the agent command in the worktree.
+- verify.timeout: Positive timeout applied to each verification command. Defaults to 15m.
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.
 - output.pr: Reserved for future server or GitHub integration and currently rejected.
