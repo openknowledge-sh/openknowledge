@@ -1721,6 +1721,36 @@ func TestFetchBundleManifestSurfacesServerErrors(t *testing.T) {
 	}
 }
 
+func TestDownloadRemoteFileEnforcesByteLimitAndCleansPartialFile(t *testing.T) {
+	tests := []struct {
+		name          string
+		contentLength int64
+	}{
+		{name: "declared length", contentLength: 6},
+		{name: "streamed length", contentLength: -1},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			originalHTTPClient := remoteHTTPClient
+			remoteHTTPClient = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				response := testHTTPResponse(http.StatusOK, "application/octet-stream", []byte("123456"), request)
+				response.ContentLength = test.contentLength
+				return response, nil
+			})}
+			defer func() { remoteHTTPClient = originalHTTPClient }()
+
+			target := filepath.Join(t.TempDir(), "download")
+			if _, err := downloadRemoteFile("https://example.test/bundle", target, 5); err == nil || !strings.Contains(err.Error(), "maximum size of 5 bytes") {
+				t.Fatalf("expected bounded download error, got %v", err)
+			}
+			if _, err := os.Stat(target); !os.IsNotExist(err) {
+				t.Fatalf("bounded download must not leave partial target, stat error: %v", err)
+			}
+		})
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (roundTrip roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
@@ -1729,11 +1759,12 @@ func (roundTrip roundTripFunc) RoundTrip(request *http.Request) (*http.Response,
 
 func testHTTPResponse(statusCode int, contentType string, body []byte, request *http.Request) *http.Response {
 	return &http.Response{
-		StatusCode: statusCode,
-		Status:     fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
-		Header:     http.Header{"Content-Type": []string{contentType}},
-		Body:       io.NopCloser(bytes.NewReader(body)),
-		Request:    request,
+		StatusCode:    statusCode,
+		Status:        fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
+		Header:        http.Header{"Content-Type": []string{contentType}},
+		Body:          io.NopCloser(bytes.NewReader(body)),
+		ContentLength: int64(len(body)),
+		Request:       request,
 	}
 }
 

@@ -40,7 +40,22 @@ rejects a conflicting root `okf_version`, then stores the materialized bundle
 in the Open Knowledge cache. A portable manifest cannot use the moving
 `latest` spec alias.
 
+Archive consumers cap compressed downloads at 512 MiB and extraction at
+100,000 entries, 256 MiB per regular file, and 2 GiB total. Extraction uses a
+sibling staging directory; the requested target appears only after the full
+archive succeeds, and an existing target is never overlaid.
+
 ## Change History
+
+### 2026-07-15 - Bounded atomic extraction
+
+Archive download and extraction now have explicit compressed, entry, file, and
+expanded-size ceilings. Failed extraction removes its staging directory and
+does not publish or overwrite a target. Source anchors:
+`packages/cli/internal/okf/archive.go`,
+`packages/cli/internal/okf/archive_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Strict manifest integrity
 

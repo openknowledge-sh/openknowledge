@@ -1111,7 +1111,7 @@ func materializeArchiveSource(source string, target string, expectedSHA256 strin
 	defer os.RemoveAll(tempDir)
 
 	archivePath := filepath.Join(tempDir, "bundle.tar.gz")
-	download, err := downloadRemoteFile(source, archivePath)
+	download, err := downloadRemoteFile(source, archivePath, okf.MaxBundleArchiveBytes)
 	if err != nil {
 		return "", err
 	}
@@ -1160,7 +1160,7 @@ func tryMaterializeDirectArchive(source string, target string) (string, bool, er
 	defer os.RemoveAll(tempDir)
 
 	archivePath := filepath.Join(tempDir, "probe")
-	download, err := downloadRemoteFile(source, archivePath)
+	download, err := downloadRemoteFile(source, archivePath, okf.MaxBundleArchiveBytes)
 	if err != nil {
 		return "", false, nil
 	}
@@ -1237,7 +1237,7 @@ func fetchBundleManifest(source string) (okf.BundleManifest, string, bool, error
 	}
 	defer os.RemoveAll(tempDir)
 	manifestPath := filepath.Join(tempDir, "openknowledge.json")
-	download, err := downloadRemoteFile(source, manifestPath)
+	download, err := downloadRemoteFile(source, manifestPath, okf.MaxBundleManifestBytes)
 	if err != nil {
 		var statusError *remoteHTTPStatusError
 		if os.IsNotExist(err) || (errors.As(err, &statusError) && statusError.StatusCode == http.StatusNotFound) {
@@ -1259,7 +1259,10 @@ func fetchBundleManifest(source string) (okf.BundleManifest, string, bool, error
 	return manifest, download.FinalURL, true, nil
 }
 
-func downloadRemoteFile(source string, target string) (remoteDownload, error) {
+func downloadRemoteFile(source string, target string, maxBytes int64) (remoteDownload, error) {
+	if maxBytes <= 0 {
+		return remoteDownload{}, fmt.Errorf("download byte limit must be positive")
+	}
 	parsed, err := url.Parse(source)
 	if err != nil {
 		return remoteDownload{}, err
@@ -1269,8 +1272,13 @@ func downloadRemoteFile(source string, target string) (remoteDownload, error) {
 		if err != nil {
 			return remoteDownload{}, err
 		}
-		if err := copyFile(inputPath, target); err != nil {
+		input, err := os.Open(inputPath)
+		if err != nil {
 			return remoteDownload{}, err
+		}
+		defer input.Close()
+		if err := writeLimitedDownload(input, target, maxBytes); err != nil {
+			return remoteDownload{}, fmt.Errorf("download %s: %w", source, err)
 		}
 		return remoteDownload{FinalURL: source}, nil
 	}
@@ -1285,19 +1293,11 @@ func downloadRemoteFile(source string, target string) (remoteDownload, error) {
 	if response.StatusCode < 200 || response.StatusCode > 299 {
 		return remoteDownload{}, &remoteHTTPStatusError{URL: source, Status: response.Status, StatusCode: response.StatusCode}
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-		return remoteDownload{}, err
+	if response.ContentLength > maxBytes {
+		return remoteDownload{}, fmt.Errorf("download %s exceeds maximum size of %d bytes", source, maxBytes)
 	}
-	output, err := os.Create(target)
-	if err != nil {
-		return remoteDownload{}, err
-	}
-	if _, err := io.Copy(output, response.Body); err != nil {
-		_ = output.Close()
-		return remoteDownload{}, err
-	}
-	if err := output.Close(); err != nil {
-		return remoteDownload{}, err
+	if err := writeLimitedDownload(response.Body, target, maxBytes); err != nil {
+		return remoteDownload{}, fmt.Errorf("download %s: %w", source, err)
 	}
 	return remoteDownload{
 		ContentType: response.Header.Get("Content-Type"),
@@ -1305,12 +1305,7 @@ func downloadRemoteFile(source string, target string) (remoteDownload, error) {
 	}, nil
 }
 
-func copyFile(source string, target string) error {
-	input, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
+func writeLimitedDownload(input io.Reader, target string, maxBytes int64) (resultErr error) {
 	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 		return err
 	}
@@ -1318,9 +1313,19 @@ func copyFile(source string, target string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(output, input); err != nil {
+	defer func() {
+		if resultErr != nil {
+			_ = os.Remove(target)
+		}
+	}()
+	written, err := io.Copy(output, io.LimitReader(input, maxBytes+1))
+	if err != nil {
 		_ = output.Close()
 		return err
+	}
+	if written > maxBytes {
+		_ = output.Close()
+		return fmt.Errorf("content exceeds maximum size of %d bytes", maxBytes)
 	}
 	return output.Close()
 }

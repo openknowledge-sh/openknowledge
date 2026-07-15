@@ -14,6 +14,24 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Bounded atomic remote archives
+
+* Limited remote manifests to 1 MiB and compressed archive downloads to 512
+  MiB, rejecting both declared and streaming overflows without partial files.
+* Limited tar extraction to 100,000 entries, 256 MiB per regular file, and 2
+  GiB total expanded content in addition to existing traversal and entry-type
+  checks.
+* Changed extraction to a sibling staging transaction so failures leave no
+  partial target and existing targets are refused instead of overlaid.
+* Added regressions for content-length and streaming download overflow, every
+  extraction limit, staging cleanup, and existing-target preservation.
+* Source anchors: `packages/cli/internal/okf/archive.go`,
+  `packages/cli/internal/okf/archive_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `Wiki/features/commands/connect.md`,
+  `Wiki/features/exporters/tar.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Enforced remote manifest integrity
 
 * Replaced the duplicate remote manifest shape with the shared archive

@@ -22,6 +22,21 @@ const BundleArchiveFormat = "tar.gz"
 const BundleManifestType = "openknowledge.bundle"
 const BundleManifestVersion = 1
 
+const MaxBundleManifestBytes int64 = 1 << 20
+const MaxBundleArchiveBytes int64 = 512 << 20
+
+var DefaultArchiveExtractionLimits = ArchiveExtractionLimits{
+	MaxEntries:        100_000,
+	MaxFileBytes:      256 << 20,
+	MaxExtractedBytes: 2 << 30,
+}
+
+type ArchiveExtractionLimits struct {
+	MaxEntries        int
+	MaxFileBytes      int64
+	MaxExtractedBytes int64
+}
+
 type BundleArchiveResult struct {
 	Root   string
 	Out    string
@@ -192,14 +207,47 @@ func BundleManifestForArchive(root string, version string, archiveRel string, ar
 }
 
 func ExtractBundleArchive(archivePath string, target string) error {
+	return ExtractBundleArchiveWithLimits(archivePath, target, DefaultArchiveExtractionLimits)
+}
+
+func ExtractBundleArchiveWithLimits(archivePath string, target string, limits ArchiveExtractionLimits) error {
+	limits = normalizedArchiveExtractionLimits(limits)
 	absoluteTarget, err := filepath.Abs(target)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(absoluteTarget, 0755); err != nil {
+	if _, err := os.Lstat(absoluteTarget); err == nil {
+		return fmt.Errorf("archive extraction target already exists: %s", absoluteTarget)
+	} else if !os.IsNotExist(err) {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(absoluteTarget), 0755); err != nil {
+		return err
+	}
+	staging, err := os.MkdirTemp(filepath.Dir(absoluteTarget), ".openknowledge-extract-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(staging)
 
+	if err := extractBundleArchiveInto(archivePath, staging, limits); err != nil {
+		return err
+	}
+	if err := os.Chmod(staging, 0755); err != nil {
+		return err
+	}
+	if _, err := os.Lstat(absoluteTarget); err == nil {
+		return fmt.Errorf("archive extraction target already exists: %s", absoluteTarget)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Rename(staging, absoluteTarget); err != nil {
+		return err
+	}
+	return nil
+}
+
+func extractBundleArchiveInto(archivePath string, absoluteTarget string, limits ArchiveExtractionLimits) error {
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return err
@@ -214,6 +262,8 @@ func ExtractBundleArchive(archivePath string, target string) error {
 		defer closeReader.Close()
 	}
 
+	entries := 0
+	var extractedBytes int64
 	for {
 		header, err := reader.Next()
 		if err == io.EOF {
@@ -221,6 +271,10 @@ func ExtractBundleArchive(archivePath string, target string) error {
 		}
 		if err != nil {
 			return err
+		}
+		entries++
+		if entries > limits.MaxEntries {
+			return fmt.Errorf("archive exceeds maximum entry count of %d", limits.MaxEntries)
 		}
 		name, err := safeArchiveName(header.Name)
 		if err != nil {
@@ -237,6 +291,15 @@ func ExtractBundleArchive(archivePath string, target string) error {
 				return err
 			}
 		case tar.TypeReg, tar.TypeRegA:
+			if header.Size < 0 {
+				return fmt.Errorf("archive entry has invalid size for %s", header.Name)
+			}
+			if header.Size > limits.MaxFileBytes {
+				return fmt.Errorf("archive entry %s exceeds maximum file size of %d bytes", header.Name, limits.MaxFileBytes)
+			}
+			if header.Size > limits.MaxExtractedBytes-extractedBytes {
+				return fmt.Errorf("archive exceeds maximum extracted size of %d bytes", limits.MaxExtractedBytes)
+			}
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 				return err
 			}
@@ -244,17 +307,36 @@ func ExtractBundleArchive(archivePath string, target string) error {
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(out, reader); err != nil {
+			written, err := io.Copy(out, reader)
+			if err != nil {
 				_ = out.Close()
 				return err
+			}
+			if written != header.Size {
+				_ = out.Close()
+				return fmt.Errorf("archive entry %s size mismatch: expected %d bytes, wrote %d", header.Name, header.Size, written)
 			}
 			if err := out.Close(); err != nil {
 				return err
 			}
+			extractedBytes += written
 		default:
 			return fmt.Errorf("unsupported archive entry type for %s", header.Name)
 		}
 	}
+}
+
+func normalizedArchiveExtractionLimits(limits ArchiveExtractionLimits) ArchiveExtractionLimits {
+	if limits.MaxEntries <= 0 {
+		limits.MaxEntries = DefaultArchiveExtractionLimits.MaxEntries
+	}
+	if limits.MaxFileBytes <= 0 {
+		limits.MaxFileBytes = DefaultArchiveExtractionLimits.MaxFileBytes
+	}
+	if limits.MaxExtractedBytes <= 0 {
+		limits.MaxExtractedBytes = DefaultArchiveExtractionLimits.MaxExtractedBytes
+	}
+	return limits
 }
 
 func SHA256File(path string) (string, error) {

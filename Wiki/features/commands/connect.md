@@ -68,6 +68,13 @@ validated against the concrete declared spec before registration. When their
 root declares `okf_version`, it must match the manifest spec. Relative archive
 URLs are resolved from the manifest's final URL after HTTP redirects.
 
+Remote manifest and archive processing has finite resource ceilings: manifests
+are limited to 1 MiB, compressed archives to 512 MiB, and extraction to 100,000
+entries, 256 MiB per regular file, and 2 GiB total. Extraction occurs in a
+sibling staging directory and publishes the target only after every entry and
+bundle check succeeds; rejected archives leave no partial target. These byte
+limits do not apply to the separate shallow Git clone fallback.
+
 `connect` uses root metadata when present: `okf_bundle_name` can provide the
 default key, `okf_bundle_title` and `okf_bundle_purpose` appear in success
 output, and `okf_bundle_entry_<name>` values are listed as entrypoints. Missing
@@ -120,6 +127,17 @@ freshness for an existing cache entry. See [registry](registry.md) for storage
 details.
 
 ## Command Change History
+
+### 2026-07-15 - Bounded atomic archive materialization
+
+Manifest and archive downloads now enforce byte ceilings, tar extraction
+enforces entry, per-file, and total expanded-size ceilings, and successful
+extraction is published atomically from staging. Oversized or malformed inputs
+leave no partial download or extraction target. Source anchors:
+`packages/cli/internal/okf/archive.go`,
+`packages/cli/internal/okf/archive_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Enforced remote manifest contract
 
