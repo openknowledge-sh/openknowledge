@@ -6,6 +6,19 @@ version="${OPENKNOWLEDGE_VERSION:-latest}"
 base_url="${OPENKNOWLEDGE_BASE_URL:-}"
 install_dir="${OPENKNOWLEDGE_INSTALL_DIR:-$HOME/.local/bin}"
 binary="openknowledge"
+tmp=""
+staging=""
+
+cleanup() {
+  if [ -n "$staging" ]; then
+    rm -f -- "$staging"
+  fi
+  if [ -n "$tmp" ]; then
+    rm -rf -- "$tmp"
+  fi
+}
+
+trap cleanup EXIT
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -57,6 +70,10 @@ checksum_line() {
 
   while read -r sum file extra; do
     if [ "$file" = "$asset" ] && [ -z "${extra:-}" ]; then
+      if ! [[ "$sum" =~ ^[0-9a-fA-F]{64}$ ]]; then
+        echo "openknowledge install: invalid checksum for $asset" >&2
+        return 1
+      fi
       printf '%s  %s\n' "$sum" "$file"
       return 0
     fi
@@ -92,33 +109,71 @@ verify_checksum() {
 
 need curl
 need tar
+need install
+
+if [ "$version" != "latest" ] && ! [[ "${version#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+  echo "openknowledge install: version must be latest or a semantic version" >&2
+  exit 1
+fi
+if [ -z "$base_url" ] && ! [[ "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+  echo "openknowledge install: repository must use owner/name" >&2
+  exit 1
+fi
 
 os="$(detect_os)"
 arch="$(detect_arch)"
 base="$(release_base)"
 asset="openknowledge_${os}_${arch}.tar.gz"
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
 
 archive="$tmp/$asset"
 checksums="$tmp/checksums.txt"
 
 echo "Installing openknowledge from $base"
-curl -fsSL "$base/$asset" -o "$archive"
-curl -fsSL "$base/checksums.txt" -o "$checksums"
+curl_options=(--fail --silent --show-error --location --connect-timeout 15 --max-time 600 --retry 3)
+if [ -z "$base_url" ]; then
+  curl_options+=(--proto '=https' --tlsv1.2)
+fi
+curl "${curl_options[@]}" "$base/$asset" -o "$archive"
+curl "${curl_options[@]}" "$base/checksums.txt" -o "$checksums"
 verify_checksum "$checksums" "$archive" "$asset"
 
-tar -xzf "$archive" -C "$tmp"
-
-if [ ! -f "$tmp/$binary" ]; then
+candidate="$tmp/$binary.candidate"
+if ! tar -xOzf "$archive" "$binary" > "$candidate"; then
   echo "openknowledge install: archive did not contain $binary" >&2
+  exit 1
+fi
+if [ ! -s "$candidate" ]; then
+  echo "openknowledge install: extracted $binary is empty" >&2
   exit 1
 fi
 
 mkdir -p "$install_dir"
-install -m 0755 "$tmp/$binary" "$install_dir/$binary"
+destination="$install_dir/$binary"
+if { [ -e "$destination" ] || [ -L "$destination" ]; } && [ ! -f "$destination" ] && [ ! -L "$destination" ]; then
+  echo "openknowledge install: destination is not a regular file: $destination" >&2
+  exit 1
+fi
+staging="$(mktemp "$install_dir/.openknowledge.install.XXXXXX")"
+install -m 0755 "$candidate" "$staging"
 
-echo "Installed $("$install_dir/$binary" version) to $install_dir/$binary"
+if ! candidate_version="$("$staging" version)"; then
+  echo "openknowledge install: downloaded binary failed its version preflight" >&2
+  exit 1
+fi
+if ! [[ "$candidate_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+  echo "openknowledge install: downloaded binary reported an invalid version: $candidate_version" >&2
+  exit 1
+fi
+if [ "$version" != "latest" ] && [ "$candidate_version" != "${version#v}" ]; then
+  echo "openknowledge install: downloaded binary is $candidate_version, expected ${version#v}" >&2
+  exit 1
+fi
+
+mv -f -- "$staging" "$destination"
+staging=""
+
+echo "Installed $candidate_version to $destination"
 
 case ":$PATH:" in
   *":$install_dir:"*) ;;

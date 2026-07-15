@@ -23,6 +23,7 @@ packages/web  - static HTML/CSS site
 
 ```sh
 pnpm test:cli
+pnpm test:install
 pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
@@ -41,7 +42,8 @@ secrets outside an explicit consuming step and forbids blanket
 `secrets: inherit` forwarding. `pnpm check:workflow-permissions` permits write
 capabilities only on reviewed publish jobs and locks the minimal GitHub release
 step set. `pnpm test` runs all workflow and version checks before the CLI test
-suite, and `pnpm build` builds both the CLI and web package.
+suite, including transactional shell-installer fixtures, and `pnpm build`
+builds both the CLI and web package.
 
 ## Continuous Integration
 
@@ -234,6 +236,7 @@ npm publish --provenance --access public
 > * `scripts/check-workflow-pins.mjs`
 > * `scripts/check-workflow-secret-scope.mjs`
 > * `scripts/check-workflow-permissions.mjs`
+> * `scripts/test-install.sh`
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`

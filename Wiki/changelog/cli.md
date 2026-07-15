@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Transactional shell installation
+
+* Replaced full tar extraction with stdout extraction of only the named
+  `openknowledge` member after checksum verification, eliminating archive path
+  writes during installation.
+* Validated requested versions and checksum syntax, added bounded download
+  connection/runtime retries, and required HTTPS with TLS 1.2 for default
+  GitHub release traffic while preserving explicit local base-URL testing.
+* Staged the candidate in the destination filesystem, executed its version
+  preflight there for `noexec` temporary-directory compatibility, required a
+  semantic and exact requested version, and atomically renamed it only after
+  all checks passed.
+* Preserved existing binaries across checksum, archive, execution, version, and
+  destination failures; rejected non-file destinations and cleaned staging on
+  every exit path.
+* Added `pnpm test:install` coverage for success, mismatch/failure preservation,
+  missing members, destination types, and cleanup, then wired it into the root
+  test gate.
+* Source anchors: `install`, `scripts/test-install.sh`, and `package.json`.
+* Docs updated: `README.md`, `Wiki/features/installation.md`,
+  `Wiki/features/operations.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Default-branch-only release dispatch
 
 * Added an early release preflight that accepts only the repository default

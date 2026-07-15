@@ -40,6 +40,32 @@ the matching tarball plus `checksums.txt`, verifies the archive checksum, and
 installs the `openknowledge` binary. The npm installer also supports Windows
 binary names when release assets are available.
 
+The shell path validates explicit versions before constructing a release URL,
+requires an exact 64-character archive checksum entry, and uses bounded curl
+connection/runtime retries. Default GitHub downloads require HTTPS and TLS 1.2
+or newer; an explicit `OPENKNOWLEDGE_BASE_URL` may use `file://` for local
+release tests and is therefore treated as a caller-controlled trust override.
+
+After checksum verification, the installer streams only the named
+`openknowledge` member out of the tar archive instead of extracting arbitrary
+archive paths. It copies that candidate to a unique same-filesystem staging
+file, executes `openknowledge version` there, requires a semantic version, and
+matches an explicitly requested release exactly. Only then does an atomic
+rename replace the destination. Checksum, archive, execution, version, or
+destination-type failures preserve an existing binary and clean up staging;
+directories and other non-file destinations are refused.
+
+`pnpm test:install` exercises successful replacement, checksum mismatch and
+syntax failure, requested/downloaded version rejection, missing archive
+members, invalid destination types, preservation of the old binary, and
+staging cleanup. It runs as part of the root `pnpm test` gate used by CI, deploy
+verification, and release preflight.
+
+The `curl | bash` entry point authenticates transport to the configured host
+but cannot checksum the installer script before executing it. Users requiring
+an offline trust ceremony should download and inspect `install` first, then run
+it locally; release archives are still checksum-verified by the script.
+
 `https://openknowledge.sh/install` should serve this repository's `install`
 script.
 
@@ -54,6 +80,7 @@ script.
 > * `packages/npm/package.json`
 > * `.github/workflows/release.yml`
 > * `scripts/check-versions.mjs`
+> * `scripts/test-install.sh`
 > * `README.md`
 >
 > **Update notes**
