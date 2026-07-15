@@ -28,6 +28,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Require current default branch tip
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          expected_ref="refs/heads/$DEFAULT_BRANCH"
+          if [ "$GITHUB_REF" != "$expected_ref" ]; then
+            echo "Releases must be dispatched from $expected_ref, not $GITHUB_REF" >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin "$expected_ref:refs/remotes/origin/$DEFAULT_BRANCH"
+          head_commit="$(git rev-parse HEAD)"
+          default_commit="$(git rev-parse "refs/remotes/origin/$DEFAULT_BRANCH")"
+          if [ "$head_commit" != "$default_commit" ]; then
+            echo "Release commit $head_commit is not the current $DEFAULT_BRANCH tip $default_commit" >&2
+            exit 1
+          fi
+
       - name: Resolve release tag
         id: release
         shell: bash

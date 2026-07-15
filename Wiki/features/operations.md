@@ -165,11 +165,15 @@ release is `0.6.0`. Before dispatch, keep `packages/npm/package.json`,
 `pnpm check:versions`.
 
 The release workflow normalizes the input to a `v*` tag and requires it to
-match the repository version. Before it creates a tag, it verifies tidy Go
-modules, runs tests and `go vet`, builds the CLI and website, checks the injected
-binary version, validates the Wiki, inspects the npm tarball, and requires npm
-publishing credentials. If the tag already exists, it must point at the
-workflow commit; otherwise the workflow fails without moving it.
+match the repository version. Its first verification step requires
+`workflow_dispatch` to target the repository's default branch and fetches that
+branch again to prove the checked-out commit is still its current tip. A stale
+dispatch, feature branch, or tag ref fails before version resolution, setup,
+secrets, or publication. Before it creates a tag, the workflow then verifies
+tidy Go modules, runs tests and `go vet`, builds the CLI and website, checks the
+injected binary version, validates the Wiki, inspects the npm tarball, and
+requires npm publishing credentials. If the tag already exists, it must point
+at the workflow commit; otherwise the workflow fails without moving it.
 
 Release verification runs with repository-wide `contents: read`. Only after it
 succeeds does the three-step `publish_release` job receive `contents: write` to
@@ -178,6 +182,14 @@ actions, dependency installation, tests, builds, package inspection, and npm
 credential preflight never receive the write-capable GitHub token. The
 workflow permission checker rejects any new write capability or extra step in
 that privileged job until the policy is explicitly reviewed and updated.
+It also locks the default-branch guard as the verifier's first post-checkout
+step.
+
+An in-repository workflow cannot defend against a writer who changes or removes
+that workflow on another ref. Administrators should pair the guard with GitHub
+default-branch protection and a tag ruleset that limits `v*` creation to the
+approved release path. Those repository settings are external state and are
+not claimed as configured merely because this workflow exists.
 
 GoReleaser uploads the installer, checksums, license files, third-party
 notices, and platform archives to GitHub Releases. After that job succeeds, the

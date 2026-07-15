@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Default-branch-only release dispatch
+
+* Added an early release preflight that accepts only the repository default
+  branch ref, refetches it, and requires the checked-out commit to equal its
+  current tip before version resolution or any secret-bearing step.
+* Made stale dispatches, feature-branch selections, and tag selections fail
+  before tag creation, GoReleaser, or npm publication.
+* Extended the workflow permission policy to lock checkout, default-branch
+  verification, and version resolution as the verifier's first three steps.
+* Documented the remaining administrative trust boundary: branch protection
+  and a `v*` tag ruleset are required to constrain writers who could change the
+  workflow itself, and those external settings are not inferred from repo code.
+* Source anchors: `.github/workflows/release.yml` and
+  `scripts/check-workflow-permissions.mjs`.
+* Docs updated: `Wiki/features/operations.md` and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Pinned GoReleaser toolchain
 
 * Replaced the GoReleaser action's dynamic `version: latest` download with the

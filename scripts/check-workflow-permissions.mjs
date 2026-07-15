@@ -14,8 +14,14 @@ const expectedPublishSteps = [
   "Prepare release tag",
   "Run GoReleaser",
 ];
+const expectedVerifyPrefix = [
+  "Checkout",
+  "Require current default branch tip",
+  "Resolve release tag",
+];
 const observedWriteCapabilities = new Set();
 const publishSteps = [];
+const verifySteps = [];
 const failures = [];
 
 for (const name of fs.readdirSync(workflowDirectory).sort()) {
@@ -62,6 +68,12 @@ for (const name of fs.readdirSync(workflowDirectory).sort()) {
         publishSteps.push(step[1].replace(/^(["'])(.*)\1$/, "$2"));
       }
     }
+    if (relativePath === ".github/workflows/release.yml" && currentJob === "verify") {
+      const step = line.match(/^      - name:\s*(.+?)\s*$/);
+      if (step) {
+        verifySteps.push(step[1].replace(/^(["'])(.*)\1$/, "$2"));
+      }
+    }
   });
 }
 
@@ -72,6 +84,9 @@ for (const capability of expectedWriteCapabilities) {
 }
 if (JSON.stringify(publishSteps) !== JSON.stringify(expectedPublishSteps)) {
   failures.push(`release publish job steps changed: expected ${expectedPublishSteps.join(", ")}; got ${publishSteps.join(", ")}`);
+}
+if (JSON.stringify(verifySteps.slice(0, expectedVerifyPrefix.length)) !== JSON.stringify(expectedVerifyPrefix)) {
+  failures.push(`release verification prefix changed: expected ${expectedVerifyPrefix.join(", ")}; got ${verifySteps.slice(0, expectedVerifyPrefix.length).join(", ")}`);
 }
 
 if (failures.length > 0) {
