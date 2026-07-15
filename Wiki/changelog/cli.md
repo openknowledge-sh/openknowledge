@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Hardened Docker agent sandbox
+
+* Added `sandbox.network: none|bridge` and made Docker agent runs default to no
+  network unless a job explicitly opts into Docker's bridge network.
+* Dropped all Linux capabilities, prohibited new privileges, enabled an init
+  process, and capped each Docker command at 512 PIDs while retaining the
+  writable worktree mount required by agent jobs.
+* Validated image values against option-shaped and whitespace-bearing input,
+  and placed the image after an explicit Docker option boundary to prevent
+  image fields from injecting `docker run` flags.
+* Added exact argument-vector tests for direct and shell commands, default and
+  opted-in networking, isolation flags, and image boundaries, plus sandbox
+  schema regressions.
+* Source anchors: `packages/cli/internal/agents/spec.go`,
+  `packages/cli/internal/agents/plan.go`,
+  `packages/cli/internal/agents/runner.go`,
+  `packages/cli/internal/agents/templates.go`,
+  `packages/cli/internal/agents/spec_test.go`, and
+  `packages/cli/internal/agents/runner_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Fail-closed agent executor selection
 
 * Restricted `agents run` and `agents daemon` executor overrides to the exact

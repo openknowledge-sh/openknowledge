@@ -47,8 +47,9 @@ type WorkspaceSpec struct {
 }
 
 type SandboxSpec struct {
-	Type  string `json:"type,omitempty"`
-	Image string `json:"image,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Image   string `json:"image,omitempty"`
+	Network string `json:"network,omitempty"`
 }
 
 type VerifySpec struct {
@@ -201,6 +202,16 @@ func ValidateJob(job Job) error {
 	if job.Sandbox.Type == "docker" && strings.TrimSpace(job.Sandbox.Image) == "" {
 		add("sandbox.image", "is required when sandbox.type is docker")
 	}
+	if image := job.Sandbox.Image; image != "" {
+		if image != strings.TrimSpace(image) || strings.HasPrefix(image, "-") || strings.ContainsAny(image, " \t\r\n\x00") {
+			add("sandbox.image", "must be one Docker image reference without whitespace or a leading hyphen")
+		}
+	}
+	switch job.Sandbox.Network {
+	case "", "none", "bridge":
+	default:
+		add("sandbox.network", "must be none or bridge")
+	}
 	if job.Output.PR {
 		add("output.pr", "is reserved for a future server/GitHub integration")
 	}
@@ -267,6 +278,7 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 			job.Sandbox.Type = value
 		}
 		job.Sandbox.Image = getString(sandbox, "image")
+		job.Sandbox.Network = getString(sandbox, "network")
 	}
 	if verify := getMap(data, "verify"); verify != nil {
 		job.Verify.Commands = getStringSlice(verify, "commands")

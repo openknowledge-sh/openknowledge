@@ -81,3 +81,39 @@ func TestExecutorOverrideValidationFailsClosed(t *testing.T) {
 		t.Fatalf("expected planning to reject an unknown override before selecting a runner, got %v", err)
 	}
 }
+
+func TestValidateJobRejectsUnsafeDockerSandboxValues(t *testing.T) {
+	base := Job{
+		ID:    "docker-job",
+		Agent: AgentSpec{Command: "agent"},
+		Sandbox: SandboxSpec{
+			Type:    "docker",
+			Image:   "example.test/agent:latest",
+			Network: "none",
+		},
+	}
+	if err := ValidateJob(base); err != nil {
+		t.Fatalf("expected supported Docker sandbox to validate: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		image    string
+		network  string
+		expected string
+	}{
+		{name: "option-like image", image: "--privileged", network: "none", expected: "sandbox.image"},
+		{name: "whitespace image", image: "agent image", network: "none", expected: "sandbox.image"},
+		{name: "host network", image: "agent:latest", network: "host", expected: "sandbox.network"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			job := base
+			job.Sandbox.Image = test.image
+			job.Sandbox.Network = test.network
+			if err := ValidateJob(job); err == nil || !strings.Contains(err.Error(), test.expected) {
+				t.Fatalf("expected %s validation error, got %v", test.expected, err)
+			}
+		})
+	}
+}

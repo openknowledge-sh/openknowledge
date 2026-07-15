@@ -255,7 +255,8 @@ Field reference:
   {{scheduled_at}}, and {{run_id}}.
 - workspace.dirty_policy: fail or allow. Defaults to fail.
 - sandbox.type: host or docker. Defaults to host.
-- sandbox.image: Docker image. Required when sandbox.type is docker.
+- sandbox.image: Docker image. Required when sandbox.type is docker; may not begin with a hyphen.
+- sandbox.network: none or bridge. Docker defaults to none; bridge is an explicit network opt-in.
 - verify.commands: Shell commands run after the agent command in the worktree.
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.

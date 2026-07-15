@@ -94,6 +94,9 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	if sandbox.Type == "docker" && sandbox.Image == "" {
 		return RunPlan{}, ValidationError{Issues: []ValidationIssue{{Field: "sandbox.image", Message: "is required when using the docker executor"}}}
 	}
+	if sandbox.Type == "docker" && sandbox.Network == "" {
+		sandbox.Network = "none"
+	}
 
 	verify := make([]Command, 0, len(job.Verify.Commands))
 	for _, command := range job.Verify.Commands {

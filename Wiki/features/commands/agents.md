@@ -93,6 +93,9 @@ workspace:
   dirty_policy: fail
 sandbox:
   type: host
+# For Docker jobs only:
+# image: example.test/agent:latest
+# network: none
 verify:
   commands:
     - go test ./...
@@ -127,7 +130,8 @@ Supported top-level fields:
 | `workspace.branch` | Branch template. Supports `{{id}}`, `{{date}}`, `{{scheduled_at}}`, and `{{run_id}}`. |
 | `workspace.dirty_policy` | `fail` by default; use `allow` to run when the source checkout is dirty. |
 | `sandbox.type` | `host` or `docker`. Defaults to `host`. |
-| `sandbox.image` | Required for Docker execution. |
+| `sandbox.image` | Required for Docker execution. Must be one image reference without whitespace or a leading hyphen. |
+| `sandbox.network` | Docker network mode: `none` or `bridge`. Defaults to `none`; use `bridge` to opt into network access. |
 | `verify.commands` | Shell commands run after the agent command in the same worktree. |
 | `output.commit` | When true, commits worktree changes after verification. |
 | `output.pr` | Reserved; currently rejected by validation. |
@@ -174,7 +178,12 @@ exists, which prevents accidental duplicate local runs.
 
 With `sandbox.type: host`, commands run as subprocesses in the worktree. With
 `sandbox.type: docker`, the worktree is bind-mounted into the configured image
-at `/workspace`, and each command runs from that directory.
+at `/workspace`, and each command runs from that directory. Docker runs drop
+all Linux capabilities, prohibit privilege escalation, use an init process,
+limit the container to 512 PIDs, and have no network by default. Set
+`sandbox.network: bridge` only for a job that explicitly needs outbound network
+access. The Docker image is separated from runtime options and option-shaped
+image values are rejected, so job data cannot inject `docker run` flags.
 
 `agents daemon` loads job specs, evaluates due schedules, skips already
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
@@ -192,6 +201,18 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Hardened Docker execution boundary
+
+Docker jobs now default to no network, accept only an explicit `bridge` opt-in,
+drop all capabilities, prohibit privilege escalation, run with init and a PID
+limit, and separate a validated image reference from Docker runtime options.
+Source anchors: `packages/cli/internal/agents/spec.go`,
+`packages/cli/internal/agents/plan.go`,
+`packages/cli/internal/agents/runner.go`,
+`packages/cli/internal/agents/templates.go`,
+`packages/cli/internal/agents/spec_test.go`, and
+`packages/cli/internal/agents/runner_test.go`.
 
 ### 2026-07-15 - Fail-closed executor overrides
 

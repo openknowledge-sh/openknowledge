@@ -247,15 +247,7 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 
 func commandForPlan(ctx context.Context, plan RunPlan, command Command) *exec.Cmd {
 	if plan.Sandbox.Type == "docker" {
-		image := plan.Sandbox.Image
-		args := []string{"run", "--rm", "-i", "-v", plan.Worktree + ":/workspace", "-w", "/workspace", image}
-		if command.Shell {
-			args = append(args, "sh", "-lc", command.Command)
-		} else {
-			args = append(args, command.Command)
-			args = append(args, command.Args...)
-		}
-		return exec.CommandContext(ctx, "docker", args...)
+		return exec.CommandContext(ctx, "docker", dockerCommandArgs(plan, command)...)
 	}
 	if command.Shell {
 		cmd := exec.CommandContext(ctx, "sh", "-lc", command.Command)
@@ -265,6 +257,28 @@ func commandForPlan(ctx context.Context, plan RunPlan, command Command) *exec.Cm
 	cmd := exec.CommandContext(ctx, command.Command, command.Args...)
 	cmd.Dir = plan.Worktree
 	return cmd
+}
+
+func dockerCommandArgs(plan RunPlan, command Command) []string {
+	network := plan.Sandbox.Network
+	if network == "" {
+		network = "none"
+	}
+	args := []string{
+		"run", "--rm", "-i", "--init",
+		"--cap-drop", "ALL",
+		"--security-opt", "no-new-privileges",
+		"--pids-limit", "512",
+		"--network", network,
+		"-v", plan.Worktree + ":/workspace",
+		"-w", "/workspace",
+		"--", plan.Sandbox.Image,
+	}
+	if command.Shell {
+		return append(args, "sh", "-lc", command.Command)
+	}
+	args = append(args, command.Command)
+	return append(args, command.Args...)
 }
 
 func commitWorktree(plan RunPlan) error {
