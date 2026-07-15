@@ -1413,7 +1413,7 @@ func TestRunToHTMLInjectsTrustedHeadHTML(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\nRead [Topic](notes/topic.md).\n")
-	writeMainTestFile(t, root, "notes/topic.md", "# Topic\n")
+	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
 
 	code := runToHTML([]string{
 		"--head-html", `<meta name="ok-export-head" content="1">`,

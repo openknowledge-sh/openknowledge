@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Connectable portable export gate
+
+* Required zero validation errors before standalone tar, plain HTML, or default
+  connect-enabled HTML publication; warnings remain allowed.
+* Applied the gate before output creation or replacement, preserving prior tar
+  content and leaving HTML output untouched on invalid input.
+* Unified producer behavior with remote `connect`, eliminating successful
+  manifests whose archive would be rejected by the consumer.
+* Added a shared validation failure formatter plus archive, plain HTML, and
+  default viewer regressions for refusal and no partial writes.
+* Source anchors: `packages/cli/internal/okf/validation_types.go`,
+  `packages/cli/internal/okf/archive.go`,
+  `packages/cli/internal/okf/html.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/internal/okf/archive_test.go`,
+  `packages/cli/internal/okf/export_test.go`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/to.md`,
+  `Wiki/features/exporters/html.md`, `Wiki/features/exporters/tar.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Authenticated viewer network boundary
 
 * Kept loopback as the zero-configuration default and refused wildcard or

@@ -862,11 +862,30 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	}
 }
 
+func TestViewerHTMLExportRejectsInvalidBundleBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	writeViewerFile(t, root, "invalid.md", "# Missing required concept frontmatter\n")
+	writeViewerFile(t, out, "sentinel.txt", "previous generation\n")
+
+	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err == nil || !strings.Contains(err.Error(), "bundle validation failed") {
+		t.Fatalf("expected invalid HTML publication refusal, got %v", err)
+	}
+	entries, err := os.ReadDir(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "sentinel.txt" {
+		t.Fatalf("invalid publication must not write partial output: %#v", entries)
+	}
+}
+
 func TestViewerHTMLExportInjectsHeadHTMLWhenConfigured(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Topic](notes/topic.md).\n")
-	writeViewerFile(t, root, "notes/topic.md", "# Topic\n")
+	writeViewerFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
 
 	headHTML, err := loadHeadInjection(headInjectionOptions{
 		HTML:       `<meta name="ok-static-head" content="1">`,
@@ -1017,7 +1036,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
 	writeViewerFile(t, root, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
-	writeViewerFile(t, root, "guides/setup.md", "# Setup\n\nBack to [Home](../index.md).\n")
+	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
 	writeViewerFile(t, root, "references/report.pdf", "%PDF-1.4\n% test pdf\n")
 
 	handler := newViewerHandler(root)
@@ -1089,7 +1108,7 @@ func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "site")
 	writeViewerFile(t, root, "openknowledge.toml", "[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
-	writeViewerFile(t, root, "guides/setup.md", "# Setup\n")
+	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n")
 
 	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err != nil {
 		t.Fatal(err)
@@ -1117,7 +1136,7 @@ func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "site")
 	writeViewerFile(t, root, "openknowledge.toml", "[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "---\nokf_bundle_title: \"Team Handbook\"\nokf_bundle_purpose: \"Knowledge for shipping product changes.\"\n---\n\n# Home\n\nRead [Setup](guides/setup.md).\n")
-	writeViewerFile(t, root, "guides/setup.md", "---\ntitle: \"Setup Guide\"\n---\n\n# Setup\n")
+	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: \"Setup Guide\"\n---\n\n# Setup\n")
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
 	if err != nil {

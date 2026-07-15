@@ -124,6 +124,11 @@ materialize the source bundle from the static site. See
 [HTML exporter](/features/exporters/html.md) for rendering, theme, source-link,
 and manifest details.
 
+Portable `to html` and `to tar` outputs require zero validation errors for the
+selected spec. Warnings remain publishable. Validation failure occurs before
+the exporter creates or replaces output, so it cannot advertise a manifest
+whose archive the remote `connect` consumer will reject.
+
 `to json` serializes the normalized bundle model. It prints to stdout by
 default and writes to `--out <file>` when provided. `--plain` is not valid for
 JSON. See [JSON exporter](/features/exporters/json.md).

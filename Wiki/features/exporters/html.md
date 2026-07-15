@@ -43,6 +43,11 @@ openknowledge to html --spec <version> --out <folder> [path]
 
 ## Behavior
 
+Both HTML modes require the input bundle to validate without errors for the
+selected spec; warnings remain allowed. Validation runs before output writes.
+The default viewer therefore emits `openknowledge.json` only when its portable
+archive satisfies the same validation gate enforced by remote `connect`.
+
 Default viewer pages render YAML frontmatter as a typed, collapsible inspector
 that starts collapsed above the Markdown body. The browser-local `Show frontmatter`
 setting is enabled by default and controls inspector visibility for initial and
@@ -174,6 +179,19 @@ there through a configured stylesheet instead of changing generated HTML.
 * Produce minimal HTML for systems that should not include viewer JavaScript.
 * Apply a deployable theme stylesheet without changing source Markdown.
 * Link deployed pages to GitHub source without exposing local editor deeplinks.
+
+## Change History
+
+### 2026-07-15 - Connectable publication gate
+
+Default and plain HTML exports now reject bundles with validation errors before
+writing output. This prevents a successful static publication from advertising
+a remote-connect archive that its consumer will reject. Warnings remain
+publishable. Source anchors: `packages/cli/internal/okf/html.go`,
+`packages/cli/internal/okf/validation_types.go`,
+`packages/cli/cmd/openknowledge/viewer.go`,
+`packages/cli/internal/okf/export_test.go`, and
+`packages/cli/cmd/openknowledge/viewer_test.go`.
 
 ---
 

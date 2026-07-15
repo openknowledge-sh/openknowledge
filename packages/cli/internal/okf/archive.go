@@ -135,6 +135,9 @@ func writeBundleTarGzipWithVersion(root string, out string, version string, excl
 	if err != nil {
 		return BundleArchiveResult{}, err
 	}
+	if err := RequireValidBundle(validation); err != nil {
+		return BundleArchiveResult{}, err
+	}
 
 	absoluteOut, err := filepath.Abs(out)
 	if err != nil {

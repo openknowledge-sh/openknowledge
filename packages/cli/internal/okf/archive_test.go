@@ -80,6 +80,24 @@ func TestWriteBundleTarGzipRejectsSymbolicLinks(t *testing.T) {
 	}
 }
 
+func TestWriteBundleTarGzipRejectsInvalidBundleWithoutReplacingOutput(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Bundle\n")
+	writeFile(t, root, "invalid.md", "# Missing required concept frontmatter\n")
+	out := filepath.Join(t.TempDir(), "bundle.tar.gz")
+	if err := os.WriteFile(out, []byte("previous archive"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := WriteBundleTarGzipWithVersion(root, out, "0.1", nil); err == nil || !strings.Contains(err.Error(), "bundle validation failed") {
+		t.Fatalf("expected invalid bundle refusal, got %v", err)
+	}
+	content, err := os.ReadFile(out)
+	if err != nil || string(content) != "previous archive" {
+		t.Fatalf("invalid export must preserve prior output, content=%q err=%v", content, err)
+	}
+}
+
 func TestExtractBundleArchiveRejectsPathTraversal(t *testing.T) {
 	archivePath := filepath.Join(t.TempDir(), "bad.tar.gz")
 	writeArchiveTestTarGzip(t, archivePath, map[string]string{

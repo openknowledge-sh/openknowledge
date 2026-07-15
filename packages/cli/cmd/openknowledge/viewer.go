@@ -1448,6 +1448,13 @@ func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HT
 }
 
 func writeViewerHTMLWithOptions(root string, out string, version string, options viewerHTMLExportOptions) (okf.HTMLResult, error) {
+	validation, err := okf.ValidateWithVersion(root, version)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	if err := okf.RequireValidBundle(validation); err != nil {
+		return okf.HTMLResult{}, err
+	}
 	bundle, err := okf.ParseBundleWithVersion(root, version)
 	if err != nil {
 		return okf.HTMLResult{}, err

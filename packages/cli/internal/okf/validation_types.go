@@ -50,3 +50,14 @@ type ValidationPolicyReport struct {
 	ConfigPath string            `json:"configPath,omitempty"`
 	Overrides  map[string]string `json:"overrides,omitempty"`
 }
+
+func RequireValidBundle(result Result) error {
+	if len(result.Errors) == 0 {
+		return nil
+	}
+	first := result.Errors[0]
+	if len(result.Errors) == 1 {
+		return fmt.Errorf("bundle validation failed: %s", first.String())
+	}
+	return fmt.Errorf("bundle validation failed with %d errors; first: %s", len(result.Errors), first.String())
+}

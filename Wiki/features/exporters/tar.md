@@ -22,12 +22,14 @@ openknowledge to tar --help
 
 ## Behavior
 
-The exporter validates the bundle root for the selected spec version, walks the
-source bundle, skips `.git`, and writes source files with relative paths into a
-gzip-compressed tar archive. The command prints the archive SHA-256 so callers
-can publish or verify it. Symbolic links and other non-regular filesystem
-entries are rejected before publication; the writer never follows them or
-copies content from outside the real bundle root.
+The exporter validates the bundle root for the selected spec version and
+requires zero errors; warnings remain allowed. It applies this gate before
+creating or replacing the output. It then walks the source bundle, skips
+`.git`, and writes source files with relative paths into a gzip-compressed tar
+archive. The command prints the archive SHA-256 so callers can publish or
+verify it. Symbolic links and other non-regular filesystem entries are rejected
+before publication; the writer never follows them or copies content from
+outside the real bundle root.
 
 Default viewer HTML exports call the same archive writer and place the archive
 at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
@@ -51,6 +53,15 @@ sibling staging directory; the requested target appears only after the full
 archive succeeds, and an existing target is never overlaid.
 
 ## Change History
+
+### 2026-07-15 - Valid portable output gate
+
+Tar creation now requires a validation-error-free bundle and checks that
+condition before touching the destination. A refused export preserves an
+existing archive, aligning producer behavior with remote `connect` validation.
+Source anchors: `packages/cli/internal/okf/archive.go`,
+`packages/cli/internal/okf/validation_types.go`, and
+`packages/cli/internal/okf/archive_test.go`.
 
 ### 2026-07-15 - Real filesystem bundle boundary
 

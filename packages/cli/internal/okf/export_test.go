@@ -57,6 +57,25 @@ func TestParseBundleIncludesContentLinksAndIssues(t *testing.T) {
 	}
 }
 
+func TestPlainHTMLRejectsInvalidBundleBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "invalid.md", "# Missing required concept frontmatter\n")
+	writeFile(t, out, "sentinel.txt", "previous generation\n")
+
+	if _, err := WritePlainHTMLWithVersion(root, out, "0.1"); err == nil || !strings.Contains(err.Error(), "bundle validation failed") {
+		t.Fatalf("expected invalid plain HTML refusal, got %v", err)
+	}
+	entries, err := os.ReadDir(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "sentinel.txt" {
+		t.Fatalf("invalid plain export must not write partial output: %#v", entries)
+	}
+}
+
 func TestParseBundleTrimsMarkdownExtensionIDs(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "guide.markdown", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n")
