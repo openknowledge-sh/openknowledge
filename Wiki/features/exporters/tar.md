@@ -31,6 +31,13 @@ verify it. Symbolic links and other non-regular filesystem entries are rejected
 before publication; the writer never follows them or copies content from
 outside the real bundle root.
 
+Archive identity is reproducible from content and executable intent. Entries
+are sorted, gzip filename and host timestamps are omitted, tar timestamps and
+owner fields are canonical, and regular-file modes normalize to `0644` or
+`0755` when any executable bit is present. Changing the destination filename,
+host UID/GID, modification time, or non-executable permission bits therefore
+does not change the archive bytes or reported SHA-256.
+
 Default viewer HTML exports call the same archive writer and place the archive
 at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
 manifest is contract version `1` with type `openknowledge.bundle`, a concrete
@@ -53,6 +60,15 @@ sibling staging directory; the requested target appears only after the full
 archive succeeds, and an existing target is never overlaid.
 
 ## Change History
+
+### 2026-07-15 - Reproducible archive identity
+
+Tar exports now omit destination names and host identity from gzip/tar headers,
+zero timestamps and ownership fields, and normalize regular-file modes while
+preserving executable intent. Identical bundle content now produces identical
+archive bytes and SHA-256 across destination paths and common host metadata
+differences. Source anchors: `packages/cli/internal/okf/archive.go` and
+`packages/cli/internal/okf/archive_test.go`.
 
 ### 2026-07-15 - Valid portable output gate
 

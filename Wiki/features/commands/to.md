@@ -143,7 +143,9 @@ ready. See [JSON exporter](/features/exporters/json.md).
 
 `to tar` requires `--out <file>`. It writes a gzip-compressed tar archive of the
 source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
-See [Tar exporter](/features/exporters/tar.md).
+The same bundle content produces the same archive bytes and SHA regardless of
+the destination filename, filesystem timestamps, owner identity, or
+non-executable permission bits. See [Tar exporter](/features/exporters/tar.md).
 
 `to graph` serializes AST-backed graph JSON. The default `--type source` graph
 contains bundle file nodes and deduplicated existing local Markdown links.

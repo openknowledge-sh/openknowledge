@@ -14,6 +14,23 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Reproducible portable archives
+
+* Removed the destination basename from gzip headers and normalized gzip OS
+  and timestamp metadata.
+* Replaced host-derived tar headers with canonical regular-file headers: zero
+  ownership and timestamps, empty owner names, stable PAX format, and `0644` or
+  `0755` modes that retain executable intent.
+* Made identical bundle content produce byte-identical archives and SHA-256
+  values across output names, file timestamps, host identities, and
+  non-executable permission differences.
+* Added byte-for-byte and header-level regressions covering archive identity,
+  owner metadata, timestamps, ordinary files, and executable files.
+* Source anchors: `packages/cli/internal/okf/archive.go` and
+  `packages/cli/internal/okf/archive_test.go`.
+* Docs updated: `Wiki/features/commands/to.md`,
+  `Wiki/features/exporters/tar.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Transactional exporter publication
 
 * Changed default and plain HTML export to build complete sibling generations

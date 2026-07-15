@@ -162,8 +162,10 @@ func writeBundleTarGzipWithVersion(root string, out string, version string, excl
 	hash := sha256.New()
 	counting := &countingWriter{writer: io.MultiWriter(temp, hash)}
 	gzipWriter := gzip.NewWriter(counting)
-	gzipWriter.Name = filepath.Base(absoluteOut)
-	gzipWriter.ModTime = time.Unix(0, 0)
+	gzipWriter.Header = gzip.Header{
+		ModTime: time.Unix(0, 0).UTC(),
+		OS:      255,
+	}
 	tarWriter := tar.NewWriter(gzipWriter)
 
 	archiveFiles, err := bundleArchiveFiles(validation.Root, append(excludes, absoluteOut), unpublished)
@@ -444,14 +446,14 @@ func writeTarFile(writer *tar.Writer, root string, file string) error {
 		return err
 	}
 	rel = filepath.ToSlash(rel)
-	header, err := tar.FileInfoHeader(info, "")
-	if err != nil {
-		return err
+	header := &tar.Header{
+		Name:     rel,
+		Mode:     canonicalArchiveMode(info.Mode()),
+		Size:     info.Size(),
+		ModTime:  time.Unix(0, 0).UTC(),
+		Typeflag: tar.TypeReg,
+		Format:   tar.FormatPAX,
 	}
-	header.Name = rel
-	header.ModTime = time.Unix(0, 0)
-	header.AccessTime = time.Unix(0, 0)
-	header.ChangeTime = time.Unix(0, 0)
 	if err := writer.WriteHeader(header); err != nil {
 		return err
 	}
@@ -462,6 +464,13 @@ func writeTarFile(writer *tar.Writer, root string, file string) error {
 	defer input.Close()
 	_, err = io.Copy(writer, input)
 	return err
+}
+
+func canonicalArchiveMode(mode os.FileMode) int64 {
+	if mode.Perm()&0111 != 0 {
+		return 0755
+	}
+	return 0644
 }
 
 func tarArchiveReader(reader io.Reader) (*tar.Reader, io.Closer, error) {

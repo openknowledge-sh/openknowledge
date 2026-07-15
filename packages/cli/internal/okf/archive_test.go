@@ -2,11 +2,14 @@ package okf
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateBundleManifestContract(t *testing.T) {
@@ -95,6 +98,103 @@ func TestWriteBundleTarGzipRejectsInvalidBundleWithoutReplacingOutput(t *testing
 	content, err := os.ReadFile(out)
 	if err != nil || string(content) != "previous archive" {
 		t.Fatalf("invalid export must preserve prior output, content=%q err=%v", content, err)
+	}
+}
+
+func TestWriteBundleTarGzipIsReproducibleAcrossDestinationsAndHostMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Bundle\n")
+	writeFile(t, root, "notes/guide.md", "---\ntype: Guide\n---\n\n# Guide\n")
+	firstPath := filepath.Join(t.TempDir(), "first-name.tar.gz")
+	first, err := WriteBundleTarGzipWithVersion(root, firstPath, "0.1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstBytes, err := os.ReadFile(firstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	changedTime := time.Date(2042, time.December, 31, 23, 59, 58, 0, time.FixedZone("test", 9*60*60))
+	for _, rel := range []string{"index.md", "notes/guide.md"} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.Chtimes(path, changedTime, changedTime); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	secondPath := filepath.Join(t.TempDir(), "different-name.tgz")
+	second, err := WriteBundleTarGzipWithVersion(root, secondPath, "0.1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondBytes, err := os.ReadFile(secondPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(firstBytes, secondBytes) {
+		t.Fatalf("expected byte-identical archives, first=%s second=%s", first.SHA256, second.SHA256)
+	}
+	if first.SHA256 != second.SHA256 || first.Bytes != second.Bytes {
+		t.Fatalf("expected stable archive identity, first=%#v second=%#v", first, second)
+	}
+}
+
+func TestWriteBundleTarGzipUsesCanonicalHeaders(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Bundle\n")
+	executable := filepath.Join(root, "tool.sh")
+	writeFile(t, root, "tool.sh", "#!/bin/sh\n")
+	if err := os.Chmod(executable, 0701); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(t.TempDir(), "bundle.tar.gz")
+	if _, err := WriteBundleTarGzipWithVersion(root, out, "0.1", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := os.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	gzipReader, err := gzip.NewReader(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gzipReader.Close()
+	if gzipReader.Name != "" || !gzipReader.ModTime.IsZero() || gzipReader.OS != 255 {
+		t.Fatalf("unexpected gzip identity header: name=%q modTime=%s os=%d", gzipReader.Name, gzipReader.ModTime, gzipReader.OS)
+	}
+
+	tarReader := tar.NewReader(gzipReader)
+	wantModes := map[string]int64{"index.md": 0644, "tool.sh": 0755}
+	seen := make(map[string]bool)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantMode, ok := wantModes[header.Name]
+		if !ok {
+			t.Fatalf("unexpected archive entry %q", header.Name)
+		}
+		seen[header.Name] = true
+		if header.Mode != wantMode || header.Uid != 0 || header.Gid != 0 || header.Uname != "" || header.Gname != "" {
+			t.Fatalf("noncanonical tar identity header for %s: %#v", header.Name, header)
+		}
+		if !header.ModTime.Equal(time.Unix(0, 0)) || !header.AccessTime.IsZero() || !header.ChangeTime.IsZero() {
+			t.Fatalf("noncanonical tar timestamps for %s: mtime=%s atime=%s ctime=%s", header.Name, header.ModTime, header.AccessTime, header.ChangeTime)
+		}
+	}
+	if len(seen) != len(wantModes) {
+		t.Fatalf("expected canonical headers for every file, saw %#v", seen)
 	}
 }
 
