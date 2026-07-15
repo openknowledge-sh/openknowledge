@@ -9,6 +9,56 @@ import (
 	"testing"
 )
 
+func TestValidateBundleManifestContract(t *testing.T) {
+	valid := BundleManifest{
+		Type:          BundleManifestType,
+		Version:       BundleManifestVersion,
+		Spec:          "0.1",
+		Archive:       BundleArchiveRelPath,
+		ArchiveSHA256: strings.Repeat("a", 64),
+		ArchiveFormat: BundleArchiveFormat,
+	}
+	if spec, err := ValidateBundleManifest(valid); err != nil || spec != "0.1" {
+		t.Fatalf("expected valid manifest contract, spec=%q err=%v", spec, err)
+	}
+
+	tests := []struct {
+		name     string
+		mutate   func(*BundleManifest)
+		expected string
+	}{
+		{name: "type", mutate: func(manifest *BundleManifest) { manifest.Type = "bundle" }, expected: "manifest type"},
+		{name: "version", mutate: func(manifest *BundleManifest) { manifest.Version = 2 }, expected: "manifest version"},
+		{name: "missing spec", mutate: func(manifest *BundleManifest) { manifest.Spec = "" }, expected: "missing spec"},
+		{name: "moving spec", mutate: func(manifest *BundleManifest) { manifest.Spec = "latest" }, expected: "concrete version"},
+		{name: "unsupported spec", mutate: func(manifest *BundleManifest) { manifest.Spec = "9.9" }, expected: "unsupported OKF spec"},
+		{name: "noncanonical spec", mutate: func(manifest *BundleManifest) { manifest.Spec = " 0.1 " }, expected: "canonical version"},
+		{name: "missing archive", mutate: func(manifest *BundleManifest) { manifest.Archive = "" }, expected: "missing archive"},
+		{name: "archive format", mutate: func(manifest *BundleManifest) { manifest.ArchiveFormat = "zip" }, expected: "archive format"},
+		{name: "missing checksum", mutate: func(manifest *BundleManifest) { manifest.ArchiveSHA256 = "" }, expected: "64-character SHA-256"},
+		{name: "invalid checksum", mutate: func(manifest *BundleManifest) { manifest.ArchiveSHA256 = strings.Repeat("z", 64) }, expected: "64-character SHA-256"},
+		{name: "noncanonical checksum", mutate: func(manifest *BundleManifest) { manifest.ArchiveSHA256 = " " + strings.Repeat("a", 64) }, expected: "64-character SHA-256"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			manifest := valid
+			test.mutate(&manifest)
+			if _, err := ValidateBundleManifest(manifest); err == nil || !strings.Contains(err.Error(), test.expected) {
+				t.Fatalf("expected %q error, got %v", test.expected, err)
+			}
+		})
+	}
+}
+
+func TestBundleManifestForArchiveCannotProduceInvalidContract(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Bundle\n")
+	if _, err := BundleManifestForArchive(root, "0.1", BundleArchiveRelPath, ""); err == nil || !strings.Contains(err.Error(), "archiveSha256") {
+		t.Fatalf("expected producer to reject missing archive checksum, got %v", err)
+	}
+}
+
 func TestExtractBundleArchiveRejectsPathTraversal(t *testing.T) {
 	archivePath := filepath.Join(t.TempDir(), "bad.tar.gz")
 	writeArchiveTestTarGzip(t, archivePath, map[string]string{

@@ -29,12 +29,27 @@ can publish or verify it.
 
 Default viewer HTML exports call the same archive writer and place the archive
 at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
-manifest points to that archive and includes the archive SHA-256.
+manifest is contract version `1` with type `openknowledge.bundle`, a concrete
+supported OKF `spec`, `archiveFormat: "tar.gz"`, the archive path, and its
+required SHA-256.
 
 Remote `openknowledge connect` downloads archives from manifests or direct
 `.tar`, `.tar.gz`, and `.tgz` URLs, rejects unsafe archive entries such as path
-traversal or symlinks, validates the extracted bundle, then stores the
-materialized bundle in the Open Knowledge cache.
+traversal or symlinks, validates manifest archives against their declared spec,
+rejects a conflicting root `okf_version`, then stores the materialized bundle
+in the Open Knowledge cache. A portable manifest cannot use the moving
+`latest` spec alias.
+
+## Change History
+
+### 2026-07-15 - Strict manifest integrity
+
+Manifest consumers now validate every required identity and format field,
+require a SHA-256, and bind archive validation to the concrete declared spec.
+Source anchors: `packages/cli/internal/okf/archive.go`,
+`packages/cli/internal/okf/archive_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ---
 

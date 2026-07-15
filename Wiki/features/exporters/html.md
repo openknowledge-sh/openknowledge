@@ -111,9 +111,10 @@ Default viewer exports include remote-connect assets:
 * `assets/openknowledge-bundle.tar.gz` - a portable source bundle archive
   generated with the same writer as `openknowledge to tar`.
 
-`openknowledge connect <deployed-wiki-url>` discovers the manifest, verifies the
-archive hash when present, extracts the archive safely, validates the extracted
-bundle, and registers the materialized bundle in the local registry.
+`openknowledge connect <deployed-wiki-url>` discovers and validates the
+versioned manifest, requires and verifies the archive hash, extracts the archive
+safely, validates the extracted bundle against the manifest's concrete spec,
+and registers the materialized bundle in the local registry.
 
 Default viewer exports read optional settings from `openknowledge.toml`.
 `[html.theme]` sets a theme name and stylesheet:

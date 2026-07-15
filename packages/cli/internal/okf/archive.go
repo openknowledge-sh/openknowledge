@@ -20,6 +20,7 @@ const BundleArchiveRelPath = "assets/openknowledge-bundle.tar.gz"
 const BundleManifestRelPath = "openknowledge.json"
 const BundleArchiveFormat = "tar.gz"
 const BundleManifestType = "openknowledge.bundle"
+const BundleManifestVersion = 1
 
 type BundleArchiveResult struct {
 	Root   string
@@ -37,6 +38,59 @@ type BundleManifest struct {
 	Archive       string `json:"archive"`
 	ArchiveSHA256 string `json:"archiveSha256,omitempty"`
 	ArchiveFormat string `json:"archiveFormat"`
+}
+
+// ValidateBundleManifest validates the portable manifest contract and returns
+// its concrete supported OKF spec version. Portable manifests must never use
+// the moving "latest" alias because that would change an archive's meaning
+// after it has been published.
+func ValidateBundleManifest(manifest BundleManifest) (string, error) {
+	if manifest.Type != BundleManifestType {
+		return "", fmt.Errorf("unsupported Open Knowledge manifest type: %s", manifest.Type)
+	}
+	if manifest.Version != BundleManifestVersion {
+		return "", fmt.Errorf("unsupported Open Knowledge manifest version: %d", manifest.Version)
+	}
+
+	spec := strings.TrimSpace(manifest.Spec)
+	if spec == "" {
+		return "", fmt.Errorf("Open Knowledge manifest is missing spec")
+	}
+	if spec == "latest" {
+		return "", fmt.Errorf("Open Knowledge manifest spec must be a concrete version, not latest")
+	}
+	resolvedSpec, ok := ResolveSpecVersion(spec)
+	if !ok {
+		return "", fmt.Errorf("unsupported OKF spec version in Open Knowledge manifest: %s", spec)
+	}
+	if manifest.Spec != resolvedSpec {
+		return "", fmt.Errorf("Open Knowledge manifest spec must use canonical version %q", resolvedSpec)
+	}
+
+	if strings.TrimSpace(manifest.Archive) == "" {
+		return "", fmt.Errorf("Open Knowledge manifest is missing archive")
+	}
+	if manifest.ArchiveFormat != BundleArchiveFormat {
+		return "", fmt.Errorf("unsupported Open Knowledge archive format: %s", manifest.ArchiveFormat)
+	}
+
+	checksum := strings.TrimSpace(manifest.ArchiveSHA256)
+	decoded, err := hex.DecodeString(checksum)
+	if manifest.ArchiveSHA256 != checksum || err != nil || len(decoded) != sha256.Size {
+		return "", fmt.Errorf("Open Knowledge manifest archiveSha256 must be a 64-character SHA-256 digest")
+	}
+	return resolvedSpec, nil
+}
+
+func DeclaredBundleSpecVersion(root string) (string, error) {
+	document := parseASTDocumentFile(filepath.Join(root, "index.md"), "index.md")
+	if document.ReadDiagnostic != nil {
+		return "", fmt.Errorf("read bundle index: %s", document.ReadDiagnostic.Message)
+	}
+	if document.FrontmatterDiagnostic != nil {
+		return "", fmt.Errorf("parse bundle index frontmatter: %s", document.FrontmatterDiagnostic.Message)
+	}
+	return frontmatterString(document.Frontmatter, "okf_version"), nil
 }
 
 func WriteBundleTarGzipWithVersion(root string, out string, version string, excludes []string) (BundleArchiveResult, error) {
@@ -121,16 +175,20 @@ func BundleManifestForArchive(root string, version string, archiveRel string, ar
 	if !ok {
 		return BundleManifest{}, fmt.Errorf("unsupported OKF spec version: %s", version)
 	}
-	return BundleManifest{
+	manifest := BundleManifest{
 		Type:          BundleManifestType,
-		Version:       1,
+		Version:       BundleManifestVersion,
 		Spec:          resolved,
 		Name:          info.Metadata.Name,
 		Title:         info.DisplayName(),
 		Archive:       filepath.ToSlash(archiveRel),
 		ArchiveSHA256: archiveSHA256,
 		ArchiveFormat: BundleArchiveFormat,
-	}, nil
+	}
+	if _, err := ValidateBundleManifest(manifest); err != nil {
+		return BundleManifest{}, err
+	}
+	return manifest, nil
 }
 
 func ExtractBundleArchive(archivePath string, target string) error {

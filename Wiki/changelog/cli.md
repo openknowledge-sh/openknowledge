@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Enforced remote manifest integrity
+
+* Replaced the duplicate remote manifest shape with the shared archive
+  contract and now require type `openknowledge.bundle`, manifest version `1`, a
+  concrete supported OKF spec, `archiveFormat: "tar.gz"`, an archive path, and
+  a valid SHA-256 digest.
+* Bound extracted-bundle validation to the manifest spec and reject archives
+  whose root `okf_version` conflicts with that immutable declaration.
+* Resolve relative archive URLs against the final manifest URL after redirects
+  and preserve explicit non-404 manifest download failures instead of
+  misreporting them as a missing manifest.
+* Added deterministic coverage for every manifest field, spec mismatch,
+  redirect-relative archives, checksum use, and HTTP server errors.
+* Source anchors: `packages/cli/internal/okf/archive.go`,
+  `packages/cli/internal/okf/archive_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `Wiki/features/commands/connect.md`,
+  `Wiki/features/exporters/tar.md`, `Wiki/features/exporters/html.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Atomic concurrent registry updates
 
 * Serialized registry mutations across goroutines and processes, loaded one

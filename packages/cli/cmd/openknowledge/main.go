@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -1039,7 +1040,7 @@ func materializeRemoteSource(source string, key string) (string, okf.RegistrySou
 		return root, okf.RegistrySource{Type: "manifest", URL: source, Ref: archiveURL}, nil
 	}
 	if looksLikeArchiveSource(source) {
-		root, err := materializeArchiveSource(source, target, "")
+		root, err := materializeArchiveSource(source, target, "", okf.LatestSpecVersion, false)
 		if err != nil {
 			return "", okf.RegistrySource{}, err
 		}
@@ -1047,18 +1048,18 @@ func materializeRemoteSource(source string, key string) (string, okf.RegistrySou
 	}
 	if isHTTPSource(source) {
 		for _, candidate := range manifestCandidateURLs(source) {
-			manifest, ok, err := fetchBundleManifest(candidate)
+			manifest, manifestURL, ok, err := fetchBundleManifest(candidate)
 			if err != nil {
 				return "", okf.RegistrySource{}, err
 			}
 			if !ok {
 				continue
 			}
-			archiveURL, err := resolveManifestArchiveURL(candidate, manifest.Archive)
+			archiveURL, err := resolveManifestArchiveURL(manifestURL, manifest.Archive)
 			if err != nil {
 				return "", okf.RegistrySource{}, err
 			}
-			root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256)
+			root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256, manifest.Spec, true)
 			if err != nil {
 				return "", okf.RegistrySource{}, err
 			}
@@ -1083,37 +1084,26 @@ func materializeRemoteSource(source string, key string) (string, okf.RegistrySou
 	return target, okf.RegistrySource{Type: "git", URL: source}, nil
 }
 
-type remoteBundleManifest struct {
-	Type          string `json:"type"`
-	Version       int    `json:"version"`
-	Spec          string `json:"spec"`
-	Name          string `json:"name"`
-	Title         string `json:"title"`
-	Archive       string `json:"archive"`
-	ArchiveSHA256 string `json:"archiveSha256"`
-	ArchiveFormat string `json:"archiveFormat"`
-}
-
 func materializeManifestSource(source string, target string) (string, string, error) {
-	manifest, ok, err := fetchBundleManifest(source)
+	manifest, manifestURL, ok, err := fetchBundleManifest(source)
 	if err != nil {
 		return "", "", err
 	}
 	if !ok {
 		return "", "", fmt.Errorf("Open Knowledge manifest not found: %s", source)
 	}
-	archiveURL, err := resolveManifestArchiveURL(source, manifest.Archive)
+	archiveURL, err := resolveManifestArchiveURL(manifestURL, manifest.Archive)
 	if err != nil {
 		return "", "", err
 	}
-	root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256)
+	root, err := materializeArchiveSource(archiveURL, target, manifest.ArchiveSHA256, manifest.Spec, true)
 	if err != nil {
 		return "", "", err
 	}
 	return root, archiveURL, nil
 }
 
-func materializeArchiveSource(source string, target string, expectedSHA256 string) (string, error) {
+func materializeArchiveSource(source string, target string, expectedSHA256 string, specVersion string, requireDeclaredSpec bool) (string, error) {
 	tempDir, err := os.MkdirTemp(filepath.Dir(target), ".openknowledge-source-*")
 	if err != nil {
 		return "", err
@@ -1121,11 +1111,11 @@ func materializeArchiveSource(source string, target string, expectedSHA256 strin
 	defer os.RemoveAll(tempDir)
 
 	archivePath := filepath.Join(tempDir, "bundle.tar.gz")
-	contentType, err := downloadRemoteFile(source, archivePath)
+	download, err := downloadRemoteFile(source, archivePath)
 	if err != nil {
 		return "", err
 	}
-	if !looksLikeArchiveSource(source) && !downloadedFileLooksLikeArchive(archivePath, contentType) {
+	if !looksLikeArchiveSource(source) && !downloadedFileLooksLikeArchive(archivePath, download.ContentType) {
 		return "", fmt.Errorf("remote source is not a tar archive: %s", source)
 	}
 	if strings.TrimSpace(expectedSHA256) != "" {
@@ -1142,7 +1132,7 @@ func materializeArchiveSource(source string, target string, expectedSHA256 strin
 	if err := okf.ExtractBundleArchive(archivePath, extractRoot); err != nil {
 		return "", err
 	}
-	bundleRoot, err := validatedExtractedBundleRoot(extractRoot)
+	bundleRoot, err := validatedExtractedBundleRoot(extractRoot, specVersion, requireDeclaredSpec)
 	if err != nil {
 		return "", err
 	}
@@ -1170,21 +1160,21 @@ func tryMaterializeDirectArchive(source string, target string) (string, bool, er
 	defer os.RemoveAll(tempDir)
 
 	archivePath := filepath.Join(tempDir, "probe")
-	contentType, err := downloadRemoteFile(source, archivePath)
+	download, err := downloadRemoteFile(source, archivePath)
 	if err != nil {
 		return "", false, nil
 	}
-	if !downloadedFileLooksLikeArchive(archivePath, contentType) {
+	if !downloadedFileLooksLikeArchive(archivePath, download.ContentType) {
 		return "", false, nil
 	}
-	root, err := materializeArchiveFile(archivePath, target, "")
+	root, err := materializeArchiveFile(archivePath, target, "", okf.LatestSpecVersion, false)
 	if err != nil {
 		return "", false, err
 	}
 	return root, true, nil
 }
 
-func materializeArchiveFile(archivePath string, target string, expectedSHA256 string) (string, error) {
+func materializeArchiveFile(archivePath string, target string, expectedSHA256 string, specVersion string, requireDeclaredSpec bool) (string, error) {
 	if strings.TrimSpace(expectedSHA256) != "" {
 		actual, err := okf.SHA256File(archivePath)
 		if err != nil {
@@ -1203,7 +1193,7 @@ func materializeArchiveFile(archivePath string, target string, expectedSHA256 st
 	if err := okf.ExtractBundleArchive(archivePath, extractRoot); err != nil {
 		return "", err
 	}
-	bundleRoot, err := validatedExtractedBundleRoot(extractRoot)
+	bundleRoot, err := validatedExtractedBundleRoot(extractRoot, specVersion, requireDeclaredSpec)
 	if err != nil {
 		return "", err
 	}
@@ -1223,72 +1213,96 @@ func materializeArchiveFile(archivePath string, target string, expectedSHA256 st
 	return filepath.Join(target, rel), nil
 }
 
-func fetchBundleManifest(source string) (remoteBundleManifest, bool, error) {
+type remoteDownload struct {
+	ContentType string
+	FinalURL    string
+}
+
+type remoteHTTPStatusError struct {
+	URL        string
+	Status     string
+	StatusCode int
+}
+
+var remoteHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
+func (err *remoteHTTPStatusError) Error() string {
+	return fmt.Sprintf("GET %s returned %s", err.URL, err.Status)
+}
+
+func fetchBundleManifest(source string) (okf.BundleManifest, string, bool, error) {
 	tempDir, err := os.MkdirTemp("", "openknowledge-manifest-*")
 	if err != nil {
-		return remoteBundleManifest{}, false, err
+		return okf.BundleManifest{}, "", false, err
 	}
 	defer os.RemoveAll(tempDir)
 	manifestPath := filepath.Join(tempDir, "openknowledge.json")
-	if _, err := downloadRemoteFile(source, manifestPath); err != nil {
-		return remoteBundleManifest{}, false, nil
+	download, err := downloadRemoteFile(source, manifestPath)
+	if err != nil {
+		var statusError *remoteHTTPStatusError
+		if os.IsNotExist(err) || (errors.As(err, &statusError) && statusError.StatusCode == http.StatusNotFound) {
+			return okf.BundleManifest{}, "", false, nil
+		}
+		return okf.BundleManifest{}, "", false, err
 	}
 	content, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return remoteBundleManifest{}, false, err
+		return okf.BundleManifest{}, "", false, err
 	}
-	var manifest remoteBundleManifest
+	var manifest okf.BundleManifest
 	if err := json.Unmarshal(content, &manifest); err != nil {
-		return remoteBundleManifest{}, false, err
+		return okf.BundleManifest{}, "", false, fmt.Errorf("invalid Open Knowledge manifest at %s: %w", download.FinalURL, err)
 	}
-	if manifest.Type != okf.BundleManifestType {
-		return remoteBundleManifest{}, false, fmt.Errorf("unsupported Open Knowledge manifest type: %s", manifest.Type)
+	if _, err := okf.ValidateBundleManifest(manifest); err != nil {
+		return okf.BundleManifest{}, "", false, fmt.Errorf("invalid Open Knowledge manifest at %s: %w", download.FinalURL, err)
 	}
-	if strings.TrimSpace(manifest.Archive) == "" {
-		return remoteBundleManifest{}, false, fmt.Errorf("Open Knowledge manifest is missing archive")
-	}
-	return manifest, true, nil
+	return manifest, download.FinalURL, true, nil
 }
 
-func downloadRemoteFile(source string, target string) (string, error) {
+func downloadRemoteFile(source string, target string) (remoteDownload, error) {
 	parsed, err := url.Parse(source)
 	if err != nil {
-		return "", err
+		return remoteDownload{}, err
 	}
 	if parsed.Scheme == "file" {
 		inputPath, err := url.PathUnescape(parsed.Path)
 		if err != nil {
-			return "", err
+			return remoteDownload{}, err
 		}
-		return "", copyFile(inputPath, target)
+		if err := copyFile(inputPath, target); err != nil {
+			return remoteDownload{}, err
+		}
+		return remoteDownload{FinalURL: source}, nil
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", fmt.Errorf("unsupported archive URL scheme: %s", parsed.Scheme)
+		return remoteDownload{}, fmt.Errorf("unsupported archive URL scheme: %s", parsed.Scheme)
 	}
-	client := http.Client{Timeout: 30 * time.Second}
-	response, err := client.Get(source)
+	response, err := remoteHTTPClient.Get(source)
 	if err != nil {
-		return "", err
+		return remoteDownload{}, err
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return "", fmt.Errorf("GET %s returned %s", source, response.Status)
+		return remoteDownload{}, &remoteHTTPStatusError{URL: source, Status: response.Status, StatusCode: response.StatusCode}
 	}
 	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-		return "", err
+		return remoteDownload{}, err
 	}
 	output, err := os.Create(target)
 	if err != nil {
-		return "", err
+		return remoteDownload{}, err
 	}
 	if _, err := io.Copy(output, response.Body); err != nil {
 		_ = output.Close()
-		return "", err
+		return remoteDownload{}, err
 	}
 	if err := output.Close(); err != nil {
-		return "", err
+		return remoteDownload{}, err
 	}
-	return response.Header.Get("Content-Type"), nil
+	return remoteDownload{
+		ContentType: response.Header.Get("Content-Type"),
+		FinalURL:    response.Request.URL.String(),
+	}, nil
 }
 
 func copyFile(source string, target string) error {
@@ -1311,9 +1325,11 @@ func copyFile(source string, target string) error {
 	return output.Close()
 }
 
-func validatedExtractedBundleRoot(root string) (string, error) {
-	if result, err := okf.Validate(root); err == nil && len(result.Errors) == 0 {
-		return result.Root, nil
+func validatedExtractedBundleRoot(root string, specVersion string, requireDeclaredSpec bool) (string, error) {
+	if validatedRoot, valid, err := validateExtractedBundleCandidate(root, specVersion, requireDeclaredSpec); err != nil {
+		return "", err
+	} else if valid {
+		return validatedRoot, nil
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -1326,11 +1342,33 @@ func validatedExtractedBundleRoot(root string) (string, error) {
 		}
 	}
 	if len(directories) == 1 {
-		if result, err := okf.Validate(directories[0]); err == nil && len(result.Errors) == 0 {
-			return result.Root, nil
+		if validatedRoot, valid, err := validateExtractedBundleCandidate(directories[0], specVersion, requireDeclaredSpec); err != nil {
+			return "", err
+		} else if valid {
+			return validatedRoot, nil
 		}
 	}
 	return "", fmt.Errorf("archive does not contain a valid Open Knowledge bundle")
+}
+
+func validateExtractedBundleCandidate(root string, specVersion string, requireDeclaredSpec bool) (string, bool, error) {
+	result, err := okf.ValidateWithVersion(root, specVersion)
+	if err != nil {
+		return "", false, err
+	}
+	if len(result.Errors) > 0 {
+		return "", false, nil
+	}
+	if requireDeclaredSpec {
+		declared, err := okf.DeclaredBundleSpecVersion(result.Root)
+		if err != nil {
+			return "", false, err
+		}
+		if declared != "" && declared != result.SpecVersion {
+			return "", false, fmt.Errorf("archive bundle declares okf_version %q but manifest requires %q", declared, result.SpecVersion)
+		}
+	}
+	return result.Root, true, nil
 }
 
 func cachedBundleRoot(target string) (string, bool) {
@@ -1338,7 +1376,7 @@ func cachedBundleRoot(target string) (string, bool) {
 	if err != nil || !info.IsDir() {
 		return "", false
 	}
-	root, err := validatedExtractedBundleRoot(target)
+	root, err := validatedExtractedBundleRoot(target, okf.LatestSpecVersion, false)
 	if err != nil {
 		_ = os.RemoveAll(target)
 		return "", false

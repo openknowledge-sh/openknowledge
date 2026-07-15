@@ -53,16 +53,20 @@ share the same behavior.
 
 Remote source handling:
 
-* Open Knowledge manifest URLs are JSON documents with type
-  `openknowledge.bundle`, an archive path, and optional `archiveSha256`.
+* Open Knowledge manifest URLs are version `1` JSON documents with type
+  `openknowledge.bundle`, a concrete supported `spec`, an archive path,
+  `archiveFormat: "tar.gz"`, and a required 64-character `archiveSha256`.
 * Website URLs try `openknowledge.json` under the URL path, then
   `/.well-known/openknowledge.json`.
 * Direct `.tar`, `.tar.gz`, and `.tgz` URLs are downloaded and extracted.
 * HTTP(S) URLs that are neither manifests nor archives fall back to shallow
   `git clone`.
 
-Downloaded archives are extracted into the Open Knowledge cache using safe path
-checks, then validated as Open Knowledge bundles before registration.
+Archives referenced by manifests are checksum-verified. Downloads are extracted
+into the Open Knowledge cache using safe path checks, then manifest archives are
+validated against the concrete declared spec before registration. When their
+root declares `okf_version`, it must match the manifest spec. Relative archive
+URLs are resolved from the manifest's final URL after HTTP redirects.
 
 `connect` uses root metadata when present: `okf_bundle_name` can provide the
 default key, `okf_bundle_title` and `okf_bundle_purpose` appear in success
@@ -111,10 +115,22 @@ entries  default
 
 Remote archive and manifest sources require network access for non-local URLs.
 Git fallback requires `git` on `PATH`. Existing cached materializations are
-reused when they still validate. See [registry](registry.md) for storage
+reused when they still validate; `connect` does not currently check remote
+freshness for an existing cache entry. See [registry](registry.md) for storage
 details.
 
 ## Command Change History
+
+### 2026-07-15 - Enforced remote manifest contract
+
+Remote manifests now require the supported versioned type, a concrete OKF spec,
+`tar.gz`, and a valid SHA-256. Downloads are validated against that declared
+spec, conflicting root `okf_version` values are rejected, relative archive URLs
+use the post-redirect manifest location, and non-404 manifest download errors
+are preserved. Source anchors: `packages/cli/internal/okf/archive.go`,
+`packages/cli/internal/okf/archive_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Positional-first flags
 

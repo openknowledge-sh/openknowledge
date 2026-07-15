@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1608,6 +1612,128 @@ func TestRunConnectUsesRemoteOpenKnowledgeManifest(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(entry.Path, "index.md")); err != nil {
 		t.Fatalf("expected materialized index.md: %v", err)
+	}
+}
+
+func TestRunConnectResolvesManifestArchiveAgainstRedirectDestination(t *testing.T) {
+	base := t.TempDir()
+	bundle := filepath.Join(base, "bundle")
+	writeMainTestFile(t, bundle, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: redirected\n---\n\n# Redirected\n")
+	archivePath := filepath.Join(base, "bundle.tar.gz")
+	archiveResult, err := okf.WriteBundleTarGzipWithVersion(bundle, archivePath, "0.1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archiveData, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestData, err := json.Marshal(okf.BundleManifest{
+		Type:          okf.BundleManifestType,
+		Version:       okf.BundleManifestVersion,
+		Spec:          "0.1",
+		Archive:       "bundle.tar.gz",
+		ArchiveSHA256: archiveResult.SHA256,
+		ArchiveFormat: okf.BundleArchiveFormat,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	requestedManifestURL := "https://example.test/openknowledge.json"
+	finalManifestURL := "https://cdn.example.test/releases/v1/openknowledge.json"
+	finalArchiveURL := "https://cdn.example.test/releases/v1/bundle.tar.gz"
+	originalHTTPClient := remoteHTTPClient
+	remoteHTTPClient = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		switch request.URL.String() {
+		case requestedManifestURL:
+			finalRequest := request.Clone(request.Context())
+			finalRequest.URL, _ = url.Parse(finalManifestURL)
+			return testHTTPResponse(http.StatusOK, "application/json", manifestData, finalRequest), nil
+		case finalArchiveURL:
+			return testHTTPResponse(http.StatusOK, "application/gzip", archiveData, request), nil
+		default:
+			return testHTTPResponse(http.StatusNotFound, "text/plain", []byte("not found"), request), nil
+		}
+	})}
+	defer func() { remoteHTTPClient = originalHTTPClient }()
+
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	if code := runConnect([]string{"--as", "redirected", "--no-validate", requestedManifestURL}, "openknowledge connect"); code != 0 {
+		t.Fatalf("expected redirected manifest connect to succeed, got %d", code)
+	}
+	entry, ok, err := okf.ResolveRegistryEntry("redirected")
+	if err != nil || !ok {
+		t.Fatalf("expected redirected registry entry, ok=%t err=%v", ok, err)
+	}
+	if entry.Source.URL != requestedManifestURL || entry.Source.Ref != finalArchiveURL {
+		t.Fatalf("unexpected redirected manifest provenance: %#v", entry.Source)
+	}
+}
+
+func TestRunConnectRejectsManifestAndArchiveSpecMismatch(t *testing.T) {
+	base := t.TempDir()
+	bundle := filepath.Join(base, "bundle")
+	writeMainTestFile(t, bundle, "index.md", "---\nokf_version: \"9.9\"\nokf_bundle_name: mismatch\n---\n\n# Mismatch\n")
+	hosted := filepath.Join(base, "hosted")
+	archivePath := filepath.Join(hosted, "bundle.tar.gz")
+	archiveResult, err := okf.WriteBundleTarGzipWithVersion(bundle, archivePath, "0.1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestData, err := json.Marshal(okf.BundleManifest{
+		Type:          okf.BundleManifestType,
+		Version:       okf.BundleManifestVersion,
+		Spec:          "0.1",
+		Archive:       "bundle.tar.gz",
+		ArchiveSHA256: archiveResult.SHA256,
+		ArchiveFormat: okf.BundleArchiveFormat,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(hosted, okf.BundleManifestRelPath)
+	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runConnect([]string{"--as", "mismatch", "--no-validate", "file://" + manifestPath}, "openknowledge connect")
+	})
+	if code != 1 || !strings.Contains(stderr, `archive bundle declares okf_version "9.9" but manifest requires "0.1"`) {
+		t.Fatalf("expected manifest/archive spec mismatch, code=%d stderr=%s", code, stderr)
+	}
+	if _, ok, err := okf.ResolveRegistryEntry("mismatch"); err != nil || ok {
+		t.Fatalf("mismatched bundle must not be registered, ok=%t err=%v", ok, err)
+	}
+}
+
+func TestFetchBundleManifestSurfacesServerErrors(t *testing.T) {
+	originalHTTPClient := remoteHTTPClient
+	remoteHTTPClient = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		return testHTTPResponse(http.StatusServiceUnavailable, "text/plain", []byte("unavailable"), request), nil
+	})}
+	defer func() { remoteHTTPClient = originalHTTPClient }()
+
+	if _, _, ok, err := fetchBundleManifest("https://example.test/openknowledge.json"); err == nil || ok || !strings.Contains(err.Error(), "503 Service Unavailable") {
+		t.Fatalf("expected manifest server error to be preserved, ok=%t err=%v", ok, err)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (roundTrip roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return roundTrip(request)
+}
+
+func testHTTPResponse(statusCode int, contentType string, body []byte, request *http.Request) *http.Response {
+	return &http.Response{
+		StatusCode: statusCode,
+		Status:     fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
+		Header:     http.Header{"Content-Type": []string{contentType}},
+		Body:       io.NopCloser(bytes.NewReader(body)),
+		Request:    request,
 	}
 }
 
