@@ -131,7 +131,7 @@ viewer, plain semantic HTML, normalized JSON, or a tar archive.
 ## Related Docs
 
 * [Commands](commands/) - command-by-command behavior and flags.
-* [Exporters](exporters/) - shipped and candidate export targets.
+* [Exporters](exporters/) - shipped bundle conversion targets.
 * [Registry command](commands/registry.md) - connection storage and lookup.
 * [List command](commands/list.md) - bundle inventory and validation context.
 * [From command](commands/from.md) - agent-driven source-to-wiki generation.

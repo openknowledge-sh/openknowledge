@@ -55,8 +55,8 @@ Federated search uses separate envelopes so the existing single-bundle
 root/revision contracts remain unchanged. Both envelopes declare
 `fusion.method: "rrf"`, `rankConstant: 60`, and a sorted knowledge-base status
 inventory. Successful bases require a revision; failed bases require an error
-and cannot claim a revision. Candidate wrappers namespace the existing closed
-source/result object with a registry key, local rank, and fusion score.
+and cannot claim a revision. Federated result wrappers namespace the existing
+closed source/result object with a registry key, local rank, and fusion score.
 
 ## Command Error Envelope
 

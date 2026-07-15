@@ -13,7 +13,7 @@ update the smallest relevant page.
 * [Spec compliance](spec-compliance.md) - hard-rule OKF spec compliance matrix for the CLI.
 * [Go API](go-api.md) - public read-only package for embedding the same parser, validation, retrieval, and graph core used by the CLI.
 * [Commands](commands/) - command-by-command reference pages.
-* [Exporters](exporters/) - bundle conversion targets and candidate exporters.
+* [Exporters](exporters/) - shipped bundle conversion targets.
 
 ---
 

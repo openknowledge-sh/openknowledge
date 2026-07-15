@@ -1,5 +1,14 @@
 # Bundle Update Log
 
+## 2026-07-15
+
+* **CLI documentation drift audit**: Reconciled `README.md` and the command
+  wiki with the shipped CLI surface. Documented registry Git selectors and
+  Git staging limits, completed managed-agent usage and help coverage,
+  corrected bundle metadata and exporter status wording, restored the graph
+  output schema version in its example, and clarified managed remote cache
+  deletion.
+
 ## 2026-07-07
 
 * **Local agent job runner**: Added documentation for `openknowledge agents`

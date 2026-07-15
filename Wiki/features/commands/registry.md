@@ -24,6 +24,8 @@ Lookup lives under the same namespace as `openknowledge registry where`.
 openknowledge registry connect <source>
 openknowledge registry connect <source> --as <key>
 openknowledge registry connect <source> --access read|write
+openknowledge registry connect <git-url> --git-ref <branch|tag|commit>
+openknowledge registry connect <git-url> --git-subdir <path>
 openknowledge registry connect <source> --no-validate
 openknowledge registry disconnect <key|path>
 openknowledge registry disconnect <key|path> --keep-files
@@ -52,6 +54,8 @@ openknowledge registry --help
 | `source` | argument | Knowledge bundle folder path, existing registry key, Open Knowledge manifest URL, tar archive URL, or Git URL. |
 | `--as` | flag | Explicit connection key for `connect`. |
 | `--access` | flag | Local authoring capability, `read` or `write`. Defaults to `read`; managed remote sources are always read-only. |
+| `--git-ref` | flag | Git branch, tag, or commit to fetch instead of the remote default. Git sources only. |
+| `--git-subdir` | flag | Canonical slash-separated OKF bundle root below the repository root. Git sources only. |
 | `--no-validate` | flag | Skip validation status output for `connect`. |
 | `--keep-files` | flag | Keep bundle files after `disconnect`; this is the default. |
 | `--delete-files` | flag | Delete files only when the entry is marked `managed`. |

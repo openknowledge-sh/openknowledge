@@ -248,10 +248,10 @@ traversal hint for sources that need one.
 
 ### Bundle lifecycle
 
-`openknowledge new` creates a minimal local bundle with the base OKF files: a
-setup handoff, starter agent guidance, an update log, and a pinned copy of the
-current spec. Pass `--no-agents` or `--no-setup` when starter agent guidance or
-the interactive handoff is not useful for the workflow.
+`openknowledge new` creates a minimal local bundle with a root index, update
+log, and pinned copy of the current spec. By default it also includes a setup
+handoff and starter agent guidance. Pass `--no-agents` or `--no-setup` when
+those optional handoff files are not useful for the workflow.
 
 After creation, humans and agents edit normal Markdown files.
 `openknowledge validate` checks the bundle, `openknowledge list` prints the
@@ -401,7 +401,7 @@ Nested agent commands also support
 | `openknowledge setup --rules <rules>` | Print the setup prompt with selected maintenance rules. |
 | `openknowledge from <source> --out <folder>` | Print an agent prompt for generating or refreshing a wiki from a source URL or path. |
 | `openknowledge from <source> --out <folder> --type custom --about <goal>` | Print a custom source-to-wiki prompt without an interview step. |
-| `openknowledge rules --list` | List built-in agent maintenance rules. |
+| `openknowledge rules --list` | List available built-in and wiki-local maintenance rules. |
 | `openknowledge rules <rules> --path <path>` | Print ready-to-paste maintenance rules for an existing wiki. |
 | `openknowledge rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
 | `openknowledge review rules [path]` | Print an advisory AI review prompt for maintenance rules. |
@@ -426,7 +426,7 @@ Nested agent commands also support
 | `openknowledge connect <source> --as <key>` | Connect a bundle with an explicit key. |
 | `openknowledge connect <git-url> --git-ref <branch|tag|commit> --git-subdir <path>` | Connect a selected Git revision and OKF bundle root from a repository or monorepo. |
 | `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
-| `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for CLI-managed remote clones. |
+| `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for CLI-managed remote caches. |
 | `openknowledge get <name-or-path>` | Print an exact local Markdown file, default entrypoint, or root `index.md`. |
 | `openknowledge get <name-or-path> <entry-or-file>` | Print a named bundle entrypoint or bundle-relative Markdown file. |
 | `openknowledge get <name-or-path> --info` | Print bundle and selected-file metadata. |

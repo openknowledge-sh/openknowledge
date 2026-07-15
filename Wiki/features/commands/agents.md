@@ -36,6 +36,8 @@ openknowledge agents status [jobs-dir] --json
 openknowledge agents runs [repo]
 openknowledge agents runs [repo] --job <id> --status <status> --json
 openknowledge agents spawn <job.md>
+openknowledge agents spawn <job.md> --at 2026-07-07T09:00:00Z
+openknowledge agents spawn <job.md> --executor host|docker
 openknowledge agents spawn <job.md> --json
 openknowledge agents stop <run-id> [--repo <path>]
 openknowledge agents kill <run-id> [--repo <path>]
@@ -48,6 +50,7 @@ openknowledge agents run <job.md> --executor host
 openknowledge agents run <job.md> --executor docker
 openknowledge agents daemon [jobs-dir] --once
 openknowledge agents daemon [jobs-dir] --tick 5m
+openknowledge agents daemon [jobs-dir] --dry-run
 openknowledge agents daemon [jobs-dir] --executor host
 openknowledge agents daemon [jobs-dir] --executor docker
 openknowledge agents <subcommand> --help
@@ -324,9 +327,11 @@ arguments, environment values, and log contents.
 
 `agents spawn <job.md>` starts the same runner used by `agents run` in a
 detached supervisor, waits until its run record is observable, and returns the
-run id, supervisor PID, and record path. The supervisor inherits only the
-current runner environment; each configured host or Docker command still uses
-the existing sandbox environment allowlist.
+run id, supervisor PID, and record path. It accepts the same `--at` and
+`--executor host|docker` overrides as `agents run`, plus `--json` for the
+versioned spawn result. The supervisor inherits only the current runner
+environment; each configured host or Docker command still uses the existing
+sandbox environment allowlist.
 
 `agents stop <run-id>` requests cancellation through the live supervisor and
 waits up to `10s` by default. `agents kill <run-id>` force-cancels the current
@@ -353,11 +358,12 @@ worktree, executes no command, and exits successfully. The lock is held across
 worktree creation, agent execution, verification, optional commit, and final
 artifact recording, including between independent daemon processes.
 
-`agents run` and `agents daemon` accept only the exact `--executor host` and
-`--executor docker` overrides. Missing or unknown values are usage errors and
-are rejected before job discovery, plan construction, or command execution; an
-executor typo never falls back to host execution. The same allowlist is
-enforced again by the internal plan builder for non-CLI callers.
+`agents run`, `agents spawn`, and `agents daemon` accept only the exact
+`--executor host` and `--executor docker` overrides. Missing or unknown values
+are usage errors and are rejected before job discovery, plan construction, or
+command execution; an executor typo never falls back to host execution. The
+same allowlist is enforced again by the internal plan builder for non-CLI
+callers.
 
 `agents run` creates a new Git worktree and writes run artifacts outside the
 source repository. The default state root is
@@ -435,12 +441,13 @@ compatibility or migrations.
 
 `agents daemon` loads job specs, evaluates due schedules, skips already
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
-exits. Discovery keeps valid job files beside malformed ones, and each pass
-continues after per-file, scheduling, planning, run-record inspection, or
-execution failures. A failing `--once` pass returns status `1` only after every
-loadable due job has been attempted. Without `--once`, the daemon reports the
-pass failures and continues polling using `--tick`, defaulting to `1m`; one bad
-job cannot stop unrelated schedules.
+exits. `--dry-run` prints resolved plans for due jobs without creating
+worktrees or executing commands. Discovery keeps valid job files beside
+malformed ones, and each pass continues after per-file, scheduling, planning,
+run-record inspection, or execution failures. A failing `--once` pass returns
+status `1` only after every loadable due job has been attempted. Without
+`--once`, the daemon reports the pass failures and continues polling using
+`--tick`, defaulting to `1m`; one bad job cannot stop unrelated schedules.
 
 The agent command defaults to a `30m` timeout unless `agent.timeout` is set.
 Every verification command has its own `verify.timeout`, defaulting to `15m`.

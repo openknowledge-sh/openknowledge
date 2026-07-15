@@ -181,8 +181,8 @@ to have been followed.
 
 Root `index.md` frontmatter may declare `okf_version`; unknown additional root
 frontmatter keys are tolerated. Root `okf_bundle_*` keys are an optional Open
-Knowledge CLI metadata layer for bundle discovery and future agent entrypoint
-routing. Any `index.md` may also declare `okf_publish: false` so public-view
+Knowledge CLI metadata layer for bundle discovery and `get` entrypoint routing.
+Any `index.md` may also declare `okf_publish: false` so public-view
 publishers can exclude that index while the OKF validator still treats it as a
 reserved file instead of a concept document.
 

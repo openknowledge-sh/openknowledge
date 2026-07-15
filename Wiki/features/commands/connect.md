@@ -84,8 +84,11 @@ Remote manifest and archive processing has finite resource ceilings: manifests
 are limited to 1 MiB, compressed archives to 512 MiB, and extraction to 100,000
 entries, 256 MiB per regular file, and 2 GiB total. Extraction occurs in a
 sibling staging directory and publishes the target only after every entry and
-bundle check succeeds; rejected archives leave no partial target. These byte
-limits do not apply to the separate shallow Git clone fallback.
+bundle check succeeds; rejected archives leave no partial target. The same
+entry-count, per-file, and aggregate materialized-byte limits apply to the
+complete Git staging generation, including `.git` objects, after every Git
+subprocess. The manifest and compressed-archive download caps do not apply to
+Git transport.
 
 Remote cache identity is derived from the normalized source plus any Git ref
 and subdirectory selectors, not from `--as`, so reconnecting the same selected

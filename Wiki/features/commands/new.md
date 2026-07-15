@@ -55,9 +55,10 @@ because there is no `SETUP.MD` document to hand to an agent.
 
 When bundle metadata flags are provided, `new` writes optional Open Knowledge
 CLI metadata into the root `index.md` frontmatter as flat `okf_bundle_*` keys.
-This metadata is a tooling layer for discovery, future `connect`, and candidate
-`get` entrypoint routing; it is not required for OKF conformance. Without these
-flags, `new` writes only `okf_version: "0.1"` in the root index frontmatter.
+This metadata is a tooling layer used by `connect` for bundle naming and
+discovery and by `get` for entrypoint routing; it is not required for OKF
+conformance. Without these flags, `new` writes only `okf_version: "0.1"` in the
+root index frontmatter.
 
 `--bundle-entry` accepts repeatable `name=path` values. For example,
 `--bundle-entry default=agents/checker.md` writes
@@ -111,8 +112,7 @@ Agent handoff
 
 * Create the initial bundle for a project wiki.
 * Create a minimal source-generated wiki scaffold without starter agent files.
-* Seed optional bundle metadata for local registration and future agent
-  entrypoints.
+* Seed optional bundle metadata for local registration and agent entrypoints.
 * Generate a local pinned copy of the OKF spec.
 * Produce an agent handoff file for post-scaffold customization.
 

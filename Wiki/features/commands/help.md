@@ -57,19 +57,22 @@ openknowledge creates and validates Open Knowledge Format v0.1 bundles.
 
 Usage:
   openknowledge --help
+  openknowledge --error-format json <command> [args...]
   openknowledge <command> --help
   openknowledge setup
   openknowledge setup --rules <rules>
   openknowledge from <source> --out <folder>
   openknowledge agents new <template> --out <file>
   openknowledge agents run <job.md> --dry-run
+  openknowledge agents status [jobs-dir]
+  openknowledge agents runs [repo]
   openknowledge new --no-agents --no-setup [folder]
 
 Commands:
   setup      Print an agent setup prompt.
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
-  agents     Experimental: run scheduled local agent jobs from Markdown specs.
+  agents     Experimental: run and manage local agent jobs from Markdown specs.
 ```
 
 ## Use Cases
@@ -115,7 +118,8 @@ the registry command group. Source anchors:
 `packages/cli/cmd/openknowledge/main_test.go`.
 
 Nested `openknowledge agents <subcommand> --help` now dispatches to dedicated
-help for `new`, `list`, `validate`, `run`, and `daemon`. Source anchors:
+help for `new`, `list`, `status`, `runs`, `spawn`, `stop`, `kill`, `validate`,
+`run`, and `daemon`. Source anchors:
 `packages/cli/cmd/openknowledge/agents_command.go` and
 `packages/cli/cmd/openknowledge/agents_command_test.go`.
 

@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Documentation drift audit
+
+* Aligned registry and connect references with the shipped Git selector flags
+  and the staging-tree limits that apply after every Git subprocess.
+* Replaced stale future/candidate wording for the shipped bundle metadata,
+  registry naming, `get` entrypoint routing, federated search, and exporter
+  surfaces.
+* Completed agent usage and help coverage for managed-run commands, spawn
+  schedule/executor overrides, and daemon dry runs; corrected the graph JSON
+  example to include its required `schemaVersion`.
+* Clarified that `disconnect --delete-files` applies to CLI-managed remote
+  caches, including manifest, archive, and Git materializations.
+* Corrected the README scaffold inventory to include the root index and made
+  its rules catalog description include valid wiki-local rules.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/agents_command.go`,
+  `packages/cli/internal/okf/graph.go`, and
+  `packages/cli/schemas/v1/graph.schema.json`.
+* Docs updated: `README.md`, `Wiki/features/commands/{agents,connect,help,new,registry,to,validate}.md`,
+  `Wiki/features/{index,machine-contracts,tooling-model}.md`,
+  `Wiki/changelog/cli.md`, and `Wiki/log.md`.
+
 ### 2026-07-15 - Observable and controllable local agent runs
 
 * Added `openknowledge agents status` for schedules, next eligible slots,

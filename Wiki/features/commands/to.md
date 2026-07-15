@@ -91,6 +91,7 @@ Stdout targets print JSON when `--out` is omitted:
 
 ```json
 {
+  "schemaVersion": "1",
   "root": "/work/project-memory",
   "specVersion": "0.1",
   "type": "source",
