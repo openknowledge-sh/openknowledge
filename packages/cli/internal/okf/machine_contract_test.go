@@ -39,6 +39,7 @@ func TestMachineContractGoldenFiles(t *testing.T) {
 		"search-results": SearchResultSet{
 			SchemaVersion: MachineSchemaVersion,
 			Root:          "/knowledge",
+			Revision:      RetrievalRevision{SpecVersion: "0.1", IndexSHA256: strings.Repeat("0", 64)},
 			Query:         "authentication",
 			Limit:         12,
 			Results:       []SearchResult{},
@@ -46,6 +47,7 @@ func TestMachineContractGoldenFiles(t *testing.T) {
 		"search-context": ContextResult{
 			SchemaVersion:   MachineSchemaVersion,
 			Root:            "/knowledge",
+			Revision:        RetrievalRevision{SpecVersion: "0.1", IndexSHA256: strings.Repeat("0", 64)},
 			Query:           "authentication",
 			Budget:          4000,
 			EstimatedTokens: 0,

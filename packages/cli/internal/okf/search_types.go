@@ -8,17 +8,20 @@ type SearchOptions struct {
 }
 
 type SearchResultSet struct {
-	SchemaVersion string         `json:"schemaVersion"`
-	Root          string         `json:"root"`
-	Query         string         `json:"query"`
-	Limit         int            `json:"limit"`
-	Results       []SearchResult `json:"results"`
-	Issues        []Issue        `json:"issues,omitempty"`
+	SchemaVersion string            `json:"schemaVersion"`
+	Root          string            `json:"root"`
+	Revision      RetrievalRevision `json:"revision"`
+	Query         string            `json:"query"`
+	Limit         int               `json:"limit"`
+	Results       []SearchResult    `json:"results"`
+	Issues        []Issue           `json:"issues,omitempty"`
 }
 
 type SearchResult struct {
 	Path            string   `json:"path"`
 	ID              string   `json:"id"`
+	Locator         string   `json:"locator"`
+	ContentSHA256   string   `json:"contentSha256"`
 	Kind            string   `json:"kind"`
 	Type            string   `json:"type,omitempty"`
 	Title           string   `json:"title"`

@@ -56,6 +56,7 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 	result := SearchResultSet{
 		SchemaVersion: MachineSchemaVersion,
 		Root:          index.Root,
+		Revision:      index.Revision,
 		Query:         query,
 		Limit:         limit,
 		Issues:        index.Issues,
@@ -279,6 +280,8 @@ func searchResultFromContextSection(section ContextSection, score float64, match
 	return SearchResult{
 		Path:            section.Path,
 		ID:              section.ID,
+		Locator:         section.Locator,
+		ContentSHA256:   section.ContentSHA256,
 		Kind:            section.Kind,
 		Type:            section.Type,
 		Title:           title,

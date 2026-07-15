@@ -1,6 +1,8 @@
 package okf
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"math"
 	"strconv"
 	"strings"
@@ -109,6 +111,7 @@ func newContextSection(entry ListEntry, frontmatter map[string]string, id string
 	}
 	return ContextSection{
 		ID:              id,
+		ContentSHA256:   sectionContentSHA256(text),
 		Path:            entry.Path,
 		Kind:            entry.Kind,
 		Type:            entry.Type,
@@ -124,6 +127,11 @@ func newContextSection(entry ListEntry, frontmatter map[string]string, id string
 		Links:           links,
 		EstimatedTokens: estimateContextTokens(text),
 	}
+}
+
+func sectionContentSHA256(text string) string {
+	digest := sha256.Sum256([]byte(strings.ReplaceAll(text, "\r\n", "\n")))
+	return hex.EncodeToString(digest[:])
 }
 
 func linksInRange(links []Link, lineStart int, lineEnd int) []Link {

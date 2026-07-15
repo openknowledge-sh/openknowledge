@@ -45,7 +45,8 @@ func TestPublicReadAPIExercisesCoreViews(t *testing.T) {
 		t.Fatalf("unexpected public search: %#v err=%v", results, err)
 	}
 	context, err := okf.ResolveContextWithVersion(root, "0.1", okf.ContextOptions{Query: "deterministic search", Budget: 500, Limit: 5})
-	if err != nil || len(context.Sources) == 0 || !strings.Contains(context.Sources[0].Markdown, "deterministic knowledge search") {
+	var revision okf.RetrievalRevision = context.Revision
+	if err != nil || len(context.Sources) == 0 || len(revision.IndexSHA256) != 64 || context.Sources[0].Locator == "" || !strings.Contains(context.Sources[0].Markdown, "deterministic knowledge search") {
 		t.Fatalf("unexpected public context: %#v err=%v", context, err)
 	}
 	graph, err := okf.BuildGraphWithType(root, "0.1", okf.GraphTypeSearch)

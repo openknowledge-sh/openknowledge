@@ -249,7 +249,9 @@ bundle tree, `openknowledge get` prints exact files or declared entrypoints,
 and `openknowledge search` uses deterministic BM25 ranking to build
 source-preserving Markdown context under a token budget. One-hop local links
 and backlinks are included by default when they fit; `--matches` exposes the
-underlying ranked snippets and scores.
+underlying ranked snippets and scores. Both search shapes bind results to the
+indexed Markdown revision and expose content-addressed section locators, so an
+integration can detect stale evidence after a knowledge-base refresh.
 
 ### Registry and viewer
 

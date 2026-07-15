@@ -161,3 +161,41 @@ func TestResolveContextIncludesLinkedNeighborWithinBudget(t *testing.T) {
 		}
 	}
 }
+
+func TestRetrievalRevisionAndLocatorsBindResultsToIndexedContent(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "guides/auth.md", "---\ntype: Guide\ntitle: Authentication\n---\n\n# Authentication\n\nUse short-lived OAuth tokens.\n")
+
+	first, err := ResolveContextWithVersion(root, "0.1", ContextOptions{Query: "OAuth tokens", Budget: 500})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Sources) != 1 {
+		t.Fatalf("expected one source, got %#v", first.Sources)
+	}
+	if first.Revision.SpecVersion != "0.1" || len(first.Revision.IndexSHA256) != 64 {
+		t.Fatalf("expected concrete retrieval revision, got %#v", first.Revision)
+	}
+	source := first.Sources[0]
+	if len(source.ContentSHA256) != 64 || !strings.Contains(source.Locator, first.Revision.IndexSHA256) || !strings.Contains(source.Locator, source.ContentSHA256) || !strings.Contains(source.Locator, "guides%2Fauth.md") {
+		t.Fatalf("expected revision-bound source locator, got %#v", source)
+	}
+
+	repeated, err := SearchKnowledgeWithVersion(root, "0.1", SearchOptions{Query: "OAuth tokens", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repeated.Revision != first.Revision || len(repeated.Results) != 1 || repeated.Results[0].Locator != source.Locator {
+		t.Fatalf("expected context and matches to share revision identity: context=%#v matches=%#v", first, repeated)
+	}
+
+	writeFile(t, root, "guides/auth.md", "---\ntype: Guide\ntitle: Authentication\n---\n\n# Authentication\n\nUse rotated short-lived OAuth tokens.\n")
+	changed, err := ResolveContextWithVersion(root, "0.1", ContextOptions{Query: "OAuth tokens", Budget: 500})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.Revision.IndexSHA256 == first.Revision.IndexSHA256 || changed.Sources[0].ContentSHA256 == source.ContentSHA256 || changed.Sources[0].Locator == source.Locator {
+		t.Fatalf("expected content edit to invalidate revision and locator: before=%#v after=%#v", first, changed)
+	}
+}

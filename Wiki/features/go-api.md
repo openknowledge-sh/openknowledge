@@ -58,12 +58,17 @@ The package exposes:
 Returned structures are aliases of the core models, not copied SDK-specific
 models. CLI behavior, public Go results, JSON schemas, and MCP structured
 content therefore share one implementation and one set of JSON field tags.
+Search and context results include a concrete `RetrievalRevision` plus
+content-addressed section locators. Callers that persist evidence can compare
+`revision.indexSha256` after refresh instead of assuming a path and line range
+still identify the same content.
 
 ## Versioning
 
 Calls without an explicit version use `LatestSpecVersion`. Integrations that
 persist data should prefer `WithVersion` functions and record both
-`SpecVersion` and `SchemaVersion` from returned models.
+`SpecVersion` and `SchemaVersion` from returned models. Retrieval callers
+should additionally persist the top-level revision and each selected locator.
 
 The Go module is pre-v1, so source compatibility follows module semantic
 versioning. Serialized compatibility is a separate contract documented under

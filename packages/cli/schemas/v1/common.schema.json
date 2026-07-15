@@ -2,6 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openknowledge.sh/schemas/cli/v1/common.schema.json",
   "$defs": {
+    "retrievalRevision": {
+      "type": "object",
+      "required": ["specVersion", "indexSha256"],
+      "properties": {
+        "specVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "indexSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
     "issue": {
       "type": "object",
       "required": ["path", "message"],

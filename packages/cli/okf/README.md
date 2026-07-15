@@ -34,6 +34,8 @@ viewer process lifecycle; use the CLI for those operational workflows.
 
 Functions without a version select `LatestSpecVersion`. Persisted integrations
 should use the explicit `WithVersion` forms and retain returned
-`SchemaVersion` and `SpecVersion` identities. The module is still pre-v1, so
+`SchemaVersion` and `SpecVersion` identities. Search and context callers can
+persist `RetrievalRevision` and each result locator to detect stale evidence
+after edits or refreshes. The module is still pre-v1, so
 Go source compatibility follows module semantic versioning; serialized output
 compatibility follows the separately documented machine-schema policy.

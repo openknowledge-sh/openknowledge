@@ -3,10 +3,11 @@
   "$id": "https://openknowledge.sh/schemas/cli/v1/search-context.schema.json",
   "title": "Open Knowledge search context v1",
   "type": "object",
-  "required": ["schemaVersion", "root", "query", "budget", "estimatedTokens", "limit", "sources", "issues"],
+  "required": ["schemaVersion", "root", "revision", "query", "budget", "estimatedTokens", "limit", "sources", "issues"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "root": {"type": "string"},
+    "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
     "query": {"type": "string"},
     "budget": {"type": "integer", "minimum": 1},
     "estimatedTokens": {"type": "integer", "minimum": 0},
@@ -17,9 +18,11 @@
   "$defs": {
     "source": {
       "type": "object",
-      "required": ["id", "path", "kind", "title", "heading", "lineStart", "lineEnd", "score", "estimatedTokens", "relation", "markdown"],
+      "required": ["id", "locator", "contentSha256", "path", "kind", "title", "heading", "lineStart", "lineEnd", "score", "estimatedTokens", "relation", "markdown"],
       "properties": {
         "id": {"type": "string"},
+        "locator": {"type": "string", "pattern": "^okf\\+sha256://[a-f0-9]{64}/.+#[a-f0-9]{64}$"},
+        "contentSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "path": {"type": "string"},
         "kind": {"type": "string"},
         "type": {"type": "string"},

@@ -35,6 +35,13 @@ field identifies the selected Open Knowledge Format revision where applicable.
 Shared issue, link, and recursively typed frontmatter definitions live in
 `common.schema.json`.
 
+Search context and ranked-match contracts share a closed `retrievalRevision`
+definition containing the concrete `specVersion` and lowercase SHA-256 of the
+indexed Markdown corpus. Their non-empty source/result objects require a
+lowercase section `contentSha256` and an `okf+sha256://` locator bound to that
+revision. These fields let CLI, Go, and MCP consumers reject stale citations
+after a local edit or managed-source refresh.
+
 ## Command Error Envelope
 
 Place the global `--error-format json` option before a command to make usage

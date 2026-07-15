@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Revision-bound retrieval provenance
+
+* Added a concrete OKF spec plus deterministic indexed-Markdown SHA-256 to
+  every context packet and ranked search result set.
+* Added lowercase section content digests and opaque `okf+sha256://` locators
+  to every returned source/result, making stored evidence refresh-aware even
+  when legacy heading IDs or line ranges move.
+* Exposed the same provenance through default Markdown, versioned JSON, the
+  public Go aliases, and MCP structured search content.
+* Extended both retrieval schemas, shared definitions, golden contracts,
+  closed-object checks, invalid-identity tests, and edit-invalidation tests.
+* Source anchors: `packages/cli/internal/okf/context.go`,
+  `packages/cli/internal/okf/context_sections.go`,
+  `packages/cli/internal/okf/context_types.go`,
+  `packages/cli/internal/okf/search_knowledge.go`,
+  `packages/cli/internal/okf/search_types.go`,
+  `packages/cli/schemas/v1/common.schema.json`,
+  `packages/cli/schemas/v1/search-context.schema.json`, and
+  `packages/cli/schemas/v1/search-results.schema.json`.
+* Docs updated: `README.md`, command help,
+  `Wiki/features/commands/search.md`, `Wiki/features/go-api.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Versioned CLI error envelopes
 
 * Added the root-level `--error-format text|json` option; JSON mode converts

@@ -1,6 +1,10 @@
 package okf
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"net/url"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -35,6 +39,10 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 		entry := listEntryFromASTSummary(SummarizeASTDocument(document, metadata))
 		sections = append(sections, splitContextSectionsFromASTDocument(entry, document)...)
 	}
+	revision := RetrievalRevision{SpecVersion: validation.SpecVersion, IndexSHA256: retrievalIndexSHA256(ast)}
+	for index := range sections {
+		sections[index].Locator = retrievalLocator(revision.IndexSHA256, sections[index].Path, sections[index].ContentSHA256)
+	}
 
 	// The context index predates the search command and is still the shared
 	// source of section chunks for context packing, search, and search graphs.
@@ -44,7 +52,25 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 		}
 		return sections[i].LineStart < sections[j].LineStart
 	})
-	return ContextIndex{Root: validation.Root, Sections: sections, Issues: issues}
+	return ContextIndex{Root: validation.Root, Revision: revision, Sections: sections, Issues: issues}
+}
+
+func retrievalIndexSHA256(ast ASTBundle) string {
+	documents := append([]ASTDocument(nil), ast.Documents...)
+	sort.Slice(documents, func(i, j int) bool { return documents[i].Rel < documents[j].Rel })
+	hash := sha256.New()
+	for _, document := range documents {
+		if document.ReadDiagnostic != nil || document.UTF8Diagnostic != nil {
+			continue
+		}
+		writeContentHashRecord(hash, 'f', filepath.ToSlash(document.Rel), int64(len(document.Content)))
+		_, _ = hash.Write([]byte(document.Content))
+	}
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func retrievalLocator(indexSHA256 string, path string, contentSHA256 string) string {
+	return "okf+sha256://" + indexSHA256 + "/" + url.PathEscape(filepath.ToSlash(path)) + "#" + contentSHA256
 }
 
 func ResolveContext(root string, options ContextOptions) (ContextResult, error) {
@@ -73,6 +99,7 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 	result := ContextResult{
 		SchemaVersion: MachineSchemaVersion,
 		Root:          index.Root,
+		Revision:      index.Revision,
 		Query:         query,
 		Budget:        budget,
 		Limit:         limit,

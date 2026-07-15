@@ -3114,6 +3114,7 @@ func printSearchContextMarkdown(result okf.ContextResult) {
 	fmt.Println()
 	fmt.Printf("Query: %s\n", result.Query)
 	fmt.Printf("Root: `%s`\n", result.Root)
+	fmt.Printf("Revision: `%s` (OKF %s)\n", result.Revision.IndexSHA256, result.Revision.SpecVersion)
 	fmt.Printf("Context: %d / %d estimated tokens\n", result.EstimatedTokens, result.Budget)
 	fmt.Printf("Sources: %d\n", len(result.Sources))
 	fmt.Printf("Validation issues: %d\n", len(result.Issues))
@@ -3128,6 +3129,7 @@ func printSearchContextMarkdown(result okf.ContextResult) {
 		fmt.Printf("## %d. %s\n", index+1, searchContextSourceTitle(source))
 		fmt.Println()
 		fmt.Printf("Source: `%s`\n", searchSourceLocation(source.Path, source.LineStart, source.LineEnd))
+		fmt.Printf("Locator: `%s`\n", source.Locator)
 		fmt.Printf("Relation: `%s`\n", source.Relation)
 		fmt.Printf("Score: `%.2f`\n", source.Score)
 		fmt.Println()
@@ -3152,6 +3154,7 @@ func printSearchMatchesMarkdown(result okf.SearchResultSet) {
 	fmt.Println()
 	fmt.Printf("Query: %s\n", result.Query)
 	fmt.Printf("Root: `%s`\n", result.Root)
+	fmt.Printf("Revision: `%s` (OKF %s)\n", result.Revision.IndexSHA256, result.Revision.SpecVersion)
 	fmt.Printf("Matches: %d\n", len(result.Results))
 	fmt.Printf("Validation issues: %d\n", len(result.Issues))
 	if len(result.Results) == 0 {
@@ -3165,6 +3168,7 @@ func printSearchMatchesMarkdown(result okf.SearchResultSet) {
 		fmt.Printf("## %d. %s\n", index+1, searchMatchTitle(match))
 		fmt.Println()
 		fmt.Printf("Source: `%s`\n", searchSourceLocation(match.Path, match.LineStart, match.LineEnd))
+		fmt.Printf("Locator: `%s`\n", match.Locator)
 		fmt.Printf("Relation: `%s`\n", searchResultRelation(match))
 		fmt.Printf("Score: `%.2f`\n", match.Score)
 		if len(match.HeadingPath) > 0 {
@@ -4832,6 +4836,9 @@ Behavior:
   one-hop outgoing local links and backlinks with their relation. Use
   --no-expand for direct lexical matches only, or --matches to inspect scores,
   matched fields, snippets, and relations instead of context Markdown.
+
+  Both output modes identify the indexed Markdown revision and give every
+  section a content-addressed locator so stored citations can detect refreshes.
 
 Examples:
   openknowledge search Wiki "validation workflow"

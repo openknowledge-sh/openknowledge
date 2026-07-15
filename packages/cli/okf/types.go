@@ -65,9 +65,10 @@ type (
 	SearchResult    = core.SearchResult
 	SearchResultSet = core.SearchResultSet
 
-	ContextOptions = core.ContextOptions
-	ContextResult  = core.ContextResult
-	ContextSource  = core.ContextSource
+	ContextOptions    = core.ContextOptions
+	ContextResult     = core.ContextResult
+	ContextSource     = core.ContextSource
+	RetrievalRevision = core.RetrievalRevision
 
 	Graph     = core.Graph
 	GraphEdge = core.GraphEdge

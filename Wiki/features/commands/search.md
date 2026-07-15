@@ -52,7 +52,17 @@ Search chunks are Markdown heading sections with content, not arbitrary
 fixed-size token windows. Heading-only parent sections are omitted so selected
 sources contain useful prose, lists, code, or other authored content. Each
 source keeps its bundle file, section ID, heading and heading path, source line
-range, estimated token count, and original Markdown.
+range, estimated token count, original Markdown, content digest, and
+content-addressed locator.
+
+Every retrieval computes a deterministic SHA-256 revision over the indexed
+Markdown paths and bytes and records the concrete OKF spec version. Context and
+match output from the same source generation therefore share one revision.
+Each section separately hashes its normalized Markdown and exposes an opaque
+`okf+sha256://` locator containing the index revision, escaped bundle path, and
+section digest. A stored locator changes when either the corpus generation or
+the cited section changes, even if a duplicate heading shifts the legacy
+human-readable section ID.
 
 Ranking is lexical and deterministic. The canonical scorer uses BM25-style
 term saturation and length normalization across weighted fields:
@@ -97,6 +107,7 @@ relationship, and Markdown excerpt:
 
 Query: validation workflow
 Root: `/work/project-memory`
+Revision: `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (OKF 0.1)
 Context: 412 / 2400 estimated tokens
 Sources: 2
 Validation issues: 0
@@ -104,6 +115,7 @@ Validation issues: 0
 ## 1. Validation Workflow
 
 Source: `guides/validation.md:7-10`
+Locator: `okf+sha256://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/guides%2Fvalidation.md#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb`
 Relation: `direct`
 Score: `527.86`
 
@@ -134,6 +146,10 @@ piped directly to an agent or stored in a file.
 {
   "schemaVersion": "1",
   "root": "/work/project-memory",
+  "revision": {
+    "specVersion": "0.1",
+    "indexSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
   "query": "validation workflow",
   "budget": 2400,
   "estimatedTokens": 412,
@@ -142,6 +158,8 @@ piped directly to an agent or stored in a file.
     {
       "path": "guides/validation.md",
       "id": "guides/validation#validation-workflow",
+      "locator": "okf+sha256://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/guides%2Fvalidation.md#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "kind": "concept",
       "type": "Guide",
       "title": "Validation",
@@ -160,11 +178,12 @@ piped directly to an agent or stored in a file.
 }
 ```
 
-Each source can include `path`, `id`, `kind`, `type`, `title`, `heading`,
+Each source includes `path`, `id`, `locator`, `contentSha256`, `kind`, `title`,
+and the source fields `heading`,
 `headingPath`, `headingLevel`, `lineStart`, `lineEnd`, `score`,
 `estimatedTokens`, `relation`, and `markdown`. The top level reports the
 resolved root, query, budget, estimated token use, source limit, selected
-sources, and any validation issues encountered while building the AST-backed
+sources, concrete `revision`, and any validation issues encountered while building the AST-backed
 context index. Both JSON search shapes declare `schemaVersion: "1"`; their
 contracts are described by `search-context.schema.json` and
 `search-results.schema.json` under `packages/cli/schemas/v1/`.
@@ -210,6 +229,14 @@ The budget is an estimate rather than a tokenizer-specific guarantee because
 different model families count Markdown tokens differently.
 
 ## Command Change History
+
+### 2026-07-15 - Revision-bound retrieval provenance
+
+Context and match outputs now bind every response to the concrete OKF spec and
+a deterministic indexed-Markdown SHA-256. Every returned section includes its
+own content digest and opaque revision-bound locator; Markdown output exposes
+the same provenance alongside source line ranges. The CLI, Go API, and MCP
+structured content share this model.
 
 ### 2026-07-15 - Versioned search JSON
 

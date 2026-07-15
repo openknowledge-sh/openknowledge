@@ -195,9 +195,17 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 			output: outputs["search-context"],
 			mutate: func(root map[string]any) { firstObject(root, "sources")["undeclared"] = true },
 		},
+		"search-context/revision": {
+			output: outputs["search-context"],
+			mutate: func(root map[string]any) { root["revision"].(map[string]any)["undeclared"] = true },
+		},
 		"search-results/result": {
 			output: outputs["search-results"],
 			mutate: func(root map[string]any) { firstObject(root, "results")["undeclared"] = true },
+		},
+		"search-results/revision": {
+			output: outputs["search-results"],
+			mutate: func(root map[string]any) { root["revision"].(map[string]any)["undeclared"] = true },
 		},
 		"validation/check": {
 			output: outputs["validation"],
@@ -241,6 +249,32 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 				t.Fatalf("%s schema accepted an undeclared nested field", schemaName)
 			}
 		})
+	}
+}
+
+func TestRetrievalSchemasRejectInvalidRevisionIdentities(t *testing.T) {
+	schemas := compileMachineSchemas(t)
+	outputs := representativeMachineOutputs(t)
+	for _, name := range []string{"search-context", "search-results"} {
+		t.Run(name+"/revision", func(t *testing.T) {
+			instance := cloneMachineJSONValue(t, outputs[name]).(map[string]any)
+			instance["revision"].(map[string]any)["indexSha256"] = "moving-latest"
+			if err := schemas.compiled[name].Validate(instance); err == nil {
+				t.Fatalf("%s schema accepted a non-digest retrieval revision", name)
+			}
+		})
+	}
+
+	context := cloneMachineJSONValue(t, outputs["search-context"]).(map[string]any)
+	firstObject(context, "sources")["locator"] = "guides/auth.md#authentication"
+	if err := schemas.compiled["search-context"].Validate(context); err == nil {
+		t.Fatal("search-context schema accepted an unversioned locator")
+	}
+
+	results := cloneMachineJSONValue(t, outputs["search-results"]).(map[string]any)
+	firstObject(results, "results")["contentSha256"] = strings.Repeat("A", 64)
+	if err := schemas.compiled["search-results"].Validate(results); err == nil {
+		t.Fatal("search-results schema accepted a non-canonical content digest")
 	}
 }
 

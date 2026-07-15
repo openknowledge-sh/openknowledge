@@ -1,6 +1,10 @@
 {
   "schemaVersion": "1",
   "root": "/knowledge",
+  "revision": {
+    "specVersion": "0.1",
+    "indexSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
   "query": "authentication",
   "budget": 4000,
   "estimatedTokens": 0,

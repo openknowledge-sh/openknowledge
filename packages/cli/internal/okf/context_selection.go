@@ -61,6 +61,8 @@ func contextSourceFromSearchResult(section ContextSection, result SearchResult) 
 	}
 	return ContextSource{
 		ID:              section.ID,
+		Locator:         section.Locator,
+		ContentSHA256:   section.ContentSHA256,
 		Path:            section.Path,
 		Kind:            section.Kind,
 		Type:            section.Type,
