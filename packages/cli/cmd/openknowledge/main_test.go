@@ -61,6 +61,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge search <name|path> <query> --format json",
 		"openknowledge search <name|path> <query> --matches",
 		"openknowledge search <name|path> <query> --no-expand",
+		"openknowledge search --all <query>",
 		"openknowledge mcp [key-or-path]",
 		"openknowledge mcp --spec <version> [key-or-path]",
 		"openknowledge registry connect <source>",
@@ -465,6 +466,9 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge search <name|path> <query> --format json",
 				"openknowledge search <name|path> <query> --matches",
 				"openknowledge search <name|path> <query> --no-expand",
+				"openknowledge search --all <query>",
+				"reciprocal-rank fusion",
+				"rank constant 60",
 				"Defaults to 2400",
 				"--limit",
 				"--spec",
@@ -1533,6 +1537,107 @@ func TestRunSearchPrintsJSON(t *testing.T) {
 	}
 	if !strings.Contains(output, `"sources"`) || !strings.Contains(output, `"issues": []`) {
 		t.Fatalf("expected stable context JSON fields:\n%s", output)
+	}
+}
+
+func TestRunSearchAllFusesRegistryKnowledgeBasesAndIsolatesFailures(t *testing.T) {
+	base := t.TempDir()
+	alpha := filepath.Join(base, "alpha")
+	broken := filepath.Join(base, "broken")
+	writeMainTestFile(t, alpha, "index.md", "# Alpha\n")
+	writeMainTestFile(t, alpha, "guide.md", "---\ntype: Guide\ntitle: Release\n---\n\n# Release\n\nUse the release checklist.\n")
+	writeMainTestFile(t, broken, "index.md", "# Broken\n")
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	if _, _, err := okf.ConnectRegistryEntry("alpha", alpha, "read", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := okf.ConnectRegistryEntry("broken", broken, "read", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(broken); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runSearch([]string{"--all", "release", "checklist", "--format", "json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected partial federation success: code=%d\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	}
+	var result okf.FederatedContextResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected federated context JSON: %v\n%s", err, stdout)
+	}
+	if result.SchemaVersion != "1" || result.Fusion.Method != "rrf" || len(result.Sources) != 1 || result.Sources[0].KnowledgeBase != "alpha" {
+		t.Fatalf("unexpected federated result: %#v", result)
+	}
+	if len(result.KnowledgeBases) != 2 || result.KnowledgeBases[1].Name != "broken" || result.KnowledgeBases[1].Status != "error" {
+		t.Fatalf("expected explicit partial failure: %#v", result.KnowledgeBases)
+	}
+	markdown, _, markdownCode := captureMainOutput(t, func() int {
+		return runSearch([]string{"--all", "release checklist"})
+	})
+	for _, expected := range []string{"# Open Knowledge Federated Context", "Fusion: `rrf`", "## 1. alpha / Release", "Knowledge base error: `broken`"} {
+		if markdownCode != 0 || !strings.Contains(markdown, expected) {
+			t.Fatalf("expected federated Markdown to contain %q: code=%d\n%s", expected, markdownCode, markdown)
+		}
+	}
+}
+
+func TestRunSearchAllReturnsStableEmptyRegistryResult(t *testing.T) {
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runSearch([]string{"--all", "anything", "--matches", "--format=json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected empty registry to be a successful empty result: code=%d stderr=%s", code, stderr)
+	}
+	var result okf.FederatedSearchResultSet
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.KnowledgeBases == nil || result.Results == nil || len(result.KnowledgeBases) != 0 || len(result.Results) != 0 {
+		t.Fatalf("expected stable empty arrays: %#v", result)
+	}
+}
+
+func TestRunSearchAllReturnsSemanticFailureWhenEveryBundleFails(t *testing.T) {
+	base := t.TempDir()
+	broken := filepath.Join(base, "broken")
+	writeMainTestFile(t, broken, "index.md", "# Broken\n")
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
+	if _, _, err := okf.ConnectRegistryEntry("broken", broken, "read", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(broken); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--error-format", "json", "search", "--all", "anything", "--matches", "--format=json"})
+	})
+	if code != 1 || stderr != "" {
+		t.Fatalf("expected complete semantic failure report without CLI envelope: code=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	var result okf.FederatedSearchResultSet
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.KnowledgeBases) != 1 || result.KnowledgeBases[0].Status != "error" || result.KnowledgeBases[0].Error == "" || result.Results == nil {
+		t.Fatalf("unexpected all-failed federation report: %#v", result)
+	}
+}
+
+func TestParseSearchOptionsSupportsFederatedQueries(t *testing.T) {
+	options, err := parseSearchOptions([]string{"--all", "release", "checklist", "--limit", "4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !options.all || options.target != "" || options.query != "release checklist" || options.limit != 4 {
+		t.Fatalf("unexpected federated options: %#v", options)
+	}
+	if _, err := parseSearchOptions([]string{"--all"}); err == nil || !strings.Contains(err.Error(), "search --all <query>") {
+		t.Fatalf("expected missing federated query usage error, got %v", err)
 	}
 }
 

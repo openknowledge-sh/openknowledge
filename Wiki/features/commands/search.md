@@ -30,6 +30,8 @@ openknowledge search <name-or-path> <query> --matches
 openknowledge search <name-or-path> <query> --format json
 openknowledge search <name-or-path> <query> --limit <count>
 openknowledge search <name-or-path> <query> --spec <version>
+openknowledge search --all <query>
+openknowledge search --all <query> --matches --format json
 openknowledge search --help
 ```
 
@@ -40,6 +42,7 @@ openknowledge search --help
 | `name-or-path` | argument | Registry key or local bundle path. |
 | `query` | argument | Search text. Shell users should quote multi-word queries. |
 | `--budget` | flag | Approximate maximum token count for a context packet. Defaults to `2400`; cannot be combined with `--matches`. |
+| `--all` | flag | Replace the single target with every current registry entry and fuse their local ranks. |
 | `--no-expand` | flag | Return only sections that directly match the query; do not add outgoing-link or backlink context. |
 | `--matches` | flag | Print the ranked match-list inspection view instead of a source-preserving context packet. |
 | `--format` | flag | Output format, `markdown` or `json`. Defaults to `markdown`. |
@@ -93,6 +96,24 @@ deterministic, deduplicates sections, stops at `--limit`, and respects the
 approximate `--budget`; if needed, only the final selected section is
 truncated. Search does not generate a summary or answer. Its default output is
 transparent context for the caller's chosen agent or other downstream tool.
+
+### Registry-wide federation
+
+`--all` reads the current local registry snapshot and searches every entry; it
+does not contact or refresh managed remotes. BM25 scores from independently
+indexed bundles are not directly comparable, so federation ranks candidates
+inside each knowledge base and then applies reciprocal-rank fusion (RRF) with
+rank constant `60`. Integer local rank is the primary ordering key; registry
+key, path, and line provide deterministic tie-breaks. The source limit and
+context token budget apply once after fusion, not separately per bundle.
+
+Each wrapper records the registry key, local rank, fusion score, and unchanged
+single-bundle source/result. Item identity is `(knowledgeBase, locator)`;
+mirrored bundles remain separate evidence and are neither deduplicated nor
+score-summed. One unavailable or invalid entry appears with `status: "error"`
+while healthy results remain usable. An empty registry is a successful empty
+result. If every entry in a non-empty registry fails, the complete report is
+still printed and the command exits `1`.
 
 ## Output
 
@@ -216,6 +237,9 @@ openknowledge search personal "MCP auth" --matches
 
 # Consume a structured context packet.
 openknowledge search personal "MCP auth" --format json
+
+# Search all current registry entries under one global budget.
+openknowledge search --all "MCP auth" --budget 1600
 ```
 
 ## Caveats
@@ -229,6 +253,16 @@ The budget is an estimate rather than a tokenizer-specific guarantee because
 different model families count Markdown tokens differently.
 
 ## Command Change History
+
+### 2026-07-15 - Registry-wide federated search
+
+Added `--all` for context and ranked-match modes. Per-bundle canonical ranks
+are fused with documented RRF metadata, results are namespaced by registry key,
+budget and limit are global, and per-entry failures are isolated in the
+versioned federated report. Source anchors:
+`packages/cli/cmd/openknowledge/main.go`,
+`packages/cli/internal/okf/federated_search.go`, and
+`packages/cli/internal/okf/federated_search_test.go`.
 
 ### 2026-07-15 - Revision-bound retrieval provenance
 

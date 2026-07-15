@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1",
+  "query": "authentication",
+  "budget": 2400,
+  "estimatedTokens": 0,
+  "limit": 12,
+  "fusion": {
+    "method": "rrf",
+    "rankConstant": 60
+  },
+  "knowledgeBases": [],
+  "sources": []
+}

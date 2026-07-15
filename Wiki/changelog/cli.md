@@ -14,6 +14,30 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Registry-wide federated search
+
+* Added `openknowledge search --all <query>` to search every current registry
+  entry in both packed-context and ranked-match modes without remote refresh.
+* Fuse canonical per-bundle ranks with RRF constant `60` instead of comparing
+  non-comparable BM25 scores; apply one global limit and context budget.
+* Namespaced every candidate by registry key while retaining revision-bound
+  locators, original source score, local rank, and explicit fusion metadata.
+* Isolated per-bundle failures: partial results succeed, empty registries emit
+  stable empty arrays, and all-failed non-empty reports return exit `1` as
+  structured stdout data.
+* Added public Go federation helpers, two closed Draft 2020-12 schemas, golden
+  contracts, RRF/determinism/budget/failure tests, CLI integration coverage,
+  and schema conditional/extension rejection.
+* Source anchors: `packages/cli/internal/okf/federated_search.go`,
+  `packages/cli/internal/okf/federated_search_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`, and
+  `packages/cli/schemas/v1/federated-search-*.schema.json`.
+* Docs updated: `README.md`, command help, `packages/cli/okf/README.md`,
+  `packages/cli/schemas/v1/README.md`, `Wiki/features/commands/search.md`,
+  `Wiki/features/commands/help.md`, `Wiki/features/go-api.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Revision-bound retrieval provenance
 
 * Added a concrete OKF spec plus deterministic indexed-Markdown SHA-256 to

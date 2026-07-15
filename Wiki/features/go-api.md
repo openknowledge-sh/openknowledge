@@ -49,6 +49,7 @@ The package exposes:
 * validation, validation policy options, known rules, and the valid-bundle gate
 * inventory listing and bundle metadata
 * deterministic match search and budget-bounded source context
+* deterministic RRF federation across caller-provided named bundle targets
 * source and retrieval graph construction
 * strict frontmatter and portable-manifest decoding
 * supported spec discovery and the pinned spec document
@@ -69,6 +70,9 @@ Calls without an explicit version use `LatestSpecVersion`. Integrations that
 persist data should prefer `WithVersion` functions and record both
 `SpecVersion` and `SchemaVersion` from returned models. Retrieval callers
 should additionally persist the top-level revision and each selected locator.
+Federated helpers accept explicit `FederatedTarget` values rather than reading
+the user registry implicitly, keeping the public package deterministic and
+read-only. Both default-version and `WithVersion` forms are available.
 
 The Go module is pre-v1, so source compatibility follows module semantic
 versioning. Serialized compatibility is a separate contract documented under

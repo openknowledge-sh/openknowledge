@@ -89,6 +89,11 @@ contracts and human-readable errors by default. Source anchors:
 `packages/cli/cmd/openknowledge/main_test.go`, and
 `packages/cli/schemas/v1/cli-error.schema.json`.
 
+Root and search help now include `openknowledge search --all <query>` and its
+RRF, global budget/limit, local-snapshot, and partial-failure semantics. Source
+anchors: `packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
+
 Root and registry help now include `openknowledge registry list --json`, and
 `registry list --help` has dedicated discovery-contract guidance distinct from
 the deeper offline integrity checks in `registry status`. Source anchors:

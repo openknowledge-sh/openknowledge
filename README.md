@@ -252,6 +252,10 @@ and backlinks are included by default when they fit; `--matches` exposes the
 underlying ranked snippets and scores. Both search shapes bind results to the
 indexed Markdown revision and expose content-addressed section locators, so an
 integration can detect stale evidence after a knowledge-base refresh.
+`openknowledge search --all <query>` searches the current local registry
+snapshot, combines per-bundle ranks with deterministic reciprocal-rank fusion,
+and applies one global source limit and context budget without refreshing
+managed remotes.
 
 ### Registry and viewer
 
@@ -409,6 +413,8 @@ Nested agent commands also support
 | `openknowledge search <name-or-path> <query> --no-expand` | Include only direct lexical matches. |
 | `openknowledge search <name-or-path> <query> --matches` | Inspect ranked snippets, scores, and relations. |
 | `openknowledge search <name-or-path> <query> --format json` | Print structured context JSON. |
+| `openknowledge search --all <query>` | Fuse source context across every registered knowledge base under one global budget. |
+| `openknowledge search --all <query> --matches --format json` | Inspect the versioned federated rank-fusion contract. |
 | `openknowledge mcp [name-or-path]` | Serve one bundle as read-only MCP resources plus search and validation tools over stdio. |
 | `openknowledge mcp --spec <version> [name-or-path]` | Select the OKF spec used by MCP search, validation, and resource discovery. |
 | `openknowledge ast [path]` | Print parsed OKF AST JSON. |

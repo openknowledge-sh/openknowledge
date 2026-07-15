@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/federated-search-results.schema.json",
+  "title": "Open Knowledge federated search matches v1",
+  "type": "object",
+  "required": ["schemaVersion", "query", "limit", "fusion", "knowledgeBases", "results"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "query": {"type": "string"},
+    "limit": {"type": "integer", "minimum": 1},
+    "fusion": {"$ref": "federated-search-context.schema.json#/$defs/fusion"},
+    "knowledgeBases": {"type": "array", "items": {"$ref": "federated-search-context.schema.json#/$defs/knowledgeBase"}},
+    "results": {"type": "array", "items": {"$ref": "#/$defs/result"}}
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "required": ["knowledgeBase", "rank", "fusionScore", "result"],
+      "properties": {
+        "knowledgeBase": {"type": "string", "minLength": 1},
+        "rank": {"type": "integer", "minimum": 1},
+        "fusionScore": {"type": "number", "exclusiveMinimum": 0},
+        "result": {"$ref": "search-results.schema.json#/$defs/result"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

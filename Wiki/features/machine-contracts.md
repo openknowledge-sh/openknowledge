@@ -24,6 +24,8 @@ field identifies the selected Open Knowledge Format revision where applicable.
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
+| `federated-search-context.schema.json` | `openknowledge search --all <query> --format json` |
+| `federated-search-results.schema.json` | `openknowledge search --all <query> --matches --format json` |
 | `graph.schema.json` | `openknowledge to graph`, including source and search graph types |
 | `list.schema.json` | `openknowledge list --json` |
 | `registry-list.schema.json` | `openknowledge registry list --json` |
@@ -41,6 +43,13 @@ indexed Markdown corpus. Their non-empty source/result objects require a
 lowercase section `contentSha256` and an `okf+sha256://` locator bound to that
 revision. These fields let CLI, Go, and MCP consumers reject stale citations
 after a local edit or managed-source refresh.
+
+Federated search uses separate envelopes so the existing single-bundle
+root/revision contracts remain unchanged. Both envelopes declare
+`fusion.method: "rrf"`, `rankConstant: 60`, and a sorted knowledge-base status
+inventory. Successful bases require a revision; failed bases require an error
+and cannot claim a revision. Candidate wrappers namespace the existing closed
+source/result object with a registry key, local rank, and fusion score.
 
 ## Command Error Envelope
 

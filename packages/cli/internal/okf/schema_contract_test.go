@@ -207,6 +207,22 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 			output: outputs["search-results"],
 			mutate: func(root map[string]any) { root["revision"].(map[string]any)["undeclared"] = true },
 		},
+		"federated-search-context/fusion": {
+			output: outputs["federated-search-context"],
+			mutate: func(root map[string]any) { root["fusion"].(map[string]any)["undeclared"] = true },
+		},
+		"federated-search-context/knowledge-base": {
+			output: outputs["federated-search-context"],
+			mutate: func(root map[string]any) { firstObject(root, "knowledgeBases")["undeclared"] = true },
+		},
+		"federated-search-context/source": {
+			output: outputs["federated-search-context"],
+			mutate: func(root map[string]any) { firstObject(root, "sources")["undeclared"] = true },
+		},
+		"federated-search-results/result": {
+			output: outputs["federated-search-results"],
+			mutate: func(root map[string]any) { firstObject(root, "results")["undeclared"] = true },
+		},
 		"validation/check": {
 			output: outputs["validation"],
 			mutate: func(root map[string]any) { firstObject(root, "checks")["undeclared"] = true },
@@ -275,6 +291,38 @@ func TestRetrievalSchemasRejectInvalidRevisionIdentities(t *testing.T) {
 	firstObject(results, "results")["contentSha256"] = strings.Repeat("A", 64)
 	if err := schemas.compiled["search-results"].Validate(results); err == nil {
 		t.Fatal("search-results schema accepted a non-canonical content digest")
+	}
+}
+
+func TestFederatedSchemasEnforceKnowledgeBaseStatusAndNestedContracts(t *testing.T) {
+	schemas := compileMachineSchemas(t)
+	outputs := representativeMachineOutputs(t)
+	for _, name := range []string{"federated-search-context", "federated-search-results"} {
+		t.Run(name+"/error-status", func(t *testing.T) {
+			instance := cloneMachineJSONValue(t, outputs[name]).(map[string]any)
+			base := firstObject(instance, "knowledgeBases")
+			base["status"] = "error"
+			delete(base, "revision")
+			base["error"] = "bundle is unavailable"
+			if err := schemas.compiled[name].Validate(instance); err != nil {
+				t.Fatalf("%s schema rejected valid partial failure: %v", name, err)
+			}
+			base["revision"] = map[string]any{"specVersion": "0.1", "indexSha256": strings.Repeat("a", 64)}
+			if err := schemas.compiled[name].Validate(instance); err == nil {
+				t.Fatalf("%s schema accepted error status with a revision", name)
+			}
+		})
+	}
+
+	context := cloneMachineJSONValue(t, outputs["federated-search-context"]).(map[string]any)
+	firstObject(context, "sources")["source"].(map[string]any)["undeclared"] = true
+	if err := schemas.compiled["federated-search-context"].Validate(context); err == nil {
+		t.Fatal("federated context schema accepted an undeclared nested source field")
+	}
+	results := cloneMachineJSONValue(t, outputs["federated-search-results"]).(map[string]any)
+	firstObject(results, "results")["result"].(map[string]any)["undeclared"] = true
+	if err := schemas.compiled["federated-search-results"].Validate(results); err == nil {
+		t.Fatal("federated results schema accepted an undeclared nested result field")
 	}
 }
 
@@ -411,16 +459,31 @@ func representativeMachineOutputs(t *testing.T) map[string]any {
 	if len(ast.Documents) == 0 || len(bundle.Files) == 0 || len(sourceGraph.Nodes) == 0 || len(sourceGraph.Edges) == 0 || len(searchGraph.Nodes) == 0 || len(listing.Entries) == 0 || len(searchResults.Results) == 0 || len(context.Sources) == 0 || len(validation.Checks) == 0 {
 		t.Fatal("representative machine outputs must exercise non-empty nested contracts")
 	}
+	revision := context.Revision
+	base := FederatedKnowledgeBase{Name: "docs", Root: context.Root, Status: "ok", Revision: &revision, Issues: context.Issues}
+	federatedContext := FederatedContextResult{
+		SchemaVersion: MachineSchemaVersion, Query: context.Query, Budget: context.Budget,
+		EstimatedTokens: context.Sources[0].EstimatedTokens, Limit: context.Limit,
+		Fusion: FederatedFusion{Method: "rrf", RankConstant: 60}, KnowledgeBases: []FederatedKnowledgeBase{base},
+		Sources: []FederatedContextSource{{KnowledgeBase: "docs", Rank: 1, FusionScore: federatedFusionScore(1), Source: context.Sources[0]}},
+	}
+	federatedResults := FederatedSearchResultSet{
+		SchemaVersion: MachineSchemaVersion, Query: searchResults.Query, Limit: searchResults.Limit,
+		Fusion: FederatedFusion{Method: "rrf", RankConstant: 60}, KnowledgeBases: []FederatedKnowledgeBase{base},
+		Results: []FederatedSearchResult{{KnowledgeBase: "docs", Rank: 1, FusionScore: federatedFusionScore(1), Result: searchResults.Results[0]}},
+	}
 	return map[string]any{
-		"ast":            ast,
-		"bundle":         bundle,
-		"graph":          sourceGraph,
-		"graph-source":   sourceGraph,
-		"graph-search":   searchGraph,
-		"list":           listing,
-		"search-context": context,
-		"search-results": searchResults,
-		"validation":     validation,
+		"ast":                      ast,
+		"bundle":                   bundle,
+		"graph":                    sourceGraph,
+		"graph-source":             sourceGraph,
+		"graph-search":             searchGraph,
+		"list":                     listing,
+		"search-context":           context,
+		"search-results":           searchResults,
+		"validation":               validation,
+		"federated-search-context": federatedContext,
+		"federated-search-results": federatedResults,
 	}
 }
 

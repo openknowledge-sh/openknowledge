@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1",
+  "query": "authentication",
+  "limit": 12,
+  "fusion": {
+    "method": "rrf",
+    "rankConstant": 60
+  },
+  "knowledgeBases": [],
+  "results": []
+}

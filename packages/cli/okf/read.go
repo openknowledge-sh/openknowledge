@@ -50,12 +50,28 @@ func SearchWithVersion(root string, version string, options SearchOptions) (Sear
 	return core.SearchKnowledgeWithVersion(root, version, options)
 }
 
+func SearchFederatedWithVersion(targets []FederatedTarget, version string, options SearchOptions) (FederatedSearchResultSet, error) {
+	return core.SearchFederatedKnowledgeWithVersion(targets, version, options)
+}
+
+func SearchFederated(targets []FederatedTarget, options SearchOptions) (FederatedSearchResultSet, error) {
+	return core.SearchFederatedKnowledge(targets, options)
+}
+
 func ResolveContext(root string, options ContextOptions) (ContextResult, error) {
 	return core.ResolveContext(root, options)
 }
 
 func ResolveContextWithVersion(root string, version string, options ContextOptions) (ContextResult, error) {
 	return core.ResolveContextWithVersion(root, version, options)
+}
+
+func ResolveFederatedContextWithVersion(targets []FederatedTarget, version string, options ContextOptions) (FederatedContextResult, error) {
+	return core.ResolveFederatedContextWithVersion(targets, version, options)
+}
+
+func ResolveFederatedContext(targets []FederatedTarget, options ContextOptions) (FederatedContextResult, error) {
+	return core.ResolveFederatedContext(targets, options)
 }
 
 func BuildGraph(root string) (Graph, error) {

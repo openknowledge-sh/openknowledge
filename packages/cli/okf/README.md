@@ -20,6 +20,12 @@ context, err := okf.ResolveContextWithVersion("./Wiki", "0.1", okf.ContextOption
     Limit:  8,
 })
 
+federated, err := okf.ResolveFederatedContextWithVersion(
+    []okf.FederatedTarget{{Name: "team", Root: "./TeamWiki"}},
+    "0.1",
+    okf.ContextOptions{Query: "release workflow", Budget: 1200, Limit: 8},
+)
+
 entries, err := okf.RegistryEntries()
 root, err := okf.ResolveKnowledgeRoot("team-docs")
 canWrite, err := okf.RegistryPathCanWrite(root)

@@ -2808,6 +2808,7 @@ type getOptions struct {
 type searchOptions struct {
 	target    string
 	query     string
+	all       bool
 	format    string
 	spec      string
 	limit     int
@@ -2906,6 +2907,9 @@ func runSearch(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	if options.all {
+		return runFederatedSearch(options)
+	}
 	root, err := resolveWhereTarget(options.target)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -2944,6 +2948,56 @@ func runSearch(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func runFederatedSearch(options searchOptions) int {
+	entries, err := okf.RegistryEntries()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	targets := make([]okf.FederatedTarget, 0, len(entries))
+	for _, entry := range entries {
+		targets = append(targets, okf.FederatedTarget{Name: entry.Name, Root: entry.Path})
+	}
+	if options.matches {
+		result, err := okf.SearchFederatedKnowledgeWithVersion(targets, options.spec, okf.SearchOptions{
+			Query: options.query, Limit: options.limit, Fuzzy: true, NoExpand: options.noExpand,
+		})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if err := printFederatedSearchMatches(result, options.format); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return federatedSearchExitCode(result.KnowledgeBases)
+	}
+	result, err := okf.ResolveFederatedContextWithVersion(targets, options.spec, okf.ContextOptions{
+		Query: options.query, Budget: options.budget, Limit: options.limit, NoExpand: options.noExpand,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if err := printFederatedSearchContext(result, options.format); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	return federatedSearchExitCode(result.KnowledgeBases)
+}
+
+func federatedSearchExitCode(bases []okf.FederatedKnowledgeBase) int {
+	if len(bases) == 0 {
+		return 0
+	}
+	for _, base := range bases {
+		if base.Revision != nil {
+			return 0
+		}
+	}
+	return 1
 }
 
 func nextFlagValue(args []string, index int, flag string) (string, int, error) {
@@ -3068,6 +3122,8 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 			}
 		case arg == "--matches":
 			options.matches = true
+		case arg == "--all":
+			options.all = true
 		case arg == "--no-expand":
 			options.noExpand = true
 		case strings.HasPrefix(arg, "-"):
@@ -3083,11 +3139,18 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 	if options.format != "markdown" && options.format != "json" {
 		return searchOptions{}, fmt.Errorf("unsupported search format: %s", options.format)
 	}
-	if len(positionals) < 2 {
-		return searchOptions{}, fmt.Errorf("usage: openknowledge search <name|path> <query>")
+	if options.all {
+		if len(positionals) < 1 {
+			return searchOptions{}, fmt.Errorf("usage: openknowledge search --all <query>")
+		}
+		options.query = strings.TrimSpace(strings.Join(positionals, " "))
+	} else {
+		if len(positionals) < 2 {
+			return searchOptions{}, fmt.Errorf("usage: openknowledge search <name|path> <query>")
+		}
+		options.target = positionals[0]
+		options.query = strings.TrimSpace(strings.Join(positionals[1:], " "))
 	}
-	options.target = positionals[0]
-	options.query = strings.TrimSpace(strings.Join(positionals[1:], " "))
 	if options.query == "" {
 		return searchOptions{}, fmt.Errorf("openknowledge search requires a non-empty query")
 	}
@@ -3107,6 +3170,49 @@ func printSearchContext(result okf.ContextResult, format string) error {
 		return fmt.Errorf("unsupported search format: %s", format)
 	}
 	return nil
+}
+
+func printFederatedSearchContext(result okf.FederatedContextResult, format string) error {
+	if format == "json" {
+		return printSearchJSON(result)
+	}
+	if format != "markdown" {
+		return fmt.Errorf("unsupported search format: %s", format)
+	}
+	fmt.Println("# Open Knowledge Federated Context")
+	fmt.Println()
+	fmt.Printf("Query: %s\n", result.Query)
+	fmt.Printf("Knowledge bases: %d\n", len(result.KnowledgeBases))
+	fmt.Printf("Fusion: `%s` (rank constant %d)\n", result.Fusion.Method, result.Fusion.RankConstant)
+	fmt.Printf("Context: %d / %d estimated tokens\n", result.EstimatedTokens, result.Budget)
+	fmt.Printf("Sources: %d\n", len(result.Sources))
+	printFederatedKnowledgeBaseErrors(result.KnowledgeBases)
+	if len(result.Sources) == 0 {
+		fmt.Println()
+		fmt.Println("No matching source sections found across the registry.")
+		return nil
+	}
+	for index, candidate := range result.Sources {
+		source := candidate.Source
+		fmt.Println()
+		fmt.Printf("## %d. %s / %s\n", index+1, candidate.KnowledgeBase, searchContextSourceTitle(source))
+		fmt.Println()
+		fmt.Printf("Source: `%s:%s`\n", candidate.KnowledgeBase, searchSourceLocation(source.Path, source.LineStart, source.LineEnd))
+		fmt.Printf("Locator: `%s`\n", source.Locator)
+		fmt.Printf("Rank: `%d`; fusion score: `%.9f`; source score: `%.2f`\n", candidate.Rank, candidate.FusionScore, source.Score)
+		fmt.Printf("Relation: `%s`\n", source.Relation)
+		fmt.Println()
+		fmt.Println(source.Markdown)
+	}
+	return nil
+}
+
+func printFederatedKnowledgeBaseErrors(bases []okf.FederatedKnowledgeBase) {
+	for _, base := range bases {
+		if base.Status == "error" {
+			fmt.Printf("Knowledge base error: `%s`: %s\n", base.Name, base.Error)
+		}
+	}
 }
 
 func printSearchContextMarkdown(result okf.ContextResult) {
@@ -3145,6 +3251,42 @@ func printSearchMatches(result okf.SearchResultSet, format string) error {
 		printSearchMatchesMarkdown(result)
 	default:
 		return fmt.Errorf("unsupported search format: %s", format)
+	}
+	return nil
+}
+
+func printFederatedSearchMatches(result okf.FederatedSearchResultSet, format string) error {
+	if format == "json" {
+		return printSearchJSON(result)
+	}
+	if format != "markdown" {
+		return fmt.Errorf("unsupported search format: %s", format)
+	}
+	fmt.Println("# Open Knowledge Federated Search Matches")
+	fmt.Println()
+	fmt.Printf("Query: %s\n", result.Query)
+	fmt.Printf("Knowledge bases: %d\n", len(result.KnowledgeBases))
+	fmt.Printf("Fusion: `%s` (rank constant %d)\n", result.Fusion.Method, result.Fusion.RankConstant)
+	fmt.Printf("Matches: %d\n", len(result.Results))
+	printFederatedKnowledgeBaseErrors(result.KnowledgeBases)
+	if len(result.Results) == 0 {
+		fmt.Println()
+		fmt.Println("No matching source sections found across the registry.")
+		return nil
+	}
+	for index, candidate := range result.Results {
+		match := candidate.Result
+		fmt.Println()
+		fmt.Printf("## %d. %s / %s\n", index+1, candidate.KnowledgeBase, searchMatchTitle(match))
+		fmt.Println()
+		fmt.Printf("Source: `%s:%s`\n", candidate.KnowledgeBase, searchSourceLocation(match.Path, match.LineStart, match.LineEnd))
+		fmt.Printf("Locator: `%s`\n", match.Locator)
+		fmt.Printf("Rank: `%d`; fusion score: `%.9f`; source score: `%.2f`\n", candidate.Rank, candidate.FusionScore, match.Score)
+		fmt.Printf("Relation: `%s`\n", searchResultRelation(match))
+		if strings.TrimSpace(match.Snippet) != "" {
+			fmt.Println()
+			fmt.Println(match.Snippet)
+		}
 	}
 	return nil
 }
@@ -4654,6 +4796,7 @@ Usage:
   openknowledge search <name|path> <query> --format json
   openknowledge search <name|path> <query> --matches
   openknowledge search <name|path> <query> --no-expand
+  openknowledge search --all <query>
   openknowledge mcp [key-or-path]
   openknowledge mcp --spec <version> [key-or-path]
   openknowledge ast [path]
@@ -4810,6 +4953,8 @@ Usage:
   openknowledge search <name|path> <query> --no-expand
   openknowledge search <name|path> <query> --limit <count>
   openknowledge search <name|path> <query> --spec <version>
+  openknowledge search --all <query>
+  openknowledge search --all <query> --matches --format json
   openknowledge search --help
 
 Arguments:
@@ -4819,6 +4964,7 @@ Arguments:
 Flags:
   --budget       Approximate context token budget. Defaults to %d.
                  Context mode only; cannot be combined with --matches.
+  --all          Search every registry entry and fuse per-bundle ranks.
   --format       Output format: markdown or json. Defaults to markdown.
   --limit        Maximum context source or match count. Defaults to 12.
   --matches      Print ranked match diagnostics instead of packed context.
@@ -4839,6 +4985,10 @@ Behavior:
 
   Both output modes identify the indexed Markdown revision and give every
   section a content-addressed locator so stored citations can detect refreshes.
+
+  --all uses reciprocal-rank fusion with rank constant 60 because BM25 scores
+  from different bundle corpora are not directly comparable. Budget and limit
+  are global. One broken bundle is reported without hiding healthy results.
 
 Examples:
   openknowledge search Wiki "validation workflow"

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/federated-search-context.schema.json",
+  "title": "Open Knowledge federated search context v1",
+  "type": "object",
+  "required": ["schemaVersion", "query", "budget", "estimatedTokens", "limit", "fusion", "knowledgeBases", "sources"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "query": {"type": "string"},
+    "budget": {"type": "integer", "minimum": 1},
+    "estimatedTokens": {"type": "integer", "minimum": 0},
+    "limit": {"type": "integer", "minimum": 1},
+    "fusion": {"$ref": "#/$defs/fusion"},
+    "knowledgeBases": {"type": "array", "items": {"$ref": "#/$defs/knowledgeBase"}},
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}}
+  },
+  "$defs": {
+    "fusion": {
+      "type": "object",
+      "required": ["method", "rankConstant"],
+      "properties": {"method": {"const": "rrf"}, "rankConstant": {"const": 60}},
+      "additionalProperties": false
+    },
+    "knowledgeBase": {
+      "type": "object",
+      "required": ["name", "root", "status", "issues"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "root": {"type": "string", "minLength": 1},
+        "status": {"enum": ["ok", "error"]},
+        "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+        "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}},
+        "error": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "ok"}}}, "then": {"required": ["revision"], "not": {"required": ["error"]}}},
+        {"if": {"properties": {"status": {"const": "error"}}}, "then": {"required": ["error"], "not": {"required": ["revision"]}}}
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["knowledgeBase", "rank", "fusionScore", "source"],
+      "properties": {
+        "knowledgeBase": {"type": "string", "minLength": 1},
+        "rank": {"type": "integer", "minimum": 1},
+        "fusionScore": {"type": "number", "exclusiveMinimum": 0},
+        "source": {"$ref": "search-context.schema.json#/$defs/source"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

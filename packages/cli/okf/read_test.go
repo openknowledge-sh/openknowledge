@@ -49,6 +49,15 @@ func TestPublicReadAPIExercisesCoreViews(t *testing.T) {
 	if err != nil || len(context.Sources) == 0 || len(revision.IndexSHA256) != 64 || context.Sources[0].Locator == "" || !strings.Contains(context.Sources[0].Markdown, "deterministic knowledge search") {
 		t.Fatalf("unexpected public context: %#v err=%v", context, err)
 	}
+	targets := []okf.FederatedTarget{{Name: "sdk", Root: root}}
+	federatedMatches, err := okf.SearchFederated(targets, okf.SearchOptions{Query: "deterministic search", Limit: 5, Fuzzy: true})
+	if err != nil || federatedMatches.Fusion.Method != "rrf" || len(federatedMatches.Results) == 0 || federatedMatches.Results[0].KnowledgeBase != "sdk" {
+		t.Fatalf("unexpected public federated search: %#v err=%v", federatedMatches, err)
+	}
+	federatedContext, err := okf.ResolveFederatedContextWithVersion(targets, "0.1", okf.ContextOptions{Query: "deterministic search", Budget: 500, Limit: 5})
+	if err != nil || len(federatedContext.Sources) == 0 || federatedContext.Sources[0].Source.Locator == "" {
+		t.Fatalf("unexpected public federated context: %#v err=%v", federatedContext, err)
+	}
 	graph, err := okf.BuildGraphWithType(root, "0.1", okf.GraphTypeSearch)
 	if err != nil || len(graph.Nodes) == 0 || graph.Type != okf.GraphTypeSearch {
 		t.Fatalf("unexpected public graph: %#v err=%v", graph, err)

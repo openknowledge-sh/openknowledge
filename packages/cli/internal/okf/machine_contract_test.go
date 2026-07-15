@@ -55,6 +55,23 @@ func TestMachineContractGoldenFiles(t *testing.T) {
 			Sources:         []ContextSource{},
 			Issues:          []Issue{},
 		},
+		"federated-search-context": FederatedContextResult{
+			SchemaVersion:  MachineSchemaVersion,
+			Query:          "authentication",
+			Budget:         2400,
+			Limit:          12,
+			Fusion:         FederatedFusion{Method: "rrf", RankConstant: 60},
+			KnowledgeBases: []FederatedKnowledgeBase{},
+			Sources:        []FederatedContextSource{},
+		},
+		"federated-search-results": FederatedSearchResultSet{
+			SchemaVersion:  MachineSchemaVersion,
+			Query:          "authentication",
+			Limit:          12,
+			Fusion:         FederatedFusion{Method: "rrf", RankConstant: 60},
+			KnowledgeBases: []FederatedKnowledgeBase{},
+			Results:        []FederatedSearchResult{},
+		},
 		"validation": Result{
 			SchemaVersion: MachineSchemaVersion,
 			Root:          "/knowledge",
@@ -87,7 +104,7 @@ func TestMachineContractGoldenFiles(t *testing.T) {
 }
 
 func TestMachineContractSchemasDeclareCurrentVersion(t *testing.T) {
-	names := []string{"ast", "bundle", "graph", "list", "registry-list", "registry-status", "search-context", "search-results", "validation"}
+	names := []string{"ast", "bundle", "federated-search-context", "federated-search-results", "graph", "list", "registry-list", "registry-status", "search-context", "search-results", "validation"}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			content, err := os.ReadFile(filepath.Join("..", "..", "schemas", "v1", name+".schema.json"))

@@ -61,14 +61,21 @@ type (
 	ValidationPolicyReport = core.ValidationPolicyReport
 	ValidationSummary      = core.ValidationSummary
 
-	SearchOptions   = core.SearchOptions
-	SearchResult    = core.SearchResult
-	SearchResultSet = core.SearchResultSet
+	SearchOptions            = core.SearchOptions
+	SearchResult             = core.SearchResult
+	SearchResultSet          = core.SearchResultSet
+	FederatedTarget          = core.FederatedTarget
+	FederatedFusion          = core.FederatedFusion
+	FederatedKnowledgeBase   = core.FederatedKnowledgeBase
+	FederatedSearchResult    = core.FederatedSearchResult
+	FederatedSearchResultSet = core.FederatedSearchResultSet
 
-	ContextOptions    = core.ContextOptions
-	ContextResult     = core.ContextResult
-	ContextSource     = core.ContextSource
-	RetrievalRevision = core.RetrievalRevision
+	ContextOptions         = core.ContextOptions
+	ContextResult          = core.ContextResult
+	ContextSource          = core.ContextSource
+	RetrievalRevision      = core.RetrievalRevision
+	FederatedContextResult = core.FederatedContextResult
+	FederatedContextSource = core.FederatedContextSource
 
 	Graph     = core.Graph
 	GraphEdge = core.GraphEdge
