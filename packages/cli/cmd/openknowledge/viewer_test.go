@@ -1374,6 +1374,9 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "notes.txt", "not markdown\n")
+	writeViewerFile(t, root, ".env", "TOKEN=secret\n")
+	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nname = \"night\"\n")
+	writeViewerFile(t, root, ".git/config", "[remote \"origin\"]\nurl = secret\n")
 	outside := filepath.Join(t.TempDir(), "outside.md")
 	if err := os.WriteFile(outside, []byte("# Outside\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -1400,6 +1403,49 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/file/notes.txt", nil))
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("expected non-markdown file API to return 404, got %d", recorder.Code)
+	}
+
+	for _, rawPath := range []string{"index.md", ".env", ".git/config", "openknowledge.toml", "missing.txt"} {
+		recorder = httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/raw/"+rawPath, nil))
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("expected private or non-asset raw path %s to return 404, got %d", rawPath, recorder.Code)
+		}
+	}
+	for _, assetPath := range []string{".env", ".git/config", "openknowledge.toml"} {
+		recorder = httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/file/"+assetPath, nil))
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("expected private asset page %s to return 404, got %d", assetPath, recorder.Code)
+		}
+	}
+	indexRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(indexRecorder, httptest.NewRequest(http.MethodGet, "/file/index.md", nil))
+	for _, privateName := range []string{".env", "openknowledge.toml", ".git"} {
+		if strings.Contains(indexRecorder.Body.String(), privateName) {
+			t.Fatalf("expected private asset %s to be absent from viewer tree", privateName)
+		}
+	}
+
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/raw/notes.txt", nil))
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "not markdown\n" {
+		t.Fatalf("expected inventory asset to remain available, code=%d body=%q", recorder.Code, recorder.Body.String())
+	}
+	for header, expected := range map[string]string{
+		"X-Content-Type-Options":  "nosniff",
+		"Referrer-Policy":         "no-referrer",
+		"Content-Security-Policy": "default-src 'none'; sandbox",
+	} {
+		if actual := recorder.Header().Get(header); actual != expected {
+			t.Fatalf("expected %s=%q, got %q", header, expected, actual)
+		}
+	}
+
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/raw/notes.txt", nil))
+	if recorder.Code != http.StatusMethodNotAllowed || recorder.Header().Get("Allow") != "GET, HEAD" {
+		t.Fatalf("expected raw POST to return 405 with Allow, code=%d allow=%q", recorder.Code, recorder.Header().Get("Allow"))
 	}
 
 }

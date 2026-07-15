@@ -698,7 +698,7 @@ func viewerAsset(root string, rel string, linkPrefix string) (viewerAssetData, b
 	if !ok || isMarkdownFile(cleanRel) {
 		return viewerAssetData{}, false, nil
 	}
-	filePath, ok := safeViewerPath(root, cleanRel)
+	filePath, ok := viewerRawAssetPath(root, cleanRel)
 	if !ok {
 		return viewerAssetData{}, false, nil
 	}
@@ -750,7 +750,12 @@ func viewerAsset(root string, rel string, linkPrefix string) (viewerAssetData, b
 }
 
 func renderViewerRaw(response http.ResponseWriter, request *http.Request, root string, rel string) {
-	filePath, ok := safeViewerPath(root, rel)
+	if request.Method != http.MethodGet && request.Method != http.MethodHead {
+		response.Header().Set("Allow", "GET, HEAD")
+		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	filePath, ok := viewerRawAssetPath(root, rel)
 	if !ok {
 		http.NotFound(response, request)
 		return
@@ -768,8 +773,39 @@ func renderViewerRaw(response http.ResponseWriter, request *http.Request, root s
 	}
 
 	response.Header().Set("X-Content-Type-Options", "nosniff")
+	response.Header().Set("Referrer-Policy", "no-referrer")
+	response.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	response.Header().Set("Content-Type", viewerSafeRawMediaType(filePath))
 	http.ServeContent(response, request, info.Name(), info.ModTime(), file)
+}
+
+func viewerRawAssetPath(root string, rel string) (string, bool) {
+	clean, ok := cleanViewerRel(rel, false)
+	if !ok || viewerRawPathIsPrivate(clean) {
+		return "", false
+	}
+	extension := strings.ToLower(filepath.Ext(clean))
+	if extension == ".md" || extension == ".markdown" {
+		return "", false
+	}
+	filePath, ok := safeViewerPath(root, clean)
+	if !ok {
+		return "", false
+	}
+	info, err := os.Stat(filePath)
+	if err != nil || !info.Mode().IsRegular() {
+		return "", false
+	}
+	return filePath, true
+}
+
+func viewerRawPathIsPrivate(rel string) bool {
+	for _, segment := range strings.Split(filepath.ToSlash(rel), "/") {
+		if strings.HasPrefix(segment, ".") || strings.EqualFold(segment, viewerThemeConfigFile) {
+			return true
+		}
+	}
+	return false
 }
 
 func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
@@ -1885,6 +1921,9 @@ func viewerTreeWithURL(entries []okf.ListEntry, urlFor func(string) string) []vi
 	var tree []viewerTreeItem
 	seenDirectories := make(map[string]bool)
 	for _, entry := range entries {
+		if entry.Kind == "asset" && viewerRawPathIsPrivate(entry.Path) {
+			continue
+		}
 		segments := strings.Split(entry.Path, "/")
 		for index := 0; index < len(segments)-1; index++ {
 			directoryPath := strings.Join(segments[:index+1], "/")

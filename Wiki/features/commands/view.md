@@ -128,6 +128,11 @@ Press Ctrl+C to stop.
   Local PDF, image, audio, and video links are served from bundle-scoped raw
   URLs for the browser's native viewer. Raw and Markdown path resolution rejects
   traversal and every symbolic link below the resolved bundle root.
+* Asset pages and `/raw/` serve only regular non-Markdown bundle assets. Dotfile
+  paths, `.git`, `openknowledge.toml`, Markdown source files, missing paths, and
+  non-regular entries are not exposed or listed as assets. Raw content accepts
+  only `GET` and `HEAD` and sends `nosniff`, no-referrer, and sandboxed content
+  policy headers.
 * `[html.theme]` in `openknowledge.toml` applies the same theme name and
   stylesheet behavior as `openknowledge to html`. Local theme stylesheets are
   validated before rendering and cannot be symbolic links.
@@ -178,6 +183,15 @@ Press Ctrl+C to stop.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
 
 ## Command Change History
+
+### 2026-07-15 - Bundle-asset-only raw serving
+
+Viewer asset pages and `/raw/` no longer act as general file reads over the
+selected directory. They reject private/config paths and Markdown sources,
+hide private assets from the tree, require regular bundle-contained files, and
+limit raw requests to `GET`/`HEAD` with defensive response headers. Source
+anchors: `packages/cli/cmd/openknowledge/viewer.go` and
+`packages/cli/cmd/openknowledge/viewer_test.go`.
 
 ### 2026-07-15 - Complete YAML frontmatter inspector
 

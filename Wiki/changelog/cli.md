@@ -14,6 +14,22 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Locked-down viewer asset serving
+
+* Restricted viewer asset pages and `/raw/` to regular, non-Markdown files
+  inside the real bundle boundary.
+* Denied dotfile components, `.git`, `openknowledge.toml`, Markdown source,
+  missing paths, directories, symlinks, and other non-regular entries; private
+  assets are also absent from the viewer tree.
+* Limited raw requests to `GET` and `HEAD`, returning `405` plus `Allow` for
+  other methods, and added `nosniff`, no-referrer, and sandboxed CSP headers.
+* Added route-level tests for regular assets, private/config paths, unknown
+  files, Markdown, traversal, symlinks, method handling, headers, and tree
+  visibility.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go` and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/view.md` and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Real filesystem bundle boundaries
 
 * Rejected symbolic links anywhere below a resolved knowledge bundle root so
