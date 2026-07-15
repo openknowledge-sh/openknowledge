@@ -48,8 +48,9 @@ capabilities only on reviewed jobs and locks the minimal GitHub release step
 set. `pnpm test` runs all workflow and version checks before the CLI test suite.
 `pnpm check:security-config` requires the scheduled CodeQL, govulncheck,
 checksum-verified OSV Scanner, and four-ecosystem Dependabot contract.
-`pnpm check:container-runtime` requires the final Node image to select its
-built-in unprivileged user. The root test gate also runs transactional
+`pnpm check:container-runtime` requires the Docker build stage to use the
+workspace Go baseline and the final Node image to select its built-in
+unprivileged user. The root test gate also runs transactional
 shell-installer fixtures and offline npm downloader/archive hardening tests;
 `pnpm build` builds both the CLI and web package. `pnpm test:web` exercises the
 production static handler without binding a network socket, so the same checks
@@ -216,13 +217,15 @@ expressions so this boundary cannot silently regress.
 `railway.json` keeps Railway build and runtime settings in code and tells
 Railway to use the repository `Dockerfile`. The Docker build installs both Go
 and Node/pnpm because `pnpm build:web` exports the wiki by running the current
-Go CLI source. The runtime image copies only `packages/web/dist` and the web
-server script, then starts `node packages/web/scripts/serve.mjs`. Runtime env in
-the Dockerfile serves `packages/web/dist` without re-exporting the wiki and
-binds to `0.0.0.0` so the Railway router can reach the container. The final
-stage keeps static assets root-owned and read-only to the process, then selects
-the official image's unprivileged `node` user before Railway's start command.
-The container policy check prevents a missing or root final `USER` from passing
+Go CLI source. Its versioned Go build image must match the workspace directive;
+an older image cannot execute the exporter when `GOTOOLCHAIN=local`. The runtime
+image copies only `packages/web/dist` and the web server script, then starts
+`node packages/web/scripts/serve.mjs`. Runtime env in the Dockerfile serves
+`packages/web/dist` without re-exporting the wiki and binds to `0.0.0.0` so the
+Railway router can reach the container. The final stage keeps static assets
+root-owned and read-only to the process, then selects the official image's
+unprivileged `node` user before Railway's start command. The container policy
+check prevents a stale build toolchain or missing/root final `USER` from passing
 the standard test gate.
 
 ## Release

@@ -2,8 +2,26 @@ import fs from "node:fs";
 import process from "node:process";
 
 const source = fs.readFileSync(new URL("../Dockerfile", import.meta.url), "utf8");
+const goMod = fs.readFileSync(new URL("../packages/cli/go.mod", import.meta.url), "utf8");
+const goWork = fs.readFileSync(new URL("../go.work", import.meta.url), "utf8");
 const stages = source.split(/^FROM\s+/m).slice(1);
 const failures = [];
+
+const goModVersion = declaredGoVersion(goMod, "packages/cli/go.mod");
+const goWorkVersion = declaredGoVersion(goWork, "go.work");
+if (goModVersion && goWorkVersion && goModVersion !== goWorkVersion) {
+  failures.push(`Go module and workspace versions differ: ${goModVersion} != ${goWorkVersion}`);
+}
+
+const buildImage = stages[0]?.match(/^golang:([0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:-|@|\s)/);
+if (!buildImage) {
+  failures.push("first Dockerfile stage must use an explicitly versioned golang image");
+} else {
+  const requiredGoVersion = goWorkVersion || goModVersion;
+  if (requiredGoVersion && buildImage[1] !== requiredGoVersion) {
+    failures.push(`Dockerfile Go ${buildImage[1]} must match repository Go ${requiredGoVersion}`);
+  }
+}
 
 if (stages.length < 2) {
   failures.push("Dockerfile must use a separate runtime stage");
@@ -32,5 +50,14 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("Container runtime uses the unprivileged node user");
+  console.log("Container Go toolchain is aligned and runtime uses the unprivileged node user");
+}
+
+function declaredGoVersion(contents, name) {
+  const match = contents.match(/^go\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s*$/m);
+  if (!match) {
+    failures.push(`${name} must declare a Go version`);
+    return "";
+  }
+  return match[1];
 }

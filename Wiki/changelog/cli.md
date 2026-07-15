@@ -14,6 +14,17 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Aligned web container Go toolchain
+
+* Raised the Docker build stage from Go 1.22 to Go 1.26.5 so production web
+  builds can run the CLI-backed wiki exporter with `GOTOOLCHAIN=local`.
+* Extended the container policy check to require an explicitly versioned Go
+  image matching both the workspace and CLI module directives, preventing a
+  future security-baseline update from leaving deploy builds behind.
+* Source anchors: `Dockerfile`, `scripts/check-container-runtime.mjs`,
+  `go.work`, and `packages/cli/go.mod`.
+* Docs updated: `Wiki/features/operations.md` and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Failure-isolated agent daemon passes
 
 * Added lenient per-file discovery for daemon scheduling while preserving the
