@@ -8,9 +8,9 @@ func astFrontmatterFromParse(meta frontmatter) ASTFrontmatter {
 		keys[key] = struct{}{}
 	}
 
-	warnings := make([]astFrontmatterWarning, 0, len(meta.warnings))
+	warnings := make([]ASTFrontmatterWarning, 0, len(meta.warnings))
 	for _, warning := range meta.warnings {
-		warnings = append(warnings, astFrontmatterWarning{
+		warnings = append(warnings, ASTFrontmatterWarning{
 			Line:    warning.line,
 			Message: warning.message,
 		})

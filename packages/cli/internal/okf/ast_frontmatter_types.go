@@ -5,11 +5,11 @@ type ASTFrontmatter struct {
 	Values   map[string]string       `json:"values,omitempty"`
 	Data     map[string]any          `json:"data,omitempty"`
 	Keys     map[string]struct{}     `json:"-"`
-	Warnings []astFrontmatterWarning `json:"warnings,omitempty"`
+	Warnings []ASTFrontmatterWarning `json:"warnings,omitempty"`
 	BodyLine int                     `json:"bodyLine"`
 }
 
-type astFrontmatterWarning struct {
+type ASTFrontmatterWarning struct {
 	Line    int    `json:"line"`
 	Message string `json:"message"`
 }

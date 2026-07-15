@@ -11,6 +11,7 @@ update the smallest relevant page.
 * [CLI Operations](operations.md) - development commands, workspace layout, and release workflow notes.
 * [OKF, skills, and plugins](okf-skills-plugins.md) - user-facing comparison of raw OKF v0.1, agent skills, and plugins.
 * [Spec compliance](spec-compliance.md) - hard-rule OKF spec compliance matrix for the CLI.
+* [Go API](go-api.md) - public read-only package for embedding the same parser, validation, retrieval, and graph core used by the CLI.
 * [Commands](commands/) - command-by-command reference pages.
 * [Exporters](exporters/) - bundle conversion targets and candidate exporters.
 

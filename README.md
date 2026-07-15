@@ -279,6 +279,25 @@ openknowledge connect https://openknowledge.sh/wiki/
 `openknowledge to graph` writes an AST-backed source graph.
 `openknowledge to graph --type search` writes a retrieval-oriented chunk graph.
 
+### Go API
+
+Go applications can embed the same read-only core without spawning the CLI:
+
+```go
+import "github.com/openknowledge-sh/openknowledge/packages/cli/okf"
+
+report, err := okf.ValidateWithVersion("./Wiki", "0.1")
+packet, err := okf.ResolveContextWithVersion("./Wiki", "0.1", okf.ContextOptions{
+    Query: "release workflow", Budget: 1200, Limit: 8,
+})
+```
+
+The public package covers parsing, validation, listing, deterministic search,
+source context, graphs, metadata, manifests, and spec discovery. Registry and
+network mutation, extraction, publishing, and viewer lifecycle remain explicit
+CLI workflows. See [Go API](Wiki/features/go-api.md) for the full boundary and
+versioning model.
+
 Static viewer exports can inject trusted deployment-owned head HTML with
 `--head-file`, `--head-html`, repeatable `--script-src`, or matching
 `OPENKNOWLEDGE_HEAD_*` and `OPENKNOWLEDGE_SCRIPT_SRC` environment variables.

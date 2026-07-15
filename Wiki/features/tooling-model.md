@@ -23,6 +23,10 @@ a different user or agent need.
 | Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown or known entrypoints, inspect structure, build budget-bounded source context, inspect ranked matches, browse connected or direct bundles, and serve read-only knowledge to MCP hosts. |
 | OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
 
+Go services can embed the read-only portions of these layers through the
+public [`packages/cli/okf`](go-api.md) package. The facade shares the CLI core
+rather than reimplementing parsing, validation, retrieval, or graph behavior.
+
 ## Current Boundaries
 
 `connect` and the registry store aliases for existing bundle folders. They also

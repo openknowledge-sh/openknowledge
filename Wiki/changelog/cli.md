@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Public read-only Go API
+
+* Added the importable
+  `github.com/openknowledge-sh/openknowledge/packages/cli/okf` package so Go
+  ecosystem tools no longer need to spawn the CLI for in-process knowledge
+  parsing and retrieval.
+* Exposed version-aware AST and normalized parsing, validation and policy
+  options, listing, deterministic search, budgeted context, source/search
+  graphs, metadata, frontmatter, strict manifest decoding, and spec discovery.
+* Kept all returned models as aliases of the real CLI core types, preventing a
+  parallel SDK model or serializer from drifting away from command, schema,
+  and MCP behavior.
+* Kept registry/network mutation, extraction, publishing, and viewer lifecycle
+  outside the read-only facade as explicit operational CLI boundaries.
+* Added an external-package integration test that imports only the public path
+  and exercises all major views against a real temporary bundle.
+* Source anchors: `packages/cli/okf/` and
+  `packages/cli/internal/okf/ast_frontmatter_types.go`.
+* Docs updated: `README.md`, `packages/cli/okf/README.md`,
+  `Wiki/features/go-api.md`, `Wiki/features/index.md`,
+  `Wiki/features/tooling-model.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Schema-backed strict portable manifests
 
 * Added the Draft 2020-12 schema for portable `openknowledge.json` discovery
