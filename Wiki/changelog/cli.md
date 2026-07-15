@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Versioned registry discovery
+
+* Added `openknowledge registry list --json` as a cheap machine-readable
+  discovery API that does not inspect or validate connected bundle contents.
+* Defined a `schemaVersion: "1"` envelope with the registry path and sorted
+  entries containing name, path, effective read/write capability, managed
+  state, and optional source provenance.
+* Added the Draft 2020-12 `registry-list.schema.json` contract, a golden output
+  fixture, schema registry coverage, empty-array guarantees, and command tests
+  for sorting, local and managed metadata, help, and argument rejection.
+* Added dedicated `registry list --help` and documented when consumers should
+  select list discovery versus the deeper `registry status --json` integrity
+  report.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/cmd/openknowledge/testdata/contracts/registry-list.json`, and
+  `packages/cli/schemas/v1/registry-list.schema.json`.
+* Docs updated: `README.md`, `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/commands/registry.md`, `Wiki/features/commands/help.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Read-only MCP knowledge server
 
 * Added `openknowledge mcp [key-or-path]` as a first-class stdio MCP server

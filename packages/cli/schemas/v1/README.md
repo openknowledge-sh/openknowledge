@@ -10,6 +10,7 @@ the Open Knowledge CLI. Every covered top-level document contains
 | `bundle.schema.json` | `openknowledge to json` |
 | `graph.schema.json` | `openknowledge to graph` |
 | `list.schema.json` | `openknowledge list --json` |
+| `registry-list.schema.json` | `openknowledge registry list --json` |
 | `registry-status.schema.json` | `openknowledge registry status --json` |
 | `search-results.schema.json` | `openknowledge search --matches --format json` |
 | `search-context.schema.json` | `openknowledge search --format json` |

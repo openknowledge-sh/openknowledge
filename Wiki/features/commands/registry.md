@@ -31,6 +31,7 @@ openknowledge registry disconnect <key|path> --delete-files
 openknowledge registry refresh <key|path>
 openknowledge registry refresh <key|path> --force
 openknowledge registry list
+openknowledge registry list --json
 openknowledge registry status [key|path]
 openknowledge registry status [key|path] --json
 openknowledge registry where <name|path>
@@ -55,7 +56,7 @@ openknowledge registry --help
 | `--keep-files` | flag | Keep bundle files after `disconnect`; this is the default. |
 | `--delete-files` | flag | Delete files only when the entry is marked `managed`. |
 | `--force` | flag | Allow `refresh` to discard detected local cache changes. |
-| `--json` | flag | Print the versioned registry status contract. |
+| `--json` | flag | Print the versioned registry inventory for `list` or integrity report for `status`. |
 
 ## Behavior
 
@@ -109,7 +110,16 @@ Connection, disconnection, refresh, and status flags may appear before or after
 their required positional argument. The registry connection subcommands and
 their top-level aliases share the applicable parsing contract.
 
-`registry list` prints the registry file path and sorted entries.
+`registry list` prints the registry file path and sorted entries. It does not
+stat, parse, validate, hash, or otherwise inspect connected bundle contents.
+`registry list --json` provides the same cheap discovery operation as a
+`schemaVersion: "1"` envelope with the registry path and sorted connection
+objects. Each object contains `name`, `path`, effective `access`, `managed`,
+and optional remote `source` provenance. Use `registry status --json` when a
+consumer also needs content, validation, Git, or cache-integrity state.
+
+The Draft 2020-12 discovery schema is
+`packages/cli/schemas/v1/registry-list.schema.json`.
 
 `registry status` checks all entries, or one optional key/path, without network
 access. It validates each bundle against its recorded concrete spec, checks
@@ -141,6 +151,24 @@ known knowledge bases
 config /home/user/.config/openknowledge/registry.json
 
   personal           /work/project-memory
+```
+
+`openknowledge registry list --json` exposes the same registry without
+terminal formatting or bundle-health work:
+
+```json
+{
+  "schemaVersion": "1",
+  "registry": "/home/user/.config/openknowledge/registry.json",
+  "entries": [
+    {
+      "name": "personal",
+      "path": "/work/project-memory",
+      "access": "read",
+      "managed": false
+    }
+  ]
+}
 ```
 
 `openknowledge registry where personal` prints only the resolved path, which is
@@ -215,6 +243,18 @@ Use the registry to give shared or standalone wikis stable names while keeping
 aliases outside the bundle content.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned registry discovery
+
+Added `registry list --json` as a versioned, schema-backed discovery API for
+sorted connections, effective access, managed state, and optional source
+provenance. The list operation deliberately remains cheaper than
+`registry status`: it does not inspect bundle contents. Added dedicated
+`registry list --help` output and strict rejection of positional arguments.
+Source anchors:
+`packages/cli/cmd/openknowledge/main.go`,
+`packages/cli/cmd/openknowledge/main_test.go`, and
+`packages/cli/schemas/v1/registry-list.schema.json`.
 
 ### 2026-07-15 - Atomic remote refresh
 

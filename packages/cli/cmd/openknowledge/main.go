@@ -851,17 +851,7 @@ func runRegistry(args []string) int {
 
 	switch args[0] {
 	case "list":
-		if len(args) != 1 {
-			fmt.Fprintln(os.Stderr, "usage: openknowledge registry list")
-			return 2
-		}
-		entries, err := okf.RegistryEntries()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
-		printRegistryEntries(entries)
-		return 0
+		return runRegistryList(args[1:])
 	case "connect":
 		return runConnect(args[1:], "openknowledge registry connect")
 	case "disconnect":
@@ -2824,6 +2814,77 @@ func printRegistryEntries(entries []okf.RegistryEntry) {
 	}
 }
 
+type registryListReport struct {
+	SchemaVersion string              `json:"schemaVersion"`
+	Registry      string              `json:"registry"`
+	Entries       []registryListEntry `json:"entries"`
+}
+
+type registryListEntry struct {
+	Name    string              `json:"name"`
+	Path    string              `json:"path"`
+	Access  string              `json:"access"`
+	Managed bool                `json:"managed"`
+	Source  *okf.RegistrySource `json:"source,omitempty"`
+}
+
+func runRegistryList(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, registryListHelpText())
+		return 0
+	}
+	fs := flag.NewFlagSet("registry list", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	jsonFlag := fs.Bool("json", false, "print versioned JSON inventory")
+	if err := parseInterspersedFlags(fs, args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "usage: openknowledge registry list [--json]")
+		return 2
+	}
+
+	entries, err := okf.RegistryEntries()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !*jsonFlag {
+		printRegistryEntries(entries)
+		return 0
+	}
+	registryPath, err := okf.RegistryFile()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	report := registryListReport{
+		SchemaVersion: okf.MachineSchemaVersion,
+		Registry:      registryPath,
+		Entries:       make([]registryListEntry, 0, len(entries)),
+	}
+	for _, entry := range entries {
+		item := registryListEntry{
+			Name:    entry.Name,
+			Path:    entry.Path,
+			Access:  registryEntryAccess(entry),
+			Managed: entry.Managed,
+		}
+		if entry.Source != (okf.RegistrySource{}) {
+			source := entry.Source
+			item.Source = &source
+		}
+		report.Entries = append(report.Entries, item)
+	}
+	encoded, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Println(string(encoded))
+	return 0
+}
+
 type registryStatusReport struct {
 	SchemaVersion string                `json:"schemaVersion"`
 	Registry      string                `json:"registry"`
@@ -4000,6 +4061,7 @@ Usage:
   openknowledge registry disconnect <key|path>
   openknowledge registry refresh <key|path> [--force]
   openknowledge registry list
+  openknowledge registry list --json
   openknowledge registry status [key|path]
   openknowledge registry status [key|path] --json
   openknowledge registry where <name|path>
@@ -4255,6 +4317,7 @@ Usage:
   openknowledge registry refresh <key|path>
   openknowledge registry refresh <key|path> --force
   openknowledge registry list
+  openknowledge registry list --json
   openknowledge registry status [key|path]
   openknowledge registry status [key|path] --json
   openknowledge registry where <name|path>
@@ -4270,10 +4333,30 @@ the registry subcommands.
 Examples:
   openknowledge registry connect ./project-memory --as personal
   openknowledge registry list
+  openknowledge registry list --json
   openknowledge registry refresh personal
   openknowledge registry status personal
   openknowledge registry where personal
   openknowledge list personal
+`
+}
+
+func registryListHelpText() string {
+	return `openknowledge registry list
+
+List connected knowledge bases without inspecting their contents.
+
+Usage:
+  openknowledge registry list
+  openknowledge registry list --json
+  openknowledge registry list --help
+
+Flags:
+  --json  Print the versioned machine-readable registry inventory.
+
+JSON output uses schemaVersion "1" and includes the registry path, sorted
+connection names and paths, effective access, managed state, and source provenance
+when present. Use registry status when content health is required.
 `
 }
 

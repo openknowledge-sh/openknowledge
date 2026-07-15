@@ -74,6 +74,12 @@ Commands:
 
 ### 2026-07-15
 
+Root and registry help now include `openknowledge registry list --json`, and
+`registry list --help` has dedicated discovery-contract guidance distinct from
+the deeper offline integrity checks in `registry status`. Source anchors:
+`packages/cli/cmd/openknowledge/main.go` and
+`packages/cli/cmd/openknowledge/main_test.go`.
+
 Root and command-specific help now include `openknowledge mcp [key-or-path]`
 and `--spec <version>` for the read-only MCP stdio server. The help records the
 protocol revision, exact resources plus search/validation surface, stdout

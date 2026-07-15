@@ -62,6 +62,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge registry connect <source> --as <key>",
 		"openknowledge registry disconnect <key|path>",
 		"openknowledge registry refresh <key|path> [--force]",
+		"openknowledge registry list --json",
 		"openknowledge registry status [key|path] --json",
 		"openknowledge registry where <name|path>",
 		"openknowledge view --name <alias-name> [path]",
@@ -345,10 +346,21 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge registry connect <source> --as <key>",
 				"openknowledge registry disconnect <key|path> --keep-files",
 				"openknowledge registry refresh <key|path> --force",
+				"openknowledge registry list --json",
 				"openknowledge registry status [key|path] --json",
 				"openknowledge registry where <name|path>",
 				"Registry keys are shortcuts",
 				"openknowledge list personal",
+			},
+		},
+		"registry list": {
+			help: registryListHelpText(),
+			required: []string{
+				"openknowledge registry list --json",
+				"without inspecting their contents",
+				"schemaVersion \"1\"",
+				"source provenance",
+				"Use registry status when content health is required",
 			},
 		},
 		"registry refresh": {
@@ -1912,6 +1924,105 @@ func TestRegistryStatusMachineContractGolden(t *testing.T) {
 	}
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("registry status machine contract changed\nwant:\n%s\ngot:\n%s", expected, actual)
+	}
+}
+
+func TestRegistryListJSONIsSortedVersionedAndReadOnly(t *testing.T) {
+	base := t.TempDir()
+	registryPath := filepath.Join(base, "config", "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryPath)
+	localRoot := filepath.Join(base, "local")
+	managedRoot := filepath.Join(base, "managed")
+	writeMainTestFile(t, localRoot, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Local\n")
+	writeMainTestFile(t, managedRoot, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Managed\n")
+	if _, _, err := okf.ConnectRegistryEntry("z-local", localRoot, "write", true); err != nil {
+		t.Fatal(err)
+	}
+	source := okf.RegistrySource{
+		Type:        "git",
+		URL:         "https://example.test/team.git",
+		GitCommit:   "0123456789abcdef0123456789abcdef01234567",
+		Spec:        "0.1",
+		ManagedRoot: managedRoot,
+	}
+	if _, _, err := okf.ConnectRegistryEntryWithSource("a-remote", managedRoot, "read", true, source); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(localRoot); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(managedRoot); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runRegistry([]string{"list", "--json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("registry list --json failed: code=%d stderr=%q", code, stderr)
+	}
+	var report registryListReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("invalid registry list JSON: %v\n%s", err, stdout)
+	}
+	if report.SchemaVersion != okf.MachineSchemaVersion || report.Registry != registryPath {
+		t.Fatalf("unexpected registry list envelope: %#v", report)
+	}
+	if len(report.Entries) != 2 || report.Entries[0].Name != "a-remote" || report.Entries[1].Name != "z-local" {
+		t.Fatalf("registry entries are not sorted: %#v", report.Entries)
+	}
+	if !report.Entries[0].Managed || report.Entries[0].Access != "read" || report.Entries[0].Source == nil || report.Entries[0].Source.GitCommit != source.GitCommit {
+		t.Fatalf("managed discovery metadata missing: %#v", report.Entries[0])
+	}
+	if report.Entries[1].Managed || report.Entries[1].Access != "write" || report.Entries[1].Source != nil {
+		t.Fatalf("local discovery metadata is incorrect: %#v", report.Entries[1])
+	}
+}
+
+func TestRegistryListJSONUsesEmptyArrayAndRejectsArguments(t *testing.T) {
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runRegistry([]string{"list", "--json"})
+	})
+	if code != 0 || stderr != "" || !strings.Contains(stdout, `"entries": []`) {
+		t.Fatalf("unexpected empty registry JSON: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runRegistry([]string{"list", "unexpected"})
+	})
+	if code != 2 || !strings.Contains(stderr, "usage: openknowledge registry list [--json]") {
+		t.Fatalf("expected list argument usage error: code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestRegistryListMachineContractGolden(t *testing.T) {
+	fixture := registryListReport{
+		SchemaVersion: "1",
+		Registry:      "/config/registry.json",
+		Entries: []registryListEntry{
+			{Name: "personal", Path: "/knowledge", Access: "read", Managed: false},
+			{
+				Name: "team", Path: "/cache/team", Access: "read", Managed: true,
+				Source: &okf.RegistrySource{
+					Type:      "git",
+					URL:       "https://example.test/team.git",
+					GitCommit: "0123456789abcdef0123456789abcdef01234567",
+					Spec:      "0.1",
+				},
+			},
+		},
+	}
+	actual, err := json.MarshalIndent(fixture, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual = append(actual, '\n')
+	expected, err := os.ReadFile(filepath.Join("testdata", "contracts", "registry-list.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("registry list machine contract changed\nwant:\n%s\ngot:\n%s", expected, actual)
 	}
 }
 

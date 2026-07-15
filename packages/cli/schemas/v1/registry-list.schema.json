@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/registry-list.schema.json",
+  "title": "Open Knowledge registry list output v1",
+  "type": "object",
+  "required": ["schemaVersion", "registry", "entries"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "registry": {"type": "string"},
+    "entries": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/entry"}
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["name", "path", "access", "managed"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "access": {"enum": ["read", "write"]},
+        "managed": {"type": "boolean"},
+        "source": {"$ref": "#/$defs/source"}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "type": {"type": "string"},
+        "url": {"type": "string"},
+        "ref": {"type": "string"},
+        "resolvedUrl": {"type": "string"},
+        "manifestUrl": {"type": "string"},
+        "archiveUrl": {"type": "string"},
+        "sha256": {"type": "string"},
+        "contentSha256": {"type": "string"},
+        "gitCommit": {"type": "string"},
+        "spec": {"type": "string"},
+        "fetchedAt": {"type": "string"},
+        "managedRoot": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -85,7 +85,7 @@ func TestMachineContractGoldenFiles(t *testing.T) {
 }
 
 func TestMachineContractSchemasDeclareCurrentVersion(t *testing.T) {
-	names := []string{"ast", "bundle", "graph", "list", "registry-status", "search-context", "search-results", "validation"}
+	names := []string{"ast", "bundle", "graph", "list", "registry-list", "registry-status", "search-context", "search-results", "validation"}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			content, err := os.ReadFile(filepath.Join("..", "..", "schemas", "v1", name+".schema.json"))

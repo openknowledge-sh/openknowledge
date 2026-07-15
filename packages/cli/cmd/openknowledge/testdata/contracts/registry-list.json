@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1",
+  "registry": "/config/registry.json",
+  "entries": [
+    {
+      "name": "personal",
+      "path": "/knowledge",
+      "access": "read",
+      "managed": false
+    },
+    {
+      "name": "team",
+      "path": "/cache/team",
+      "access": "read",
+      "managed": true,
+      "source": {
+        "type": "git",
+        "url": "https://example.test/team.git",
+        "gitCommit": "0123456789abcdef0123456789abcdef01234567",
+        "spec": "0.1"
+      }
+    }
+  ]
+}
