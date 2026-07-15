@@ -268,7 +268,12 @@ record changes now require a new machine schema version.
 
 `agents daemon` loads job specs, evaluates due schedules, skips already
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
-exits. Without `--once`, the daemon polls using `--tick`, defaulting to `1m`.
+exits. Discovery keeps valid job files beside malformed ones, and each pass
+continues after per-file, scheduling, planning, run-record inspection, or
+execution failures. A failing `--once` pass returns status `1` only after every
+loadable due job has been attempted. Without `--once`, the daemon reports the
+pass failures and continues polling using `--tick`, defaulting to `1m`; one bad
+job cannot stop unrelated schedules.
 
 The agent command defaults to a `30m` timeout unless `agent.timeout` is set.
 Every verification command has its own `verify.timeout`, defaulting to `15m`.
@@ -290,6 +295,19 @@ this feature is marked experimental. The separately versioned plan and run
 record JSON contracts follow the machine-contract compatibility policy.
 
 ## Command Change History
+
+### 2026-07-15 - Failure-isolated agent daemon passes
+
+Changed daemon discovery to retain valid job files beside malformed siblings
+without weakening the strict behavior of `agents list` or `agents validate`.
+Scheduling passes now continue after per-job scheduling, planning, run-record,
+and execution failures, then report one aggregate nonzero result. `--once`
+returns that result after the complete pass, while polling mode logs it and
+continues at the next tick. Source anchors:
+`packages/cli/internal/agents/spec.go`,
+`packages/cli/internal/agents/spec_test.go`,
+`packages/cli/cmd/openknowledge/agents_command.go`, and
+`packages/cli/cmd/openknowledge/agents_command_test.go`.
 
 ### 2026-07-15 - Versioned agent validation reports
 

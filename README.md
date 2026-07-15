@@ -407,7 +407,7 @@ Nested agent commands also support
 | `openknowledge agents validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
 | `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
 | `openknowledge agents run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
-| `openknowledge agents daemon [jobs-dir] --once` | Experimental: check scheduled jobs once and run due jobs. |
+| `openknowledge agents daemon [jobs-dir] --once` | Experimental: attempt every due job once and report an aggregate failure after the pass. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge new --no-agents --no-setup [folder]` | Scaffold without starter agent rules or a setup handoff. |
 | `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |

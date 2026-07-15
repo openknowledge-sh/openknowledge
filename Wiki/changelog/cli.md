@@ -14,6 +14,23 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Failure-isolated agent daemon passes
+
+* Added lenient per-file discovery for daemon scheduling while preserving the
+  existing fail-closed discovery used by list, validation, and direct runs.
+* Continued each scheduling pass after job load, schedule evaluation, planning,
+  run-record inspection, or execution failures so later due jobs still run.
+* Made `--once` return an aggregate status after the complete pass and kept
+  polling mode alive for the next tick after failed jobs.
+* Added mixed invalid, unplannable, and valid due-job regressions plus dedicated
+  discovery coverage.
+* Source anchors: `packages/cli/internal/agents/spec.go`,
+  `packages/cli/internal/agents/spec_test.go`,
+  `packages/cli/cmd/openknowledge/agents_command.go`, and
+  `packages/cli/cmd/openknowledge/agents_command_test.go`.
+* Docs updated: `README.md`, agent daemon help,
+  `Wiki/features/commands/agents.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Scheduled security and dependency scanning
 
 * Added a weekly and manually dispatchable CodeQL matrix for Go and

@@ -47,6 +47,32 @@ Review the docs.
 	}
 }
 
+func TestDiscoverJobsLenientKeepsValidJobsBesideInvalidFiles(t *testing.T) {
+	dir := t.TempDir()
+	invalidPath := filepath.Join(dir, "00-invalid.md")
+	if err := os.WriteFile(invalidPath, []byte("---\nid: invalid\nagent: {command: agent, argz: []}\n---\nPrompt.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	validPath := filepath.Join(dir, "10-valid.md")
+	if err := os.WriteFile(validPath, []byte("---\nid: valid\nagent: {command: agent}\n---\nPrompt.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	jobs, failures, err := DiscoverJobsLenient(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 || jobs[0].ID != "valid" {
+		t.Fatalf("expected the valid job to survive discovery, got %#v", jobs)
+	}
+	if len(failures) != 1 || failures[0].Path != invalidPath || !strings.Contains(failures[0].Error(), "agent.argz") {
+		t.Fatalf("expected one path-bound validation failure, got %#v", failures)
+	}
+	if _, err := DiscoverJobs(dir); err == nil || !strings.Contains(err.Error(), "agent.argz") {
+		t.Fatalf("strict discovery must retain fail-closed behavior, got %v", err)
+	}
+}
+
 func TestParseJobFileRejectsMalformedNestedYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "job.md")
 	content := "---\nid: broken\nagent:\n  args: [exec, --model\n---\n\nPrompt.\n"

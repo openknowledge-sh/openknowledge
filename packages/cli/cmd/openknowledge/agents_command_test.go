@@ -239,6 +239,51 @@ func TestAgentsExecutorOverrideRejectsUnknownValuesBeforeExecution(t *testing.T)
 	}
 }
 
+func TestAgentsDaemonPassIsolatesLoadAndPlanningFailures(t *testing.T) {
+	root := newAgentTestRepo(t)
+	jobsDir := filepath.Join(root, ".openknowledge", "agents", "jobs")
+	writeMainTestFile(t, root, ".openknowledge/agents/jobs/00-invalid.md", `---
+id: invalid
+agent: {command: agent, argz: []}
+---
+Invalid.
+`)
+	writeMainTestFile(t, root, ".openknowledge/agents/jobs/10-broken-plan.md", `---
+id: broken-plan
+schedule: {every: 1h}
+agent: {command: agent}
+workspace: {repo: ../../missing}
+---
+Cannot resolve a repository.
+`)
+	writeMainTestFile(t, root, ".openknowledge/agents/jobs/20-valid.md", `---
+id: valid-due
+schedule: {every: 1h}
+agent: {command: agent}
+workspace: {repo: ../../..}
+---
+Plan this job.
+`)
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runDueAgentJobs(jobsDir, "", true)
+	})
+	if code != 1 {
+		t.Fatalf("expected aggregate daemon failure after the complete pass, code=%d\nstdout=%s\nstderr=%s", code, output, stderr)
+	}
+	if !strings.Contains(output, `"job_id": "valid-due"`) {
+		t.Fatalf("expected the later valid job to be planned despite earlier failures:\n%s", output)
+	}
+	for _, expected := range []string{"00-invalid.md failed to load", "broken-plan failed to plan", "completed with 2 failure(s)"} {
+		if !strings.Contains(stderr, expected) {
+			t.Fatalf("expected daemon diagnostics to include %q:\n%s", expected, stderr)
+		}
+	}
+	if strings.Contains(output, "no due agent jobs") {
+		t.Fatalf("a pass with a planned due job must not report no work:\n%s", output)
+	}
+}
+
 func TestAgentsRunCreatesRunRecord(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---

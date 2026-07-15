@@ -78,6 +78,22 @@ type ValidationError struct {
 	Issues []ValidationIssue
 }
 
+type JobLoadError struct {
+	Path string
+	Err  error
+}
+
+func (err JobLoadError) Error() string {
+	if err.Path == "" {
+		return err.Err.Error()
+	}
+	return fmt.Sprintf("%s: %v", err.Path, err.Err)
+}
+
+func (err JobLoadError) Unwrap() error {
+	return err.Err
+}
+
 func (err ValidationError) Error() string {
 	if len(err.Issues) == 0 {
 		return "agent job is invalid"
@@ -119,22 +135,38 @@ func ParseJobFile(path string) (Job, error) {
 }
 
 func DiscoverJobs(path string) ([]Job, error) {
-	info, err := os.Stat(path)
+	jobs, failures, err := DiscoverJobsLenient(path)
 	if err != nil {
 		return nil, err
+	}
+	if len(failures) > 0 {
+		return nil, failures[0].Err
+	}
+	return jobs, nil
+}
+
+func DiscoverJobsLenient(path string) ([]Job, []JobLoadError, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, nil, err
 	}
 	if !info.IsDir() {
 		job, err := ParseJobFile(path)
 		if err != nil {
-			return nil, err
+			return nil, []JobLoadError{{Path: path, Err: err}}, nil
 		}
-		return []Job{job}, nil
+		return []Job{job}, nil, nil
 	}
 
 	var jobs []Job
+	var failures []JobLoadError
 	err = filepath.WalkDir(path, func(current string, entry os.DirEntry, err error) error {
 		if err != nil {
-			return err
+			failures = append(failures, JobLoadError{Path: current, Err: err})
+			if entry != nil && entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if entry.IsDir() {
 			name := entry.Name()
@@ -149,15 +181,16 @@ func DiscoverJobs(path string) ([]Job, error) {
 		}
 		job, err := ParseJobFile(current)
 		if err != nil {
-			return err
+			failures = append(failures, JobLoadError{Path: current, Err: err})
+			return nil
 		}
 		jobs = append(jobs, job)
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, failures, err
 	}
-	return jobs, nil
+	return jobs, failures, nil
 }
 
 func ValidateJob(job Job) error {

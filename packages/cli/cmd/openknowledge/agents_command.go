@@ -344,7 +344,7 @@ func runAgentsDaemon(args []string) int {
 
 	for {
 		code := runDueAgentJobs(options.path, options.executor, options.dryRun)
-		if options.once || code != 0 {
+		if options.once {
 			return code
 		}
 		time.Sleep(interval)
@@ -541,7 +541,7 @@ func writeAgentTemplate(path string, content string, force bool) error {
 }
 
 func runDueAgentJobs(path string, executor string, dryRun bool) int {
-	jobs, err := agents.DiscoverJobs(path)
+	jobs, loadFailures, err := agents.DiscoverJobsLenient(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
@@ -549,22 +549,34 @@ func runDueAgentJobs(path string, executor string, dryRun bool) int {
 		}
 		return printAgentCommandError(err)
 	}
+	failureCount := len(loadFailures)
+	for _, failure := range loadFailures {
+		fmt.Fprintf(os.Stderr, "agent job %s failed to load: %v\n", failure.Path, failure.Err)
+	}
 	now := time.Now()
 	dueCount := 0
 	for _, job := range jobs {
 		scheduledAt, due, err := agents.DueScheduledAt(job, now)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", job.ID, err)
-			return 1
+			failureCount++
+			continue
 		}
 		if !due {
 			continue
 		}
 		plan, err := agents.BuildRunPlan(job, scheduledAt, executor)
 		if err != nil {
-			return printAgentCommandError(err)
+			fmt.Fprintf(os.Stderr, "agent job %s failed to plan: %v\n", job.ID, err)
+			failureCount++
+			continue
 		}
-		if _, err := os.Stat(filepath.Join(plan.RunDir, "run.json")); err == nil {
+		runRecord := filepath.Join(plan.RunDir, "run.json")
+		if _, err := os.Stat(runRecord); err == nil {
+			continue
+		} else if !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "agent job %s could not inspect run record: %v\n", job.ID, err)
+			failureCount++
 			continue
 		}
 		dueCount++
@@ -581,14 +593,19 @@ func runDueAgentJobs(path string, executor string, dryRun bool) int {
 			} else {
 				fmt.Fprintf(os.Stderr, "agent run failed: %v\n", err)
 			}
-			return 1
+			failureCount++
+			continue
 		}
 		if !dryRun {
 			fmt.Fprintf(os.Stdout, "agent run %s %s\n", record.RunID, record.Status)
 		}
 	}
-	if dueCount == 0 {
+	if dueCount == 0 && failureCount == 0 {
 		fmt.Fprintln(os.Stdout, "no due agent jobs")
+	}
+	if failureCount > 0 {
+		fmt.Fprintf(os.Stderr, "agent daemon pass completed with %d failure(s)\n", failureCount)
+		return 1
 	}
 	return 0
 }
@@ -771,5 +788,10 @@ Flags:
   --tick       Polling interval. Defaults to 1m.
   --dry-run    Print resolved plans for due jobs without executing.
   --executor   Override sandbox.type with host or docker.
+
+Behavior:
+  A pass attempts every loadable due job. Per-file, scheduling, planning, and
+  execution failures are reported without blocking later jobs. --once exits 1
+  after the pass when any job failed; polling mode continues at the next tick.
 `
 }
