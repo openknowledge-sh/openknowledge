@@ -41,15 +41,16 @@ path-like values are used as paths, existing local directories win over same
 named registry keys, and otherwise a registry key resolves to its stored bundle
 path. With no target, the current directory is listed.
 
-Text output prints the bundle tree with validation issues attached to affected
-Markdown files. Non-Markdown files are listed as `asset` entries. `--depth`
-limits how deep the displayed tree expands; folder rows at the depth boundary
-are still shown when deeper files exist.
+Text output prints the bundle tree with the first validation issue attached to
+each affected Markdown file. Non-Markdown files are listed as `asset` entries.
+`--depth` limits how deep the displayed tree expands; folder rows at the depth
+boundary are still shown when deeper files exist.
 
 JSON output prints a machine-readable object with `schemaVersion`, the resolved
 `root`, and an `entries` array. With `--depth`, JSON keeps file entries whose
-path depth is within the requested limit. Its v1 contract is described by
-`packages/cli/schemas/v1/list.schema.json`.
+path depth is within the requested limit. Each entry retains its complete
+validation `issues` array rather than only the first text-tree message. Its v1
+contract is described by `packages/cli/schemas/v1/list.schema.json`.
 
 ## Example Output
 

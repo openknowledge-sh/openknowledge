@@ -50,7 +50,7 @@ openknowledge registry --help
 | `list` | subcommand | Print registered knowledge bases. |
 | `status` | subcommand | Check local bundle and managed-cache integrity offline. |
 | `where` | subcommand | Print the absolute path for a registry key or path. |
-| `key` | argument | Connection key using letters, numbers, dots, underscores, or dashes. |
+| `key` | argument | Connection key beginning with an ASCII letter or digit, followed by letters, numbers, dots, underscores, or dashes; it must not look like a path. |
 | `source` | argument | Knowledge bundle folder path, existing registry key, Open Knowledge manifest URL, tar archive URL, or Git URL. |
 | `--as` | flag | Explicit connection key for `connect`. |
 | `--access` | flag | Local authoring capability, `read` or `write`. Defaults to `read`; managed remote sources are always read-only. |

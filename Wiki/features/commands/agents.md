@@ -270,6 +270,7 @@ Supported top-level fields:
 | `agent.completion_signal` | Optional string that must appear in agent stdout or stderr. |
 | `workspace.repo` | Git repository path. Defaults to `.` relative to the job file. |
 | `workspace.base` | Git base ref for the worktree. Defaults to `HEAD`. |
+| `workspace.strategy` | Worktree strategy. Defaults to `branch`, which is currently the only supported value. |
 | `workspace.branch` | Branch template. Supports `{{id}}`, `{{date}}`, `{{scheduled_at}}`, and `{{run_id}}`. |
 | `workspace.dirty_policy` | `fail` by default; use `allow` to run when the source checkout is dirty. |
 | `sandbox.type` | `host` or `docker`. Defaults to `host`. |
@@ -279,6 +280,7 @@ Supported top-level fields:
 | `verify.commands` | Shell commands run after the agent command in the same worktree. |
 | `verify.timeout` | Positive timeout applied separately to each verification command. Defaults to `15m`. |
 | `output.commit` | When true, commits worktree changes after verification. |
+| `output.commit_message` | Optional commit message. Defaults to `Run agent job <id>` when `output.commit` is true. |
 | `output.pr` | Reserved; currently rejected by validation. |
 | `concurrency.key` | Optional global key shared by jobs that must not overlap. At most 128 letters, numbers, dots, underscores, or hyphens. |
 | `concurrency.policy` | `skip`; defaults to `skip` when a key is present. |

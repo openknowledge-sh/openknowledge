@@ -80,8 +80,9 @@ bundle-relative path, returned in pages of at most 100, and use an opaque
 `nextCursor` when another page exists.
 
 Each resource uses an `openknowledge://bundle/...` URI and includes its
-bundle-relative name, known title and description, MIME type, byte size, and
-last-modified annotation. Markdown is reported as `text/markdown`.
+bundle-relative name, known title and description, MIME type, and last-modified
+annotation. Non-empty resources also include byte size; the JSON field is
+omitted for empty files. Markdown is reported as `text/markdown`.
 
 `resources/read` returns UTF-8 text for textual MIME types and base64 `blob`
 content for binary files. Reads have these boundaries:
@@ -127,14 +128,23 @@ Closing stdin ends the server normally. A transport read or write failure exits
 with status `1`; invalid command arguments or an unsupported OKF spec exit with
 status `2` before the protocol starts.
 
-## History
+## Command Change History
 
 * `2026-07-15`: Added the read-only MCP stdio server with lifecycle and version
   negotiation, exact paginated resources, source-grounded search, validation,
   strict schemas, canonical root confinement, and bounded messages and reads.
 
-## Source Anchors
+---
 
-* `packages/cli/cmd/openknowledge/mcp.go`
-* `packages/cli/cmd/openknowledge/mcp_test.go`
-* `packages/cli/cmd/openknowledge/main.go`
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/cmd/openknowledge/mcp.go`
+> * `packages/cli/cmd/openknowledge/mcp_test.go`
+> * `packages/cli/cmd/openknowledge/main.go`
+>
+> **Update notes**
+>
+> Update this page when MCP lifecycle, resource metadata, tools, size limits,
+> protocol behavior, or command flags change.

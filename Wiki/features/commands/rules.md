@@ -185,14 +185,18 @@ agent-specific files.
 ```
 
 If the markers already exist, the generated block is replaced in place. Without
-`--file`, `rules apply` searches from the current directory upward for the
-nearest `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/openknowledge.md`, or
-`.cursor/rules/openknowledge.mdc`. In an interactive terminal it asks which
-file to use. If the selected file already exists, interactive mode warns before
-it appends a managed block or replaces an existing managed block. It shows the
+`--file`, `rules apply` searches the current directory and every ancestor for
+all supported `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/openknowledge.md`, and
+`.cursor/rules/openknowledge.mdc` files. Results are ordered from the nearest
+directory upward, with that filename order inside each directory. One result is
+selected automatically; multiple results are shown before interactive
+selection, while non-interactive use requires `--file` or `--yes`. With
+`--yes`, the first result is selected, or `AGENTS.md` is created when none
+exists. If the selected file already exists, interactive mode warns before it
+appends a managed block or replaces an existing managed block. It shows the
 generated block first, then prints the warning with the same highlighted
 `⚠ Warning:` marker. The default answer is no; pass `--yes` to skip
-confirmation. In text-only contexts, pass `--file` or `--yes`.
+confirmation.
 
 ## Example Output
 

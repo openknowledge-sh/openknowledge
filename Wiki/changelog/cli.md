@@ -28,12 +28,25 @@ that were updated.
   caches, including manifest, archive, and Git materializations.
 * Corrected the README scaffold inventory to include the root index and made
   its rules catalog description include valid wiki-local rules.
-* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
-  `packages/cli/cmd/openknowledge/agents_command.go`,
-  `packages/cli/internal/okf/graph.go`, and
-  `packages/cli/schemas/v1/graph.schema.json`.
-* Docs updated: `README.md`, `Wiki/features/commands/{agents,connect,help,new,registry,to,validate}.md`,
-  `Wiki/features/{index,machine-contracts,tooling-model}.md`,
+* Documented registry-key inputs across AST and exporter commands, the exact
+  registry-key grammar, and the full ancestor search used by `rules apply`.
+* Clarified H1-H3 retrieval chunk boundaries, Markdown-only normalized JSON,
+  complete AST document fields, text-versus-JSON list issues, and the actual
+  unsupported graph-type exit status.
+* Completed the agent job field table, corrected empty-file MCP resource
+  metadata, listed validation severity aliases, and removed the stale claim
+  that HTML export reads project configuration only once.
+* Restored the README's npm-installer and security-policy development checks,
+  refreshed command navigation summaries, and repaired stale spec-compliance
+  source anchors.
+* Source anchors: `packages/cli/cmd/openknowledge/{main,ast_command,mcp}.go`,
+  `packages/cli/internal/agents/{frontmatter_schema,spec}.go`,
+  `packages/cli/internal/okf/{bundle,context_sections,graph,registry,validation_policy}.go`,
+  and `packages/cli/schemas/v1/graph.schema.json`.
+* Docs updated: `README.md`, `Wiki/index.md`,
+  `Wiki/features/commands/{agents,ast,connect,help,index,list,mcp,new,registry,rules,search,to,validate}.md`,
+  `Wiki/features/exporters/{graph,html,json,tar}.md`,
+  `Wiki/features/{configuration,index,machine-contracts,spec-compliance,tooling-model}.md`,
   `Wiki/changelog/cli.md`, and `Wiki/log.md`.
 
 ### 2026-07-15 - Observable and controllable local agent runs

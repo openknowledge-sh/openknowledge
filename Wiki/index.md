@@ -40,8 +40,8 @@ custom theme.
 * [validate](features/commands/validate.md) - validate a bundle against OKF.
 * [rules](features/commands/rules.md) - inspect and print maintenance rules.
 * [review](features/commands/review.md) - print advisory AI review prompts.
-* [agents](features/commands/agents.md) - validate, plan, schedule, and run
-  local agent jobs.
+* [agents](features/commands/agents.md) - validate, schedule, run, observe, and
+  control local agent jobs.
 * [list](features/commands/list.md) - inspect bundle inventory with inline
   validation context.
 
@@ -50,8 +50,8 @@ custom theme.
 * [connect](features/commands/connect.md) - add a local or remote bundle to the
   local registry.
 * [disconnect](features/commands/disconnect.md) - remove a registered bundle.
-* [registry](features/commands/registry.md) - list, connect, disconnect, and
-  resolve registry entries.
+* [registry](features/commands/registry.md) - connect, refresh, inspect,
+  resolve, and disconnect registry entries.
 
 ### Use And Navigate Knowledge
 

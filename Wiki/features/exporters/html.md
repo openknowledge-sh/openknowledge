@@ -22,18 +22,18 @@ JavaScript, search, graph data, or table controls.
 ## Command
 
 ```sh
-openknowledge to html --out <folder> [path]
-openknowledge to html --plain --out <folder> [path]
-openknowledge to html --head-file <file> --out <folder> [path]
-openknowledge to html --script-src <src> --out <folder> [path]
-openknowledge to html --spec <version> --out <folder> [path]
+openknowledge to html --out <folder> [key-or-path]
+openknowledge to html --plain --out <folder> [key-or-path]
+openknowledge to html --head-file <file> --out <folder> [key-or-path]
+openknowledge to html --script-src <src> --out <folder> [key-or-path]
+openknowledge to html --spec <version> --out <folder> [key-or-path]
 ```
 
 ## Arguments And Flags
 
 | Name | Kind | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `path` | argument | no | current directory | Knowledge base root. |
+| `key-or-path` | argument | no | current directory | Registry key or knowledge base root. |
 | `--out` | flag | yes | none | Output folder for generated HTML files. |
 | `--head-file` | flag | no | `OPENKNOWLEDGE_HEAD_FILE` | Trusted HTML fragment file to inject into default viewer HTML `<head>`. |
 | `--head-html` | flag | no | `OPENKNOWLEDGE_HEAD_HTML` | Trusted HTML fragment to inject into default viewer HTML `<head>`. |
@@ -149,10 +149,11 @@ stylesheet = "assets/wiki-theme.css"
 base_url = "https://openknowledge.sh/wiki/"
 ```
 
-The whole file is loaded once per export through the shared strict
-[`openknowledge.toml` configuration contract](/features/configuration.md).
-Malformed TOML, unknown fields, or wrong types abort generation before the
-previous published site is replaced.
+Every load uses the shared strict
+[`openknowledge.toml` configuration contract](/features/configuration.md), so
+validation, rule-catalog checks, theme, source, and site settings agree on the
+same fields and types. Malformed TOML, unknown fields, or wrong types abort
+generation before the previous published site is replaced.
 
 Exported pages include `data-openknowledge-theme="<name>"` on `<html>` and link
 the stylesheet after the built-in viewer CSS. Local stylesheets must stay inside

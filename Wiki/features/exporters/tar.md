@@ -15,16 +15,17 @@ remote `connect` materialization.
 ## Command
 
 ```sh
-openknowledge to tar --out <file> [path]
-openknowledge to tar --spec <version> --out <file> [path]
+openknowledge to tar --out <file> [key-or-path]
+openknowledge to tar --spec <version> --out <file> [key-or-path]
 openknowledge to tar --help
 ```
 
 ## Behavior
 
-The exporter validates the bundle root for the selected spec version and
-requires zero errors; warnings remain allowed. It applies this gate before
-creating or replacing the output. It then walks the source bundle, skips
+The exporter resolves a registry key or bundle path, validates that root for
+the selected spec version, and requires zero errors; warnings remain allowed.
+It applies this gate before creating or replacing the output. It then walks the
+source bundle, skips
 `.git`, and writes source files with relative paths into a gzip-compressed tar
 archive. The command prints the archive SHA-256 so callers can publish or
 verify it. Symbolic links and other non-regular filesystem entries are rejected

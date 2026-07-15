@@ -22,9 +22,9 @@ when you want to inspect the underlying document model directly.
 ## Usage
 
 ```sh
-openknowledge ast [path]
-openknowledge ast --spec <version> [path]
-openknowledge ast --out <file> [path]
+openknowledge ast [key-or-path]
+openknowledge ast --spec <version> [key-or-path]
+openknowledge ast --out <file> [key-or-path]
 openknowledge ast --help
 ```
 
@@ -32,7 +32,7 @@ openknowledge ast --help
 
 | Name | Kind | Description |
 | --- | --- | --- |
-| `path` | argument | Knowledge base root. Defaults to the current directory. |
+| `key-or-path` | argument | Registry key or knowledge base root. Defaults to the current directory. |
 | `--spec` | flag | OKF spec version. Defaults to latest. |
 | `--out` | flag | Output file. Defaults to stdout. |
 
@@ -117,10 +117,10 @@ Each `documents[]` item contains the main pieces the CLI derives from a file:
 
 | Field | Use it to inspect |
 | --- | --- |
-| `rel`, `id`, `kind`, `reserved` | Which file was parsed and how the CLI classified it. |
+| `absolute`, `rel`, `id`, `kind`, `reserved` | The absolute and bundle-relative file locations and how the CLI classified the document. |
+| `content`, `body` | Complete source-file content and the Markdown body after frontmatter. Empty strings are omitted from JSON. |
 | `frontmatter` | Frontmatter presence, typed YAML `data`, compatible scalar `values`, body-line metadata, formatting warnings, and any parser diagnostic. |
-| `metadata` | Derived fields such as `type`, `title`, and `description`. |
-| `body` | Markdown content after frontmatter. |
+| `metadata` | Derived `type`, `title`, `description`, resource, tags, `useWhen`, and root bundle metadata. |
 | `markdown` | Parsed Markdown blocks, sections, headings, links, code blocks, and syntax diagnostics. |
 | `links` | Local links resolved from the document. |
 | `readDiagnostic`, `utf8Diagnostic`, `frontmatterDiagnostic` | Parser-level failures attached to the document. |

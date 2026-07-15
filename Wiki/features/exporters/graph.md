@@ -17,11 +17,11 @@ chunks.
 ## Usage
 
 ```sh
-openknowledge to graph [path]
-openknowledge to graph --out <file> [path]
-openknowledge to graph --type source [path]
-openknowledge to graph --type search [path]
-openknowledge to graph --spec <version> [path]
+openknowledge to graph [key-or-path]
+openknowledge to graph --out <file> [key-or-path]
+openknowledge to graph --type source [key-or-path]
+openknowledge to graph --type search [key-or-path]
+openknowledge to graph --spec <version> [key-or-path]
 openknowledge to graph --help
 ```
 
@@ -30,7 +30,7 @@ openknowledge to graph --help
 | Type | Description |
 | --- | --- |
 | `source` | Default graph. Nodes are parsed bundle files; edges are deduplicated existing local Markdown links. |
-| `search` | Derivative search graph. Nodes include bundle files and Markdown heading chunks; edges include containment, reading order, and chunk-level local links. |
+| `search` | Derivative search graph. Nodes include bundle files and content-bearing H1-H3 Markdown chunks; edges include containment, reading order, and chunk-level local links. |
 
 ## Output
 
@@ -49,10 +49,11 @@ paths, include source and target document IDs, and preserve link labels, hrefs,
 and line numbers when available. Missing local link targets remain validation
 issues instead of becoming dangling graph nodes.
 
-Search graph output includes the source graph plus content-bearing heading
-chunk nodes where `kind: "chunk"`. Heading-only parent sections are omitted.
-Chunk nodes preserve `path`, `heading`, `headingPath`, `lineStart`, and
-`lineEnd`. Search graph edge kinds include:
+Search graph output includes the source graph plus content-bearing H1-H3
+heading chunk nodes where `kind: "chunk"`. H4-H6 headings remain inside their
+surrounding chunk, and heading-only parent sections are omitted. Chunk nodes
+preserve `path`, `heading`, `headingPath`, `lineStart`, and `lineEnd`. Search
+graph edge kinds include:
 
 * `contains` from a source file to one of its chunks.
 * `next` between adjacent chunks in source order.
@@ -65,9 +66,10 @@ Chunk nodes preserve `path`, `heading`, `headingPath`, `lineStart`, and
 knowledge graph, and CLI search chunking. Markdown links inside fenced code
 blocks are ignored by the AST parser and therefore do not become graph edges.
 
-The command prints graph JSON to stdout by default. `--out <file>` writes the
-same JSON to disk. `--plain` is not valid for graph output. Unknown graph types
-exit with status `2`. The v1 contract is described by
+The command accepts a registry key or bundle path and prints graph JSON to
+stdout by default. `--out <file>` writes the same JSON to disk. `--plain` is not
+valid for graph output. An unsupported `--type` exits with status `1`; unknown
+flags remain usage errors with status `2`. The v1 contract is described by
 `packages/cli/schemas/v1/graph.schema.json`.
 
 ## Use Cases

@@ -89,9 +89,11 @@ The same rules can be overridden for a single run:
 openknowledge validate --rule link-target=error --rule markdown-syntax=off Wiki
 ```
 
-Supported severities are `off`, `warn`, and `error`. CLI `--rule` values
-override `openknowledge.toml`. Unknown rule names or severities fail with a
-usage error so typos do not silently weaken validation.
+Canonical severities are `off`, `warn`, and `error`. For compatibility, the
+parser also normalizes `ignore`, `ignored`, and `none` to `off`; `warning` and
+`warnings` to `warn`; and `err` and `errors` to `error`. CLI `--rule` values
+override `openknowledge.toml`. Unknown rule names or severity spellings fail
+with a usage error so typos do not silently weaken validation.
 
 The file is decoded through the shared strict
 [`openknowledge.toml` configuration contract](/features/configuration.md), so

@@ -14,15 +14,16 @@ anchors. Keep this index as the quick map.
 * [Validate](validate.md) - validate a bundle against OKF with configurable rule severities and optional JSON reports.
 * [Rules](rules.md) - print and inspect canonical agent maintenance rules.
 * [Review](review.md) - print advisory AI review prompts for maintenance rules.
-* [Agents](agents.md) - experimental local agent job validation, planning,
-  scheduling, and execution.
+* [Agents](agents.md) - experimental local agent job validation, scheduling,
+  execution, observation, and control.
 * [List](list.md) - print bundle inventory with optional JSON output.
 
 ## Connect And Resolve Bundles
 
 * [Connect](connect.md) - add a local or remote OKF bundle to the local knowledge registry.
 * [Disconnect](disconnect.md) - remove a connected bundle from the local registry.
-* [Registry](registry.md) - manage bundle connections, listing, and path lookup.
+* [Registry](registry.md) - manage bundle connections, refreshes, offline
+  integrity checks, listing, and path lookup.
 
 ## Use And Navigate Knowledge
 

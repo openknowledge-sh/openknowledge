@@ -40,7 +40,7 @@ base_url = "https://example.com/knowledge/"
 | --- | --- | --- |
 | `rules.paths` | string or string array | Relative custom-rule directories; defaults to `rules`. |
 | `rules.enabled` | string or string array | Default canonical rule IDs for rules and review commands. |
-| `validation.rules.<rule-id>` | string | Severity `off`, `warn`, or `error` for a known validation rule. |
+| `validation.rules.<rule-id>` | string | Canonical severity `off`, `warn`, or `error` for a known validation rule; compatibility aliases are accepted as described below. |
 | `html.theme.name` | string | Viewer/export theme contract name; defaults to `default`. |
 | `html.theme.stylesheet` | string | Relative bundle CSS path or absolute HTTP(S) URL. |
 | `html.source.github_base` | string | Absolute HTTP(S) repository source base URL. |
@@ -52,6 +52,10 @@ All other fields use the exact types above. Standard TOML features such as
 single-quoted strings, escaped basic strings, comments, multiline arrays, and
 dotted tables are parsed by the shared TOML implementation instead of
 line-oriented approximations.
+
+Validation severity values normalize `ignore`, `ignored`, and `none` to
+`off`; `warning` and `warnings` to `warn`; and `err` and `errors` to `error`.
+New configuration should use the canonical spellings.
 
 ## Strictness And Safety
 
@@ -78,8 +82,8 @@ it outside the bundle.
 * `openknowledge rules` and `openknowledge review rules` use `[rules]` for
   custom catalog paths and default selection.
 * `openknowledge view` uses `[html.theme]`.
-* Default `openknowledge to html` loads the file once per generation and uses
-  `[html.theme]`, `[html.source]`, and `[html.site]` together.
+* Default `openknowledge to html` uses `[html.theme]`, `[html.source]`, and
+  `[html.site]` together through the same strict parser used during validation.
 * Plain HTML, JSON, graph, and standalone tar output do not apply HTML settings,
   but project configuration remains part of the source bundle.
 

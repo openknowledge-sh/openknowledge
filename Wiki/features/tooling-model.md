@@ -20,6 +20,7 @@ a different user or agent need.
 | Authoring and OKF hygiene | `setup`, `new`, `spec` | Create a bundle and keep Markdown shaped around OKF v0.1. |
 | Connection and bundle lifecycle | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry refresh`, `registry list`, `registry status`, `registry where`, `to tar` | Give local, published, archive, or Git bundles stable names, materialize and safely refresh remote sources, inspect local identity, resolve names back to filesystem paths, and package portable source archives. |
 | Validation and inspection | `validate`, `list`, `rules`, `review` | Check OKF structure, link health, bundle inventory, maintenance rules, and depth-limited tree views before humans or agents rely on the knowledge. |
+| Experimental local agent automation | `agents` | Validate, schedule, run, observe, stop, and inspect Markdown-authored local agent jobs in isolated Git worktrees. |
 | Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown or known entrypoints, inspect structure, build budget-bounded source context, inspect ranked matches, browse connected or direct bundles, and serve read-only knowledge to MCP hosts. |
 | OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
 

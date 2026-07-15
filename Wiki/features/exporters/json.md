@@ -8,23 +8,24 @@ timestamp: 2026-06-18T00:00:00Z
 
 # JSON Exporter
 
-The JSON exporter serializes a normalized bundle model. It includes file
-metadata, typed YAML frontmatter values, Markdown body content, links, and
-validation issues.
+The JSON exporter serializes a normalized model of the bundle's parsed
+Markdown documents. It includes document metadata, typed YAML frontmatter
+values, Markdown body content, links, and validation issues. Non-Markdown
+assets are not part of this projection.
 
 ## Command
 
 ```sh
-openknowledge to json [path]
-openknowledge to json --out <file> [path]
-openknowledge to json --spec <version> [path]
+openknowledge to json [key-or-path]
+openknowledge to json --out <file> [key-or-path]
+openknowledge to json --spec <version> [key-or-path]
 ```
 
 ## Arguments And Flags
 
 | Name | Kind | Description |
 | --- | --- | --- |
-| `path` | argument | Knowledge base root. Defaults to the current directory. |
+| `key-or-path` | argument | Registry key or knowledge base root. Defaults to the current directory. |
 | `--out` | flag | Optional output file. Defaults to stdout. |
 | `--spec` | flag | OKF spec version. Defaults to latest. |
 
@@ -34,6 +35,10 @@ openknowledge to json --spec <version> [path]
 errors and warnings are included in the top-level `issues` array and attached to
 matching files. When `--out` is omitted, the JSON is printed to stdout. The
 HTML-only `--plain` flag is rejected for JSON.
+
+The `files` array contains parsed `.md` and `.markdown` documents only.
+Non-Markdown assets remain visible through `openknowledge list --json` and are
+preserved by `openknowledge to tar`.
 
 The top-level object declares `schemaVersion: "1"` for the normalized CLI JSON
 contract and `specVersion` for the selected Open Knowledge Format version.

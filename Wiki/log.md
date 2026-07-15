@@ -7,7 +7,11 @@
   Git staging limits, completed managed-agent usage and help coverage,
   corrected bundle metadata and exporter status wording, restored the graph
   output schema version in its example, and clarified managed remote cache
-  deletion.
+  deletion. A follow-up pass documented registry-key AST/export inputs and key
+  grammar, H1-H3 search chunks, Markdown-only normalized JSON, complete AST and
+  list issue shapes, agent job fields, MCP empty-file metadata, validation
+  aliases, configuration loading, current development checks, and repaired
+  navigation plus spec-compliance source anchors.
 
 ## 2026-07-07
 

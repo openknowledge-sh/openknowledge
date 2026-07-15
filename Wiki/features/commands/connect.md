@@ -41,9 +41,10 @@ openknowledge connect --help
 | `--git-subdir` | flag | Canonical slash-separated OKF bundle root below the repository root. Git sources only. |
 | `--no-validate` | flag | Skip the validation status check in success output. |
 
-Connection keys use the same validation as registry names: letters, numbers,
-dots, underscores, and dashes, and they must not look like paths. Implicit keys
-are normalized when needed.
+Connection keys use the same validation as registry names: they must begin with
+an ASCII letter or digit, may then contain letters, numbers, dots, underscores,
+and dashes, and must not look like paths. Implicit keys are normalized when
+needed.
 
 ## Behavior
 

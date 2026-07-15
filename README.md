@@ -439,8 +439,8 @@ Nested agent commands also support
 | `openknowledge search --all <query> --matches --format json` | Inspect the versioned federated rank-fusion contract. |
 | `openknowledge mcp [name-or-path]` | Serve one bundle as read-only MCP resources plus search and validation tools over stdio. |
 | `openknowledge mcp --spec <version> [name-or-path]` | Select the OKF spec used by MCP search, validation, and resource discovery. |
-| `openknowledge ast [path]` | Print parsed OKF AST JSON. |
-| `openknowledge ast --out <file> [path]` | Write parsed OKF AST JSON to a file. |
+| `openknowledge ast [key-or-path]` | Print parsed OKF AST JSON. |
+| `openknowledge ast --out <file> [key-or-path]` | Write parsed OKF AST JSON to a file. |
 | `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
 | `openknowledge registry disconnect <key-or-path>` | Remove a connection while keeping files. |
 | `openknowledge registry refresh <key-or-path> [--force]` | Atomically fetch and switch a managed remote connection to a newly validated cache generation. |
@@ -451,14 +451,14 @@ Nested agent commands also support
 | `openknowledge view [path]` | Start the registry or knowledge base Markdown viewer. |
 | `openknowledge view --allow-network --host <host> [path]` | Explicitly bind beyond loopback with token authentication on every route. |
 | `openknowledge view --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
-| `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle plus `llms.txt`, connect manifest, and tar archive. |
-| `openknowledge to html --plain --out <folder> [path]` | Write unstyled semantic HTML files. |
-| `openknowledge to json [path]` | Print normalized bundle JSON. |
-| `openknowledge to json --out <file> [path]` | Write normalized bundle JSON to a file. |
-| `openknowledge to tar --out <file> [path]` | Write a portable bundle tar.gz archive. |
-| `openknowledge to graph [path]` | Print AST-backed source graph JSON. |
-| `openknowledge to graph --out <file> [path]` | Write AST-backed source graph JSON to a file. |
-| `openknowledge to graph --type search [path]` | Print derivative search graph JSON with chunk nodes. |
+| `openknowledge to html --out <folder> [key-or-path]` | Write a static viewer app bundle plus `llms.txt`, connect manifest, and tar archive. |
+| `openknowledge to html --plain --out <folder> [key-or-path]` | Write unstyled semantic HTML files. |
+| `openknowledge to json [key-or-path]` | Print normalized Markdown-document bundle JSON. |
+| `openknowledge to json --out <file> [key-or-path]` | Write normalized Markdown-document bundle JSON to a file. |
+| `openknowledge to tar --out <file> [key-or-path]` | Write a portable bundle tar.gz archive. |
+| `openknowledge to graph [key-or-path]` | Print AST-backed source graph JSON. |
+| `openknowledge to graph --out <file> [key-or-path]` | Write AST-backed source graph JSON to a file. |
+| `openknowledge to graph --type search [key-or-path]` | Print derivative search graph JSON with H1-H3 chunk nodes. |
 | `openknowledge spec latest` | Print the latest embedded OKF spec. |
 | `openknowledge spec 0.1` | Print a specific embedded spec version. |
 | `openknowledge validate [key-or-path]` | Validate a bundle against the latest spec. |
@@ -528,11 +528,13 @@ invalid registry identity/path/access invariants before mutation.
 ```sh
 pnpm test:cli
 pnpm test:install
+pnpm test:npm-install
 pnpm test:web
 pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
 pnpm check:workflow-permissions
+pnpm check:security-config
 pnpm check:container-runtime
 pnpm build:cli
 pnpm build:web

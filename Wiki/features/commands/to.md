@@ -14,21 +14,21 @@ timestamp: 2026-06-18T00:00:00Z
 ## Usage
 
 ```sh
-openknowledge to html --out <folder> [path]
-openknowledge to html --plain --out <folder> [path]
-openknowledge to html --head-file <file> --out <folder> [path]
-openknowledge to html --script-src <src> --out <folder> [path]
-openknowledge to html --spec <version> --out <folder> [path]
-openknowledge to json [path]
-openknowledge to json --out <file> [path]
-openknowledge to json --spec <version> [path]
-openknowledge to tar --out <file> [path]
-openknowledge to tar --spec <version> --out <file> [path]
-openknowledge to graph [path]
-openknowledge to graph --out <file> [path]
-openknowledge to graph --type source [path]
-openknowledge to graph --type search [path]
-openknowledge to graph --spec <version> [path]
+openknowledge to html --out <folder> [key-or-path]
+openknowledge to html --plain --out <folder> [key-or-path]
+openknowledge to html --head-file <file> --out <folder> [key-or-path]
+openknowledge to html --script-src <src> --out <folder> [key-or-path]
+openknowledge to html --spec <version> --out <folder> [key-or-path]
+openknowledge to json [key-or-path]
+openknowledge to json --out <file> [key-or-path]
+openknowledge to json --spec <version> [key-or-path]
+openknowledge to tar --out <file> [key-or-path]
+openknowledge to tar --spec <version> --out <file> [key-or-path]
+openknowledge to graph [key-or-path]
+openknowledge to graph --out <file> [key-or-path]
+openknowledge to graph --type source [key-or-path]
+openknowledge to graph --type search [key-or-path]
+openknowledge to graph --spec <version> [key-or-path]
 openknowledge to --help
 ```
 
@@ -45,7 +45,7 @@ openknowledge to --help
 
 | Name | Kind | Applies To | Required | Default | Description |
 | --- | --- | --- | --- | --- | --- |
-| `path` | argument | `html`, `json`, `tar`, `graph` | no | current directory | Knowledge base root. |
+| `key-or-path` | argument | `html`, `json`, `tar`, `graph` | no | current directory | Registry key or knowledge base root. |
 | `--spec` | flag | `html`, `json`, `tar`, `graph` | no | `latest` | OKF spec version. |
 | `--out` | flag | `html`, `json`, `tar`, `graph` | HTML and TAR yes, JSON/graph no | stdout for JSON and graph | Output folder for HTML, optional output file for JSON and graph, and archive file for TAR. |
 | `--type` | flag | `graph` only | no | `source` | Graph type, `source` or `search`. |
@@ -137,10 +137,12 @@ generation. The output may be nested inside the source bundle, in which case it
 is excluded from the portable source archive, but the output must not equal or
 contain the source bundle.
 
-`to json` serializes the normalized bundle model. It prints to stdout by
-default and writes to `--out <file>` when provided. `--plain` is not valid for
-JSON. File output is replaced atomically after the complete JSON document is
-ready. See [JSON exporter](/features/exporters/json.md).
+`to json` serializes the normalized model of parsed Markdown documents.
+Non-Markdown assets are excluded; use `list --json` for complete inventory or
+`to tar` for source-preserving packaging. It prints to stdout by default and
+writes to `--out <file>` when provided. `--plain` is not valid for JSON. File
+output is replaced atomically after the complete JSON document is ready. See
+[JSON exporter](/features/exporters/json.md).
 
 `to tar` requires `--out <file>`. It writes a gzip-compressed tar archive of the
 source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
@@ -151,10 +153,11 @@ non-executable permission bits. See [Tar exporter](/features/exporters/tar.md).
 `to graph` serializes AST-backed graph JSON. The default `--type source` graph
 contains bundle file nodes and deduplicated existing local Markdown links.
 `--type search` writes a derivative search graph with source file nodes,
-heading chunk nodes, file-to-chunk containment edges, chunk reading-order
-edges, and chunk-level local-link edges. It prints to stdout by default and
-writes to `--out <file>` when provided. `--plain` is not valid for graph
-output. See [Graph exporter](/features/exporters/graph.md).
+content-bearing H1-H3 chunk nodes, file-to-chunk containment edges, chunk
+reading-order edges, and chunk-level local-link edges. H4-H6 headings stay
+inside the surrounding chunk. It prints to stdout by default and writes to
+`--out <file>` when provided. `--plain` is not valid for graph output. See
+[Graph exporter](/features/exporters/graph.md).
 
 When `--out` is used for JSON or graph output, a write failure does not expose
 a partially written machine-readable document at the destination path.
@@ -177,7 +180,7 @@ Unknown targets and unknown flags exit with status `2`.
 
 `openknowledge to graph` added `--type source|search`. `source` keeps the
 existing file/link graph behavior as the default. `search` exports derivative
-heading chunk nodes and typed retrieval edges.
+H1-H3 heading chunk nodes and typed retrieval edges.
 
 ---
 

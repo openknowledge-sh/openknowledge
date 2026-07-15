@@ -11,7 +11,7 @@ timestamp: 2026-07-06T00:00:00Z
 `openknowledge search` builds a bounded, source-grounded context packet from a
 local or connected Open Knowledge bundle. It resolves the target the same way
 as other key-or-path commands, parses Markdown with the AST-backed bundle
-reader, splits content into heading sections, and ranks those sections with
+reader, splits content at H1-H3 heading sections, and ranks those sections with
 the canonical BM25-style search scorer.
 
 The default Markdown output preserves the selected source sections and records
@@ -51,11 +51,12 @@ openknowledge search --help
 
 ## Behavior
 
-Search chunks are Markdown heading sections with content, not arbitrary
-fixed-size token windows. Heading-only parent sections are omitted so selected
-sources contain useful prose, lists, code, or other authored content. Each
-source keeps its bundle file, section ID, heading and heading path, source line
-range, estimated token count, original Markdown, content digest, and
+Search chunks are Markdown sections split at content-bearing H1, H2, and H3
+headings, not arbitrary fixed-size token windows. H4-H6 headings remain inside
+their surrounding H1-H3 chunk. Heading-only parent sections are omitted so
+selected sources contain useful prose, lists, code, or other authored content.
+Each source keeps its bundle file, section ID, heading and heading path, source
+line range, estimated token count, original Markdown, content digest, and
 content-addressed locator.
 
 Every retrieval computes a deterministic SHA-256 revision over the indexed
