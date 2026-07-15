@@ -5,7 +5,7 @@ schedule:
   cron: "0 9 * * MON"
   timezone: UTC
 agent:
-  command: codex
+  command: /Applications/ChatGPT.app/Contents/Resources/codex
   args:
     - exec
   timeout: 45m
@@ -18,6 +18,8 @@ workspace:
   dirty_policy: fail
 sandbox:
   type: host
+  env:
+    - CODEX_HOME
 verify:
   commands:
     - go test ./...
