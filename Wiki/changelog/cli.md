@@ -14,6 +14,18 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Immutable Railway deploy image
+
+* Replaced the mutable `ghcr.io/railwayapp/cli:latest` deploy environment with
+  Railway CLI `4.65.0` pinned to its exact linux/amd64 GHCR manifest digest.
+* Extended `pnpm check:workflow-pins` to reject undigested job containers and
+  service images, closing the container equivalent of mutable action refs.
+* Verified the guard first failed on the previous `latest` reference and then
+  passed only after the digest pin was present.
+* Source anchors: `.github/workflows/deploy-railway.yml`,
+  `scripts/check-workflow-pins.mjs`, and `package.json`.
+* Docs updated: `Wiki/features/operations.md` and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Immutable GitHub Action dependencies
 
 * Replaced every mutable major-version action reference in CI, Railway deploy,

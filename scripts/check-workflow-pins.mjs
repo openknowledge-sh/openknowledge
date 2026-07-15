@@ -7,6 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workflowDirectory = path.join(root, ".github", "workflows");
 const commitPattern = /^[0-9a-f]{40}$/i;
 const dockerDigestPattern = /^docker:\/\/.+@sha256:[0-9a-f]{64}$/i;
+const containerDigestPattern = /^.+@sha256:[0-9a-f]{64}$/i;
 const failures = [];
 
 for (const name of fs.readdirSync(workflowDirectory).sort()) {
@@ -16,6 +17,10 @@ for (const name of fs.readdirSync(workflowDirectory).sort()) {
   const relativePath = path.posix.join(".github/workflows", name);
   const lines = fs.readFileSync(path.join(workflowDirectory, name), "utf8").split(/\r?\n/);
   lines.forEach((line, index) => {
+    const containerMatch = line.match(/^\s*(?:container|image):\s*["']?([^\s"'#]+)["']?/);
+    if (containerMatch && !containerDigestPattern.test(containerMatch[1])) {
+      failures.push(`${relativePath}:${index + 1}: job container must use an sha256 digest: ${containerMatch[1]}`);
+    }
     const match = line.match(/^\s*(?:-\s*)?uses:\s*["']?([^\s"'#]+)["']?/);
     if (!match) {
       return;
@@ -45,5 +50,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("GitHub Actions are pinned to immutable commits");
+  console.log("Workflow dependencies are pinned to immutable commits and digests");
 }

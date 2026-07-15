@@ -119,7 +119,10 @@ checking for real static files.
 
 The Railway deployment workflow runs on pushes to `main`. It first verifies the
 repository with `pnpm test` and `pnpm build`, then deploys through the Railway
-CLI container with `railway up --ci --service="$RAILWAY_SERVICE"`. Configure
+CLI container with `railway up --ci --service="$RAILWAY_SERVICE"`. The container
+uses an explicit CLI version plus its immutable linux/amd64 manifest digest;
+`pnpm check:workflow-pins` rejects mutable job-container images as well as
+mutable actions. Configure
 `RAILWAY_TOKEN` as a repository secret and `RAILWAY_SERVICE` as the Railway
 service name or service ID. `RAILWAY_PROJECT_ID` is optional, but should be set
 when the token is not already scoped tightly enough to the target project. When

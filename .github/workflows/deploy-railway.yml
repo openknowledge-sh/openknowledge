@@ -46,7 +46,7 @@ jobs:
   deploy:
     needs: verify
     runs-on: ubuntu-latest
-    container: ghcr.io/railwayapp/cli:latest
+    container: ghcr.io/railwayapp/cli:4.65.0@sha256:103deb7580a11af6c414146ff63ff2357bf7b89fcda71a5e9818fade0129b859
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || secrets.RAILWAY_PROJECT_ID }}
