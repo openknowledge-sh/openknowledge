@@ -24,6 +24,7 @@ packages/web  - static HTML/CSS site
 ```sh
 pnpm test:cli
 pnpm test:install
+pnpm test:web
 pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope
@@ -46,6 +47,8 @@ step set. `pnpm test` runs all workflow and version checks before the CLI test
 suite. `pnpm check:container-runtime` requires the final Node image to select
 its built-in unprivileged user. The root test gate also runs transactional
 shell-installer fixtures, and `pnpm build` builds both the CLI and web package.
+`pnpm test:web` exercises the production static handler without binding a
+network socket, so the same checks run in sandboxed agents.
 
 ## Continuous Integration
 
@@ -126,6 +129,29 @@ The deployed wiki brand is controlled by `Wiki/index.md` root frontmatter
 The web server keeps canonical generated wiki pages under their exported paths
 and redirects short top-level command aliases to those canonical pages after
 checking for real static files.
+
+The production static handler accepts only `GET` and `HEAD`, returns explicit
+`400`, `403`, `404`, `405`, and `500` responses, drains rejected request bodies,
+implements bodyless HEAD responses with the real content length, and treats
+redirects and errors as `no-store`. HTML revalidates on each visit while other
+assets use a short five-minute cache with stale revalidation.
+
+Every application response carries `nosniff`, deny-framing, strict-origin
+referrer, opener isolation, HSTS, a restrictive permissions policy, and a CSP
+that denies objects and framing while allowing the existing inline viewer code
+and HTTPS analytics/font integrations. HSTS takes effect only when the site is
+reached over HTTPS. The CSP deliberately retains `unsafe-inline` because the
+generated static viewer and trusted head injection currently emit inline
+scripts and styles; removing that exception requires a nonce/hash build step.
+
+File serving resolves both the configured root and final target through the
+real filesystem before opening a stream, so a symlink cannot expose files
+outside the public tree. Stream errors and client disconnects are contained,
+common binary/font MIME types are explicit, request headers are capped at 16
+KiB, request/header/keep-alive timeouts are finite, and each socket is limited
+to 100 requests. `pnpm test:web` covers files, directories, fallback Wiki
+assets, methods, malformed URLs, redirects, headers, caches, symlink escape,
+and server resource bounds.
 
 The Railway deployment workflow runs on pushes to `main`. It first verifies the
 repository with `pnpm test` and `pnpm build`, then deploys through the Railway
@@ -258,6 +284,8 @@ npm publish --provenance --access public
 > * `packages/web/scripts/build.mjs`
 > * `packages/web/scripts/wiki-export.mjs`
 > * `packages/web/scripts/serve.mjs`
+> * `packages/web/scripts/server.mjs`
+> * `packages/web/scripts/server.test.mjs`
 > * `packages/web/index.html`
 > * `packages/web/main.js`
 > * `Wiki/openknowledge.toml`

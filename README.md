@@ -424,6 +424,7 @@ separately identifies the selected Open Knowledge Format version.
 ```sh
 pnpm test:cli
 pnpm test:install
+pnpm test:web
 pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope

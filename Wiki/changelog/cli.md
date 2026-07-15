@@ -14,6 +14,31 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Hardened production static server
+
+* Split the production web entrypoint from a directly testable static handler
+  and added hermetic Node tests that require no listening socket.
+* Limited requests to `GET` and `HEAD`, drained rejected bodies, handled
+  malformed URLs deterministically, implemented real HEAD metadata, and added
+  explicit no-store/error and short asset/HTML cache policies.
+* Added CSP, HSTS, permissions, referrer, opener, framing, and MIME-sniffing
+  defenses to every application response while retaining the trusted inline
+  viewer/head-injection contract.
+* Resolved final file targets through the real filesystem to prevent symlink
+  escapes, expanded explicit MIME coverage, and contained stream errors and
+  client disconnects.
+* Bounded request headers, header/request/keep-alive time, and requests per
+  socket.
+* Added `pnpm test:web` coverage for files, directories, Wiki fallback, HEAD,
+  invalid methods/URLs, redirects, caches, security headers, symlinks, and
+  resource limits, then wired it into the root test gate.
+* Source anchors: `packages/web/scripts/server.mjs`,
+  `packages/web/scripts/server.test.mjs`,
+  `packages/web/scripts/serve.mjs`, `packages/web/package.json`, and
+  `package.json`.
+* Docs updated: `README.md`, `Wiki/features/operations.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Unprivileged production web runtime
 
 * Selected the official Node image's built-in `node` user in the final
