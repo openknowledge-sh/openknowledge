@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-list.schema.json",
+  "title": "Open Knowledge agent inventory v1",
+  "type": "object",
+  "required": ["schemaVersion", "path", "jobs"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "path": {"type": "string"},
+    "jobs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/job"}
+    }
+  },
+  "$defs": {
+    "job": {
+      "type": "object",
+      "required": ["id", "enabled", "path", "schedule", "agent", "sandbox", "concurrency"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+        "enabled": {"type": "boolean"},
+        "path": {"type": "string"},
+        "schedule": {
+          "type": "object",
+          "properties": {
+            "cron": {"type": "string"},
+            "every": {"type": "string"},
+            "timezone": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "agent": {"type": "string", "minLength": 1},
+        "sandbox": {"enum": ["host", "docker"]},
+        "concurrency": {
+          "oneOf": [
+            {"type": "object", "maxProperties": 0},
+            {
+              "type": "object",
+              "required": ["key", "policy"],
+              "properties": {
+                "key": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._-]+$"},
+                "policy": {"const": "skip"}
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -354,6 +354,9 @@ Use `openknowledge agents new` to list shipped templates,
 `openknowledge agents run <job.md> --dry-run` to print the resolved run plan.
 Run `openknowledge agents run <job.md>` to create a Git worktree and run the
 configured agent command.
+`openknowledge agents list --json` exposes a sorted, versioned discovery
+inventory with structured schedules, executor types, and concurrency keys,
+without serializing prompt bodies or environment values.
 Agent dry-run plans, persisted `plan.json`, and `run.json` records declare
 `schemaVersion: "1"`; their closed JSON Schemas are published with the other
 CLI machine contracts.
@@ -379,6 +382,7 @@ Nested agent commands also support
 | `openknowledge agents new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
 | `openknowledge agents new --reference` | Experimental: print the supported agent-job schema. |
 | `openknowledge agents list [path]` | Experimental: list Markdown agent job specs. |
+| `openknowledge agents list [path] --json` | Experimental: print the versioned agent discovery inventory. |
 | `openknowledge agents validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
 | `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
 | `openknowledge agents run <job.md>` | Experimental: create a Git worktree and run one local agent job. |

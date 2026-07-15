@@ -136,6 +136,7 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 	contractFixtures := machineContractFixtures(t)
 	outputs["registry-list"] = contractFixtures["registry-list"]
 	outputs["registry-status"] = contractFixtures["registry-status"]
+	outputs["agent-list"] = contractFixtures["agent-list"]
 	outputs["agent-run-plan"] = contractFixtures["agent-run-plan"]
 	outputs["agent-run-record"] = contractFixtures["agent-run-record"]
 
@@ -211,6 +212,10 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 		"agent-run-plan/agent": {
 			output: outputs["agent-run-plan"],
 			mutate: func(root map[string]any) { root["agent"].(map[string]any)["undeclared"] = true },
+		},
+		"agent-list/job": {
+			output: outputs["agent-list"],
+			mutate: func(root map[string]any) { firstObject(root, "jobs")["undeclared"] = true },
 		},
 		"agent-run-record/agent": {
 			output: outputs["agent-run-record"],

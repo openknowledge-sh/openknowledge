@@ -43,6 +43,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge agents new",
 		"openknowledge agents new <template> --out <file>",
 		"openknowledge agents list [path]",
+		"openknowledge agents list [path] --json",
 		"openknowledge agents validate <job-or-dir>",
 		"openknowledge agents run <job.md> --dry-run",
 		"openknowledge agents daemon [jobs-dir] --once",

@@ -30,6 +30,7 @@ openknowledge agents new --reference
 openknowledge agents new docs-audit
 openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md
 openknowledge agents list [path]
+openknowledge agents list [path] --json
 openknowledge agents validate <job-or-dir>
 openknowledge agents run <job.md>
 openknowledge agents run <job.md> --dry-run
@@ -164,6 +165,14 @@ Markdown. With `--out`, it writes a new job file and prints follow-up
 `agents validate` decodes the YAML frontmatter and then checks the documented
 job schema without running an agent or touching Git worktrees.
 
+`agents list --json` returns a `schemaVersion: "1"` envelope with the absolute
+discovery path and an always-present, deterministically id/path-sorted `jobs`
+array. Entries expose id, enabled state, absolute job path, structured schedule,
+agent executable, sandbox type, and normalized concurrency policy. Prompt
+bodies, command arguments, and environment values are deliberately excluded
+from discovery. A missing or empty jobs directory succeeds with `jobs: []`.
+The closed contract is published as `agent-list.schema.json`.
+
 `agents run --dry-run` resolves the job into a JSON run plan. The plan includes
 the stable run id, repository root, base SHA, branch name, worktree path,
 prompt, executor, verification commands, and normalized concurrency policy.
@@ -275,6 +284,17 @@ this feature is marked experimental. The separately versioned plan and run
 record JSON contracts follow the machine-contract compatibility policy.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned agent discovery
+
+Added `agents list [path] --json` as a stable machine inventory with sorted
+summary entries and explicit empty arrays. The output excludes prompts and
+secret values, declares `schemaVersion: "1"`, and is enforced by a closed
+public schema, golden fixture, command tests, and undeclared-field rejection.
+Source anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+`packages/cli/cmd/openknowledge/agents_command_test.go`,
+`packages/cli/cmd/openknowledge/testdata/contracts/agent-list.json`, and
+`packages/cli/schemas/v1/agent-list.schema.json`.
 
 ### 2026-07-15 - Versioned agent artifact contracts
 

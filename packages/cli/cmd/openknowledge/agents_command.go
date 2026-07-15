@@ -1,14 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 const defaultAgentsJobsPath = ".openknowledge/agents/jobs"
@@ -82,25 +85,53 @@ func runAgentsList(args []string) int {
 		fmt.Fprint(os.Stdout, agentsListHelpText())
 		return 0
 	}
-	if len(args) > 1 {
+	jsonOutput := false
+	var positionals []string
+	for _, arg := range args {
+		switch {
+		case arg == "--json":
+			jsonOutput = true
+		case strings.HasPrefix(arg, "-"):
+			fmt.Fprintf(os.Stderr, "unknown agents list option: %s\n", arg)
+			return 2
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) > 1 {
 		fmt.Fprintln(os.Stderr, "agents list accepts at most one path")
 		return 2
 	}
 	path := defaultAgentsJobsPath
-	if len(args) == 1 {
-		path = args[0]
+	if len(positionals) == 1 {
+		path = positionals[0]
 	}
 	jobs, err := agents.DiscoverJobs(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			if jsonOutput {
+				return printAgentListJSON(path, nil)
+			}
 			fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
 			return 0
 		}
 		return printAgentCommandError(err)
 	}
 	if len(jobs) == 0 {
+		if jsonOutput {
+			return printAgentListJSON(path, jobs)
+		}
 		fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
 		return 0
+	}
+	sort.Slice(jobs, func(first int, second int) bool {
+		if jobs[first].ID != jobs[second].ID {
+			return jobs[first].ID < jobs[second].ID
+		}
+		return jobs[first].Path < jobs[second].Path
+	})
+	if jsonOutput {
+		return printAgentListJSON(path, jobs)
 	}
 	for _, job := range jobs {
 		enabled := "disabled"
@@ -109,6 +140,50 @@ func runAgentsList(args []string) int {
 		}
 		fmt.Fprintf(os.Stdout, "%s\t%s\t%s\t%s\n", job.ID, enabled, scheduleLabel(job), job.Path)
 	}
+	return 0
+}
+
+type agentListOutput struct {
+	SchemaVersion string           `json:"schemaVersion"`
+	Path          string           `json:"path"`
+	Jobs          []agentListEntry `json:"jobs"`
+}
+
+type agentListEntry struct {
+	ID          string              `json:"id"`
+	Enabled     bool                `json:"enabled"`
+	Path        string              `json:"path"`
+	Schedule    agents.ScheduleSpec `json:"schedule"`
+	Agent       string              `json:"agent"`
+	Sandbox     string              `json:"sandbox"`
+	Concurrency agents.Concurrency  `json:"concurrency"`
+}
+
+func printAgentListJSON(path string, jobs []agents.Job) int {
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	entries := make([]agentListEntry, 0, len(jobs))
+	for _, job := range jobs {
+		entries = append(entries, agentListEntry{
+			ID:          job.ID,
+			Enabled:     job.Enabled,
+			Path:        job.Path,
+			Schedule:    job.Schedule,
+			Agent:       job.Agent.Command,
+			Sandbox:     job.Sandbox.Type,
+			Concurrency: job.Concurrency,
+		})
+	}
+	output := agentListOutput{SchemaVersion: okf.MachineSchemaVersion, Path: absolutePath, Jobs: entries}
+	encoded, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Fprintln(os.Stdout, string(encoded))
 	return 0
 }
 
@@ -559,10 +634,14 @@ List agent job specs.
 
 Usage:
   openknowledge agents list [path]
+  openknowledge agents list [path] --json
   openknowledge agents list --help
 
 Arguments:
   path       Job file or directory. Defaults to .openknowledge/agents/jobs.
+
+Flags:
+  --json     Print the schemaVersion 1 agent inventory JSON.
 `
 }
 

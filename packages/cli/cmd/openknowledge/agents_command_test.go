@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 func TestAgentsCommandValidatesListsAndDryRuns(t *testing.T) {
@@ -35,6 +37,14 @@ concurrency:
 
 Audit docs.
 `)
+	writeMainTestFile(t, root, ".openknowledge/agents/jobs/alpha.md", `---
+id: alpha-check
+enabled: false
+agent: {command: codex}
+concurrency: {key: wiki-maintenance}
+---
+Check first.
+`)
 
 	output, stderr, code := captureMainOutput(t, func() int {
 		return runAgents([]string{"validate", jobPath})
@@ -54,6 +64,33 @@ Audit docs.
 	}
 	if !strings.Contains(output, "docs-audit") || !strings.Contains(output, "cron=0 9 * * MON") {
 		t.Fatalf("expected list output to include schedule:\n%s", output)
+	}
+
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runAgents([]string{"list", "--json", filepath.Dir(jobPath)})
+	})
+	if code != 0 {
+		t.Fatalf("expected agents list --json to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+	}
+	var inventory agentListOutput
+	if err := json.Unmarshal([]byte(output), &inventory); err != nil {
+		t.Fatal(err)
+	}
+	if inventory.SchemaVersion != okf.MachineSchemaVersion || len(inventory.Jobs) != 2 || inventory.Jobs[0].ID != "alpha-check" || inventory.Jobs[1].ID != "docs-audit" {
+		t.Fatalf("unexpected sorted agent inventory: %#v", inventory)
+	}
+	if inventory.Jobs[0].Concurrency.Policy != "skip" || inventory.Jobs[1].Schedule.Cron != "0 9 * * MON" || inventory.Jobs[1].Agent != "go" {
+		t.Fatalf("agent inventory omitted structured discovery fields: %#v", inventory.Jobs)
+	}
+
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runAgents([]string{"list", filepath.Join(root, "missing"), "--json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected missing JSON inventory to succeed, code=%d stderr=%s", code, stderr)
+	}
+	if err := json.Unmarshal([]byte(output), &inventory); err != nil || inventory.Jobs == nil || len(inventory.Jobs) != 0 {
+		t.Fatalf("expected explicit empty jobs array, inventory=%#v err=%v", inventory, err)
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {

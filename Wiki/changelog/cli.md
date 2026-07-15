@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Versioned agent discovery
+
+* Added `openknowledge agents list [path] --json` as a machine-readable
+  discovery API with an absolute input path and deterministic id/path ordering.
+* Defined privacy-minimized entries containing id, enabled state, absolute job
+  path, structured schedule, executable, sandbox type, and normalized
+  concurrency policy while excluding prompts, arguments, and environment
+  values.
+* Guaranteed `jobs: []` with exit status `0` for missing or empty directories.
+* Published a closed Draft 2020-12 `agent-list.schema.json`, golden fixture,
+  undeclared-field rejection, and command coverage for ordering, normalized
+  policy, structured schedule, and empty output.
+* Source anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+  `packages/cli/cmd/openknowledge/agents_command_test.go`,
+  `packages/cli/cmd/openknowledge/testdata/contracts/agent-list.json`,
+  `packages/cli/internal/okf/schema_contract_test.go`, and
+  `packages/cli/schemas/v1/agent-list.schema.json`.
+* Docs updated: `README.md`, root and nested command help,
+  `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/commands/agents.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Bounded Git staging generations
 
 * Added a complete staging-tree resource scan after every remote Git
