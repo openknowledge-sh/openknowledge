@@ -270,7 +270,8 @@ Run lifecycle:
 3. openknowledge agents run creates a Git worktree and branch.
 4. The configured agent command receives the Markdown body on stdin.
 5. Verification commands run in the same worktree.
-6. Logs, prompt, plan, run.json, and diff.patch are written under
-   .openknowledge/agents/runs/<run-id>/.
+6. Logs, prompt, plan, run.json, and diff.patch are written outside the Git
+   repository under the per-repository agent state directory. Override its
+   platform config default with OPENKNOWLEDGE_AGENTS_STATE_DIR.
 `
 }

@@ -2,10 +2,13 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 )
 
 func TestAgentsCommandValidatesListsAndDryRuns(t *testing.T) {
@@ -250,8 +253,68 @@ Print the Go version.
 	}
 }
 
+func TestAgentsSequentialRunsKeepSourceRepositoryClean(t *testing.T) {
+	root := newAgentTestRepo(t)
+	jobPath := writeAgentJob(t, root, `---
+id: clean-runs
+agent:
+  command: go
+  args: [version]
+workspace:
+  repo: "."
+  base: HEAD
+---
+
+Check the Go version.
+`)
+	runGit(t, root, "add", ".")
+	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "add clean job")
+
+	for _, scheduledAt := range []string{"2026-07-07T09:00:00Z", "2026-07-08T09:00:00Z"} {
+		output, stderr, code := captureMainOutput(t, func() int {
+			return runAgents([]string{"run", jobPath, "--at", scheduledAt})
+		})
+		if code != 0 {
+			t.Fatalf("expected sequential run at %s to succeed, code=%d stdout=%s stderr=%s", scheduledAt, code, output, stderr)
+		}
+		if status := agentGitOutput(t, root, "status", "--porcelain"); strings.TrimSpace(status) != "" {
+			t.Fatalf("agent runtime must not dirty the source repository after %s: %s", scheduledAt, status)
+		}
+		runPath := strings.TrimSpace(strings.TrimPrefix(lineWithPrefix(output, "run: "), "run: "))
+		if runPath == "" || strings.HasPrefix(runPath, root+string(filepath.Separator)) {
+			t.Fatalf("expected external run path, got %q", runPath)
+		}
+	}
+}
+
+func TestAgentsRejectStateDirectoryInsideSourceRepository(t *testing.T) {
+	root := newAgentTestRepo(t)
+	jobPath := writeAgentJob(t, root, `---
+id: unsafe-state
+agent:
+  command: go
+  args: [version]
+workspace:
+  repo: "."
+---
+
+Plan safely.
+`)
+	t.Setenv(agents.AgentsStateDirEnv, filepath.Join(root, ".agent-runtime"))
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runAgents([]string{"run", jobPath, "--dry-run", "--at", "2026-07-07T09:00:00Z"})
+	})
+	if code != 1 || !strings.Contains(stderr, "agent state directory must be outside the Git repository") {
+		t.Fatalf("expected in-repository state refusal, code=%d stderr=%s", code, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".agent-runtime")); !os.IsNotExist(err) {
+		t.Fatalf("refused state directory must not be created, got %v", err)
+	}
+}
+
 func newAgentTestRepo(t *testing.T) string {
 	t.Helper()
+	t.Setenv(agents.AgentsStateDirEnv, t.TempDir())
 	root := t.TempDir()
 	runGit(t, root, "init")
 	writeMainTestFile(t, root, "README.md", "# Test\n")
@@ -274,4 +337,15 @@ func lineWithPrefix(output string, prefix string) string {
 		}
 	}
 	return ""
+}
+
+func agentGitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	command := exec.Command("git", args...)
+	command.Dir = dir
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, output)
+	}
+	return string(output)
 }

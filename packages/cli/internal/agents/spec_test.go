@@ -141,3 +141,35 @@ func TestValidateJobRequiresExplicitSafeEnvironmentNames(t *testing.T) {
 		}
 	}
 }
+
+func TestCanonicalPathResolvesSymlinkedParentForMissingStatePath(t *testing.T) {
+	base := t.TempDir()
+	realParent := filepath.Join(base, "real")
+	if err := os.Mkdir(realParent, 0755); err != nil {
+		t.Fatal(err)
+	}
+	linkedParent := filepath.Join(base, "linked")
+	if err := os.Symlink(realParent, linkedParent); err != nil {
+		t.Skipf("symbolic links are unavailable: %v", err)
+	}
+	canonicalParent, err := filepath.EvalSymlinks(realParent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(canonicalParent, "missing", "agents")
+	got, err := canonicalPath(filepath.Join(linkedParent, "missing", "agents"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("expected missing descendant to resolve through real parent %s, got %s", want, got)
+	}
+}
+
+func TestRepositoryStateNameSeparatesSameNamedRepositories(t *testing.T) {
+	first := repositoryStateName(filepath.Join("one", "project"))
+	second := repositoryStateName(filepath.Join("two", "project"))
+	if first == second || !strings.HasPrefix(first, "project-") || !strings.HasPrefix(second, "project-") {
+		t.Fatalf("expected stable readable per-path namespaces, first=%q second=%q", first, second)
+	}
+}

@@ -37,6 +37,8 @@ type RunPlan struct {
 	Output      OutputSpec  `json:"output,omitempty"`
 }
 
+const AgentsStateDirEnv = "OPENKNOWLEDGE_AGENTS_STATE_DIR"
+
 func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunPlan, error) {
 	if err := ValidateJob(job); err != nil {
 		return RunPlan{}, err
@@ -60,6 +62,10 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	if err != nil {
 		return RunPlan{}, fmt.Errorf("resolve git repository: %w", err)
 	}
+	repoRoot, err = canonicalPath(repoRoot)
+	if err != nil {
+		return RunPlan{}, fmt.Errorf("resolve real Git repository path: %w", err)
+	}
 	base := job.Workspace.Base
 	if base == "" {
 		base = "HEAD"
@@ -82,8 +88,16 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	values := templateValues(job, scheduledAt, runID, branch)
 	branch = renderTemplate(branch, values)
 
-	runDir := filepath.Join(repoRoot, ".openknowledge", "agents", "runs", runID)
-	worktree := filepath.Join(repoRoot, ".openknowledge", "agents", "worktrees", runID)
+	stateRoot, err := AgentStateDirectory()
+	if err != nil {
+		return RunPlan{}, err
+	}
+	if pathInside(repoRoot, stateRoot) {
+		return RunPlan{}, fmt.Errorf("agent state directory must be outside the Git repository: %s", stateRoot)
+	}
+	repositoryState := filepath.Join(stateRoot, repositoryStateName(repoRoot))
+	runDir := filepath.Join(repositoryState, "runs", runID)
+	worktree := filepath.Join(repositoryState, "worktrees", runID)
 	sandbox := job.Sandbox
 	if executorOverride != "" {
 		sandbox.Type = executorOverride
@@ -122,6 +136,75 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 		Sandbox:     sandbox,
 		Output:      job.Output,
 	}, nil
+}
+
+func AgentStateDirectory() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv(AgentsStateDirEnv)); configured != "" {
+		return canonicalPath(configured)
+	}
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return canonicalPath(filepath.Join(configDir, "openknowledge", "agents"))
+}
+
+func canonicalPath(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	current := filepath.Clean(absolute)
+	var missing []string
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			for index := len(missing) - 1; index >= 0; index-- {
+				resolved = filepath.Join(resolved, missing[index])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
+}
+
+func repositoryStateName(repoRoot string) string {
+	base := strings.Map(func(character rune) rune {
+		switch {
+		case character >= 'a' && character <= 'z':
+			return character
+		case character >= 'A' && character <= 'Z':
+			return character
+		case character >= '0' && character <= '9':
+			return character
+		case character == '.', character == '_', character == '-':
+			return character
+		default:
+			return '-'
+		}
+	}, filepath.Base(filepath.Clean(repoRoot)))
+	base = strings.Trim(base, ".-")
+	if base == "" {
+		base = "repository"
+	}
+	hash := sha256.Sum256([]byte(filepath.Clean(repoRoot)))
+	return base + "-" + hex.EncodeToString(hash[:])[:12]
+}
+
+func pathInside(root string, candidate string) bool {
+	relative, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	return relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)))
 }
 
 func NormalizeExecutorOverride(value string) (string, error) {

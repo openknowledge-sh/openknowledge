@@ -159,9 +159,12 @@ are rejected before job discovery, plan construction, or command execution; an
 executor typo never falls back to host execution. The same allowlist is
 enforced again by the internal plan builder for non-CLI callers.
 
-`agents run` creates a new Git worktree under
-`.openknowledge/agents/worktrees/<run-id>` and writes run artifacts under
-`.openknowledge/agents/runs/<run-id>/`:
+`agents run` creates a new Git worktree and writes run artifacts outside the
+source repository. The default state root is
+`<user-config>/openknowledge/agents`; set
+`OPENKNOWLEDGE_AGENTS_STATE_DIR` to an alternate external root. Each repository
+gets a readable basename plus a hash of its canonical real path, followed by
+`worktrees/<run-id>` and `runs/<run-id>`:
 
 ```text
 job.md
@@ -184,6 +187,13 @@ repository content, or tool output and should be treated as private run data.
 The run id is derived from the job id, scheduled time, job file hash, and Git
 base SHA. Re-running the same scheduled job fails if the run directory already
 exists, which prevents accidental duplicate local runs.
+
+Runtime state is deliberately external so creating logs and Git worktrees does
+not change source-repository status or make the next default
+`workspace.dirty_policy: fail` run reject its predecessor's files. The state
+root is canonicalized through existing symlinked parents and is rejected if it
+equals or falls inside the source repository. Two repositories with the same
+directory basename still receive distinct hashed state namespaces.
 
 With `sandbox.type: host`, commands run as subprocesses in the worktree. With
 `sandbox.type: docker`, the worktree is bind-mounted into the configured image
@@ -221,6 +231,17 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - External per-repository runtime state
+
+Agent run records and worktrees moved from `.openknowledge/agents` in the source
+checkout to a per-repository namespace below the user config directory, with
+`OPENKNOWLEDGE_AGENTS_STATE_DIR` as an override. In-repository state roots are
+rejected after real-path resolution. Sequential jobs no longer dirty or block
+the source checkout. Source anchors: `packages/cli/internal/agents/plan.go`,
+`packages/cli/internal/agents/spec_test.go`,
+`packages/cli/internal/agents/templates.go`, and
+`packages/cli/cmd/openknowledge/agents_command_test.go`.
 
 ### 2026-07-15 - Explicit agent environment capabilities
 

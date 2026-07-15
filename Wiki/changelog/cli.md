@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - External agent runtime state
+
+* Moved agent run records and Git worktrees out of source repositories into a
+  platform user-config state root, overridable with
+  `OPENKNOWLEDGE_AGENTS_STATE_DIR`.
+* Namespaced state by a readable repository basename plus a hash of its
+  canonical path, preventing collisions between same-named repositories.
+* Rejected state roots equal to or below the source repository after resolving
+  symlinked existing parents, including paths whose final directories do not
+  exist yet.
+* Removed the runner's self-inflicted dirty checkout: multiple scheduled runs
+  can now use the default `dirty_policy: fail` sequentially without runtime
+  files blocking later jobs.
+* Added two-run cleanliness, external-path, unsafe-root, no-write-on-refusal,
+  symlink-canonicalization, and namespace-collision regressions.
+* Source anchors: `packages/cli/internal/agents/plan.go`,
+  `packages/cli/internal/agents/spec_test.go`,
+  `packages/cli/internal/agents/templates.go`, and
+  `packages/cli/cmd/openknowledge/agents_command_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Explicit agent environment capabilities
 
 * Stopped host agent and verification processes from inheriting the complete
