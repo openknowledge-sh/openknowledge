@@ -357,6 +357,9 @@ configured agent command.
 `openknowledge agents list --json` exposes a sorted, versioned discovery
 inventory with structured schedules, executor types, and concurrency keys,
 without serializing prompt bodies or environment values.
+`openknowledge agents validate --json` emits a versioned report on stdout for
+both valid and invalid specs; validation findings remain structured data while
+exit status `1` still marks an invalid job.
 Agent dry-run plans, persisted `plan.json`, and `run.json` records declare
 `schemaVersion: "1"`; their closed JSON Schemas are published with the other
 CLI machine contracts.
@@ -384,6 +387,7 @@ Nested agent commands also support
 | `openknowledge agents list [path]` | Experimental: list Markdown agent job specs. |
 | `openknowledge agents list [path] --json` | Experimental: print the versioned agent discovery inventory. |
 | `openknowledge agents validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
+| `openknowledge agents validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
 | `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
 | `openknowledge agents run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
 | `openknowledge agents daemon [jobs-dir] --once` | Experimental: check scheduled jobs once and run due jobs. |

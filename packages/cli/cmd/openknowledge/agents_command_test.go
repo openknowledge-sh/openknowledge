@@ -55,6 +55,27 @@ Check first.
 	if !strings.Contains(output, "valid agent job: docs-audit") {
 		t.Fatalf("expected validate output to include job id:\n%s", output)
 	}
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runAgents([]string{"validate", jobPath, "--json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected JSON agent validation, code=%d stderr=%s", code, stderr)
+	}
+	var validation agentValidationOutput
+	if err := json.Unmarshal([]byte(output), &validation); err != nil || !validation.Valid || len(validation.Jobs) != 1 || validation.Jobs[0].ID != "docs-audit" || validation.Issues == nil {
+		t.Fatalf("unexpected valid agent report: %#v err=%v", validation, err)
+	}
+	invalidPath := filepath.Join(root, ".openknowledge", "agents", "invalid.md")
+	writeMainTestFile(t, root, ".openknowledge/agents/invalid.md", "---\nid: invalid\nagent: {command: codex, argz: []}\n---\nPrompt.\n")
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runAgents([]string{"validate", "--json", invalidPath})
+	})
+	if code != 1 || stderr != "" {
+		t.Fatalf("expected structured invalid report, code=%d stderr=%s", code, stderr)
+	}
+	if err := json.Unmarshal([]byte(output), &validation); err != nil || validation.Valid || validation.Jobs == nil || len(validation.Issues) != 1 || validation.Issues[0].Field != "agent.argz" {
+		t.Fatalf("unexpected invalid agent report: %#v err=%v", validation, err)
+	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
 		return runAgents([]string{"list", filepath.Dir(jobPath)})

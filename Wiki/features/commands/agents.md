@@ -32,6 +32,7 @@ openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.
 openknowledge agents list [path]
 openknowledge agents list [path] --json
 openknowledge agents validate <job-or-dir>
+openknowledge agents validate <job-or-dir> --json
 openknowledge agents run <job.md>
 openknowledge agents run <job.md> --dry-run
 openknowledge agents run <job.md> --at 2026-07-07T09:00:00Z
@@ -164,6 +165,11 @@ Markdown. With `--out`, it writes a new job file and prints follow-up
 
 `agents validate` decodes the YAML frontmatter and then checks the documented
 job schema without running an agent or touching Git worktrees.
+With `--json`, valid and invalid outcomes are written to stdout as a
+`schemaVersion: "1"` report containing the absolute input path, `valid`,
+always-present `jobs` and `issues` arrays, and an optional non-validation
+`error`. Invalid job fields retain exit status `1` but do not require stderr
+parsing. The closed contract is published as `agent-validation.schema.json`.
 
 `agents list --json` returns a `schemaVersion: "1"` envelope with the absolute
 discovery path and an always-present, deterministically id/path-sorted `jobs`
@@ -284,6 +290,16 @@ this feature is marked experimental. The separately versioned plan and run
 record JSON contracts follow the machine-contract compatibility policy.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned agent validation reports
+
+Added `agents validate <job-or-dir> --json` with structured successful and
+failed outcomes, explicit arrays, stable exit semantics, a closed public
+schema, golden fixture, and command coverage for both paths. Source anchors:
+`packages/cli/cmd/openknowledge/agents_command.go`,
+`packages/cli/cmd/openknowledge/agents_command_test.go`,
+`packages/cli/cmd/openknowledge/testdata/contracts/agent-validation.json`, and
+`packages/cli/schemas/v1/agent-validation.schema.json`.
 
 ### 2026-07-15 - Versioned agent discovery
 

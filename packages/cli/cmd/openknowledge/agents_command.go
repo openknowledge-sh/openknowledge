@@ -192,20 +192,90 @@ func runAgentsValidate(args []string) int {
 		fmt.Fprint(os.Stdout, agentsValidateHelpText())
 		return 0
 	}
-	if len(args) != 1 {
+	jsonOutput := false
+	var positionals []string
+	for _, arg := range args {
+		switch {
+		case arg == "--json":
+			jsonOutput = true
+		case strings.HasPrefix(arg, "-"):
+			fmt.Fprintf(os.Stderr, "unknown agents validate option: %s\n", arg)
+			return 2
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) != 1 {
 		fmt.Fprintln(os.Stderr, "agents validate requires exactly one job file or directory")
 		return 2
 	}
-	jobs, err := agents.DiscoverJobs(args[0])
+	path := positionals[0]
+	jobs, err := agents.DiscoverJobs(path)
 	if err != nil {
+		if jsonOutput {
+			return printAgentValidationJSON(path, nil, err)
+		}
 		return printAgentCommandError(err)
 	}
+	if jsonOutput {
+		return printAgentValidationJSON(path, jobs, nil)
+	}
 	if len(jobs) == 0 {
-		fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", args[0])
+		fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
 		return 0
 	}
 	for _, job := range jobs {
 		fmt.Fprintf(os.Stdout, "valid agent job: %s (%s)\n", job.ID, job.Path)
+	}
+	return 0
+}
+
+type agentValidationOutput struct {
+	SchemaVersion string                   `json:"schemaVersion"`
+	Path          string                   `json:"path"`
+	Valid         bool                     `json:"valid"`
+	Jobs          []agentValidationJob     `json:"jobs"`
+	Issues        []agents.ValidationIssue `json:"issues"`
+	Error         string                   `json:"error,omitempty"`
+}
+
+type agentValidationJob struct {
+	ID   string `json:"id"`
+	Path string `json:"path"`
+}
+
+func printAgentValidationJSON(path string, jobs []agents.Job, validationErr error) int {
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	output := agentValidationOutput{
+		SchemaVersion: okf.MachineSchemaVersion,
+		Path:          absolutePath,
+		Valid:         validationErr == nil,
+		Jobs:          make([]agentValidationJob, 0, len(jobs)),
+		Issues:        make([]agents.ValidationIssue, 0),
+	}
+	for _, job := range jobs {
+		output.Jobs = append(output.Jobs, agentValidationJob{ID: job.ID, Path: job.Path})
+	}
+	if validationErr != nil {
+		var typed agents.ValidationError
+		if errors.As(validationErr, &typed) {
+			output.Issues = append(output.Issues, typed.Issues...)
+		} else {
+			output.Error = validationErr.Error()
+		}
+	}
+	encoded, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Fprintln(os.Stdout, string(encoded))
+	if validationErr != nil {
+		return 1
 	}
 	return 0
 }
@@ -652,7 +722,11 @@ Parse and schema-check agent job specs without running an agent.
 
 Usage:
   openknowledge agents validate <job-or-dir>
+  openknowledge agents validate <job-or-dir> --json
   openknowledge agents validate --help
+
+Flags:
+  --json     Print the schemaVersion 1 validation report, including failures.
 `
 }
 

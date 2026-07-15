@@ -18,6 +18,7 @@ field identifies the selected Open Knowledge Format revision where applicable.
 | Schema | CLI surface |
 | --- | --- |
 | `agent-list.schema.json` | `openknowledge agents list --json` |
+| `agent-validation.schema.json` | `openknowledge agents validate --json` |
 | `agent-run-plan.schema.json` | `openknowledge agents run --dry-run` and persisted `plan.json` |
 | `agent-run-record.schema.json` | Persisted agent `run.json` lifecycle records |
 | `ast.schema.json` | `openknowledge ast` |

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-validation.schema.json",
+  "title": "Open Knowledge agent job validation report v1",
+  "type": "object",
+  "required": ["schemaVersion", "path", "valid", "jobs", "issues"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "path": {"type": "string"},
+    "valid": {"type": "boolean"},
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+          "path": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field", "message"],
+        "properties": {
+          "field": {"type": "string"},
+          "message": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "error": {"type": "string"}
+  },
+  "additionalProperties": false
+}

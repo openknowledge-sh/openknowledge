@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1",
+  "path": "/work/project/.openknowledge/agents/jobs/invalid.md",
+  "valid": false,
+  "jobs": [],
+  "issues": [
+    {
+      "field": "agent.argz",
+      "message": "is not a supported agent job field"
+    }
+  ]
+}

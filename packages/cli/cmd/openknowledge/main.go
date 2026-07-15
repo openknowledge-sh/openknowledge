@@ -4450,6 +4450,7 @@ Usage:
   openknowledge agents list [path]
   openknowledge agents list [path] --json
   openknowledge agents validate <job-or-dir>
+  openknowledge agents validate <job-or-dir> --json
   openknowledge agents run <job.md> --dry-run
   openknowledge agents run <job.md>
   openknowledge agents daemon [jobs-dir] --once

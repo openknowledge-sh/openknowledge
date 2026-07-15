@@ -14,6 +14,26 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Versioned agent validation reports
+
+* Added `openknowledge agents validate <job-or-dir> --json` with one
+  `schemaVersion: "1"` envelope for successful and failed validation.
+* Preserved exit status `1` for invalid specs while returning typed field and
+  message issues on stdout; non-validation failures use an optional error field.
+* Guaranteed always-present `jobs` and `issues` arrays and an absolute input
+  path, eliminating presentation-text parsing for automation.
+* Published a closed Draft 2020-12 schema, golden invalid fixture,
+  undeclared-field checks, and command tests for valid and invalid reports.
+* Source anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+  `packages/cli/cmd/openknowledge/agents_command_test.go`,
+  `packages/cli/cmd/openknowledge/testdata/contracts/agent-validation.json`,
+  `packages/cli/internal/okf/schema_contract_test.go`, and
+  `packages/cli/schemas/v1/agent-validation.schema.json`.
+* Docs updated: `README.md`, root and nested command help,
+  `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/commands/agents.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Versioned agent discovery
 
 * Added `openknowledge agents list [path] --json` as a machine-readable
