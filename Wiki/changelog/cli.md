@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Enforced cross-process agent concurrency
+
+* Promoted the reserved agent-job `concurrency` mapping into a strict contract
+  with a global key and fail-closed `skip` policy validation.
+* Added owner-private hashed lock files under the external agent state root and
+  hold the lock across worktree creation, execution, verification, optional
+  commit, and final artifact recording, including across daemon processes.
+* Contending invocations now persist a private `run.json` with status `skipped`
+  and a reason, while creating no worktree and executing no agent command.
+* Included normalized concurrency state in dry-run and persisted run plans;
+  missing policies default to `skip` when a key is present.
+* Added parser, defaulting, validation, real lock-contention, persisted-record,
+  and no-worktree regression coverage.
+* Source anchors: `packages/cli/internal/agents/concurrency.go`,
+  `packages/cli/internal/agents/frontmatter_schema.go`,
+  `packages/cli/internal/agents/spec.go`,
+  `packages/cli/internal/agents/plan.go`,
+  `packages/cli/internal/agents/runner.go`, and
+  `packages/cli/internal/agents/runner_test.go`.
+* Docs updated: `README.md`, generated agent-job reference,
+  `Wiki/features/commands/agents.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Bounded non-interactive Git transport
 
 * Added one two-minute deadline across remote Git clone/fetch/checkout

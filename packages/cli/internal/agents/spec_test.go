@@ -20,6 +20,7 @@ agent:
   args: [exec, --model, gpt-5]
 verify: {commands: ["go test ./...", "openknowledge validate Wiki"], timeout: 10m}
 output: {commit: true}
+concurrency: {key: wiki-maintenance}
 ---
 
 Review the docs.
@@ -40,6 +41,9 @@ Review the docs.
 	}
 	if !job.Output.Commit || job.Verify.Timeout != "10m" || job.Prompt != "\nReview the docs.\n" {
 		t.Fatalf("unexpected output or prompt: %#v", job)
+	}
+	if job.Concurrency.Key != "wiki-maintenance" || job.Concurrency.Policy != "skip" {
+		t.Fatalf("expected default skip concurrency policy: %#v", job.Concurrency)
 	}
 }
 
@@ -88,9 +92,14 @@ func TestParseJobFileEnforcesStrictFrontmatterSchema(t *testing.T) {
 			expected: "agent.args[1]: must be a string, got number",
 		},
 		{
-			name:     "unenforced concurrency",
-			content:  "---\nid: strict\nagent: {command: agent}\nconcurrency: {key: docs, policy: skip}\n---\nPrompt.\n",
-			expected: "concurrency: is reserved and not enforced",
+			name:     "unknown concurrency policy",
+			content:  "---\nid: strict\nagent: {command: agent}\nconcurrency: {key: docs, policy: cancel}\n---\nPrompt.\n",
+			expected: "concurrency.policy: must be skip",
+		},
+		{
+			name:     "concurrency policy without key",
+			content:  "---\nid: strict\nagent: {command: agent}\nconcurrency: {policy: skip}\n---\nPrompt.\n",
+			expected: "concurrency.key: is required",
 		},
 		{
 			name:     "duplicate field",

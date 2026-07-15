@@ -257,8 +257,17 @@ func ValidateJob(job Job) error {
 	if job.Output.PR {
 		add("output.pr", "is reserved for a future server/GitHub integration")
 	}
-	if job.Concurrency.Key != "" || job.Concurrency.Policy != "" {
-		add("concurrency", "is reserved and not enforced by the local runner")
+	if job.Concurrency.Key != "" {
+		if !validJobID.MatchString(job.Concurrency.Key) || len(job.Concurrency.Key) > 128 {
+			add("concurrency.key", "must be at most 128 letters, numbers, dots, underscores, or hyphens")
+		}
+	} else if job.Concurrency.Policy != "" {
+		add("concurrency.key", "is required when concurrency.policy is set")
+	}
+	switch job.Concurrency.Policy {
+	case "", "skip":
+	default:
+		add("concurrency.policy", "must be skip")
 	}
 	if len(issues) > 0 {
 		return ValidationError{Issues: issues}
@@ -346,6 +355,9 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 		job.Concurrency = Concurrency{
 			Key:    getString(concurrency, "key"),
 			Policy: getString(concurrency, "policy"),
+		}
+		if job.Concurrency.Key != "" && job.Concurrency.Policy == "" {
+			job.Concurrency.Policy = "skip"
 		}
 	}
 	return job, nil

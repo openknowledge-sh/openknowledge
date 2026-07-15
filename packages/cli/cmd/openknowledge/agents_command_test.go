@@ -29,6 +29,8 @@ workspace:
 verify:
   commands:
     - go version
+concurrency:
+  key: wiki-maintenance
 ---
 
 Audit docs.
@@ -60,7 +62,7 @@ Audit docs.
 	if code != 0 {
 		t.Fatalf("expected agents run --dry-run to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
-	for _, expected := range []string{`"job_id": "docs-audit"`, `"branch": "agents/docs-audit/20260707-090000-`, `"command": "go"`} {
+	for _, expected := range []string{`"job_id": "docs-audit"`, `"branch": "agents/docs-audit/20260707-090000-`, `"command": "go"`, `"key": "wiki-maintenance"`, `"policy": "skip"`} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected dry-run output to include %q:\n%s", expected, output)
 		}
@@ -98,6 +100,7 @@ func TestAgentsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 		"workspace.branch",
 		"sandbox.type",
 		"verify.commands",
+		"concurrency.policy",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected reference to include %q:\n%s", expected, output)

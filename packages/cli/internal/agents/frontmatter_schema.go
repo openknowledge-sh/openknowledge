@@ -12,7 +12,6 @@ const (
 	jobBoolField
 	jobStringListField
 	jobObjectField
-	jobUnsupportedField
 )
 
 type jobFieldSchema struct {
@@ -74,7 +73,13 @@ var agentJobFrontmatterSchema = map[string]jobFieldSchema{
 			"pr":             {kind: jobBoolField},
 		},
 	},
-	"concurrency": {kind: jobUnsupportedField},
+	"concurrency": {
+		kind: jobObjectField,
+		fields: map[string]jobFieldSchema{
+			"key":    {kind: jobStringField},
+			"policy": {kind: jobStringField},
+		},
+	},
 }
 
 func validateJobFrontmatterShape(data map[string]any) error {
@@ -134,8 +139,6 @@ func validateJobField(field string, value any, schema jobFieldSchema, issues *[]
 			return
 		}
 		validateJobObject(field, object, schema.fields, issues)
-	case jobUnsupportedField:
-		*issues = append(*issues, ValidationIssue{Field: field, Message: "is reserved and not enforced by the local runner"})
 	}
 }
 

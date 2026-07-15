@@ -55,7 +55,7 @@ type CommandResult struct {
 	Error      string        `json:"error,omitempty"`
 }
 
-func RunJob(job Job, options RunOptions) (RunRecord, error) {
+func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 	if options.ScheduledAt.IsZero() {
 		options.ScheduledAt = time.Now()
 	}
@@ -79,11 +79,24 @@ func RunJob(job Job, options RunOptions) (RunRecord, error) {
 		return RunRecord{RunID: plan.RunID, JobID: plan.JobID, Status: "planned", ScheduledAt: options.ScheduledAt, Plan: plan}, nil
 	}
 
+	releaseConcurrency, acquired, err := acquireConcurrency(plan)
+	if err != nil {
+		return RunRecord{}, err
+	}
+	if !acquired {
+		return recordSkippedConcurrency(plan, options.ScheduledAt)
+	}
+	defer func() {
+		if err := releaseConcurrency(); err != nil && resultErr == nil {
+			resultErr = fmt.Errorf("release concurrency key %q: %w", plan.Concurrency.Key, err)
+		}
+	}()
+
 	if err := ensureRunnablePlan(plan, job); err != nil {
 		return RunRecord{}, err
 	}
 
-	record := RunRecord{
+	record = RunRecord{
 		RunID:       plan.RunID,
 		JobID:       plan.JobID,
 		Status:      "running",
@@ -177,6 +190,40 @@ func RunJob(job Job, options RunOptions) (RunRecord, error) {
 		}
 	}
 	return finish("succeeded", nil)
+}
+
+func recordSkippedConcurrency(plan RunPlan, scheduledAt time.Time) (RunRecord, error) {
+	now := time.Now()
+	record := RunRecord{
+		RunID:       plan.RunID,
+		JobID:       plan.JobID,
+		Status:      "skipped",
+		ScheduledAt: scheduledAt,
+		StartedAt:   now,
+		FinishedAt:  now,
+		Plan:        plan,
+		StatusText:  fmt.Sprintf("concurrency key %q is already running", plan.Concurrency.Key),
+	}
+	runParent := filepath.Dir(plan.RunDir)
+	if err := os.MkdirAll(runParent, privateRunDirMode); err != nil {
+		return record, fmt.Errorf("create run parent directory: %w", err)
+	}
+	if err := os.Chmod(runParent, privateRunDirMode); err != nil {
+		return record, fmt.Errorf("secure run parent directory: %w", err)
+	}
+	if err := os.Mkdir(plan.RunDir, privateRunDirMode); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return record, nil
+		}
+		return record, fmt.Errorf("create skipped run directory: %w", err)
+	}
+	if err := writeRunInputs(plan); err != nil {
+		return record, err
+	}
+	if err := writeRunRecord(plan.RunDir, record); err != nil {
+		return record, err
+	}
+	return record, nil
 }
 
 func ensureRunnablePlan(plan RunPlan, job Job) error {

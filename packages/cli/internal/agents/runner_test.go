@@ -2,11 +2,14 @@ package agents
 
 import (
 	"context"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDockerCommandArgsEnforceIsolationBeforeImage(t *testing.T) {
@@ -105,5 +108,71 @@ func TestHostCommandEnvironmentDoesNotInheritSecretsByDefault(t *testing.T) {
 	}
 	if _, err := os.Stat(environment["HOME"]); !os.IsNotExist(err) {
 		t.Fatalf("command construction must not create runtime directories, got %v", err)
+	}
+}
+
+func TestRunJobSkipsAndRecordsHeldConcurrencyKey(t *testing.T) {
+	root := t.TempDir()
+	runTestGit(t, root, "init")
+	jobPath := filepath.Join(root, "job.md")
+	content := `---
+id: concurrency-test
+agent: {command: agent}
+workspace: {repo: ".", base: HEAD}
+concurrency: {key: wiki-maintenance, policy: skip}
+---
+Maintain the wiki.
+`
+	if err := os.WriteFile(jobPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, root, "add", "job.md")
+	runTestGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
+	t.Setenv(AgentsStateDirEnv, filepath.Join(t.TempDir(), "agent-state"))
+
+	job, err := ParseJobFile(jobPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduledAt := time.Date(2026, 7, 15, 9, 0, 0, 0, time.UTC)
+	plan, err := BuildRunPlan(job, scheduledAt, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, acquired, err := acquireConcurrency(plan)
+	if err != nil || !acquired {
+		t.Fatalf("hold concurrency key: acquired=%t err=%v", acquired, err)
+	}
+	defer func() { _ = release() }()
+
+	record, err := RunJob(job, RunOptions{ScheduledAt: scheduledAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Status != "skipped" || !strings.Contains(record.StatusText, `"wiki-maintenance" is already running`) {
+		t.Fatalf("unexpected skipped record: %#v", record)
+	}
+	if _, err := os.Stat(plan.Worktree); !os.IsNotExist(err) {
+		t.Fatalf("skipped run must not create a worktree: %v", err)
+	}
+	contentJSON, err := os.ReadFile(filepath.Join(plan.RunDir, "run.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted RunRecord
+	if err := json.Unmarshal(contentJSON, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Status != "skipped" || persisted.Plan.Concurrency.Key != "wiki-maintenance" || persisted.Plan.Concurrency.Policy != "skip" {
+		t.Fatalf("unexpected persisted concurrency record: %#v", persisted)
+	}
+}
+
+func runTestGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	command := exec.Command("git", args...)
+	command.Dir = dir
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, output)
 	}
 }

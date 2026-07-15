@@ -105,6 +105,9 @@ verify:
   timeout: 15m
 output:
   commit: false
+concurrency:
+  key: wiki-maintenance
+  policy: skip
 ---
 
 Audit the CLI docs against the implementation.
@@ -143,12 +146,13 @@ Supported top-level fields:
 | `verify.timeout` | Positive timeout applied separately to each verification command. Defaults to `15m`. |
 | `output.commit` | When true, commits worktree changes after verification. |
 | `output.pr` | Reserved; currently rejected by validation. |
+| `concurrency.key` | Optional global key shared by jobs that must not overlap. At most 128 letters, numbers, dots, underscores, or hyphens. |
+| `concurrency.policy` | `skip`; defaults to `skip` when a key is present. |
 
 `schedule.cron` and `schedule.every` are mutually exclusive. Intervals and
 agent timeouts must be positive, and `schedule.timezone` requires one actual
-schedule. The reserved `concurrency` mapping is rejected because the local
-runner does not yet enforce concurrency policy; declaring it never creates a
-false safety guarantee.
+schedule. A concurrency policy requires a key, and unknown policies fail
+validation rather than silently weakening the requested exclusion.
 
 ## Behavior
 
@@ -162,7 +166,16 @@ job schema without running an agent or touching Git worktrees.
 
 `agents run --dry-run` resolves the job into a JSON run plan. The plan includes
 the stable run id, repository root, base SHA, branch name, worktree path,
-prompt, executor, and verification commands.
+prompt, executor, verification commands, and normalized concurrency policy.
+
+Before a non-dry run mutates the repository, a job with `concurrency.key`
+attempts an owner-private advisory lock under the external agent state root.
+The key is global across repositories that share that state root, so multiple
+jobs can deliberately serialize one resource. With the `skip` policy, a held
+key writes a private `run.json` with status `skipped` and a reason, creates no
+worktree, executes no command, and exits successfully. The lock is held across
+worktree creation, agent execution, verification, optional commit, and final
+artifact recording, including between independent daemon processes.
 
 `agents run` and `agents daemon` accept only the exact `--executor host` and
 `--executor docker` overrides. Missing or unknown values are usage errors and
@@ -249,6 +262,20 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Enforced cross-process agent concurrency
+
+The previously reserved `concurrency` mapping now accepts a validated global
+key and `skip` policy. Non-dry runs use an owner-private cross-process lock for
+the complete mutation lifecycle; contention records a skipped run without a
+worktree or command execution. Run plans expose the normalized policy, and
+invalid or unsupported declarations still fail closed. Source anchors:
+`packages/cli/internal/agents/concurrency.go`,
+`packages/cli/internal/agents/frontmatter_schema.go`,
+`packages/cli/internal/agents/spec.go`,
+`packages/cli/internal/agents/plan.go`,
+`packages/cli/internal/agents/runner.go`, and
+`packages/cli/internal/agents/runner_test.go`.
 
 ### 2026-07-15 - Bounded agent process trees
 

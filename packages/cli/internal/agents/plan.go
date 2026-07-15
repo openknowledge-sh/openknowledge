@@ -36,6 +36,7 @@ type RunPlan struct {
 	VerifyTimeout string      `json:"verify_timeout"`
 	Sandbox       SandboxSpec `json:"sandbox"`
 	Output        OutputSpec  `json:"output,omitempty"`
+	Concurrency   Concurrency `json:"concurrency,omitempty"`
 }
 
 const AgentsStateDirEnv = "OPENKNOWLEDGE_AGENTS_STATE_DIR"
@@ -141,7 +142,15 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 		VerifyTimeout: verifyTimeout,
 		Sandbox:       sandbox,
 		Output:        job.Output,
+		Concurrency:   normalizedConcurrency(job.Concurrency),
 	}, nil
+}
+
+func normalizedConcurrency(concurrency Concurrency) Concurrency {
+	if concurrency.Key != "" && concurrency.Policy == "" {
+		concurrency.Policy = "skip"
+	}
+	return concurrency
 }
 
 func AgentStateDirectory() (string, error) {

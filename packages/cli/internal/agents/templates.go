@@ -46,6 +46,9 @@ verify:
     - openknowledge validate Wiki
 output:
   commit: false
+concurrency:
+  key: wiki-maintenance
+  policy: skip
 ---
 
 Audit README.md and Wiki/ against the current CLI implementation.
@@ -263,6 +266,10 @@ Field reference:
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.
 - output.pr: Reserved for future server or GitHub integration and currently rejected.
+- concurrency.key: Optional global key shared by jobs that must not overlap.
+  Uses letters, numbers, dots, underscores, or hyphens, up to 128 characters.
+- concurrency.policy: skip; this is the default when a key is present. A
+  contending invocation records a skipped run without creating a worktree.
 
 Run lifecycle:
 

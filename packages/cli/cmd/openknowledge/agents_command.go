@@ -172,7 +172,11 @@ func runAgentsRun(args []string) int {
 	if !options.dryRun {
 		fmt.Fprintf(os.Stdout, "agent run %s %s\n", record.RunID, record.Status)
 		fmt.Fprintf(os.Stdout, "run: %s\n", filepath.Join(record.Plan.RunDir, "run.json"))
-		fmt.Fprintf(os.Stdout, "worktree: %s\n", record.Plan.Worktree)
+		if record.Status == "skipped" {
+			fmt.Fprintf(os.Stdout, "reason: %s\n", record.StatusText)
+		} else {
+			fmt.Fprintf(os.Stdout, "worktree: %s\n", record.Plan.Worktree)
+		}
 	}
 	return 0
 }

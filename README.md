@@ -334,6 +334,9 @@ around local agent CLIs, but the job schema and scheduler behavior may still
 change before this command is treated as stable. Jobs are Markdown files with
 nested frontmatter for schedule, agent command, workspace, sandbox,
 verification, and output settings. The Markdown body is the agent prompt.
+Jobs that share a `concurrency.key` use an owner-private cross-process lock;
+the supported `skip` policy records a skipped invocation without creating a
+second worktree when that key is already running.
 
 Use `openknowledge agents new` to list shipped templates,
 `openknowledge agents new <template> --out <file>` to write one,
