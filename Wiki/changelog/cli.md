@@ -14,6 +14,23 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Immutable GitHub Action dependencies
+
+* Replaced every mutable major-version action reference in CI, Railway deploy,
+  and release workflows with the full commit SHA of its corresponding release.
+* Retained human-readable release comments beside each SHA so dependency
+  updates remain reviewable without sacrificing immutability.
+* Added `pnpm check:workflow-pins`, which scans every workflow and rejects
+  remote actions without a 40-character commit SHA as well as Docker actions
+  without an SHA-256 digest.
+* Added the workflow-pin check to `pnpm test`, so CI, deployment verification,
+  and release quality gates prevent mutable action refs from returning.
+* Source anchors: `.github/workflows/ci.yml`,
+  `.github/workflows/deploy-railway.yml`, `.github/workflows/release.yml`,
+  `scripts/check-workflow-pins.mjs`, and `package.json`.
+* Docs updated: `README.md`, `Wiki/features/operations.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Enforced registry access capabilities
 
 * Turned registry `read` and `write` values from display-only labels into

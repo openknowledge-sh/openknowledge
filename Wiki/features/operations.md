@@ -24,6 +24,7 @@ packages/web  - static HTML/CSS site
 ```sh
 pnpm test:cli
 pnpm check:versions
+pnpm check:workflow-pins
 pnpm build:cli
 pnpm build:web
 pnpm dev:web
@@ -32,19 +33,22 @@ pnpm dev:web
 The root `package.json` is the release-version source of truth and maps those
 commands to the Go CLI package and web workspace. `pnpm check:versions` verifies
 that the root, npm wrapper, web package, and Go CLI fallback versions match.
-`pnpm test` runs that check before the CLI test suite, and `pnpm build` builds
-both the CLI and web package.
+`pnpm check:workflow-pins` rejects remote GitHub Actions that do not use a full
+immutable commit SHA. `pnpm test` runs both checks before the CLI test suite,
+and `pnpm build` builds both the CLI and web package.
 
 ## Continuous Integration
 
 `.github/workflows/ci.yml` is the required repository quality gate for pull
 requests and pushes to `main`; it can also be dispatched manually. The workflow
 uses read-only repository permissions, cancels superseded runs for the same PR
-or ref, and has a finite job timeout. It performs a frozen dependency install,
-checks that Go modules are tidy, runs version alignment and the full CLI test
-suite, runs `go vet`, builds the CLI and website, validates `Wiki/` with the
-newly built binary, and fails if those operations leave generated files or
-module metadata out of date.
+or ref, and has a finite job timeout. Every remote action is pinned to a full
+commit SHA with its release version retained as an update hint, and the test
+gate prevents a mutable action tag from being reintroduced. It performs a
+frozen dependency install, checks that Go modules are tidy, runs version
+alignment and the full CLI test suite, runs `go vet`, builds the CLI and
+website, validates `Wiki/` with the newly built binary, and fails if those
+operations leave generated files or module metadata out of date.
 
 Configure the GitHub `main` branch protection rule to require the workflow's
 `CI / verify` check before merge. The workflow provides the check; repository
@@ -188,6 +192,7 @@ npm publish --provenance --access public
 >
 > * `package.json`
 > * `scripts/check-versions.mjs`
+> * `scripts/check-workflow-pins.mjs`
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`
