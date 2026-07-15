@@ -1,6 +1,7 @@
 package okf_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,6 +74,66 @@ func TestPublicConfigurationAndManifestHelpers(t *testing.T) {
 	}
 	if versions := okf.SupportedSpecVersions(); len(versions) != 1 || versions[0] != okf.LatestSpecVersion {
 		t.Fatalf("unexpected public spec registry: %v", versions)
+	}
+}
+
+func TestPublicRegistryDiscoveryIsReadOnly(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "knowledge")
+	writeFile(t, root, "index.md", "# Knowledge\n")
+	secondRoot := filepath.Join(base, "second")
+	writeFile(t, secondRoot, "index.md", "# Second\n")
+	registryPath := filepath.Join(base, "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryPath)
+	stored := map[string]any{
+		"schemaVersion": okf.RegistrySchemaVersion,
+		"connections": map[string]any{
+			secondRoot: map[string]any{"key": "zeta", "access": "read"},
+			root:       map[string]any{"key": "docs", "access": "write"},
+		},
+	}
+	content, err := json.MarshalIndent(stored, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content = append(content, '\n')
+	if err := os.WriteFile(registryPath, content, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := okf.RegistryFile()
+	if err != nil || path != registryPath {
+		t.Fatalf("unexpected public registry path: %q err=%v", path, err)
+	}
+	entries, err := okf.RegistryEntries()
+	if err != nil || len(entries) != 2 || entries[0].Name != "docs" || entries[1].Name != "zeta" || entries[0].Path != root || !okf.RegistryEntryCanWrite(entries[0]) {
+		t.Fatalf("unexpected public registry inventory: %#v err=%v", entries, err)
+	}
+	entry, found, err := okf.ResolveRegistryEntry("docs")
+	if err != nil || !found || entry != entries[0] {
+		t.Fatalf("unexpected public key resolution: %#v found=%t err=%v", entry, found, err)
+	}
+	byPath, found, err := okf.ResolveRegistryTarget(root)
+	if err != nil || !found || byPath != entry {
+		t.Fatalf("unexpected public target resolution: %#v found=%t err=%v", byPath, found, err)
+	}
+	resolved, err := okf.ResolveKnowledgeRoot("docs")
+	if err != nil || resolved != root {
+		t.Fatalf("unexpected public knowledge-root resolution: %q err=%v", resolved, err)
+	}
+	canWrite, err := okf.RegistryPathCanWrite(filepath.Join(root, "index.md"))
+	if err != nil || !canWrite {
+		t.Fatalf("unexpected public path capability: canWrite=%t err=%v", canWrite, err)
+	}
+	if err := okf.RequireRegistryWriteAccess(filepath.Join(root, "index.md")); err != nil {
+		t.Fatalf("unexpected public write guard: %v", err)
+	}
+	after, err := os.ReadFile(registryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(content) {
+		t.Fatalf("read-only public registry API mutated storage:\nbefore=%s\nafter=%s", content, after)
 	}
 }
 

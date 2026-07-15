@@ -19,11 +19,16 @@ context, err := okf.ResolveContextWithVersion("./Wiki", "0.1", okf.ContextOption
     Budget: 1200,
     Limit:  8,
 })
+
+entries, err := okf.RegistryEntries()
+root, err := okf.ResolveKnowledgeRoot("team-docs")
+canWrite, err := okf.RegistryPathCanWrite(root)
 ```
 
 The facade covers parsing, validation, inventory, deterministic search,
 budget-bounded context, source/search graphs, metadata, frontmatter, portable
-manifest decoding, and the embedded spec registry. It intentionally excludes
+manifest decoding, embedded spec discovery, and strict bounded read-only
+registry discovery/resolution and capability checks. It intentionally excludes
 registry mutation, remote downloads, archive extraction, HTML generation, and
 viewer process lifecycle; use the CLI for those operational workflows.
 

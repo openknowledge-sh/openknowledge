@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Public read-only registry Go API
+
+* Extended the supported Go facade with strict bounded registry inventory,
+  active registry path discovery, exact key and key-or-path resolution, and
+  effective entry/path authoring-capability checks.
+* Exposed only `RegistryEntry`/`RegistrySource` read models and registry version
+  identities; connect, disconnect, replace, refresh, downloads, and cache
+  mutation remain behind the operational CLI boundary.
+* Reused the core registry loader and path capability implementation directly,
+  so SDK callers inherit sorting, normalization, access fail-closed behavior,
+  size limits, and strict persistence validation without a parallel model.
+* Added an external-package test that imports only the public path, resolves a
+  real temporary registry by key and path, checks write capability, and proves
+  that all reads leave storage byte-for-byte unchanged.
+* Source anchors: `packages/cli/okf/registry.go`,
+  `packages/cli/okf/types.go`, `packages/cli/okf/read_test.go`, and
+  `packages/cli/internal/okf/registry.go`.
+* Docs updated: `README.md`, `packages/cli/okf/README.md`,
+  `Wiki/features/go-api.md`, `Wiki/features/tooling-model.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Versioned agent artifact contracts
 
 * Added `schemaVersion: "1"` to runtime-built agent run plans, dry-run JSON,

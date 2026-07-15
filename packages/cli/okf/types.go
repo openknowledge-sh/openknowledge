@@ -24,6 +24,9 @@ const (
 	BundleManifestRelPath  = core.BundleManifestRelPath
 	BundleArchiveRelPath   = core.BundleArchiveRelPath
 	BundleArchiveFormat    = core.BundleArchiveFormat
+
+	RegistryFileEnv       = core.RegistryFileEnv
+	RegistrySchemaVersion = core.RegistrySchemaVersion
 )
 
 type (
@@ -77,4 +80,7 @@ type (
 	FrontmatterWarning  = core.FrontmatterWarning
 	Link                = core.Link
 	SpecInfo            = core.SpecInfo
+
+	RegistryEntry  = core.RegistryEntry
+	RegistrySource = core.RegistrySource
 )

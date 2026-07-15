@@ -25,7 +25,8 @@ a different user or agent need.
 
 Go services can embed the read-only portions of these layers through the
 public [`packages/cli/okf`](go-api.md) package. The facade shares the CLI core
-rather than reimplementing parsing, validation, retrieval, or graph behavior.
+rather than reimplementing parsing, validation, retrieval, graph behavior, or
+read-only registry discovery and key/path resolution.
 
 ## Current Boundaries
 

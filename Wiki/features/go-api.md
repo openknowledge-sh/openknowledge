@@ -35,6 +35,10 @@ packet, err := okf.ResolveContextWithVersion(
     "0.1",
     okf.ContextOptions{Query: "release workflow", Budget: 1200, Limit: 8},
 )
+
+entries, err := okf.RegistryEntries()
+root, err := okf.ResolveKnowledgeRoot("team-docs")
+canWrite, err := okf.RegistryPathCanWrite(root)
 ```
 
 ## Surface
@@ -48,6 +52,8 @@ The package exposes:
 * source and retrieval graph construction
 * strict frontmatter and portable-manifest decoding
 * supported spec discovery and the pinned spec document
+* strict bounded registry inventory, exact key/path resolution, and effective
+  local authoring-capability checks
 
 Returned structures are aliases of the core models, not copied SDK-specific
 models. CLI behavior, public Go results, JSON schemas, and MCP structured
@@ -66,7 +72,9 @@ has its own independent protocol version and schema.
 
 ## Boundary
 
-The public package is intentionally read-only. Registry mutation, network
+The public package is intentionally read-only. Registry discovery reads the
+same bounded fail-closed storage as the CLI but never rewrites or migrates it.
+Registry mutation, network
 materialization and refresh, archive extraction, HTML/viewer generation, and
 process lifecycle remain operational CLI responsibilities. This keeps an
 embedded parser or retrieval service from silently mutating user registry or
@@ -76,14 +84,16 @@ cache state.
 
 An external-package test imports only the public path and exercises validation,
 AST and normalized parsing, inventory, search, context, graph, metadata,
-validation options, strict manifest decoding, and spec discovery against a real
-temporary bundle.
+validation options, strict manifest decoding, spec discovery, registry
+inventory and resolution, effective capabilities, and the no-mutation registry
+invariant against real temporary bundles.
 
 ## Source Anchors
 
 * `packages/cli/okf/doc.go`
 * `packages/cli/okf/types.go`
 * `packages/cli/okf/read.go`
+* `packages/cli/okf/registry.go`
 * `packages/cli/okf/read_test.go`
 * `packages/cli/okf/README.md`
 * `packages/cli/internal/okf/`

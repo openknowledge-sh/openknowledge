@@ -300,13 +300,16 @@ report, err := okf.ValidateWithVersion("./Wiki", "0.1")
 packet, err := okf.ResolveContextWithVersion("./Wiki", "0.1", okf.ContextOptions{
     Query: "release workflow", Budget: 1200, Limit: 8,
 })
+entries, err := okf.RegistryEntries()
+root, err := okf.ResolveKnowledgeRoot("team-docs")
 ```
 
 The public package covers parsing, validation, listing, deterministic search,
-source context, graphs, metadata, manifests, and spec discovery. Registry and
-network mutation, extraction, publishing, and viewer lifecycle remain explicit
-CLI workflows. See [Go API](Wiki/features/go-api.md) for the full boundary and
-versioning model.
+source context, graphs, metadata, manifests, spec discovery, and strict
+read-only registry inventory, key/path resolution, and authoring-capability
+checks. Registry/network mutation, extraction, publishing, and viewer lifecycle
+remain explicit CLI workflows. See [Go API](Wiki/features/go-api.md) for the
+full boundary and versioning model.
 
 Static viewer exports can inject trusted deployment-owned head HTML with
 `--head-file`, `--head-html`, repeatable `--script-src`, or matching
