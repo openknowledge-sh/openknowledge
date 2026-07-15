@@ -1933,9 +1933,8 @@ func safeViewerPath(root string, rel string) (string, bool) {
 		return "", false
 	}
 
-	full := filepath.Join(root, filepath.FromSlash(clean))
-	relative, err := filepath.Rel(root, full)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+	full, err := okf.ResolveBundlePath(root, clean)
+	if err != nil {
 		return "", false
 	}
 	return full, true
@@ -1947,9 +1946,8 @@ func safeMarkdownPath(root string, rel string) (string, bool) {
 		return "", false
 	}
 
-	full := filepath.Join(root, filepath.FromSlash(clean))
-	relative, err := filepath.Rel(root, full)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+	full, err := okf.ResolveBundlePath(root, clean)
+	if err != nil {
 		return "", false
 	}
 	return full, true

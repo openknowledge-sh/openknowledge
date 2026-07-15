@@ -1188,6 +1188,27 @@ func TestViewerThemeConfigRejectsStylesheetOutsideBundle(t *testing.T) {
 	}
 }
 
+func TestViewerThemeConfigRejectsSymbolicLink(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "bundle")
+	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nstylesheet = \"assets/theme.css\"\n")
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	outside := filepath.Join(base, "outside.css")
+	if err := os.WriteFile(outside, []byte("body { display: none; }\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "assets"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "assets", "theme.css")); err != nil {
+		t.Skipf("symbolic links are unavailable: %v", err)
+	}
+
+	if _, err := writeViewerHTMLWithVersion(root, filepath.Join(base, "site"), "0.1"); err == nil || !strings.Contains(err.Error(), "symbolic links are not supported") {
+		t.Fatalf("expected theme symlink to be rejected, got %v", err)
+	}
+}
+
 func TestViewerStartsOnOpenIndexMarkdown(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n")
@@ -1365,6 +1386,14 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	}
 	if _, ok := safeViewerPath(root, "../outside.md"); ok {
 		t.Fatal("expected asset traversal path to be rejected")
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "linked.md")); err == nil {
+		if _, ok := safeMarkdownPath(root, "linked.md"); ok {
+			t.Fatal("expected Markdown symbolic link to be rejected")
+		}
+		if _, ok := safeViewerPath(root, "linked.md"); ok {
+			t.Fatal("expected asset symbolic link to be rejected")
+		}
 	}
 
 	recorder := httptest.NewRecorder()

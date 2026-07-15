@@ -2696,14 +2696,11 @@ func resolveBundleRelativeFile(root string, rel string) (string, string, error) 
 	if filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", "", fmt.Errorf("entrypoint path must stay inside the bundle: %s", rel)
 	}
-	abs := filepath.Join(root, rel)
-	relative, err := filepath.Rel(root, abs)
+	abs, err := okf.ResolveBundlePath(root, rel)
 	if err != nil {
 		return "", "", err
 	}
-	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return "", "", fmt.Errorf("entrypoint path must stay inside the bundle: %s", rel)
-	}
+	relative := rel
 	info, err := os.Stat(abs)
 	if err != nil {
 		return "", "", err

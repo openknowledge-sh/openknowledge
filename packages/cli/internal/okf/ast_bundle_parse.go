@@ -59,6 +59,9 @@ func parseASTDocuments(root string) ([]ASTDocument, error) {
 		if walkErr != nil {
 			return walkErr
 		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symbolic links are not supported inside knowledge bundles: %s", relPath(root, path))
+		}
 		if entry.IsDir() {
 			if entry.Name() == ".git" {
 				return filepath.SkipDir

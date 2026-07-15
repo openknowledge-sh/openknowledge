@@ -14,6 +14,30 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Real filesystem bundle boundaries
+
+* Rejected symbolic links anywhere below a resolved knowledge bundle root so
+  untrusted local or cloned bundles cannot redirect reads into host files.
+* Added one real-path resolver for bundle-relative reads and applied it to
+  `get`, viewer Markdown/raw serving, frontmatter reads, and local theme assets.
+* Changed the tar walker and writer to reject symlinks and every other
+  non-regular archive input rather than following it with `os.Stat`/`os.Open`.
+* Hardened root metadata and declared-spec reads so an `index.md` symlink cannot
+  bypass validation, including when `connect --no-validate` is used.
+* Added parser, resolver, `get`, viewer, theme, and archive regressions proving
+  outside content is refused and no archive is published.
+* Source anchors: `packages/cli/internal/okf/paths.go`,
+  `packages/cli/internal/okf/ast_bundle_parse.go`,
+  `packages/cli/internal/okf/metadata.go`,
+  `packages/cli/internal/okf/archive.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`, and
+  `packages/cli/cmd/openknowledge/viewer_theme.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/get.md`,
+  `Wiki/features/commands/validate.md`, `Wiki/features/commands/view.md`,
+  `Wiki/features/commands/connect.md`, `Wiki/features/exporters/tar.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Publish-scoped portable HTML archive
 
 * Fixed default HTML exports leaking Markdown marked `okf_publish: false`

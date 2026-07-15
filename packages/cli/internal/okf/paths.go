@@ -1,9 +1,47 @@
 package okf
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
+
+// ResolveBundlePath resolves an existing bundle-relative path without
+// traversing symbolic links. Bundle roots themselves may be reached through a
+// symlink, but every entry below the resolved root must be a real filesystem
+// entry so untrusted bundles cannot redirect reads outside their boundary.
+func ResolveBundlePath(root string, relative string) (string, error) {
+	absoluteRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(absoluteRoot)
+	if err != nil {
+		return "", err
+	}
+
+	relative = filepath.Clean(filepath.FromSlash(strings.TrimSpace(relative)))
+	if relative == "." || filepath.IsAbs(relative) || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path must stay inside the bundle: %s", relative)
+	}
+
+	current := resolvedRoot
+	for _, segment := range strings.Split(relative, string(filepath.Separator)) {
+		if segment == "" || segment == "." {
+			continue
+		}
+		current = filepath.Join(current, segment)
+		info, err := os.Lstat(current)
+		if err != nil {
+			return "", err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("symbolic links are not supported inside knowledge bundles: %s", filepath.ToSlash(relative))
+		}
+	}
+	return current, nil
+}
 
 func isReserved(path string) bool {
 	_, _, reserved := classifyDocument(path)

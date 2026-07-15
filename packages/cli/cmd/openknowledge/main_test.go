@@ -1557,6 +1557,26 @@ okf_bundle_entry_review: "agents/review.md"
 	}
 }
 
+func TestRunGetRejectsBundleRelativeSymbolicLink(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "bundle")
+	writeMainTestFile(t, root, "index.md", "# Bundle\n")
+	outside := filepath.Join(base, "outside.md")
+	if err := os.WriteFile(outside, []byte("secret\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "linked.md")); err != nil {
+		t.Skipf("symbolic links are unavailable: %v", err)
+	}
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runGet([]string{root, "linked.md"})
+	})
+	if code != 1 || strings.Contains(output, "secret") || !strings.Contains(stderr, "symbolic links are not supported") {
+		t.Fatalf("expected get to refuse symlink, code=%d stdout=%q stderr=%q", code, output, stderr)
+	}
+}
+
 func TestRunConnectClonesRemoteSource(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is required for remote connect test")

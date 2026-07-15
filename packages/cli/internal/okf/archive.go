@@ -98,7 +98,11 @@ func ValidateBundleManifest(manifest BundleManifest) (string, error) {
 }
 
 func DeclaredBundleSpecVersion(root string) (string, error) {
-	document := parseASTDocumentFile(filepath.Join(root, "index.md"), "index.md")
+	indexPath, err := ResolveBundlePath(root, "index.md")
+	if err != nil {
+		return "", fmt.Errorf("read bundle index: %w", err)
+	}
+	document := parseASTDocumentFile(indexPath, "index.md")
 	if document.ReadDiagnostic != nil {
 		return "", fmt.Errorf("read bundle index: %s", document.ReadDiagnostic.Message)
 	}
@@ -394,6 +398,16 @@ func bundleArchiveFiles(root string, excludes []string, unpublished map[string]b
 			}
 			return nil
 		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symbolic links are not supported in bundle archives: %s", relPath(root, path))
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported filesystem entry in bundle archive: %s", relPath(root, path))
+		}
 		if excludedPath(path, absoluteExcludes) {
 			return nil
 		}
@@ -415,9 +429,12 @@ func bundleArchiveFiles(root string, excludes []string, unpublished map[string]b
 }
 
 func writeTarFile(writer *tar.Writer, root string, file string) error {
-	info, err := os.Stat(file)
+	info, err := os.Lstat(file)
 	if err != nil {
 		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("unsupported filesystem entry in bundle archive: %s", relPath(root, file))
 	}
 	rel, err := filepath.Rel(root, file)
 	if err != nil {

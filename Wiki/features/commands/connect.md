@@ -86,7 +86,9 @@ hits restore this record instead of guessing the source type from the input URL.
 Materialization for one source is serialized by in-process and cross-process
 cache locks. Archives and Git repositories are downloaded or cloned into
 sibling staging directories; Git content must pass OKF validation, and only a
-complete validated staging tree is published. If replacement fails, the
+complete validated staging tree is published. Bundle validation rejects every
+symbolic link below the root, so a cloned repository cannot redirect later
+reads or exports into the host filesystem. If replacement fails, the
 previous cache is restored. Different sources keep independent locks and can be
 materialized concurrently.
 

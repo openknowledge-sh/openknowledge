@@ -9,7 +9,14 @@ import (
 
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	info := BundleInfo{Root: root}
-	document := parseASTDocumentFile(filepath.Join(root, "index.md"), "index.md")
+	indexPath, err := ResolveBundlePath(root, "index.md")
+	if errors.Is(err, os.ErrNotExist) {
+		return info, nil
+	}
+	if err != nil {
+		return info, err
+	}
+	document := parseASTDocumentFile(indexPath, "index.md")
 	if document.ReadDiagnostic != nil && errors.Is(document.ReadDiagnostic, os.ErrNotExist) {
 		return info, nil
 	}

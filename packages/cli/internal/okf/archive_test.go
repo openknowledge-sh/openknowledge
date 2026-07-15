@@ -59,6 +59,27 @@ func TestBundleManifestForArchiveCannotProduceInvalidContract(t *testing.T) {
 	}
 }
 
+func TestWriteBundleTarGzipRejectsSymbolicLinks(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "bundle")
+	writeFile(t, root, "index.md", "# Bundle\n")
+	outside := filepath.Join(base, "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "secret.txt")); err != nil {
+		t.Skipf("symbolic links are unavailable: %v", err)
+	}
+
+	out := filepath.Join(base, "bundle.tar.gz")
+	if _, err := WriteBundleTarGzipWithVersion(root, out, "0.1", nil); err == nil || !strings.Contains(err.Error(), "symbolic links are not supported") {
+		t.Fatalf("expected archive writer to reject symlink, got %v", err)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("refused archive must not be published, got %v", err)
+	}
+}
+
 func TestExtractBundleArchiveRejectsPathTraversal(t *testing.T) {
 	archivePath := filepath.Join(t.TempDir(), "bad.tar.gz")
 	writeArchiveTestTarGzip(t, archivePath, map[string]string{

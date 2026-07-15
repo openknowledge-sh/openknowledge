@@ -44,13 +44,16 @@ The validator resolves the optional target through the registry-aware
 key-or-path model, walks the resulting directory, skips `.git`, and scans
 Markdown files with case-insensitive `.md` or `.markdown` extensions. Each
 scanned file is classified by file name: `index.md` is an index, `log.md` is a
-log, and all other Markdown files are concepts.
+log, and all other Markdown files are concepts. Symbolic links below the bundle
+root are rejected as a scan error, including links named like non-Markdown
+assets, so downstream reads and exports cannot resolve outside the real bundle
+boundary.
 
 The report currently includes these checks:
 
 | Check | Severity | What it verifies |
 | --- | --- | --- |
-| Bundle scan | pass/fail setup error | Target resolves to a directory and Markdown files can be scanned. |
+| Bundle scan | pass/fail setup error | Target resolves to a directory, contains no symbolic links below its root, and Markdown files can be scanned. |
 | UTF-8 content | error | Markdown files are valid UTF-8 before parsing frontmatter, body Markdown, or links. |
 | Concept documents | error | Non-reserved Markdown files have parseable top-level YAML frontmatter and a non-empty `type`. |
 | Reserved files | error | `index.md` and `log.md` follow reserved-file rules instead of concept frontmatter rules. |

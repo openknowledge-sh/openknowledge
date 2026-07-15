@@ -394,6 +394,8 @@ portable bundle:
 - any `index.md` may declare `okf_publish: false` for public-view exclusion
 - `log.md` `##` headings use `YYYY-MM-DD`
 - local Markdown links resolve inside the bundle, reported as warnings
+- symbolic links below the bundle root are rejected so reads and exports cannot
+  escape the real filesystem boundary
 - custom rule files under configured `[rules].paths` have canonical IDs,
   summaries, and instruction bullets
 

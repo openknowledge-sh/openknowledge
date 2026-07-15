@@ -25,7 +25,9 @@ openknowledge to tar --help
 The exporter validates the bundle root for the selected spec version, walks the
 source bundle, skips `.git`, and writes source files with relative paths into a
 gzip-compressed tar archive. The command prints the archive SHA-256 so callers
-can publish or verify it.
+can publish or verify it. Symbolic links and other non-regular filesystem
+entries are rejected before publication; the writer never follows them or
+copies content from outside the real bundle root.
 
 Default viewer HTML exports call the same archive writer and place the archive
 at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
@@ -49,6 +51,17 @@ sibling staging directory; the requested target appears only after the full
 archive succeeds, and an existing target is never overlaid.
 
 ## Change History
+
+### 2026-07-15 - Real filesystem bundle boundary
+
+Bundle parsing, bundle-relative reads, viewer raw files, local theme assets,
+and tar creation now reject symbolic links below the resolved bundle root.
+Archive creation also rejects every non-regular entry instead of opening it.
+Source anchors: `packages/cli/internal/okf/paths.go`,
+`packages/cli/internal/okf/ast_bundle_parse.go`,
+`packages/cli/internal/okf/archive.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/viewer.go`.
 
 ### 2026-07-15 - Publish-scoped HTML archives
 

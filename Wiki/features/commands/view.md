@@ -126,10 +126,11 @@ Press Ctrl+C to stop.
   content into a visually subdued maintenance footer.
 * Local code and text asset links open escaped syntax-highlighted previews.
   Local PDF, image, audio, and video links are served from bundle-scoped raw
-  URLs for the browser's native viewer.
+  URLs for the browser's native viewer. Raw and Markdown path resolution rejects
+  traversal and every symbolic link below the resolved bundle root.
 * `[html.theme]` in `openknowledge.toml` applies the same theme name and
   stylesheet behavior as `openknowledge to html`. Local theme stylesheets are
-  validated before rendering.
+  validated before rendering and cannot be symbolic links.
 * Trusted head injection is intended for local analytics, verification meta
   tags, or small loader scripts. Inline HTML and file content are inserted
   without escaping; `--script-src` escapes the attribute value and accepts only

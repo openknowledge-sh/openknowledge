@@ -72,7 +72,9 @@ argument as a bundle-relative Markdown file path. Direct Markdown file paths do
 not require root metadata.
 
 Selected bundle-relative paths must stay inside the bundle. Missing files,
-directories, and paths that escape the bundle fail before output.
+directories, lexical escapes, and symbolic links below the bundle root fail
+before output. An explicitly requested standalone local Markdown file remains
+an exact user-selected file read rather than a bundle-relative lookup.
 
 `--info` prints a compact bundle metadata block. With a named entry or path, it
 prints that file's path and frontmatter summary. Without a named entry, it

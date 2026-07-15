@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 const viewerThemeConfigFile = "openknowledge.toml"
@@ -393,10 +395,9 @@ func validateViewerThemeStylesheet(root string, config viewerThemeConfig) error 
 		return nil
 	}
 
-	source := filepath.Join(root, filepath.FromSlash(config.Stylesheet))
-	relative, err := filepath.Rel(root, source)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("theme stylesheet must stay inside the bundle")
+	source, err := okf.ResolveBundlePath(root, config.Stylesheet)
+	if err != nil {
+		return fmt.Errorf("theme stylesheet %s: %w", config.Stylesheet, err)
 	}
 	info, err := os.Stat(source)
 	if err != nil {
