@@ -11,8 +11,31 @@
     "budget": {"type": "integer", "minimum": 1},
     "estimatedTokens": {"type": "integer", "minimum": 0},
     "limit": {"type": "integer", "minimum": 1},
-    "sources": {"type": "array", "items": {"type": "object", "required": ["id", "path", "kind", "title", "heading", "lineStart", "lineEnd", "score", "estimatedTokens", "relation", "markdown"], "additionalProperties": true}},
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
     "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["id", "path", "kind", "title", "heading", "lineStart", "lineEnd", "score", "estimatedTokens", "relation", "markdown"],
+      "properties": {
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "kind": {"type": "string"},
+        "type": {"type": "string"},
+        "title": {"type": "string"},
+        "heading": {"type": "string"},
+        "headingPath": {"type": "array", "items": {"type": "string"}},
+        "headingLevel": {"type": "integer", "minimum": 1},
+        "lineStart": {"type": "integer", "minimum": 1},
+        "lineEnd": {"type": "integer", "minimum": 1},
+        "score": {"type": "number"},
+        "estimatedTokens": {"type": "integer", "minimum": 0},
+        "relation": {"enum": ["direct", "outgoing-link", "backlink"]},
+        "markdown": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

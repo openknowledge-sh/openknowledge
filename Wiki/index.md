@@ -87,6 +87,8 @@ custom theme.
   connection, validation, use/navigation, OKF views, and publishing layers.
 * [Configuration](features/configuration.md) - bundle-local validation, rules,
   viewer, and publishing settings.
+* [Machine-readable contracts](features/machine-contracts.md) - versioned JSON
+  schemas, compatibility rules, validation, and public schema URLs.
 * [CLI operations](features/operations.md) - development commands, workspace
   layout, website export, deployment, and release notes.
 * [OKF, skills, and plugins](features/okf-skills-plugins.md) - comparison of

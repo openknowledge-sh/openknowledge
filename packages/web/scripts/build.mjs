@@ -1,5 +1,6 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { publishCLISchemas } from "./schema-distribution.mjs";
 import { distRoot as dist, exportWiki, webRoot } from "./wiki-export.mjs";
 
 const headMarker = "<!-- OPENKNOWLEDGE_HEAD -->";
@@ -16,6 +17,7 @@ for (const asset of ["index.html", "main.js", "favicon.png", "apple-touch-icon.p
 }
 
 await exportWiki(path.join(dist, "wiki"), { clean: false });
+await publishCLISchemas(path.join(dist, "schemas"));
 
 console.log(`Built ${dist}`);
 

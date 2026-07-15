@@ -3,15 +3,53 @@
   "$id": "https://openknowledge.sh/schemas/cli/v1/graph.schema.json",
   "title": "Open Knowledge graph output v1",
   "type": "object",
-  "required": ["schemaVersion", "root", "specVersion", "nodes", "edges"],
+  "required": ["schemaVersion", "root", "specVersion", "type", "nodes", "edges"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "root": {"type": "string"},
     "specVersion": {"type": "string"},
     "type": {"enum": ["source", "search"]},
-    "nodes": {"type": "array", "items": {"type": "object", "required": ["id", "path", "kind"], "additionalProperties": true}},
-    "edges": {"type": "array", "items": {"type": "object", "required": ["source", "target"], "additionalProperties": true}},
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
     "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["id", "path", "kind"],
+      "properties": {
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "kind": {"type": "string"},
+        "reserved": {"type": "boolean"},
+        "type": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "heading": {"type": "string"},
+        "headingPath": {"type": "array", "items": {"type": "string"}},
+        "lineStart": {"type": "integer", "minimum": 1},
+        "lineEnd": {"type": "integer", "minimum": 1},
+        "resource": {"type": "string"},
+        "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+      },
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "required": ["source", "target"],
+      "properties": {
+        "kind": {"type": "string"},
+        "source": {"type": "string"},
+        "target": {"type": "string"},
+        "sourceId": {"type": "string"},
+        "targetId": {"type": "string"},
+        "label": {"type": "string"},
+        "href": {"type": "string"},
+        "line": {"type": "integer", "minimum": 1},
+        "linkTargetId": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

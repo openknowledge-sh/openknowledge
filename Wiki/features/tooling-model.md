@@ -50,6 +50,12 @@ chunk-level local links for retrieval tooling.
 review prompts for checking whether selected maintenance rules appear to have
 been followed.
 
+Machine-readable AST, bundle, graph, list, registry, search, and validation
+views share a versioned Draft 2020-12 contract layer. Their schemas are
+validated against real non-empty outputs and published at their declared
+`https://openknowledge.sh/schemas/cli/v1/` identifiers. See
+[machine-readable contracts](machine-contracts.md).
+
 ## Source-To-Wiki Generation
 
 `openknowledge from` is the source-to-wiki layer. Its simple model is
@@ -129,6 +135,7 @@ viewer, plain semantic HTML, normalized JSON, or a tar archive.
 * [MCP command](commands/mcp.md) - read-only resources, search, and validation for MCP clients.
 * [View command](commands/view.md) - local Markdown viewer behavior.
 * [Graph exporter](exporters/graph.md) - source and search graph views.
+* [Machine-readable contracts](machine-contracts.md) - JSON compatibility, validation, and public schema distribution.
 
 ---
 

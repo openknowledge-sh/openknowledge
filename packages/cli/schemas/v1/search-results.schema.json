@@ -20,9 +20,9 @@
         "path": {"type": "string"}, "id": {"type": "string"}, "kind": {"type": "string"},
         "type": {"type": "string"}, "title": {"type": "string"}, "description": {"type": "string"},
         "heading": {"type": "string"}, "headingPath": {"type": "array", "items": {"type": "string"}},
-        "lineStart": {"type": "integer"}, "lineEnd": {"type": "integer"}, "estimatedTokens": {"type": "integer"},
+        "lineStart": {"type": "integer", "minimum": 1}, "lineEnd": {"type": "integer", "minimum": 1}, "estimatedTokens": {"type": "integer", "minimum": 0},
         "snippet": {"type": "string"}, "highlightText": {"type": "string"}, "score": {"type": "number"},
-        "matches": {"type": "array", "items": {"type": "string"}}, "neighbor": {"type": "boolean"}, "relation": {"type": "string"}
+        "matches": {"type": "array", "items": {"type": "string"}}, "neighbor": {"type": "boolean"}, "relation": {"enum": ["direct", "outgoing-link", "backlink"]}
       },
       "additionalProperties": false
     }

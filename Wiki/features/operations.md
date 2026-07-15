@@ -82,6 +82,10 @@ colocated `Wiki/` bundle. The web export extracts the Google Analytics
 head HTML into every generated wiki page, keeping the landing page as the
 single source for the measurement ID.
 
+The same build copies the CLI Draft 2020-12 schemas to
+`dist/schemas/cli/v1/`. The copy step validates every `$id` against its public
+`https://openknowledge.sh/schemas/cli/v1/` route before deployment.
+
 `pnpm build:web` can also inject trusted HTML into the generated landing page
 `<head>`. Use this for analytics, verification meta tags, or small loader
 scripts without hard-coding a provider into the repository:

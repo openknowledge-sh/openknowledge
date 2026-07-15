@@ -14,6 +14,35 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Enforced and publicly distributed JSON schemas
+
+* Added offline Draft 2020-12 compilation and semantic validation for every
+  published CLI schema using the pinned test-only
+  `github.com/santhosh-tekuri/jsonschema/v6` `v6.0.2` validator.
+* Validated all golden fixtures plus representative non-empty AST, normalized
+  bundle, source/search graph, list, search match/context, validation, and
+  registry outputs from real builders.
+* Added negative mutation coverage requiring every schema to reject
+  undeclared top-level fields and nested document, metadata, Markdown, file,
+  node, edge, source, result, check, and registry-entry fields.
+* Replaced open-ended AST metadata/Markdown/diagnostic, graph node/edge,
+  search-context source, and validation-check contracts with explicit closed
+  Draft 2020-12 definitions; tightened numeric and relation constraints.
+* Made the website build publish the schema tree at `/schemas/cli/v1/`, exactly
+  matching the existing `https://openknowledge.sh/schemas/cli/v1/...` `$id`
+  values, and added hermetic positive and mismatched-ID tests.
+* The schema validator remains test-only and is not linked into the shipped
+  CLI binary.
+* Source anchors: `packages/cli/internal/okf/schema_contract_test.go`,
+  `packages/cli/schemas/v1/`, `packages/cli/go.mod`,
+  `packages/web/scripts/schema-distribution.mjs`,
+  `packages/web/scripts/schema-distribution.test.mjs`, and
+  `packages/web/scripts/build.mjs`.
+* Docs updated: `README.md`, `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/machine-contracts.md`, `Wiki/features/tooling-model.md`,
+  `Wiki/features/operations.md`, `Wiki/index.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Versioned registry discovery
 
 * Added `openknowledge registry list --json` as a cheap machine-readable

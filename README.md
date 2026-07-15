@@ -422,7 +422,10 @@ flags can override them per run.
 Machine-readable AST, normalized bundle, graph, list, registry list/status,
 search, and validation outputs declare `schemaVersion: "1"`. Draft 2020-12 schemas and
 the compatibility policy live in `packages/cli/schemas/v1/`; `specVersion`
-separately identifies the selected Open Knowledge Format version.
+separately identifies the selected Open Knowledge Format version. Tests compile
+the schemas and validate golden plus representative non-empty outputs, while
+the website publishes them at
+`https://openknowledge.sh/schemas/cli/v1/<name>.schema.json`.
 
 ## Development
 

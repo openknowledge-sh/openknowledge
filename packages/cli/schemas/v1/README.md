@@ -4,6 +4,11 @@ These Draft 2020-12 schemas describe the versioned machine-readable output of
 the Open Knowledge CLI. Every covered top-level document contains
 `"schemaVersion": "1"`.
 
+The website build publishes this directory at
+`https://openknowledge.sh/schemas/cli/v1/`, matching every schema's `$id`.
+Relative references such as `common.schema.json` therefore resolve both from
+the source tree and from the public URL.
+
 | Schema | CLI output |
 | --- | --- |
 | `ast.schema.json` | `openknowledge ast` |
@@ -20,3 +25,8 @@ Additive fields may be added to v1 outputs. Removing a field, changing its JSON
 type, or changing its meaning incompatibly requires a new schema version and a
 new directory. `specVersion` is independent: it identifies the selected Open
 Knowledge Format version, not the CLI JSON contract.
+
+The CLI test suite compiles every schema as Draft 2020-12 without network
+access, validates all golden contracts and representative non-empty outputs,
+and verifies that undeclared top-level and nested fields are rejected. The
+validator dependency is test-only and is not linked into the distributed CLI.
