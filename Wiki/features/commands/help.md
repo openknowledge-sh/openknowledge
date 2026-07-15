@@ -74,6 +74,14 @@ Commands:
 
 ### 2026-07-15
 
+Root and command-specific help now include `openknowledge mcp [key-or-path]`
+and `--spec <version>` for the read-only MCP stdio server. The help records the
+protocol revision, exact resources plus search/validation surface, stdout
+transport boundary, and 4 MiB resource-read limit. Source anchors:
+`packages/cli/cmd/openknowledge/main.go`,
+`packages/cli/cmd/openknowledge/mcp.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
+
 Root help now includes `openknowledge registry refresh <key|path> [--force]`
 and a refresh example, keeping the discoverable command surface aligned with
 the registry command group. Source anchors:

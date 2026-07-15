@@ -60,6 +60,8 @@ func main() {
 		os.Exit(runGet(os.Args[2:]))
 	case "search":
 		os.Exit(runSearch(os.Args[2:]))
+	case "mcp":
+		os.Exit(runMCP(os.Args[2:]))
 	case "ast":
 		os.Exit(runAST(os.Args[2:]))
 	case "registry":
@@ -3989,6 +3991,8 @@ Usage:
   openknowledge search <name|path> <query> --format json
   openknowledge search <name|path> <query> --matches
   openknowledge search <name|path> <query> --no-expand
+  openknowledge mcp [key-or-path]
+  openknowledge mcp --spec <version> [key-or-path]
   openknowledge ast [path]
   openknowledge ast --out <file> [path]
   openknowledge registry connect <source>
@@ -4037,6 +4041,7 @@ Commands:
   disconnect Remove a knowledge bundle connection.
   get        Print a Markdown file or bundle entrypoint.
   search     Build source-grounded Markdown context from a bundle.
+  mcp        Serve one knowledge base to MCP clients over stdio.
   ast        Print parsed OKF AST JSON.
   registry   Manage knowledge bundle connections.
   view       Start the registry or knowledge base Markdown viewer.
@@ -4068,6 +4073,7 @@ Examples:
   openknowledge get accessibility --info
   openknowledge get accessibility
   openknowledge search accessibility "validation workflow"
+  openknowledge mcp accessibility
   openknowledge ast ./project-memory
   openknowledge disconnect accessibility
   openknowledge registry connect ./team-wiki --as team

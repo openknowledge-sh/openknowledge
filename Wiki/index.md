@@ -59,6 +59,8 @@ custom theme.
   or metadata.
 * [search](features/commands/search.md) - build budget-bounded,
   source-preserving Markdown context or inspect ranked matches.
+* [mcp](features/commands/mcp.md) - expose one bundle to MCP clients as
+  read-only resources, search, and validation.
 * [view](features/commands/view.md) - browse a bundle in the local Markdown
   viewer.
 

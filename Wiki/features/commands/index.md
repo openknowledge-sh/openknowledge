@@ -28,6 +28,7 @@ anchors. Keep this index as the quick map.
 
 * [Get](get.md) - print an exact Markdown file, entrypoint, or metadata.
 * [Search](search.md) - build budget-bounded Markdown context or inspect ranked matches.
+* [MCP](mcp.md) - serve one bundle as read-only MCP resources and tools over stdio.
 * [View](view.md) - local Markdown viewer.
 
 ## OKF Views And Publishing

@@ -14,6 +14,32 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Read-only MCP knowledge server
+
+* Added `openknowledge mcp [key-or-path]` as a first-class stdio MCP server
+  scoped to one canonical local or connected knowledge base.
+* Implemented the stable MCP `2025-11-25` initialize lifecycle, compatibility
+  negotiation for released earlier protocol revisions, ping, strict one-line
+  JSON-RPC parsing, and resources/tools capability discovery.
+* Exposed canonical bundle inventory files through paginated
+  `resources/list`, exact text or base64 `resources/read`, and an empty
+  resource-template list.
+* Added read-only `openknowledge_search` and `openknowledge_validate` tools
+  with strict input schemas, MCP annotations, structured results, and JSON
+  text compatibility blocks.
+* Confined resource reads to listed regular files inside the real bundle root,
+  rejected `.git` guessing, traversal and nested symlinks, and bounded messages,
+  search inputs, and individual resource reads.
+* Added end-to-end protocol tests covering lifecycle, discovery, retrieval,
+  validation, invalid requests and arguments, URI boundaries, pagination
+  cursors, and resource limits.
+* Source anchors: `packages/cli/cmd/openknowledge/mcp.go`,
+  `packages/cli/cmd/openknowledge/mcp_test.go`, and
+  `packages/cli/cmd/openknowledge/main.go`.
+* Docs updated: `README.md`, `Wiki/index.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/commands/mcp.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Hardened production static server
 
 * Split the production web entrypoint from a directly testable static handler

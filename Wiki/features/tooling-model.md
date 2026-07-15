@@ -20,7 +20,7 @@ a different user or agent need.
 | Authoring and OKF hygiene | `setup`, `new`, `spec` | Create a bundle and keep Markdown shaped around OKF v0.1. |
 | Connection and bundle lifecycle | `connect`, `disconnect`, `registry connect`, `registry disconnect`, `registry refresh`, `registry list`, `registry status`, `registry where`, `to tar` | Give local, published, archive, or Git bundles stable names, materialize and safely refresh remote sources, inspect local identity, resolve names back to filesystem paths, and package portable source archives. |
 | Validation and inspection | `validate`, `list`, `rules`, `review` | Check OKF structure, link health, bundle inventory, maintenance rules, and depth-limited tree views before humans or agents rely on the knowledge. |
-| Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown or known entrypoints, inspect structure, build budget-bounded source context, inspect ranked matches, and browse connected or direct bundles. |
+| Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown or known entrypoints, inspect structure, build budget-bounded source context, inspect ranked matches, browse connected or direct bundles, and serve read-only knowledge to MCP hosts. |
 | OKF views and publishing | `ast`, `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | View the same OKF bundle as parsed AST, normalized JSON, source graph, search graph, static viewer, or plain semantic HTML. |
 
 ## Current Boundaries
@@ -28,7 +28,7 @@ a different user or agent need.
 `connect` and the registry store aliases for existing bundle folders. They also
 materialize Open Knowledge manifests, tar archives, and Git remote sources into
 the Open Knowledge cache before registration. After registration,
-`registry where`, `get`, `search`, `view`, `validate`, `list`, and `to` work
+`registry where`, `get`, `search`, `view`, `mcp`, `validate`, `list`, and `to` work
 through the same key-or-path resolution model for local folders and remote
 sources. `registry status` verifies the local generation offline, while
 `registry refresh` downloads and validates a distinct remote generation before
@@ -82,6 +82,7 @@ openknowledge get accessibility
 openknowledge search accessibility "validation workflow"
 openknowledge search accessibility "validation workflow" --budget 1200
 openknowledge search accessibility "validation workflow" --matches
+openknowledge mcp accessibility
 openknowledge view accessibility
 ```
 
@@ -91,6 +92,8 @@ context packet bounded to an approximate token budget. BM25 section ranking is
 the canonical retrieval layer. Search includes one-hop local outgoing links
 and backlinks by default when they fit the budget; `--no-expand` returns direct
 matches only, while `--matches` exposes the ranked snippet inspection view.
+An MCP-compatible host can instead launch `mcp` for the same exact resources,
+source-grounded context model, and validation report over read-only stdio.
 When the agent needs structure before choosing files, it can call
 `list --depth`. When it needs raw filesystem access, it can resolve the bundle
 with:
@@ -123,6 +126,7 @@ viewer, plain semantic HTML, normalized JSON, or a tar archive.
 * [From command](commands/from.md) - agent-driven source-to-wiki generation.
 * [Get command](commands/get.md) - exact Markdown and entrypoint retrieval.
 * [Search command](commands/search.md) - budget-bounded Markdown context and ranked match inspection.
+* [MCP command](commands/mcp.md) - read-only resources, search, and validation for MCP clients.
 * [View command](commands/view.md) - local Markdown viewer behavior.
 * [Graph exporter](exporters/graph.md) - source and search graph views.
 

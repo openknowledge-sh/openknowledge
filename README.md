@@ -46,8 +46,8 @@ It gives you:
 - plain-file knowledge bases that agents and humans can both edit
 - source-to-wiki prompts for turning repositories, local folders, or websites
   into OKF Markdown bundles
-- deterministic validation, listing, search, AST, JSON, graph, tar, and HTML
-  views of the same bundle
+- deterministic validation, listing, search, MCP, AST, JSON, graph, tar, and
+  HTML views of the same bundle
 - local registry aliases so agents can address knowledge bases by stable names
 - a local viewer and static publisher with connect manifests and portable
   bundle archives
@@ -65,6 +65,7 @@ to inspect, diff, validate, and maintain.
 | :robot: | Agent setup | `openknowledge setup`, `from`, and `rules` print prompts that let local agents create and maintain useful project memory. |
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
 | :mag: | Retrieval | `search` builds budget-bounded Markdown context by default, while `get`, `list`, and `view` support exact reads, structure, and browsing. |
+| :electric_plug: | MCP integration | `mcp` serves exact resources, source-grounded search, and validation to compatible LLM hosts over read-only stdio. |
 | :package: | Portable publishing | HTML exports include `llms.txt`, `openknowledge.json`, and a bundle archive so published wikis can be connected again. |
 | :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and experimental agent job commands provide structured views that automation can trust. |
 
@@ -73,7 +74,7 @@ flowchart LR
   Source["Repository, docs, website, or local folder"] --> Prompt["openknowledge from / setup"]
   Prompt --> Agent["Local coding agent"]
   Agent --> Wiki["OKF Markdown wiki"]
-  Wiki --> Use["get / search / list / view"]
+  Wiki --> Use["get / search / list / view / mcp"]
   Wiki --> Check["validate / ast"]
   Wiki --> Publish["to html / json / graph / tar"]
   Publish --> Connect["connect remote or archive"]
@@ -153,7 +154,7 @@ openknowledge view ./project-memory
 | Authoring and format hygiene | `new`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
 | Experimental local agent automation | `agents` | Validate, dry-run, and execute scheduled local agent jobs from Markdown specs in isolated Git worktrees. |
 | Registry and lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
-| Use and navigation | `get`, `search`, `list`, `view` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, and browse locally. |
+| Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, browse locally, and connect MCP-compatible LLM hosts. |
 | Views and publishing | `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | Export normalized models, source graphs, retrieval graphs, static viewers, and plain semantic HTML. |
 
 ## Common Workflows
@@ -175,6 +176,7 @@ openknowledge get personal
 openknowledge search personal "validation workflow"
 openknowledge search personal "validation workflow" --budget 1200
 openknowledge search personal "validation workflow" --matches
+openknowledge mcp personal
 openknowledge registry where personal
 openknowledge view personal
 openknowledge disconnect personal
@@ -354,6 +356,8 @@ Nested agent commands also support
 | `openknowledge search <name-or-path> <query> --no-expand` | Include only direct lexical matches. |
 | `openknowledge search <name-or-path> <query> --matches` | Inspect ranked snippets, scores, and relations. |
 | `openknowledge search <name-or-path> <query> --format json` | Print structured context JSON. |
+| `openknowledge mcp [name-or-path]` | Serve one bundle as read-only MCP resources plus search and validation tools over stdio. |
+| `openknowledge mcp --spec <version> [name-or-path]` | Select the OKF spec used by MCP search, validation, and resource discovery. |
 | `openknowledge ast [path]` | Print parsed OKF AST JSON. |
 | `openknowledge ast --out <file> [path]` | Write parsed OKF AST JSON to a file. |
 | `openknowledge registry connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
