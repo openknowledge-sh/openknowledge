@@ -157,7 +157,9 @@ Press Ctrl+C to stop.
   without escaping; `--script-src` escapes the attribute value and accepts only
   relative, `http:`, or `https:` URLs.
 * The local viewer includes editor deeplinks for opening Markdown files in
-  installed local editors. Static HTML exports replace that behavior with
+  installed local editors when the path is unregistered or belongs to a local
+  `write` connection. It omits the controls for `read` connections, including
+  managed remote caches. Static HTML exports replace local editor behavior with
   optional GitHub source links.
 * The file explorer sidebar renders folder rows as lightweight bold text
   without filled row blocks, keeping the tree visually quiet while preserving

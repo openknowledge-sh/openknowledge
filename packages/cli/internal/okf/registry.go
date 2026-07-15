@@ -122,6 +122,9 @@ func ConnectRegistryEntryWithSource(name string, path string, access string, exp
 	if access != "read" && access != "write" {
 		return RegistryEntry{}, "", fmt.Errorf("access must be read or write")
 	}
+	if access == "write" && registrySourceIsManaged(source) {
+		return RegistryEntry{}, "", fmt.Errorf("managed remote connections are read-only")
+	}
 	if explicitName {
 		if !validRegistryName(name) {
 			return RegistryEntry{}, "", fmt.Errorf("connection key must use letters, numbers, dots, underscores, or dashes and must not look like a path")
@@ -140,6 +143,13 @@ func ConnectRegistryEntryWithSource(name string, path string, access string, exp
 	err = mutateRegistry(func(registry *Registry) (bool, error) {
 		if index := registryEntryIndexByPath(registry.Entries, absolute); index >= 0 {
 			entry := registry.Entries[index]
+			entrySource := source
+			if registryEntryIsManaged(entry) && !registrySourceIsManaged(entrySource) {
+				entrySource = entry.Source
+			}
+			if access == "write" && (registryEntryIsManaged(entry) || registrySourceIsManaged(entrySource)) {
+				return false, fmt.Errorf("managed remote connections are read-only")
+			}
 			if explicitName && entry.Name != name {
 				if existing := registryEntryIndexByName(registry.Entries, name); existing >= 0 && registry.Entries[existing].Path != absolute {
 					return false, fmt.Errorf("connection key %q already points to %s", name, registry.Entries[existing].Path)
@@ -147,8 +157,8 @@ func ConnectRegistryEntryWithSource(name string, path string, access string, exp
 				entry.Name = name
 			}
 			entry.Access = access
-			entry.Managed = source.URL != ""
-			entry.Source = source
+			entry.Managed = registrySourceIsManaged(entrySource)
+			entry.Source = entrySource
 			registry.Entries[index] = entry
 			sortRegistryEntries(registry.Entries)
 			connected = entry
@@ -169,7 +179,7 @@ func ConnectRegistryEntryWithSource(name string, path string, access string, exp
 			}
 		}
 
-		connected = RegistryEntry{Name: name, Path: absolute, Access: access, Managed: source.URL != "", Source: source}
+		connected = RegistryEntry{Name: name, Path: absolute, Access: access, Managed: registrySourceIsManaged(source), Source: source}
 		registry.Entries = append(registry.Entries, connected)
 		sortRegistryEntries(registry.Entries)
 		return true, nil
@@ -279,6 +289,9 @@ func ReplaceRegistryEntry(expected RegistryEntry, replacement RegistryEntry) (Re
 	if replacement.Access != "read" && replacement.Access != "write" {
 		return RegistryEntry{}, fmt.Errorf("access must be read or write")
 	}
+	if replacement.Access == "write" && registryEntryIsManaged(replacement) {
+		return RegistryEntry{}, fmt.Errorf("managed remote connections are read-only")
+	}
 	absolute, err := absoluteDirectory(replacement.Path)
 	if err != nil {
 		return RegistryEntry{}, err
@@ -289,6 +302,9 @@ func ReplaceRegistryEntry(expected RegistryEntry, replacement RegistryEntry) (Re
 		index := registryEntryIndexByPath(registry.Entries, expected.Path)
 		if index < 0 || registry.Entries[index] != expected {
 			return false, fmt.Errorf("connection %q changed while it was being replaced", expected.Name)
+		}
+		if registryEntryIsManaged(expected) && !registryEntryIsManaged(replacement) {
+			return false, fmt.Errorf("managed source metadata cannot be removed during replacement")
 		}
 		if collision := registryEntryIndexByPath(registry.Entries, replacement.Path); collision >= 0 && collision != index {
 			return false, fmt.Errorf("replacement path is already connected as %q", registry.Entries[collision].Name)
@@ -519,7 +535,111 @@ func normalizeRegistry(registry Registry) Registry {
 	if registry.Connections == nil {
 		registry.Connections = map[string]RegistryConnection{}
 	}
+	for index := range registry.Entries {
+		entry := &registry.Entries[index]
+		entry.Managed = registryEntryIsManaged(*entry)
+		if entry.Access != "write" || entry.Managed {
+			entry.Access = "read"
+		}
+	}
 	return registry
+}
+
+// RegistryEntryCanWrite reports whether a connection grants local authoring
+// access. Remote materializations are immutable cache generations regardless
+// of legacy or forged registry access values.
+func RegistryEntryCanWrite(entry RegistryEntry) bool {
+	return entry.Access == "write" && !registryEntryIsManaged(entry)
+}
+
+// RequireRegistryWriteAccess refuses writes inside a registered read-only
+// knowledge tree. Paths outside the registry are intentionally unaffected.
+func RequireRegistryWriteAccess(path string) error {
+	canWrite, entry, err := registryPathWriteAccess(path)
+	if err != nil {
+		return err
+	}
+	if canWrite {
+		return nil
+	}
+	return fmt.Errorf("registered knowledge base %q is read-only; reconnect a local source with --access write to modify it", entry.Name)
+}
+
+// RegistryPathCanWrite reports whether a local authoring affordance may be
+// exposed for a path. Unregistered paths remain writable.
+func RegistryPathCanWrite(path string) (bool, error) {
+	canWrite, _, err := registryPathWriteAccess(path)
+	return canWrite, err
+}
+
+func registryPathWriteAccess(path string) (bool, RegistryEntry, error) {
+	candidate, err := canonicalPathForRegistryAccess(path)
+	if err != nil {
+		return false, RegistryEntry{}, err
+	}
+	entries, err := RegistryEntries()
+	if err != nil {
+		return false, RegistryEntry{}, err
+	}
+
+	var matched *RegistryEntry
+	matchedRootLength := -1
+	for index := range entries {
+		root, err := canonicalPathForRegistryAccess(entries[index].Path)
+		if err != nil || !insideRoot(root, candidate) {
+			continue
+		}
+		if len(root) > matchedRootLength {
+			matched = &entries[index]
+			matchedRootLength = len(root)
+		}
+	}
+	if matched == nil || RegistryEntryCanWrite(*matched) {
+		return true, RegistryEntry{}, nil
+	}
+	return false, *matched, nil
+}
+
+func canonicalPathForRegistryAccess(path string) (string, error) {
+	expanded, err := ExpandUserPath(path)
+	if err != nil {
+		return "", err
+	}
+	absolute, err := filepath.Abs(expanded)
+	if err != nil {
+		return "", err
+	}
+
+	current := absolute
+	tail := []string{}
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			for index := len(tail) - 1; index >= 0; index-- {
+				resolved = filepath.Join(resolved, tail[index])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		tail = append(tail, filepath.Base(current))
+		current = parent
+	}
+}
+
+func registrySourceIsManaged(source RegistrySource) bool {
+	return strings.TrimSpace(source.Type) != "" ||
+		strings.TrimSpace(source.URL) != "" ||
+		strings.TrimSpace(source.ManagedRoot) != ""
+}
+
+func registryEntryIsManaged(entry RegistryEntry) bool {
+	return entry.Managed || registrySourceIsManaged(entry.Source)
 }
 
 func registryForStorage(registry Registry) Registry {

@@ -50,7 +50,7 @@ openknowledge registry --help
 | `key` | argument | Connection key using letters, numbers, dots, underscores, or dashes. |
 | `source` | argument | Knowledge bundle folder path, existing registry key, Open Knowledge manifest URL, tar archive URL, or Git URL. |
 | `--as` | flag | Explicit connection key for `connect`. |
-| `--access` | flag | Access label stored with a connection, `read` or `write`. |
+| `--access` | flag | Local authoring capability, `read` or `write`. Defaults to `read`; managed remote sources are always read-only. |
 | `--no-validate` | flag | Skip validation status output for `connect`. |
 | `--keep-files` | flag | Keep bundle files after `disconnect`; this is the default. |
 | `--delete-files` | flag | Delete files only when the entry is marked `managed`. |
@@ -74,6 +74,22 @@ status unless `--no-validate` is set. For remote sources, it first materializes
 the source into the Open Knowledge cache and stores source metadata on the
 connection. HTTP(S) sources try Open Knowledge manifests, direct tar archives,
 then Git fallback.
+
+Access is an enforced CLI capability rather than a display label. A `read`
+connection can be browsed and inspected, but the viewer omits local editor
+deeplinks and `rules apply` refuses to change files inside its registered root.
+A local `write` connection enables those authoring paths. The most-specific
+connection wins for nested roots, and canonical path checks prevent symlink
+aliases from bypassing a read-only parent. Paths outside the registry are not
+restricted. This is a product-level guard, not an operating-system ACL: other
+programs can still modify files when filesystem permissions allow it.
+
+Remote manifest, archive, and Git sources are immutable managed cache
+generations and therefore accept only `read`. `--access write` is rejected
+before remote materialization. Legacy or manually forged managed entries with
+write access fail closed to `read` when loaded. Reconnecting the local path of
+an existing managed cache preserves its source provenance and cannot promote it
+to `write`.
 
 `registry disconnect` removes entries by key or absolute path and keeps files
 by default. `--delete-files` is guarded and only applies to CLI-managed remote
@@ -169,7 +185,7 @@ They share parsing, output, and exit-code behavior.
 ## Storage
 
 Registry storage is path-keyed under `connections`. Entries store the stable
-key, optional access label, optional source metadata, and whether the files are
+key, access capability, optional source metadata, and whether the files are
 CLI-managed. Local connections normally leave `managed` unset; remote manifest,
 tar, and Git connections are marked managed because their files live in the
 Open Knowledge cache.

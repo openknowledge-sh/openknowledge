@@ -14,6 +14,34 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Enforced registry access capabilities
+
+* Turned registry `read` and `write` values from display-only labels into
+  enforced local authoring capabilities.
+* Hid viewer editor deeplinks for read-only connections and allowed them for
+  unregistered paths or local write connections.
+* Guarded `rules apply` writes by canonical registered root while retaining
+  dry-run behavior; nested roots use the most-specific connection and symlink
+  aliases cannot bypass the boundary.
+* Made managed manifest, archive, and Git cache generations unconditionally
+  read-only, rejected remote write requests before materialization, and
+  normalized legacy or forged managed write entries to read.
+* Preserved managed provenance when a cache path is reconnected locally and
+  rejected replacement snapshots that try to downgrade a managed connection.
+* Kept registry administration and paths outside registered roots unaffected,
+  and documented that the capability is not an operating-system ACL.
+* Added registry, nested-root, symlink, legacy, no-materialization, command,
+  and viewer regressions.
+* Source anchors: `packages/cli/internal/okf/registry.go`,
+  `packages/cli/internal/okf/registry_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`, and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/registry.md`, `Wiki/features/commands/rules.md`,
+  `Wiki/features/commands/view.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Unified strict project configuration
 
 * Replaced separate validation, rules, theme, source, and site line scanners

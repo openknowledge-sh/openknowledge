@@ -1540,8 +1540,8 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	writeViewerFile(t, work, "notes/guide.md", "---\ntype: Note\n---\n\n# Guide\n\nRun validation before publishing.\n")
 
 	handler := newRegistryViewerHandler([]okf.RegistryEntry{
-		{Name: "personal", Path: personal},
-		{Name: "work", Path: work},
+		{Name: "personal", Path: personal, Access: "read"},
+		{Name: "work", Path: work, Access: "write"},
 	})
 
 	index := getViewerBody(t, handler, "/")
@@ -1567,6 +1567,13 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	workPage := getViewerBody(t, handler, "/kb/work/file/index.md")
 	if !strings.Contains(workPage, `href="/kb/work/file/notes/guide.md"`) {
 		t.Fatalf("registry viewer did not prefix markdown links:\n%s", workPage)
+	}
+	if !strings.Contains(workPage, `<div class="editor-picker" data-editor-picker>`) {
+		t.Fatalf("writable registry connection should expose editor controls:\n%s", workPage)
+	}
+	personalPage := getViewerBody(t, handler, "/kb/personal/file/index.md")
+	if strings.Contains(personalPage, `<div class="editor-picker" data-editor-picker>`) || strings.Contains(personalPage, `<a class="editor-open"`) {
+		t.Fatalf("read-only registry connection must hide editor controls:\n%s", personalPage)
 	}
 
 	recorder := httptest.NewRecorder()

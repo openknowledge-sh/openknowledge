@@ -34,7 +34,7 @@ openknowledge connect --help
 | --- | --- | --- |
 | `source` | argument | Local bundle root, existing registry key, Open Knowledge manifest URL, tar archive URL, or Git URL. Registry keys resolve to their stored path. |
 | `--as` | flag | Explicit connection key. Defaults to root `okf_bundle_name`, then the folder name. |
-| `--access` | flag | Access label stored with the connection, `read` or `write`. Defaults to `read`. |
+| `--access` | flag | Local authoring capability, `read` or `write`. Defaults to `read`; managed remote sources are always read-only. |
 | `--no-validate` | flag | Skip the validation status check in success output. |
 
 Connection keys use the same validation as registry names: letters, numbers,
@@ -52,6 +52,9 @@ The positional-first forms in this page and the equivalent flag-first forms
 share the same behavior.
 
 Remote source handling:
+
+* `--access write` is rejected before a remote source is downloaded or cloned.
+  Managed manifest, archive, and Git cache generations are always read-only.
 
 * Open Knowledge manifest URLs are version `1` JSON documents with type
   `openknowledge.bundle`, a concrete supported `spec`, an archive path,
@@ -107,6 +110,13 @@ Validation is a status signal, not a connection gate. Success output reports
 `valid`, `warnings`, `invalid`, or `unknown` depending on whether validation
 ran and what it found.
 
+For local connections, access is enforced by CLI authoring surfaces. `read`
+hides viewer editor deeplinks and blocks `rules apply` when its target is inside
+the registered tree; `write` enables those operations. Dry runs and read-only
+inspection remain available. Nested connections use the most-specific root,
+and symlink resolution prevents a path alias from bypassing the guard. This
+does not change operating-system file permissions or constrain external tools.
+
 ## Quick Examples
 
 ```sh
@@ -121,7 +131,7 @@ openknowledge connect https://github.com/openknowledge-sh/accessibility.git --as
 ## Example Output
 
 `openknowledge connect --as personal ./project-memory` prints the registry key,
-display name, resolved path, access label, validation status, and any bundle
+display name, resolved path, access capability, validation status, and any bundle
 metadata:
 
 ```text

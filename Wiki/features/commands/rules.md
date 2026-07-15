@@ -18,7 +18,11 @@ such as `AGENTS.md`, `CLAUDE.md`, Cursor project rules, or a generic agent
 instruction file.
 
 `openknowledge rules apply` is the explicit write path. It inserts or replaces
-a managed rules block inside an agent instruction file.
+a managed rules block inside an agent instruction file. Before writing, it
+resolves the target canonically and refuses files inside a registered `read`
+knowledge base. A local connection must use `--access write` to permit the
+change. `--dry-run` remains available for read-only connections because it does
+not modify the target.
 
 ## Usage
 

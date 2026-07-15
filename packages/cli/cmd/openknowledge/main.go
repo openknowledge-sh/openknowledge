@@ -298,6 +298,10 @@ func runRulesApply(args []string) int {
 		fmt.Printf("Would update %s with:\n\n%s", targetFile, block)
 		return 0
 	}
+	if err := okf.RequireRegistryWriteAccess(targetFile); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 
 	existingBytes, err := os.ReadFile(targetFile)
 	if err != nil && !os.IsNotExist(err) {
@@ -915,6 +919,15 @@ func runConnect(args []string, command string) int {
 	}
 
 	source := fs.Arg(0)
+	access := strings.TrimSpace(*accessFlag)
+	if access != "read" && access != "write" {
+		fmt.Fprintln(os.Stderr, "access must be read or write")
+		return 2
+	}
+	if access == "write" && looksLikeRemoteSource(source) {
+		fmt.Fprintln(os.Stderr, "managed remote connections are read-only")
+		return 2
+	}
 	sourceInfo := okf.RegistrySource{}
 	if looksLikeRemoteSource(source) {
 		var err error
@@ -955,7 +968,7 @@ func runConnect(args []string, command string) int {
 		key = filepath.Base(filepath.Clean(root))
 	}
 
-	entry, warning, err := okf.ConnectRegistryEntryWithSource(key, root, *accessFlag, explicitKey, sourceInfo)
+	entry, warning, err := okf.ConnectRegistryEntryWithSource(key, root, access, explicitKey, sourceInfo)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -4207,7 +4220,7 @@ Arguments:
 
 Flags:
   --as           Connection key. Defaults to okf_bundle_name, then the folder name.
-  --access       Access label stored with the connection, read or write. Defaults to read.
+  --access       Access capability for local connections, read or write. Remote sources are read-only. Defaults to read.
   --no-validate  Skip the validation status check in the success output.
 
 Remote manifests and tar archives are downloaded into the Open Knowledge cache.

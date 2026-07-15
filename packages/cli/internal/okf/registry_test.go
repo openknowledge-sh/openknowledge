@@ -227,7 +227,7 @@ func TestRemoveRegistryEntryRejectsChangedExpectedSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := ConnectRegistryEntryWithSource("remote", root, "write", true, RegistrySource{Type: "git", URL: "https://example.test/repo.git", GitCommit: strings.Repeat("a", 40)}); err != nil {
+	if _, _, err := ConnectRegistryEntryWithSource("remote", root, "read", true, RegistrySource{Type: "git", URL: "https://example.test/repo.git", GitCommit: strings.Repeat("a", 40)}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -238,8 +238,110 @@ func TestRemoveRegistryEntryRejectsChangedExpectedSnapshot(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("expected changed entry to remain, ok=%t err=%v", ok, err)
 	}
-	if remaining.Access != "write" || remaining.Source.GitCommit == "" {
+	if remaining.Access != "read" || remaining.Source.GitCommit == "" {
 		t.Fatalf("expected latest entry to remain unchanged: %#v", remaining)
+	}
+}
+
+func TestRegistryAccessCapabilities(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+
+	root := t.TempDir()
+	nested := filepath.Join(root, "editable")
+	if err := os.Mkdir(nested, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ConnectRegistryEntry("readonly", root, "read", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ConnectRegistryEntry("editable", nested, "write", true); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RequireRegistryWriteAccess(filepath.Join(root, "notes", "new.md")); err == nil || !strings.Contains(err.Error(), `"readonly" is read-only`) {
+		t.Fatalf("expected read-only root to refuse a new file, got %v", err)
+	}
+	if err := RequireRegistryWriteAccess(filepath.Join(nested, "new.md")); err != nil {
+		t.Fatalf("expected most-specific writable connection to allow a write: %v", err)
+	}
+	if err := RequireRegistryWriteAccess(filepath.Join(t.TempDir(), "new.md")); err != nil {
+		t.Fatalf("expected unregistered path to remain writable: %v", err)
+	}
+
+	aliasParent := t.TempDir()
+	alias := filepath.Join(aliasParent, "readonly-link")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Fatal(err)
+	}
+	if err := RequireRegistryWriteAccess(filepath.Join(alias, "notes", "new.md")); err == nil {
+		t.Fatal("expected a symlinked path into a read-only connection to remain protected")
+	}
+}
+
+func TestManagedRegistryConnectionsAreAlwaysReadOnly(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+	root := t.TempDir()
+	source := RegistrySource{Type: "git", URL: "https://example.test/wiki.git", ManagedRoot: root}
+
+	if _, _, err := ConnectRegistryEntryWithSource("remote", root, "write", true, source); err == nil || !strings.Contains(err.Error(), "managed remote connections are read-only") {
+		t.Fatalf("expected remote write access to be rejected, got %v", err)
+	}
+	if entries, err := RegistryEntries(); err != nil || len(entries) != 0 {
+		t.Fatalf("rejected remote connection must not mutate the registry: entries=%#v err=%v", entries, err)
+	}
+
+	legacy := Registry{Connections: map[string]RegistryConnection{
+		root: {Name: "legacy", Access: "write", Source: source},
+	}}
+	content, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(registryFile, content, 0600); err != nil {
+		t.Fatal(err)
+	}
+	entry, ok, err := ResolveRegistryEntry("legacy")
+	if err != nil || !ok {
+		t.Fatalf("expected legacy connection to load: ok=%t err=%v", ok, err)
+	}
+	if entry.Access != "read" || !entry.Managed || RegistryEntryCanWrite(entry) {
+		t.Fatalf("expected legacy managed write access to fail closed: %#v", entry)
+	}
+}
+
+func TestManagedRegistryConnectionCannotBeDowngradedThroughItsCachePath(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(RegistryFileEnv, registryFile)
+	root := t.TempDir()
+	source := RegistrySource{Type: "git", URL: "https://example.test/wiki.git", ManagedRoot: root}
+	original, _, err := ConnectRegistryEntryWithSource("remote", root, "read", true, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := ConnectRegistryEntry("local-name", root, "write", true); err == nil || !strings.Contains(err.Error(), "managed remote connections are read-only") {
+		t.Fatalf("expected cache-path write reconnect to fail, got %v", err)
+	}
+	current, ok, err := ResolveRegistryEntry("remote")
+	if err != nil || !ok || current != original {
+		t.Fatalf("failed downgrade must preserve the original entry: ok=%t entry=%#v err=%v", ok, current, err)
+	}
+
+	reconnected, _, err := ConnectRegistryEntry("remote", root, "read", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reconnected.Source != source || !reconnected.Managed {
+		t.Fatalf("read reconnect must preserve managed provenance: %#v", reconnected)
+	}
+
+	replacement := reconnected
+	replacement.Managed = false
+	replacement.Source = RegistrySource{}
+	if _, err := ReplaceRegistryEntry(reconnected, replacement); err == nil || !strings.Contains(err.Error(), "managed source metadata cannot be removed") {
+		t.Fatalf("expected managed replacement downgrade to fail, got %v", err)
 	}
 }
 

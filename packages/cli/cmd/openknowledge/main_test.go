@@ -780,6 +780,55 @@ func TestRulesApplyDryRunDoesNotWrite(t *testing.T) {
 	}
 }
 
+func TestRulesApplyEnforcesRegistryWriteAccess(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	agentFile := filepath.Join(root, "AGENTS.md")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, root, "AGENTS.md", "# Agent Rules\n")
+	if _, _, err := okf.ConnectRegistryEntry("project", root, "read", true); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runRules([]string{"apply", "docs", "--path", wiki, "--file", agentFile, "--yes"})
+	})
+	if code != 2 || !strings.Contains(stderr, `registered knowledge base "project" is read-only`) {
+		t.Fatalf("expected read-only refusal, code=%d stderr=%q", code, stderr)
+	}
+	if content := string(readMainTestFile(t, agentFile)); content != "# Agent Rules\n" {
+		t.Fatalf("read-only refusal must preserve the target, got %q", content)
+	}
+
+	output, _, code := captureMainOutput(t, func() int {
+		return runRules([]string{"apply", "docs", "--path", wiki, "--file", agentFile, "--dry-run"})
+	})
+	if code != 0 || !strings.Contains(output, "Would update "+agentFile) {
+		t.Fatalf("expected read-only dry-run to remain available, code=%d output=%q", code, output)
+	}
+
+	if _, _, err := okf.ConnectRegistryEntry("project", root, "write", true); err != nil {
+		t.Fatal(err)
+	}
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runRules([]string{"apply", "docs", "--path", wiki, "--file", agentFile, "--yes"})
+	})
+	if code != 0 {
+		t.Fatalf("expected writable connection to allow apply, code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestConnectRejectsRemoteWriteAccessBeforeMaterialization(t *testing.T) {
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runConnect([]string{"https://127.0.0.1:1/wiki.git", "--access", "write"}, "openknowledge connect")
+	})
+	if code != 2 || !strings.Contains(stderr, "managed remote connections are read-only") {
+		t.Fatalf("expected remote write access to fail during argument validation, code=%d stderr=%q", code, stderr)
+	}
+}
+
 func TestRulesApplyConfirmationMessagesDescribeWriteType(t *testing.T) {
 	file := filepath.Join("repo", "AGENTS.md")
 	tests := []struct {

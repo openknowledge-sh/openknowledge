@@ -81,6 +81,12 @@ func runView(args []string) int {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
+		canWrite, err := okf.RegistryPathCanWrite(absolute)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		options.ReadOnly = !canWrite
 		aliasName := directViewerAliasName(target, absolute, *name)
 		if aliasName != "" {
 			aliasNames = append(aliasNames, aliasName)
@@ -326,6 +332,7 @@ func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 type viewerOptions struct {
 	AliasName string
 	HeadHTML  template.HTML
+	ReadOnly  bool
 }
 
 func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handler {
@@ -487,7 +494,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 						return
 					}
 					frame := registryFrame(entries, entry.Name, localAliasURL)
-					renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, options)
+					renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry))
 					return
 				}
 			}
@@ -554,7 +561,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 				return
 			}
 			frame := registryFrame(entries, entry.Name, workspaceURL)
-			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, options)
+			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry))
 			return
 		}
 		http.NotFound(response, request)
@@ -694,6 +701,7 @@ type viewerFileData struct {
 	BrandName   string
 	HomeURL     string
 	Root        string
+	Editable    bool
 	Path        string
 	FileURL     string
 	SourceURL   string
@@ -809,6 +817,7 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 		return
 	}
 	data.HeadHTML = options.HeadHTML
+	data.Editable = !options.ReadOnly
 
 	renderHTML(response, viewerFileTemplate, data)
 }
@@ -1335,6 +1344,11 @@ func renderRegistryIndex(response http.ResponseWriter, entries []okf.RegistryEnt
 		return
 	}
 	renderViewerIndex(response, root, frame, workspacePrefix(entry.Name), entry.Name, options)
+}
+
+func viewerOptionsForRegistryEntry(options viewerOptions, entry okf.RegistryEntry) viewerOptions {
+	options.ReadOnly = !okf.RegistryEntryCanWrite(entry)
+	return options
 }
 
 func parseWorkspaceRoute(requestPath string) (string, string, bool) {
@@ -2934,7 +2948,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
                 <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.17c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.4 11.4 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.58A12 12 0 0 0 12 .5Z"></path>
               </svg>
             </a>
-            {{else if .Root}}
+            {{else if .Editable}}
             <div class="editor-picker" data-editor-picker>
               <div class="editor-trigger" data-editor-trigger role="group">
                 <a class="editor-open" href="#" data-editor-open data-direct-link="true" aria-label="Open {{.Path}} in editor" title="Open in editor">
