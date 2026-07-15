@@ -113,6 +113,9 @@ End with COMPLETE.
 Agent jobs use the shared OKF YAML parser. Normal YAML mapping and sequence
 syntax is accepted, but only the fields and value types listed below belong to
 the agent-job schema. Complete YAML syntax support does not widen that schema.
+Unknown top-level or nested fields, duplicate mapping keys, scalar values where
+lists are required, non-string list members, quoted booleans, and other type
+mismatches are validation errors rather than silently ignored configuration.
 
 Supported top-level fields:
 
@@ -138,6 +141,12 @@ Supported top-level fields:
 | `verify.commands` | Shell commands run after the agent command in the same worktree. |
 | `output.commit` | When true, commits worktree changes after verification. |
 | `output.pr` | Reserved; currently rejected by validation. |
+
+`schedule.cron` and `schedule.every` are mutually exclusive. Intervals and
+agent timeouts must be positive, and `schedule.timezone` requires one actual
+schedule. The reserved `concurrency` mapping is rejected because the local
+runner does not yet enforce concurrency policy; declaring it never creates a
+false safety guarantee.
 
 ## Behavior
 
@@ -231,6 +240,15 @@ them, and expect follow-up changes to the schema or daemon behavior while this
 feature is marked experimental.
 
 ## Command Change History
+
+### 2026-07-15 - Strict executable job schema
+
+Agent jobs now reject unknown or duplicate keys and enforce exact nested value
+types before conversion. Reserved unenforced concurrency, ambiguous schedules,
+non-positive durations, and schedule-less timezones also fail validation.
+Source anchors: `packages/cli/internal/agents/frontmatter_schema.go`,
+`packages/cli/internal/agents/spec.go`, and
+`packages/cli/internal/agents/spec_test.go`.
 
 ### 2026-07-15 - External per-repository runtime state
 

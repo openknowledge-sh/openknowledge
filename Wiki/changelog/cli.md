@@ -14,6 +14,26 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Strict agent job schema
+
+* Added an explicit recursive schema for every supported agent-job top-level
+  and nested frontmatter field.
+* Rejected unknown fields, duplicate YAML keys, wrong mapping/scalar types,
+  scalar list substitutes, and non-string list members instead of silently
+  ignoring or coercing them.
+* Rejected the parsed-but-unenforced `concurrency` surface so job authors cannot
+  mistake an inert policy declaration for actual mutual exclusion.
+* Made `schedule.cron` and `schedule.every` mutually exclusive and moved
+  positive timeout/interval plus meaningful timezone checks into validation.
+* Added table-driven schema regressions for typos, nested fields, booleans,
+  lists, duplicates, concurrency, schedule ambiguity, duration bounds, and
+  timezone dependencies.
+* Source anchors: `packages/cli/internal/agents/frontmatter_schema.go`,
+  `packages/cli/internal/agents/spec.go`, and
+  `packages/cli/internal/agents/spec_test.go`.
+* Docs updated: `Wiki/features/commands/agents.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - External agent runtime state
 
 * Moved agent run records and Git worktrees out of source repositories into a

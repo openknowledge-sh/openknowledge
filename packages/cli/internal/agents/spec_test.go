@@ -56,6 +56,82 @@ func TestParseJobFileRejectsMalformedNestedYAML(t *testing.T) {
 	}
 }
 
+func TestParseJobFileEnforcesStrictFrontmatterSchema(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name:     "unknown top-level field",
+			content:  "---\nid: strict\nagnt: {}\nagent: {command: agent}\n---\nPrompt.\n",
+			expected: "agnt: is not a supported agent job field",
+		},
+		{
+			name:     "unknown nested field",
+			content:  "---\nid: strict\nagent: {command: agent, argz: []}\n---\nPrompt.\n",
+			expected: "agent.argz: is not a supported agent job field",
+		},
+		{
+			name:     "boolean string",
+			content:  "---\nid: strict\nenabled: \"true\"\nagent: {command: agent}\n---\nPrompt.\n",
+			expected: "enabled: must be a boolean, got string",
+		},
+		{
+			name:     "scalar argument list",
+			content:  "---\nid: strict\nagent: {command: agent, args: exec}\n---\nPrompt.\n",
+			expected: "agent.args: must be a list of strings, got string",
+		},
+		{
+			name:     "non-string argument",
+			content:  "---\nid: strict\nagent: {command: agent, args: [exec, 5]}\n---\nPrompt.\n",
+			expected: "agent.args[1]: must be a string, got number",
+		},
+		{
+			name:     "unenforced concurrency",
+			content:  "---\nid: strict\nagent: {command: agent}\nconcurrency: {key: docs, policy: skip}\n---\nPrompt.\n",
+			expected: "concurrency: is reserved and not enforced",
+		},
+		{
+			name:     "duplicate field",
+			content:  "---\nid: strict\nagent:\n  command: first\n  command: second\n---\nPrompt.\n",
+			expected: "frontmatter: line 5: frontmatter key \"command\" is repeated",
+		},
+		{
+			name:     "ambiguous schedule",
+			content:  "---\nid: strict\nschedule: {cron: \"0 * * * *\", every: 1h}\nagent: {command: agent}\n---\nPrompt.\n",
+			expected: "schedule: cron and every are mutually exclusive",
+		},
+		{
+			name:     "non-positive timeout",
+			content:  "---\nid: strict\nagent: {command: agent, timeout: 0s}\n---\nPrompt.\n",
+			expected: "agent.timeout: must be positive",
+		},
+		{
+			name:     "non-positive interval",
+			content:  "---\nid: strict\nschedule: {every: -1h}\nagent: {command: agent}\n---\nPrompt.\n",
+			expected: "schedule.every: must be positive",
+		},
+		{
+			name:     "timezone without schedule",
+			content:  "---\nid: strict\nschedule: {timezone: UTC}\nagent: {command: agent}\n---\nPrompt.\n",
+			expected: "schedule.timezone: requires schedule.cron or schedule.every",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "job.md")
+			if err := os.WriteFile(path, []byte(test.content), 0644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ParseJobFile(path); err == nil || !strings.Contains(err.Error(), test.expected) {
+				t.Fatalf("expected %q, got %v", test.expected, err)
+			}
+		})
+	}
+}
+
 func TestExecutorOverrideValidationFailsClosed(t *testing.T) {
 	for _, valid := range []string{"", "host", "docker", " docker "} {
 		normalized, err := NormalizeExecutorOverride(valid)

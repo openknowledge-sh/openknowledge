@@ -93,6 +93,14 @@ func ParseJobFile(path string) (Job, error) {
 	if err != nil {
 		return Job{}, err
 	}
+	for _, warning := range document.Warnings {
+		if strings.Contains(warning.Message, "is repeated; later value wins") {
+			return Job{}, ValidationError{Issues: []ValidationIssue{{
+				Field:   "frontmatter",
+				Message: fmt.Sprintf("line %d: %s", warning.Line, warning.Message),
+			}}}
+		}
+	}
 	job, err := jobFromFrontmatter(document.Data)
 	if err != nil {
 		return Job{}, err
@@ -166,19 +174,29 @@ func ValidateJob(job Job) error {
 		add("agent.command", "is required")
 	}
 	if job.Agent.Timeout != "" {
-		if _, err := time.ParseDuration(job.Agent.Timeout); err != nil {
+		if duration, err := time.ParseDuration(job.Agent.Timeout); err != nil {
 			add("agent.timeout", "must be a Go duration such as 45m or 1h")
+		} else if duration <= 0 {
+			add("agent.timeout", "must be positive")
 		}
 	}
 	if job.Schedule.Every != "" {
-		if _, err := time.ParseDuration(job.Schedule.Every); err != nil {
+		if duration, err := time.ParseDuration(job.Schedule.Every); err != nil {
 			add("schedule.every", "must be a Go duration such as 1h or 24h")
+		} else if duration <= 0 {
+			add("schedule.every", "must be positive")
 		}
 	}
 	if job.Schedule.Cron != "" {
 		if err := validateCronExpression(job.Schedule.Cron); err != nil {
 			add("schedule.cron", err.Error())
 		}
+	}
+	if job.Schedule.Cron != "" && job.Schedule.Every != "" {
+		add("schedule", "cron and every are mutually exclusive")
+	}
+	if job.Schedule.Timezone != "" && job.Schedule.Cron == "" && job.Schedule.Every == "" {
+		add("schedule.timezone", "requires schedule.cron or schedule.every")
 	}
 	if job.Schedule.Timezone != "" {
 		if _, err := time.LoadLocation(job.Schedule.Timezone); err != nil {
@@ -231,6 +249,9 @@ func ValidateJob(job Job) error {
 	if job.Output.PR {
 		add("output.pr", "is reserved for a future server/GitHub integration")
 	}
+	if job.Concurrency.Key != "" || job.Concurrency.Policy != "" {
+		add("concurrency", "is reserved and not enforced by the local runner")
+	}
 	if len(issues) > 0 {
 		return ValidationError{Issues: issues}
 	}
@@ -240,6 +261,9 @@ func ValidateJob(job Job) error {
 func jobFromFrontmatter(data map[string]any) (Job, error) {
 	if len(data) == 0 {
 		return Job{}, ValidationError{Issues: []ValidationIssue{{Field: "frontmatter", Message: "agent job frontmatter is required"}}}
+	}
+	if err := validateJobFrontmatterShape(data); err != nil {
+		return Job{}, err
 	}
 	job := Job{
 		Enabled: true,
