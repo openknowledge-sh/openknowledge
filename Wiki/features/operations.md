@@ -25,6 +25,7 @@ packages/web  - static HTML/CSS site
 pnpm test:cli
 pnpm check:versions
 pnpm check:workflow-pins
+pnpm check:workflow-secret-scope
 pnpm build:cli
 pnpm build:web
 pnpm dev:web
@@ -34,8 +35,10 @@ The root `package.json` is the release-version source of truth and maps those
 commands to the Go CLI package and web workspace. `pnpm check:versions` verifies
 that the root, npm wrapper, web package, and Go CLI fallback versions match.
 `pnpm check:workflow-pins` rejects remote GitHub Actions that do not use a full
-immutable commit SHA. `pnpm test` runs both checks before the CLI test suite,
-and `pnpm build` builds both the CLI and web package.
+immutable commit SHA. `pnpm check:workflow-secret-scope` rejects repository
+secrets outside an explicit consuming step and forbids blanket
+`secrets: inherit` forwarding. `pnpm test` runs all three checks before the CLI
+test suite, and `pnpm build` builds both the CLI and web package.
 
 ## Continuous Integration
 
@@ -131,6 +134,10 @@ uses `RAILWAY_ENVIRONMENT` with a default of `production`. Override it with the
 exact Railway environment name or ID if the project uses a different
 environment. The workflow still accepts the older `RAILWAY_SERVICE_ID` name as a
 fallback, but it must contain a service name or service ID, not a project ID.
+Railway secret expressions exist only on the configuration check and deploy
+steps; checkout and any future preparation steps do not receive them. The
+repository test gate rejects job-, workflow-, and container-wide secret
+expressions so this boundary cannot silently regress.
 
 `railway.json` keeps Railway build and runtime settings in code and tells
 Railway to use the repository `Dockerfile`. The Docker build installs both Go
@@ -196,6 +203,7 @@ npm publish --provenance --access public
 > * `package.json`
 > * `scripts/check-versions.mjs`
 > * `scripts/check-workflow-pins.mjs`
+> * `scripts/check-workflow-secret-scope.mjs`
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`

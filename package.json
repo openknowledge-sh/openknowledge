@@ -10,7 +10,8 @@
     "build:cli": "go build -o bin/openknowledge ./packages/cli/cmd/openknowledge",
     "check:versions": "node scripts/check-versions.mjs",
     "check:workflow-pins": "node scripts/check-workflow-pins.mjs",
-    "test": "pnpm check:versions && pnpm check:workflow-pins && pnpm test:cli",
+    "check:workflow-secret-scope": "node scripts/check-workflow-secret-scope.mjs",
+    "test": "pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm test:cli",
     "build": "pnpm build:cli && pnpm build:web"
   }
 }

@@ -14,6 +14,24 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Step-scoped workflow secrets
+
+* Removed Railway credentials and configuration secrets from deploy job-level
+  environment variables so checkout and future preparation steps cannot read
+  them.
+* Exposed only the token and service selector to the configuration check, then
+  exposed the complete Railway environment solely to the actual deploy step.
+* Added `pnpm check:workflow-secret-scope` to reject repository-secret
+  expressions outside explicit consuming steps and to forbid blanket
+  `secrets: inherit` forwarding.
+* Added the secret-scope check to `pnpm test`, which makes the boundary part of
+  CI, Railway verification, and release preflight; verified its negative path
+  with an unsafe job-level regression fixture.
+* Source anchors: `.github/workflows/deploy-railway.yml`,
+  `scripts/check-workflow-secret-scope.mjs`, and `package.json`.
+* Docs updated: `README.md`, `Wiki/features/operations.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Immutable Railway deploy image
 
 * Replaced the mutable `ghcr.io/railwayapp/cli:latest` deploy environment with

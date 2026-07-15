@@ -425,6 +425,7 @@ separately identifies the selected Open Knowledge Format version.
 pnpm test:cli
 pnpm check:versions
 pnpm check:workflow-pins
+pnpm check:workflow-secret-scope
 pnpm build:cli
 pnpm build:web
 pnpm dev:web

@@ -47,17 +47,15 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     container: ghcr.io/railwayapp/cli:4.65.0@sha256:103deb7580a11af6c414146ff63ff2357bf7b89fcda71a5e9818fade0129b859
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || secrets.RAILWAY_PROJECT_ID }}
-      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || secrets.RAILWAY_SERVICE || vars.RAILWAY_SERVICE_ID || secrets.RAILWAY_SERVICE_ID }}
-      RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT || secrets.RAILWAY_ENVIRONMENT || 'production' }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Require Railway configuration
         shell: sh
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || secrets.RAILWAY_SERVICE || vars.RAILWAY_SERVICE_ID || secrets.RAILWAY_SERVICE_ID }}
         run: |
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "RAILWAY_TOKEN repository secret is required." >&2
@@ -71,6 +69,11 @@ jobs:
 
       - name: Deploy
         shell: sh
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE || secrets.RAILWAY_SERVICE || vars.RAILWAY_SERVICE_ID || secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT || secrets.RAILWAY_ENVIRONMENT || 'production' }}
         run: |
           if [ -n "$RAILWAY_PROJECT_ID" ]; then
             railway up --ci --project="$RAILWAY_PROJECT_ID" --environment="$RAILWAY_ENVIRONMENT" --service="$RAILWAY_SERVICE"
