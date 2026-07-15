@@ -359,6 +359,7 @@ Nested agent commands also support
 | `openknowledge registry status [key-or-path] --json` | Check local bundle, cache, Git, and provenance integrity without contacting remotes. |
 | `openknowledge registry where <name-or-path>` | Print the absolute path for a registry name or path. |
 | `openknowledge view [path]` | Start the registry or knowledge base Markdown viewer. |
+| `openknowledge view --allow-network --host <host> [path]` | Explicitly bind beyond loopback with token authentication on every route. |
 | `openknowledge view --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
 | `openknowledge to html --out <folder> [path]` | Write a static viewer app bundle plus `llms.txt`, connect manifest, and tar archive. |
 | `openknowledge to html --plain --out <folder> [path]` | Write unstyled semantic HTML files. |

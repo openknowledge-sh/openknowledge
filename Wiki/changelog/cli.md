@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Authenticated viewer network boundary
+
+* Kept loopback as the zero-configuration default and refused wildcard or
+  non-loopback `view --host` values without explicit `--allow-network`.
+* Required one URL-safe access token across HTML, API, raw, and editor-icon
+  routes for network binds; tokens may come from `--token`,
+  `OPENKNOWLEDGE_VIEW_TOKEN`, or cryptographically secure generation.
+* Added bearer authentication plus a browser bootstrap that exchanges the
+  URL token for an HttpOnly SameSite=Strict cookie and removes the token from
+  the address bar.
+* Added constant-time comparisons, authentication challenges, no-store and
+  common security headers, bounded request headers, and finite header/idle
+  server timeouts.
+* Added loopback/wildcard classification, explicit opt-in, token validation and
+  generation, bearer, cookie, invalid token, redirect-stripping, header, and URL
+  regression tests.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/cmd/openknowledge/main_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/view.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Locked-down viewer asset serving
 
 * Restricted viewer asset pages and `/raw/` to regular, non-Markdown files

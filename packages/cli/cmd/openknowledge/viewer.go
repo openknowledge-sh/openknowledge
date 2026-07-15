@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -22,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
@@ -37,6 +40,8 @@ func runView(args []string) int {
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
 	name := fs.String("name", "", "local alias name for direct path mode")
 	noBrowser := fs.Bool("no-browser", false, "print the URL without opening a browser")
+	allowNetwork := fs.Bool("allow-network", false, "allow a non-loopback bind with token authentication")
+	tokenFlag := fs.String("token", os.Getenv("OPENKNOWLEDGE_VIEW_TOKEN"), "viewer access token")
 	headHTML := fs.String("head-html", os.Getenv("OPENKNOWLEDGE_HEAD_HTML"), "trusted HTML fragment to inject into <head>")
 	headFile := fs.String("head-file", os.Getenv("OPENKNOWLEDGE_HEAD_FILE"), "trusted HTML fragment file to inject into <head>")
 	scriptSrcs := stringListFlag(splitHeadList(os.Getenv("OPENKNOWLEDGE_SCRIPT_SRC")))
@@ -46,6 +51,12 @@ func runView(args []string) int {
 	}
 	if fs.NArg() > 1 {
 		fmt.Fprintln(os.Stderr, "view accepts at most one path")
+		return 2
+	}
+	*host = strings.TrimSpace(*host)
+	accessToken, err := viewerAccessToken(*host, *allowNetwork, *tokenFlag)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
 
@@ -96,6 +107,7 @@ func runView(args []string) int {
 			fmt.Printf("%s %d\n", terminal.muted("knowledge bases"), len(entries))
 		}
 	}
+	handler = secureViewerHandler(handler, accessToken)
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(*host, strconv.Itoa(*port)))
 	if err != nil {
@@ -105,8 +117,15 @@ func runView(args []string) int {
 
 	displayHost, displayPort := displayHostPort(listener.Addr())
 	viewURL := viewerAliasDisplayURL(displayHost, displayPort, aliasNames)
+	if accessToken != "" {
+		viewURL = viewerURLWithToken(viewURL, accessToken)
+	}
 
 	fmt.Printf("Open Knowledge view: %s\n", viewURL)
+	if !viewerHostIsLoopback(*host) {
+		fmt.Printf("%s %s\n", terminal.muted("network bind"), net.JoinHostPort(*host, displayPort))
+		fmt.Println(terminal.muted("Token authentication protects every viewer route."))
+	}
 	details()
 	fmt.Println(terminal.muted("Press Ctrl+C to stop."))
 
@@ -116,11 +135,127 @@ func runView(args []string) int {
 		}
 	}
 
-	if err := http.Serve(listener, handler); err != nil {
+	server := &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+	if err := server.Serve(listener); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	return 0
+}
+
+const viewerTokenCookie = "openknowledge_view_token"
+
+func viewerAccessToken(host string, allowNetwork bool, configured string) (string, error) {
+	configured = strings.TrimSpace(configured)
+	if !viewerHostIsLoopback(host) && !allowNetwork {
+		return "", fmt.Errorf("refusing non-loopback viewer host %q; add --allow-network to enable token-authenticated access", host)
+	}
+	if configured != "" {
+		if err := validateViewerToken(configured); err != nil {
+			return "", err
+		}
+		return configured, nil
+	}
+	if viewerHostIsLoopback(host) {
+		return "", nil
+	}
+	random := make([]byte, 32)
+	if _, err := rand.Read(random); err != nil {
+		return "", fmt.Errorf("generate viewer access token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(random), nil
+}
+
+func viewerHostIsLoopback(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	parsed := net.ParseIP(host)
+	return parsed != nil && parsed.IsLoopback()
+}
+
+func validateViewerToken(token string) error {
+	if len(token) < 16 || len(token) > 256 {
+		return fmt.Errorf("viewer token must contain 16 to 256 URL-safe characters")
+	}
+	for _, char := range token {
+		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || strings.ContainsRune("-._~", char) {
+			continue
+		}
+		return fmt.Errorf("viewer token must contain 16 to 256 URL-safe characters")
+	}
+	return nil
+}
+
+func secureViewerHandler(next http.Handler, token string) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("X-Content-Type-Options", "nosniff")
+		response.Header().Set("Referrer-Policy", "no-referrer")
+		response.Header().Set("X-Frame-Options", "DENY")
+		if token == "" {
+			next.ServeHTTP(response, request)
+			return
+		}
+		response.Header().Set("Cache-Control", "no-store")
+
+		if queryToken := request.URL.Query().Get("token"); queryToken != "" {
+			if !viewerTokensEqual(queryToken, token) {
+				viewerUnauthorized(response)
+				return
+			}
+			http.SetCookie(response, &http.Cookie{
+				Name:     viewerTokenCookie,
+				Value:    token,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			})
+			cleanURL := *request.URL
+			query := cleanURL.Query()
+			query.Del("token")
+			cleanURL.RawQuery = query.Encode()
+			http.Redirect(response, request, cleanURL.String(), http.StatusSeeOther)
+			return
+		}
+
+		provided := ""
+		if scheme, credential, ok := strings.Cut(request.Header.Get("Authorization"), " "); ok && strings.EqualFold(scheme, "Bearer") {
+			provided = strings.TrimSpace(credential)
+		} else if cookie, err := request.Cookie(viewerTokenCookie); err == nil {
+			provided = cookie.Value
+		}
+		if !viewerTokensEqual(provided, token) {
+			viewerUnauthorized(response)
+			return
+		}
+		next.ServeHTTP(response, request)
+	})
+}
+
+func viewerTokensEqual(left string, right string) bool {
+	return subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
+}
+
+func viewerUnauthorized(response http.ResponseWriter) {
+	response.Header().Set("WWW-Authenticate", `Bearer realm="openknowledge-view"`)
+	http.Error(response, "viewer authentication required", http.StatusUnauthorized)
+}
+
+func viewerURLWithToken(rawURL string, token string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	query := parsed.Query()
+	query.Set("token", token)
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
 }
 
 func resolveViewerRoot(root string) (string, error) {

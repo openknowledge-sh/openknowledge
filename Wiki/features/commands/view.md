@@ -31,6 +31,8 @@ exported with [`openknowledge to graph --type search`](/features/exporters/graph
 openknowledge view [path]
 openknowledge view --name <alias-name> [path]
 openknowledge view --host <host> --port <port> [path]
+openknowledge view --allow-network --host <host> [path]
+openknowledge view --allow-network --host <host> --token <token> [path]
 openknowledge view --head-file <file> [path]
 openknowledge view --script-src <src> [path]
 openknowledge view --no-browser [path]
@@ -44,6 +46,8 @@ openknowledge view --help
 | `path` | argument | Optional knowledge base root or registry name. When omitted, the viewer uses the Open Knowledge Registry. |
 | `--host` | flag | Host to bind. Defaults to `127.0.0.1`. |
 | `--port` | flag | Port to bind. Defaults to `0`, which selects a free port. |
+| `--allow-network` | flag | Explicitly permit a non-loopback bind; all routes then require token authentication. |
+| `--token` | flag | URL-safe 16-256 character access token. Defaults to `OPENKNOWLEDGE_VIEW_TOKEN`, then a generated token for network binds. |
 | `--head-file` | flag | Trusted HTML fragment file to inject into every viewer page `<head>`. Defaults to `OPENKNOWLEDGE_HEAD_FILE` when set. |
 | `--head-html` | flag | Trusted inline HTML fragment to inject into every viewer page `<head>`. Defaults to `OPENKNOWLEDGE_HEAD_HTML` when set. |
 | `--name` | flag | Alias name for direct path mode. Defaults to the registry name or folder name. |
@@ -60,9 +64,16 @@ include the alias path in that loopback URL, for example:
 Open Knowledge view: http://127.0.0.1:57475/wiki/
 ```
 
-The CLI does not print or configure custom hostname aliases. Use the printed
-loopback URL; stable knowledge base names are represented as path segments such
-as `/wiki/` or `/personal/`.
+The CLI does not print or configure custom hostname aliases. Stable knowledge
+base names are represented as path segments such as `/wiki/` or `/personal/`.
+
+Non-loopback and wildcard hosts are refused unless `--allow-network` is
+present. Their printed loopback URL contains a generated or configured token;
+the first browser request exchanges it for an HttpOnly, SameSite=Strict session
+cookie and redirects to a URL without the token. Remote clients replace the
+printed loopback host with the server host and may send the same value as
+`Authorization: Bearer <token>`. Prefer `OPENKNOWLEDGE_VIEW_TOKEN` to `--token`
+when local process arguments are visible.
 
 ## Example Output
 
@@ -89,6 +100,11 @@ Press Ctrl+C to stop.
 
 * Registry names and normal filesystem paths resolve through the same
   key-or-path model used by other commands.
+* The default loopback server needs no token. Every non-loopback route,
+  including HTML, APIs, raw assets, and editor icons, shares one mandatory
+  authentication boundary. Responses use `nosniff`, no-referrer, and frame
+  denial headers; authenticated responses are not cached. The HTTP server also
+  bounds request headers and header/idle time.
 * `Command+K` focuses search. `Ctrl+K` is still accepted as a non-macOS
   fallback, but the visible search shortcut stays `⌘K`.
 * Top-bar search opens ranked default files when focused, supports Arrow-key
@@ -183,6 +199,18 @@ Press Ctrl+C to stop.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
 
 ## Command Change History
+
+### 2026-07-15 - Authenticated network opt-in
+
+Non-loopback viewer binds are now refused unless `--allow-network` is explicit.
+Allowed network binds use a generated or configured token across every route,
+support bearer clients and an HttpOnly browser session exchange, strip the
+bootstrap token from the address bar, add defensive headers, and bound server
+header/idle resources. Source anchors:
+`packages/cli/cmd/openknowledge/viewer.go`,
+`packages/cli/cmd/openknowledge/viewer_test.go`,
+`packages/cli/cmd/openknowledge/main.go`, and
+`packages/cli/cmd/openknowledge/main_test.go`.
 
 ### 2026-07-15 - Bundle-asset-only raw serving
 

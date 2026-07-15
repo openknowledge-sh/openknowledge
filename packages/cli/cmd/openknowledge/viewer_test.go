@@ -1556,6 +1556,120 @@ func TestViewerAliasDisplayURLUsesReachableHost(t *testing.T) {
 	}
 }
 
+func TestViewerNetworkAccessRequiresExplicitAuthenticatedOptIn(t *testing.T) {
+	for _, host := range []string{"127.0.0.1", "::1", "localhost", "[::1]"} {
+		if !viewerHostIsLoopback(host) {
+			t.Fatalf("expected %s to be loopback", host)
+		}
+		token, err := viewerAccessToken(host, false, "")
+		if err != nil || token != "" {
+			t.Fatalf("expected unauthenticated loopback default for %s, token=%q err=%v", host, token, err)
+		}
+	}
+	for _, host := range []string{"0.0.0.0", "::", "192.0.2.10", "example.test", ""} {
+		if viewerHostIsLoopback(host) {
+			t.Fatalf("did not expect %s to be loopback", host)
+		}
+		if _, err := viewerAccessToken(host, false, ""); err == nil || !strings.Contains(err.Error(), "--allow-network") {
+			t.Fatalf("expected non-loopback refusal for %q, got %v", host, err)
+		}
+		token, err := viewerAccessToken(host, true, "")
+		if err != nil || validateViewerToken(token) != nil {
+			t.Fatalf("expected generated network token for %q, token=%q err=%v", host, token, err)
+		}
+	}
+	configured := "test-token-1234567890"
+	if token, err := viewerAccessToken("0.0.0.0", true, configured); err != nil || token != configured {
+		t.Fatalf("expected configured token, token=%q err=%v", token, err)
+	}
+	for _, invalid := range []string{"short", "contains spaces 12345", strings.Repeat("a", 257)} {
+		if _, err := viewerAccessToken("127.0.0.1", false, invalid); err == nil {
+			t.Fatalf("expected invalid token %q to be rejected", invalid)
+		}
+	}
+}
+
+func TestRunViewRefusesUnauthenticatedNetworkBindBeforeListening(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runView([]string{"--host", "0.0.0.0", "--no-browser", root})
+	})
+	if code != 2 || !strings.Contains(stderr, "--allow-network") {
+		t.Fatalf("expected command-level network refusal, code=%d stderr=%q", code, stderr)
+	}
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runView([]string{"--token", "short", "--no-browser", root})
+	})
+	if code != 2 || !strings.Contains(stderr, "16 to 256") {
+		t.Fatalf("expected command-level weak token refusal, code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestSecureViewerHandlerAuthenticatesEveryRoute(t *testing.T) {
+	const token = "test-token-1234567890"
+	next := http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.WriteHeader(http.StatusOK)
+		_, _ = response.Write([]byte("ok"))
+	})
+	handler := secureViewerHandler(next, token)
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/api/search", nil))
+	if unauthorized.Code != http.StatusUnauthorized || unauthorized.Header().Get("WWW-Authenticate") == "" {
+		t.Fatalf("expected bearer challenge, code=%d headers=%v", unauthorized.Code, unauthorized.Header())
+	}
+	for header, expected := range map[string]string{
+		"Cache-Control":          "no-store",
+		"X-Content-Type-Options": "nosniff",
+		"Referrer-Policy":        "no-referrer",
+		"X-Frame-Options":        "DENY",
+	} {
+		if actual := unauthorized.Header().Get(header); actual != expected {
+			t.Fatalf("expected %s=%q, got %q", header, expected, actual)
+		}
+	}
+
+	bearer := httptest.NewRecorder()
+	bearerRequest := httptest.NewRequest(http.MethodGet, "/raw/asset.pdf", nil)
+	bearerRequest.Header.Set("Authorization", "bearer "+token)
+	handler.ServeHTTP(bearer, bearerRequest)
+	if bearer.Code != http.StatusOK || bearer.Body.String() != "ok" {
+		t.Fatalf("expected bearer access, code=%d body=%q", bearer.Code, bearer.Body.String())
+	}
+
+	bootstrap := httptest.NewRecorder()
+	handler.ServeHTTP(bootstrap, httptest.NewRequest(http.MethodGet, "/wiki/?view=one&token="+token, nil))
+	if bootstrap.Code != http.StatusSeeOther || bootstrap.Header().Get("Location") != "/wiki/?view=one" {
+		t.Fatalf("expected token-stripping redirect, code=%d location=%q", bootstrap.Code, bootstrap.Header().Get("Location"))
+	}
+	cookies := bootstrap.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != viewerTokenCookie || cookies[0].Value != token || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteStrictMode {
+		t.Fatalf("unexpected viewer session cookie: %#v", cookies)
+	}
+
+	cookieResponse := httptest.NewRecorder()
+	cookieRequest := httptest.NewRequest(http.MethodGet, "/file/index.md", nil)
+	cookieRequest.AddCookie(cookies[0])
+	handler.ServeHTTP(cookieResponse, cookieRequest)
+	if cookieResponse.Code != http.StatusOK {
+		t.Fatalf("expected authenticated cookie access, got %d", cookieResponse.Code)
+	}
+
+	invalid := httptest.NewRecorder()
+	handler.ServeHTTP(invalid, httptest.NewRequest(http.MethodGet, "/?token=wrong-token-123456", nil))
+	if invalid.Code != http.StatusUnauthorized || invalid.Header().Get("Set-Cookie") != "" {
+		t.Fatalf("expected invalid query token refusal, code=%d headers=%v", invalid.Code, invalid.Header())
+	}
+}
+
+func TestViewerURLWithTokenPreservesAliasPath(t *testing.T) {
+	actual := viewerURLWithToken("http://127.0.0.1:57475/wiki/", "test-token-1234567890")
+	if actual != "http://127.0.0.1:57475/wiki/?token=test-token-1234567890" {
+		t.Fatalf("unexpected authenticated viewer URL: %s", actual)
+	}
+}
+
 func TestBrowserOpenCommand(t *testing.T) {
 	tests := []struct {
 		goos    string

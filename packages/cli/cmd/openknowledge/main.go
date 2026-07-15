@@ -3982,6 +3982,7 @@ Usage:
   openknowledge view [path]
   openknowledge view --name <alias-name> [path]
   openknowledge view --host <host> --port <port> [path]
+  openknowledge view --allow-network --host <host> [path]
   openknowledge view --head-file <file> [path]
   openknowledge view --script-src <src> [path]
   openknowledge view --no-browser [path]
@@ -4724,6 +4725,8 @@ Usage:
   openknowledge view [path]
   openknowledge view --name <alias-name> [path]
   openknowledge view --host <host> --port <port> [path]
+  openknowledge view --allow-network --host <host> [path]
+  openknowledge view --allow-network --host <host> --token <token> [path]
   openknowledge view --head-file <file> [path]
   openknowledge view --script-src <src> [path]
   openknowledge view --no-browser [path]
@@ -4736,6 +4739,9 @@ Arguments:
 Flags:
   --host       Host to bind. Defaults to 127.0.0.1.
   --port       Port to bind. Defaults to 0, which selects a free port.
+  --allow-network
+               Permit a non-loopback bind. Every route is then protected by a
+               generated token or --token/OPENKNOWLEDGE_VIEW_TOKEN.
   --head-file  Trusted HTML fragment file to inject into <head>. Defaults to
                OPENKNOWLEDGE_HEAD_FILE when set.
   --head-html  Trusted HTML fragment to inject into <head>. Defaults to
@@ -4746,6 +4752,9 @@ Flags:
                Print URLs without opening the default browser.
   --script-src Script src to inject into <head>. May be repeated. Defaults to
                comma- or newline-separated OPENKNOWLEDGE_SCRIPT_SRC when set.
+  --token      URL-safe viewer token (16-256 characters). Prefer the
+               OPENKNOWLEDGE_VIEW_TOKEN environment variable over command-line
+               input when process arguments may be visible to other users.
 
 Examples:
   openknowledge view
@@ -4755,6 +4764,7 @@ Examples:
   openknowledge view --script-src /analytics.js ./project-memory
   openknowledge view --port 8080 ./project-memory
   openknowledge view --name project-memory --port 3000 ./project-memory
+  openknowledge view --allow-network --host 0.0.0.0 ./project-memory
 `
 }
 
