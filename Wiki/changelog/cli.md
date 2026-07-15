@@ -14,6 +14,33 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Observable and controllable local agent runs
+
+* Added `openknowledge agents status` for schedules, next eligible slots,
+  latest runs, and active runs, while preserving `agents list` as the job-spec
+  inventory.
+* Added newest-first `agents runs` history with job/status filters and explicit
+  `orphaned` detection when a running record has no live supervisor lock.
+* Added detached `agents spawn` plus supervisor-owned `stop` and `kill`
+  requests. Control never signals a recorded PID without proving live lock
+  ownership; stop can be escalated to forceful process-tree termination.
+* Persisted `cancelled` and `killed` terminal states in the single current
+  run-record schema. Published closed JSON schemas and fixtures for status,
+  history, spawn, and control outputs; the experimental feature carries no
+  legacy schema or migration path.
+* Added schedule, history ordering, orphan detection, detached CLI, schema,
+  and real long-running process regressions for both stop and kill.
+* Added a copy-paste first-runtime kickstart covering job scaffolding, Codex
+  state forwarding, validation, dry-run, foreground and detached execution,
+  schedule testing, observation, and stop/kill control.
+* Source anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+  `packages/cli/internal/agents/{management,control,runner,schedule}.go`,
+  `packages/cli/internal/agents/management_test.go`, and
+  `packages/cli/schemas/v1/`.
+* Docs updated: `README.md`, agent command help,
+  `Wiki/features/commands/agents.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Aligned web container Go toolchain
 
 * Raised the Docker build stage from Go 1.22 to Go 1.26.5 so production web

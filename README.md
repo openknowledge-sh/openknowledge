@@ -162,7 +162,7 @@ openknowledge view ./project-memory
 | Agent setup | `setup`, `rules`, `review rules` | Print prompts and maintenance instructions for agents that create or maintain a wiki. |
 | Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into a local OKF Markdown wiki. |
 | Authoring and format hygiene | `new`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
-| Experimental local agent automation | `agents` | Validate, dry-run, and execute scheduled local agent jobs from Markdown specs in isolated Git worktrees. |
+| Experimental local agent automation | `agents` | Validate, schedule, spawn, observe, stop, and inspect local agent jobs in isolated Git worktrees. |
 | Registry and lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
 | Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, browse locally, and connect MCP-compatible LLM hosts. |
 | Views and publishing | `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | Export normalized models, source graphs, retrieval graphs, static viewers, and plain semantic HTML. |
@@ -370,15 +370,22 @@ Use `openknowledge agents new` to list shipped templates,
 `openknowledge agents run <job.md> --dry-run` to print the resolved run plan.
 Run `openknowledge agents run <job.md>` to create a Git worktree and run the
 configured agent command.
+Use `openknowledge agents spawn <job.md>` for a detached run,
+`openknowledge agents status` for schedules plus active/latest runs, and
+`openknowledge agents runs` for repository history. Live runs can be cancelled
+with `openknowledge agents stop <run-id>` or force-terminated with
+`openknowledge agents kill <run-id>`; both address the owning supervisor rather
+than trusting a stored PID. Scheduled jobs still require a running
+`openknowledge agents daemon` process.
 `openknowledge agents list --json` exposes a sorted, versioned discovery
 inventory with structured schedules, executor types, and concurrency keys,
 without serializing prompt bodies or environment values.
 `openknowledge agents validate --json` emits a versioned report on stdout for
 both valid and invalid specs; validation findings remain structured data while
 exit status `1` still marks an invalid job.
-Agent dry-run plans, persisted `plan.json`, and `run.json` records declare
-`schemaVersion: "1"`; their closed JSON Schemas are published with the other
-CLI machine contracts.
+Agent dry-run plans, persisted `plan.json` and `run.json`, and management
+command JSON outputs use the single current `schemaVersion: "1"` contract.
+Cancellation and kill outcomes are explicit in that run-record schema.
 
 ## Command Reference
 
@@ -403,6 +410,11 @@ Nested agent commands also support
 | `openknowledge agents new --reference` | Experimental: print the supported agent-job schema. |
 | `openknowledge agents list [path]` | Experimental: list Markdown agent job specs. |
 | `openknowledge agents list [path] --json` | Experimental: print the versioned agent discovery inventory. |
+| `openknowledge agents status [jobs-dir]` | Experimental: show schedules, next eligible slots, and active/latest runs. |
+| `openknowledge agents runs [repo]` | Experimental: list current and historical runs, newest first. |
+| `openknowledge agents spawn <job.md>` | Experimental: start one job in a detached local supervisor. |
+| `openknowledge agents stop <run-id>` | Experimental: request cancellation of a live supervised run. |
+| `openknowledge agents kill <run-id>` | Experimental: force-cancel a live run's command process tree. |
 | `openknowledge agents validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
 | `openknowledge agents validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
 | `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
@@ -488,10 +500,10 @@ and combined or separate issue arrays. Bundle-local `openknowledge.toml` can
 configure lint severities under `[validation.rules]`, and repeatable `--rule`
 flags can override them per run.
 
-Machine-readable agent plans/records, AST, normalized bundle, graph, list,
-registry list/status, search, and validation outputs declare
-`schemaVersion: "1"`. Draft 2020-12 schemas and the compatibility policy live
-in `packages/cli/schemas/v1/`; `specVersion`
+Machine-readable agent plans, records, and management results, AST, normalized
+bundle, graph, list, registry list/status, search, and validation outputs
+declare `schemaVersion: "1"`. Draft 2020-12 schemas live in
+`packages/cli/schemas/v1/`; `specVersion`
 separately identifies the selected Open Knowledge Format version. Tests compile
 the schemas and validate golden plus representative non-empty outputs, while
 the website publishes them at

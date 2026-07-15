@@ -31,6 +31,14 @@ openknowledge agents new docs-audit
 openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md
 openknowledge agents list [path]
 openknowledge agents list [path] --json
+openknowledge agents status [jobs-dir]
+openknowledge agents status [jobs-dir] --json
+openknowledge agents runs [repo]
+openknowledge agents runs [repo] --job <id> --status <status> --json
+openknowledge agents spawn <job.md>
+openknowledge agents spawn <job.md> --json
+openknowledge agents stop <run-id> [--repo <path>]
+openknowledge agents kill <run-id> [--repo <path>]
 openknowledge agents validate <job-or-dir>
 openknowledge agents validate <job-or-dir> --json
 openknowledge agents run <job.md>
@@ -47,6 +55,127 @@ openknowledge agents --help
 ```
 
 The default jobs directory is `.openknowledge/agents/jobs`.
+
+## Kickstart: First Local Runtime
+
+There is no separate Open Knowledge agent server to configure. The runtime is
+the local executable declared by `agent.command`; Open Knowledge prepares the
+worktree and prompt, starts that executable, records its output, and optionally
+runs verification commands. `agents new` is a convenient scaffold, not a
+required registration step: a hand-written valid job Markdown file works too.
+
+The shortest setup flow is:
+
+1. Install and authenticate the agent CLI you want to run.
+2. Create or write a job Markdown file.
+3. Validate it and inspect its resolved dry-run plan.
+4. Choose `run` for a foreground run, `spawn` for one detached run, or
+   `daemon` for scheduled runs.
+
+For example, this POSIX-shell flow uses the built-in `custom` template and an
+existing Codex CLI login:
+
+```sh
+# Confirm that the selected runtime is installed and authenticated.
+command -v codex
+codex login status
+
+# Host jobs receive an isolated HOME. Point Codex at the existing state and
+# make that variable available to the job explicitly.
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+
+# Create a starting job.
+openknowledge agents new custom \
+  --out .openknowledge/agents/jobs/my-agent.md
+```
+
+Edit `.openknowledge/agents/jobs/my-agent.md`. At minimum, set the id, agent
+command, prompt body, and any verification commands. For the Codex example,
+keep `codex exec` and explicitly allow `CODEX_HOME`:
+
+```md
+---
+id: my-agent
+enabled: true
+schedule:
+  every: 24h
+  timezone: UTC
+agent:
+  command: codex
+  args: [exec]
+  timeout: 30m
+  completion_signal: COMPLETE
+workspace:
+  repo: "."
+  base: HEAD
+  dirty_policy: fail
+sandbox:
+  type: host
+  env: [CODEX_HOME]
+verify:
+  commands:
+    - git diff --check
+output:
+  commit: false
+---
+
+Inspect this repository and make the requested focused maintenance change.
+Do not commit or push. End with COMPLETE.
+```
+
+The default `dirty_policy: fail` requires a clean source checkout for a real
+run. Commit the new job when it is ready; alternatively, explicitly choose
+`dirty_policy: allow` while iterating if running from a dirty checkout is
+intentional:
+
+```sh
+git add .openknowledge/agents/jobs/my-agent.md
+git commit -m "Add my local agent job"
+```
+
+Then validate and inspect the plan without starting Codex:
+
+```sh
+openknowledge agents validate .openknowledge/agents/jobs/my-agent.md
+openknowledge agents run .openknowledge/agents/jobs/my-agent.md --dry-run
+```
+
+Run it once in the foreground while debugging the job:
+
+```sh
+openknowledge agents run .openknowledge/agents/jobs/my-agent.md
+```
+
+Or start one run in the background and inspect it:
+
+```sh
+openknowledge agents spawn .openknowledge/agents/jobs/my-agent.md
+openknowledge agents status .openknowledge/agents/jobs
+openknowledge agents runs .
+```
+
+Use the run id printed by `spawn` or `runs` to control a live run:
+
+```sh
+openknowledge agents stop <run-id>
+openknowledge agents kill <run-id>
+```
+
+Finally, use a long-running daemon when the job's `schedule` should trigger
+repeatedly. `--once` is useful for testing one scheduling pass:
+
+```sh
+openknowledge agents daemon .openknowledge/agents/jobs --once
+openknowledge agents daemon .openknowledge/agents/jobs --tick 1m
+```
+
+For another local agent, replace `agent.command`, `agent.args`, and the names in
+`sandbox.env` with the executable, non-interactive arguments, and configuration
+variables supported by that CLI. Host jobs can access the repository and any
+explicitly exposed configuration, so only run trusted job files and trusted
+verification commands. Codex documents `CODEX_HOME` as the root containing its
+configuration and authentication state; the directory must already exist. See
+the [Codex environment variable reference](https://learn.chatgpt.com/docs/config-file/environment-variables).
 
 ## Built-In Templates
 
@@ -179,6 +308,36 @@ bodies, command arguments, and environment values are deliberately excluded
 from discovery. A missing or empty jobs directory succeeds with `jobs: []`.
 The closed contract is published as `agent-list.schema.json`.
 
+`agents list` remains the inventory of Markdown job definitions. For runtime
+state, `agents status [jobs-dir]` joins each discovered job with its schedule,
+next eligible slot, latest run, and active runs. A next eligible timestamp is a
+scheduling opportunity, not a promise: `agents daemon` must be running when the
+slot becomes due. Manual and disabled jobs have no next eligible timestamp.
+
+`agents runs [repo]` lists the repository's current and historical runs newest
+first. `--job <id>` and `--status <status>` filter the inventory. A `run.json`
+that still says `running` without a live supervisor lock is surfaced as
+`orphaned`; the CLI never treats a recorded PID alone as proof that a process
+is still owned. Both `status` and `runs` support closed `schemaVersion: "1"`
+JSON envelopes with explicit arrays. Their summaries exclude prompts, agent
+arguments, environment values, and log contents.
+
+`agents spawn <job.md>` starts the same runner used by `agents run` in a
+detached supervisor, waits until its run record is observable, and returns the
+run id, supervisor PID, and record path. The supervisor inherits only the
+current runner environment; each configured host or Docker command still uses
+the existing sandbox environment allowlist.
+
+`agents stop <run-id>` requests cancellation through the live supervisor and
+waits up to `10s` by default. `agents kill <run-id>` force-cancels the current
+command process tree and waits up to `5s`. Both accept `--repo <path>`,
+`--wait <duration>`, and `--json`; `--wait 0` returns after writing the request.
+A kill request can escalate a pending stop. Control is idempotent for terminal
+runs, but an `orphaned` run cannot be controlled because no supervisor still
+owns its lock. Successful stop and kill outcomes persist as `cancelled` and
+`killed` respectively; existing terminal states also include `succeeded`,
+`failed`, `verification_failed`, and `skipped`.
+
 `agents run --dry-run` resolves the job into a JSON run plan. The plan includes
 the stable run id, repository root, base SHA, branch name, worktree path,
 prompt, executor, verification commands, and normalized concurrency policy.
@@ -212,6 +371,9 @@ job.md
 prompt.md
 plan.json
 run.json
+control.json
+control.lock
+control-request.json (only while a request is pending)
 agent.stdout.log
 agent.stderr.log
 verify-01.stdout.log
@@ -222,8 +384,10 @@ diff.patch
 Run directories are created with owner-only `0700` permissions. Job and prompt
 copies, plan and run JSON, stdout/stderr logs, verification logs, and the final
 patch are forced to `0600`, including when an existing umask would otherwise
-make them broader. These artifacts can contain prompts, command arguments,
-repository content, or tool output and should be treated as private run data.
+make them broader. Supervisor locks, status snapshots, and atomic control
+requests also remain owner-private. These artifacts can contain prompts,
+command arguments, repository content, or tool output and should be treated as
+private run data.
 
 The run id is derived from the job id, scheduled time, job file hash, and Git
 base SHA. Re-running the same scheduled job fails if the run directory already
@@ -256,15 +420,18 @@ environment defaults. Environment values are not serialized into `job.md`,
 `plan.json`, or `run.json`. Managed home/temp names, malformed names, and
 case-insensitive duplicates are rejected.
 
-Dry-run output and every persisted `plan.json` use the same versioned plan
-contract. Persisted `run.json` declares its own `schemaVersion: "1"` and embeds
-that complete plan while adding lifecycle status, timings, command results,
-logs, failures, and patch identity. Both Draft 2020-12 schemas are closed with
+Dry-run output, every persisted `plan.json`, and `run.json` use the single
+current `schemaVersion: "1"` agent contract. The run record embeds the complete
+plan while adding lifecycle status, timings, command results, logs, failures,
+patch identity, and the `cancelled` and `killed` outcomes. Both Draft 2020-12
+schemas are closed with
 `additionalProperties: false`, have checked golden fixtures, are validated
 against runtime-built artifacts, and are published at
-`https://openknowledge.sh/schemas/cli/v1/agent-run-{plan,record}.schema.json`.
-Job frontmatter remains experimental, but incompatible serialized plan or run
-record changes now require a new machine schema version.
+`https://openknowledge.sh/schemas/cli/v1/agent-run-plan.schema.json` and
+`https://openknowledge.sh/schemas/cli/v1/agent-run-record.schema.json`.
+This feature remains experimental: before the CLI reaches 1.0, its agent job,
+plan, and run-record contracts may change in place without backward
+compatibility or migrations.
 
 `agents daemon` loads job specs, evaluates due schedules, skips already
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
@@ -282,7 +449,8 @@ terminates the host process tree rather than only its immediate shell (Unix
 process groups and Windows tree termination), with a bounded wait fallback, so
 background children cannot keep a daemon run alive indefinitely.
 
-`new`, `list`, `validate`, `run`, and `daemon` each provide dedicated help.
+Every subcommand, including `status`, `runs`, `spawn`, `stop`, and `kill`,
+provides dedicated help.
 For example, `openknowledge agents run --help` prints run-specific flags and
 usage instead of the command-group overview.
 
@@ -291,10 +459,31 @@ usage instead of the command-group overview.
 `openknowledge agents` is not a stable automation API yet. Keep job specs close
 to the repository that owns them, review generated templates before running
 them, and expect follow-up changes to the job schema or daemon behavior while
-this feature is marked experimental. The separately versioned plan and run
-record JSON contracts follow the machine-contract compatibility policy.
+this feature is marked experimental. Agent JSON contracts may change in place;
+there is no pre-1.0 backward-compatibility or migration promise.
+Detached execution is local process supervision, not a hosted service. A
+daemon is still required for scheduled starts, abrupt supervisor termination
+can leave a run `orphaned`, and graceful process-tree termination differs by
+platform: Unix cancellation starts with `SIGTERM`, while Windows uses the
+available tree-termination facility. `kill` is intentionally forceful.
 
 ## Command Change History
+
+### 2026-07-15 - Observable and controllable agent runs
+
+Added `agents status`, `runs`, `spawn`, `stop`, and `kill`. Runtime discovery
+now distinguishes job definitions, historical runs, live supervisor-owned
+runs, and orphaned records; schedule status reports the next eligible slot.
+Detached supervisors use owner-private locks and atomic control requests rather
+than trusting reusable PIDs. Stop and kill terminate command trees and persist
+the new `cancelled` and `killed` run states in the single current run-record
+contract. Closed JSON schemas cover the management command outputs.
+Source anchors: `packages/cli/cmd/openknowledge/agents_command.go`,
+`packages/cli/internal/agents/management.go`,
+`packages/cli/internal/agents/control.go`,
+`packages/cli/internal/agents/runner.go`,
+`packages/cli/internal/agents/management_test.go`, and
+`packages/cli/schemas/v1/agent-{status,runs,spawn,control}.schema.json`.
 
 ### 2026-07-15 - Failure-isolated agent daemon passes
 
@@ -479,5 +668,6 @@ executors, writes run records, and runs verification commands.
 >
 > **Update notes**
 >
-> Update this page when agent job fields, executor behavior, scheduler
-> behavior, run artifact layout, or command flags change.
+> Update this page when agent job fields, executor behavior, scheduler or
+> supervisor behavior, run artifact layout, lifecycle states, or command flags
+> change.

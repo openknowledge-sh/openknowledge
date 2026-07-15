@@ -12,15 +12,22 @@ Open Knowledge CLI exposes versioned JSON contracts for automation, MCP tools,
 editors, CI, and other knowledge-base ecosystem integrations. Every covered
 top-level object declares `schemaVersion: "1"`; the independent `specVersion`
 field identifies the selected Open Knowledge Format revision where applicable.
+The experimental agent contracts currently have one schema only and may change
+in place before the CLI reaches 1.0.
 
 ## Covered Outputs
 
 | Schema | CLI surface |
 | --- | --- |
 | `agent-list.schema.json` | `openknowledge agents list --json` |
+| `agent-status.schema.json` | `openknowledge agents status --json` |
+| `agent-runs.schema.json` | `openknowledge agents runs --json` |
+| `agent-spawn.schema.json` | `openknowledge agents spawn --json` |
+| `agent-control.schema.json` | `openknowledge agents stop|kill --json` |
+| `agent-run-summary.schema.json` | Shared privacy-minimized run summary for management outputs |
 | `agent-validation.schema.json` | `openknowledge agents validate --json` |
 | `agent-run-plan.schema.json` | `openknowledge agents run --dry-run` and persisted `plan.json` |
-| `agent-run-record.schema.json` | Persisted agent `run.json` lifecycle records |
+| `agent-run-record.schema.json` | Persisted agent `run.json` lifecycle records, including `cancelled` and `killed` |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
@@ -88,7 +95,7 @@ immediate warning display matters.
 
 ## Public Schema URLs
 
-The canonical Draft 2020-12 schemas live under
+The current Draft 2020-12 CLI output schemas live under
 `packages/cli/schemas/v1/`. The production website build copies them to
 `/schemas/cli/v1/`, so each declared identifier is also its fetchable public
 location. For example:
@@ -136,8 +143,11 @@ decoding.
 
 Version 1 permits additive fields that preserve existing field meanings and
 types. Removing a field, changing a type, narrowing accepted values in a way
-that rejects valid v1 output, or changing semantics incompatibly requires a
-new schema-version directory and a new `schemaVersion` value.
+that rejects valid output, or changing semantics incompatibly normally
+requires a new schema-version directory and `schemaVersion` value. The
+pre-1.0 experimental agent command surface is explicitly exempt: its job,
+plan, run-record, and management contracts may change in place until the
+feature is stabilized.
 
 Schemas are closed at defined object boundaries with
 `additionalProperties: false`. Integrations can therefore distinguish a
@@ -171,15 +181,22 @@ Golden fixtures remain useful for detecting exact serialized changes; schema
 validation adds semantic coverage for non-empty and nested output that an
 empty snapshot cannot provide by itself.
 
-## Source Anchors
+---
 
-* `packages/cli/schemas/v1/`
-* `packages/cli/schemas/manifest/v1/`
-* `packages/cli/schemas/storage/v1/`
-* `packages/cli/internal/okf/schema_contract_test.go`
-* `packages/cli/internal/okf/machine_contract_test.go`
-* `packages/cli/internal/agents/schema_contract_test.go`
-* `packages/cli/go.mod`
-* `packages/web/scripts/schema-distribution.mjs`
-* `packages/web/scripts/schema-distribution.test.mjs`
-* `packages/web/scripts/build.mjs`
+<!-- okf-footer: agent-maintenance -->
+
+> **Source anchors**
+>
+> * `packages/cli/schemas/`
+> * `packages/cli/internal/okf/schema_contract_test.go`
+> * `packages/cli/internal/okf/machine_contract_test.go`
+> * `packages/cli/internal/agents/schema_contract_test.go`
+> * `packages/cli/go.mod`
+> * `packages/web/scripts/schema-distribution.mjs`
+> * `packages/web/scripts/schema-distribution.test.mjs`
+> * `packages/web/scripts/build.mjs`
+>
+> **Update notes**
+>
+> Update this page when a published machine schema, version domain, runtime
+> encoder, fixture, or distribution route changes.
