@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1",
+  "path": "/workspace/docs/.openknowledge/agents/jobs",
+  "generated_at": "2026-07-15T10:00:00Z",
+  "jobs": [
+    {
+      "id": "docs-audit",
+      "enabled": true,
+      "path": "/workspace/docs/.openknowledge/agents/jobs/docs-audit.md",
+      "repo_root": "/workspace/docs",
+      "schedule": {"every": "1h", "timezone": "UTC"},
+      "next_eligible_at": "2026-07-15T11:00:00Z",
+      "last_run": null,
+      "active_runs": []
+    }
+  ],
+  "issues": []
+}

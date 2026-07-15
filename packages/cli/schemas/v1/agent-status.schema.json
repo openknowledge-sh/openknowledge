@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-status.schema.json",
+  "title": "Open Knowledge agent status report v1",
+  "type": "object",
+  "required": ["schemaVersion", "path", "generated_at", "jobs", "issues"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "path": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "enabled", "path", "repo_root", "schedule", "next_eligible_at", "last_run", "active_runs"],
+        "properties": {
+          "id": {"type": "string"},
+          "enabled": {"type": "boolean"},
+          "path": {"type": "string"},
+          "repo_root": {"type": "string"},
+          "schedule": {
+            "type": "object",
+            "properties": {
+              "cron": {"type": "string"},
+              "every": {"type": "string"},
+              "timezone": {"type": "string"}
+            },
+            "additionalProperties": false
+          },
+          "next_eligible_at": {"type": ["string", "null"], "format": "date-time"},
+          "last_run": {"anyOf": [{"$ref": "agent-run-summary.schema.json"}, {"type": "null"}]},
+          "active_runs": {"type": "array", "items": {"$ref": "agent-run-summary.schema.json"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "issues": {"type": "array", "items": {"$ref": "#/$defs/issue"}}
+  },
+  "$defs": {
+    "issue": {
+      "type": "object",
+      "required": ["path", "error"],
+      "properties": {"path": {"type": "string"}, "error": {"type": "string"}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

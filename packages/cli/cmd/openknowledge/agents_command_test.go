@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -196,6 +197,11 @@ func TestAgentsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
 	}{
 		{subcommand: "new", expected: "openknowledge agents new --reference"},
 		{subcommand: "list", expected: "openknowledge agents list [path]"},
+		{subcommand: "status", expected: "openknowledge agents status [jobs-dir]"},
+		{subcommand: "runs", expected: "openknowledge agents runs [repo]"},
+		{subcommand: "spawn", expected: "openknowledge agents spawn <job.md>"},
+		{subcommand: "stop", expected: "openknowledge agents stop <run-id>"},
+		{subcommand: "kill", expected: "openknowledge agents kill <run-id>"},
 		{subcommand: "validate", expected: "openknowledge agents validate <job-or-dir>"},
 		{subcommand: "run", expected: "openknowledge agents run <job.md> --at <time>"},
 		{subcommand: "daemon", expected: "openknowledge agents daemon [jobs-dir] --tick <duration>"},
@@ -216,6 +222,86 @@ func TestAgentsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
 				t.Fatalf("expected specific subcommand help, got group help:\n%s", output)
 			}
 		})
+	}
+}
+
+func TestAgentsSpawnStatusRunsAndTerminalControl(t *testing.T) {
+	root := newAgentTestRepo(t)
+	jobPath := writeAgentJob(t, root, `---
+id: managed-docs
+enabled: true
+schedule: {every: 1h, timezone: UTC}
+agent: {command: git, args: [--version]}
+workspace: {repo: ".", base: HEAD}
+concurrency: {key: managed-docs}
+---
+Inspect docs.
+`)
+	runGit(t, root, "add", ".openknowledge/agents/jobs/docs.md")
+	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "agent job")
+	stateDir := filepath.Join(t.TempDir(), "state")
+	t.Setenv(agents.AgentsStateDirEnv, stateDir)
+	originalStarter := startDetachedAgentProcess
+	startDetachedAgentProcess = func(_ string, args []string, _ []string) (int, error) {
+		if len(args) < 5 || args[0] != "agents" || args[1] != "run" || args[3] != "--at" {
+			t.Fatalf("unexpected detached arguments: %#v", args)
+		}
+		job, err := agents.ParseJobFile(args[2])
+		if err != nil {
+			return 0, err
+		}
+		scheduledAt, err := time.Parse(time.RFC3339Nano, args[4])
+		if err != nil {
+			return 0, err
+		}
+		go func() {
+			_, _ = agents.RunJob(job, agents.RunOptions{ScheduledAt: scheduledAt, Stdout: io.Discard, Stderr: io.Discard})
+		}()
+		return 4242, nil
+	}
+	t.Cleanup(func() { startDetachedAgentProcess = originalStarter })
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runAgents([]string{"spawn", jobPath, "--at", "2026-07-15T10:00:00Z", "--json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected detached spawn to succeed, code=%d\nstdout=%s\nstderr=%s", code, output, stderr)
+	}
+	var spawned agentSpawnOutput
+	if err := json.Unmarshal([]byte(output), &spawned); err != nil || spawned.SupervisorPID != 4242 || spawned.Run.JobID != "managed-docs" {
+		t.Fatalf("unexpected spawn output: %#v err=%v", spawned, err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for !agents.IsTerminalRunStatus(spawned.Run.Status) && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		spawned.Run, _ = agents.GetRunSummary(root, spawned.Run.RunID)
+	}
+	if spawned.Run.Status != "succeeded" {
+		t.Fatalf("expected spawned run to succeed, got %#v", spawned.Run)
+	}
+
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runAgents([]string{"runs", root, "--json"})
+	})
+	var history agentRunsOutput
+	if code != 0 || stderr != "" || json.Unmarshal([]byte(output), &history) != nil || len(history.Runs) != 1 || history.Runs[0].Status != "succeeded" {
+		t.Fatalf("unexpected run history: code=%d output=%s stderr=%s parsed=%#v", code, output, stderr, history)
+	}
+
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runAgents([]string{"status", filepath.Dir(jobPath), "--json"})
+	})
+	var status agentStatusOutput
+	if code != 0 || stderr != "" || json.Unmarshal([]byte(output), &status) != nil || len(status.Jobs) != 1 || status.Jobs[0].LastRun == nil || status.Jobs[0].NextEligibleAt == nil {
+		t.Fatalf("unexpected agent status: code=%d output=%s stderr=%s parsed=%#v", code, output, stderr, status)
+	}
+
+	output, stderr, code = captureMainOutput(t, func() int {
+		return runAgents([]string{"stop", spawned.Run.RunID, "--repo", root, "--json"})
+	})
+	var controlled agentControlOutput
+	if code != 0 || stderr != "" || json.Unmarshal([]byte(output), &controlled) != nil || controlled.Run.Status != "succeeded" {
+		t.Fatalf("terminal control should be idempotent: code=%d output=%s stderr=%s parsed=%#v", code, output, stderr, controlled)
 	}
 }
 

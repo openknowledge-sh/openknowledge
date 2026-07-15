@@ -29,7 +29,7 @@ func TestTimedOutHostCommandKillsDescendantProcessGroup(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
-	result := runPlanCommand(ctx, plan, command, "timeout", "")
+	result := runPlanCommand(ctx, plan, command, "timeout", "", nil)
 	if !errors.Is(ctx.Err(), context.DeadlineExceeded) || result.ExitCode == 0 {
 		t.Fatalf("expected timed-out command result, ctx=%v result=%#v", ctx.Err(), result)
 	}

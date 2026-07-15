@@ -40,6 +40,37 @@ func DueScheduledAt(job Job, now time.Time) (time.Time, bool, error) {
 	return time.Time{}, false, nil
 }
 
+// NextScheduledAt returns the next eligible schedule slot strictly after now.
+// A daemon still has to be running at that time for the job to execute.
+func NextScheduledAt(job Job, now time.Time) (time.Time, bool, error) {
+	if !job.Enabled {
+		return time.Time{}, false, nil
+	}
+	location := time.Local
+	if job.Schedule.Timezone != "" {
+		loaded, err := time.LoadLocation(job.Schedule.Timezone)
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		location = loaded
+	}
+	localNow := now.In(location)
+	if job.Schedule.Every != "" {
+		duration, err := time.ParseDuration(job.Schedule.Every)
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		if duration <= 0 {
+			return time.Time{}, false, fmt.Errorf("schedule.every must be positive")
+		}
+		return localNow.Truncate(duration).Add(duration), true, nil
+	}
+	if job.Schedule.Cron != "" {
+		return nextCronTime(job.Schedule.Cron, localNow)
+	}
+	return time.Time{}, false, nil
+}
+
 func validateCronExpression(expression string) error {
 	if strings.HasPrefix(expression, "@") {
 		switch expression {
@@ -69,6 +100,22 @@ func previousCronTime(expression string, now time.Time) (time.Time, bool, error)
 	}
 	fields := strings.Fields(expression)
 	for candidate := now; candidate.After(now.AddDate(0, 0, -366)); candidate = candidate.Add(-time.Minute) {
+		if cronMatches(fields, candidate) {
+			return candidate, true, nil
+		}
+	}
+	return time.Time{}, false, nil
+}
+
+func nextCronTime(expression string, now time.Time) (time.Time, bool, error) {
+	expression = expandCronAlias(expression)
+	if err := validateCronExpression(expression); err != nil {
+		return time.Time{}, false, err
+	}
+	fields := strings.Fields(expression)
+	first := now.Truncate(time.Minute).Add(time.Minute)
+	limit := first.AddDate(1, 0, 1)
+	for candidate := first; candidate.Before(limit); candidate = candidate.Add(time.Minute) {
 		if cronMatches(fields, candidate) {
 			return candidate, true, nil
 		}

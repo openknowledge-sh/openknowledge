@@ -474,6 +474,7 @@ func getStringSlice(data map[string]any, key string) []string {
 }
 
 var validJobID = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+var validRunID = regexp.MustCompile(`^[a-f0-9]{24}$`)
 var validEnvironmentName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 var managedAgentEnvironment = map[string]bool{

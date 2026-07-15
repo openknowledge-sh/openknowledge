@@ -192,7 +192,7 @@ func cliErrorCommand(args []string) string {
 	}
 	root := args[0]
 	nested := map[string]map[string]bool{
-		"agents":   {"new": true, "list": true, "validate": true, "run": true, "daemon": true},
+		"agents":   {"new": true, "list": true, "status": true, "runs": true, "spawn": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
 		"registry": {"connect": true, "disconnect": true, "refresh": true, "list": true, "status": true, "where": true},
 		"review":   {"rules": true},
 		"to":       {"html": true, "json": true, "tar": true, "graph": true},
@@ -4777,6 +4777,11 @@ Usage:
   openknowledge agents new <template> --out <file>
   openknowledge agents list [path]
   openknowledge agents list [path] --json
+  openknowledge agents status [jobs-dir]
+  openknowledge agents runs [repo]
+  openknowledge agents spawn <job.md>
+  openknowledge agents stop <run-id>
+  openknowledge agents kill <run-id>
   openknowledge agents validate <job-or-dir>
   openknowledge agents validate <job-or-dir> --json
   openknowledge agents run <job.md> --dry-run
@@ -4842,7 +4847,7 @@ Commands:
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
   review     Print advisory AI review prompts.
-  agents     Experimental: run scheduled local agent jobs from Markdown specs.
+  agents     Experimental: run and manage local agent jobs from Markdown specs.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.
@@ -4873,6 +4878,8 @@ Examples:
   openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md
   openknowledge agents validate .openknowledge/agents/jobs
   openknowledge agents run .openknowledge/agents/jobs/docs.md --dry-run
+  openknowledge agents status .openknowledge/agents/jobs
+  openknowledge agents runs .
   openknowledge setup --rules docs,changelog
   openknowledge new ./project-memory
   openknowledge new --no-agents --no-setup ./source-wiki

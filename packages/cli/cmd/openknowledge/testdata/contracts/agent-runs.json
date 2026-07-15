@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1",
+  "repo_root": "/workspace/docs",
+  "runs": [
+    {
+      "run_id": "0123456789abcdef01234567",
+      "job_id": "docs-audit",
+      "status": "succeeded",
+      "recorded_status": "succeeded",
+      "scheduled_at": "2026-07-15T09:00:00Z",
+      "started_at": "2026-07-15T09:00:01Z",
+      "finished_at": "2026-07-15T09:01:00Z",
+      "branch": "agents/docs-audit/20260715-090000-0123456789abcdef01234567",
+      "worktree": "/state/worktrees/0123456789abcdef01234567",
+      "run_record": "/state/runs/0123456789abcdef01234567/run.json"
+    }
+  ],
+  "issues": []
+}

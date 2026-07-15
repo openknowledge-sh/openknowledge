@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -15,6 +17,8 @@ import (
 )
 
 const defaultAgentsJobsPath = ".openknowledge/agents/jobs"
+
+var startDetachedAgentProcess = agents.StartDetachedProcess
 
 func runAgents(args []string) int {
 	if len(args) == 0 || isHelpFlag(args[0]) {
@@ -27,6 +31,16 @@ func runAgents(args []string) int {
 		return runAgentsNew(args[1:])
 	case "list":
 		return runAgentsList(args[1:])
+	case "status":
+		return runAgentsStatus(args[1:])
+	case "runs":
+		return runAgentsRuns(args[1:])
+	case "spawn":
+		return runAgentsSpawn(args[1:])
+	case "stop":
+		return runAgentsControl(args[1:], "stop")
+	case "kill":
+		return runAgentsControl(args[1:], "kill")
 	case "validate":
 		return runAgentsValidate(args[1:])
 	case "run":
@@ -38,6 +52,289 @@ func runAgents(args []string) int {
 		fmt.Fprint(os.Stderr, agentsHelpText())
 		return 2
 	}
+}
+
+type agentStatusOutput struct {
+	SchemaVersion string             `json:"schemaVersion"`
+	Path          string             `json:"path"`
+	GeneratedAt   time.Time          `json:"generated_at"`
+	Jobs          []agents.JobStatus `json:"jobs"`
+	Issues        []agents.RunIssue  `json:"issues"`
+}
+
+func runAgentsStatus(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, agentsStatusHelpText())
+		return 0
+	}
+	path, jsonOutput, err := parseAgentsInventoryArgs(args, defaultAgentsJobsPath, "status")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	jobs, loadFailures, err := agents.DiscoverJobsLenient(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return printAgentCommandError(err)
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		jobs = []agents.Job{}
+		loadFailures = nil
+	}
+	statuses, issues := agents.BuildJobStatuses(jobs, time.Now())
+	for _, failure := range loadFailures {
+		issues = append(issues, agents.RunIssue{Path: failure.Path, Error: failure.Err.Error()})
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	output := agentStatusOutput{
+		SchemaVersion: okf.MachineSchemaVersion,
+		Path:          absPath,
+		GeneratedAt:   time.Now(),
+		Jobs:          statuses,
+		Issues:        issues,
+	}
+	if jsonOutput {
+		if err := printJSON(output); err != nil {
+			return printAgentCommandError(err)
+		}
+	} else if len(statuses) == 0 {
+		fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
+	} else {
+		fmt.Fprintln(os.Stdout, "JOB\tENABLED\tSCHEDULE\tNEXT_ELIGIBLE\tLAST_RUN\tLAST_STATUS\tACTIVE_RUNS")
+		for _, status := range statuses {
+			next := "-"
+			if status.NextEligibleAt != nil {
+				next = status.NextEligibleAt.Format(time.RFC3339)
+			}
+			lastRun := "-"
+			lastStatus := "-"
+			if status.LastRun != nil {
+				lastRun = status.LastRun.RunID
+				lastStatus = status.LastRun.Status
+			}
+			active := make([]string, 0, len(status.ActiveRuns))
+			for _, run := range status.ActiveRuns {
+				active = append(active, run.RunID)
+			}
+			activeRuns := "-"
+			if len(active) > 0 {
+				activeRuns = strings.Join(active, ",")
+			}
+			fmt.Fprintf(os.Stdout, "%s\t%t\t%s\t%s\t%s\t%s\t%s\n",
+				status.ID, status.Enabled, statusScheduleLabel(status.Schedule), next,
+				lastRun, lastStatus, activeRuns)
+		}
+	}
+	for _, issue := range issues {
+		fmt.Fprintf(os.Stderr, "agent status issue at %s: %s\n", issue.Path, issue.Error)
+	}
+	if len(issues) > 0 {
+		return 1
+	}
+	return 0
+}
+
+type agentRunsOutput struct {
+	SchemaVersion string              `json:"schemaVersion"`
+	RepoRoot      string              `json:"repo_root"`
+	Runs          []agents.RunSummary `json:"runs"`
+	Issues        []agents.RunIssue   `json:"issues"`
+}
+
+func runAgentsRuns(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, agentsRunsHelpText())
+		return 0
+	}
+	options, err := parseAgentsRunsArgs(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	runs, issues, repoRoot, err := agents.ListRuns(options.repo)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	filtered := make([]agents.RunSummary, 0, len(runs))
+	for _, run := range runs {
+		if options.job != "" && run.JobID != options.job {
+			continue
+		}
+		if options.status != "" && run.Status != options.status {
+			continue
+		}
+		filtered = append(filtered, run)
+	}
+	output := agentRunsOutput{SchemaVersion: okf.MachineSchemaVersion, RepoRoot: repoRoot, Runs: filtered, Issues: issues}
+	if options.json {
+		if err := printJSON(output); err != nil {
+			return printAgentCommandError(err)
+		}
+	} else if len(filtered) == 0 {
+		fmt.Fprintf(os.Stdout, "no agent runs found for %s\n", repoRoot)
+	} else {
+		fmt.Fprintln(os.Stdout, "RUN\tJOB\tSTATUS\tPHASE\tSCHEDULED\tSTARTED\tFINISHED")
+		for _, run := range filtered {
+			finished := "-"
+			if run.FinishedAt != nil {
+				finished = run.FinishedAt.Format(time.RFC3339)
+			}
+			phase := run.Phase
+			if phase == "" {
+				phase = "-"
+			}
+			fmt.Fprintf(os.Stdout, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				run.RunID, run.JobID, run.Status, phase, run.ScheduledAt.Format(time.RFC3339),
+				run.StartedAt.Format(time.RFC3339), finished)
+		}
+	}
+	for _, issue := range issues {
+		fmt.Fprintf(os.Stderr, "agent run record issue at %s: %s\n", issue.Path, issue.Error)
+	}
+	if len(issues) > 0 {
+		return 1
+	}
+	return 0
+}
+
+type agentSpawnOutput struct {
+	SchemaVersion string            `json:"schemaVersion"`
+	SupervisorPID int               `json:"supervisor_pid"`
+	Run           agents.RunSummary `json:"run"`
+}
+
+func runAgentsSpawn(args []string) int {
+	if len(args) == 0 || hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, agentsSpawnHelpText())
+		return 0
+	}
+	options, err := parseAgentsSpawnArgs(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	scheduledAt, err := parseAgentScheduledAt(options.at)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	job, err := agents.ParseJobFile(options.path)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	plan, err := agents.BuildRunPlan(job, scheduledAt, options.executor)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	if _, err := os.Stat(plan.RunDir); err == nil {
+		fmt.Fprintf(os.Stderr, "agent run already exists: %s\n", plan.RunDir)
+		return 1
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return printAgentCommandError(err)
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	childArgs := []string{"agents", "run", options.path, "--at", scheduledAt.Format(time.RFC3339Nano)}
+	if options.executor != "" {
+		childArgs = append(childArgs, "--executor", options.executor)
+	}
+	pid, err := startDetachedAgentProcess(executable, childArgs, os.Environ())
+	if err != nil {
+		return printAgentCommandError(fmt.Errorf("start detached agent supervisor: %w", err))
+	}
+	summary, err := waitForAgentRun(plan.RepoRoot, plan.RunID, 5*time.Second)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "started agent supervisor %d but its run record was not ready: %v\n", pid, err)
+		return 1
+	}
+	output := agentSpawnOutput{SchemaVersion: okf.MachineSchemaVersion, SupervisorPID: pid, Run: summary}
+	if options.json {
+		if err := printJSON(output); err != nil {
+			return printAgentCommandError(err)
+		}
+	} else {
+		fmt.Fprintf(os.Stdout, "agent run %s %s\n", summary.RunID, summary.Status)
+		fmt.Fprintf(os.Stdout, "supervisor: %d\n", pid)
+		fmt.Fprintf(os.Stdout, "run: %s\n", summary.RunRecord)
+	}
+	if agents.IsTerminalRunStatus(summary.Status) && summary.Status != "succeeded" {
+		return 1
+	}
+	return 0
+}
+
+func waitForAgentRun(repoRoot string, runID string, wait time.Duration) (agents.RunSummary, error) {
+	deadline := time.Now().Add(wait)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		summary, err := agents.GetRunSummary(repoRoot, runID)
+		if err == nil {
+			return summary, nil
+		}
+		lastErr = err
+		time.Sleep(50 * time.Millisecond)
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("run record did not appear")
+	}
+	return agents.RunSummary{}, lastErr
+}
+
+type agentControlOutput struct {
+	SchemaVersion string            `json:"schemaVersion"`
+	Action        string            `json:"action"`
+	Run           agents.RunSummary `json:"run"`
+}
+
+func runAgentsControl(args []string, action string) int {
+	if len(args) == 0 || hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, agentsControlHelpText(action))
+		return 0
+	}
+	options, err := parseAgentsControlArgs(args, action)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	summary, err := agents.GetRunSummary(options.repo, options.runID)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	if !agents.IsTerminalRunStatus(summary.Status) {
+		if summary.Status == "orphaned" {
+			return printAgentCommandError(fmt.Errorf("%w: %s", agents.ErrRunOrphaned, options.runID))
+		}
+		runDir, err := agents.RunDirectory(options.repo, options.runID)
+		if err != nil {
+			return printAgentCommandError(err)
+		}
+		if err := agents.RequestRunAction(runDir, action, options.wait); err != nil {
+			latest, readErr := agents.GetRunSummary(options.repo, options.runID)
+			if readErr == nil && agents.IsTerminalRunStatus(latest.Status) {
+				summary = latest
+			} else {
+				return printAgentCommandError(err)
+			}
+		} else {
+			summary, err = agents.GetRunSummary(options.repo, options.runID)
+			if err != nil {
+				return printAgentCommandError(err)
+			}
+		}
+	}
+	output := agentControlOutput{SchemaVersion: okf.MachineSchemaVersion, Action: action, Run: summary}
+	if options.json {
+		if err := printJSON(output); err != nil {
+			return printAgentCommandError(err)
+		}
+	} else {
+		fmt.Fprintf(os.Stdout, "agent run %s %s\n", summary.RunID, summary.Status)
+	}
+	return 0
 }
 
 func runAgentsNew(args []string) int {
@@ -299,7 +596,10 @@ func runAgentsRun(args []string) int {
 	if err != nil {
 		return printAgentCommandError(err)
 	}
+	runContext, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	record, err := agents.RunJob(job, agents.RunOptions{
+		Context:     runContext,
 		Executor:    options.executor,
 		DryRun:      options.dryRun,
 		ScheduledAt: scheduledAt,
@@ -356,6 +656,173 @@ type agentsRunCLIOptions struct {
 	dryRun   bool
 	at       string
 	executor string
+}
+
+type agentsSpawnCLIOptions struct {
+	path     string
+	at       string
+	executor string
+	json     bool
+}
+
+type agentsRunsCLIOptions struct {
+	repo   string
+	job    string
+	status string
+	json   bool
+}
+
+type agentsControlCLIOptions struct {
+	runID string
+	repo  string
+	wait  time.Duration
+	json  bool
+}
+
+func parseAgentsInventoryArgs(args []string, defaultPath string, command string) (string, bool, error) {
+	jsonOutput := false
+	positionals := make([]string, 0, 1)
+	for _, arg := range args {
+		switch {
+		case arg == "--json":
+			jsonOutput = true
+		case strings.HasPrefix(arg, "-"):
+			return "", false, fmt.Errorf("unknown agents %s option: %s", command, arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) > 1 {
+		return "", false, fmt.Errorf("agents %s accepts at most one path", command)
+	}
+	if len(positionals) == 1 {
+		defaultPath = positionals[0]
+	}
+	return defaultPath, jsonOutput, nil
+}
+
+func parseAgentsRunsArgs(args []string) (agentsRunsCLIOptions, error) {
+	options := agentsRunsCLIOptions{repo: "."}
+	positionals := make([]string, 0, 1)
+	jobSet := false
+	statusSet := false
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--json":
+			options.json = true
+		case arg == "--job" || arg == "--status":
+			value, next, err := nextFlagValue(args, index, arg)
+			if err != nil {
+				return options, err
+			}
+			if arg == "--job" {
+				options.job = value
+				jobSet = true
+			} else {
+				options.status = value
+				statusSet = true
+			}
+			index = next
+		case strings.HasPrefix(arg, "--job="):
+			options.job = strings.TrimPrefix(arg, "--job=")
+			jobSet = true
+		case strings.HasPrefix(arg, "--status="):
+			options.status = strings.TrimPrefix(arg, "--status=")
+			statusSet = true
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown agents runs option: %s", arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) > 1 {
+		return options, fmt.Errorf("agents runs accepts at most one repository path")
+	}
+	if len(positionals) == 1 {
+		options.repo = positionals[0]
+	}
+	if jobSet && strings.TrimSpace(options.job) == "" {
+		return options, fmt.Errorf("--job requires a value")
+	}
+	if statusSet && strings.TrimSpace(options.status) == "" {
+		return options, fmt.Errorf("--status requires a value")
+	}
+	return options, nil
+}
+
+func parseAgentsSpawnArgs(args []string) (agentsSpawnCLIOptions, error) {
+	var options agentsSpawnCLIOptions
+	runArgs := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == "--json" {
+			options.json = true
+			continue
+		}
+		runArgs = append(runArgs, arg)
+	}
+	parsed, err := parseAgentsRunArgs(runArgs)
+	if err != nil {
+		return options, errors.New(strings.Replace(err.Error(), "agents run", "agents spawn", 1))
+	}
+	if parsed.dryRun {
+		return options, fmt.Errorf("agents spawn does not support --dry-run")
+	}
+	options.path = parsed.path
+	options.at = parsed.at
+	options.executor = parsed.executor
+	return options, nil
+}
+
+func parseAgentsControlArgs(args []string, action string) (agentsControlCLIOptions, error) {
+	defaultWait := 10 * time.Second
+	if action == "kill" {
+		defaultWait = 5 * time.Second
+	}
+	options := agentsControlCLIOptions{repo: ".", wait: defaultWait}
+	positionals := make([]string, 0, 1)
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--json":
+			options.json = true
+		case arg == "--repo" || arg == "--wait":
+			value, next, err := nextFlagValue(args, index, arg)
+			if err != nil {
+				return options, err
+			}
+			if arg == "--repo" {
+				options.repo = value
+			} else {
+				parsed, err := time.ParseDuration(value)
+				if err != nil || parsed < 0 {
+					return options, fmt.Errorf("--wait must be a non-negative Go duration")
+				}
+				options.wait = parsed
+			}
+			index = next
+		case strings.HasPrefix(arg, "--repo="):
+			options.repo = strings.TrimPrefix(arg, "--repo=")
+			if strings.TrimSpace(options.repo) == "" {
+				return options, fmt.Errorf("--repo requires a value")
+			}
+		case strings.HasPrefix(arg, "--wait="):
+			parsed, err := time.ParseDuration(strings.TrimPrefix(arg, "--wait="))
+			if err != nil || parsed < 0 {
+				return options, fmt.Errorf("--wait must be a non-negative Go duration")
+			}
+			options.wait = parsed
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown agents %s option: %s", action, arg)
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if len(positionals) != 1 {
+		return options, fmt.Errorf("agents %s requires exactly one run id", action)
+	}
+	options.runID = positionals[0]
+	return options, nil
 }
 
 type agentsNewCLIOptions struct {
@@ -640,14 +1107,25 @@ func printAgentCommandError(err error) int {
 }
 
 func scheduleLabel(job agents.Job) string {
+	return statusScheduleLabel(job.Schedule)
+}
+
+func statusScheduleLabel(schedule agents.ScheduleSpec) string {
 	switch {
-	case job.Schedule.Cron != "":
-		return "cron=" + job.Schedule.Cron
-	case job.Schedule.Every != "":
-		return "every=" + job.Schedule.Every
+	case schedule.Cron != "":
+		return "cron=" + schedule.Cron
+	case schedule.Every != "":
+		return "every=" + schedule.Every
 	default:
 		return "manual"
 	}
+}
+
+func printJSON(value any) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(value)
 }
 
 func agentsHelpText() string {
@@ -664,6 +1142,11 @@ Usage:
   openknowledge agents new <template>
   openknowledge agents new <template> --out <file>
   openknowledge agents list [path]
+  openknowledge agents status [jobs-dir]
+  openknowledge agents runs [repo]
+  openknowledge agents spawn <job.md>
+  openknowledge agents stop <run-id>
+  openknowledge agents kill <run-id>
   openknowledge agents validate <job-or-dir>
   openknowledge agents run <job.md>
   openknowledge agents run <job.md> --dry-run
@@ -674,6 +1157,11 @@ Usage:
 Subcommands:
   new        List, print, or write built-in job templates.
   list       List job specs.
+  status     Show schedules, next eligible slots, and active/latest runs.
+  runs       List current and historical runs for a repository.
+  spawn      Start one job in a detached supervisor.
+  stop       Request cancellation of a live run.
+  kill       Force cancellation of a live run's command process tree.
   validate   Parse and schema-check job specs.
   run        Create a Git worktree and run one job now.
   daemon     Poll scheduled jobs and run due jobs.
@@ -681,6 +1169,79 @@ Subcommands:
 Default jobs directory:
   .openknowledge/agents/jobs
 `
+}
+
+func agentsStatusHelpText() string {
+	return `openknowledge agents status
+
+Show schedules, next eligible slots, and active/latest runs for agent jobs.
+
+Usage:
+  openknowledge agents status [jobs-dir]
+  openknowledge agents status [jobs-dir] --json
+
+The next eligible time is a scheduling slot, not a guarantee that a run will
+start. Scheduled jobs run only while an agents daemon is active.
+`
+}
+
+func agentsRunsHelpText() string {
+	return `openknowledge agents runs
+
+List current and historical agent runs for a Git repository.
+
+Usage:
+  openknowledge agents runs [repo]
+  openknowledge agents runs [repo] --job <id>
+  openknowledge agents runs [repo] --status <status>
+  openknowledge agents runs [repo] --json
+
+Runs are ordered newest first. A persisted running record without a live
+supervisor is reported as orphaned.
+`
+}
+
+func agentsSpawnHelpText() string {
+	return `openknowledge agents spawn
+
+Start one agent job in a detached supervisor and return after it is observable.
+
+Usage:
+  openknowledge agents spawn <job.md>
+  openknowledge agents spawn <job.md> --at <time>
+  openknowledge agents spawn <job.md> --executor host|docker
+  openknowledge agents spawn <job.md> --json
+
+Flags:
+  --at         Scheduled time used for the deterministic run ID.
+  --executor   Override sandbox.type with host or docker.
+  --json       Print a schemaVersion 1 spawn result.
+`
+}
+
+func agentsControlHelpText(action string) string {
+	description := "Request cancellation from the live run supervisor."
+	defaultWait := "10s"
+	if action == "kill" {
+		description = "Force cancellation of the live run's current command process tree."
+		defaultWait = "5s"
+	}
+	return fmt.Sprintf(`openknowledge agents %s
+
+%s
+
+Usage:
+  openknowledge agents %s <run-id>
+  openknowledge agents %s <run-id> --repo <path>
+  openknowledge agents %s <run-id> --wait <duration>
+  openknowledge agents %s <run-id> --json
+
+Flags:
+  --repo       Git repository that owns the run. Defaults to the current repo.
+  --wait       Time to wait for terminal state. Defaults to %s; 0 returns after
+               writing the supervisor request.
+  --json       Print a schemaVersion 1 control result.
+`, action, description, action, action, action, action, defaultWait)
 }
 
 func agentsNewHelpText() string {
@@ -766,8 +1327,8 @@ Flags:
   --executor   Override sandbox.type with host or docker.
 
 Contracts:
-  Dry-run JSON and persisted run.json use the published agent-run-plan and
-  agent-run-record schemas under https://openknowledge.sh/schemas/cli/v1/.
+  Dry-run JSON and persisted run.json use the published schemaVersion 1 agent
+  plan and run-record schemas, including cancelled and killed states.
 `
 }
 

@@ -5,13 +5,13 @@
   "type": "object",
   "required": [
     "schemaVersion", "run_id", "job_id", "status", "scheduled_at",
-    "started_at", "finished_at", "plan", "agent"
+    "started_at", "plan"
   ],
   "properties": {
     "schemaVersion": {"const": "1"},
     "run_id": {"type": "string", "pattern": "^[a-f0-9]{24}$"},
     "job_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
-    "status": {"enum": ["planned", "running", "succeeded", "failed", "verification_failed", "skipped"]},
+    "status": {"enum": ["planned", "running", "succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"]},
     "scheduled_at": {"type": "string", "format": "date-time"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
@@ -22,6 +22,16 @@
     "status_text": {"type": "string"},
     "patch_path": {"type": "string"}
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {"enum": ["succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"]}
+        }
+      },
+      "then": {"required": ["finished_at"]}
+    }
+  ],
   "$defs": {
     "commandResult": {
       "type": "object",

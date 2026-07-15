@@ -12,9 +12,14 @@ the source tree and from the public URL.
 | Schema | CLI output |
 | --- | --- |
 | `agent-list.schema.json` | `openknowledge agents list --json` |
+| `agent-status.schema.json` | `openknowledge agents status --json` |
+| `agent-runs.schema.json` | `openknowledge agents runs --json` |
+| `agent-spawn.schema.json` | `openknowledge agents spawn --json` |
+| `agent-control.schema.json` | `openknowledge agents stop|kill --json` |
+| `agent-run-summary.schema.json` | Shared run summary used by agent management outputs |
 | `agent-validation.schema.json` | `openknowledge agents validate --json` |
 | `agent-run-plan.schema.json` | `openknowledge agents run --dry-run` and persisted `plan.json` |
-| `agent-run-record.schema.json` | Persisted agent `run.json` |
+| `agent-run-record.schema.json` | Persisted agent `run.json`, including cancellation and kill outcomes |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
@@ -32,6 +37,11 @@ Additive fields may be added to v1 outputs. Removing a field, changing its JSON
 type, or changing its meaning incompatibly requires a new schema version and a
 new directory. `specVersion` is independent: it identifies the selected Open
 Knowledge Format version, not the CLI JSON contract.
+
+The pre-1.0 `agents` command group is experimental and exempt from that
+compatibility rule. Its job, plan, run-record, and management schemas are the
+single current contract and may change in place without legacy copies or
+migrations until the feature is stabilized.
 
 The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,

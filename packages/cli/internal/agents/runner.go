@@ -20,6 +20,7 @@ const (
 )
 
 type RunOptions struct {
+	Context     context.Context
 	Executor    string
 	DryRun      bool
 	ScheduledAt time.Time
@@ -34,9 +35,9 @@ type RunRecord struct {
 	Status        string          `json:"status"`
 	ScheduledAt   time.Time       `json:"scheduled_at"`
 	StartedAt     time.Time       `json:"started_at"`
-	FinishedAt    time.Time       `json:"finished_at,omitempty"`
+	FinishedAt    time.Time       `json:"finished_at,omitempty,omitzero"`
 	Plan          RunPlan         `json:"plan"`
-	Agent         CommandResult   `json:"agent,omitempty"`
+	Agent         CommandResult   `json:"agent,omitempty,omitzero"`
 	Verify        []CommandResult `json:"verify,omitempty"`
 	Error         string          `json:"error,omitempty"`
 	StatusText    string          `json:"status_text,omitempty"`
@@ -57,6 +58,9 @@ type CommandResult struct {
 }
 
 func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
+	if options.Context == nil {
+		options.Context = context.Background()
+	}
 	if options.ScheduledAt.IsZero() {
 		options.ScheduledAt = time.Now()
 	}
@@ -93,7 +97,9 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 		}
 	}()
 
-	if err := ensureRunnablePlan(plan, job); err != nil {
+	if _, err := os.Stat(plan.RunDir); err == nil {
+		return RunRecord{}, fmt.Errorf("agent run already exists: %s", plan.RunDir)
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return RunRecord{}, err
 	}
 
@@ -122,6 +128,10 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 	if err := writeRunRecord(plan.RunDir, record); err != nil {
 		return record, err
 	}
+	controller, runContext, err := newRunController(options.Context, plan)
+	if err != nil {
+		return record, err
+	}
 
 	finish := func(status string, runErr error) (RunRecord, error) {
 		record.Status = status
@@ -132,8 +142,16 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 		record.StatusText = worktreeStatus(plan.Worktree)
 		record.PatchPath = filepath.Join(plan.RunDir, "diff.patch")
 		_ = writePatch(plan, record.PatchPath)
-		_ = writeRunRecord(plan.RunDir, record)
+		if err := writeRunRecord(plan.RunDir, record); err != nil && runErr == nil {
+			runErr = err
+		}
+		if err := controller.Close(status); err != nil && runErr == nil {
+			runErr = err
+		}
 		return record, runErr
+	}
+	if err := ensureRunnablePlan(plan, job); err != nil {
+		return finish("failed", err)
 	}
 
 	if err := createWorktree(plan); err != nil {
@@ -148,12 +166,15 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 		}
 		agentTimeout = parsed
 	}
-	agentCtx, cancel := context.WithTimeout(context.Background(), agentTimeout)
-	record.Agent = runPlanCommand(agentCtx, plan, plan.Agent, "agent", plan.Prompt)
+	agentCtx, cancel := context.WithTimeout(runContext, agentTimeout)
+	record.Agent = runPlanCommand(agentCtx, plan, plan.Agent, "agent", plan.Prompt, controller)
 	agentTimedOut := errors.Is(agentCtx.Err(), context.DeadlineExceeded)
 	cancel()
 	if err := writeRunRecord(plan.RunDir, record); err != nil {
-		return record, err
+		return finish("failed", err)
+	}
+	if status, runErr, cancelled := cancelledRunResult(runContext, controller); cancelled {
+		return finish(status, runErr)
 	}
 	if agentTimedOut {
 		return finish("failed", fmt.Errorf("agent command timed out after %s", agentTimeout))
@@ -170,13 +191,16 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 		return finish("failed", fmt.Errorf("invalid verification timeout %q", plan.VerifyTimeout))
 	}
 	for index, command := range plan.Verify {
-		verifyCtx, cancel := context.WithTimeout(context.Background(), verifyTimeout)
-		result := runPlanCommand(verifyCtx, plan, command, fmt.Sprintf("verify-%02d", index+1), "")
+		verifyCtx, cancel := context.WithTimeout(runContext, verifyTimeout)
+		result := runPlanCommand(verifyCtx, plan, command, fmt.Sprintf("verify-%02d", index+1), "", controller)
 		verifyTimedOut := errors.Is(verifyCtx.Err(), context.DeadlineExceeded)
 		cancel()
 		record.Verify = append(record.Verify, result)
 		if err := writeRunRecord(plan.RunDir, record); err != nil {
-			return record, err
+			return finish("failed", err)
+		}
+		if status, runErr, cancelled := cancelledRunResult(runContext, controller); cancelled {
+			return finish(status, runErr)
 		}
 		if verifyTimedOut {
 			return finish("verification_failed", fmt.Errorf("verification command %q timed out after %s", command.Command, verifyTimeout))
@@ -230,9 +254,6 @@ func recordSkippedConcurrency(plan RunPlan, scheduledAt time.Time) (RunRecord, e
 }
 
 func ensureRunnablePlan(plan RunPlan, job Job) error {
-	if _, err := os.Stat(plan.RunDir); err == nil {
-		return fmt.Errorf("agent run already exists: %s", plan.RunDir)
-	}
 	if job.Workspace.DirtyPolicy != "allow" {
 		status, err := gitOutput(plan.RepoRoot, "status", "--porcelain")
 		if err != nil {
@@ -278,7 +299,7 @@ func createWorktree(plan RunPlan) error {
 	return nil
 }
 
-func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefix string, stdin string) CommandResult {
+func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefix string, stdin string, controller *runController) CommandResult {
 	stdoutLog := filepath.Join(plan.RunDir, logPrefix+".stdout.log")
 	stderrLog := filepath.Join(plan.RunDir, logPrefix+".stderr.log")
 	started := time.Now()
@@ -322,7 +343,21 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 	execCommand.Stdin = strings.NewReader(stdin)
 	execCommand.Stdout = stdoutFile
 	execCommand.Stderr = stderrFile
-	err = execCommand.Run()
+	err = execCommand.Start()
+	if err == nil {
+		if controller != nil {
+			if controlErr := controller.setCommand(execCommand, logPrefix); controlErr != nil {
+				_ = forceCommandCancellation(execCommand)
+				waitErr := execCommand.Wait()
+				err = errors.Join(controlErr, waitErr)
+			} else {
+				err = execCommand.Wait()
+			}
+			_ = controller.clearCommand()
+		} else {
+			err = execCommand.Wait()
+		}
+	}
 	result.FinishedAt = time.Now()
 	result.Duration = result.FinishedAt.Sub(started)
 	if execCommand.ProcessState != nil {
@@ -480,7 +515,7 @@ func writeRunRecord(runDir string, record RunRecord) error {
 	if err != nil {
 		return err
 	}
-	return writePrivateArtifact(filepath.Join(runDir, "run.json"), append(data, '\n'))
+	return writePrivateArtifactAtomic(filepath.Join(runDir, "run.json"), append(data, '\n'))
 }
 
 func copyFile(source string, target string) error {
@@ -501,6 +536,55 @@ func writePrivateArtifact(path string, content []byte) error {
 		return err
 	}
 	return file.Close()
+}
+
+func writePrivateArtifactAtomic(path string, content []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), privateRunDirMode); err != nil {
+		return err
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-tmp-")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	cleanup := func() {
+		_ = temporary.Close()
+		_ = os.Remove(temporaryPath)
+	}
+	if err := temporary.Chmod(privateArtifactMode); err != nil {
+		cleanup()
+		return err
+	}
+	if _, err := temporary.Write(content); err != nil {
+		cleanup()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		cleanup()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		_ = os.Remove(temporaryPath)
+		return err
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		_ = os.Remove(temporaryPath)
+		return err
+	}
+	return os.Chmod(path, privateArtifactMode)
+}
+
+func cancelledRunResult(runContext context.Context, controller *runController) (string, error, bool) {
+	switch controller.Action() {
+	case "kill":
+		return "killed", errRunKilled, true
+	case "stop":
+		return "cancelled", errRunStopped, true
+	}
+	if errors.Is(runContext.Err(), context.Canceled) {
+		return "cancelled", context.Cause(runContext), true
+	}
+	return "", nil, false
 }
 
 func createPrivateArtifact(path string) (*os.File, error) {

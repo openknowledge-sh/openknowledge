@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-spawn.schema.json",
+  "title": "Open Knowledge detached agent spawn result v1",
+  "type": "object",
+  "required": ["schemaVersion", "supervisor_pid", "run"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "supervisor_pid": {"type": "integer", "minimum": 1},
+    "run": {"$ref": "agent-run-summary.schema.json"}
+  },
+  "additionalProperties": false
+}

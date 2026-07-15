@@ -61,10 +61,9 @@ Inspect the repository.
 
 func compileAgentArtifactSchemas(t *testing.T) map[string]*jsonschema.Schema {
 	t.Helper()
-	root := filepath.Join("..", "..", "schemas", "v1")
 	paths := []string{
-		filepath.Join(root, "agent-run-plan.schema.json"),
-		filepath.Join(root, "agent-run-record.schema.json"),
+		filepath.Join("..", "..", "schemas", "v1", "agent-run-plan.schema.json"),
+		filepath.Join("..", "..", "schemas", "v1", "agent-run-record.schema.json"),
 	}
 	compiler := jsonschema.NewCompiler()
 	compiler.DefaultDraft(jsonschema.Draft2020)

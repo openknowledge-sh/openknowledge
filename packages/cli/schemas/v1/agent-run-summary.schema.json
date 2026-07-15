@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-run-summary.schema.json",
+  "title": "Open Knowledge agent run summary v1",
+  "type": "object",
+  "required": [
+    "run_id", "job_id", "status", "recorded_status", "scheduled_at",
+    "started_at", "finished_at", "branch", "worktree", "run_record"
+  ],
+  "properties": {
+    "run_id": {"type": "string", "pattern": "^[a-f0-9]{24}$"},
+    "job_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "status": {
+      "enum": [
+        "planned", "running", "stopping", "killing", "orphaned",
+        "succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"
+      ]
+    },
+    "recorded_status": {
+      "enum": ["planned", "running", "succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"]
+    },
+    "scheduled_at": {"type": "string", "format": "date-time"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": ["string", "null"], "format": "date-time"},
+    "branch": {"type": "string"},
+    "worktree": {"type": "string"},
+    "run_record": {"type": "string"},
+    "phase": {"type": "string"}
+  },
+  "additionalProperties": false
+}
