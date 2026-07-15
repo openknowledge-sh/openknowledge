@@ -14,6 +14,19 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Pull request quality gate
+
+* Added a dedicated GitHub Actions CI workflow for pull requests, pushes to
+  `main`, and manual verification; previously the full repository checks ran
+  only in deployment and release workflows.
+* Added read-only permissions, superseded-run cancellation, and a 20-minute job
+  timeout.
+* Made CI verify frozen dependencies, tidy Go modules, aligned package versions,
+  the full Go test suite, `go vet`, CLI and website builds, Wiki validation with
+  the newly built binary, and a clean generated-file diff.
+* Source anchor: `.github/workflows/ci.yml`.
+* Docs updated: `Wiki/features/operations.md` and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Atomic managed remote refresh
 
 * Added `openknowledge registry refresh <key|path> [--force]` for managed

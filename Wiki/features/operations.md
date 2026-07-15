@@ -35,6 +35,21 @@ that the root, npm wrapper, web package, and Go CLI fallback versions match.
 `pnpm test` runs that check before the CLI test suite, and `pnpm build` builds
 both the CLI and web package.
 
+## Continuous Integration
+
+`.github/workflows/ci.yml` is the required repository quality gate for pull
+requests and pushes to `main`; it can also be dispatched manually. The workflow
+uses read-only repository permissions, cancels superseded runs for the same PR
+or ref, and has a finite job timeout. It performs a frozen dependency install,
+checks that Go modules are tidy, runs version alignment and the full CLI test
+suite, runs `go vet`, builds the CLI and website, validates `Wiki/` with the
+newly built binary, and fails if those operations leave generated files or
+module metadata out of date.
+
+Configure the GitHub `main` branch protection rule to require the workflow's
+`CI / verify` check before merge. The workflow provides the check; repository
+branch-protection settings remain an administrator-controlled GitHub setting.
+
 ## Project Website
 
 `pnpm build:web` writes the landing page into `packages/web/dist` and then runs
@@ -176,6 +191,7 @@ npm publish --provenance --access public
 > * `pnpm-workspace.yaml`
 > * `.github/workflows/deploy-railway.yml`
 > * `.github/workflows/release.yml`
+> * `.github/workflows/ci.yml`
 > * `.dockerignore`
 > * `Dockerfile`
 > * `.goreleaser.yaml`
@@ -193,6 +209,6 @@ npm publish --provenance --access public
 >
 > **Update notes**
 >
-> When workspace scripts, deployment workflow behavior, release workflow behavior,
-> GoReleaser outputs, npm publish behavior, or local release testing changes,
+> When workspace scripts, CI or deployment workflow behavior, release workflow
+> behavior, GoReleaser outputs, npm publish behavior, or local release testing changes,
 > update this page and [CLI changelog](/changelog/cli.md).
