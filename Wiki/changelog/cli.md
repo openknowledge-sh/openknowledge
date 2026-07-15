@@ -14,6 +14,23 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Content-bound viewer search cache
+
+* Replaced viewer search cache identity based on Markdown size and modification
+  time with a streaming SHA-256 over framed relative paths, declared sizes, and
+  actual file bytes.
+* Same-size content edits with restored timestamps now rebuild the search and
+  tag indexes lazily on the next request instead of retaining stale matches.
+* Fail closed on symbolic links, non-regular Markdown entries, and files that
+  change size while fingerprinting.
+* Added a regression that warms the cache, rewrites a note with equal-length
+  content, restores its original timestamp, and verifies both the new match and
+  removal of the stale term.
+* Source anchors: `packages/cli/cmd/openknowledge/viewer.go` and
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+* Docs updated: `Wiki/features/commands/view.md` and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Registry-wide federated search
 
 * Added `openknowledge search --all <query>` to search every current registry

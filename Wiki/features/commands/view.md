@@ -130,6 +130,11 @@ Press Ctrl+C to stop.
   with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the
   first matching text in the active note panel. This deep-link contract is for
   the local viewer; static HTML exports keep their existing search links.
+* The local search and tag index is reused only while a streaming SHA-256 over
+  every indexed Markdown path and its bytes stays unchanged. The next search
+  request rebuilds the index after an edit even when a tool preserves the
+  file's size and modification time; symbolic links and non-regular Markdown
+  entries fail closed during fingerprinting.
 * Markdown tables keep semantic table markup and are enhanced with scrolling,
   filtering, sorting, and row counts when viewer JavaScript is active.
 * Notes with YAML frontmatter show a collapsed-by-default, per-note collapsible
@@ -207,6 +212,17 @@ Press Ctrl+C to stop.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
 
 ## Command Change History
+
+### 2026-07-15 - Content-bound viewer search cache
+
+Viewer search and tag indexes now use the actual Markdown paths and bytes as
+their cache identity instead of relying on file size and modification time.
+Same-size edits with restored timestamps therefore rebuild lazily on the next
+search request rather than returning stale results. Fingerprinting streams file
+content through SHA-256, rejects symbolic links and non-regular entries, and
+detects files that change size while they are read. Source anchors:
+`packages/cli/cmd/openknowledge/viewer.go` and
+`packages/cli/cmd/openknowledge/viewer_test.go`.
 
 ### 2026-07-15 - Live registry viewer snapshots
 

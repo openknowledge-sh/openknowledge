@@ -1452,6 +1452,50 @@ func TestViewerSearchRefreshesAfterMarkdownChanges(t *testing.T) {
 	}
 }
 
+func TestViewerSearchRefreshesWhenSizeAndMtimeAreUnchanged(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	path := filepath.Join(root, "notes", "mutable.md")
+	before := "---\ntype: Note\ntitle: Mutable\n---\n\n# Mutable\n\nOriginal alphaunique evidence.\n"
+	after := "---\ntype: Note\ntitle: Mutable\n---\n\n# Mutable\n\nUpdated! bravounique evidence.\n"
+	if len(before) != len(after) {
+		t.Fatal("test fixture contents must have identical size")
+	}
+	writeViewerFile(t, root, "notes/mutable.md", before)
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := newViewerHandler(root)
+	initial := getViewerSearch(t, handler, "/api/search?q=alphaunique")
+	if len(initial.Results) != 1 || initial.Results[0].Path != "notes/mutable.md" {
+		t.Fatalf("expected initial cached result, got %#v", initial)
+	}
+	if err := os.WriteFile(path, []byte(after), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	changedInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changedInfo.Size() != info.Size() || !changedInfo.ModTime().Equal(info.ModTime()) {
+		t.Fatalf("fixture must preserve size and mtime: before=%#v after=%#v", info, changedInfo)
+	}
+
+	refreshed := getViewerSearch(t, handler, "/api/search?q=bravounique")
+	if len(refreshed.Results) != 1 || refreshed.Results[0].Path != "notes/mutable.md" {
+		t.Fatalf("expected content fingerprint to refresh search, got %#v", refreshed)
+	}
+	stale := getViewerSearch(t, handler, "/api/search?q=alphaunique")
+	if len(stale.Results) != 0 {
+		t.Fatalf("expected stale term to leave the rebuilt index, got %#v", stale)
+	}
+}
+
 func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n")

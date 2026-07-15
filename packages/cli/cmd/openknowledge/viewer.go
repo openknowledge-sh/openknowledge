@@ -3,13 +3,17 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html"
 	"html/template"
+	"io"
 	"io/fs"
 	"mime"
 	"net"
@@ -1187,7 +1191,7 @@ func viewerTagIndex(root string, files []okf.BundleFile) (map[string][]okf.Bundl
 }
 
 func markdownFingerprint(root string) (string, error) {
-	var builder strings.Builder
+	hash := sha256.New()
 	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -1201,26 +1205,45 @@ func markdownFingerprint(root string) (string, error) {
 		if !isMarkdownFile(current) {
 			return nil
 		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symbolic links are not supported in viewer search: %s", current)
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported viewer search entry: %s", current)
 		}
 		rel, err := filepath.Rel(root, current)
 		if err != nil {
 			return err
 		}
-		builder.WriteString(filepath.ToSlash(rel))
-		builder.WriteByte('\x00')
-		builder.WriteString(strconv.FormatInt(info.Size(), 10))
-		builder.WriteByte('\x00')
-		builder.WriteString(strconv.FormatInt(info.ModTime().UnixNano(), 10))
-		builder.WriteByte('\n')
+		rel = filepath.ToSlash(rel)
+		_ = binary.Write(hash, binary.BigEndian, uint64(len(rel)))
+		_, _ = io.WriteString(hash, rel)
+		_ = binary.Write(hash, binary.BigEndian, uint64(info.Size()))
+		file, err := os.Open(current)
+		if err != nil {
+			return err
+		}
+		written, copyErr := io.Copy(hash, file)
+		closeErr := file.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if written != info.Size() {
+			return fmt.Errorf("viewer search file changed while hashing: %s", current)
+		}
 		return nil
 	})
 	if err != nil {
 		return "", err
 	}
-	return builder.String(), nil
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func renderViewerSearch(response http.ResponseWriter, request *http.Request, searchCache *viewerSearchCache, linkPrefix string) {
