@@ -17,6 +17,8 @@ field identifies the selected Open Knowledge Format revision where applicable.
 
 | Schema | CLI surface |
 | --- | --- |
+| `agent-run-plan.schema.json` | `openknowledge agents run --dry-run` and persisted `plan.json` |
+| `agent-run-record.schema.json` | Persisted agent `run.json` lifecycle records |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
 | `graph.schema.json` | `openknowledge to graph`, including source and search graph types |
@@ -96,7 +98,8 @@ bundle, list, link, and issue shapes are explicit rather than open-ended.
   2020-12 with all `$id` resources registered
   locally, so tests never depend on the network
 * validates every golden JSON fixture and representative non-empty output from
-  the real AST, bundle, graph, list, search, context, and validation builders
+  the real agent plan/run, AST, bundle, graph, list, search, context, and
+  validation builders
 * mutates top-level and nested objects with undeclared fields and requires the
   corresponding schema to reject them
 * validates a runtime-produced portable manifest and rejects invalid identity,
@@ -120,6 +123,7 @@ empty snapshot cannot provide by itself.
 * `packages/cli/schemas/storage/v1/`
 * `packages/cli/internal/okf/schema_contract_test.go`
 * `packages/cli/internal/okf/machine_contract_test.go`
+* `packages/cli/internal/agents/schema_contract_test.go`
 * `packages/cli/go.mod`
 * `packages/web/scripts/schema-distribution.mjs`
 * `packages/web/scripts/schema-distribution.test.mjs`

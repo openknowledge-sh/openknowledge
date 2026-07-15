@@ -167,6 +167,8 @@ job schema without running an agent or touching Git worktrees.
 `agents run --dry-run` resolves the job into a JSON run plan. The plan includes
 the stable run id, repository root, base SHA, branch name, worktree path,
 prompt, executor, verification commands, and normalized concurrency policy.
+It declares `schemaVersion: "1"` and satisfies the published
+`agent-run-plan.schema.json` contract.
 
 Before a non-dry run mutates the repository, a job with `concurrency.key`
 attempts an owner-private advisory lock under the external agent state root.
@@ -239,6 +241,16 @@ environment defaults. Environment values are not serialized into `job.md`,
 `plan.json`, or `run.json`. Managed home/temp names, malformed names, and
 case-insensitive duplicates are rejected.
 
+Dry-run output and every persisted `plan.json` use the same versioned plan
+contract. Persisted `run.json` declares its own `schemaVersion: "1"` and embeds
+that complete plan while adding lifecycle status, timings, command results,
+logs, failures, and patch identity. Both Draft 2020-12 schemas are closed with
+`additionalProperties: false`, have checked golden fixtures, are validated
+against runtime-built artifacts, and are published at
+`https://openknowledge.sh/schemas/cli/v1/agent-run-{plan,record}.schema.json`.
+Job frontmatter remains experimental, but incompatible serialized plan or run
+record changes now require a new machine schema version.
+
 `agents daemon` loads job specs, evaluates due schedules, skips already
 recorded run ids, and runs due jobs. `--once` performs one scheduling pass and
 exits. Without `--once`, the daemon polls using `--tick`, defaulting to `1m`.
@@ -258,10 +270,24 @@ usage instead of the command-group overview.
 
 `openknowledge agents` is not a stable automation API yet. Keep job specs close
 to the repository that owns them, review generated templates before running
-them, and expect follow-up changes to the schema or daemon behavior while this
-feature is marked experimental.
+them, and expect follow-up changes to the job schema or daemon behavior while
+this feature is marked experimental. The separately versioned plan and run
+record JSON contracts follow the machine-contract compatibility policy.
 
 ## Command Change History
+
+### 2026-07-15 - Versioned agent artifact contracts
+
+Dry-run plans, persisted `plan.json`, and `run.json` now declare
+`schemaVersion: "1"`. Closed public Draft 2020-12 schemas cover commands,
+sandbox and output capabilities, concurrency, lifecycle states, timings, logs,
+and nested plan identity. Golden fixtures and runtime `BuildRunPlan`/`RunJob`
+validation prevent encoder/schema drift. Source anchors:
+`packages/cli/internal/agents/plan.go`,
+`packages/cli/internal/agents/runner.go`,
+`packages/cli/internal/agents/schema_contract_test.go`,
+`packages/cli/internal/agents/testdata/contracts/`, and
+`packages/cli/schemas/v1/agent-run-{plan,record}.schema.json`.
 
 ### 2026-07-15 - Enforced cross-process agent concurrency
 

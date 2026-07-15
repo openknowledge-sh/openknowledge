@@ -14,6 +14,30 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Versioned agent artifact contracts
+
+* Added `schemaVersion: "1"` to runtime-built agent run plans, dry-run JSON,
+  persisted `plan.json`, and every lifecycle shape of `run.json`.
+* Published closed Draft 2020-12 `agent-run-plan` and `agent-run-record`
+  schemas covering nested commands, sandbox/output capabilities, concurrency,
+  states, timings, logs, failures, and embedded plans.
+* Added golden plan/record fixtures to the shared offline schema suite,
+  including undeclared top-level and nested-field rejection.
+* Added a real Git-backed `BuildRunPlan` and successful `RunJob` contract test
+  that validates serialized runtime artifacts against their public schemas.
+* Extended website schema distribution and machine-contract documentation to
+  include both agent artifact contracts.
+* Source anchors: `packages/cli/internal/agents/plan.go`,
+  `packages/cli/internal/agents/runner.go`,
+  `packages/cli/internal/agents/schema_contract_test.go`,
+  `packages/cli/internal/agents/testdata/contracts/`,
+  `packages/cli/internal/okf/schema_contract_test.go`, and
+  `packages/cli/schemas/v1/agent-run-{plan,record}.schema.json`.
+* Docs updated: `README.md`, command help,
+  `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/commands/agents.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Secret-safe remote source URLs
 
 * Added shared pre-I/O validation for connection, refresh, manifest archive,

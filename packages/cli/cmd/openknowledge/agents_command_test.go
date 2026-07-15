@@ -62,7 +62,7 @@ Audit docs.
 	if code != 0 {
 		t.Fatalf("expected agents run --dry-run to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
-	for _, expected := range []string{`"job_id": "docs-audit"`, `"branch": "agents/docs-audit/20260707-090000-`, `"command": "go"`, `"key": "wiki-maintenance"`, `"policy": "skip"`} {
+	for _, expected := range []string{`"schemaVersion": "1"`, `"job_id": "docs-audit"`, `"branch": "agents/docs-audit/20260707-090000-`, `"command": "go"`, `"key": "wiki-maintenance"`, `"policy": "skip"`} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected dry-run output to include %q:\n%s", expected, output)
 		}
@@ -217,7 +217,7 @@ Print the Go version.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(content), `"status": "succeeded"`) || !strings.Contains(string(content), `"job_id": "go-version"`) {
+	if !strings.Contains(string(content), `"schemaVersion": "1"`) || !strings.Contains(string(content), `"status": "succeeded"`) || !strings.Contains(string(content), `"job_id": "go-version"`) {
 		t.Fatalf("unexpected run record:\n%s", string(content))
 	}
 	if runtime.GOOS != "windows" {

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-run-record.schema.json",
+  "title": "Open Knowledge agent run record v1",
+  "type": "object",
+  "required": [
+    "schemaVersion", "run_id", "job_id", "status", "scheduled_at",
+    "started_at", "finished_at", "plan", "agent"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "run_id": {"type": "string", "pattern": "^[a-f0-9]{24}$"},
+    "job_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "status": {"enum": ["planned", "running", "succeeded", "failed", "verification_failed", "skipped"]},
+    "scheduled_at": {"type": "string", "format": "date-time"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "plan": {"$ref": "agent-run-plan.schema.json"},
+    "agent": {"$ref": "#/$defs/commandResult"},
+    "verify": {"type": "array", "items": {"$ref": "#/$defs/commandResult"}},
+    "error": {"type": "string"},
+    "status_text": {"type": "string"},
+    "patch_path": {"type": "string"}
+  },
+  "$defs": {
+    "commandResult": {
+      "type": "object",
+      "required": ["command", "exit_code", "started_at", "finished_at", "duration"],
+      "properties": {
+        "command": {"type": "string"},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "shell": {"type": "boolean"},
+        "exit_code": {"type": "integer"},
+        "started_at": {"type": "string", "format": "date-time"},
+        "finished_at": {"type": "string", "format": "date-time"},
+        "duration": {"type": "integer", "minimum": 0},
+        "stdout_log": {"type": "string"},
+        "stderr_log": {"type": "string"},
+        "error": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -11,6 +11,8 @@ the source tree and from the public URL.
 
 | Schema | CLI output |
 | --- | --- |
+| `agent-run-plan.schema.json` | `openknowledge agents run --dry-run` and persisted `plan.json` |
+| `agent-run-record.schema.json` | Persisted agent `run.json` |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
 | `graph.schema.json` | `openknowledge to graph` |

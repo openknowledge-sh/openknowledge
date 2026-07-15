@@ -590,10 +590,14 @@ Usage:
   openknowledge agents run --help
 
 Flags:
-  --dry-run    Print the resolved run plan without creating a worktree.
+  --dry-run    Print the schemaVersion 1 run plan without creating a worktree.
   --at         Scheduled time used for the deterministic run ID.
                Accepts RFC3339, YYYY-MM-DD, or YYYY-MM-DD HH:MM.
   --executor   Override sandbox.type with host or docker.
+
+Contracts:
+  Dry-run JSON and persisted run.json use the published agent-run-plan and
+  agent-run-record schemas under https://openknowledge.sh/schemas/cli/v1/.
 `
 }
 

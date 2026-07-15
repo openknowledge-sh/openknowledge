@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 type Command struct {
@@ -19,6 +21,7 @@ type Command struct {
 }
 
 type RunPlan struct {
+	SchemaVersion string      `json:"schemaVersion"`
 	RunID         string      `json:"run_id"`
 	JobID         string      `json:"job_id"`
 	JobFile       string      `json:"job_file"`
@@ -38,6 +41,9 @@ type RunPlan struct {
 	Output        OutputSpec  `json:"output,omitempty"`
 	Concurrency   Concurrency `json:"concurrency,omitempty"`
 }
+
+const RunPlanSchemaID = "https://openknowledge.sh/schemas/cli/v1/agent-run-plan.schema.json"
+const RunRecordSchemaID = "https://openknowledge.sh/schemas/cli/v1/agent-run-record.schema.json"
 
 const AgentsStateDirEnv = "OPENKNOWLEDGE_AGENTS_STATE_DIR"
 
@@ -125,6 +131,7 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 
 	prompt := renderTemplate(job.Prompt, values)
 	return RunPlan{
+		SchemaVersion: okf.MachineSchemaVersion,
 		RunID:         runID,
 		JobID:         job.ID,
 		JobFile:       job.Path,

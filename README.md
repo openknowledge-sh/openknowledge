@@ -348,6 +348,9 @@ Use `openknowledge agents new` to list shipped templates,
 `openknowledge agents run <job.md> --dry-run` to print the resolved run plan.
 Run `openknowledge agents run <job.md>` to create a Git worktree and run the
 configured agent command.
+Agent dry-run plans, persisted `plan.json`, and `run.json` records declare
+`schemaVersion: "1"`; their closed JSON Schemas are published with the other
+CLI machine contracts.
 
 ## Command Reference
 
@@ -452,9 +455,10 @@ and combined or separate issue arrays. Bundle-local `openknowledge.toml` can
 configure lint severities under `[validation.rules]`, and repeatable `--rule`
 flags can override them per run.
 
-Machine-readable AST, normalized bundle, graph, list, registry list/status,
-search, and validation outputs declare `schemaVersion: "1"`. Draft 2020-12 schemas and
-the compatibility policy live in `packages/cli/schemas/v1/`; `specVersion`
+Machine-readable agent plans/records, AST, normalized bundle, graph, list,
+registry list/status, search, and validation outputs declare
+`schemaVersion: "1"`. Draft 2020-12 schemas and the compatibility policy live
+in `packages/cli/schemas/v1/`; `specVersion`
 separately identifies the selected Open Knowledge Format version. Tests compile
 the schemas and validate golden plus representative non-empty outputs, while
 the website publishes them at

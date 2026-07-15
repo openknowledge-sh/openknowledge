@@ -28,18 +28,19 @@ type RunOptions struct {
 }
 
 type RunRecord struct {
-	RunID       string          `json:"run_id"`
-	JobID       string          `json:"job_id"`
-	Status      string          `json:"status"`
-	ScheduledAt time.Time       `json:"scheduled_at"`
-	StartedAt   time.Time       `json:"started_at"`
-	FinishedAt  time.Time       `json:"finished_at,omitempty"`
-	Plan        RunPlan         `json:"plan"`
-	Agent       CommandResult   `json:"agent,omitempty"`
-	Verify      []CommandResult `json:"verify,omitempty"`
-	Error       string          `json:"error,omitempty"`
-	StatusText  string          `json:"status_text,omitempty"`
-	PatchPath   string          `json:"patch_path,omitempty"`
+	SchemaVersion string          `json:"schemaVersion"`
+	RunID         string          `json:"run_id"`
+	JobID         string          `json:"job_id"`
+	Status        string          `json:"status"`
+	ScheduledAt   time.Time       `json:"scheduled_at"`
+	StartedAt     time.Time       `json:"started_at"`
+	FinishedAt    time.Time       `json:"finished_at,omitempty"`
+	Plan          RunPlan         `json:"plan"`
+	Agent         CommandResult   `json:"agent,omitempty"`
+	Verify        []CommandResult `json:"verify,omitempty"`
+	Error         string          `json:"error,omitempty"`
+	StatusText    string          `json:"status_text,omitempty"`
+	PatchPath     string          `json:"patch_path,omitempty"`
 }
 
 type CommandResult struct {
@@ -76,7 +77,7 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 			return RunRecord{}, err
 		}
 		fmt.Fprintln(options.Stdout, string(data))
-		return RunRecord{RunID: plan.RunID, JobID: plan.JobID, Status: "planned", ScheduledAt: options.ScheduledAt, Plan: plan}, nil
+		return RunRecord{SchemaVersion: plan.SchemaVersion, RunID: plan.RunID, JobID: plan.JobID, Status: "planned", ScheduledAt: options.ScheduledAt, Plan: plan}, nil
 	}
 
 	releaseConcurrency, acquired, err := acquireConcurrency(plan)
@@ -97,12 +98,13 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 	}
 
 	record = RunRecord{
-		RunID:       plan.RunID,
-		JobID:       plan.JobID,
-		Status:      "running",
-		ScheduledAt: options.ScheduledAt,
-		StartedAt:   time.Now(),
-		Plan:        plan,
+		SchemaVersion: plan.SchemaVersion,
+		RunID:         plan.RunID,
+		JobID:         plan.JobID,
+		Status:        "running",
+		ScheduledAt:   options.ScheduledAt,
+		StartedAt:     time.Now(),
+		Plan:          plan,
 	}
 	runParent := filepath.Dir(plan.RunDir)
 	if err := os.MkdirAll(runParent, privateRunDirMode); err != nil {
@@ -195,14 +197,15 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 func recordSkippedConcurrency(plan RunPlan, scheduledAt time.Time) (RunRecord, error) {
 	now := time.Now()
 	record := RunRecord{
-		RunID:       plan.RunID,
-		JobID:       plan.JobID,
-		Status:      "skipped",
-		ScheduledAt: scheduledAt,
-		StartedAt:   now,
-		FinishedAt:  now,
-		Plan:        plan,
-		StatusText:  fmt.Sprintf("concurrency key %q is already running", plan.Concurrency.Key),
+		SchemaVersion: plan.SchemaVersion,
+		RunID:         plan.RunID,
+		JobID:         plan.JobID,
+		Status:        "skipped",
+		ScheduledAt:   scheduledAt,
+		StartedAt:     now,
+		FinishedAt:    now,
+		Plan:          plan,
+		StatusText:    fmt.Sprintf("concurrency key %q is already running", plan.Concurrency.Key),
 	}
 	runParent := filepath.Dir(plan.RunDir)
 	if err := os.MkdirAll(runParent, privateRunDirMode); err != nil {

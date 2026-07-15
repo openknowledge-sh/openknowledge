@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-run-plan.schema.json",
+  "title": "Open Knowledge agent run plan v1",
+  "type": "object",
+  "required": [
+    "schemaVersion", "run_id", "job_id", "job_file", "scheduled_at",
+    "repo", "repo_root", "base", "base_sha", "branch", "worktree",
+    "run_dir", "prompt", "agent", "verify_timeout", "sandbox", "output",
+    "concurrency"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "run_id": {"type": "string", "pattern": "^[a-f0-9]{24}$"},
+    "job_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "job_file": {"type": "string"},
+    "scheduled_at": {"type": "string", "format": "date-time"},
+    "repo": {"type": "string"},
+    "repo_root": {"type": "string"},
+    "base": {"type": "string"},
+    "base_sha": {"type": "string", "pattern": "^[a-fA-F0-9]{40,64}$"},
+    "branch": {"type": "string"},
+    "worktree": {"type": "string"},
+    "run_dir": {"type": "string"},
+    "prompt": {"type": "string"},
+    "agent": {"$ref": "#/$defs/command"},
+    "verify": {"type": "array", "items": {"$ref": "#/$defs/command"}},
+    "verify_timeout": {"type": "string", "minLength": 1},
+    "sandbox": {"$ref": "#/$defs/sandbox"},
+    "output": {"$ref": "#/$defs/output"},
+    "concurrency": {"$ref": "#/$defs/concurrency"}
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "command": {"type": "string"},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "shell": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "sandbox": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["host", "docker"]},
+        "image": {"type": "string"},
+        "network": {"enum": ["none", "bridge"]},
+        "env": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}}
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "commit": {"type": "boolean"},
+        "commit_message": {"type": "string"},
+        "pr": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "concurrency": {
+      "oneOf": [
+        {"type": "object", "maxProperties": 0},
+        {
+          "type": "object",
+          "required": ["key", "policy"],
+          "properties": {
+            "key": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._-]+$"},
+            "policy": {"const": "skip"}
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

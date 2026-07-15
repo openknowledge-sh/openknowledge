@@ -133,9 +133,11 @@ func TestMachineSchemasValidateRepresentativeNonEmptyOutputs(t *testing.T) {
 func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 	schemas := compileMachineSchemas(t)
 	outputs := representativeMachineOutputs(t)
-	registryFixtures := machineContractFixtures(t)
-	outputs["registry-list"] = registryFixtures["registry-list"]
-	outputs["registry-status"] = registryFixtures["registry-status"]
+	contractFixtures := machineContractFixtures(t)
+	outputs["registry-list"] = contractFixtures["registry-list"]
+	outputs["registry-status"] = contractFixtures["registry-status"]
+	outputs["agent-run-plan"] = contractFixtures["agent-run-plan"]
+	outputs["agent-run-record"] = contractFixtures["agent-run-record"]
 
 	for name, output := range outputs {
 		if strings.HasSuffix(name, "-source") || strings.HasSuffix(name, "-search") {
@@ -205,6 +207,14 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 		"registry-status/entry": {
 			output: outputs["registry-status"],
 			mutate: func(root map[string]any) { firstObject(root, "entries")["undeclared"] = true },
+		},
+		"agent-run-plan/agent": {
+			output: outputs["agent-run-plan"],
+			mutate: func(root map[string]any) { root["agent"].(map[string]any)["undeclared"] = true },
+		},
+		"agent-run-record/agent": {
+			output: outputs["agent-run-record"],
+			mutate: func(root map[string]any) { root["agent"].(map[string]any)["undeclared"] = true },
 		},
 	}
 	for testName, test := range nested {
@@ -286,6 +296,7 @@ func machineContractFixtures(t *testing.T) map[string]any {
 	fixtures := make(map[string]any)
 	fixtureRoots := []string{
 		filepath.Join("testdata", "contracts"),
+		filepath.Join("..", "agents", "testdata", "contracts"),
 		filepath.Join("..", "..", "cmd", "openknowledge", "testdata", "contracts"),
 	}
 	for _, root := range fixtureRoots {

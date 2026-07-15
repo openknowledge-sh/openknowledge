@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "1",
+  "run_id": "0123456789abcdef01234567",
+  "job_id": "docs-audit",
+  "status": "succeeded",
+  "scheduled_at": "2026-07-15T09:00:00Z",
+  "started_at": "2026-07-15T09:00:01Z",
+  "finished_at": "2026-07-15T09:01:00Z",
+  "plan": {
+    "schemaVersion": "1",
+    "run_id": "0123456789abcdef01234567",
+    "job_id": "docs-audit",
+    "job_file": "/work/project/.openknowledge/agents/jobs/docs-audit.md",
+    "scheduled_at": "2026-07-15T09:00:00Z",
+    "repo": "/work/project",
+    "repo_root": "/work/project",
+    "base": "main",
+    "base_sha": "0123456789abcdef0123456789abcdef01234567",
+    "branch": "agents/docs-audit/20260715-090000-0123456789abcdef01234567",
+    "worktree": "/state/project/worktrees/0123456789abcdef01234567",
+    "run_dir": "/state/project/runs/0123456789abcdef01234567",
+    "prompt": "Audit the documentation.\n",
+    "agent": {
+      "command": "codex",
+      "args": ["exec"]
+    },
+    "verify": [
+      {
+        "command": "go test ./...",
+        "shell": true
+      }
+    ],
+    "verify_timeout": "15m",
+    "sandbox": {
+      "type": "docker",
+      "image": "example.test/agent:latest",
+      "network": "none",
+      "env": ["OPENAI_API_KEY"]
+    },
+    "output": {
+      "commit": true,
+      "commit_message": "docs: refresh knowledge"
+    },
+    "concurrency": {
+      "key": "wiki-maintenance",
+      "policy": "skip"
+    }
+  },
+  "agent": {
+    "command": "codex",
+    "args": ["exec"],
+    "exit_code": 0,
+    "started_at": "2026-07-15T09:00:02Z",
+    "finished_at": "2026-07-15T09:00:45Z",
+    "duration": 43000000000,
+    "stdout_log": "/state/project/runs/0123456789abcdef01234567/agent.stdout.log",
+    "stderr_log": "/state/project/runs/0123456789abcdef01234567/agent.stderr.log"
+  },
+  "verify": [
+    {
+      "command": "go test ./...",
+      "shell": true,
+      "exit_code": 0,
+      "started_at": "2026-07-15T09:00:46Z",
+      "finished_at": "2026-07-15T09:00:59Z",
+      "duration": 13000000000,
+      "stdout_log": "/state/project/runs/0123456789abcdef01234567/verify-01.stdout.log",
+      "stderr_log": "/state/project/runs/0123456789abcdef01234567/verify-01.stderr.log"
+    }
+  ],
+  "status_text": "",
+  "patch_path": "/state/project/runs/0123456789abcdef01234567/diff.patch"
+}
