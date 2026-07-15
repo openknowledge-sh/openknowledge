@@ -373,6 +373,7 @@ Nested agent commands also support
 | Command | Purpose |
 | --- | --- |
 | `openknowledge --help` | Print command usage, summaries, and examples. |
+| `openknowledge --error-format json <command> ...` | Emit operational and usage failures as a versioned JSON envelope on stderr. |
 | `openknowledge setup` | Print an agent prompt for creating and customizing a knowledge base. |
 | `openknowledge setup --rules <rules>` | Print the setup prompt with selected maintenance rules. |
 | `openknowledge from <source> --out <folder>` | Print an agent prompt for generating or refreshing a wiki from a source URL or path. |
@@ -477,6 +478,12 @@ separately identifies the selected Open Knowledge Format version. Tests compile
 the schemas and validate golden plus representative non-empty outputs, while
 the website publishes them at
 `https://openknowledge.sh/schemas/cli/v1/<name>.schema.json`.
+Automation that also needs structured command failures can place the global
+`--error-format json` option before the command. Failures that wrote diagnostic
+text are emitted as one `cli-error.schema.json` document on stderr, while
+successful output and existing machine results stay on stdout unchanged. In
+particular, an invalid validation report keeps its nonzero status and complete
+JSON stdout document without adding a second error envelope.
 The separately versioned portable `openknowledge.json` manifest contract is
 published at
 `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`; remote

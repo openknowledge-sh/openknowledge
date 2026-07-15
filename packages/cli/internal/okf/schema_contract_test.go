@@ -140,6 +140,7 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 	outputs["agent-validation"] = contractFixtures["agent-validation"]
 	outputs["agent-run-plan"] = contractFixtures["agent-run-plan"]
 	outputs["agent-run-record"] = contractFixtures["agent-run-record"]
+	outputs["cli-error"] = contractFixtures["cli-error"]
 
 	for name, output := range outputs {
 		if strings.HasSuffix(name, "-source") || strings.HasSuffix(name, "-search") {
@@ -225,6 +226,10 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 		"agent-run-record/agent": {
 			output: outputs["agent-run-record"],
 			mutate: func(root map[string]any) { root["agent"].(map[string]any)["undeclared"] = true },
+		},
+		"cli-error/error": {
+			output: outputs["cli-error"],
+			mutate: func(root map[string]any) { root["error"].(map[string]any)["undeclared"] = true },
 		},
 	}
 	for testName, test := range nested {

@@ -14,6 +14,28 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-15 - Versioned CLI error envelopes
+
+* Added the root-level `--error-format text|json` option; JSON mode converts
+  usage and operational diagnostics into one versioned error document on
+  stderr while retaining the original exit status.
+* Kept the default human-readable stderr behavior and every command stdout
+  contract unchanged, including nonzero semantic JSON results from validation.
+* Bounded diagnostic capture at 256 KiB, exposed truncation explicitly, and
+  omitted the full argument vector from the public error shape.
+* Published a closed Draft 2020-12 `cli-error.schema.json`, golden fixture,
+  undeclared-field rejection, and end-to-end coverage for usage, runtime,
+  success, default-text, truncation, and validation-result behavior.
+* Source anchors: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`,
+  `packages/cli/cmd/openknowledge/testdata/contracts/cli-error.json`,
+  `packages/cli/internal/okf/schema_contract_test.go`, and
+  `packages/cli/schemas/v1/cli-error.schema.json`.
+* Docs updated: `README.md`, root help,
+  `packages/cli/schemas/v1/README.md`,
+  `Wiki/features/commands/help.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Versioned agent validation reports
 
 * Added `openknowledge agents validate <job-or-dir> --json` with one

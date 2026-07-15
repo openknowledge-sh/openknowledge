@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/cli-error.schema.json",
+  "title": "Open Knowledge CLI error envelope v1",
+  "type": "object",
+  "required": ["schemaVersion", "error"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "error": {
+      "type": "object",
+      "required": ["kind", "command", "exitCode", "message", "truncated"],
+      "properties": {
+        "kind": {"enum": ["usage", "runtime"]},
+        "command": {"type": "string", "minLength": 1},
+        "exitCode": {"type": "integer", "minimum": 1, "maximum": 255},
+        "message": {"type": "string", "minLength": 1},
+        "truncated": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

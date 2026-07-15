@@ -17,6 +17,7 @@ global help flags, and examples. Command-specific help is available through
 ```sh
 openknowledge --help
 openknowledge -h
+openknowledge --error-format json <command> [args...]
 openknowledge <command> --help
 openknowledge <command> -h
 openknowledge agents <subcommand> --help
@@ -34,6 +35,13 @@ setup rule selection, rule review prompt generation, a minimal
 handoff files, a scaffold with optional bundle metadata, and a `connect`
 example that registers the generated bundle under a stable key.
 Unknown commands print the root usage to stderr and exit with status `2`.
+
+The root-only `--error-format text|json` option must precede the command. Its
+default `text` value preserves human diagnostics. `json` converts a failing
+command's diagnostic stderr into the versioned CLI error envelope without
+changing command stdout or command-specific JSON result contracts. Semantic
+nonzero results that already provide complete machine output, such as an
+invalid JSON validation report, are not wrapped as CLI failures.
 
 Nested agent commands dispatch help at the subcommand level. For example,
 `openknowledge agents run --help` prints the run-specific flags rather than
@@ -73,6 +81,13 @@ Commands:
 ## Command Change History
 
 ### 2026-07-15
+
+Root help now documents global `--error-format text|json`. JSON mode emits a
+versioned, bounded command-error envelope on stderr while preserving stdout
+contracts and human-readable errors by default. Source anchors:
+`packages/cli/cmd/openknowledge/main.go`,
+`packages/cli/cmd/openknowledge/main_test.go`, and
+`packages/cli/schemas/v1/cli-error.schema.json`.
 
 Root and registry help now include `openknowledge registry list --json`, and
 `registry list --help` has dedicated discovery-contract guidance distinct from

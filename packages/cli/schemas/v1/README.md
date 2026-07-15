@@ -17,6 +17,7 @@ the source tree and from the public URL.
 | `agent-run-record.schema.json` | Persisted agent `run.json` |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
+| `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
 | `graph.schema.json` | `openknowledge to graph` |
 | `list.schema.json` | `openknowledge list --json` |
 | `registry-list.schema.json` | `openknowledge registry list --json` |

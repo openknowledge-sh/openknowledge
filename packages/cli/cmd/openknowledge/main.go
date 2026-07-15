@@ -33,56 +33,237 @@ var version = "0.6.0"
 var terminal = newTerminal(os.Stdout)
 
 func main() {
-	if len(os.Args) < 2 {
+	os.Exit(runMain(os.Args[1:]))
+}
+
+const maxCLIErrorMessageBytes = 256 * 1024
+
+type cliGlobalOptions struct {
+	errorFormat string
+}
+
+type cliErrorEnvelope struct {
+	SchemaVersion string         `json:"schemaVersion"`
+	Error         cliErrorDetail `json:"error"`
+}
+
+type cliErrorDetail struct {
+	Kind      string `json:"kind"`
+	Command   string `json:"command"`
+	ExitCode  int    `json:"exitCode"`
+	Message   string `json:"message"`
+	Truncated bool   `json:"truncated"`
+}
+
+type boundedCLIErrorBuffer struct {
+	buffer    bytes.Buffer
+	limit     int
+	truncated bool
+}
+
+func (buffer *boundedCLIErrorBuffer) Write(content []byte) (int, error) {
+	written := len(content)
+	remaining := buffer.limit - buffer.buffer.Len()
+	if remaining > 0 {
+		if remaining > len(content) {
+			remaining = len(content)
+		}
+		_, _ = buffer.buffer.Write(content[:remaining])
+	}
+	if remaining < len(content) {
+		buffer.truncated = true
+	}
+	return written, nil
+}
+
+func runMain(args []string) int {
+	options, commandArgs, err := parseCLIGlobalOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		usage()
-		os.Exit(2)
+		return 2
+	}
+	if options.errorFormat == "json" {
+		return runWithJSONErrorEnvelope(commandArgs)
+	}
+	return dispatchCLI(commandArgs)
+}
+
+func parseCLIGlobalOptions(args []string) (cliGlobalOptions, []string, error) {
+	options := cliGlobalOptions{errorFormat: "text"}
+	for len(args) > 0 {
+		arg := args[0]
+		switch {
+		case arg == "--error-format":
+			if len(args) < 2 || strings.HasPrefix(args[1], "-") {
+				return options, nil, fmt.Errorf("--error-format requires text or json")
+			}
+			options.errorFormat = strings.ToLower(strings.TrimSpace(args[1]))
+			args = args[2:]
+		case strings.HasPrefix(arg, "--error-format="):
+			options.errorFormat = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--error-format=")))
+			args = args[1:]
+		default:
+			if options.errorFormat != "text" && options.errorFormat != "json" {
+				return options, nil, fmt.Errorf("unsupported error format: %s", options.errorFormat)
+			}
+			return options, args, nil
+		}
+	}
+	if options.errorFormat != "text" && options.errorFormat != "json" {
+		return options, nil, fmt.Errorf("unsupported error format: %s", options.errorFormat)
+	}
+	return options, args, nil
+}
+
+func runWithJSONErrorEnvelope(args []string) int {
+	originalStderr := os.Stderr
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		_ = writeCLIErrorEnvelope(originalStderr, args, 1, fmt.Sprintf("cannot capture command errors: %v", err), false)
+		return 1
 	}
 
-	switch os.Args[1] {
+	captured := boundedCLIErrorBuffer{limit: maxCLIErrorMessageBytes}
+	copyDone := make(chan error, 1)
+	go func() {
+		_, copyErr := io.Copy(&captured, reader)
+		copyDone <- copyErr
+	}()
+
+	exitCode := func() int {
+		os.Stderr = writer
+		defer func() {
+			os.Stderr = originalStderr
+		}()
+		return dispatchCLI(args)
+	}()
+	closeErr := writer.Close()
+	copyErr := <-copyDone
+	_ = reader.Close()
+	if closeErr != nil || copyErr != nil {
+		message := strings.TrimSpace(captured.buffer.String())
+		if message != "" {
+			message += "\n"
+		}
+		message += "cannot capture complete command error output"
+		_ = writeCLIErrorEnvelope(originalStderr, args, 1, message, true)
+		return 1
+	}
+
+	message := captured.buffer.String()
+	if exitCode == 0 || strings.TrimSpace(message) == "" {
+		if message != "" {
+			_, _ = io.WriteString(originalStderr, message)
+		}
+		if captured.truncated {
+			fmt.Fprintln(originalStderr, "\n[stderr truncated by --error-format json]")
+		}
+		return exitCode
+	}
+
+	_ = writeCLIErrorEnvelope(originalStderr, args, exitCode, strings.TrimSpace(message), captured.truncated)
+	return exitCode
+}
+
+func writeCLIErrorEnvelope(output io.Writer, args []string, exitCode int, message string, truncated bool) error {
+	kind := "runtime"
+	if exitCode == 2 {
+		kind = "usage"
+	}
+	envelope := cliErrorEnvelope{
+		SchemaVersion: "1",
+		Error: cliErrorDetail{
+			Kind:      kind,
+			Command:   cliErrorCommand(args),
+			ExitCode:  exitCode,
+			Message:   message,
+			Truncated: truncated,
+		},
+	}
+	encoder := json.NewEncoder(output)
+	encoder.SetEscapeHTML(false)
+	return encoder.Encode(envelope)
+}
+
+func cliErrorCommand(args []string) string {
+	if len(args) == 0 {
+		return "openknowledge"
+	}
+	root := args[0]
+	nested := map[string]map[string]bool{
+		"agents":   {"new": true, "list": true, "validate": true, "run": true, "daemon": true},
+		"registry": {"connect": true, "disconnect": true, "refresh": true, "list": true, "status": true, "where": true},
+		"review":   {"rules": true},
+		"to":       {"html": true, "json": true, "tar": true, "graph": true},
+	}
+	if subcommands, ok := nested[root]; ok && len(args) > 1 && subcommands[args[1]] {
+		return root + " " + args[1]
+	}
+	knownRoots := map[string]bool{
+		"setup": true, "from": true, "rules": true, "review": true, "agents": true,
+		"new": true, "connect": true, "disconnect": true, "get": true, "search": true,
+		"mcp": true, "ast": true, "registry": true, "view": true, "to": true,
+		"spec": true, "validate": true, "list": true, "version": true,
+	}
+	if knownRoots[root] {
+		return root
+	}
+	return "openknowledge"
+}
+
+func dispatchCLI(args []string) int {
+	if len(args) < 1 {
+		usage()
+		return 2
+	}
+
+	switch args[0] {
 	case "--help", "-h":
 		fmt.Fprint(os.Stdout, helpText())
+		return 0
 	case "setup":
-		os.Exit(runSetup(os.Args[2:]))
+		return runSetup(args[1:])
 	case "from":
-		os.Exit(runFrom(os.Args[2:]))
+		return runFrom(args[1:])
 	case "rules":
-		os.Exit(runRules(os.Args[2:]))
+		return runRules(args[1:])
 	case "review":
-		os.Exit(runReview(os.Args[2:]))
+		return runReview(args[1:])
 	case "agents":
-		os.Exit(runAgents(os.Args[2:]))
+		return runAgents(args[1:])
 	case "new":
-		os.Exit(runNew(os.Args[2:]))
+		return runNew(args[1:])
 	case "connect":
-		os.Exit(runConnect(os.Args[2:], "openknowledge connect"))
+		return runConnect(args[1:], "openknowledge connect")
 	case "disconnect":
-		os.Exit(runDisconnect(os.Args[2:], "openknowledge disconnect"))
+		return runDisconnect(args[1:], "openknowledge disconnect")
 	case "get":
-		os.Exit(runGet(os.Args[2:]))
+		return runGet(args[1:])
 	case "search":
-		os.Exit(runSearch(os.Args[2:]))
+		return runSearch(args[1:])
 	case "mcp":
-		os.Exit(runMCP(os.Args[2:]))
+		return runMCP(args[1:])
 	case "ast":
-		os.Exit(runAST(os.Args[2:]))
+		return runAST(args[1:])
 	case "registry":
-		os.Exit(runRegistry(os.Args[2:]))
+		return runRegistry(args[1:])
 	case "view":
-		os.Exit(runView(os.Args[2:]))
+		return runView(args[1:])
 	case "to":
-		os.Exit(runTo(os.Args[2:]))
+		return runTo(args[1:])
 	case "spec":
-		os.Exit(runSpec(os.Args[2:]))
+		return runSpec(args[1:])
 	case "validate":
-		os.Exit(runValidate(os.Args[2:]))
+		return runValidate(args[1:])
 	case "list":
-		os.Exit(runList(os.Args[2:]))
+		return runList(args[1:])
 	case "version":
-		os.Exit(runVersion(os.Args[2:]))
+		return runVersion(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", args[0])
 		usage()
-		os.Exit(2)
+		return 2
 	}
 }
 
@@ -4432,6 +4613,7 @@ func helpText() string {
 
 Usage:
   openknowledge --help
+  openknowledge --error-format json <command> [args...]
   openknowledge <command> --help
   openknowledge setup
   openknowledge setup --rules <rules>
@@ -4530,7 +4712,8 @@ Commands:
   version    Print the CLI version.
 
 Flags:
-  -h, --help  Show this help.
+  -h, --help                Show this help.
+  --error-format text|json  Format command failures on stderr (default text).
 
 Run openknowledge <command> --help for command-specific help.
 

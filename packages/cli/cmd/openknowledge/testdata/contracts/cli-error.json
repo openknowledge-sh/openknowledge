@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "error": {
+    "kind": "usage",
+    "command": "search",
+    "exitCode": 2,
+    "message": "search requires a key or path and a query",
+    "truncated": false
+  }
+}

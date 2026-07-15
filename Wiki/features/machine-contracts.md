@@ -23,6 +23,7 @@ field identifies the selected Open Knowledge Format revision where applicable.
 | `agent-run-record.schema.json` | Persisted agent `run.json` lifecycle records |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
+| `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
 | `graph.schema.json` | `openknowledge to graph`, including source and search graph types |
 | `list.schema.json` | `openknowledge list --json` |
 | `registry-list.schema.json` | `openknowledge registry list --json` |
@@ -34,6 +35,41 @@ field identifies the selected Open Knowledge Format revision where applicable.
 Shared issue, link, and recursively typed frontmatter definitions live in
 `common.schema.json`.
 
+## Command Error Envelope
+
+Place the global `--error-format json` option before a command to make usage
+and operational failures machine-readable. The CLI buffers its diagnostic
+stderr and, when the command returns nonzero with a diagnostic, emits exactly
+one JSON document on stderr:
+
+```json
+{
+  "schemaVersion": "1",
+  "error": {
+    "kind": "usage",
+    "command": "search",
+    "exitCode": 2,
+    "message": "search requires a key or path and a query",
+    "truncated": false
+  }
+}
+```
+
+`kind` is `usage` for exit status `2` and `runtime` for other command
+failures. `command` identifies only a recognized root or subcommand path; the
+envelope never copies the full argument vector. Diagnostic capture is capped at
+256 KiB and reports `truncated: true` if the command exceeded that boundary.
+
+The option does not change stdout or any command-specific JSON success/result
+contract. A semantic result can validly use a nonzero status without being a
+CLI failure: for example, invalid `validate --format json` output remains the
+complete validation report on stdout and does not gain a second stderr
+envelope. Successful warnings are replayed as text on stderr. Human-readable
+stderr remains the default when the global option is absent or set to `text`.
+JSON error mode buffers stderr until the command finishes; interactive,
+long-running commands such as `view` should use the default text mode when
+immediate warning display matters.
+
 ## Public Schema URLs
 
 The canonical Draft 2020-12 schemas live under
@@ -43,6 +79,7 @@ location. For example:
 
 ```text
 https://openknowledge.sh/schemas/cli/v1/validation.schema.json
+https://openknowledge.sh/schemas/cli/v1/cli-error.schema.json
 https://openknowledge.sh/schemas/cli/v1/common.schema.json
 ```
 

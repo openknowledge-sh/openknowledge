@@ -29,6 +29,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 	required := []string{
 		"Usage:",
 		"openknowledge --help",
+		"openknowledge --error-format json <command> [args...]",
 		"openknowledge <command> --help",
 		"openknowledge setup",
 		"openknowledge setup --rules <rules>",
@@ -108,7 +109,8 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"list       Print a bundle tree, with optional depth and JSON output.",
 		"version    Print the CLI version.",
 		"Flags:",
-		"-h, --help  Show this help.",
+		"-h, --help                Show this help.",
+		"--error-format text|json  Format command failures on stderr (default text).",
 		"Examples:",
 		"openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding",
 		"openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type custom --about \"Create an onboarding wiki\"",
@@ -150,6 +152,146 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 	for _, unexpected := range forbidden {
 		if strings.Contains(help, unexpected) {
 			t.Fatalf("did not expect help text to include %q:\n%s", unexpected, help)
+		}
+	}
+}
+
+func TestRunMainPreservesHumanErrorsByDefault(t *testing.T) {
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"unknown-command"})
+	})
+	if code != 2 {
+		t.Fatalf("expected usage exit code, got %d", code)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.HasPrefix(stderr, "unknown command: unknown-command\n") || !strings.Contains(stderr, "Usage:") {
+		t.Fatalf("expected existing human-readable error and usage, got:\n%s", stderr)
+	}
+}
+
+func TestRunMainPrintsVersionedJSONUsageErrors(t *testing.T) {
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--error-format", "json", "unknown-command"})
+	})
+	if code != 2 {
+		t.Fatalf("expected usage exit code, got %d", code)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	var envelope cliErrorEnvelope
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("expected one JSON error document: %v\n%s", err, stderr)
+	}
+	if envelope.SchemaVersion != "1" || envelope.Error.Kind != "usage" || envelope.Error.Command != "openknowledge" || envelope.Error.ExitCode != 2 {
+		t.Fatalf("unexpected JSON error envelope: %#v", envelope)
+	}
+	if envelope.Error.Truncated || !strings.HasPrefix(envelope.Error.Message, "unknown command: unknown-command") || !strings.Contains(envelope.Error.Message, "Usage:") {
+		t.Fatalf("unexpected captured error detail: %#v", envelope.Error)
+	}
+}
+
+func TestRunMainPrintsVersionedJSONRuntimeErrors(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n")
+	out := filepath.Join(t.TempDir(), "existing-file")
+	writeMainTestFile(t, filepath.Dir(out), filepath.Base(out), "not a directory\n")
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--error-format=json", "to", "html", "--plain", "--out", out, root})
+	})
+	if code != 1 {
+		t.Fatalf("expected runtime exit code, got %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	}
+	var envelope cliErrorEnvelope
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("expected JSON runtime error: %v\n%s", err, stderr)
+	}
+	if envelope.Error.Kind != "runtime" || envelope.Error.Command != "to html" || envelope.Error.ExitCode != 1 || envelope.Error.Message == "" {
+		t.Fatalf("unexpected JSON runtime error: %#v", envelope)
+	}
+	if strings.Contains(envelope.Error.Command, out) {
+		t.Fatalf("error identity must not copy operands: %#v", envelope)
+	}
+}
+
+func TestRunMainPreservesMachineValidationResultOnSemanticFailure(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n\n[Missing](missing.md)\n")
+	writeMainTestFile(t, root, "openknowledge.toml", "[validation.rules]\nlink-target = \"error\"\n")
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--error-format", "json", "validate", "--format", "json", root})
+	})
+	if code != 1 {
+		t.Fatalf("expected invalid validation result exit code, got %d\n%s", code, stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected no separate CLI error for a complete validation result, got %s", stderr)
+	}
+	var report okf.Result
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("expected unchanged validation JSON on stdout: %v\n%s", err, stdout)
+	}
+	if report.SchemaVersion != "1" || report.Summary.Status != "fail" {
+		t.Fatalf("unexpected validation result: %#v", report)
+	}
+}
+
+func TestRunMainPreservesSuccessfulOutputAndBoundsErrorCapture(t *testing.T) {
+	buffer := boundedCLIErrorBuffer{limit: 4}
+	if written, err := buffer.Write([]byte("123456")); err != nil || written != 6 {
+		t.Fatalf("bounded writer must drain all input: written=%d err=%v", written, err)
+	}
+	if got := buffer.buffer.String(); got != "1234" || !buffer.truncated {
+		t.Fatalf("unexpected bounded capture: %q truncated=%t", got, buffer.truncated)
+	}
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--error-format", "json", "--help"})
+	})
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Usage:") {
+		t.Fatalf("expected successful help to remain unchanged: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+
+	oversizedCommand := strings.Repeat("x", maxCLIErrorMessageBytes*2)
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runMain([]string{"--error-format", "json", oversizedCommand})
+	})
+	if code != 2 {
+		t.Fatalf("expected oversized unknown command to retain usage status, got %d", code)
+	}
+	var envelope cliErrorEnvelope
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("expected bounded JSON error after oversized stderr: %v", err)
+	}
+	if !envelope.Error.Truncated || envelope.Error.Command != "openknowledge" || len(envelope.Error.Message) > maxCLIErrorMessageBytes {
+		t.Fatalf("unexpected oversized error envelope: command=%q length=%d truncated=%t", envelope.Error.Command, len(envelope.Error.Message), envelope.Error.Truncated)
+	}
+}
+
+func TestRunMainReplaysSuccessfulWarningsAsText(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\n: invalid\n---\n\n# Bundle\n")
+	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--error-format", "json", "connect", root, "--as", "warning-test"})
+	})
+	if code != 0 {
+		t.Fatalf("expected connect with validation warning to succeed: code=%d\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	}
+	if !strings.Contains(stderr, "warning:") || strings.HasPrefix(strings.TrimSpace(stderr), "{") {
+		t.Fatalf("expected successful warning replayed as text, got %q", stderr)
+	}
+}
+
+func TestParseCLIGlobalOptionsRejectsInvalidFormats(t *testing.T) {
+	for _, args := range [][]string{{"--error-format"}, {"--error-format", "yaml", "list"}, {"--error-format="}} {
+		if _, _, err := parseCLIGlobalOptions(args); err == nil {
+			t.Fatalf("expected invalid global options to fail: %#v", args)
 		}
 	}
 }
@@ -3042,16 +3184,27 @@ func captureMainStdout(t *testing.T, run func() int) (string, int) {
 		t.Fatal(err)
 	}
 	os.Stdout = writer
+	outputDone := make(chan struct {
+		content []byte
+		err     error
+	}, 1)
+	go func() {
+		content, readErr := io.ReadAll(reader)
+		outputDone <- struct {
+			content []byte
+			err     error
+		}{content: content, err: readErr}
+	}()
 	code := run()
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
 	}
 	os.Stdout = original
-	output, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatal(err)
+	output := <-outputDone
+	if output.err != nil {
+		t.Fatal(output.err)
 	}
-	return string(output), code
+	return string(output.content), code
 }
 
 func captureMainOutput(t *testing.T, run func() int) (string, string, int) {
@@ -3068,6 +3221,20 @@ func captureMainOutput(t *testing.T, run func() int) (string, string, int) {
 	}
 	os.Stdout = stdoutWriter
 	os.Stderr = stderrWriter
+	type capturedOutput struct {
+		content []byte
+		err     error
+	}
+	stdoutDone := make(chan capturedOutput, 1)
+	stderrDone := make(chan capturedOutput, 1)
+	go func() {
+		content, readErr := io.ReadAll(stdoutReader)
+		stdoutDone <- capturedOutput{content: content, err: readErr}
+	}()
+	go func() {
+		content, readErr := io.ReadAll(stderrReader)
+		stderrDone <- capturedOutput{content: content, err: readErr}
+	}()
 	code := run()
 	if err := stdoutWriter.Close(); err != nil {
 		t.Fatal(err)
@@ -3077,15 +3244,15 @@ func captureMainOutput(t *testing.T, run func() int) (string, string, int) {
 	}
 	os.Stdout = originalStdout
 	os.Stderr = originalStderr
-	stdout, err := io.ReadAll(stdoutReader)
-	if err != nil {
-		t.Fatal(err)
+	stdout := <-stdoutDone
+	if stdout.err != nil {
+		t.Fatal(stdout.err)
 	}
-	stderr, err := io.ReadAll(stderrReader)
-	if err != nil {
-		t.Fatal(err)
+	stderr := <-stderrDone
+	if stderr.err != nil {
+		t.Fatal(stderr.err)
 	}
-	return string(stdout), string(stderr), code
+	return string(stdout.content), string(stderr.content), code
 }
 
 func writeMainTestFile(t *testing.T, root string, name string, content string) {
