@@ -59,6 +59,7 @@ func TestParseBundleIncludesContentLinksAndIssues(t *testing.T) {
 
 func TestPlainHTMLRejectsInvalidBundleBeforeWriting(t *testing.T) {
 	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
 	writeFile(t, root, "index.md", "# Home\n")
 	writeFile(t, root, "invalid.md", "# Missing required concept frontmatter\n")
@@ -78,6 +79,7 @@ func TestPlainHTMLRejectsInvalidBundleBeforeWriting(t *testing.T) {
 
 func TestPlainHTMLReplacesWholeGeneration(t *testing.T) {
 	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
 	writeFile(t, root, "index.md", "# Home\n")
 	writeFile(t, root, "old.md", "---\ntype: Note\n---\n\n# Old\n")
@@ -103,6 +105,7 @@ func TestPlainHTMLRejectsOutputContainingSource(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "bundle")
 	writeFile(t, root, "index.md", "# Home\n")
+	enablePublicArtifactTest(t, root)
 
 	for _, out := range []string{root, parent} {
 		if _, err := WritePlainHTMLWithVersion(root, out, "0.1"); err == nil || !strings.Contains(err.Error(), "must not contain the source bundle") {
@@ -241,6 +244,7 @@ func TestBuildSearchGraphIncludesSectionChunks(t *testing.T) {
 
 func TestWriteHTMLRendersPagesAndRewritesMarkdownLinks(t *testing.T) {
 	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
 	writeFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
@@ -308,6 +312,7 @@ func TestWriteHTMLFromASTRendersParsedMarkdownTree(t *testing.T) {
 
 func TestWritePlainHTMLRendersUnstyledPages(t *testing.T) {
 	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "plain-site")
 	writeFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
@@ -338,6 +343,7 @@ func TestWritePlainHTMLRendersUnstyledPages(t *testing.T) {
 
 func TestWriteHTMLSkipsUnpublishedPages(t *testing.T) {
 	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
 	writeFile(t, root, "index.md", "# Home\n\nRead [Public](public.md) and [Draft](draft.md).\n")
 	writeFile(t, root, "public.md", "---\ntype: Guide\n---\n\n# Public\n")
@@ -361,6 +367,7 @@ func TestWriteHTMLSkipsUnpublishedPages(t *testing.T) {
 
 func TestWriteHTMLRendersBlockquotesAndStrongText(t *testing.T) {
 	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
 	writeFile(t, root, "index.md", "# Home\n\n> This is a pinned upstream copy.\n> It is unofficial tooling.\n\n**Version 0.1 - Draft**\n\nUse *standard markdown*.\n\n---\n\n1. First\n2. Second\n")
 

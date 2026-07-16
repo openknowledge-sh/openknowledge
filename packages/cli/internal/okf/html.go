@@ -25,6 +25,9 @@ func WritePlainHTMLWithVersion(root string, out string, version string) (HTMLRes
 }
 
 func writeHTMLWithVersion(root string, out string, version string, pageTemplate *template.Template) (HTMLResult, error) {
+	if _, err := BuildPublicationSetForTargetWithVersion(root, version, PublicationTargetViewer); err != nil {
+		return HTMLResult{}, err
+	}
 	validation, ast, err := parseAndValidateASTBundle(root, version)
 	if err != nil {
 		return HTMLResult{}, err

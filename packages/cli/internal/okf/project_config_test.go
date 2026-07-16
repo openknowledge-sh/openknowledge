@@ -30,6 +30,10 @@ entry = "Wiki"
 
 [html.site]
 base_url = "https://example.test/knowledge/"
+
+[publish]
+enabled = true
+assets = ["whitepapers/*.pdf", "assets/public/**", "assets/public/**"]
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -52,6 +56,16 @@ base_url = "https://example.test/knowledge/"
 	if config.HTML.Site.BaseURL != "https://example.test/knowledge/" {
 		t.Fatalf("unexpected site config: %#v", config.HTML.Site)
 	}
+	if !config.Publish.Enabled || strings.Join(config.Publish.Assets, ",") != "assets/public/**,whitepapers/*.pdf" {
+		t.Fatalf("unexpected publish config: %#v", config.Publish)
+	}
+	defaultConfig, err := ParseProjectConfig("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaultConfig.Publish.Enabled {
+		t.Fatal("public artifact publishing must default to disabled")
+	}
 }
 
 func TestParseProjectConfigFailsClosedAcrossEverySection(t *testing.T) {
@@ -65,6 +79,12 @@ func TestParseProjectConfigFailsClosedAcrossEverySection(t *testing.T) {
 		{name: "unknown HTML field", content: "[html.theme]\ncss = \"theme.css\"\n", expected: "fields in the document are missing in the target struct"},
 		{name: "wrong HTML type", content: "[html.site]\nbase_url = 42\n", expected: "cannot decode TOML integer"},
 		{name: "wrong rules member", content: "[rules]\npaths = [\"rules\", 5]\n", expected: "rules.paths[1] must be a string"},
+		{name: "wrong publish member", content: "[publish]\nassets = [\"assets/**\", 5]\n", expected: "publish.assets[1] must be a string"},
+		{name: "wrong publish enabled type", content: "[publish]\nenabled = \"yes\"\n", expected: "cannot decode TOML string"},
+		{name: "unsafe publish parent", content: "[publish]\nassets = \"../secret.txt\"\n", expected: "parent segments"},
+		{name: "unsafe publish absolute", content: "[publish]\nassets = \"/secret.txt\"\n", expected: "clean bundle-relative pattern"},
+		{name: "unsafe publish backslash", content: "[publish]\nassets = 'assets\\secret.txt'\n", expected: "forward slashes"},
+		{name: "malformed publish glob", content: "[publish]\nassets = \"assets/[.txt\"\n", expected: "syntax error in pattern"},
 		{name: "unknown validation rule", content: "[validation.rules]\nnot-a-rule = \"warn\"\n", expected: "unknown validation rule"},
 		{name: "wrong validation severity type", content: "[validation.rules]\nlink-target = true\n", expected: "cannot assign boolean"},
 	}

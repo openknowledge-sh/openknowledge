@@ -66,6 +66,7 @@ func TestASTBackedOutputsMatchPublicAPIs(t *testing.T) {
 		t.Fatalf("expected public context index to match direct AST context index\npublic=%#v\ndirect=%#v", publicContext, directContext)
 	}
 
+	enablePublicArtifactTest(t, root)
 	publicOut := filepath.Join(t.TempDir(), "public")
 	directOut := filepath.Join(t.TempDir(), "direct")
 	publicHTML, err := WriteHTML(root, publicOut)

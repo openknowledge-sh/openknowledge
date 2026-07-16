@@ -8,3 +8,7 @@ base_url = "https://openknowledge.sh/wiki/"
 [html.source]
 github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"
+
+[publish]
+enabled = true
+assets = ["assets/**", "examples/*.go", "examples/*.pdf"]

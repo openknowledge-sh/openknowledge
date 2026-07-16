@@ -112,6 +112,37 @@ func TestWriteBundleTarGzipRejectsSymbolicLinks(t *testing.T) {
 	}
 }
 
+func TestWritePublishedBundleTarGzipUsesExplicitPublicAllowlist(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Bundle\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n")
+	writeFile(t, root, "draft.md", "---\ntype: Draft\nokf_publish: false\n---\n\n# Draft\n")
+	writeFile(t, root, "assets/public/logo.svg", "<svg/>\n")
+	writeFile(t, root, "assets/private/diagram.svg", "<svg>private</svg>\n")
+	writeFile(t, root, "secret.txt", "do not publish\n")
+	writeFile(t, root, ".openknowledge/runtime.json", "{\"secret\":true}\n")
+	writeFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
+
+	out := filepath.Join(t.TempDir(), "published.tar.gz")
+	if _, err := WritePublishedBundleTarGzipWithVersion(root, out, "0.1", nil); err != nil {
+		t.Fatal(err)
+	}
+	extracted := filepath.Join(t.TempDir(), "bundle")
+	if err := ExtractBundleArchive(out, extracted); err != nil {
+		t.Fatal(err)
+	}
+	for _, included := range []string{"index.md", "guide.md", "assets/public/logo.svg"} {
+		if _, err := os.Stat(filepath.Join(extracted, filepath.FromSlash(included))); err != nil {
+			t.Fatalf("expected %s in public archive: %v", included, err)
+		}
+	}
+	for _, excluded := range []string{"draft.md", "assets/private/diagram.svg", "secret.txt", ".openknowledge/runtime.json", "openknowledge.toml"} {
+		if _, err := os.Stat(filepath.Join(extracted, filepath.FromSlash(excluded))); !os.IsNotExist(err) {
+			t.Fatalf("expected %s to be excluded from public archive, got %v", excluded, err)
+		}
+	}
+}
+
 func TestWriteBundleTarGzipRejectsInvalidBundleWithoutReplacingOutput(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Bundle\n")

@@ -1561,6 +1561,9 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
+	if _, err := okf.BuildPublicationSetWithVersion(bundle.Root, version); err != nil {
+		return okf.HTMLResult{}, err
+	}
 	themeConfig, sourceConfig, siteConfig, err := loadViewerProjectConfig(bundle.Root)
 	if err != nil {
 		return okf.HTMLResult{}, err
@@ -1588,7 +1591,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 
 	var written []string
 	for _, file := range bundle.Files {
-		if !okf.ShouldPublish(file) {
+		if !okf.ShouldPublishToTarget(file, okf.PublicationTargetViewer) {
 			continue
 		}
 		target := filepath.Join(absoluteOut, filepath.FromSlash(viewerHTMLPath(file.Path)))
@@ -1598,7 +1601,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 
 		data := viewerFileData{
 			Title:       titleForMarkdownFile(file.Path),
-			BrandName:   viewerKnowledgeBaseNameFromFiles(bundle.Files, ""),
+			BrandName:   viewerKnowledgeBaseNameFromFiles(viewerFilesForTargets(bundle.Files, okf.PublicationTargetViewer), ""),
 			HomeURL:     viewerStaticRelativeURL(file.Path, "index.md"),
 			Root:        "",
 			Path:        file.Path,
@@ -1626,6 +1629,11 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 	if themeAsset != "" {
 		written = append(written, themeAsset)
 	}
+	publishedAssets, err := copyViewerPublishedAssets(bundle.Root, absoluteOut, version, themeAsset)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	written = append(written, publishedAssets...)
 	archiveResult, err := writeViewerExportBundleAssets(bundle.Root, absoluteOut, version, sourceExcludes)
 	if err != nil {
 		return okf.HTMLResult{}, err
@@ -1639,6 +1647,36 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 
 	sort.Strings(written)
 	return okf.HTMLResult{Root: bundle.Root, Out: absoluteOut, Written: written}, nil
+}
+
+func copyViewerPublishedAssets(root string, out string, version string, alreadyWritten string) ([]string, error) {
+	publication, err := okf.BuildPublicationSetWithVersion(root, version)
+	if err != nil {
+		return nil, err
+	}
+	written := make([]string, 0, len(publication.Assets))
+	for _, rel := range publication.Assets {
+		if rel == alreadyWritten {
+			continue
+		}
+		source, err := okf.ResolveBundlePath(root, rel)
+		if err != nil {
+			return nil, fmt.Errorf("publish asset %s: %w", rel, err)
+		}
+		content, err := os.ReadFile(source)
+		if err != nil {
+			return nil, err
+		}
+		target := filepath.Join(out, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(target, content, 0644); err != nil {
+			return nil, err
+		}
+		written = append(written, filepath.ToSlash(rel))
+	}
+	return written, nil
 }
 
 func writeViewerExportBundleAssets(root string, out string, version string, sourceExcludes []string) ([]string, error) {
@@ -1683,7 +1721,7 @@ func viewerRelPath(root string, target string) string {
 func viewerStaticFilesJSON(root string, files []okf.BundleFile, sourceConfig viewerSourceConfig, frontmatterByPath map[string]template.HTML) (template.JS, error) {
 	payload := make([]viewerStaticPayload, 0, len(files))
 	for _, file := range files {
-		if !okf.ShouldPublish(file) {
+		if !okf.ShouldPublishToTarget(file, okf.PublicationTargetViewer) || !okf.ShouldPublishToTarget(file, okf.PublicationTargetSearch) {
 			continue
 		}
 		tags, err := viewerTagsForFile(root, file)
@@ -1733,7 +1771,7 @@ func viewerStaticRelativeURL(currentPath string, targetPath string) string {
 func viewerStaticTree(files []okf.BundleFile, currentPath string) []viewerTreeItem {
 	entries := make([]okf.ListEntry, 0, len(files))
 	for _, file := range files {
-		if !okf.ShouldPublish(file) {
+		if !okf.ShouldPublishToTarget(file, okf.PublicationTargetViewer) {
 			continue
 		}
 		entries = append(entries, okf.ListEntry{Path: file.Path})
@@ -1756,7 +1794,7 @@ func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
 	entries := make([]okf.ListEntry, 0, len(files))
 	publishedFiles := make([]okf.BundleFile, 0, len(files))
 	for _, file := range files {
-		if !okf.ShouldPublish(file) {
+		if !okf.ShouldPublishToTarget(file, okf.PublicationTargetViewer) {
 			continue
 		}
 		publishedFiles = append(publishedFiles, file)
@@ -1765,6 +1803,23 @@ func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
 	return viewerGraphJSONFromBundleFiles(publishedFiles, entries, func(path string) string {
 		return viewerStaticRelativeURL("index.md", path)
 	})
+}
+
+func viewerFilesForTargets(files []okf.BundleFile, targets ...okf.PublicationTarget) []okf.BundleFile {
+	selected := make([]okf.BundleFile, 0, len(files))
+	for _, file := range files {
+		allowed := true
+		for _, target := range targets {
+			if !okf.ShouldPublishToTarget(file, target) {
+				allowed = false
+				break
+			}
+		}
+		if allowed {
+			selected = append(selected, file)
+		}
+	}
+	return selected
 }
 
 func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, fileURL func(string) string) viewerGraphData {

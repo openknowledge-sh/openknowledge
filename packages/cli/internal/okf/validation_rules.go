@@ -27,12 +27,14 @@ func validateIndex(rel string, meta ASTFrontmatter, result *Result) {
 				result.Warnings = append(result.Warnings, Issue{Path: rel, Line: 1, Rule: "okf-version", Message: fmt.Sprintf("declares okf_version %q, validating against %s", version, result.SpecVersion)})
 			}
 		}
+		validatePublicationMetadata(rel, meta, result)
 		return
 	}
 
 	if meta.Has && !hasOnlyIndexPublishMetadata(meta) {
-		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "index-frontmatter", Message: "index.md frontmatter may only declare okf_publish metadata"})
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "index-frontmatter", Message: "index.md frontmatter may only declare okf_publish and okf_targets metadata"})
 	}
+	validatePublicationMetadata(rel, meta, result)
 }
 
 func hasOnlyIndexPublishMetadata(meta ASTFrontmatter) bool {
@@ -40,7 +42,7 @@ func hasOnlyIndexPublishMetadata(meta ASTFrontmatter) bool {
 		return true
 	}
 	for key := range meta.Keys {
-		if key != "okf_publish" {
+		if key != "okf_publish" && key != "okf_targets" {
 			return false
 		}
 	}
@@ -68,6 +70,19 @@ func validateConcept(rel string, meta ASTFrontmatter, result *Result) {
 
 	if frontmatterString(meta, "type") == "" {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-type", Message: "concept frontmatter must include non-empty type"})
+	}
+	validatePublicationMetadata(rel, meta, result)
+}
+
+func validatePublicationMetadata(rel string, meta ASTFrontmatter, result *Result) {
+	frontmatter := meta.Data
+	if value, exists := frontmatter["okf_publish"]; exists {
+		if _, ok := value.(bool); !ok {
+			result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "publish-metadata", Message: "okf_publish must be a boolean"})
+		}
+	}
+	if _, err := shouldPublishToTarget(frontmatter, PublicationTargetViewer); err != nil {
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "publish-metadata", Message: err.Error()})
 	}
 }
 

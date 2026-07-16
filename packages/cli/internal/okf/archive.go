@@ -133,20 +133,22 @@ func WriteBundleTarGzipWithVersion(root string, out string, version string, excl
 }
 
 func WritePublishedBundleTarGzipWithVersion(root string, out string, version string, excludes []string) (BundleArchiveResult, error) {
-	bundle, err := ParseBundleWithVersion(root, version)
+	publication, err := BuildPublicationSetWithVersion(root, version)
 	if err != nil {
 		return BundleArchiveResult{}, err
 	}
-	unpublished := make(map[string]bool)
-	for _, file := range bundle.Files {
-		if !ShouldPublish(file) {
-			unpublished[filepath.ToSlash(file.Path)] = true
-		}
-	}
-	return writeBundleTarGzipWithVersion(root, out, version, excludes, unpublished)
+	return writeBundleTarGzipWithVersion(root, out, version, excludes, publication.Paths())
 }
 
-func writeBundleTarGzipWithVersion(root string, out string, version string, excludes []string, unpublished map[string]bool) (BundleArchiveResult, error) {
+func WritePublishedTargetBundleTarGzipWithVersion(root string, out string, version string, excludes []string, target PublicationTarget) (BundleArchiveResult, error) {
+	publication, err := BuildPublicationSetForTargetWithVersion(root, version, target)
+	if err != nil {
+		return BundleArchiveResult{}, err
+	}
+	return writeBundleTarGzipWithVersion(root, out, version, excludes, publication.Paths())
+}
+
+func writeBundleTarGzipWithVersion(root string, out string, version string, excludes []string, included map[string]bool) (BundleArchiveResult, error) {
 	validation, err := ValidateWithVersion(root, version)
 	if err != nil {
 		return BundleArchiveResult{}, err
@@ -184,7 +186,7 @@ func writeBundleTarGzipWithVersion(root string, out string, version string, excl
 	}
 	tarWriter := tar.NewWriter(gzipWriter)
 
-	archiveFiles, err := bundleArchiveFiles(validation.Root, append(excludes, absoluteOut), unpublished)
+	archiveFiles, err := bundleArchiveFiles(validation.Root, append(excludes, absoluteOut), included)
 	if err != nil {
 		_ = tarWriter.Close()
 		_ = gzipWriter.Close()
@@ -395,7 +397,7 @@ func SHA256File(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func bundleArchiveFiles(root string, excludes []string, unpublished map[string]bool) ([]string, error) {
+func bundleArchiveFiles(root string, excludes []string, included map[string]bool) ([]string, error) {
 	absoluteExcludes := make([]string, 0, len(excludes))
 	for _, exclude := range excludes {
 		if strings.TrimSpace(exclude) == "" {
@@ -436,7 +438,7 @@ func bundleArchiveFiles(root string, excludes []string, unpublished map[string]b
 		if err != nil {
 			return err
 		}
-		if unpublished[filepath.ToSlash(rel)] {
+		if included != nil && !included[filepath.ToSlash(rel)] {
 			return nil
 		}
 		files = append(files, path)

@@ -43,6 +43,7 @@ func writeViewerDiscoveryFiles(files []okf.BundleFile, out string, siteConfig vi
 }
 
 func viewerLLMSText(files []okf.BundleFile, siteConfig viewerSiteConfig) string {
+	files = viewerFilesForTargets(files, okf.PublicationTargetViewer, okf.PublicationTargetLLMS)
 	title := viewerKnowledgeBaseNameFromFiles(files, "Open Knowledge")
 	summary := viewerKnowledgeBaseSummaryFromFiles(files)
 	if summary == "" {
@@ -57,7 +58,7 @@ func viewerLLMSText(files []okf.BundleFile, siteConfig viewerSiteConfig) string 
 	builder.WriteString("\n\n")
 	builder.WriteString("This file lists the published Open Knowledge pages in this static wiki.\n\n")
 	builder.WriteString("## Docs\n\n")
-	for _, page := range viewerDiscoveryPages(files, siteConfig) {
+	for _, page := range viewerDiscoveryPages(files, siteConfig, okf.PublicationTargetLLMS) {
 		builder.WriteString("- [")
 		builder.WriteString(escapeLLMSLinkLabel(page.Title))
 		builder.WriteString("](")
@@ -73,7 +74,7 @@ func viewerSitemapXML(files []okf.BundleFile, siteConfig viewerSiteConfig) strin
 	var builder strings.Builder
 	builder.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
 	builder.WriteString("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
-	for _, page := range viewerDiscoveryPages(files, siteConfig) {
+	for _, page := range viewerDiscoveryPages(files, siteConfig, okf.PublicationTargetSitemap) {
 		builder.WriteString("  <url>\n")
 		builder.WriteString("    <loc>")
 		builder.WriteString(xmlEscapedText(page.URL))
@@ -84,10 +85,10 @@ func viewerSitemapXML(files []okf.BundleFile, siteConfig viewerSiteConfig) strin
 	return builder.String()
 }
 
-func viewerDiscoveryPages(files []okf.BundleFile, siteConfig viewerSiteConfig) []viewerDiscoveryPage {
+func viewerDiscoveryPages(files []okf.BundleFile, siteConfig viewerSiteConfig, target okf.PublicationTarget) []viewerDiscoveryPage {
 	pages := make([]viewerDiscoveryPage, 0, len(files))
 	for _, file := range files {
-		if !okf.ShouldPublish(file) {
+		if !okf.ShouldPublishToTarget(file, okf.PublicationTargetViewer) || !okf.ShouldPublishToTarget(file, target) {
 			continue
 		}
 		htmlPath := viewerHTMLPath(file.Path)

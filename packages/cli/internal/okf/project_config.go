@@ -16,6 +16,12 @@ type ProjectConfig struct {
 	Rules      RuleCatalogConfig
 	Validation ValidationOptions
 	HTML       ProjectHTMLConfig
+	Publish    ProjectPublishConfig
+}
+
+type ProjectPublishConfig struct {
+	Enabled bool
+	Assets  []string
 }
 
 type ProjectHTMLConfig struct {
@@ -42,6 +48,12 @@ type projectConfigDocument struct {
 	Rules      *projectRulesDocument      `toml:"rules"`
 	Validation *projectValidationDocument `toml:"validation"`
 	HTML       *projectHTMLDocument       `toml:"html"`
+	Publish    *projectPublishDocument    `toml:"publish"`
+}
+
+type projectPublishDocument struct {
+	Enabled bool `toml:"enabled"`
+	Assets  any  `toml:"assets"`
 }
 
 type projectRulesDocument struct {
@@ -147,6 +159,20 @@ func ParseProjectConfig(content string) (ProjectConfig, error) {
 			Theme:  document.HTML.Theme,
 			Source: document.HTML.Source,
 			Site:   document.HTML.Site,
+		}
+	}
+	if document.Publish != nil {
+		config.Publish.Enabled = document.Publish.Enabled
+		if document.Publish.Assets != nil {
+			values, err := projectConfigStringList("publish.assets", document.Publish.Assets)
+			if err != nil {
+				return ProjectConfig{}, err
+			}
+			assets, err := normalizePublishAssetPatterns(values)
+			if err != nil {
+				return ProjectConfig{}, err
+			}
+			config.Publish.Assets = assets
 		}
 	}
 	return config, nil
