@@ -271,7 +271,10 @@ Inspect docs.
 	if err := json.Unmarshal([]byte(output), &spawned); err != nil || spawned.SupervisorPID != 4242 || spawned.Run.JobID != "managed-docs" {
 		t.Fatalf("unexpected spawn output: %#v err=%v", spawned, err)
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	// RunJob performs several real Git filesystem operations after the agent
+	// command exits. Leave headroom for loaded CI and encrypted macOS volumes;
+	// the test still polls the persisted terminal state rather than sleeping.
+	deadline := time.Now().Add(20 * time.Second)
 	for !agents.IsTerminalRunStatus(spawned.Run.Status) && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 		spawned.Run, _ = agents.GetRunSummary(root, spawned.Run.RunID)
