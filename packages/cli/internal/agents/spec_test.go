@@ -19,7 +19,7 @@ agent:
   command: codex
   args: [exec, --model, gpt-5]
 verify: {commands: ["go test ./...", "openknowledge validate Wiki"], timeout: 10m}
-output: {commit: true}
+output: {commit: true, pr: true}
 concurrency: {key: wiki-maintenance}
 ---
 
@@ -39,7 +39,7 @@ Review the docs.
 	if !reflect.DeepEqual(job.Agent.Args, []string{"exec", "--model", "gpt-5"}) || !reflect.DeepEqual(job.Verify.Commands, []string{"go test ./...", "openknowledge validate Wiki"}) {
 		t.Fatalf("unexpected flow collections: %#v", job)
 	}
-	if !job.Output.Commit || job.Verify.Timeout != "10m" || job.Prompt != "\nReview the docs.\n" {
+	if !job.Output.Commit || !job.Output.PR || job.Verify.Timeout != "10m" || job.Prompt != "\nReview the docs.\n" {
 		t.Fatalf("unexpected output or prompt: %#v", job)
 	}
 	if job.Concurrency.Key != "wiki-maintenance" || job.Concurrency.Policy != "skip" {

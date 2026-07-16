@@ -1,0 +1,92 @@
+name: openknowledge-runtime
+
+services:
+  serve:
+    build:
+      context: ../..
+      dockerfile: docker/runtime.Dockerfile
+      target: serve
+    command: ["--config", "/etc/openknowledge/runtime.toml"]
+    depends_on:
+      publisher:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    volumes:
+      - artifacts:/artifacts:ro
+      - ./runtime.toml:/etc/openknowledge/runtime.toml:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/openknowledge", "runtime", "serve", "--config", "/etc/openknowledge/runtime.toml", "--check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  publisher:
+    build:
+      context: ../..
+      dockerfile: docker/runtime.Dockerfile
+      target: publisher
+    command: ["--config", "/etc/openknowledge/runtime.toml"]
+    secrets:
+      - github_app_key
+    volumes:
+      - artifacts:/artifacts
+      - publisher-state:/var/lib/openknowledge
+      - exchange:/exchange
+      - ./runtime.toml:/etc/openknowledge/runtime.toml:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: docker/runtime.Dockerfile
+      target: worker
+      args:
+        CODEX_VERSION: "${CODEX_VERSION:-0.128.0}"
+    command: ["--role", "agents", "--config", "/etc/openknowledge/runtime.toml"]
+    depends_on:
+      publisher:
+        condition: service_started
+    environment:
+      OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
+    secrets:
+      - openai_api_key
+    volumes:
+      - agent-state:/var/lib/openknowledge
+      - exchange:/exchange
+      - ./runtime.toml:/etc/openknowledge/runtime.toml:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    restart: unless-stopped
+
+volumes:
+  artifacts:
+  publisher-state:
+  agent-state:
+  exchange:
+
+secrets:
+  openai_api_key:
+    file: ./secrets/openai_api_key
+  github_app_key:
+    file: ./secrets/github-app.pem

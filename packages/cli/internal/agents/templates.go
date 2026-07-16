@@ -265,7 +265,7 @@ Field reference:
 - verify.timeout: Positive timeout applied to each verification command. Defaults to 15m.
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.
-- output.pr: Reserved for future server or GitHub integration and currently rejected.
+- output.pr: Ask the private runtime worker to push the committed branch and open a draft GitHub pull request. Local agents run records never publish credentials or raw logs.
 - concurrency.key: Optional global key shared by jobs that must not overlap.
   Uses letters, numbers, dots, underscores, or hyphens, up to 128 characters.
 - concurrency.policy: skip; this is the default when a key is present. A

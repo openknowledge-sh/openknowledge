@@ -5,6 +5,7 @@
 /packages/web/dist/
 .pnpm-store/
 node_modules/
+deploy/runtime/secrets/
 *.test
 coverage.out
 .DS_Store

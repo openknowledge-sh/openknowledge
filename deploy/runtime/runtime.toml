@@ -1,0 +1,39 @@
+[runtime]
+state_dir = "/var/lib/openknowledge"
+
+[artifact_store]
+type = "filesystem"
+path = "/artifacts"
+
+[serve]
+address = "0.0.0.0:8080"
+poll_interval = "5s"
+request_timeout = "15s"
+max_concurrency = 32
+mcp_access = "public"
+allowed_origins = []
+
+[worker]
+repository_url = "https://github.com/OWNER/REPOSITORY.git"
+remote = "origin"
+production_branch = "main"
+poll_interval = "30s"
+run_agents = true
+jobs_path = ".openknowledge/agents/jobs"
+exchange_dir = "/exchange"
+
+[github]
+enabled = true
+repository = "OWNER/REPOSITORY"
+app_id = 123456
+installation_id = 12345678
+private_key_file = "/run/secrets/github_app_key"
+draft_pull_request = true
+checks = true
+
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+route = "/"
+publish = true
+mcp = true

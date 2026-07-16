@@ -54,6 +54,11 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge agents validate <job-or-dir> --json",
 		"openknowledge agents run <job.md> --dry-run",
 		"openknowledge agents daemon [jobs-dir] --once",
+		"openknowledge runtime plan --config runtime.toml",
+		"openknowledge runtime build --config runtime.toml",
+		"openknowledge runtime serve --config runtime.toml",
+		"openknowledge runtime worker --role publisher --config runtime.toml",
+		"openknowledge runtime worker --role agents --config runtime.toml",
 		"openknowledge new --name <name> [folder]",
 		"openknowledge new --no-agents --no-setup [folder]",
 		"openknowledge connect <source>",
@@ -101,6 +106,7 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"rules      Print agent maintenance rules.",
 		"review     Print advisory AI review prompts.",
 		"agents     Experimental: run and manage local agent jobs from Markdown specs.",
+		"runtime    Run isolated public serving and private maintenance roles.",
 		"new        Scaffold a local Open Knowledge bundle.",
 		"connect    Connect a local or remote knowledge bundle.",
 		"disconnect Remove a knowledge bundle connection.",
@@ -1746,6 +1752,7 @@ func TestRunToTarWritesPortableArchive(t *testing.T) {
 
 func TestRunToHTMLInjectsTrustedHeadHTML(t *testing.T) {
 	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\nRead [Topic](notes/topic.md).\n")
 	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")

@@ -193,6 +193,7 @@ func cliErrorCommand(args []string) string {
 	root := args[0]
 	nested := map[string]map[string]bool{
 		"agents":   {"new": true, "list": true, "status": true, "runs": true, "spawn": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
+		"runtime":  {"plan": true, "build": true, "serve": true, "worker": true},
 		"registry": {"connect": true, "disconnect": true, "refresh": true, "list": true, "status": true, "where": true},
 		"review":   {"rules": true},
 		"to":       {"html": true, "json": true, "tar": true, "graph": true},
@@ -204,7 +205,7 @@ func cliErrorCommand(args []string) string {
 		"setup": true, "from": true, "rules": true, "review": true, "agents": true,
 		"new": true, "connect": true, "disconnect": true, "get": true, "search": true,
 		"mcp": true, "ast": true, "registry": true, "view": true, "to": true,
-		"spec": true, "validate": true, "list": true, "version": true,
+		"runtime": true, "spec": true, "validate": true, "list": true, "version": true,
 	}
 	if knownRoots[root] {
 		return root
@@ -232,6 +233,8 @@ func dispatchCLI(args []string) int {
 		return runReview(args[1:])
 	case "agents":
 		return runAgents(args[1:])
+	case "runtime":
+		return runRuntime(args[1:])
 	case "new":
 		return runNew(args[1:])
 	case "connect":
@@ -4787,6 +4790,11 @@ Usage:
   openknowledge agents run <job.md> --dry-run
   openknowledge agents run <job.md>
   openknowledge agents daemon [jobs-dir] --once
+  openknowledge runtime plan --config runtime.toml
+  openknowledge runtime build --config runtime.toml
+  openknowledge runtime serve --config runtime.toml
+  openknowledge runtime worker --role publisher --config runtime.toml
+  openknowledge runtime worker --role agents --config runtime.toml
   openknowledge new [folder]
   openknowledge new --name <name> [folder]
   openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
@@ -4848,6 +4856,7 @@ Commands:
   rules      Print agent maintenance rules.
   review     Print advisory AI review prompts.
   agents     Experimental: run and manage local agent jobs from Markdown specs.
+  runtime    Run isolated public serving and private maintenance roles.
   new        Scaffold a local Open Knowledge bundle.
   connect    Connect a local or remote knowledge bundle.
   disconnect Remove a knowledge bundle connection.

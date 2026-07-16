@@ -3,6 +3,9 @@
 bin
 node_modules
 packages/web/dist
+deploy/runtime/secrets
+.env
+.env.*
 .DS_Store
 npm-debug.log*
 pnpm-debug.log*

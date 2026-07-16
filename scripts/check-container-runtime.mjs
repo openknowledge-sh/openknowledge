@@ -2,6 +2,8 @@ import fs from "node:fs";
 import process from "node:process";
 
 const source = fs.readFileSync(new URL("../Dockerfile", import.meta.url), "utf8");
+const runtimeSource = fs.readFileSync(new URL("../docker/runtime.Dockerfile", import.meta.url), "utf8");
+const runtimeCompose = fs.readFileSync(new URL("../deploy/runtime/docker-compose.yml", import.meta.url), "utf8");
 const goMod = fs.readFileSync(new URL("../packages/cli/go.mod", import.meta.url), "utf8");
 const goWork = fs.readFileSync(new URL("../go.work", import.meta.url), "utf8");
 const stages = source.split(/^FROM\s+/m).slice(1);
@@ -43,6 +45,8 @@ if (stages.length < 2) {
   }
 }
 
+checkKnowledgeRuntimeImages(runtimeSource, runtimeCompose, goWorkVersion || goModVersion);
+
 if (failures.length > 0) {
   console.error("container runtime check failed:");
   for (const failure of failures) {
@@ -50,7 +54,71 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("Container Go toolchain is aligned and runtime uses the unprivileged node user");
+  console.log("Container toolchains are aligned; web, serve, publisher, and worker runtimes enforce non-root isolation");
+}
+
+function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
+  const runtimeStages = dockerfile.split(/^FROM\s+/m).slice(1);
+  const builder = runtimeStages.find((stage) => /\sAS\s+cli-builder\s*$/m.test(stage.split("\n", 1)[0]));
+  const serve = runtimeStages.find((stage) => /\sAS\s+serve\s*$/m.test(stage.split("\n", 1)[0]));
+  const publisher = runtimeStages.find((stage) => /\sAS\s+publisher\s*$/m.test(stage.split("\n", 1)[0]));
+  const worker = runtimeStages.find((stage) => /\sAS\s+worker\s*$/m.test(stage.split("\n", 1)[0]));
+  if (!builder || !serve || !publisher || !worker) {
+    failures.push("runtime.Dockerfile must define cli-builder, serve, publisher, and worker targets");
+    return;
+  }
+  const runtimeGo = builder.match(/^golang:([0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:-|@|\s)/);
+  if (!runtimeGo || (requiredGoVersion && runtimeGo[1] !== requiredGoVersion)) {
+    failures.push(`runtime.Dockerfile Go must match repository Go ${requiredGoVersion}`);
+  }
+  if (!/^gcr\.io\/distroless\/static-debian12:nonroot/m.test(serve)) {
+    failures.push("serve target must use the distroless nonroot runtime");
+  }
+  if (!/^USER\s+nonroot:nonroot\s*$/m.test(serve) || !/ENTRYPOINT \["\/openknowledge", "runtime", "serve"\]/.test(serve)) {
+    failures.push("serve target must select nonroot:nonroot and lock its runtime serve entrypoint");
+  }
+  if (/\b(?:apt-get|npm|git|codex)\b/.test(serve)) {
+    failures.push("serve target must not install Git, Node/npm, or Codex runtime tooling");
+  }
+  if (!/^USER\s+openknowledge:openknowledge\s*$/m.test(publisher) || /@openai\/codex|\bnpm\b/.test(publisher)) {
+    failures.push("publisher target must be non-root and must not contain the Codex/Node agent runtime");
+  }
+  const codexVersion = worker.match(/^ARG\s+CODEX_VERSION=([0-9]+\.[0-9]+\.[0-9]+)\s*$/m);
+  if (!codexVersion || !worker.includes(`@openai/codex@\${CODEX_VERSION}`)) {
+    failures.push("worker target must install Codex through an explicitly pinned CODEX_VERSION build argument");
+  }
+  if (!/^USER\s+openknowledge:openknowledge\s*$/m.test(worker)) {
+    failures.push("worker target must run as openknowledge:openknowledge");
+  }
+  for (const required of [
+    "artifacts:/artifacts:ro",
+    "cap_drop: [\"ALL\"]",
+    "no-new-privileges:true",
+    "openai_api_key",
+    "github_app_key",
+  ]) {
+    if (!compose.includes(required)) {
+      failures.push(`runtime Compose must include ${required}`);
+    }
+  }
+  const workerService = composeService(compose, "worker");
+  if (/^\s+ports:/m.test(workerService)) {
+    failures.push("runtime worker service must not publish ports");
+  }
+  if (/github_app_key|artifacts:\/artifacts/.test(workerService)) {
+    failures.push("agent worker must not mount GitHub credentials or the artifact store");
+  }
+  const publisherService = composeService(compose, "publisher");
+  if (/openai_api_key|target:\s+worker/.test(publisherService)) {
+    failures.push("publisher must not mount the OpenAI credential or Codex worker image");
+  }
+}
+
+function composeService(source, name) {
+  const services = source.split(/^services:\s*$/m)[1] || "";
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = services.match(new RegExp(`^  ${escaped}:\\s*$([\\s\\S]*?)(?=^  [A-Za-z0-9_-]+:\\s*$|^volumes:\\s*$|^secrets:\\s*$)`, "m"));
+  return match?.[1] || "";
 }
 
 function declaredGoVersion(contents, name) {

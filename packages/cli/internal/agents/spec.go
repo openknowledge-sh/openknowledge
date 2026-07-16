@@ -287,8 +287,8 @@ func ValidateJob(job Job) error {
 		}
 		seenEnvironment[canonicalName] = true
 	}
-	if job.Output.PR {
-		add("output.pr", "is reserved for a future server/GitHub integration")
+	if job.Output.PR && !job.Output.Commit {
+		add("output.commit", "must be true when output.pr is true")
 	}
 	if job.Concurrency.Key != "" {
 		if !validJobID.MatchString(job.Concurrency.Key) || len(job.Concurrency.Key) > 128 {
