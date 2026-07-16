@@ -155,6 +155,13 @@ deliberate additive contract change from accidental encoder/schema drift.
 Nested AST, graph node and edge, search source, validation check, registry,
 bundle, list, link, and issue shapes are explicit rather than open-ended.
 
+Runtime generation manifests use a separate closed v1 contract at
+`schemas/runtime/v1/generation.schema.json`. It binds a concrete source commit,
+knowledge-base ID, OKF spec, and complete sorted SHA-256/byte inventory for the
+only permitted roots, `public/`, `source/`, `search/`, and `mcp/`. Runtime
+decoding additionally rejects duplicate keys and trailing JSON before digest
+verification.
+
 ## Enforcement
 
 `go test ./packages/cli/...` performs three complementary checks:

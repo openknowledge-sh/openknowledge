@@ -44,9 +44,14 @@ at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
 manifest is contract version `1` with type `openknowledge.bundle`, a concrete
 supported OKF `spec`, `archiveFormat: "tar.gz"`, the archive path, and its
 required SHA-256. Unlike the standalone source-preserving `to tar` command, the
-public HTML export filters Markdown files marked `okf_publish: false` from this
-downloadable archive so hidden drafts cannot be recovered through the remote
-connect asset. The Draft 2020-12 manifest contract is published at
+public HTML export first requires `[publish] enabled = true`, then uses an
+explicit publication set: Markdown marked `okf_publish: false` is omitted, and
+non-Markdown files are omitted unless they
+match `[publish].assets`. Asset patterns cannot re-include Markdown;
+`.git`, `.openknowledge`, and `openknowledge.toml` are always absent. This keeps
+drafts, runtime state, job definitions, logs, and incidental repository files
+out of the remote-connect artifact. The standalone `to tar` command intentionally
+remains a complete source export. The Draft 2020-12 manifest contract is published at
 `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
 
 Remote `openknowledge connect` downloads archives from manifests or direct
@@ -66,6 +71,25 @@ sibling staging directory; the requested target appears only after the full
 archive succeeds, and an existing target is never overlaid.
 
 ## Change History
+
+### 2026-07-16 - Explicit public artifact allowlist
+
+Public HTML archives now contain only published Markdown and non-Markdown files
+matching `[publish].assets`; static HTML copies the same allowlisted assets.
+Project configuration, internal runtime state, unpublished Markdown, and
+incidental files are excluded even if present in the source checkout. Source
+anchors: `packages/cli/internal/okf/publish.go`,
+`packages/cli/internal/okf/archive.go`, and
+`packages/cli/cmd/openknowledge/viewer.go`.
+
+### 2026-07-17 - Explicit bundle enable and target projections
+
+Public HTML and its remote-connect archive now fail closed unless the bundle
+sets `[publish] enabled = true`. Per-page `okf_targets` independently controls
+viewer, search, MCP, llms.txt, and sitemap projections while
+`okf_publish: false` remains the absolute all-target deny. Source anchors:
+`packages/cli/internal/okf/publish.go` and
+`packages/cli/cmd/openknowledge/viewer_discovery.go`.
 
 ### 2026-07-15 - Public strict manifest contract
 

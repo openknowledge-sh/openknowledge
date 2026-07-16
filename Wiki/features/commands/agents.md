@@ -281,7 +281,7 @@ Supported top-level fields:
 | `verify.timeout` | Positive timeout applied separately to each verification command. Defaults to `15m`. |
 | `output.commit` | When true, commits worktree changes after verification. |
 | `output.commit_message` | Optional commit message. Defaults to `Run agent job <id>` when `output.commit` is true. |
-| `output.pr` | Reserved; currently rejected by validation. |
+| `output.pr` | Requests a branch bundle and draft pull request when the successful run is reconciled by the isolated `agents` and `publisher` runtime roles. Local `agents run` still stops after commit. |
 | `concurrency.key` | Optional global key shared by jobs that must not overlap. At most 128 letters, numbers, dots, underscores, or hyphens. |
 | `concurrency.policy` | `skip`; defaults to `skip` when a key is present. |
 
@@ -571,6 +571,18 @@ descendants from surviving a timed-out daemon job. Source anchors:
 `packages/cli/internal/agents/process_group_unix_test.go`,
 `packages/cli/internal/agents/spec_test.go`, and
 `packages/cli/cmd/openknowledge/agents_command_test.go`.
+
+### 2026-07-16 - Isolated runtime pull-request output
+
+`output.pr` is now accepted. The model-capable role exports a Git bundle without
+GitHub access; the credentialed publisher independently verifies it, pushes the
+commit without force, reuses an existing open PR after retries, creates a draft
+PR, and publishes a sanitized success Check. Prompts, stdout/stderr, tool calls,
+environment metadata, and raw run records remain outside the repository and
+public generation. Source anchors:
+`packages/cli/cmd/openknowledge/runtime_worker.go`,
+`packages/cli/internal/runtime/github.go`, and
+`packages/cli/internal/agents/spec.go`.
 
 ### 2026-07-15 - Strict executable job schema
 

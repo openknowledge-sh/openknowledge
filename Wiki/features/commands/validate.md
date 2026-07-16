@@ -149,8 +149,9 @@ The JSON report includes:
   malformed indentation, an unclosed quoted or flow value, an invalid nested
   collection, a tab used for indentation, or a non-mapping document root.
 * A concept document is missing YAML frontmatter or has an empty `type`.
-* A non-root `index.md` uses frontmatter other than optional `okf_publish`
-  metadata.
+* A non-root `index.md` uses frontmatter other than optional `okf_publish` and
+  `okf_targets` metadata, or publication metadata contains an unknown target or
+  non-boolean value.
 * `log.md` uses frontmatter.
 * A `log.md` `##` heading is not exactly `## YYYY-MM-DD`.
 * A custom rule document under configured `[rules].paths` is missing
@@ -184,9 +185,12 @@ to have been followed.
 Root `index.md` frontmatter may declare `okf_version`; unknown additional root
 frontmatter keys are tolerated. Root `okf_bundle_*` keys are an optional Open
 Knowledge CLI metadata layer for bundle discovery and `get` entrypoint routing.
-Any `index.md` may also declare `okf_publish: false` so public-view
-publishers can exclude that index while the OKF validator still treats it as a
-reserved file instead of a concept document.
+Any `index.md` may also declare boolean `okf_publish` and an `okf_targets`
+mapping containing only boolean `viewer`, `search`, `mcp`, `llms`, and
+`sitemap` keys. The same metadata is accepted on concept pages. Unknown target
+keys and non-boolean values are validation errors. `okf_publish: false` lets
+public-view publishers exclude an index while the validator still treats it as
+a reserved file instead of a concept document.
 
 ## Example Output
 

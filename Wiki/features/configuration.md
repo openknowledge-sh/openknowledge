@@ -34,6 +34,10 @@ entry = "Wiki"
 
 [html.site]
 base_url = "https://example.com/knowledge/"
+
+[publish]
+enabled = true
+assets = ["assets/public/**", "whitepapers/*.pdf"]
 ```
 
 | Field | Type | Behavior |
@@ -46,6 +50,8 @@ base_url = "https://example.com/knowledge/"
 | `html.source.github_base` | string | Absolute HTTP(S) repository source base URL. |
 | `html.source.entry` | string | Optional relative repository path prefix. |
 | `html.site.base_url` | string | Absolute HTTP(S) deployed root without query or fragment. |
+| `publish.enabled` | boolean | Explicit permission to create public artifacts. Defaults to `false`; public HTML and runtime generation fail closed until set to `true`. |
+| `publish.assets` | string or string array | Bundle-relative glob allowlist for non-Markdown files copied into public HTML and portable public source artifacts. `**` matches path segments recursively. |
 
 `rules.paths` and `rules.enabled` retain the existing single-string shorthand.
 All other fields use the exact types above. Standard TOML features such as
@@ -75,6 +81,34 @@ asset/raw viewer routes. Bundle-root loading also applies the real filesystem
 boundary and rejects a symbolic-link `openknowledge.toml` rather than following
 it outside the bundle.
 
+Public artifacts are allowlist-based. `[publish] enabled = true` is the
+required bundle-level permission and is absent/false by default. After that
+gate, Markdown is selected by `okf_publish` and optional `okf_targets`; every
+non-Markdown file is excluded unless it matches `publish.assets`. Asset
+patterns cannot re-include unpublished Markdown, and
+`.git`, `.openknowledge`, and `openknowledge.toml` remain excluded even under a
+broad pattern. A source repository that is itself public still exposes its Git
+contents: `okf_publish: false` is an artifact filter, not repository secrecy.
+
+Per-page `okf_publish` defaults to allowed only after the bundle gate succeeds;
+literal `false` is an absolute deny for every public projection. Optional
+target booleans default to `true`:
+
+```yaml
+okf_publish: true
+okf_targets:
+  viewer: true
+  search: false
+  mcp: false
+  llms: true
+  sitemap: true
+```
+
+Unknown targets, non-boolean target values, and non-boolean `okf_publish`
+values fail validation and publication. Targets route already-public content;
+they are not confidentiality boundaries. Use `okf_publish: false` when content
+must be physically absent from every public generation.
+
 ## Consumer Behavior
 
 * `openknowledge validate` applies `[validation.rules]` and uses `[rules]` for
@@ -83,9 +117,11 @@ it outside the bundle.
   custom catalog paths and default selection.
 * `openknowledge view` uses `[html.theme]`.
 * Default `openknowledge to html` uses `[html.theme]`, `[html.source]`, and
-  `[html.site]` together through the same strict parser used during validation.
-* Plain HTML, JSON, graph, and standalone tar output do not apply HTML settings,
-  but project configuration remains part of the source bundle.
+  `[html.site]` together through the same strict parser used during validation,
+  and uses `[publish]` for the bundle gate and public asset allowlist.
+* Plain HTML also requires `publish.enabled`; JSON, graph, and standalone tar
+  output do not apply publication settings, and project configuration remains
+  part of those source-oriented views.
 
 ---
 

@@ -83,8 +83,9 @@ reading and accessibility settings: font family, text size, line spacing, motion
 readable line length, high contrast, and link underlining. Preferences are stored
 in the browser and do not modify exported Markdown or apply to `--plain` output.
 
-Both modes rewrite local Markdown links to generated `.html` targets and skip
-files with `okf_publish: false`. Rendered Markdown comes from the parsed
+Both modes require `[publish] enabled = true`, rewrite local Markdown links to
+generated `.html` targets, and skip files with `okf_publish: false` or
+`okf_targets.viewer: false`. Rendered Markdown comes from the parsed
 Markdown AST rather than a separate body scan. It keeps list continuations
 inside their parent item and emits semantic tables with alignment metadata.
 HTML comments are hidden. The `<!-- okf-footer: agent-maintenance -->` marker
@@ -110,12 +111,12 @@ Default viewer exports include discovery files:
 
 * `llms.txt` - a Markdown index following the llms.txt proposal shape: H1 title,
   summary blockquote, details, and a `## Docs` section of Markdown links to
-  published pages. When no site base URL is configured, links are relative to
-  the export root.
+  pages enabled for both `viewer` and `llms`. When no site base URL is
+  configured, links are relative to the export root.
 * `sitemap.xml` - a Sitemap Protocol XML document for published pages when
   `[html.site].base_url` is configured. The sitemap is skipped without a base URL
   because sitemap `<loc>` entries must be absolute `http` or `https` URLs on one
-  host.
+  host. Only pages enabled for both `viewer` and `sitemap` are listed.
 
 Default viewer exports include remote-connect assets:
 
@@ -124,11 +125,16 @@ Default viewer exports include remote-connect assets:
   name/title metadata when present, and archive SHA-256. Its Draft 2020-12
   contract is published at
   `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
-* `assets/openknowledge-bundle.tar.gz` - a portable source bundle archive
+* `assets/openknowledge-bundle.tar.gz` - a portable public source bundle archive
   generated with the same deterministic archive machinery as `openknowledge to
-  tar`, but scoped to published Markdown: files marked `okf_publish: false` are
-  excluded from the downloadable archive as well as HTML, static payloads,
-  graphs, and discovery files.
+  tar`, but scoped to published Markdown and `[publish].assets`. Files marked
+  `okf_publish: false`, project configuration, worker state, agent jobs/logs,
+  and every non-allowlisted asset are physically absent. Allowlisted assets are
+  copied at the same relative path into both the static site and portable bundle.
+
+The embedded static search corpus requires both `viewer` and `search`; a
+`search: false` page can remain a directly browsable HTML page without being
+indexed. All target keys default to `true` after publication is enabled.
 
 `openknowledge connect <deployed-wiki-url>` discovers and validates the
 versioned manifest, requires and verifies the archive hash, extracts the archive
@@ -147,6 +153,9 @@ stylesheet = "assets/wiki-theme.css"
 
 [html.site]
 base_url = "https://openknowledge.sh/wiki/"
+
+[publish]
+enabled = true
 ```
 
 Every load uses the shared strict

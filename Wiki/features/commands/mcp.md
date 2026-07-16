@@ -1,7 +1,7 @@
 ---
 type: Command Documentation
 title: openknowledge mcp
-description: Serves one Open Knowledge bundle as read-only MCP resources and tools over stdio.
+description: Serves one Open Knowledge bundle as read-only MCP resources and tools over stdio or the public runtime HTTP transport.
 tags: [openknowledge, cli, command, mcp, llm, retrieval]
 timestamp: 2026-07-15T00:00:00Z
 ---
@@ -47,6 +47,14 @@ equivalent of:
 The exact configuration file and property names belong to the MCP host. The
 server itself does not read client-specific configuration.
 
+For a deployed immutable generation, `openknowledge runtime serve` exposes the
+same read-only server at `<knowledge-route>/_mcp`. It uses MCP session IDs over
+HTTP POST/DELETE, never invokes an agent or model, and reads only the filtered
+`mcp/` target projection. Pages with `okf_publish: false` or
+`okf_targets.mcp: false` are physically absent from that projection. Each
+knowledge base can disable MCP; the runtime supports anonymous public access,
+bearer-token access, or `off`.
+
 ## Transport And Lifecycle
 
 The command implements the stable MCP `2025-11-25` protocol over stdio. Each
@@ -71,6 +79,12 @@ Protocol behavior follows the official MCP
 [resources](https://modelcontextprotocol.io/specification/2025-11-25/server/resources),
 and [tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
 contracts.
+
+The runtime HTTP transport additionally validates browser `Origin`, limits
+request bodies to 1 MiB, caps active sessions and request concurrency, and uses
+finite HTTP timeouts. Anonymous per-IP rate limiting belongs at the trusted
+deployment ingress; the application intentionally does not trust forwarded IP
+headers by default.
 
 ## Resources
 
@@ -133,6 +147,9 @@ status `2` before the protocol starts.
 * `2026-07-15`: Added the read-only MCP stdio server with lifecycle and version
   negotiation, exact paginated resources, source-grounded search, validation,
   strict schemas, canonical root confinement, and bounded messages and reads.
+* `2026-07-16`: Added session-based read-only HTTP MCP for verified immutable
+  runtime generations with public/token/off access and Origin/body/concurrency
+  guards.
 
 ---
 

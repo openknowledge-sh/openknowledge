@@ -12,6 +12,8 @@ update the smallest relevant page.
 * [OKF, skills, and plugins](okf-skills-plugins.md) - user-facing comparison of raw OKF v0.1, agent skills, and plugins.
 * [Spec compliance](spec-compliance.md) - hard-rule OKF spec compliance matrix for the CLI.
 * [Go API](go-api.md) - public read-only package for embedding the same parser, validation, retrieval, and graph core used by the CLI.
+* [Self-hosted runtime](commands/runtime.md) - isolated public serving, private
+  worker reconciliation, immutable artifacts, HTTP MCP, and Docker deployment.
 * [Commands](commands/) - command-by-command reference pages.
 * [Exporters](exporters/) - shipped bundle conversion targets.
 

@@ -50,7 +50,11 @@ set. `pnpm test` runs all workflow and version checks before the CLI test suite.
 checksum-verified OSV Scanner, and four-ecosystem Dependabot contract.
 `pnpm check:container-runtime` requires the Docker build stage to use the
 workspace Go baseline and the final Node image to select its built-in
-unprivileged user. The root test gate also runs transactional
+unprivileged user. It also checks the self-hosted runtime's distinct
+builder/serve/publisher/worker targets, distroless non-root serve image, pinned
+Codex worker, credential-free publisher image, read-only serve artifact mount,
+separate secrets and state volumes, capability drops, no-new-privileges policy,
+and absence of private ports. The root test gate also runs transactional
 shell-installer fixtures and offline npm downloader/archive hardening tests;
 `pnpm build` builds both the CLI and web package. `pnpm test:web` exercises the
 production static handler without binding a network socket, so the same checks

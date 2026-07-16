@@ -2,14 +2,16 @@
   <img src="docs/assets/openknowledge-readme-banner-wide.png" alt="Open Knowledge CLI banner" width="1160" height="125">
 </p>
 
-# Open Knowledge CLI
+# Open Knowledge
 
-LLM wiki tooling for agents and humans.
+Open-source runtime for self-hosted, self-maintaining knowledge bases.
 
-Open Knowledge CLI creates Git-native project knowledge bases in plain Markdown
-and YAML frontmatter. Use it to set up agent memory, generate
-source-grounded docs from existing material, validate the structure, search it,
-view it locally, and publish it as portable static HTML.
+Open Knowledge creates Git-native project knowledge bases in plain Markdown and
+can deploy them as isolated public and private runtimes. The public role serves
+an immutable filtered wiki, search, and optional read-only HTTP MCP. The private
+runtime splits GitHub publication from model execution: a credentialed publisher
+follows production and promotes artifacts, while a credential-free agent worker
+runs scheduled jobs and proposes draft pull requests through Git bundles.
 
 [🌐 Website](https://openknowledge.sh) | [📖 README](README.md) |
 [🗂️ Repository wiki](Wiki/index.md) | [📝 Changelog](Wiki/changelog/cli.md) |
@@ -53,6 +55,8 @@ It gives you:
   bundle archives
 - optional experimental Markdown-authored local agent jobs for scheduled
   maintenance
+- a Docker runtime with public `serve`, credentialed private `publisher`, and
+  model-capable private `worker` roles separated by artifacts and Git bundles
 
 Open Knowledge implements Google's [Open Knowledge Format v0.1][okf-spec]
 specification, a Markdown and YAML-frontmatter standard designed to stay easy
@@ -68,6 +72,7 @@ to inspect, diff, validate, and maintain.
 | :electric_plug: | MCP integration | `mcp` serves exact resources, source-grounded search, and validation to compatible LLM hosts over read-only stdio. |
 | :package: | Portable publishing | HTML exports include `llms.txt`, `openknowledge.json`, and a bundle archive so published wikis can be connected again. |
 | :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and experimental agent job commands provide structured views that automation can trust. |
+| :shield: | Isolated runtime | `runtime serve` consumes only public generations; publisher and agent roles keep GitHub and model credentials in different containers and state volumes. |
 
 ```mermaid
 flowchart LR
@@ -163,6 +168,7 @@ openknowledge view ./project-memory
 | Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into a local OKF Markdown wiki. |
 | Authoring and format hygiene | `new`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
 | Experimental local agent automation | `agents` | Validate, schedule, spawn, observe, stop, and inspect local agent jobs in isolated Git worktrees. |
+| Self-hosted runtime | `runtime` | Plan, build, serve, and privately reconcile immutable knowledge-base generations. |
 | Registry and lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
 | Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, browse locally, and connect MCP-compatible LLM hosts. |
 | Views and publishing | `to json`, `to graph`, `to graph --type search`, `to html`, `to html --plain` | Export normalized models, source graphs, retrieval graphs, static viewers, and plain semantic HTML. |
@@ -211,6 +217,23 @@ openknowledge to graph ./project-memory
 openknowledge to graph --type search ./project-memory
 openknowledge to tar --out ./project-memory.tar.gz ./project-memory
 ```
+
+### Run the isolated Docker runtime
+
+Copy and edit `deploy/runtime/runtime.toml`, create the two secret files named
+by `deploy/runtime/docker-compose.yml`, then run:
+
+```sh
+docker compose -f deploy/runtime/docker-compose.yml up --build
+```
+
+The `serve` container mounts the artifact volume read-only and receives no Git,
+OpenAI, or GitHub credentials. The ingress-free `publisher` alone receives the
+GitHub App key and artifact write access. The ingress-free `worker` alone
+receives the OpenAI key. They use separate persistent checkouts and exchange
+only bounded Git bundles and sanitized request records. See the
+[runtime command reference](Wiki/features/commands/runtime.md) before using the
+example in production.
 
 ## How It Works
 
@@ -420,6 +443,11 @@ Nested agent commands also support
 | `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
 | `openknowledge agents run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
 | `openknowledge agents daemon [jobs-dir] --once` | Experimental: attempt every due job once and report an aggregate failure after the pass. |
+| `openknowledge runtime plan --config runtime.toml` | Strictly validate and print the normalized self-hosted runtime plan. |
+| `openknowledge runtime build --config runtime.toml` | Build and promote filtered immutable public generations. |
+| `openknowledge runtime serve --config runtime.toml` | Serve verified static wiki, search, and optional read-only HTTP MCP snapshots. |
+| `openknowledge runtime worker --role publisher --config runtime.toml` | Fetch production, promote artifacts, validate agent bundles, and publish draft PR output with GitHub credentials. |
+| `openknowledge runtime worker --role agents --config runtime.toml` | Run scheduled agents with the model credential and export proposed Git branches without GitHub or artifact access. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge new --no-agents --no-setup [folder]` | Scaffold without starter agent rules or a setup handoff. |
 | `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
@@ -482,7 +510,10 @@ portable bundle:
 - `index.md` and `log.md` are reserved files, not concept documents
 - root `index.md` may declare `okf_version: "0.1"` and optional
   `okf_bundle_*` metadata; unknown root frontmatter keys are tolerated
-- any `index.md` may declare `okf_publish: false` for public-view exclusion
+- public artifacts require explicit `[publish] enabled = true`; the default is
+  deny
+- any page may use boolean `okf_publish: false` as a hard all-artifact deny and
+  `okf_targets` booleans for viewer, search, MCP, llms.txt, and sitemap routing
 - `log.md` `##` headings use `YYYY-MM-DD`
 - local Markdown links resolve inside the bundle, reported as warnings
 - symbolic links below the bundle root are rejected so reads and exports cannot

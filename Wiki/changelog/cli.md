@@ -14,6 +14,60 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-17 - Deny-by-default targeted publication
+
+* Made public artifact creation a bundle-level explicit opt-in through
+  `[publish] enabled = true`; missing or false configuration now refuses public
+  HTML, portable public source, and runtime generation builds.
+* Added strict boolean `okf_targets.viewer`, `search`, `mcp`, `llms`, and
+  `sitemap` metadata. Unknown targets and non-boolean values fail closed, while
+  omitted target keys remain enabled for compatible published pages.
+* Added physically separate runtime `search/` and `mcp/` source projections;
+  static viewer search, llms.txt, sitemap, and HTML generation consume their
+  matching target filters. `okf_publish: false` still overrides every target.
+* Source anchors: `packages/cli/internal/okf/{project_config,publish}.go`,
+  `packages/cli/cmd/openknowledge/{viewer,runtime_command,runtime_serve}.go`,
+  and `packages/cli/internal/runtime/generation.go`.
+* Docs updated: `README.md`, `Wiki/features/configuration.md`,
+  `Wiki/features/exporters/{html,tar}.md`,
+  `Wiki/features/commands/{to,validate,runtime}.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/changelog/cli.md`.
+
+### 2026-07-16 - Isolated self-hosted knowledge runtime
+
+* Added strict `openknowledge runtime plan`, deterministic `build`, public
+  `serve`, and ingress-free private `worker` roles for one repository and one or
+  more independently routed knowledge bases.
+* Added content-bound immutable generation manifests, transactional filesystem
+  artifact promotion, atomic active pointers, complete digest verification,
+  and last-valid-generation fallback.
+* Changed public HTML/source publication to an explicit allowlist: published
+  Markdown plus `[publish].assets`; drafts, project config, runtime state, jobs,
+  logs, and incidental source files are physically absent.
+* Added public generation search and optional session-based read-only HTTP MCP
+  with public/token/off policy, Origin checks, bounded bodies/sessions,
+  concurrency limits, and finite server timeouts. Model inference and agent
+  execution are not reachable from public requests.
+* Added the private production-branch reconciler, role-scoped locks, existing
+  scheduled worktree runner integration, GitHub App installation authentication,
+  non-force branch push, idempotent draft PRs, sanitized completed Checks, and
+  private integration markers.
+* Split the private runtime into credentialed publisher and model-capable agent
+  processes with isolated checkouts and state volumes. Their bounded Git-bundle
+  exchange is untrusted: the publisher verifies hashes, refs, production
+  ancestry, and OKF validity independently before any push.
+* Added separate distroless serve, Git-only publisher, and pinned-Codex worker
+  image targets plus a hardened Docker Compose example with separate users,
+  volumes, secrets, capabilities, read-only roots, PID limits, and no private
+  ingress.
+* Source anchors: `packages/cli/cmd/openknowledge/runtime_*.go`,
+  `packages/cli/internal/runtime/`, `packages/cli/internal/okf/publish.go`,
+  `docker/runtime.Dockerfile`, and `deploy/runtime/`.
+* Docs updated: `README.md`, `Wiki/features/configuration.md`,
+  `Wiki/features/commands/{runtime,agents,mcp,help,index}.md`,
+  `Wiki/features/exporters/{html,tar}.md`, `Wiki/features/{index,operations}.md`,
+  and `Wiki/changelog/cli.md`.
+
 ### 2026-07-15 - Documentation drift audit
 
 * Aligned registry and connect references with the shipped Git selector flags

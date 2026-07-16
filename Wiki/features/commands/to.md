@@ -116,7 +116,10 @@ Default viewer exports write `llms.txt` for agents and LLM-oriented consumers.
 When `[html.site].base_url` is configured in `openknowledge.toml`, they also
 write `sitemap.xml` with absolute URLs for published pages. Files with
 `okf_publish: false` are omitted from generated pages, static note payloads,
-`llms.txt`, and `sitemap.xml`.
+`llms.txt`, and `sitemap.xml`. Public HTML generation is disabled by default;
+set `[publish] enabled = true` explicitly. `okf_targets.viewer`, `search`,
+`llms`, and `sitemap` then control the corresponding projection and default to
+`true` when omitted.
 
 Default viewer exports also write `openknowledge.json` and
 `assets/openknowledge-bundle.tar.gz`. The manifest points to the archive and

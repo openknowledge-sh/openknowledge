@@ -16,6 +16,8 @@ anchors. Keep this index as the quick map.
 * [Review](review.md) - print advisory AI review prompts for maintenance rules.
 * [Agents](agents.md) - experimental local agent job validation, scheduling,
   execution, observation, and control.
+* [Runtime](runtime.md) - plan, build, serve, and reconcile self-hosted
+  immutable knowledge-base generations.
 * [List](list.md) - print bundle inventory with optional JSON output.
 
 ## Connect And Resolve Bundles
@@ -29,7 +31,8 @@ anchors. Keep this index as the quick map.
 
 * [Get](get.md) - print an exact Markdown file, entrypoint, or metadata.
 * [Search](search.md) - build budget-bounded Markdown context or inspect ranked matches.
-* [MCP](mcp.md) - serve one bundle as read-only MCP resources and tools over stdio.
+* [MCP](mcp.md) - serve one bundle as read-only MCP resources and tools over
+  stdio or expose the same surface through the public runtime's HTTP endpoint.
 * [View](view.md) - local Markdown viewer.
 
 ## OKF Views And Publishing
