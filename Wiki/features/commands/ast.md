@@ -1,71 +1,41 @@
 ---
 type: Command Documentation
 title: openknowledge ast
-description: Prints the parsed Open Knowledge Format AST as JSON.
+description: Print the parsed Open Knowledge Format document model as JSON.
 tags: [openknowledge, cli, command, ast, parser]
-timestamp: 2026-06-20T00:00:00Z
+timestamp: 2026-07-18T00:00:00Z
 ---
 
 # `openknowledge ast`
 
-`openknowledge ast` shows the parser view of a knowledge base as formatted
-JSON. Use it to explore the structure the CLI builds from Markdown files:
-frontmatter, derived metadata, body content, headings, links, Markdown blocks,
-sections, and parser diagnostics.
-
-This parser model is the shared base for downstream CLI behavior. Validation,
-listing, bundle/export projections, search, context selection, and the local
-viewer all work from the AST or from data derived from it. For everyday
-pass/fail checks, start with [`openknowledge validate`](validate.md); use `ast`
-when you want to inspect the underlying document model directly.
+Inspect the parser model shared by validation, search, listing, rendering, and
+exporters. Use [`validate`](validate.md) for ordinary pass/fail checks.
 
 ## Usage
 
 ```sh
 openknowledge ast [key-or-path]
-openknowledge ast --spec <version> [key-or-path]
-openknowledge ast --out <file> [key-or-path]
-openknowledge ast --help
+openknowledge ast Wiki --spec 0.1
+openknowledge ast Wiki --out ast.json
 ```
 
-## Arguments And Flags
-
-| Name | Kind | Description |
+| Option | Default | Description |
 | --- | --- | --- |
-| `key-or-path` | argument | Registry key or knowledge base root. Defaults to the current directory. |
-| `--spec` | flag | OKF spec version. Defaults to latest. |
-| `--out` | flag | Output file. Defaults to stdout. |
+| `key-or-path` | `.` | Registry key or bundle root. |
+| `--spec <version>` | `latest` | OKF spec version. |
+| `--out <file>` | stdout | Atomically write the JSON document. |
 
-## Quick Examples
+## Output
 
-Print the AST for the current directory:
+The v1 AST contains the resolved root, spec version, and path-sorted Markdown
+documents. Each document may include:
 
-```sh
-openknowledge ast
-```
-
-Inspect another knowledge base:
-
-```sh
-openknowledge ast ./project-memory
-```
-
-Save a parser snapshot for comparison:
-
-```sh
-openknowledge ast ./project-memory --out ast.json
-```
-
-Use a specific OKF spec version:
-
-```sh
-openknowledge ast --spec 0.1 ./project-memory
-```
-
-## Example Output
-
-`openknowledge ast ./project-memory` prints formatted JSON. The top-level shape
-starts like:
+- source identity and classification (`rel`, `id`, `kind`, `reserved`);
+- complete content and body;
+- typed YAML frontmatter and compatible scalar values;
+- derived title, type, description, tags, resource, and bundle metadata;
+- Markdown blocks, sections, headings, links, and code blocks;
+- read, UTF-8, frontmatter, and Markdown diagnostics.
 
 ```json
 {
@@ -77,119 +47,15 @@ starts like:
       "rel": "AGENTS.md",
       "id": "AGENTS",
       "kind": "concept",
-      "frontmatter": {
-        "has": true
-      },
-      "metadata": {
-        "type": "Agent Rules",
-        "title": "Project Memory Agent Rules"
-      }
+      "metadata": {"type": "Agent Rules"}
     }
   ]
 }
 ```
 
-When `--out ast.json` is used, stdout is a short write summary:
-
-```text
-OK Wrote AST
-root /work/project-memory
-out ast.json
-```
-
-## Behavior
-
-The command resolves `path` with the same knowledge-root resolver used by other
-bundle commands. It then parses Markdown files, skips `.git`, sorts documents
-by bundle-relative path, and prints a lower-camel-case JSON `ASTBundle`.
-
-The JSON is a parser diagnostics surface, not the normalized exporter contract.
-Its top-level fields are:
-
-| Field | Meaning |
-| --- | --- |
-| `schemaVersion` | Open Knowledge CLI machine-output contract version. |
-| `root` | Absolute path to the resolved knowledge root. |
-| `specVersion` | OKF spec version used for parsing. |
-| `documents` | Parsed Markdown documents in bundle-relative path order. |
-
-Each `documents[]` item contains the main pieces the CLI derives from a file:
-
-| Field | Use it to inspect |
-| --- | --- |
-| `absolute`, `rel`, `id`, `kind`, `reserved` | The absolute and bundle-relative file locations and how the CLI classified the document. |
-| `content`, `body` | Complete source-file content and the Markdown body after frontmatter. Empty strings are omitted from JSON. |
-| `frontmatter` | Frontmatter presence, typed YAML `data`, compatible scalar `values`, body-line metadata, formatting warnings, and any parser diagnostic. |
-| `metadata` | Derived `type`, `title`, `description`, resource, tags, `useWhen`, and root bundle metadata. |
-| `markdown` | Parsed Markdown blocks, sections, headings, links, code blocks, and syntax diagnostics. |
-| `links` | Local links resolved from the document. |
-| `readDiagnostic`, `utf8Diagnostic`, `frontmatterDiagnostic` | Parser-level failures attached to the document. |
-
-`markdown.sections` is the section tree used by context export and related
-features that need heading boundaries. `markdown.blocks` is the block model
-used by rendering and diagnostics. Search, context, link resolution,
-validation, bundle generation, and HTML rendering consume this parsed model or
-projections derived from it instead of each command inventing its own Markdown
-parse.
-
-`frontmatter.data` preserves YAML mappings and sequences as JSON objects and
-arrays, scalar types as JSON-compatible values, and block scalars as strings.
-The compatible `frontmatter.values` projection remains for existing consumers
-that only need top-level scalar metadata. Invalid YAML is reported through
-`frontmatterDiagnostic` instead of being silently flattened.
-
-When `--out` is omitted, JSON is written to stdout. When `--out` is present,
-the command atomically replaces the JSON file after the complete document is
-ready, then prints a short success summary. A write failure therefore does not
-expose a partially written AST at the destination path.
-The v1 contract is described by `packages/cli/schemas/v1/ast.schema.json`.
-
-## Use Cases
-
-* Explore the parsed structure of a knowledge base before building on top of
-  it.
-* Understand what downstream commands receive after Markdown has been parsed
-  into the shared CLI model.
-* Check whether a file is being treated as an index, log, reserved file, or
-  concept document.
-* Confirm that frontmatter produced the expected `type`, `title`, and
-  `description` metadata.
-* Debug why search, context selection, the local viewer, or an exporter is
-  missing a heading, link, table, list, or code block.
-* Inspect parser diagnostics before deciding whether the issue belongs in
-  Markdown content, frontmatter formatting, or validation rules.
-* Save an AST snapshot with `--out` when comparing parser changes.
-
-## Caveats
-
-`openknowledge ast` is intentionally verbose. Prefer `openknowledge validate`
-for pass/fail checks and user-facing validation messages.
-
-The AST JSON follows the CLI's internal parser model. It is useful for
-debugging and tests, but exporters may expose smaller, normalized output
-contracts.
-
-The command does not modify the knowledge base. The only write side effect is
-the file passed to `--out`.
-
-## Command Change History
-
-### 2026-07-15 - Atomic file publication
-
-AST files written with `--out` are now atomically replaced after complete JSON
-serialization instead of being truncated in place.
-
-### 2026-07-15 - Versioned AST contract
-
-AST JSON now declares `schemaVersion: "1"`. A checked JSON Schema and golden
-snapshot protect the top-level contract independently of `specVersion`.
-
-### 2026-07-15 - Typed YAML frontmatter
-
-AST frontmatter gained a typed `data` tree alongside the compatible flat
-`values` projection. Nested mappings and sequences, scalar types, flow
-collections, and block scalar content are now preserved, and invalid nested
-YAML produces a parser diagnostic.
+The contract is published as `ast.schema.json`. This is an intentionally
+verbose diagnostics surface; [`export json`](/features/exporters/json.md)
+provides a smaller normalized bundle model.
 
 ---
 
@@ -197,14 +63,7 @@ YAML produces a parser diagnostic.
 
 > **Source anchors**
 >
-> * `packages/cli/cmd/openknowledge/ast_command.go`
-> * `packages/cli/internal/okf/ast_bundle_parse.go`
-> * `packages/cli/internal/okf/ast_document_types.go`
-> * `packages/cli/internal/okf/ast_frontmatter_types.go`
-> * `packages/cli/schemas/v1/ast.schema.json`
-> * `packages/cli/internal/okf/ast_markdown_types.go`
->
-> **Update notes**
->
-> When AST JSON fields, parser diagnostics, command flags, or exit behavior
-> change, update this page and [CLI changelog](/changelog/cli.md).
+> - `packages/cli/cmd/openknowledge/ast_command.go`
+> - `packages/cli/internal/okf/ast_bundle_parse.go`
+> - `packages/cli/internal/okf/ast_document_types.go`
+> - `packages/cli/schemas/v1/ast.schema.json`

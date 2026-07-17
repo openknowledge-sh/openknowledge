@@ -185,17 +185,20 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 func setupHelpText() string {
 	return `openknowledge setup
 
-Create or update, validate, and integrate an OKF knowledge base through a
-supported agent runtime.
+Launch a supported agent runtime to create or update, validate, and integrate
+an OKF knowledge base.
 
 Usage:
+  openknowledge setup Wiki --from .
   openknowledge setup [wiki]
   openknowledge setup [wiki] --rules <rules>
   openknowledge setup [wiki] --from <source>
   openknowledge setup [wiki] --from <source> --type understanding|custom
   openknowledge setup [wiki] --runtime <codex|claude|opencode>
 
-The default target is Wiki and the default runtime is Codex. Without --from,
+Run setup directly from a terminal in the Git repository that should own the
+knowledge base. Setup is the controller and starts an interactive agent
+process. The default target is Wiki and the default runtime is Codex. Without --from,
 the agent runs the guided setup workflow. With --from, it runs the
 source-to-wiki workflow. A successful run must leave a valid knowledge base;
 setup then installs project discovery skills and observation hooks.

@@ -8,9 +8,36 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestRailwayExecRunnerKeepsJSONStdoutSeparateFromProgressStderr(t *testing.T) {
+	directory := t.TempDir()
+	executable := filepath.Join(directory, "railway")
+	if runtime.GOOS == "windows" {
+		executable += ".cmd"
+		content := "@echo off\r\necho progress 1>&2\r\necho {\"id\":\"service-1\"}\r\n"
+		if err := os.WriteFile(executable, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		content := "#!/bin/sh\necho progress >&2\nprintf '%s\\n' '{\"id\":\"service-1\"}'\n"
+		if err := os.WriteFile(executable, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	output, err := (railwayExecRunner{}).Run(t.Context(), directory, nil, "add", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := railwayJSONField(output, "id"); got != "service-1" {
+		t.Fatalf("service id = %q, output=%q", got, output)
+	}
+}
 
 type fakeRailwayCall struct {
 	Arguments []string
@@ -181,7 +208,7 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 		if strings.HasPrefix(joined, "add ") {
 			addCount++
 		}
-		if strings.HasPrefix(joined, "volume add ") {
+		if strings.HasPrefix(joined, "volume ") && strings.Contains(joined, " add ") {
 			volumeCount++
 		}
 		if strings.HasPrefix(joined, "domain ") {

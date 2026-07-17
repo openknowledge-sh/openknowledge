@@ -61,12 +61,6 @@ markers such as `|` for decoded content.
 * Inspect parsed frontmatter and link extraction.
 * Validate output contracts in tests.
 
-## Exporter Change History
-
-### 2026-07-15 - Versioned normalized JSON
-
-Normalized bundle JSON now declares `schemaVersion: "1"` and ships with a
-Draft 2020-12 JSON Schema and golden snapshot.
 
 ---
 

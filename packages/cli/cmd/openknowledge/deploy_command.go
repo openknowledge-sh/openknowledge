@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -131,14 +132,19 @@ func (railwayExecRunner) Run(ctx context.Context, directory string, stdin io.Rea
 	command := exec.CommandContext(ctx, "railway", arguments...)
 	command.Dir = directory
 	command.Stdin = stdin
-	output, err := command.CombinedOutput()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	err := command.Run()
 	if err != nil {
 		if len(arguments) >= 2 && arguments[0] == "variable" && arguments[1] == "set" {
 			return nil, fmt.Errorf("railway %s: %w (provider output suppressed because stdin may contain a secret)", strings.Join(arguments, " "), err)
 		}
-		return nil, fmt.Errorf("railway %s: %w: %s", strings.Join(arguments, " "), err, strings.TrimSpace(string(output)))
+		providerOutput := strings.TrimSpace(strings.TrimSpace(stderr.String()) + "\n" + strings.TrimSpace(stdout.String()))
+		return nil, fmt.Errorf("railway %s: %w: %s", strings.Join(arguments, " "), err, providerOutput)
 	}
-	return output, nil
+	return stdout.Bytes(), nil
 }
 
 type railwayProvider struct {
@@ -803,6 +809,9 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 		if _, err := provider.runner.Run(ctx, working, nil, "link", "--project", state.Project.ID, "--environment", "production"); err != nil {
 			return deployResult{}, err
 		}
+		if err := saveRailwayDeployState(plan.StateFile, state); err != nil {
+			return deployResult{}, err
+		}
 	} else if plan.Project.ID != "" {
 		state.Project.ID = plan.Project.ID
 		if _, err := provider.runner.Run(ctx, working, nil, "link", "--project", state.Project.ID, "--environment", "production"); err != nil {
@@ -856,7 +865,7 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 			}
 		}
 		if service.VolumePath != "" && !current.Volume {
-			if _, err := provider.runner.Run(ctx, working, nil, "volume", "add", "--service", service.Name, "--mount-path", service.VolumePath, "--json"); err != nil {
+			if _, err := provider.runner.Run(ctx, working, nil, "volume", "--service", current.ID, "add", "--mount-path", service.VolumePath, "--json"); err != nil {
 				return deployResult{}, err
 			}
 			current.Volume = true

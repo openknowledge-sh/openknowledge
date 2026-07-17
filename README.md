@@ -91,24 +91,25 @@ flowchart LR
 
 ## Start Here
 
-### Let an agent create the wiki
+### Create a wiki from your project
 
-Paste this into Codex, Claude, Cursor, Cowork, or another coding agent in the
-workspace where the wiki should live:
+From the project repository that should own the wiki, install the CLI and run
+the canonical setup command:
 
-```text
-Set up an Open Knowledge LLM wiki for this workspace.
-
-First check whether the openknowledge CLI is available with command -v openknowledge and openknowledge --help. If it is missing, install it with curl -fsSL https://openknowledge.sh/install | bash. Then run openknowledge setup Wiki. The command will guide the selected local agent, validate the result, and install the project integration. Show me how to inspect it with openknowledge list, openknowledge search, and openknowledge get, and open it using openknowledge view.
+```sh
+curl -fsSL https://openknowledge.sh/install | bash
+openknowledge setup Wiki --from .
 ```
 
-The agent will install the CLI if needed, inspect local context, choose useful
-maintenance rules, create the wiki scaffold, tailor it to the workspace, run
-validation, and leave you with navigation commands.
+`setup` is the controller: it launches Codex by default, asks the agent to
+inspect the current repository, creates a source-grounded `Wiki`, validates
+the result, and installs project integration. When it finishes, open the
+result with `openknowledge view Wiki`.
 
-### Run the managed setup directly
+### Start a guided wiki without a source
 
-Run the complete setup workflow through the default Codex harness:
+Omit `--from` when you want the launched agent to interview you about a new or
+more open-ended knowledge base:
 
 ```sh
 openknowledge setup Wiki
@@ -120,22 +121,21 @@ Preselect maintenance rules when you already know the wiki shape:
 openknowledge setup Wiki --rules docs,changelog
 ```
 
-Select another installed harness with `--runtime claude` or
-`--runtime opencode`. For print-only prompts, use the advanced `prompt`
-namespace.
+### Use another source or agent runtime
 
-### Generate a wiki from existing material
-
-Add `--from` when the wiki should be grounded in a repository, folder, or
-website:
+Pass another repository, folder, or website to `--from` when the current
+project is not the source:
 
 ```sh
 openknowledge setup Wiki --from https://github.com/openknowledge-sh/openknowledge --type understanding
+openknowledge setup Wiki --from . --runtime claude
 ```
 
-The command runs a local agent to inspect the source, create or update an OKF
+The command launches a local agent to inspect the source, create or update an OKF
 bundle, preserve source provenance, validate the result, and install the
-repository integration.
+repository integration. Select Claude Code or OpenCode with `--runtime claude`
+or `--runtime opencode`. For print-only instructions, use the advanced `prompt`
+namespace.
 
 ### Install manually
 
@@ -153,7 +153,8 @@ downloading an archive, verify its digest and signing repository identity with
 `gh attestation verify <archive> -R openknowledge-sh/openknowledge` and inspect
 the recorded workflow and commit.
 
-Then create and inspect a local bundle:
+For an advanced, deterministic scaffold that does not launch an agent or
+install Git integration, create and inspect a local bundle manually:
 
 ```sh
 openknowledge scaffold ./project-memory
@@ -167,18 +168,18 @@ openknowledge view ./project-memory
 
 | Layer | Commands | Use them for |
 | --- | --- | --- |
-| Agent setup | `setup`, `agent`, `jobs` | Create, integrate, and maintain a wiki through local agents and repeatable jobs. |
+| Agent setup | `setup`, `agent`, `insights`, `jobs` | Create, integrate, and maintain a wiki through local agents and repeatable jobs. |
 | Advanced portable tools | `scaffold`, `prompt setup`, `prompt from`, `prompt rules`, `prompt review` | Scaffold without an agent or print portable instructions for an external agent host. |
 | Authoring and format hygiene | `scaffold`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
 | Experimental local agent automation | `agent`, `jobs` | Run direct local agent sessions; validate, schedule, start, observe, stop, and inspect local agent jobs in isolated Git worktrees. |
-| Self-hosted runtime | `runtime` | Plan, build, serve, and privately reconcile immutable knowledge-base generations. |
+| Self-hosted runtime | `runtime`, `deploy` | Plan, build, serve, privately reconcile, and provision immutable knowledge-base generations. |
 | Registry and lifecycle | `connect`, `disconnect`, `registry`, `export tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
 | Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, browse locally, and connect MCP-compatible LLM hosts. |
 | Views and publishing | `export json`, `export graph`, `export graph --type search`, `export html`, `export html --plain` | Export normalized models, source graphs, retrieval graphs, static viewers, and plain semantic HTML. |
 
 ## Common Workflows
 
-### Create a bundle
+### Create a deterministic scaffold (advanced)
 
 ```sh
 openknowledge scaffold ./project-memory

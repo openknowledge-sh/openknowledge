@@ -5,16 +5,14 @@ schedule:
   cron: "0 9 * * MON"
   timezone: UTC
 agent:
-  command: /Applications/ChatGPT.app/Contents/Resources/codex
-  args:
-    - exec
+  runtime: codex
   timeout: 45m
   completion_signal: COMPLETE
 workspace:
   repo: "."
   base: HEAD
   strategy: branch
-  branch: "agents/{{id}}/{{date}}-{{run_id}}"
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
 sandbox:
   type: host

@@ -74,19 +74,6 @@ that file as untrusted repository-controlled input.
 The observer records changed repository paths as evidence but never copies file
 contents, a unified diff, or a base commit into the insight.
 
-## Command Change History
-
-### 2026-07-17 - Insight integration
-
-Project integration now writes the `insights` path and installs
-`insights observe` hooks without changing unrelated handlers. The project skill
-directs agents to capture deliberate gaps through
-`openknowledge insights create` instead of handcrafting Markdown files.
-
-### 2026-07-17 - Project integrations
-
-Added discovery-only global skills and project skills/hooks for Codex, Claude
-Code, and OpenCode, backed by `.openknowledge/integration.toml`.
 
 ---
 

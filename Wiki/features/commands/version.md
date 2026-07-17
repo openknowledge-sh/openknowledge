@@ -34,13 +34,6 @@ injects the normalized Git tag version into published binaries.
 * Compare npm wrapper and binary release expectations.
 * Keep release verification simple.
 
-## Command Change History
-
-### 2026-07-15 - Unified release version
-
-The source fallback and package manifests now align at `0.6.0`, the prepared
-next release version. Release preflight rejects a workflow input that does not
-match the repository source of truth.
 
 ---
 

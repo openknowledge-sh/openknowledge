@@ -49,7 +49,7 @@ explicit publication set: Markdown marked `okf_publish: false` is omitted, and
 non-Markdown files are omitted unless they
 match `[publish].assets`. Asset patterns cannot re-include Markdown;
 `.git`, `.openknowledge`, and `openknowledge.toml` are always absent. This keeps
-drafts, runtime state, job definitions, logs, and incidental repository files
+Markdown denied by `okf_publish`, `.openknowledge` runtime state, and incidental repository files
 out of the remote-connect artifact. The standalone `export tar` command intentionally
 remains a complete source export. The Draft 2020-12 manifest contract is published at
 `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
@@ -70,95 +70,6 @@ Archive consumers cap compressed downloads at 512 MiB and extraction at
 sibling staging directory; the requested target appears only after the full
 archive succeeds, and an existing target is never overlaid.
 
-## Change History
-
-### 2026-07-16 - Explicit public artifact allowlist
-
-Public HTML archives now contain only published Markdown and non-Markdown files
-matching `[publish].assets`; static HTML copies the same allowlisted assets.
-Project configuration, internal runtime state, unpublished Markdown, and
-incidental files are excluded even if present in the source checkout. Source
-anchors: `packages/cli/internal/okf/publish.go`,
-`packages/cli/internal/okf/archive.go`, and
-`packages/cli/cmd/openknowledge/viewer.go`.
-
-### 2026-07-17 - Explicit bundle enable and target projections
-
-Public HTML and its remote-connect archive now fail closed unless the bundle
-sets `[publish] enabled = true`. Per-page `okf_targets` independently controls
-viewer, search, MCP, llms.txt, and sitemap projections while
-`okf_publish: false` remains the absolute all-target deny. Source anchors:
-`packages/cli/internal/okf/publish.go` and
-`packages/cli/cmd/openknowledge/viewer_discovery.go`.
-
-### 2026-07-15 - Public strict manifest contract
-
-Added the versioned Draft 2020-12 schema for portable `openknowledge.json`
-documents, published it under the website's recursively verified CLI schema
-tree, and made remote consumers reject unknown fields, duplicate keys, and
-trailing JSON before semantic validation. Source anchors:
-`packages/cli/schemas/manifest/v1/bundle.schema.json`,
-`packages/cli/internal/okf/archive.go`,
-`packages/cli/internal/okf/schema_contract_test.go`, and
-`packages/web/scripts/schema-distribution.mjs`.
-
-### 2026-07-15 - Reproducible archive identity
-
-Tar exports now omit destination names and host identity from gzip/tar headers,
-zero timestamps and ownership fields, and normalize regular-file modes while
-preserving executable intent. Identical bundle content now produces identical
-archive bytes and SHA-256 across destination paths and common host metadata
-differences. Source anchors: `packages/cli/internal/okf/archive.go` and
-`packages/cli/internal/okf/archive_test.go`.
-
-### 2026-07-15 - Valid portable output gate
-
-Tar creation now requires a validation-error-free bundle and checks that
-condition before touching the destination. A refused export preserves an
-existing archive, aligning producer behavior with remote `connect` validation.
-Source anchors: `packages/cli/internal/okf/archive.go`,
-`packages/cli/internal/okf/validation_types.go`, and
-`packages/cli/internal/okf/archive_test.go`.
-
-### 2026-07-15 - Real filesystem bundle boundary
-
-Bundle parsing, bundle-relative reads, viewer raw files, local theme assets,
-and tar creation now reject symbolic links below the resolved bundle root.
-Archive creation also rejects every non-regular entry instead of opening it.
-Source anchors: `packages/cli/internal/okf/paths.go`,
-`packages/cli/internal/okf/ast_bundle_parse.go`,
-`packages/cli/internal/okf/archive.go`,
-`packages/cli/cmd/openknowledge/main.go`, and
-`packages/cli/cmd/openknowledge/viewer.go`.
-
-### 2026-07-15 - Publish-scoped HTML archives
-
-Default HTML exports now omit every Markdown file marked
-`okf_publish: false` from `assets/openknowledge-bundle.tar.gz`, matching the
-existing HTML, static payload, graph, and discovery-file filter. Standalone
-`openknowledge export tar` remains a complete source-bundle export. Source anchors:
-`packages/cli/internal/okf/archive.go`,
-`packages/cli/cmd/openknowledge/viewer.go`, and
-`packages/cli/cmd/openknowledge/viewer_test.go`.
-
-### 2026-07-15 - Bounded atomic extraction
-
-Archive download and extraction now have explicit compressed, entry, file, and
-expanded-size ceilings. Failed extraction removes its staging directory and
-does not publish or overwrite a target. Source anchors:
-`packages/cli/internal/okf/archive.go`,
-`packages/cli/internal/okf/archive_test.go`,
-`packages/cli/cmd/openknowledge/main.go`, and
-`packages/cli/cmd/openknowledge/main_test.go`.
-
-### 2026-07-15 - Strict manifest integrity
-
-Manifest consumers now validate every required identity and format field,
-require a SHA-256, and bind archive validation to the concrete declared spec.
-Source anchors: `packages/cli/internal/okf/archive.go`,
-`packages/cli/internal/okf/archive_test.go`,
-`packages/cli/cmd/openknowledge/main.go`, and
-`packages/cli/cmd/openknowledge/main_test.go`.
 
 ---
 

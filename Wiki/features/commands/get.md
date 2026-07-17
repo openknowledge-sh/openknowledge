@@ -1,141 +1,51 @@
 ---
 type: Command Documentation
 title: openknowledge get
-description: Prints an exact Markdown file, bundle entrypoint, or metadata from a local or connected OKF bundle.
-tags: [openknowledge, cli, command, registry, agent]
-timestamp: 2026-07-06T00:00:00Z
+description: Read an exact Markdown file, bundle entrypoint, or metadata.
+tags: [openknowledge, cli, command, registry]
+timestamp: 2026-07-18T00:00:00Z
 ---
 
 # `openknowledge get`
 
-`openknowledge get` prints an exact local Markdown file, a bundle-relative
-Markdown file, a declared entrypoint, or bundle metadata. It is the
-deterministic read command: use it when the caller already knows which Markdown
-file or entrypoint it wants.
-
-The metadata layer is optional. Plain OKF bundles without declared entrypoints
-fall back to root `index.md`.
+Read deterministic, exact knowledge. Use [`search`](search.md) when you need
+ranked or budget-bounded retrieval.
 
 ## Usage
 
 ```sh
-openknowledge get <name-or-path>
-openknowledge get <name-or-path> <entry-or-file>
-openknowledge get <name-or-path> --info
-openknowledge get <name-or-path> <entry-or-file> --info
-openknowledge get --help
+openknowledge get <key-or-path>
+openknowledge get <key-or-path> <entry-or-file>
+openknowledge get <key-or-path> --info
 ```
 
-## Arguments And Flags
+`key-or-path` may be a standalone local Markdown file, registry key, or bundle
+directory. `entry-or-file` may be a named bundle entrypoint or a
+bundle-relative Markdown path. `--info` prints metadata instead of content.
 
-| Name | Kind | Description |
-| --- | --- | --- |
-| `name-or-path` | argument | Local Markdown file, registry key, or local bundle path. |
-| `entry-or-file` | argument | Optional entrypoint name declared as `okf_bundle_entry_<name>` in the root index, or a bundle-relative Markdown file path. |
-| `--info` | flag | Print bundle and selected-file metadata instead of the Markdown body. |
+## Selection
 
-`--info` can appear after the target or after a named entry.
+1. A standalone Markdown path reads that exact file.
+2. A bundle with one argument reads `okf_bundle_entry_default`, when declared,
+   or root `index.md`.
+3. A second argument first matches `okf_bundle_entry_<name>`, then falls back
+   to a relative Markdown path.
 
-## Bundle Metadata Layer
+Relative selections must remain inside the bundle and cannot traverse
+symlinks. Missing files, directories, and escapes fail before output.
 
-Bundle metadata lives in the bundle-root `index.md` frontmatter as flat
-`okf_bundle_*` keys:
+Bundle metadata is optional root `index.md` frontmatter:
 
-```md
----
-okf_version: "0.1"
+```yaml
 okf_bundle_name: accessibility
 okf_bundle_title: Accessibility Review
 okf_bundle_entry_default: agents/accessibility-checker.md
 okf_bundle_entry_review: agents/accessibility-review.md
----
-
-# Accessibility Review
 ```
 
-Entrypoints are ordinary Markdown files. Their frontmatter may include `type`,
-`title`, `description`, `tags`, and `use_when`; `get --info` reads those fields
-when present.
-
-## Behavior
-
-With one argument that points at a local Markdown file, `get` prints that exact
-file.
-
-With one argument that resolves to a registry key or bundle folder, `get`
-prints `okf_bundle_entry_default` when declared. If no default entrypoint
-exists, it prints root `index.md`.
-
-With a second argument, `get` first checks for a matching
-`okf_bundle_entry_<name>`. If no declared entrypoint matches, it treats the
-argument as a bundle-relative Markdown file path. Direct Markdown file paths do
-not require root metadata.
-
-Selected bundle-relative paths must stay inside the bundle. Missing files,
-directories, lexical escapes, and symbolic links below the bundle root fail
-before output. An explicitly requested standalone local Markdown file remains
-an exact user-selected file read rather than a bundle-relative lookup.
-
-`--info` prints a compact bundle metadata block. With a named entry or path, it
-prints that file's path and frontmatter summary. Without a named entry, it
-lists all declared entrypoints; when none are declared, it prints the root
-`index.md` fallback metadata.
-
-Query retrieval belongs to [`openknowledge search`](search.md), not `get`.
-Search owns token-budgeted Markdown context, structured JSON, default one-hop
-authored-link expansion, and ranked match inspection.
-
-## Quick Examples
-
-```sh
-openknowledge connect ./accessibility --as accessibility
-openknowledge get README.md
-openknowledge get accessibility --info
-openknowledge get accessibility
-openknowledge get accessibility review
-openknowledge get accessibility agents/accessibility-review.md
-openknowledge get ./project-memory
-```
-
-## Example Output
-
-`openknowledge get personal --info` prints bundle metadata and declared
-entrypoints:
-
-```text
-Open Knowledge Get
-entrypoint and file metadata
-
-name      Project Memory
-root      /work/project-memory
-purpose   Durable project context.
-tags      project
-
-Entrypoints
-  default      agents/default.md  Default Agent Guide
-```
-
-`openknowledge get personal` prints the selected Markdown body exactly:
-
-```md
----
-type: Agent Entrypoint
-title: Default Agent Guide
----
-
-# Default Agent Guide
-
-Read the wiki before non-trivial work.
-```
-
-## Command Change History
-
-### 2026-07-06
-
-`openknowledge get` replaced the previous entrypoint/file-loading surface. The
-command keeps deterministic Markdown retrieval separate from
-[`openknowledge search`](search.md) and from the interactive
-[`openknowledge view`](view.md) viewer.
+Entrypoints are ordinary Markdown files. `--info` reports bundle title,
+purpose, tags, entrypoint paths, and selected-page metadata when present. Plain
+OKF bundles without metadata remain valid and use the root index fallback.
 
 ---
 
@@ -143,14 +53,6 @@ command keeps deterministic Markdown retrieval separate from
 
 > **Source anchors**
 >
-> * `packages/cli/cmd/openknowledge/main.go`
-> * `packages/cli/cmd/openknowledge/main_test.go`
-> * `packages/cli/internal/okf/metadata.go`
-> * `packages/cli/internal/okf/metadata_test.go`
->
-> **Update notes**
->
-> Update this page when entrypoint selection, supported metadata fields, `--info`
-> output, fallback behavior, direct-file behavior, or path-safety checks change.
-> Search retrieval belongs on [search](search.md). CLI behavior changes also
-> require [CLI changelog](/changelog/cli.md) updates.
+> - `packages/cli/cmd/openknowledge/main.go`
+> - `packages/cli/internal/okf/metadata.go`
+> - `packages/cli/internal/okf/metadata_test.go`

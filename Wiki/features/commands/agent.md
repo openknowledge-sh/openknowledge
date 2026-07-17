@@ -45,7 +45,7 @@ openknowledge agent exec --isolate "Update the wiki"
 | --- | --- | --- |
 | initial prompt | none | Starts an interactive harness session with the steered task. With no task, the contract asks the agent to wait for one. |
 | `exec <prompt>` | required | Runs one non-interactive task and returns the harness exit status. |
-| `doctor` | all runtimes | Probes harness executables without starting a model session. An explicit unavailable `--runtime` exits nonzero. |
+| `doctor` | all runtimes | Probes harness executables without starting a model session. Accepts only `--runtime` and `--json`. |
 | `integrate <wiki>` | - | Installs project-scoped discovery skills and observation hooks. `--global` installs discovery-only user skills. |
 | `--runtime` | `codex` | Selects `codex`, `claude`, or `opencode`. |
 | `--model` | harness default | Passes a harness-specific model override. |
@@ -57,6 +57,12 @@ Executable overrides are `OPENKNOWLEDGE_CODEX`, `OPENKNOWLEDGE_CLAUDE`, and
 `OPENKNOWLEDGE_OPENCODE`. Each explicit override is version-probed and fails
 closed. Codex discovery additionally skips broken `PATH` wrappers and checks
 supported macOS Codex.app and ChatGPT.app bundles.
+
+`doctor --json` returns `schemaVersion: "1"` and a `runtimes` array containing
+`runtime`, `available`, and optional `executable` or `error` fields. A probe of
+all runtimes succeeds when at least one is available; it exits `1` only when
+none are available. This diagnostic JSON is versioned but does not currently
+have a published schema.
 
 ## Harness Contracts
 
@@ -102,43 +108,6 @@ Knowledge-maintenance observations use the adjacent, harness-independent
 durable gap without starting a model; `insights run` sends one or all pending
 items through the selected local agent runtime.
 
-## Command Change History
-
-### 2026-07-17 - Root insights workflow
-
-Documented [`openknowledge insights`](insights.md) as the shared insight inbox
-and execution loop. The agent command remains the harness/session interface;
-insights remain usable by people, agents, hooks, and scheduled Jobs without
-choosing a harness during capture.
-
-### 2026-07-17 - Local insight execution
-
-Added the evidence-only `insights` inbox with direct and isolated `run`, batch
-`run --all`, and `dismiss`.
-
-### 2026-07-17 - Multi-harness Open Knowledge agent
-
-Added Codex, Claude Code, and OpenCode adapters; the default versioned steering
-contract; `--runtime`, `--no-steer`, executable overrides, setup/source
-workflow adapters, and `doctor`. Setup adapters are now invoked through the
-canonical [`openknowledge setup`](setup.md) command.
-
-### 2026-07-17 - Project observation integration
-
-Documented that project-scoped hooks installed by `openknowledge agent integrate`
-observe proxy and directly launched harness sessions through one insight
-format.
-
-### 2026-07-17 - Unified agent-maintenance namespace
-
-Grouped project integration and the private insight inbox under the existing
-`agent` command.
-
-### 2026-07-17 - Initial human-facing command
-
-Added interactive and one-shot modes, direct editing by default, retained
-`--isolate` worktrees, and resilient Codex executable discovery. The former
-automation group named `agents` was removed; automation lives under `jobs`.
 
 ---
 

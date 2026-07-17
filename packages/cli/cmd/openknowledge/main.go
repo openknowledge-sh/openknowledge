@@ -4767,7 +4767,7 @@ Usage:
   openknowledge <command> --help
 
 Create and maintain:
-  setup        Create, validate, and integrate a knowledge base with an agent.
+  setup        Launch an agent to create, validate, and integrate a knowledge base.
   agent        Run, integrate, and review knowledge with an agent.
   insights     Capture and resolve knowledge-maintenance insights.
   jobs         Run repeatable isolated maintenance jobs from Markdown specs.

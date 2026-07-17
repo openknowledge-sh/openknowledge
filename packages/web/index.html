@@ -62,8 +62,8 @@
               Markdown, ready to search or publish as static HTML.
             </p>
             <nav class="hero-actions" aria-label="Primary actions">
-              <button class="primary-action copy-command" type="button" data-copy-target="#setup-prompt" aria-label="Copy setup prompt" title="Copy setup prompt">
-                <span>Copy setup prompt</span>
+              <button class="primary-action copy-command" type="button" data-copy-target="#setup-commands" aria-label="Copy setup commands" title="Copy setup commands">
+                <span>Copy setup commands</span>
                 <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                   <path d="M12 3v2"></path>
                   <path d="M9 3h6"></path>
@@ -84,17 +84,19 @@
             </nav>
             <details class="hero-setup-details">
               <summary>
-                <span class="hero-setup-toggle">See the setup prompt <span class="setup-toggle-glyph" aria-hidden="true"></span></span>
+                <span class="hero-setup-toggle">See the setup commands <span class="setup-toggle-glyph" aria-hidden="true"></span></span>
                 <span class="hero-meta-divider" aria-hidden="true">·</span>
                 <span>Open source</span>
                 <span class="hero-meta-divider" aria-hidden="true">·</span>
                 <span>Apache-2.0</span>
               </summary>
               <div class="hero-prompt-panel">
-                <p class="prompt-inline" id="setup-prompt">Set up an Open Knowledge LLM wiki for this workspace. First check whether the <code>openknowledge</code> CLI is available with <code>command -v openknowledge</code> and <code>openknowledge --help</code>. If it is missing, install it with <code>curl -fsSL https://openknowledge.sh/install | bash</code>. Then run <code>openknowledge setup Wiki</code>. The command will guide the selected local agent, validate the result, and install the project integration. Show me how to inspect it with <code>openknowledge list</code>, <code>openknowledge search</code>, and <code>openknowledge get</code>, and open it using <code>openknowledge view</code>.</p>
+                <pre class="prompt-inline" id="setup-commands"><code>curl -fsSL https://openknowledge.sh/install | bash
+openknowledge setup Wiki --from .</code></pre>
                 <p class="setup-note">
-                  Prefer shell setup? Run <code>curl -fsSL https://openknowledge.sh/install | bash</code>,
-                  then <code>openknowledge setup Wiki</code>. The
+                  Run these commands from your project repository. Setup launches Codex by default,
+                  creates a source-grounded wiki, validates it, and installs project integration.
+                  Select Claude Code or OpenCode with <code>--runtime</code>. The
                   <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
                   has the full command reference.
                 </p>
@@ -207,14 +209,14 @@
                 <td>Create, integrate, and maintain a wiki through local agents.</td>
               </tr>
               <tr>
-                <td>Build from source</td>
+                <td>Build from another source</td>
                 <td><code>setup --from</code></td>
                 <td>Ground a wiki in a repository, folder, or website through a local agent.</td>
               </tr>
               <tr>
                 <td>Validate and inspect</td>
-                <td><code>scaffold</code>, <code>spec</code>, <code>validate</code>, <code>list</code>, <code>ast</code></td>
-                <td>Scaffold content, check OKF structure, and inspect parsed output.</td>
+                <td><code>spec</code>, <code>validate</code>, <code>list</code>, <code>ast</code></td>
+                <td>Check OKF structure and inspect parsed output.</td>
               </tr>
               <tr>
                 <td>Connect and resolve</td>
@@ -248,15 +250,15 @@
         <div class="workflow-list">
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Start a wiki</h3>
-              <p>Scaffold the files and defaults for a local OKF bundle.</p>
+              <h3>Create your project wiki</h3>
+              <p>Launch an agent to inspect the current repository, create the wiki, validate it, and install project integration.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">scaffold</span> <span class="tok-path">./project-memory</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">scaffold</span> <span class="tok-flag">--no-agents</span> <span class="tok-flag">--no-setup</span> <span class="tok-path">./source-wiki</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-path">.</span>
+<span class="tok-command">openknowledge</span> <span class="tok-subcommand">view</span> <span class="tok-path">Wiki</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Build from source</h3>
+              <h3>Build from another source</h3>
               <p>Create, validate, and integrate a wiki grounded in a repository, folder, or website.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://github.com/openknowledge-sh/openknowledge</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span>

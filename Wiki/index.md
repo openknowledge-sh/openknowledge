@@ -3,129 +3,42 @@ okf_version: "0.1"
 okf_bundle_title: "Open Knowledge CLI Documentation"
 ---
 
-# Open Knowledge CLI Documentation
+# Open Knowledge CLI
 
-This wiki documents the Open Knowledge CLI: how to install it, run commands,
-publish bundles, and maintain CLI-facing documentation.
+Open Knowledge creates, searches, publishes, and maintains Git-native knowledge
+bases in Open Knowledge Format (OKF).
 
-The deployed docs living on [https://openknowledge.sh/wiki/](https://openknowledge.sh/wiki/)
-are an exported view of this OKF bundle using `openknowledge export html` and a
-custom theme.
+## Get started
 
-## Start Here
+```sh
+curl -fsSL https://openknowledge.sh/install | bash
+openknowledge setup Wiki --from .
+openknowledge validate Wiki
+openknowledge view Wiki
+```
 
-* [Installation](features/installation.md) - install the CLI through the shell
-  installer, npm wrapper, or local development flow.
-* [Commands](features/commands/) - command-by-command reference.
-* [Exporters](features/exporters/) - HTML, JSON, tar, and graph exporter
-  behavior.
-* [Configuration](features/configuration.md) - strict shared
-  `openknowledge.toml` sections, fields, types, and consumers.
+- [Installation](features/installation.md)
+- [Command reference](features/commands/)
+- [`openknowledge.toml`](features/configuration.md)
+- [CLI changelog](changelog/cli.md)
 
-## Changelog
+## Workflows
 
-* [CLI changelog](changelog/cli.md) - release-facing CLI changes.
+| Goal | Start here |
+| --- | --- |
+| Create or maintain a wiki | [`setup`](features/commands/setup.md), [`agent`](features/commands/agent.md), [`insights`](features/commands/insights.md), [`jobs`](features/commands/jobs.md) |
+| Read and publish knowledge | [`get`](features/commands/get.md), [`search`](features/commands/search.md), [`list`](features/commands/list.md), [`view`](features/commands/view.md), [`mcp`](features/commands/mcp.md), [`export`](features/commands/export.md) |
+| Run a hosted service | [`runtime`](features/commands/runtime.md), [`deploy`](features/commands/deploy.md) |
+| Validate and connect bundles | [`validate`](features/commands/validate.md), [`connect`](features/commands/connect.md), [`disconnect`](features/commands/disconnect.md), [`registry`](features/commands/registry.md) |
 
-## Commands
+Advanced tools include [`scaffold`](features/commands/scaffold.md),
+[`prompt`](features/commands/prompt.md), [`ast`](features/commands/ast.md), and
+[`spec`](features/commands/spec.md).
 
-### Create And Maintain
+## Reference
 
-* [setup](features/commands/setup.md) - run managed agent onboarding,
-  validation, and project integration.
-* [agent](features/commands/agent.md) - run steered Codex, Claude Code, or
-  OpenCode sessions directly in a local filesystem, with optional worktree
-  isolation.
-* [agent integrate](features/commands/integrate.md) - install discovery-only global
-  skills or repository-scoped skills and observation hooks.
-* [insights](features/commands/insights.md) - capture, review, dismiss, and
-  execute private evidence-backed knowledge observations.
-* [jobs](features/commands/jobs.md) - validate, schedule, run, observe, and
-  control declarative jobs in isolated worktrees.
-
-### Advanced Portable Tools
-
-* [scaffold](features/commands/scaffold.md) - scaffold a local OKF bundle without an agent.
-* [prompt](features/commands/prompt.md) - print portable setup, source, rules,
-  and review instructions.
-
-### Validate And Inspect Bundles
-
-* [validate](features/commands/validate.md) - validate a bundle against OKF.
-* [list](features/commands/list.md) - inspect bundle inventory with inline
-  validation context.
-
-### Connect And Resolve Bundles
-
-* [connect](features/commands/connect.md) - add a local or remote bundle to the
-  local registry.
-* [disconnect](features/commands/disconnect.md) - remove a registered bundle.
-* [registry](features/commands/registry.md) - refresh, inspect, and resolve
-  registry entries.
-
-### Use And Navigate Knowledge
-
-* [get](features/commands/get.md) - print an exact Markdown file, entrypoint,
-  or metadata.
-* [search](features/commands/search.md) - build budget-bounded,
-  source-preserving Markdown context or inspect ranked matches.
-* [mcp](features/commands/mcp.md) - expose one bundle to MCP clients as
-  read-only resources, search, and validation.
-* [view](features/commands/view.md) - browse a bundle in the local Markdown
-  viewer.
-
-### OKF Views And Publishing
-
-* [ast](features/commands/ast.md) - print the parsed OKF AST as JSON.
-* [export](features/commands/export.md) - export a bundle to HTML, JSON, tar, or graph.
-* [HTML exporter](features/exporters/html.md) - default static viewer export
-  and plain semantic HTML mode.
-* [JSON exporter](features/exporters/json.md) - normalized bundle model.
-* [Tar exporter](features/exporters/tar.md) - portable source bundle archive.
-* [Graph exporter](features/exporters/graph.md) - source and search graph views
-  of the same OKF bundle.
-
-### Help And Version
-
-* [help](features/commands/help.md) - inspect root and command-specific help.
-* [spec](features/commands/spec.md) - print embedded OKF specs.
-* [version](features/commands/version.md) - print the CLI version.
-
-## Further Reading
-
-* [Tooling model](features/tooling-model.md) - product-level map of authoring,
-  connection, validation, use/navigation, OKF views, and publishing layers.
-* [Configuration](features/configuration.md) - bundle-local validation, rules,
-  viewer, and publishing settings.
-* [Machine-readable contracts](features/machine-contracts.md) - versioned JSON
-  schemas, compatibility rules, validation, and public schema URLs.
-* [CLI operations](features/operations.md) - development commands, workspace
-  layout, website export, deployment, and release notes.
-* [OKF, skills, and plugins](features/okf-skills-plugins.md) - comparison of
-  raw OKF bundles, agent skills, and plugins.
-* [Spec compliance](features/spec-compliance.md) - CLI compliance matrix for
-  the embedded OKF spec.
-
----
-
-<!-- okf-footer: job-maintenance -->
-
-> **Agent maintenance**
->
-> Use these pages when an agent is updating, validating, or extending this wiki.
->
-> * [Agent rules](AGENTS.md) - when future agents should read and update this wiki.
-> * [Workflows](workflows/) - repeatable update loops for docs and changelog maintenance.
-> * [Feature docs workflow](workflows/feature-docs.md) - update command, exporter, setup, viewer, and README-facing docs.
-> * [Changelog update workflow](workflows/changelog-updates.md) - update CLI changelog memory after release-facing changes.
-> * [CLI changelog](changelog/cli.md) - maintained memory of CLI-facing changes.
-> * [Examples](examples/) - viewer smoke-test files, including syntax highlighting, code, and PDF assets.
-> * [Spec](SPEC.md) - local pinned copy of the Open Knowledge Format spec.
-> * [Spec compliance](features/spec-compliance.md) - CLI compliance matrix for the embedded OKF spec.
-> * [Log](log.md) - chronological update history.
-> * [Decisions](decisions/) - setup and structure decisions for the wiki.
->
-> **Source boundaries**
->
-> The wiki summarizes repository facts. Use source files, tests, README content,
-> and release notes as the source of truth. Keep raw copied material out of the
-> wiki unless a future workflow explicitly needs a raw source area.
+- [Tooling model](features/tooling-model.md)
+- [Export formats](features/exporters/)
+- [Machine-readable contracts](features/machine-contracts.md)
+- [Go API](features/go-api.md)
+- [OKF v0.1 specification](SPEC.md)

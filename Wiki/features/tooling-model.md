@@ -21,10 +21,12 @@ loops over that same object, not separate knowledge models.
 | Run as a service | `runtime`, `deploy` | Build immutable generations, serve public knowledge, and reconcile private maintenance. |
 | Validate and connect | `validate`, `connect`, `disconnect`, `registry` | Check OKF independently and resolve local or remote bundles. |
 
-`openknowledge setup Wiki` is the primary activation flow. Add `--from` for an
-existing repository, folder, or website. It runs an agent, validates the
-result, and installs project integration. `scaffold` remains the deterministic
-agent-free scaffold; `prompt` exposes portable print-only workflows.
+`openknowledge setup Wiki --from .` is the primary project activation flow.
+Run it directly from the project repository: the CLI launches the selected
+interactive agent, validates the result, and installs project integration.
+Omit `--from` for a guided setup interview or point it at another repository,
+folder, or website. `scaffold` remains an advanced deterministic, agent-free
+primitive; `prompt` exposes portable print-only workflows.
 
 Connection mutation has one entry point per action. `connect` materializes and
 registers local, manifest, archive, or Git sources; `disconnect` removes the
@@ -43,7 +45,7 @@ Draft 2020-12 contracts.
 ## Typical Local Loop
 
 ```sh
-openknowledge setup Wiki --from ./docs
+openknowledge setup Wiki --from .
 openknowledge list Wiki
 openknowledge search Wiki "release workflow" --budget 1200
 openknowledge get Wiki

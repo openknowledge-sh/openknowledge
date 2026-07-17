@@ -92,8 +92,9 @@ Every file uses `type: Open Knowledge Insight`, declares
 * human-readable `Insight` and `Evidence` sections.
 
 Validation enforces the private marker, statuses, metadata, and safe target
-shape. Publication excludes insights from viewer/search/MCP projections,
-`llms.txt`, sitemap, and portable public artifacts.
+shape. Public HTML and runtime viewer/search/MCP projections, `llms.txt`,
+sitemap, and portable artifacts exclude insights. Local authoring and direct
+read surfaces operate on the unfiltered bundle and may still expose them.
 
 The bounded observer analyzes available session events and user-owned traces,
 but retains only a sanitized assistant outcome, changed-path evidence, and
@@ -109,20 +110,6 @@ marks successful items `resolved`, verifies the knowledge boundary and OKF
 bundle, and reuses the normal Jobs commit, branch-bundle, and draft-PR flow.
 There is no dedicated insight worker or queue service.
 
-## Command Change History
-
-### 2026-07-17 - Root agentic interface
-
-Made `openknowledge insights` the canonical shared interface and added the
-deterministic `create` command alongside listing, local execution, batch
-execution, and dismissal. Project hooks and the scheduled Job use the same root
-namespace through hidden observation and verification operations.
-
-### 2026-07-17 - Insights and local execution
-
-Added evidence-only insights with direct and isolated local `run`, batch
-`run --all`, explicit `dismiss`, boundary enforcement, validation, and the
-optional `insights` Job template.
 
 ---
 

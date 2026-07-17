@@ -30,20 +30,14 @@ openknowledge prompt review rules Wiki
 | Subcommand | Effect |
 | --- | --- |
 | `setup` | Print the canonical setup interview prompt. |
-| `from` | Print a source-to-wiki prompt. |
-| `rules` | List or render maintenance rules; `rules apply` updates one managed instruction block. |
-| `review` | Print advisory AI review prompts. |
+| [`from`](from.md) | Print a source-to-wiki prompt. |
+| [`rules`](rules.md) | List or render maintenance rules; `rules apply` updates one managed instruction block. |
+| [`review`](review.md) | Print advisory AI review prompts. |
 
 The former top-level `from`, `rules`, and `review` commands were removed before
 1.0. They are not retained as aliases, so scripts fail loudly instead of
 silently depending on a transitional interface.
 
-## Command Change History
-
-### 2026-07-17 - Advanced prompt namespace
-
-Consolidated all portable prompt tools under `openknowledge prompt` while
-making `openknowledge setup` the canonical managed onboarding workflow.
 
 ---
 

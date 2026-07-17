@@ -1,20 +1,14 @@
 ---
 type: Command Documentation
 title: openknowledge disconnect
-description: Removes a connected knowledge bundle from the local registry.
+description: Remove a knowledge-base connection from the local registry.
 tags: [openknowledge, cli, command, registry, disconnect]
-timestamp: 2026-06-20T00:00:00Z
+timestamp: 2026-07-18T00:00:00Z
 ---
 
 # `openknowledge disconnect`
 
-`openknowledge disconnect` removes one knowledge bundle connection from the
-user registry. It unregisters the connection and keeps files by default. It is
-the single canonical command for removing connections.
-
-Local `connect` targets create non-managed connections. Remote manifest, tar,
-and Git targets create CLI-managed cache entries. `disconnect --delete-files`
-refuses to delete ordinary local folders.
+Unregister one connected bundle. Files are kept by default.
 
 ## Usage
 
@@ -22,102 +16,22 @@ refuses to delete ordinary local folders.
 openknowledge disconnect <key-or-path>
 openknowledge disconnect <key-or-path> --keep-files
 openknowledge disconnect <key-or-path> --delete-files
-openknowledge disconnect --help
 ```
 
-## Arguments And Flags
+`--keep-files` and `--delete-files` are mutually exclusive.
 
-| Name | Kind | Description |
-| --- | --- | --- |
-| `key-or-path` | argument | Connection key or connected local path. |
-| `--keep-files` | flag | Keep bundle files after removing the registry entry. This is the default. |
-| `--delete-files` | flag | Delete the complete cache only for CLI-managed remote sources. |
+`--delete-files` is available only for CLI-managed manifest, archive, or Git
+caches. It refuses ordinary local folders. The command verifies that the
+recorded managed root belongs directly to the Open Knowledge cache and that the
+registered bundle is inside it.
 
-`--keep-files` and `--delete-files` cannot be used together.
+Managed deletion is transactional: the complete cache is renamed to a sibling
+tombstone, the registry is updated, and a failed registry write restores the
+cache. If final tombstone removal fails, the connection remains removed and
+the command exits `1` with a cleanup warning.
 
-## Behavior
-
-`disconnect` resolves its target against the local registry:
-
-* a non-path value is treated as a connection key;
-* a path-like value is expanded, normalized to an absolute path, and matched
-  against stored connection paths;
-* unknown targets fail clearly and print available keys when the registry has
-  entries.
-
-Disconnect flags may appear before or after the required `<key-or-path>`
-argument.
-
-After resolution, the command removes the registry entry and prints the key,
-path, and file action. Default and `--keep-files` output uses `files kept`.
-
-`--delete-files` requires the recorded managed root to be a direct child of the
-Open Knowledge cache and requires the registered bundle path to be inside that
-root. This prevents a forged or stale `managed` flag from authorizing deletion
-of an arbitrary local folder. Legacy records without `managedRoot` may use the
-registered path only when it passes the same cache-boundary check.
-
-Deletion takes the source-specific cache lock, verifies that the registry entry
-has not changed, renames the complete cache container to a sibling tombstone,
-and removes that exact snapshot from the registry. A registry failure renames
-the cache and provenance sidecar back. This removes top-level archive files as
-well as a possible nested bundle root while leaving unrelated cache siblings
-untouched. If final tombstone deletion fails, the command leaves the registry
-update in place, prints a warning, and exits with status `1`.
-
-## Quick Examples
-
-```sh
-openknowledge disconnect accessibility
-openknowledge disconnect ./project-memory --keep-files
-```
-
-## Example Output
-
-```text
-OK Disconnected knowledge bundle
-key    personal
-path   /work/project-memory
-files  kept
-```
-
-## Command Change History
-
-### 2026-07-15 - Transactional managed-root deletion
-
-`--delete-files` now validates the managed root against the cache boundary,
-locks that source, tombstones the entire cache container and provenance sidecar,
-and removes only an unchanged registry snapshot. Registry failure rolls the
-filesystem move back; nested archive roots no longer leave top-level cache
-files behind. Source anchors: `packages/cli/internal/okf/registry.go`,
-`packages/cli/internal/okf/registry_test.go`,
-`packages/cli/cmd/openknowledge/main.go`, and
-`packages/cli/cmd/openknowledge/main_test.go`.
-
-### 2026-07-15 - Transactional managed-file guard
-
-The `--delete-files` managed check and registry removal now operate on one
-locked registry snapshot, preventing a concurrent key or path change from
-causing deletion of files that were never approved as CLI-managed. Source
-anchors: `packages/cli/internal/okf/registry.go`,
-`packages/cli/internal/okf/registry_test.go`, and
-`packages/cli/cmd/openknowledge/main.go`.
-
-### 2026-07-15 - Positional-first flags
-
-`openknowledge disconnect` now parses
-`--keep-files` and `--delete-files` after `<key-or-path>` as documented while
-continuing to accept flag-first forms. Source anchors:
-`packages/cli/cmd/openknowledge/main.go` and
-`packages/cli/cmd/openknowledge/main_test.go`.
-
-### 2026-06-20
-
-`openknowledge disconnect` became the canonical connection-removal command.
-
-`openknowledge disconnect` shipped with key/path target resolution,
-`--keep-files`, guarded `--delete-files`, unknown-target key hints, and
-non-managed deletion refusal.
+Targets may be connection keys or registered paths. Unknown targets fail and
+list available keys when possible.
 
 ---
 
@@ -125,12 +39,6 @@ non-managed deletion refusal.
 
 > **Source anchors**
 >
-> * `packages/cli/cmd/openknowledge/main.go`
-> * `packages/cli/internal/okf/registry.go`
-> * `packages/cli/internal/okf/registry_test.go`
->
-> **Update notes**
->
-> Update this page when target resolution, registry removal, managed-file
-> deletion, output, or exit-code behavior changes. CLI behavior changes also
-> require [CLI changelog](/changelog/cli.md) updates.
+> - `packages/cli/cmd/openknowledge/main.go`
+> - `packages/cli/internal/okf/registry.go`
+> - `packages/cli/internal/okf/registry_test.go`

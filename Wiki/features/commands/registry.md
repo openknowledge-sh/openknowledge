@@ -34,19 +34,13 @@ openknowledge registry where <key-or-path>
 
 `refresh` preserves the recorded Git ref and subdirectory selectors. It stages
 downloads or clones separately, validates them, and keeps the previous
-generation on failure. `--force` rematerializes even when source identity has
-not advanced. Status remains offline and reports source drift, cache integrity,
-Git commit/cleanliness, and validation state.
+generation on failure. `--force` permits refresh to discard local changes in
+the managed cache. Status remains offline and reports source drift, cache
+integrity, Git commit/cleanliness, and validation state.
 
 The former `registry connect` and `registry disconnect` subcommands were
 removed before 1.0; no compatibility aliases remain.
 
-## Command Change History
-
-### 2026-07-17 - Inspection-only namespace
-
-Removed duplicate connection mutation from `registry`. Top-level `connect` and
-`disconnect` are now the only public mutation entry points.
 
 ---
 

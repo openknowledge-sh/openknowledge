@@ -1,56 +1,41 @@
 # Commands
 
-Each command page explains purpose, arguments or flags, use cases, and source
-anchors. Keep this index as the quick map.
+The command surface is organized by workflow. Run
+`openknowledge <command> --help` for the exact CLI syntax.
 
-## Create Bundles
+## Create and maintain
 
-* [Setup](setup.md) - managed agent onboarding, validation, and integration.
-* [Scaffold](scaffold.md) - scaffold a local OKF bundle.
+- [setup](setup.md) — create, validate, and integrate a wiki with an agent.
+- [agent](agent.md) — run a steered Codex, Claude Code, or OpenCode session.
+- [insights](insights.md) — capture and resolve knowledge gaps.
+- [jobs](jobs.md) — run repeatable isolated maintenance jobs.
 
-## Validate And Inspect Bundles
+## Use and publish
 
-* [Validate](validate.md) - validate a bundle against OKF with configurable rule severities and optional JSON reports.
-* [Prompt](prompt.md) - advanced portable setup, source, rules, and review prompts.
-* [Agent](agent.md) - experimental steered Codex, Claude Code, or OpenCode
-  sessions, project integration, and opt-in worktree isolation.
-* [Agent integrate](integrate.md) - install global discovery skills or project-scoped
-  skills and observation hooks.
-* [Insights](insights.md) - capture, review, and execute private
-  evidence-backed knowledge observations locally or through Jobs.
-* [Jobs](jobs.md) - experimental declarative scheduling, isolated execution,
-  observation, and control.
-* [Runtime](runtime.md) - plan, build, serve, and reconcile self-hosted
-  immutable knowledge-base generations.
-* [Deploy](deploy.md) - validate and provision the isolated runtime on Railway
-  with provider-generated, custom, or no-public endpoint modes.
-* [List](list.md) - print bundle inventory with optional JSON output.
+- [get](get.md) — read an exact page or entrypoint.
+- [search](search.md) — build source-grounded context.
+- [list](list.md) — inspect bundle structure.
+- [view](view.md) — browse in the local viewer.
+- [mcp](mcp.md) — serve read-only MCP resources and tools.
+- [export](export.md) — create HTML, JSON, graph, or tar output.
 
-## Connect And Resolve Bundles
+## Run as a service
 
-* [Connect](connect.md) - add a local or remote OKF bundle to the local knowledge registry.
-* [Disconnect](disconnect.md) - remove a connected bundle from the local registry.
-* [Registry](registry.md) - refreshes, offline integrity checks, listing, and path lookup.
+- [runtime](runtime.md) — serve immutable generations and run private workers.
+- [deploy](deploy.md) — provision the runtime on Railway.
 
-## Use And Navigate Knowledge
+## Validate and connect
 
-* [Get](get.md) - print an exact Markdown file, entrypoint, or metadata.
-* [Search](search.md) - build budget-bounded Markdown context or inspect ranked matches.
-* [MCP](mcp.md) - serve one bundle as read-only MCP resources and tools over
-  stdio or expose the same surface through the public runtime's HTTP endpoint.
-* [View](view.md) - local Markdown viewer.
+- [validate](validate.md) — check OKF conformance.
+- [connect](connect.md) — register a local or remote bundle.
+- [disconnect](disconnect.md) — remove a connection.
+- [registry](registry.md) — list, inspect, refresh, and resolve connections.
 
-## OKF Views And Publishing
+## Advanced tools
 
-* [AST](ast.md) - print the parsed OKF AST as JSON.
-* [Export](export.md) - HTML, JSON, tar, and graph output command group.
-* [HTML exporter](/features/exporters/html.md)
-* [JSON exporter](/features/exporters/json.md)
-* [Tar exporter](/features/exporters/tar.md)
-* [Graph exporter](/features/exporters/graph.md) - source and search graph views.
-
-## Help And Version
-
-* [Help](help.md) - root and command-specific help.
-* [Spec](spec.md) - print embedded OKF specs.
-* [Version](version.md) - print CLI version.
+- [scaffold](scaffold.md) — create a deterministic bundle without an agent.
+- [prompt](prompt.md) — print portable agent workflows.
+- [ast](ast.md) — inspect the parsed document model.
+- [spec](spec.md) — print an embedded OKF specification.
+- [version](version.md) — print the CLI version.
+- [help](help.md) — global flags and help discovery.

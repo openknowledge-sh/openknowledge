@@ -1,291 +1,84 @@
 ---
 type: Command Documentation
 title: openknowledge view
-description: Starts a local HTTP Markdown viewer for a knowledge base.
+description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-07-09T00:00:00Z
+timestamp: 2026-07-18T00:00:00Z
 ---
 
 # `openknowledge view`
 
-`openknowledge view` starts a local HTTP viewer. Without a path, it opens a
-registry-backed workspace selector. With a filesystem path or registry name, it
-opens that knowledge base directly.
-
-The viewer renders Markdown bodies together with a typed, collapsible inspector
-for each note's YAML frontmatter, rewrites local Markdown links, shows
-validation context, supports search, opens linked notes in a horizontal panel
-stack, and provides a graph overview when no note panels are open. The header
-brand comes from root `index.md` metadata in this order:
-`okf_bundle_title`, `okf_bundle_name`, `title`, then the first parsed Markdown
-`#` heading.
-
-Think of `view` as the interactive OKF view. It presents the same bundle as a
-file tree, rendered Markdown panels, local search results, validation context,
-and a source-link graph. The derivative search graph used for retrieval is
-exported with [`openknowledge export graph --type search`](/features/exporters/graph.md).
+Start the local web viewer. Pass a path or registry key to open one knowledge
+base; omit it to open the registry workspace selector.
 
 ## Usage
 
 ```sh
-openknowledge view [path]
-openknowledge view --name <alias-name> [path]
-openknowledge view --host <host> --port <port> [path]
-openknowledge view --allow-network --host <host> [path]
-openknowledge view --allow-network --host <host> --token <token> [path]
-openknowledge view --head-file <file> [path]
-openknowledge view --script-src <src> [path]
-openknowledge view --no-browser [path]
-openknowledge view --help
+openknowledge view [key-or-path]
+openknowledge view --no-browser Wiki
+openknowledge view --host 127.0.0.1 --port 8080 Wiki
+openknowledge view --allow-network --host 0.0.0.0 Wiki
 ```
 
-## Arguments And Flags
-
-| Name | Kind | Description |
+| Option | Default | Description |
 | --- | --- | --- |
-| `path` | argument | Optional knowledge base root or registry name. When omitted, the viewer uses the Open Knowledge Registry. |
-| `--host` | flag | Host to bind. Defaults to `127.0.0.1`. |
-| `--port` | flag | Port to bind. Defaults to `0`, which selects a free port. |
-| `--allow-network` | flag | Explicitly permit a non-loopback bind; all routes then require token authentication. |
-| `--token` | flag | URL-safe 16-256 character access token. Defaults to `OPENKNOWLEDGE_VIEW_TOKEN`, then a generated token for network binds. |
-| `--head-file` | flag | Trusted HTML fragment file to inject into every viewer page `<head>`. Defaults to `OPENKNOWLEDGE_HEAD_FILE` when set. |
-| `--head-html` | flag | Trusted inline HTML fragment to inject into every viewer page `<head>`. Defaults to `OPENKNOWLEDGE_HEAD_HTML` when set. |
-| `--name` | flag | Alias name for direct path mode. Defaults to the registry name or folder name. |
-| `--no-browser` | flag | Print URLs without opening the default browser. |
-| `--script-src` | flag | Script `src` to inject into every viewer page `<head>`. May be repeated and defaults to comma- or newline-separated `OPENKNOWLEDGE_SCRIPT_SRC` when set. |
+| `--host <host>` | `127.0.0.1` | Listener host. |
+| `--port <port>` | free port | Listener port. |
+| `--allow-network` | off | Permit a non-loopback bind and require authentication. |
+| `--token <token>` | environment/generated | Network access token; prefer `OPENKNOWLEDGE_VIEW_TOKEN`. |
+| `--name <name>` | registry/folder name | Alias used for a direct path. |
+| `--no-browser` | off | Print the URL without opening a browser. |
+| `--head-file <file>` | environment | Trusted HTML injected into every page head. |
+| `--head-html <html>` | environment | Trusted inline HTML injected into every page head. |
+| `--script-src <src>` | environment | Trusted script URL; repeatable. |
 
-## URL Output
+Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
+`OPENKNOWLEDGE_HEAD_HTML`, and `OPENKNOWLEDGE_SCRIPT_SRC`.
 
-`Open Knowledge view` is the primary URL and uses the actual listener host,
-defaulting to `127.0.0.1`. Direct path mode and single-workspace registry mode
-include the alias path in that loopback URL, for example:
+## Viewer features
 
-```text
-Open Knowledge view: http://127.0.0.1:57475/wiki/
-```
+- Rendered Markdown with local-link navigation, stacked note panels, source
+  graph, validation context, syntax-highlighted assets, and native media/PDF
+  previews.
+- AST-backed search using the same section ranking and one-hop link expansion
+  as [`openknowledge search`](search.md). Results can deep-link and highlight
+  the matching text.
+- Typed YAML frontmatter inspector, tag facets, semantic tables with filtering
+  and sorting, and directory breadcrumbs.
+- Browser-local themes, typography, line length, contrast, motion, and link
+  settings. These preferences never modify source Markdown.
+- Local editor links for direct paths and writable local connections. Static
+  exports use configured repository source links instead.
 
-The CLI does not print or configure custom hostname aliases. Stable knowledge
-base names are represented as path segments such as `/wiki/` or `/personal/`.
+| Shortcut | Action |
+| --- | --- |
+| `⌘K` / `Ctrl+K` | Focus search. |
+| `⌘⌥S` / `Ctrl+Alt+S` | Toggle the file explorer. |
+| `⌘⌥W` / `Ctrl+Alt+W` | Close the focused note. |
 
-Non-loopback and wildcard hosts are refused unless `--allow-network` is
-present. Their printed loopback URL contains a generated or configured token;
-the first browser request exchanges it for an HttpOnly, SameSite=Strict session
-cookie and redirects to a URL without the token. Remote clients replace the
-printed loopback host with the server host and may send the same value as
-`Authorization: Bearer <token>`. Prefer `OPENKNOWLEDGE_VIEW_TOKEN` to `--token`
-when local process arguments are visible.
+The displayed brand comes from root metadata in this order:
+`okf_bundle_title`, `okf_bundle_name`, `title`, then the first H1.
 
-## Example Output
+## Network and file safety
 
-`openknowledge view --no-browser ./project-memory` starts a long-running local
-server and prints the URL plus direct-mode details:
+Loopback mode requires no token. Non-loopback and wildcard binds require
+`--allow-network`; every route then shares token authentication. The initial
+URL exchanges the token for an HttpOnly, SameSite cookie and redirects to a
+clean URL. Remote clients may also send `Authorization: Bearer <token>`.
 
-```text
-Open Knowledge view: http://127.0.0.1:57475/project-memory/
-root /work/project-memory
-Press Ctrl+C to stop.
-```
+Raw routes serve only regular, non-Markdown bundle assets. They exclude
+dotfiles, `.git`, `openknowledge.toml`, and symlinks. Markdown and asset
+resolution cannot traverse outside the bundle root. Trusted head fragments are
+inserted without escaping; use them only with content you control.
 
-Running `openknowledge view` without a path starts the registry workspace
-selector instead:
+In registry mode, routing is rebuilt when the validated registry snapshot
+changes. Search indexes are content-hashed and refreshed after source edits.
+Registry or fingerprint failures return an error instead of serving stale or
+partially trusted state.
 
-```text
-Open Knowledge view: http://127.0.0.1:57475/
-registry /home/user/.config/openknowledge/registry.json
-knowledge bases 2
-Press Ctrl+C to stop.
-```
-
-## Behavior
-
-* Registry names and normal filesystem paths resolve through the same
-  key-or-path model used by other commands.
-* Registry mode reloads the bounded, strictly validated registry snapshot for
-  every HTTP request. It reuses the current viewer and search indexes while the
-  sorted snapshot is unchanged, then atomically rebuilds routing when a
-  connection is added or removed or when `registry refresh` changes its path,
-  access, or provenance. A registry read or validation failure returns HTTP
-  `500` instead of continuing with stale routes.
-* The default loopback server needs no token. Every non-loopback route,
-  including HTML, APIs, raw assets, and editor icons, shares one mandatory
-  authentication boundary. Responses use `nosniff`, no-referrer, and frame
-  denial headers; authenticated responses are not cached. The HTTP server also
-  bounds request headers and header/idle time.
-* `Command+K` focuses search. `Ctrl+K` is still accepted as a non-macOS
-  fallback, but the visible search shortcut stays `⌘K`.
-* Top-bar search opens ranked default files when focused, supports Arrow-key
-  navigation and Enter activation, and dismisses its results and query on
-  Escape, outside pointer interaction, or focus moving elsewhere. Results use a
-  clear title, path/type metadata, and optional snippet hierarchy.
-* `Command+Option+S` toggles the file explorer sidebar. `Ctrl+Alt+S` is still
-  accepted as a non-macOS fallback, but the shortcut shown beside the file
-  explorer button stays `⌘⌥S`. The sidebar shortcut is ignored while focus is in
-  editable controls.
-* `Command+Option+W` closes the focused note panel. `Ctrl+Alt+W` is still
-  accepted as a non-macOS fallback. The close button exposes the shortcut in
-  its hover/focus tooltip, and after a panel closes, focus moves to the previous
-  panel when one exists.
-* The local search API returns `highlightText` and `highlightURL` when a result
-  has a reliable visible text match. `highlightURL` points at the Markdown file
-  with `?ok-highlight=<text>`, and the viewer opens, scrolls to, and marks the
-  first matching text in the active note panel. This deep-link contract is for
-  the local viewer; static HTML exports keep their existing search links.
-  Query results use the same heading-section BM25 ranking and one-hop authored
-  link/backlink expansion as [`openknowledge search`](search.md). Each result
-  also carries its section heading and path, line range, token estimate,
-  revision-bound locator, content digest, and direct-or-neighbor relation. The
-  dropdown shows the matched section heading so repeated results from one note
-  remain distinguishable.
-* The local search and tag index is reused only while a streaming SHA-256 over
-  every indexed Markdown path and its bytes stays unchanged. The next search
-  request rebuilds the index after an edit even when a tool preserves the
-  file's size and modification time; symbolic links and non-regular Markdown
-  entries fail closed during fingerprinting.
-* Markdown tables keep semantic table markup and are enhanced with scrolling,
-  filtering, sorting, and row counts when viewer JavaScript is active.
-* Notes with YAML frontmatter show a collapsed-by-default, per-note collapsible
-  metadata inspector above the Markdown body. Values use content-aware
-  presentations without datatype badges: booleans retain a state treatment,
-  simple lists render as chips, and nested lists and maps render recursively.
-  Top-level `tags` chips are navigable facets: selecting one opens the existing
-  search surface with exact same-tag matches from other notes, rather than
-  fuzzy body-text matches.
-  The inspector consumes the same typed YAML mapping as the shared OKF parser,
-  so valid nested mappings and sequences, flow collections, and block scalars
-  retain their structure and content. Invalid frontmatter is surfaced by
-  validation without hiding the Markdown body.
-* HTML comments are not rendered as visible text. The
-  `<!-- okf-footer: agent-maintenance -->` marker turns the remaining document
-  content into a visually subdued maintenance footer.
-* Local code and text asset links open escaped syntax-highlighted previews.
-  Local PDF, image, audio, and video links are served from bundle-scoped raw
-  URLs for the browser's native viewer. Raw and Markdown path resolution rejects
-  traversal and every symbolic link below the resolved bundle root.
-* Asset pages and `/raw/` serve only regular non-Markdown bundle assets. Dotfile
-  paths, `.git`, `openknowledge.toml`, Markdown source files, missing paths, and
-  non-regular entries are not exposed or listed as assets. Raw content accepts
-  only `GET` and `HEAD` and sends `nosniff`, no-referrer, and sandboxed content
-  policy headers.
-* `[html.theme]` in `openknowledge.toml` applies the same theme name and
-  stylesheet behavior as `openknowledge export html`. Local theme stylesheets are
-  validated before rendering and cannot be symbolic links.
-* Trusted head injection is intended for local analytics, verification meta
-  tags, or small loader scripts. Inline HTML and file content are inserted
-  without escaping; `--script-src` escapes the attribute value and accepts only
-  relative, `http:`, or `https:` URLs.
-* The local viewer includes editor deeplinks for opening Markdown files in
-  installed local editors when the path is unregistered or belongs to a local
-  `write` connection. It omits the controls for `read` connections, including
-  managed remote caches. Static HTML exports replace local editor behavior with
-  optional GitHub source links.
-* The file explorer sidebar renders folder rows as lightweight bold text
-  without filled row blocks, keeping the tree visually quiet while preserving
-  file hover states.
-* Reserved `index.md` and `log.md` entries show their `system` badge directly
-  beside the file name instead of pinning the badge to the far edge of the tree
-  row.
-* Note paths render as segmented breadcrumbs. Directory segments link to their
-  real `index.md` or `index.markdown` document when one exists; missing indexes
-  remain plain text. The current-file segment always links to a clean
-  single-panel view, so it closes any other open note panels.
-* The file viewer header includes a settings menu with five built-in visual
-  themes: Night, Light, Paper, Ocean, and Rose, plus a custom theme editor for
-  page, surface, text, muted, accent, and border colors. Night is the first-run
-  theme when no valid browser-local preference exists; an explicit saved theme
-  selection takes precedence on later visits. The same system-level menu
-  includes `Show frontmatter`, font, text size, line spacing, motion, readable
-  line length, high contrast, and link-underlining controls. These choices
-  affect the viewer presentation, never the authored Markdown or editor
-  deeplinks. Theme, frontmatter, and accessibility choices are browser-local
-  and persist through `localStorage` with a cookie fallback. `Show frontmatter`
-  is enabled by default and controls inspector visibility for every currently
-  open and newly opened note panel without expanding it; each inspector remains
-  independently collapsible and starts collapsed.
-
-## Use Cases
-
-* Browse a local or connected knowledge base.
-* Inspect a note's OKF metadata and nested frontmatter without opening its raw
-  Markdown source.
-* Inspect validation warnings next to the bundle tree.
-* Follow local Markdown links without leaving the current context.
-* Search files and rendered content from the top bar.
-* Let an agent search `/api/search`, navigate a browser to `highlightURL`, and
-  show the exact matched text in context.
-* Inspect the authored source graph as an interactive view of the same OKF
-  bundle that can also be exported with `openknowledge export graph`.
-* Preview bundled source and media assets in the browser.
-* Inject trusted custom `<head>` snippets that match the web deploy contract.
-
-## Command Change History
-
-### 2026-07-15 - Canonical local viewer retrieval
-
-The local viewer `/api/search` query path now uses the same section-level BM25
-index, deterministic ordering, fuzzy matching, index-page penalty, and one-hop
-link/backlink expansion as `openknowledge search`. Results retain the viewer's
-file and highlight URLs while exposing canonical section headings, line ranges,
-token estimates, content digests, revision-bound locators, and relationship
-metadata. The search dropdown displays section headings alongside path and
-type. Exact tag facets remain a separate metadata lookup. Source anchors:
-`packages/cli/cmd/openknowledge/viewer.go`,
-`packages/cli/cmd/openknowledge/viewer_search.js`, and
-`packages/cli/cmd/openknowledge/viewer_test.go`.
-
-### 2026-07-15 - Content-bound viewer search cache
-
-Viewer search and tag indexes now use the actual Markdown paths and bytes as
-their cache identity instead of relying on file size and modification time.
-Same-size edits with restored timestamps therefore rebuild lazily on the next
-search request rather than returning stale results. Fingerprinting streams file
-content through SHA-256, rejects symbolic links and non-regular entries, and
-detects files that change size while they are read. Source anchors:
-`packages/cli/cmd/openknowledge/viewer.go` and
-`packages/cli/cmd/openknowledge/viewer_test.go`.
-
-### 2026-07-15 - Live registry viewer snapshots
-
-The long-running registry viewer now observes connection additions, removals,
-refresh generations, and access/provenance changes without a process restart.
-Each request loads a bounded strict registry snapshot; unchanged snapshots
-reuse existing handlers and search indexes, while invalid registry state fails
-the request closed instead of serving stale routing. Source anchors:
-`packages/cli/cmd/openknowledge/viewer.go` and
-`packages/cli/cmd/openknowledge/viewer_test.go`.
-
-### 2026-07-15 - Authenticated network opt-in
-
-Non-loopback viewer binds are now refused unless `--allow-network` is explicit.
-Allowed network binds use a generated or configured token across every route,
-support bearer clients and an HttpOnly browser session exchange, strip the
-bootstrap token from the address bar, add defensive headers, and bound server
-header/idle resources. Source anchors:
-`packages/cli/cmd/openknowledge/viewer.go`,
-`packages/cli/cmd/openknowledge/viewer_test.go`,
-`packages/cli/cmd/openknowledge/main.go`, and
-`packages/cli/cmd/openknowledge/main_test.go`.
-
-### 2026-07-15 - Bundle-asset-only raw serving
-
-Viewer asset pages and `/raw/` no longer act as general file reads over the
-selected directory. They reject private/config paths and Markdown sources,
-hide private assets from the tree, require regular bundle-contained files, and
-limit raw requests to `GET`/`HEAD` with defensive response headers. Source
-anchors: `packages/cli/cmd/openknowledge/viewer.go` and
-`packages/cli/cmd/openknowledge/viewer_test.go`.
-
-### 2026-07-15 - Complete YAML frontmatter inspector
-
-The frontmatter inspector now uses the shared complete YAML parser. Valid block
-scalars, flow mappings, and nested collections render from typed data instead
-of falling back because of parser-subset limitations.
-
-### 2026-07-06
-
-`openknowledge view` replaced the previous viewer command name as the clean
-pre-1.0 API. The command owns the interactive local application, while
-[`openknowledge get`](get.md) owns exact Markdown retrieval and
-[`openknowledge list`](list.md) owns structure inspection.
+Theme and source-link configuration comes from
+[`openknowledge.toml`](/features/configuration.md). For deployment, use the
+[HTML exporter](/features/exporters/html.md).
 
 ---
 
@@ -293,21 +86,13 @@ pre-1.0 API. The command owns the interactive local application, while
 
 > **Source anchors**
 >
-> * `packages/cli/cmd/openknowledge/viewer.go`
-> * `packages/cli/cmd/openknowledge/viewer_app.css`
-> * `packages/cli/cmd/openknowledge/viewer_app.js`
-> * `packages/cli/cmd/openknowledge/viewer_search.js`
-> * `packages/cli/cmd/openknowledge/viewer_theme.go`
-> * `packages/cli/cmd/openknowledge/viewer_theme.css`
-> * `packages/cli/cmd/openknowledge/viewer_test.go`
-> * `packages/cli/cmd/openknowledge/main.go`
-> * `packages/cli/internal/okf/search.go`
-> * `packages/cli/internal/okf/search_types.go`
-> * `packages/cli/internal/okf/markdown.go`
-> * `packages/cli/internal/okf/markdown_test.go`
-> * `packages/cli/internal/okf/frontmatter_yaml.go`
+> - `packages/cli/cmd/openknowledge/viewer.go`
+> - `packages/cli/cmd/openknowledge/viewer_app.js`
+> - `packages/cli/cmd/openknowledge/viewer_search.js`
+> - `packages/cli/cmd/openknowledge/viewer_test.go`
+> - `packages/cli/internal/okf/search.go`
 >
 > **Update notes**
 >
-> Viewer rendering, routing, validation display, or link rewriting changes should
-> update this page and [CLI changelog](/changelog/cli.md).
+> Update this page when viewer flags, routing, authentication, navigation, or
+> file-serving behavior changes.

@@ -80,18 +80,6 @@ flags remain usage errors with status `2`. The v1 contract is described by
 * Inspect orphaned or weakly connected bundle areas without changing authored
   Markdown.
 
-## Command Change History
-
-### 2026-07-15 - Versioned graph JSON
-
-Source and search graph JSON now declare `schemaVersion: "1"` and share a
-checked JSON Schema plus golden snapshot.
-
-### 2026-07-06
-
-`openknowledge export graph` added `--type source|search`. The default source graph
-keeps the existing file/link model. The search graph adds derivative chunk
-nodes and typed graph edges for source-grounded retrieval.
 
 ---
 

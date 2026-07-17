@@ -119,9 +119,8 @@ must be physically absent from every public generation.
 * Default `openknowledge export html` uses `[html.theme]`, `[html.source]`, and
   `[html.site]` together through the same strict parser used during validation,
   and uses `[publish]` for the bundle gate and public asset allowlist.
-* Plain HTML also requires `publish.enabled`; JSON, graph, and standalone tar
-  output do not apply publication settings, and project configuration remains
-  part of those source-oriented views.
+* Plain HTML also requires `publish.enabled`. JSON and graph ignore publication
+  filters; standalone tar preserves the complete source, including this config.
 
 ---
 

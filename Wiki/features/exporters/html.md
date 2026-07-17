@@ -1,238 +1,105 @@
 ---
 type: Exporter Documentation
 title: HTML Exporter
-description: Static HTML export behavior for Open Knowledge bundles.
+description: Publish an Open Knowledge bundle as a static site.
 tags: [openknowledge, cli, exporter, html]
-timestamp: 2026-07-09T00:00:00Z
+timestamp: 2026-07-18T00:00:00Z
 ---
 
 # HTML Exporter
 
-The HTML exporter turns an OKF bundle into static pages. The default mode ships
-the same viewer used by `openknowledge view`, so exported docs keep file
-browsing, search, stacked panels, graph data, table controls, syntax
-highlighting, typed frontmatter inspectors, and mobile layout behavior without
-a local server. It also writes discovery and connection assets so agents can
-index the published wiki and a deployed wiki can be added back to the local
-registry.
+Export a validated bundle as either the full static viewer or plain semantic
+HTML. Both modes require `[publish] enabled = true`.
 
-Use `--plain` when the output should be only semantic HTML without viewer CSS,
-JavaScript, search, graph data, or table controls.
-
-## Command
+## Usage
 
 ```sh
 openknowledge export html --out <folder> [key-or-path]
 openknowledge export html --plain --out <folder> [key-or-path]
 openknowledge export html --head-file <file> --out <folder> [key-or-path]
 openknowledge export html --script-src <src> --out <folder> [key-or-path]
-openknowledge export html --spec <version> --out <folder> [key-or-path]
 ```
 
-## Arguments And Flags
+| Option | Default | Description |
+| --- | --- | --- |
+| `key-or-path` | `.` | Registry key or bundle root. |
+| `--out <folder>` | required | Output directory. |
+| `--plain` | off | Omit viewer CSS, JavaScript, search, graph, and chrome. |
+| `--spec <version>` | `latest` | OKF spec used for validation. |
+| `--head-file <file>` | environment | Trusted head fragment for viewer mode. |
+| `--head-html <html>` | environment | Trusted inline head fragment for viewer mode. |
+| `--script-src <src>` | environment | Script URL for viewer mode; repeatable. |
 
-| Name | Kind | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `key-or-path` | argument | no | current directory | Registry key or knowledge base root. |
-| `--out` | flag | yes | none | Output folder for generated HTML files. |
-| `--head-file` | flag | no | `OPENKNOWLEDGE_HEAD_FILE` | Trusted HTML fragment file to inject into default viewer HTML `<head>`. |
-| `--head-html` | flag | no | `OPENKNOWLEDGE_HEAD_HTML` | Trusted HTML fragment to inject into default viewer HTML `<head>`. |
-| `--plain` | flag | no | off | Generate plain semantic HTML without CSS, JavaScript, or viewer chrome. |
-| `--script-src` | repeatable flag | no | `OPENKNOWLEDGE_SCRIPT_SRC` | Script `src` to inject into default viewer HTML `<head>`. Environment values may be comma- or newline-separated. |
-| `--spec` | flag | no | `latest` | OKF spec version. |
+Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
+`OPENKNOWLEDGE_HEAD_HTML`, and `OPENKNOWLEDGE_SCRIPT_SRC`. Plain mode does not
+support head injection.
 
-## Behavior
+## Output
 
-Both HTML modes require the input bundle to validate without errors for the
-selected spec; warnings remain allowed. Validation runs before output writes.
-The default viewer therefore emits `openknowledge.json` only when its portable
-archive satisfies the same validation gate enforced by remote `connect`.
+Viewer mode includes:
 
-Each export is published as one complete generation. The exporter writes all
-pages, discovery files, manifest data, and assets into a temporary sibling
-directory, then replaces the previous output only after generation succeeds.
-This removes pages that disappeared or became unpublished between builds and
-preserves the complete previous site if rendering or asset generation fails.
-The output directory may be nested inside the source bundle and is then
-excluded from the downloadable source archive. The output may not equal or
-contain the source bundle because replacing it would also replace source data.
+- static Markdown pages with file navigation, search, graph data, stacked
+  panels, metadata inspectors, table controls, themes, and mobile layout;
+- `llms.txt` for pages enabled for both `viewer` and `llms`;
+- `sitemap.xml` when `[html.site].base_url` is configured;
+- `openknowledge.json` and `assets/openknowledge-bundle.tar.gz` for remote
+  `openknowledge connect`;
+- allowlisted public assets at their bundle-relative paths.
 
-Default viewer pages render YAML frontmatter as a typed, collapsible inspector
-that starts collapsed above the Markdown body. The browser-local `Show frontmatter`
-setting is enabled by default and controls inspector visibility for initial and
-dynamically opened panels; it does not expand an inspector. Values use the
-same content-aware presentation as `openknowledge view`: booleans retain a
-state treatment, simple lists render as chips, and nested lists and maps render
-recursively, without datatype badges. Plain exports continue to omit
-frontmatter and viewer chrome.
+Plain mode writes only semantic HTML pages. It omits viewer assets, discovery
+files, search data, source controls, and frontmatter chrome.
 
-Top-level `tags` values are exported as navigable facets. Selecting a tag opens
-the shared search surface with exact same-tag matches from other published
-notes. Exported note paths also render as segmented breadcrumbs whose directory
-segments link only to published index documents that actually exist; the leaf
-returns to a clean single-panel page.
-
-Default viewer pages start with the Night theme when no valid browser-local
-theme preference exists. A saved theme selection takes precedence on later
-visits, and the lightweight head bootstrap restores built-in presets before the
-viewer CSS paints. The previous light palette remains available as Light in the
-viewer settings menu.
-
-Markdown pages in the default viewer export share the local viewer's system-level
-reading and accessibility settings: font family, text size, line spacing, motion,
-readable line length, high contrast, and link underlining. Preferences are stored
-in the browser and do not modify exported Markdown or apply to `--plain` output.
-
-Both modes require `[publish] enabled = true`, rewrite local Markdown links to
-generated `.html` targets, and skip files with `okf_publish: false` or
-`okf_targets.viewer: false`. Rendered Markdown comes from the parsed
-Markdown AST rather than a separate body scan. It keeps list continuations
-inside their parent item and emits semantic tables with alignment metadata.
-HTML comments are hidden. The `<!-- okf-footer: agent-maintenance -->` marker
-renders following content as a subdued maintenance footer in the default
-viewer export.
-
-Default viewer exports embed a static note manifest and graph data in each page
-so search, panel navigation, source links, and enhanced table controls work on a
-static host. The viewer can resolve pretty URLs such as `/agents` or
-`/features/` back to generated notes, and the header brand links to the exported
-`index.html` with a relative URL for subpath deployments. Portable static pages
-do not expose the local filesystem path used during the build.
-
-Default viewer exports can inject trusted custom `<head>` HTML into every
-generated wiki page with `--head-file`, `--head-html`, repeatable
-`--script-src`, or the matching `OPENKNOWLEDGE_HEAD_FILE`,
-`OPENKNOWLEDGE_HEAD_HTML`, and `OPENKNOWLEDGE_SCRIPT_SRC` environment
-variables. Use this for deployment-owned analytics, verification meta tags, or
-small loader scripts. Script URLs may be relative, `http:`, or `https:`. Plain
-exports remain semantic HTML and do not support custom head injection.
-
-Default viewer exports include discovery files:
-
-* `llms.txt` - a Markdown index following the llms.txt proposal shape: H1 title,
-  summary blockquote, details, and a `## Docs` section of Markdown links to
-  pages enabled for both `viewer` and `llms`. When no site base URL is
-  configured, links are relative to the export root.
-* `sitemap.xml` - a Sitemap Protocol XML document for published pages when
-  `[html.site].base_url` is configured. The sitemap is skipped without a base URL
-  because sitemap `<loc>` entries must be absolute `http` or `https` URLs on one
-  host. Only pages enabled for both `viewer` and `sitemap` are listed.
-
-Default viewer exports include remote-connect assets:
-
-* `openknowledge.json` - an Open Knowledge manifest with type
-  `openknowledge.bundle`, archive path, archive format, spec version, bundle
-  name/title metadata when present, and archive SHA-256. Its Draft 2020-12
-  contract is published at
-  `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
-* `assets/openknowledge-bundle.tar.gz` - a portable public source bundle archive
-  generated with the same deterministic archive machinery as `openknowledge export
-  tar`, but scoped to published Markdown and `[publish].assets`. Files marked
-  `okf_publish: false`, project configuration, worker state, agent jobs/logs,
-  and every non-allowlisted asset are physically absent. Allowlisted assets are
-  copied at the same relative path into both the static site and portable bundle.
-
-The embedded static search corpus requires both `viewer` and `search`; a
-`search: false` page can remain a directly browsable HTML page without being
-indexed. All target keys default to `true` after publication is enabled.
-
-`openknowledge connect <deployed-wiki-url>` discovers and validates the
-versioned manifest, requires and verifies the archive hash, extracts the archive
-safely, validates the extracted bundle against the manifest's concrete spec,
-and registers the materialized bundle in the local registry. Manifest JSON is
-strict: unknown fields, duplicate object keys, trailing JSON, non-canonical
-versions, and invalid identity or archive fields fail closed.
-
-Default viewer exports read optional settings from `openknowledge.toml`.
-`[html.theme]` sets a theme name and stylesheet:
+## Publication rules
 
 ```toml
-[html.theme]
-name = "landing"
-stylesheet = "assets/wiki-theme.css"
-
-[html.site]
-base_url = "https://openknowledge.sh/wiki/"
-
 [publish]
 enabled = true
-```
+assets = ["assets/public/**", "whitepapers/*.pdf"]
 
-Every load uses the shared strict
-[`openknowledge.toml` configuration contract](/features/configuration.md), so
-validation, rule-catalog checks, theme, source, and site settings agree on the
-same fields and types. Malformed TOML, unknown fields, or wrong types abort
-generation before the previous published site is replaced.
+[html.site]
+base_url = "https://docs.example.com/"
 
-Exported pages include `data-openknowledge-theme="<name>"` on `<html>` and link
-the stylesheet after the built-in viewer CSS. Local stylesheets must stay inside
-the bundle; they are copied into the output and linked relatively from every
-page. External `http` and `https` stylesheet URLs are linked as-is.
+[html.theme]
+name = "custom"
+stylesheet = "assets/public/wiki.css"
 
-`[html.site].base_url` sets the deployed root URL for discovery files. It must be
-an absolute `http` or `https` URL without a query string or fragment. The export
-normalizes it with a trailing slash and uses it for absolute `llms.txt` links and
-`sitemap.xml` `<loc>` entries. Omit it for portable local exports that should not
-claim a canonical deployment URL.
-
-Default viewer exports also suppress the local editor dropdown because deployed
-HTML cannot open the build machine's local files. To show a source action in
-exported pages, configure `[html.source]` in `openknowledge.toml`:
-
-```toml
 [html.source]
-github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
+github_base = "https://github.com/example/project/blob/main"
 entry = "Wiki"
 ```
 
-When `github_base` is present, each exported Markdown panel shows a GitHub
-source button built from `github_base`, optional `entry`, and the Markdown file
-path. When `[html.source]` is absent, exported pages render no local editor or
-source action. `html.source.entry` is a repository path prefix, not the viewer
-title.
+- Files with `okf_publish: false` are excluded.
+- `okf_targets.viewer`, `search`, `llms`, and `sitemap` control individual
+  projections and default to `true` after publication is enabled.
+- Non-Markdown files are public only when matched by `publish.assets`.
+- Local stylesheets must remain inside the bundle; HTTP(S) stylesheets are
+  linked as configured.
+- `html.site.base_url` must be an absolute HTTP(S) URL without query or
+  fragment. Without it, `llms.txt` uses relative links and no sitemap is built.
 
-The deployed viewer brand comes from root `index.md` metadata in this order:
-`okf_bundle_title`, `okf_bundle_name`, `title`, then the first Markdown `#`
-heading. The built-in theme contract lives in
-`packages/cli/cmd/openknowledge/viewer_theme.css`; override `--ok-*` variables
-there through a configured stylesheet instead of changing generated HTML.
+See [`openknowledge.toml`](/features/configuration.md) for the strict field
+contract.
 
-## Use Cases
+## Build behavior
 
-* Publish a portable static wiki.
-* Publish visible, type-aware OKF metadata without exposing raw YAML delimiters.
-* Expose `llms.txt` and `sitemap.xml` for agents and crawlers.
-* Add deployment-owned analytics or verification tags to default viewer pages.
-* Connect a deployed wiki back into a local registry.
-* Produce minimal HTML for systems that should not include viewer JavaScript.
-* Apply a deployable theme stylesheet without changing source Markdown.
-* Link deployed pages to GitHub source without exposing local editor deeplinks.
+The source must validate without errors; warnings are allowed. The exporter
+builds a complete sibling generation and atomically replaces the destination
+only after every page, asset, manifest, and archive succeeds. Failed builds
+preserve the previous site; successful builds remove stale output.
 
-## Change History
+The output may be inside the source bundle and is then excluded from the
+portable archive. It may not equal or contain the source root.
 
-### 2026-07-15 - Transactional generation publishing
+Viewer pages rewrite local links, hide HTML comments, and render content after
+`<!-- okf-footer: agent-maintenance -->` as subdued maintenance metadata. The
+portable archive contains only publishable Markdown and allowlisted assets.
+Project configuration, `.openknowledge` job/run state, Markdown marked
+`okf_publish: false` (including private insights), and non-allowlisted assets
+are excluded.
 
-Default and plain HTML exports now publish a complete directory generation,
-remove stale files on successful rebuilds, and preserve the prior generation
-when a build fails. Unsafe outputs that equal or contain the source bundle are
-rejected; nested output remains supported and is excluded from the public
-source archive. Source anchors: `packages/cli/internal/okf/atomic_output.go`,
-`packages/cli/internal/okf/html.go`,
-`packages/cli/cmd/openknowledge/viewer.go`,
-`packages/cli/internal/okf/atomic_output_test.go`,
-`packages/cli/internal/okf/export_test.go`, and
-`packages/cli/cmd/openknowledge/viewer_test.go`.
-
-### 2026-07-15 - Connectable publication gate
-
-Default and plain HTML exports now reject bundles with validation errors before
-writing output. This prevents a successful static publication from advertising
-a remote-connect archive that its consumer will reject. Warnings remain
-publishable. Source anchors: `packages/cli/internal/okf/html.go`,
-`packages/cli/internal/okf/validation_types.go`,
-`packages/cli/cmd/openknowledge/viewer.go`,
-`packages/cli/internal/okf/export_test.go`, and
-`packages/cli/cmd/openknowledge/viewer_test.go`.
+`openknowledge connect <site-url>` validates the strict manifest, archive
+digest, extracted bundle, and declared OKF version before registering the
+materialized source.
 
 ---
 
@@ -240,19 +107,13 @@ publishable. Source anchors: `packages/cli/internal/okf/html.go`,
 
 > **Source anchors**
 >
-> * `packages/cli/internal/okf/atomic_output.go`
-> * `packages/cli/internal/okf/html.go`
-> * `packages/cli/internal/okf/markdown.go`
-> * `packages/cli/internal/okf/export_test.go`
-> * `packages/cli/cmd/openknowledge/main.go`
-> * `packages/cli/cmd/openknowledge/viewer.go`
-> * `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
-> * `packages/cli/cmd/openknowledge/viewer_discovery.go`
-> * `packages/cli/cmd/openknowledge/viewer_theme.go`
-> * `packages/cli/cmd/openknowledge/viewer_theme.css`
-> * `packages/cli/cmd/openknowledge/viewer_test.go`
+> - `packages/cli/internal/okf/html.go`
+> - `packages/cli/internal/okf/atomic_output.go`
+> - `packages/cli/cmd/openknowledge/viewer_discovery.go`
+> - `packages/cli/cmd/openknowledge/viewer_theme.go`
+> - `packages/cli/internal/okf/export_test.go`
 >
 > **Update notes**
 >
-> When template structure, CSS, link rewriting, file naming, or export reporting
-> changes, update this page and [CLI changelog](/changelog/cli.md).
+> Update this page when publication selection, generated files, viewer/plain
+> behavior, or build atomicity changes.

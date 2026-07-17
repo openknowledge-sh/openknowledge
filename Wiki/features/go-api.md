@@ -1,23 +1,18 @@
 ---
 type: Feature Documentation
 title: Go API
-description: Public read-only Go package for embedding Open Knowledge parsing, validation, retrieval, and graph views.
+description: Embed the read-only Open Knowledge parser, validation, retrieval, and graph core.
 tags: [openknowledge, go, api, sdk, integration]
-timestamp: 2026-07-15T00:00:00Z
+timestamp: 2026-07-18T00:00:00Z
 ---
 
 # Go API
 
-Go applications can import a supported read-only facade over the exact core
-used by the CLI:
+Import the supported read-only facade used by the CLI:
 
 ```go
 import "github.com/openknowledge-sh/openknowledge/packages/cli/okf"
 ```
-
-Before this package existed, the implementation lived only under Go's
-`internal/` boundary. External tools therefore had to launch a subprocess and
-decode CLI JSON even when they needed in-process parsing or retrieval.
 
 ## Example
 
@@ -35,74 +30,43 @@ packet, err := okf.ResolveContextWithVersion(
     "0.1",
     okf.ContextOptions{Query: "release workflow", Budget: 1200, Limit: 8},
 )
-
-entries, err := okf.RegistryEntries()
-root, err := okf.ResolveKnowledgeRoot("team-docs")
-canWrite, err := okf.RegistryPathCanWrite(root)
 ```
 
 ## Surface
 
 The package exposes:
 
-* AST and normalized-bundle parsing
-* validation, validation policy options, known rules, and the valid-bundle gate
-* inventory listing and bundle metadata
-* deterministic match search and budget-bounded source context
-* deterministic RRF federation across caller-provided named bundle targets
-* source and retrieval graph construction
-* strict frontmatter and portable-manifest decoding
-* supported spec discovery and the pinned spec document
-* strict bounded registry inventory, exact key/path resolution, and effective
-  local authoring-capability checks
+- AST and normalized bundle parsing;
+- validation policies, known rules, and the valid-bundle gate;
+- inventory and bundle metadata;
+- deterministic search, bounded context, and caller-supplied RRF federation;
+- source and retrieval graphs;
+- strict frontmatter and portable-manifest decoding;
+- supported spec discovery and the embedded spec;
+- bounded registry inventory, key/path resolution, and authoring capability.
 
-Returned structures are aliases of the core models, not copied SDK-specific
-models. CLI behavior, public Go results, JSON schemas, and MCP structured
-content therefore share one implementation and one set of JSON field tags.
-Search and context results include a concrete `RetrievalRevision` plus
-content-addressed section locators. Callers that persist evidence can compare
-`revision.indexSha256` after refresh instead of assuming a path and line range
-still identify the same content.
+Returned types alias the core models, so Go results, CLI JSON, MCP structured
+content, and published schemas share field definitions. Retrieval results
+include corpus revisions and content-addressed locators for stale-evidence
+detection.
 
-## Versioning
+Functions without a version use `LatestSpecVersion`. Persisting integrations
+should prefer `WithVersion` functions and store `SpecVersion`, `SchemaVersion`,
+retrieval revision, and selected locators. See
+[Machine-readable contracts](machine-contracts.md).
 
-Calls without an explicit version use `LatestSpecVersion`. Integrations that
-persist data should prefer `WithVersion` functions and record both
-`SpecVersion` and `SchemaVersion` from returned models. Retrieval callers
-should additionally persist the top-level revision and each selected locator.
-Federated helpers accept explicit `FederatedTarget` values rather than reading
-the user registry implicitly, keeping the public package deterministic and
-read-only. Both default-version and `WithVersion` forms are available.
+The API is intentionally read-only. It does not connect, refresh, mutate the
+registry, extract archives, render HTML, or manage processes. Registry reads
+never migrate or rewrite local storage.
 
-The Go module is pre-v1, so source compatibility follows module semantic
-versioning. Serialized compatibility is a separate contract documented under
-[machine-readable contracts](machine-contracts.md). The portable manifest also
-has its own independent protocol version and schema.
+---
 
-## Boundary
+<!-- okf-footer: agent-maintenance -->
 
-The public package is intentionally read-only. Registry discovery reads the
-same bounded fail-closed storage as the CLI but never rewrites or migrates it.
-Registry mutation, network
-materialization and refresh, archive extraction, HTML/viewer generation, and
-process lifecycle remain operational CLI responsibilities. This keeps an
-embedded parser or retrieval service from silently mutating user registry or
-cache state.
-
-## Verification
-
-An external-package test imports only the public path and exercises validation,
-AST and normalized parsing, inventory, search, context, graph, metadata,
-validation options, strict manifest decoding, spec discovery, registry
-inventory and resolution, effective capabilities, and the no-mutation registry
-invariant against real temporary bundles.
-
-## Source Anchors
-
-* `packages/cli/okf/doc.go`
-* `packages/cli/okf/types.go`
-* `packages/cli/okf/read.go`
-* `packages/cli/okf/registry.go`
-* `packages/cli/okf/read_test.go`
-* `packages/cli/okf/README.md`
-* `packages/cli/internal/okf/`
+> **Source anchors**
+>
+> - `packages/cli/okf/doc.go`
+> - `packages/cli/okf/types.go`
+> - `packages/cli/okf/read.go`
+> - `packages/cli/okf/registry.go`
+> - `packages/cli/okf/read_test.go`

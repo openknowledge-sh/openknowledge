@@ -33,7 +33,7 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"Run as a service:",
 		"Validate and connect:",
 		"Advanced and portable tools:",
-		"setup        Create, validate, and integrate a knowledge base with an agent.",
+		"setup        Launch an agent to create, validate, and integrate a knowledge base.",
 		"agent        Run, integrate, and review knowledge with an agent.",
 		"insights     Capture and resolve knowledge-maintenance insights.",
 		"jobs         Run repeatable isolated maintenance jobs from Markdown specs.",
@@ -220,9 +220,10 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"setup": {
 			help: setupHelpText(),
 			required: []string{
+				"openknowledge setup Wiki --from .",
 				"openknowledge setup [wiki] --from <source>",
 				"openknowledge setup [wiki] --runtime <codex|claude|opencode>",
-				"Create or update, validate, and integrate",
+				"Launch a supported agent runtime to create or update",
 				"--rules",
 				"default target is Wiki",
 				"openknowledge prompt",

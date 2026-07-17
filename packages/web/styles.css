@@ -524,6 +524,10 @@ li code {
   white-space: normal;
 }
 
+pre.prompt-inline code {
+  white-space: pre-wrap;
+}
+
 .setup-note {
   margin: 14px 0 0;
   color: var(--faint);

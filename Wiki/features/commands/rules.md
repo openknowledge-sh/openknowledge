@@ -18,15 +18,26 @@ idempotent block in an agent instruction file.
 ```sh
 openknowledge prompt rules --list --path Wiki
 openknowledge prompt rules docs,changelog --path Wiki
+openknowledge prompt rules docs --target codex
 openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md
 openknowledge prompt rules apply docs --path Wiki --dry-run
 ```
 
+| Option | Default | Description |
+| --- | --- | --- |
+| `--path <wiki>` | `.openknowledge` | Bundle used for configured and custom rules. |
+| `--target <target>` | inferred/generic | Render for `generic`, `codex`, `claude`, or `cursor`. |
+| `--list` | off | List the resolved rule catalog. |
+| `apply --file <file>` | discovered/prompted | Instruction file to update. |
+| `apply --yes` | off | Auto-select or create `AGENTS.md` and skip confirmation. |
+| `apply --dry-run` | off | Print the proposed file without writing it. |
+
 Built-in IDs are `project`, `docs`, `decisions`, `changelog`, `research`,
 `bugs`, `schemas`, `summary`, and `agents`. A wiki may define additional rules
 under `rules/`; explicit command-line selections override configured defaults.
-`apply` requires confirmation when it would replace an existing managed block,
-unless `--yes` is present, and supports `--dry-run`.
+Target inference selects the known instruction format from the destination
+when possible and otherwise uses `generic`. Warnings follow rendered output in
+a terminal and move to stderr when stdout is piped or redirected.
 
 Rule review is separate and advisory:
 `openknowledge prompt review rules Wiki`. Deterministic validation continues to

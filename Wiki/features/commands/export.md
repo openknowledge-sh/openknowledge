@@ -1,189 +1,53 @@
 ---
 type: Command Documentation
 title: openknowledge export
-description: Converts an Open Knowledge bundle to supported output formats.
+description: Export a knowledge base to HTML, JSON, graph, or portable tar formats.
 tags: [openknowledge, cli, command, export]
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-07-18T00:00:00Z
 ---
 
 # `openknowledge export`
 
-`openknowledge export` is the conversion command group. Current shipped targets are
-`html`, `json`, `tar`, and `graph`.
+Create a static site, normalized model, graph, or portable source archive from
+a local or connected knowledge base.
+
+## Targets
+
+| Target | Output | Reference |
+| --- | --- | --- |
+| `html` | Static viewer or plain semantic HTML. | [HTML](/features/exporters/html.md) |
+| `json` | Normalized parsed bundle model. | [JSON](/features/exporters/json.md) |
+| `graph` | Authored link graph or derivative search graph. | [Graph](/features/exporters/graph.md) |
+| `tar` | Reproducible portable source archive. | [Tar](/features/exporters/tar.md) |
 
 ## Usage
 
 ```sh
-openknowledge export html --out <folder> [key-or-path]
-openknowledge export html --plain --out <folder> [key-or-path]
-openknowledge export html --head-file <file> --out <folder> [key-or-path]
-openknowledge export html --script-src <src> --out <folder> [key-or-path]
-openknowledge export html --spec <version> --out <folder> [key-or-path]
-openknowledge export json [key-or-path]
-openknowledge export json --out <file> [key-or-path]
-openknowledge export json --spec <version> [key-or-path]
-openknowledge export tar --out <file> [key-or-path]
-openknowledge export tar --spec <version> --out <file> [key-or-path]
-openknowledge export graph [key-or-path]
-openknowledge export graph --out <file> [key-or-path]
-openknowledge export graph --type source [key-or-path]
-openknowledge export graph --type search [key-or-path]
-openknowledge export graph --spec <version> [key-or-path]
-openknowledge export --help
+openknowledge export html --out ./site Wiki
+openknowledge export html --plain --out ./plain-site Wiki
+openknowledge export json Wiki
+openknowledge export json --out ./bundle.json Wiki
+openknowledge export graph Wiki
+openknowledge export graph --type search --out ./search-graph.json Wiki
+openknowledge export tar --out ./wiki.tar.gz Wiki
 ```
 
-## Targets
+| Option | Applies to | Default | Description |
+| --- | --- | --- | --- |
+| `key-or-path` | all | `.` | Registry key or bundle root. |
+| `--spec <version>` | all | `latest` | OKF version. |
+| `--out <path>` | all | stdout for JSON/graph | Required directory for HTML; required file for tar. |
+| `--type source|search` | graph | `source` | Graph projection. |
+| `--plain` | HTML | off | Semantic HTML without viewer assets. |
+| `--head-file`, `--head-html` | HTML viewer | environment | Trusted head injection. |
+| `--script-src <src>` | HTML viewer | environment | Trusted script URL; repeatable. |
 
-| Target | Status | Details |
-| --- | --- | --- |
-| `html` | shipped | See [HTML exporter](/features/exporters/html.md). |
-| `json` | shipped | See [JSON exporter](/features/exporters/json.md). |
-| `tar` | shipped | See [Tar exporter](/features/exporters/tar.md). |
-| `graph` | shipped | See [Graph exporter](/features/exporters/graph.md). |
+HTML and tar require zero validation errors. HTML also requires explicit
+publication permission in `openknowledge.toml`. JSON and graph print
+`schemaVersion: "1"` documents to stdout unless `--out` is set. Machine output
+files are atomically replaced after complete serialization.
 
-## Common Flags
-
-| Name | Kind | Applies To | Required | Default | Description |
-| --- | --- | --- | --- | --- | --- |
-| `key-or-path` | argument | `html`, `json`, `tar`, `graph` | no | current directory | Registry key or knowledge base root. |
-| `--spec` | flag | `html`, `json`, `tar`, `graph` | no | `latest` | OKF spec version. |
-| `--out` | flag | `html`, `json`, `tar`, `graph` | HTML and TAR yes, JSON/graph no | stdout for JSON and graph | Output folder for HTML, optional output file for JSON and graph, and archive file for TAR. |
-| `--type` | flag | `graph` only | no | `source` | Graph type, `source` or `search`. |
-| `--head-file` | flag | `html` default viewer export only | no | `OPENKNOWLEDGE_HEAD_FILE` | Trusted HTML fragment file to inject into every generated viewer page `<head>`. |
-| `--head-html` | flag | `html` default viewer export only | no | `OPENKNOWLEDGE_HEAD_HTML` | Trusted HTML fragment to inject into every generated viewer page `<head>`. |
-| `--plain` | flag | `html` only | no | off | Write plain semantic HTML without viewer chrome, CSS, or JavaScript. |
-| `--script-src` | repeatable flag | `html` default viewer export only | no | `OPENKNOWLEDGE_SCRIPT_SRC` | Script `src` to inject into every generated viewer page `<head>`. Environment values may be comma- or newline-separated. |
-
-## Quick Examples
-
-```sh
-openknowledge export html --out ./site ./project-memory
-openknowledge export html --plain --out ./plain-site ./project-memory
-openknowledge export html --head-file ./head.html --out ./site ./project-memory
-openknowledge export html --script-src /analytics.js --out ./site ./project-memory
-openknowledge export json ./project-memory
-openknowledge export json --out ./bundle.json ./project-memory
-openknowledge export tar --out ./bundle.tar.gz ./project-memory
-openknowledge export graph ./project-memory
-openknowledge export graph --out ./graph.json ./project-memory
-openknowledge export graph --type search ./project-memory
-```
-
-## Example Output
-
-File-writing targets print short summaries:
-
-```text
-OK Exported HTML
-root /work/project-memory
-out /work/site
-wrote 10 files
-```
-
-```text
-OK Exported TAR
-root /work/project-memory
-out /work/bundle.tar.gz
-sha256 9f7f4c4832d5e833aff7574d957172cfbaf9bbece0cbb13ed69c97e5b9c11897
-```
-
-Stdout targets print JSON when `--out` is omitted:
-
-```json
-{
-  "schemaVersion": "1",
-  "root": "/work/project-memory",
-  "specVersion": "0.1",
-  "type": "source",
-  "nodes": [],
-  "edges": []
-}
-```
-
-## Behavior
-
-`export html` requires `--out <folder>`. It has two modes:
-
-* Default viewer export: static viewer pages with file browsing, search,
-  stacked-panel navigation, embedded note data, theme/source configuration, and
-  discovery and remote-connect assets. Trusted custom head HTML can be injected
-  into every generated viewer page through `--head-file`, `--head-html`,
-  repeatable `--script-src`, or their matching environment variables.
-* Plain export: unstyled semantic HTML without viewer CSS, JavaScript, theme
-  links, source buttons, or rich table controls.
-
-Default viewer exports write `llms.txt` for agents and LLM-oriented consumers.
-When `[html.site].base_url` is configured in `openknowledge.toml`, they also
-write `sitemap.xml` with absolute URLs for published pages. Files with
-`okf_publish: false` are omitted from generated pages, static note payloads,
-`llms.txt`, and `sitemap.xml`. Public HTML generation is disabled by default;
-set `[publish] enabled = true` explicitly. `okf_targets.viewer`, `search`,
-`llms`, and `sitemap` then control the corresponding projection and default to
-`true` when omitted.
-
-Default viewer exports also write `openknowledge.json` and
-`assets/openknowledge-bundle.tar.gz`. The manifest points to the archive and
-includes its SHA-256 so `openknowledge connect <deployed-wiki-url>` can
-materialize the source bundle from the static site. See
-[HTML exporter](/features/exporters/html.md) for rendering, theme, source-link,
-and manifest details.
-
-Portable `export html` and `export tar` outputs require zero validation errors for the
-selected spec. Warnings remain publishable. Validation failure occurs before
-the exporter creates or replaces output, so it cannot advertise a manifest
-whose archive the remote `connect` consumer will reject.
-
-Both HTML modes build a complete sibling generation and switch it into place
-only after every page and asset succeeds. A failed build preserves the previous
-site, while a successful rebuild removes stale pages from the previous
-generation. The output may be nested inside the source bundle, in which case it
-is excluded from the portable source archive, but the output must not equal or
-contain the source bundle.
-
-`export json` serializes the normalized model of parsed Markdown documents.
-Non-Markdown assets are excluded; use `list --json` for complete inventory or
-`export tar` for source-preserving packaging. It prints to stdout by default and
-writes to `--out <file>` when provided. `--plain` is not valid for JSON. File
-output is replaced atomically after the complete JSON document is ready. See
-[JSON exporter](/features/exporters/json.md).
-
-`export tar` requires `--out <file>`. It writes a gzip-compressed tar archive of the
-source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
-The same bundle content produces the same archive bytes and SHA regardless of
-the destination filename, filesystem timestamps, owner identity, or
-non-executable permission bits. See [Tar exporter](/features/exporters/tar.md).
-
-`export graph` serializes AST-backed graph JSON. The default `--type source` graph
-contains bundle file nodes and deduplicated existing local Markdown links.
-`--type search` writes a derivative search graph with source file nodes,
-content-bearing H1-H3 chunk nodes, file-to-chunk containment edges, chunk
-reading-order edges, and chunk-level local-link edges. H4-H6 headings stay
-inside the surrounding chunk. It prints to stdout by default and writes to
-`--out <file>` when provided. `--plain` is not valid for graph output. See
-[Graph exporter](/features/exporters/graph.md).
-
-When `--out` is used for JSON or graph output, a write failure does not expose
-a partially written machine-readable document at the destination path.
-
-Unknown targets and unknown flags exit with status `2`.
-
-## Use Cases
-
-* Publish a static viewer copy of a wiki.
-* Produce a normalized JSON model for downstream tools or agents.
-* Produce a portable tarball that can be served from static hosting and
-  connected later.
-* Produce a link graph for visualization, orphan detection, or relationship
-  analysis.
-* Produce a search graph for retrieval tooling and graph-expanded search.
-
-## Command Change History
-
-### 2026-07-06
-
-`openknowledge export graph` added `--type source|search`. `source` keeps the
-existing file/link graph behavior as the default. `search` exports derivative
-H1-H3 heading chunk nodes and typed retrieval edges.
+Unknown targets or unsupported flags are usage errors with exit status `2`.
 
 ---
 
@@ -191,19 +55,12 @@ H1-H3 heading chunk nodes and typed retrieval edges.
 
 > **Source anchors**
 >
-> * `packages/cli/cmd/openknowledge/main.go`
-> * `packages/cli/internal/okf/html.go`
-> * `packages/cli/internal/okf/bundle.go`
-> * `packages/cli/internal/okf/graph.go`
-> * `packages/cli/internal/okf/graph_types.go`
-> * `packages/cli/cmd/openknowledge/viewer.go`
-> * `packages/cli/cmd/openknowledge/viewer_discovery.go`
-> * `packages/cli/cmd/openknowledge/viewer_theme.go`
-> * `packages/cli/cmd/openknowledge/viewer_theme.css`
-> * `packages/cli/internal/okf/export_test.go`
-> * `packages/cli/cmd/openknowledge/viewer_test.go`
+> - `packages/cli/cmd/openknowledge/main.go`
+> - `packages/cli/internal/okf/html.go`
+> - `packages/cli/internal/okf/bundle.go`
+> - `packages/cli/internal/okf/graph.go`
+> - `packages/cli/internal/okf/archive.go`
 >
 > **Update notes**
 >
-> When a new target is added, update this page, the exporter section, root help,
-> README command tables, and [CLI changelog](/changelog/cli.md).
+> Add new targets here and under `/features/exporters/`.

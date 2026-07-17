@@ -25,8 +25,9 @@ openknowledge prompt from https://example.com/docs --out Wiki --depth 2
 
 `--type understanding` is the default architecture-and-workflows recipe.
 `--type custom` uses `--about` when supplied or asks the receiving agent to
-clarify the goal. `--depth` is a positive crawl or traversal hint. The printed
-prompt requires source provenance and validation.
+clarify the goal. `--depth` is a non-negative crawl or traversal hint; `0`
+lets the agent choose the minimum depth. The printed prompt requires source
+provenance and validation.
 
 The old top-level `openknowledge from` form was removed before 1.0.
 
