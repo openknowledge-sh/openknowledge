@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-status.schema.json",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/job-status.schema.json",
   "title": "Open Knowledge agent status report v1",
   "type": "object",
   "required": ["schemaVersion", "path", "generated_at", "jobs", "issues"],
@@ -28,8 +28,8 @@
             "additionalProperties": false
           },
           "next_eligible_at": {"type": ["string", "null"], "format": "date-time"},
-          "last_run": {"anyOf": [{"$ref": "agent-run-summary.schema.json"}, {"type": "null"}]},
-          "active_runs": {"type": "array", "items": {"$ref": "agent-run-summary.schema.json"}}
+          "last_run": {"anyOf": [{"$ref": "job-run-summary.schema.json"}, {"type": "null"}]},
+          "active_runs": {"type": "array", "items": {"$ref": "job-run-summary.schema.json"}}
         },
         "additionalProperties": false
       }

@@ -15,7 +15,7 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
-func TestAgentsCommandValidatesListsAndDryRuns(t *testing.T) {
+func TestJobsCommandValidatesListsAndDryRuns(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---
 id: docs-audit
@@ -38,7 +38,7 @@ concurrency:
 
 Audit docs.
 `)
-	writeMainTestFile(t, root, ".openknowledge/agents/jobs/alpha.md", `---
+	writeMainTestFile(t, root, ".openknowledge/jobs/alpha.md", `---
 id: alpha-check
 enabled: false
 agent: {command: codex}
@@ -48,16 +48,16 @@ Check first.
 `)
 
 	output, stderr, code := captureMainOutput(t, func() int {
-		return runAgents([]string{"validate", jobPath})
+		return runJobs([]string{"validate", jobPath})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents validate to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs validate to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
-	if !strings.Contains(output, "valid agent job: docs-audit") {
+	if !strings.Contains(output, "valid job: docs-audit") {
 		t.Fatalf("expected validate output to include job id:\n%s", output)
 	}
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"validate", jobPath, "--json"})
+		return runJobs([]string{"validate", jobPath, "--json"})
 	})
 	if code != 0 || stderr != "" {
 		t.Fatalf("expected JSON agent validation, code=%d stderr=%s", code, stderr)
@@ -66,10 +66,10 @@ Check first.
 	if err := json.Unmarshal([]byte(output), &validation); err != nil || !validation.Valid || len(validation.Jobs) != 1 || validation.Jobs[0].ID != "docs-audit" || validation.Issues == nil {
 		t.Fatalf("unexpected valid agent report: %#v err=%v", validation, err)
 	}
-	invalidPath := filepath.Join(root, ".openknowledge", "agents", "invalid.md")
-	writeMainTestFile(t, root, ".openknowledge/agents/invalid.md", "---\nid: invalid\nagent: {command: codex, argz: []}\n---\nPrompt.\n")
+	invalidPath := filepath.Join(root, ".openknowledge", "invalid.md")
+	writeMainTestFile(t, root, ".openknowledge/invalid.md", "---\nid: invalid\nagent: {command: codex, argz: []}\n---\nPrompt.\n")
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"validate", "--json", invalidPath})
+		return runJobs([]string{"validate", "--json", invalidPath})
 	})
 	if code != 1 || stderr != "" {
 		t.Fatalf("expected structured invalid report, code=%d stderr=%s", code, stderr)
@@ -79,20 +79,20 @@ Check first.
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"list", filepath.Dir(jobPath)})
+		return runJobs([]string{"list", filepath.Dir(jobPath)})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents list to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs list to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
 	if !strings.Contains(output, "docs-audit") || !strings.Contains(output, "cron=0 9 * * MON") {
 		t.Fatalf("expected list output to include schedule:\n%s", output)
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"list", "--json", filepath.Dir(jobPath)})
+		return runJobs([]string{"list", "--json", filepath.Dir(jobPath)})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents list --json to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs list --json to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
 	var inventory agentListOutput
 	if err := json.Unmarshal([]byte(output), &inventory); err != nil {
@@ -106,7 +106,7 @@ Check first.
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"list", filepath.Join(root, "missing"), "--json"})
+		return runJobs([]string{"list", filepath.Join(root, "missing"), "--json"})
 	})
 	if code != 0 || stderr != "" {
 		t.Fatalf("expected missing JSON inventory to succeed, code=%d stderr=%s", code, stderr)
@@ -116,27 +116,27 @@ Check first.
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"run", jobPath, "--dry-run", "--at", "2026-07-07T09:00:00Z"})
+		return runJobs([]string{"run", jobPath, "--dry-run", "--at", "2026-07-07T09:00:00Z"})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents run --dry-run to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs run --dry-run to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
-	for _, expected := range []string{`"schemaVersion": "1"`, `"job_id": "docs-audit"`, `"branch": "agents/docs-audit/20260707-090000-`, `"command": "go"`, `"key": "wiki-maintenance"`, `"policy": "skip"`} {
+	for _, expected := range []string{`"schemaVersion": "1"`, `"job_id": "docs-audit"`, `"branch": "jobs/docs-audit/20260707-090000-`, `"command": "go"`, `"key": "wiki-maintenance"`, `"policy": "skip"`} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected dry-run output to include %q:\n%s", expected, output)
 		}
 	}
 }
 
-func TestAgentsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
+func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	output, stderr, code := captureMainOutput(t, func() int {
-		return runAgents([]string{"new"})
+		return runJobs([]string{"new"})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents new catalog to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs new catalog to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
 	for _, expected := range []string{
-		"Open Knowledge Agent Job Templates",
+		"Open Knowledge Job Templates",
 		"docs-audit",
 		"wiki-health",
 		"release-check",
@@ -148,13 +148,13 @@ func TestAgentsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"new", "--reference"})
+		return runJobs([]string{"new", "--reference"})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents new --reference to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs new --reference to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
 	for _, expected := range []string{
-		"Open Knowledge Agent Job Frontmatter",
+		"Open Knowledge Job Frontmatter",
 		"schedule.cron",
 		"workspace.branch",
 		"sandbox.type",
@@ -167,50 +167,50 @@ func TestAgentsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	out := filepath.Join(root, ".openknowledge", "agents", "jobs", "docs-audit.md")
+	out := filepath.Join(root, ".openknowledge", "jobs", "jobs", "docs-audit.md")
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"new", "docs-audit", "--out", out})
+		return runJobs([]string{"new", "docs-audit", "--out", out})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents new --out to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs new --out to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
 	content, err := os.ReadFile(out)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(content), "id: docs-audit") || !strings.Contains(output, "created agent job: "+out) {
+	if !strings.Contains(string(content), "id: docs-audit") || !strings.Contains(output, "created job: "+out) {
 		t.Fatalf("unexpected created template\noutput=%s\ncontent=%s", output, string(content))
 	}
 
 	_, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"new", "docs-audit", "--out", out})
+		return runJobs([]string{"new", "docs-audit", "--out", out})
 	})
 	if code != 1 || !strings.Contains(stderr, "use --force to overwrite") {
 		t.Fatalf("expected overwrite guard, got code=%d stderr=%s", code, stderr)
 	}
 }
 
-func TestAgentsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
+func TestJobsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
 	tests := []struct {
 		subcommand string
 		expected   string
 	}{
-		{subcommand: "new", expected: "openknowledge agents new --reference"},
-		{subcommand: "list", expected: "openknowledge agents list [path]"},
-		{subcommand: "status", expected: "openknowledge agents status [jobs-dir]"},
-		{subcommand: "runs", expected: "openknowledge agents runs [repo]"},
-		{subcommand: "spawn", expected: "openknowledge agents spawn <job.md>"},
-		{subcommand: "stop", expected: "openknowledge agents stop <run-id>"},
-		{subcommand: "kill", expected: "openknowledge agents kill <run-id>"},
-		{subcommand: "validate", expected: "openknowledge agents validate <job-or-dir>"},
-		{subcommand: "run", expected: "openknowledge agents run <job.md> --at <time>"},
-		{subcommand: "daemon", expected: "openknowledge agents daemon [jobs-dir] --tick <duration>"},
+		{subcommand: "new", expected: "openknowledge jobs new --reference"},
+		{subcommand: "list", expected: "openknowledge jobs list [path]"},
+		{subcommand: "status", expected: "openknowledge jobs status [jobs-dir]"},
+		{subcommand: "runs", expected: "openknowledge jobs runs [repo]"},
+		{subcommand: "start", expected: "openknowledge jobs start <job.md>"},
+		{subcommand: "stop", expected: "openknowledge jobs stop <run-id>"},
+		{subcommand: "kill", expected: "openknowledge jobs kill <run-id>"},
+		{subcommand: "validate", expected: "openknowledge jobs validate <job-or-dir>"},
+		{subcommand: "run", expected: "openknowledge jobs run <job.md> --at <time>"},
+		{subcommand: "daemon", expected: "openknowledge jobs daemon [jobs-dir] --tick <duration>"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.subcommand, func(t *testing.T) {
 			output, stderr, code := captureMainOutput(t, func() int {
-				return runAgents([]string{test.subcommand, "--help"})
+				return runJobs([]string{test.subcommand, "--help"})
 			})
 			if code != 0 {
 				t.Fatalf("expected agents %s --help to succeed, got %d\nstdout=%s\nstderr=%s", test.subcommand, code, output, stderr)
@@ -218,14 +218,14 @@ func TestAgentsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
 			if !strings.Contains(output, test.expected) {
 				t.Fatalf("expected agents %s subcommand help to include %q:\n%s", test.subcommand, test.expected, output)
 			}
-			if strings.Contains(output, "Experimental command group for deterministic local agent jobs") {
+			if strings.Contains(output, "Experimental command group for deterministic local jobs") {
 				t.Fatalf("expected specific subcommand help, got group help:\n%s", output)
 			}
 		})
 	}
 }
 
-func TestAgentsSpawnStatusRunsAndTerminalControl(t *testing.T) {
+func TestJobsStartStatusRunsAndTerminalControl(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---
 id: managed-docs
@@ -237,13 +237,13 @@ concurrency: {key: managed-docs}
 ---
 Inspect docs.
 `)
-	runGit(t, root, "add", ".openknowledge/agents/jobs/docs.md")
-	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "agent job")
+	runGit(t, root, "add", ".openknowledge/jobs/docs.md")
+	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
 	stateDir := filepath.Join(t.TempDir(), "state")
-	t.Setenv(agents.AgentsStateDirEnv, stateDir)
-	originalStarter := startDetachedAgentProcess
-	startDetachedAgentProcess = func(_ string, args []string, _ []string) (int, error) {
-		if len(args) < 5 || args[0] != "agents" || args[1] != "run" || args[3] != "--at" {
+	t.Setenv(agents.JobsStateDirEnv, stateDir)
+	originalStarter := startDetachedJobProcess
+	startDetachedJobProcess = func(_ string, args []string, _ []string) (int, error) {
+		if len(args) < 5 || args[0] != "jobs" || args[1] != "run" || args[3] != "--at" {
 			t.Fatalf("unexpected detached arguments: %#v", args)
 		}
 		job, err := agents.ParseJobFile(args[2])
@@ -259,32 +259,32 @@ Inspect docs.
 		}()
 		return 4242, nil
 	}
-	t.Cleanup(func() { startDetachedAgentProcess = originalStarter })
+	t.Cleanup(func() { startDetachedJobProcess = originalStarter })
 
 	output, stderr, code := captureMainOutput(t, func() int {
-		return runAgents([]string{"spawn", jobPath, "--at", "2026-07-15T10:00:00Z", "--json"})
+		return runJobs([]string{"start", jobPath, "--at", "2026-07-15T10:00:00Z", "--json"})
 	})
 	if code != 0 || stderr != "" {
-		t.Fatalf("expected detached spawn to succeed, code=%d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected detached start to succeed, code=%d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
-	var spawned agentSpawnOutput
-	if err := json.Unmarshal([]byte(output), &spawned); err != nil || spawned.SupervisorPID != 4242 || spawned.Run.JobID != "managed-docs" {
-		t.Fatalf("unexpected spawn output: %#v err=%v", spawned, err)
+	var started agentStartOutput
+	if err := json.Unmarshal([]byte(output), &started); err != nil || started.SupervisorPID != 4242 || started.Run.JobID != "managed-docs" {
+		t.Fatalf("unexpected start output: %#v err=%v", started, err)
 	}
 	// RunJob performs several real Git filesystem operations after the agent
 	// command exits. Leave headroom for loaded CI and encrypted macOS volumes;
 	// the test still polls the persisted terminal state rather than sleeping.
 	deadline := time.Now().Add(20 * time.Second)
-	for !agents.IsTerminalRunStatus(spawned.Run.Status) && time.Now().Before(deadline) {
+	for !agents.IsTerminalRunStatus(started.Run.Status) && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
-		spawned.Run, _ = agents.GetRunSummary(root, spawned.Run.RunID)
+		started.Run, _ = agents.GetRunSummary(root, started.Run.RunID)
 	}
-	if spawned.Run.Status != "succeeded" {
-		t.Fatalf("expected spawned run to succeed, got %#v", spawned.Run)
+	if started.Run.Status != "succeeded" {
+		t.Fatalf("expected started run to succeed, got %#v", started.Run)
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"runs", root, "--json"})
+		return runJobs([]string{"runs", root, "--json"})
 	})
 	var history agentRunsOutput
 	if code != 0 || stderr != "" || json.Unmarshal([]byte(output), &history) != nil || len(history.Runs) != 1 || history.Runs[0].Status != "succeeded" {
@@ -292,7 +292,7 @@ Inspect docs.
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"status", filepath.Dir(jobPath), "--json"})
+		return runJobs([]string{"status", filepath.Dir(jobPath), "--json"})
 	})
 	var status agentStatusOutput
 	if code != 0 || stderr != "" || json.Unmarshal([]byte(output), &status) != nil || len(status.Jobs) != 1 || status.Jobs[0].LastRun == nil || status.Jobs[0].NextEligibleAt == nil {
@@ -300,7 +300,7 @@ Inspect docs.
 	}
 
 	output, stderr, code = captureMainOutput(t, func() int {
-		return runAgents([]string{"stop", spawned.Run.RunID, "--repo", root, "--json"})
+		return runJobs([]string{"stop", started.Run.RunID, "--repo", root, "--json"})
 	})
 	var controlled agentControlOutput
 	if code != 0 || stderr != "" || json.Unmarshal([]byte(output), &controlled) != nil || controlled.Run.Status != "succeeded" {
@@ -308,7 +308,7 @@ Inspect docs.
 	}
 }
 
-func TestAgentsExecutorOverrideRejectsUnknownValuesBeforeExecution(t *testing.T) {
+func TestJobsExecutorOverrideRejectsUnknownValuesBeforeExecution(t *testing.T) {
 	tests := [][]string{
 		{"run", filepath.Join(t.TempDir(), "missing-job.md"), "--executor", "doker"},
 		{"run", filepath.Join(t.TempDir(), "missing-job.md"), "--executor=doker"},
@@ -317,7 +317,7 @@ func TestAgentsExecutorOverrideRejectsUnknownValuesBeforeExecution(t *testing.T)
 	}
 	for _, args := range tests {
 		_, stderr, code := captureMainOutput(t, func() int {
-			return runAgents(args)
+			return runJobs(args)
 		})
 		if code != 2 || !strings.Contains(stderr, "--executor must be host or docker") {
 			t.Fatalf("expected fail-closed executor usage error for %v, code=%d stderr=%s", args, code, stderr)
@@ -328,16 +328,16 @@ func TestAgentsExecutorOverrideRejectsUnknownValuesBeforeExecution(t *testing.T)
 	}
 }
 
-func TestAgentsDaemonPassIsolatesLoadAndPlanningFailures(t *testing.T) {
+func TestJobsDaemonPassIsolatesLoadAndPlanningFailures(t *testing.T) {
 	root := newAgentTestRepo(t)
-	jobsDir := filepath.Join(root, ".openknowledge", "agents", "jobs")
-	writeMainTestFile(t, root, ".openknowledge/agents/jobs/00-invalid.md", `---
+	jobsDir := filepath.Join(root, ".openknowledge", "jobs")
+	writeMainTestFile(t, root, ".openknowledge/jobs/00-invalid.md", `---
 id: invalid
 agent: {command: agent, argz: []}
 ---
 Invalid.
 `)
-	writeMainTestFile(t, root, ".openknowledge/agents/jobs/10-broken-plan.md", `---
+	writeMainTestFile(t, root, ".openknowledge/jobs/10-broken-plan.md", `---
 id: broken-plan
 schedule: {every: 1h}
 agent: {command: agent}
@@ -345,11 +345,11 @@ workspace: {repo: ../../missing}
 ---
 Cannot resolve a repository.
 `)
-	writeMainTestFile(t, root, ".openknowledge/agents/jobs/20-valid.md", `---
+	writeMainTestFile(t, root, ".openknowledge/jobs/20-valid.md", `---
 id: valid-due
 schedule: {every: 1h}
 agent: {command: agent}
-workspace: {repo: ../../..}
+workspace: {repo: ../..}
 ---
 Plan this job.
 `)
@@ -368,12 +368,12 @@ Plan this job.
 			t.Fatalf("expected daemon diagnostics to include %q:\n%s", expected, stderr)
 		}
 	}
-	if strings.Contains(output, "no due agent jobs") {
+	if strings.Contains(output, "no due jobs") {
 		t.Fatalf("a pass with a planned due job must not report no work:\n%s", output)
 	}
 }
 
-func TestAgentsRunCreatesRunRecord(t *testing.T) {
+func TestJobsRunCreatesRunRecord(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---
 id: go-version
@@ -389,15 +389,15 @@ workspace:
 Print the Go version.
 `)
 	runGit(t, root, "add", ".")
-	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "add agent job")
+	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "add job")
 
 	output, stderr, code := captureMainOutput(t, func() int {
-		return runAgents([]string{"run", jobPath, "--at", "2026-07-07T09:00:00Z"})
+		return runJobs([]string{"run", jobPath, "--at", "2026-07-07T09:00:00Z"})
 	})
 	if code != 0 {
-		t.Fatalf("expected agents run to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+		t.Fatalf("expected jobs run to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
-	if !strings.Contains(output, "agent run ") || !strings.Contains(output, "worktree: ") {
+	if !strings.Contains(output, "job run ") || !strings.Contains(output, "worktree: ") {
 		t.Fatalf("unexpected run output:\n%s", output)
 	}
 	runLine := lineWithPrefix(output, "run: ")
@@ -449,7 +449,7 @@ Print the Go version.
 	}
 }
 
-func TestAgentsSequentialRunsKeepSourceRepositoryClean(t *testing.T) {
+func TestJobsSequentialRunsKeepSourceRepositoryClean(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---
 id: clean-runs
@@ -468,13 +468,13 @@ Check the Go version.
 
 	for _, scheduledAt := range []string{"2026-07-07T09:00:00Z", "2026-07-08T09:00:00Z"} {
 		output, stderr, code := captureMainOutput(t, func() int {
-			return runAgents([]string{"run", jobPath, "--at", scheduledAt})
+			return runJobs([]string{"run", jobPath, "--at", scheduledAt})
 		})
 		if code != 0 {
 			t.Fatalf("expected sequential run at %s to succeed, code=%d stdout=%s stderr=%s", scheduledAt, code, output, stderr)
 		}
 		if status := agentGitOutput(t, root, "status", "--porcelain"); strings.TrimSpace(status) != "" {
-			t.Fatalf("agent runtime must not dirty the source repository after %s: %s", scheduledAt, status)
+			t.Fatalf("job runtime must not dirty the source repository after %s: %s", scheduledAt, status)
 		}
 		runPath := strings.TrimSpace(strings.TrimPrefix(lineWithPrefix(output, "run: "), "run: "))
 		if runPath == "" || strings.HasPrefix(runPath, root+string(filepath.Separator)) {
@@ -483,7 +483,7 @@ Check the Go version.
 	}
 }
 
-func TestAgentsRejectStateDirectoryInsideSourceRepository(t *testing.T) {
+func TestJobsRejectStateDirectoryInsideSourceRepository(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---
 id: unsafe-state
@@ -496,11 +496,11 @@ workspace:
 
 Plan safely.
 `)
-	t.Setenv(agents.AgentsStateDirEnv, filepath.Join(root, ".agent-runtime"))
+	t.Setenv(agents.JobsStateDirEnv, filepath.Join(root, ".agent-runtime"))
 	_, stderr, code := captureMainOutput(t, func() int {
-		return runAgents([]string{"run", jobPath, "--dry-run", "--at", "2026-07-07T09:00:00Z"})
+		return runJobs([]string{"run", jobPath, "--dry-run", "--at", "2026-07-07T09:00:00Z"})
 	})
-	if code != 1 || !strings.Contains(stderr, "agent state directory must be outside the Git repository") {
+	if code != 1 || !strings.Contains(stderr, "jobs state directory must be outside the Git repository") {
 		t.Fatalf("expected in-repository state refusal, code=%d stderr=%s", code, stderr)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".agent-runtime")); !os.IsNotExist(err) {
@@ -508,7 +508,7 @@ Plan safely.
 	}
 }
 
-func TestAgentsVerificationTimeoutFailsRunPromptly(t *testing.T) {
+func TestJobsVerificationTimeoutFailsRunPromptly(t *testing.T) {
 	root := newAgentTestRepo(t)
 	jobPath := writeAgentJob(t, root, `---
 id: verify-timeout
@@ -529,7 +529,7 @@ Run bounded verification.
 
 	started := time.Now()
 	_, stderr, code := captureMainOutput(t, func() int {
-		return runAgents([]string{"run", jobPath, "--at", "2026-07-07T09:00:00Z"})
+		return runJobs([]string{"run", jobPath, "--at", "2026-07-07T09:00:00Z"})
 	})
 	if code != 1 || !strings.Contains(stderr, `verification command "sleep 5" timed out after 50ms`) {
 		t.Fatalf("expected verification timeout, code=%d stderr=%s", code, stderr)
@@ -541,7 +541,7 @@ Run bounded verification.
 
 func newAgentTestRepo(t *testing.T) string {
 	t.Helper()
-	t.Setenv(agents.AgentsStateDirEnv, t.TempDir())
+	t.Setenv(agents.JobsStateDirEnv, t.TempDir())
 	root := t.TempDir()
 	runGit(t, root, "init")
 	writeMainTestFile(t, root, "README.md", "# Test\n")
@@ -552,7 +552,7 @@ func newAgentTestRepo(t *testing.T) string {
 
 func writeAgentJob(t *testing.T, root string, content string) string {
 	t.Helper()
-	rel := ".openknowledge/agents/jobs/docs.md"
+	rel := ".openknowledge/jobs/docs.md"
 	writeMainTestFile(t, root, rel, content)
 	return filepath.Join(root, rel)
 }

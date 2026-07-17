@@ -36,6 +36,21 @@ mcp = true
 	}
 }
 
+func TestParseConfigDoesNotAcceptRemovedRunAgentsKey(t *testing.T) {
+	_, err := ParseConfig([]byte(`
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[worker]
+run_agents = true
+`))
+	if err == nil {
+		t.Fatalf("removed run_agents key was accepted: %v", err)
+	}
+}
+
 func TestLoadConfigSupportsSecretFreeEnvironmentConfiguration(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("OPENKNOWLEDGE_RUNTIME_ROOT", root)

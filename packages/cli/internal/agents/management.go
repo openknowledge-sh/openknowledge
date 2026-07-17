@@ -80,7 +80,7 @@ func RepositoryRunDirectory(repoRoot string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	stateRoot, err := AgentStateDirectory()
+	stateRoot, err := JobsStateDirectory()
 	if err != nil {
 		return "", err
 	}

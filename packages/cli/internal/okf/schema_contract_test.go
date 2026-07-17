@@ -136,14 +136,14 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 	contractFixtures := machineContractFixtures(t)
 	outputs["registry-list"] = contractFixtures["registry-list"]
 	outputs["registry-status"] = contractFixtures["registry-status"]
-	outputs["agent-list"] = contractFixtures["agent-list"]
-	outputs["agent-status"] = contractFixtures["agent-status"]
-	outputs["agent-runs"] = contractFixtures["agent-runs"]
-	outputs["agent-spawn"] = contractFixtures["agent-spawn"]
-	outputs["agent-control"] = contractFixtures["agent-control"]
-	outputs["agent-validation"] = contractFixtures["agent-validation"]
-	outputs["agent-run-plan"] = contractFixtures["agent-run-plan"]
-	outputs["agent-run-record"] = contractFixtures["agent-run-record"]
+	outputs["job-list"] = contractFixtures["job-list"]
+	outputs["job-status"] = contractFixtures["job-status"]
+	outputs["job-runs"] = contractFixtures["job-runs"]
+	outputs["job-start"] = contractFixtures["job-start"]
+	outputs["job-control"] = contractFixtures["job-control"]
+	outputs["job-validation"] = contractFixtures["job-validation"]
+	outputs["job-run-plan"] = contractFixtures["job-run-plan"]
+	outputs["job-run-record"] = contractFixtures["job-run-record"]
 	outputs["cli-error"] = contractFixtures["cli-error"]
 
 	for name, output := range outputs {
@@ -239,30 +239,30 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 			output: outputs["registry-status"],
 			mutate: func(root map[string]any) { firstObject(root, "entries")["undeclared"] = true },
 		},
-		"agent-run-plan/agent": {
-			output: outputs["agent-run-plan"],
+		"job-run-plan/agent": {
+			output: outputs["job-run-plan"],
 			mutate: func(root map[string]any) { root["agent"].(map[string]any)["undeclared"] = true },
 		},
-		"agent-list/job": {
-			output: outputs["agent-list"],
+		"job-list/job": {
+			output: outputs["job-list"],
 			mutate: func(root map[string]any) { firstObject(root, "jobs")["undeclared"] = true },
 		},
-		"agent-validation/issue": {
-			output: outputs["agent-validation"],
+		"job-validation/issue": {
+			output: outputs["job-validation"],
 			mutate: func(root map[string]any) { firstObject(root, "issues")["undeclared"] = true },
 		},
-		"agent-run-record/agent": {
-			output: outputs["agent-run-record"],
+		"job-run-record/agent": {
+			output: outputs["job-run-record"],
 			mutate: func(root map[string]any) { root["agent"].(map[string]any)["undeclared"] = true },
 		},
-		"agent-status/job": {
-			output: outputs["agent-status"],
+		"job-status/job": {
+			output: outputs["job-status"],
 			mutate: func(root map[string]any) {
 				firstObject(root, "jobs")["undeclared"] = true
 			},
 		},
-		"agent-runs/run": {
-			output: outputs["agent-runs"],
+		"job-runs/run": {
+			output: outputs["job-runs"],
 			mutate: func(root map[string]any) {
 				firstObject(root, "runs")["undeclared"] = true
 			},

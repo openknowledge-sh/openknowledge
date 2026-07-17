@@ -48,7 +48,7 @@ func TestNextScheduledAtReportsEligibleSlot(t *testing.T) {
 func TestListRunsSortsHistoryAndMarksOrphanedRecords(t *testing.T) {
 	repo := t.TempDir()
 	runTestGit(t, repo, "init")
-	t.Setenv(AgentsStateDirEnv, filepath.Join(t.TempDir(), "state"))
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "state"))
 	runsDir, err := RepositoryRunDirectory(repo)
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestListRunsSortsHistoryAndMarksOrphanedRecords(t *testing.T) {
 			Status:        status,
 			ScheduledAt:   started,
 			StartedAt:     started,
-			Plan:          RunPlan{Branch: "agents/" + jobID, Worktree: filepath.Join(repo, id)},
+			Plan:          RunPlan{Branch: "jobs/" + jobID, Worktree: filepath.Join(repo, id)},
 		}
 		if status != "running" {
 			record.FinishedAt = started.Add(time.Minute)
@@ -119,7 +119,7 @@ Wait until managed.
 			}
 			runTestGit(t, repo, "add", "job.md")
 			runTestGit(t, repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
-			t.Setenv(AgentsStateDirEnv, filepath.Join(t.TempDir(), "state"))
+			t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "state"))
 			job, err := ParseJobFile(jobPath)
 			if err != nil {
 				t.Fatal(err)

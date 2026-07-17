@@ -1,11 +1,11 @@
 {
   "schemaVersion": "1",
-  "path": "/work/project/.openknowledge/agents/jobs",
+  "path": "/work/project/.openknowledge/jobs",
   "jobs": [
     {
       "id": "docs-audit",
       "enabled": true,
-      "path": "/work/project/.openknowledge/agents/jobs/docs-audit.md",
+      "path": "/work/project/.openknowledge/jobs/docs-audit.md",
       "schedule": {
         "cron": "0 9 * * MON",
         "timezone": "UTC"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-validation.schema.json",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/job-validation.schema.json",
   "title": "Open Knowledge agent job validation report v1",
   "type": "object",
   "required": ["schemaVersion", "path", "valid", "jobs", "issues"],

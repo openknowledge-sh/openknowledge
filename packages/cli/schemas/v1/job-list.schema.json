@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-list.schema.json",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/job-list.schema.json",
   "title": "Open Knowledge agent inventory v1",
   "type": "object",
   "required": ["schemaVersion", "path", "jobs"],

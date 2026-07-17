@@ -58,7 +58,7 @@ services:
       target: worker
       args:
         CODEX_VERSION: "${CODEX_VERSION:-0.128.0}"
-    command: ["--role", "agents", "--config", "/etc/openknowledge/runtime.toml"]
+    command: ["--role", "jobs", "--config", "/etc/openknowledge/runtime.toml"]
     depends_on:
       publisher:
         condition: service_started
@@ -67,7 +67,7 @@ services:
     secrets:
       - openai_api_key
     volumes:
-      - agent-state:/var/lib/openknowledge
+      - jobs-state:/var/lib/openknowledge
       - exchange:/exchange
       - ./runtime.toml:/etc/openknowledge/runtime.toml:ro
     read_only: true
@@ -82,7 +82,7 @@ services:
 volumes:
   artifacts:
   publisher-state:
-  agent-state:
+  jobs-state:
   exchange:
 
 secrets:

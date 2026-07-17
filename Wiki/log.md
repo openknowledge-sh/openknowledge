@@ -1,5 +1,14 @@
 # Bundle Update Log
 
+## 2026-07-17
+
+* **Agent and jobs split**: Added the human-facing `openknowledge agent` and
+  one-shot `agent exec` flows with direct filesystem editing by default and
+  opt-in retained worktree isolation. Replaced the experimental `agents`
+  automation group with declarative `jobs`, renamed detached `spawn` to
+  `start`, and aligned runtime roles, paths, environment variables, schemas,
+  help, README, and Wiki documentation without compatibility aliases.
+
 ## 2026-07-15
 
 * **CLI documentation drift audit**: Reconciled `README.md` and the command

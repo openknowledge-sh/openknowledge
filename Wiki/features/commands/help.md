@@ -20,7 +20,7 @@ openknowledge -h
 openknowledge --error-format json <command> [args...]
 openknowledge <command> --help
 openknowledge <command> -h
-openknowledge agents <subcommand> --help
+openknowledge jobs <subcommand> --help
 openknowledge runtime <subcommand> --help
 openknowledge deploy railway --help
 ```
@@ -45,9 +45,11 @@ changing command stdout or command-specific JSON result contracts. Semantic
 nonzero results that already provide complete machine output, such as an
 invalid JSON validation report, are not wrapped as CLI failures.
 
-Nested agent commands dispatch help at the subcommand level. For example,
-`openknowledge agents run --help` prints the run-specific flags rather than
-the general `agents` overview.
+Nested job commands dispatch help at the subcommand level. For example,
+`openknowledge jobs run --help` prints the run-specific flags rather than
+the general `jobs` overview. `openknowledge agent --help` and
+`openknowledge agent exec --help` describe the human-facing direct and
+isolated modes separately.
 
 ## Example Output
 
@@ -64,15 +66,17 @@ Usage:
   openknowledge setup
   openknowledge setup --rules <rules>
   openknowledge from <source> --out <folder>
-  openknowledge agents new <template> --out <file>
-  openknowledge agents run <job.md> --dry-run
-  openknowledge agents status [jobs-dir]
-  openknowledge agents runs [repo]
+  openknowledge agent ["<initial prompt>"]
+  openknowledge agent exec [--isolate] "<prompt>"
+  openknowledge jobs new <template> --out <file>
+  openknowledge jobs run <job.md> --dry-run
+  openknowledge jobs status [jobs-dir]
+  openknowledge jobs runs [repo]
   openknowledge runtime plan --config runtime.toml
   openknowledge runtime build --config runtime.toml
   openknowledge runtime serve --config runtime.toml
   openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role agents --config runtime.toml
+  openknowledge runtime worker --role jobs --config runtime.toml
   openknowledge deploy railway [path] --dry-run
   openknowledge deploy railway [path] --yes
   openknowledge new --no-agents --no-setup [folder]
@@ -81,7 +85,8 @@ Commands:
   setup      Print an agent setup prompt.
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
-  agents     Experimental: run and manage local agent jobs from Markdown specs.
+  agent      Experimental: run a human-driven Codex agent in a workspace.
+  jobs       Experimental: run and manage scheduled jobs from Markdown specs.
   runtime    Run isolated public serving and private maintenance roles.
   deploy     Provision a self-hosted runtime on a supported provider.
 ```
@@ -93,6 +98,12 @@ Commands:
 * Give agents a stable entry point before setup.
 
 ## Command Change History
+
+### 2026-07-17
+
+Root help now separates the human-facing `agent` command from declarative
+`jobs`, exposes `agent exec` and `--isolate`, uses `jobs start` for detached
+runs, and removes the former `agents` and `spawn` names without aliases.
 
 ### 2026-07-15
 
@@ -128,7 +139,7 @@ the registry command group. Source anchors:
 `packages/cli/cmd/openknowledge/main.go` and
 `packages/cli/cmd/openknowledge/main_test.go`.
 
-Nested `openknowledge agents <subcommand> --help` now dispatches to dedicated
+Nested `openknowledge jobs <subcommand> --help` now dispatches to dedicated
 help for `new`, `list`, `status`, `runs`, `spawn`, `stop`, `kill`, `validate`,
 `run`, and `daemon`. Source anchors:
 `packages/cli/cmd/openknowledge/agents_command.go` and
@@ -146,17 +157,17 @@ link and backlink expansion.
 
 ### 2026-07-07
 
-Root help marks `openknowledge agents` as experimental while the local job
+Root help marks `openknowledge jobs` as experimental while the local job
 schema and scheduler behavior are still settling.
 
-Root help added `openknowledge agents new` and
-`openknowledge agents new <template> --out <file>` for built-in local agent
+Root help added `openknowledge jobs new` and
+`openknowledge jobs new <template> --out <file>` for built-in local agent
 job templates and job-file creation.
 
-Root help added `openknowledge agents list [path]`,
-`openknowledge agents validate <job-or-dir>`,
-`openknowledge agents run <job.md> --dry-run`, and
-`openknowledge agents daemon [jobs-dir] --once` for local scheduled agent job
+Root help added `openknowledge jobs list [path]`,
+`openknowledge jobs validate <job-or-dir>`,
+`openknowledge jobs run <job.md> --dry-run`, and
+`openknowledge jobs daemon [jobs-dir] --once` for local scheduled agent job
 automation.
 
 Root help added `openknowledge review rules [path]`,
@@ -242,7 +253,7 @@ summary, and a quick example for printing parsed OKF AST JSON.
 
 ---
 
-<!-- okf-footer: agent-maintenance -->
+<!-- okf-footer: job-maintenance -->
 
 > **Source anchors**
 >

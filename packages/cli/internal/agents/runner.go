@@ -481,7 +481,7 @@ func commitWorktree(plan RunPlan) error {
 	}
 	message := plan.Output.CommitMessage
 	if strings.TrimSpace(message) == "" {
-		message = "Run agent job " + plan.JobID
+		message = "Run job " + plan.JobID
 	}
 	if _, err := gitOutput(plan.Worktree, "commit", "-m", message); err != nil {
 		return err

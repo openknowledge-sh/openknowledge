@@ -128,7 +128,7 @@ Maintain the wiki.
 	}
 	runTestGit(t, root, "add", "job.md")
 	runTestGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
-	t.Setenv(AgentsStateDirEnv, filepath.Join(t.TempDir(), "agent-state"))
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "jobs-state"))
 
 	job, err := ParseJobFile(jobPath)
 	if err != nil {

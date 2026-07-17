@@ -170,7 +170,7 @@ openknowledge view ./project-memory
 | Agent setup | `setup`, `rules`, `review rules` | Print prompts and maintenance instructions for agents that create or maintain a wiki. |
 | Source-to-wiki generation | `from` | Print an agent task prompt that turns a source URL or path into a local OKF Markdown wiki. |
 | Authoring and format hygiene | `new`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
-| Experimental local agent automation | `agents` | Validate, schedule, spawn, observe, stop, and inspect local agent jobs in isolated Git worktrees. |
+| Experimental local agent automation | `agent`, `jobs` | Run direct local agent sessions; validate, schedule, start, observe, stop, and inspect local agent jobs in isolated Git worktrees. |
 | Self-hosted runtime | `runtime` | Plan, build, serve, and privately reconcile immutable knowledge-base generations. |
 | Registry and lifecycle | `connect`, `disconnect`, `registry`, `to tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
 | Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, browse locally, and connect MCP-compatible LLM hosts. |
@@ -402,9 +402,16 @@ The file uses one strict typed TOML contract across HTML, validation, and rules;
 unknown sections/fields and wrong value types fail closed. See the
 [configuration reference](Wiki/features/configuration.md).
 
-### Experimental Local Agent Jobs
+### Experimental Agent And Jobs
 
-`openknowledge agents` is experimental. It runs deterministic automation
+`openknowledge agent` is the human-facing path. It starts an interactive Codex
+session in the current directory, accepts an optional initial prompt, or runs a
+single non-interactive task with `agent exec`. Direct filesystem editing is the
+default, so local sessions do not create a branch, commit, or pull request.
+Add `--isolate` to create and retain a dedicated branch and Git worktree at the
+repository's current `HEAD`.
+
+`openknowledge jobs` is experimental. It runs deterministic automation
 around local agent CLIs, but the job schema and scheduler behavior may still
 change before this command is treated as stable. Jobs are Markdown files with
 nested frontmatter for schedule, agent command, workspace, sandbox,
@@ -413,34 +420,34 @@ Jobs that share a `concurrency.key` use an owner-private cross-process lock;
 the supported `skip` policy records a skipped invocation without creating a
 second worktree when that key is already running.
 
-Use `openknowledge agents new` to list shipped templates,
-`openknowledge agents new <template> --out <file>` to write one,
-`openknowledge agents validate` to check job specs, and
-`openknowledge agents run <job.md> --dry-run` to print the resolved run plan.
-Run `openknowledge agents run <job.md>` to create a Git worktree and run the
+Use `openknowledge jobs new` to list shipped templates,
+`openknowledge jobs new <template> --out <file>` to write one,
+`openknowledge jobs validate` to check job specs, and
+`openknowledge jobs run <job.md> --dry-run` to print the resolved run plan.
+Run `openknowledge jobs run <job.md>` to create a Git worktree and run the
 configured agent command.
-Use `openknowledge agents spawn <job.md>` for a detached run,
-`openknowledge agents status` for schedules plus active/latest runs, and
-`openknowledge agents runs` for repository history. Live runs can be cancelled
-with `openknowledge agents stop <run-id>` or force-terminated with
-`openknowledge agents kill <run-id>`; both address the owning supervisor rather
+Use `openknowledge jobs start <job.md>` for a detached run,
+`openknowledge jobs status` for schedules plus active/latest runs, and
+`openknowledge jobs runs` for repository history. Live runs can be cancelled
+with `openknowledge jobs stop <run-id>` or force-terminated with
+`openknowledge jobs kill <run-id>`; both address the owning supervisor rather
 than trusting a stored PID. Scheduled jobs still require a running
-`openknowledge agents daemon` process.
-`openknowledge agents list --json` exposes a sorted, versioned discovery
+`openknowledge jobs daemon` process.
+`openknowledge jobs list --json` exposes a sorted, versioned discovery
 inventory with structured schedules, executor types, and concurrency keys,
 without serializing prompt bodies or environment values.
-`openknowledge agents validate --json` emits a versioned report on stdout for
+`openknowledge jobs validate --json` emits a versioned report on stdout for
 both valid and invalid specs; validation findings remain structured data while
 exit status `1` still marks an invalid job.
-Agent dry-run plans, persisted `plan.json` and `run.json`, and management
+Job dry-run plans, persisted `plan.json` and `run.json`, and management
 command JSON outputs use the single current `schemaVersion: "1"` contract.
 Cancellation and kill outcomes are explicit in that run-record schema.
 
 ## Command Reference
 
 Run `openknowledge <command> --help` for command-specific flags and examples.
-Nested agent commands also support
-`openknowledge agents <subcommand> --help`.
+Nested job commands also support
+`openknowledge jobs <subcommand> --help`.
 
 | Command | Purpose |
 | --- | --- |
@@ -454,26 +461,29 @@ Nested agent commands also support
 | `openknowledge rules <rules> --path <path>` | Print ready-to-paste maintenance rules for an existing wiki. |
 | `openknowledge rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
 | `openknowledge review rules [path]` | Print an advisory AI review prompt for maintenance rules. |
-| `openknowledge agents new` | Experimental: list built-in local agent job templates. |
-| `openknowledge agents new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
-| `openknowledge agents new --reference` | Experimental: print the supported agent-job schema. |
-| `openknowledge agents list [path]` | Experimental: list Markdown agent job specs. |
-| `openknowledge agents list [path] --json` | Experimental: print the versioned agent discovery inventory. |
-| `openknowledge agents status [jobs-dir]` | Experimental: show schedules, next eligible slots, and active/latest runs. |
-| `openknowledge agents runs [repo]` | Experimental: list current and historical runs, newest first. |
-| `openknowledge agents spawn <job.md>` | Experimental: start one job in a detached local supervisor. |
-| `openknowledge agents stop <run-id>` | Experimental: request cancellation of a live supervised run. |
-| `openknowledge agents kill <run-id>` | Experimental: force-cancel a live run's command process tree. |
-| `openknowledge agents validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
-| `openknowledge agents validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
-| `openknowledge agents run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
-| `openknowledge agents run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
-| `openknowledge agents daemon [jobs-dir] --once` | Experimental: attempt every due job once and report an aggregate failure after the pass. |
+| `openknowledge agent ["<initial prompt>"]` | Experimental: start an interactive Codex session that edits the selected filesystem directly. |
+| `openknowledge agent exec "<prompt>"` | Experimental: run one non-interactive Codex task in the selected filesystem. |
+| `openknowledge agent exec --isolate "<prompt>"` | Experimental: run one task in a retained branch and worktree. |
+| `openknowledge jobs new` | Experimental: list built-in local agent job templates. |
+| `openknowledge jobs new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
+| `openknowledge jobs new --reference` | Experimental: print the supported agent-job schema. |
+| `openknowledge jobs list [path]` | Experimental: list Markdown agent job specs. |
+| `openknowledge jobs list [path] --json` | Experimental: print the versioned agent discovery inventory. |
+| `openknowledge jobs status [jobs-dir]` | Experimental: show schedules, next eligible slots, and active/latest runs. |
+| `openknowledge jobs runs [repo]` | Experimental: list current and historical runs, newest first. |
+| `openknowledge jobs start <job.md>` | Experimental: start one job in a detached local supervisor. |
+| `openknowledge jobs stop <run-id>` | Experimental: request cancellation of a live supervised run. |
+| `openknowledge jobs kill <run-id>` | Experimental: force-cancel a live run's command process tree. |
+| `openknowledge jobs validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
+| `openknowledge jobs validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
+| `openknowledge jobs run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
+| `openknowledge jobs run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
+| `openknowledge jobs daemon [jobs-dir] --once` | Experimental: attempt every due job once and report an aggregate failure after the pass. |
 | `openknowledge runtime plan --config runtime.toml` | Strictly validate and print the normalized self-hosted runtime plan. |
 | `openknowledge runtime build --config runtime.toml` | Build and promote filtered immutable public generations. |
 | `openknowledge runtime serve --config runtime.toml` | Serve verified static wiki, search, and optional read-only HTTP MCP snapshots. |
 | `openknowledge runtime worker --role publisher --config runtime.toml` | Fetch production, promote artifacts, validate agent bundles, and publish draft PR output with GitHub credentials. |
-| `openknowledge runtime worker --role agents --config runtime.toml` | Run scheduled agents with the model credential and export proposed Git branches without GitHub or artifact access. |
+| `openknowledge runtime worker --role jobs --config runtime.toml` | Run scheduled jobs with the model credential and export proposed Git branches without GitHub or artifact access. |
 | `openknowledge deploy railway [path] --dry-run` | Validate publication and print the secret-free Railway resource plan. |
 | `openknowledge deploy railway [path] --yes` | Idempotently provision isolated runtime services, credentials, volumes, and the selected public endpoint mode. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |

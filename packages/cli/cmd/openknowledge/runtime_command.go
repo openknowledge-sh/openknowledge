@@ -249,7 +249,7 @@ Usage:
   openknowledge runtime build --config runtime.toml [--id <id>] [--commit <sha>]
   openknowledge runtime serve --config runtime.toml
   openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role agents --config runtime.toml
+  openknowledge runtime worker --role jobs --config runtime.toml
 
 The public serve role reads only verified immutable generations from the
 artifact store. Private publisher and agent roles use isolated state and no

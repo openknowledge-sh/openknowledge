@@ -17,7 +17,7 @@ func acquireConcurrency(plan RunPlan) (func() error, bool, error) {
 	if plan.Concurrency.Policy != "skip" {
 		return nil, false, fmt.Errorf("unsupported concurrency policy %q", plan.Concurrency.Policy)
 	}
-	stateRoot, err := AgentStateDirectory()
+	stateRoot, err := JobsStateDirectory()
 	if err != nil {
 		return nil, false, err
 	}

@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-control.schema.json",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/job-control.schema.json",
   "title": "Open Knowledge agent control result v1",
   "type": "object",
   "required": ["schemaVersion", "action", "run"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "action": {"enum": ["stop", "kill"]},
-    "run": {"$ref": "agent-run-summary.schema.json"}
+    "run": {"$ref": "job-run-summary.schema.json"}
   },
   "additionalProperties": false
 }

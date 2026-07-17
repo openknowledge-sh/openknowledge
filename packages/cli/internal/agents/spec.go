@@ -96,9 +96,9 @@ func (err JobLoadError) Unwrap() error {
 
 func (err ValidationError) Error() string {
 	if len(err.Issues) == 0 {
-		return "agent job is invalid"
+		return "job is invalid"
 	}
-	return fmt.Sprintf("agent job is invalid: %s: %s", err.Issues[0].Field, err.Issues[0].Message)
+	return fmt.Sprintf("job is invalid: %s: %s", err.Issues[0].Field, err.Issues[0].Message)
 }
 
 func ParseJobFile(path string) (Job, error) {
@@ -310,7 +310,7 @@ func ValidateJob(job Job) error {
 
 func jobFromFrontmatter(data map[string]any) (Job, error) {
 	if len(data) == 0 {
-		return Job{}, ValidationError{Issues: []ValidationIssue{{Field: "frontmatter", Message: "agent job frontmatter is required"}}}
+		return Job{}, ValidationError{Issues: []ValidationIssue{{Field: "frontmatter", Message: "job frontmatter is required"}}}
 	}
 	if err := validateJobFrontmatterShape(data); err != nil {
 		return Job{}, err
@@ -321,7 +321,7 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 			Repo:        ".",
 			Base:        "HEAD",
 			Strategy:    "branch",
-			Branch:      "agents/{{id}}/{{date}}-{{run_id}}",
+			Branch:      "jobs/{{id}}/{{date}}-{{run_id}}",
 			DirtyPolicy: "fail",
 		},
 		Sandbox: SandboxSpec{Type: "host"},

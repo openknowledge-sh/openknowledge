@@ -14,6 +14,29 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-17 - Human-facing agents and declarative jobs
+
+* Added `openknowledge agent` for interactive Codex sessions and
+  `openknowledge agent exec <prompt>` for one-shot tasks. Both edit the current
+  filesystem by default; `--isolate` creates and retains a dedicated branch and
+  worktree at `HEAD`.
+* Replaced the experimental `agents` automation group with `jobs` and renamed
+  detached `spawn` to `start`. No command aliases or compatibility parsing are
+  retained.
+* Moved default job specs to `.openknowledge/jobs`, private state to
+  `<user-config>/openknowledge/jobs`, and the override to
+  `OPENKNOWLEDGE_JOBS_STATE_DIR`. Renamed runtime `--role agents` to
+  `--role jobs` and `[worker].run_agents` to `run_jobs`.
+* Renamed the experimental machine schemas from `agent-*` to `job-*`, including
+  `job-start.schema.json`. Declarative jobs and the cloud worker remain
+  worktree-only.
+* Source anchors: `packages/cli/cmd/openknowledge/{agent_command,agents_command,main,runtime_worker}.go`,
+  `packages/cli/internal/agents/{adhoc,plan,runner,spec}.go`,
+  `packages/cli/internal/runtime/config.go`, and `packages/cli/schemas/v1/job-*.schema.json`.
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,jobs,runtime,help,index}.md`,
+  `Wiki/features/{machine-contracts,tooling-model}.md`, `Wiki/index.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-17 - Five-minute Railway runtime deployment
 
 * Added `openknowledge deploy railway [path]` with local publication preflight,

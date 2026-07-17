@@ -192,7 +192,8 @@ func cliErrorCommand(args []string) string {
 	}
 	root := args[0]
 	nested := map[string]map[string]bool{
-		"agents":   {"new": true, "list": true, "status": true, "runs": true, "spawn": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
+		"agent":    {"exec": true},
+		"jobs":     {"new": true, "list": true, "status": true, "runs": true, "start": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
 		"deploy":   {"railway": true},
 		"runtime":  {"plan": true, "build": true, "serve": true, "worker": true},
 		"registry": {"connect": true, "disconnect": true, "refresh": true, "list": true, "status": true, "where": true},
@@ -203,7 +204,7 @@ func cliErrorCommand(args []string) string {
 		return root + " " + args[1]
 	}
 	knownRoots := map[string]bool{
-		"setup": true, "from": true, "rules": true, "review": true, "agents": true,
+		"setup": true, "from": true, "rules": true, "review": true, "agent": true, "jobs": true,
 		"new": true, "connect": true, "disconnect": true, "get": true, "search": true,
 		"mcp": true, "ast": true, "registry": true, "view": true, "to": true,
 		"runtime": true, "deploy": true, "spec": true, "validate": true, "list": true, "version": true,
@@ -232,8 +233,10 @@ func dispatchCLI(args []string) int {
 		return runRules(args[1:])
 	case "review":
 		return runReview(args[1:])
-	case "agents":
-		return runAgents(args[1:])
+	case "agent":
+		return runAgent(args[1:])
+	case "jobs":
+		return runJobs(args[1:])
 	case "runtime":
 		return runRuntime(args[1:])
 	case "deploy":
@@ -4779,25 +4782,29 @@ Usage:
   openknowledge review rules [path]
   openknowledge review rules --rules <rules> --path <path>
   openknowledge review rules --all [path]
-  openknowledge agents new
-  openknowledge agents new <template> --out <file>
-  openknowledge agents list [path]
-  openknowledge agents list [path] --json
-  openknowledge agents status [jobs-dir]
-  openknowledge agents runs [repo]
-  openknowledge agents spawn <job.md>
-  openknowledge agents stop <run-id>
-  openknowledge agents kill <run-id>
-  openknowledge agents validate <job-or-dir>
-  openknowledge agents validate <job-or-dir> --json
-  openknowledge agents run <job.md> --dry-run
-  openknowledge agents run <job.md>
-  openknowledge agents daemon [jobs-dir] --once
+  openknowledge agent
+  openknowledge agent "<initial prompt>"
+  openknowledge agent exec "<prompt>"
+  openknowledge agent exec --isolate "<prompt>"
+  openknowledge jobs new
+  openknowledge jobs new <template> --out <file>
+  openknowledge jobs list [path]
+  openknowledge jobs list [path] --json
+  openknowledge jobs status [jobs-dir]
+  openknowledge jobs runs [repo]
+  openknowledge jobs start <job.md>
+  openknowledge jobs stop <run-id>
+  openknowledge jobs kill <run-id>
+  openknowledge jobs validate <job-or-dir>
+  openknowledge jobs validate <job-or-dir> --json
+  openknowledge jobs run <job.md> --dry-run
+  openknowledge jobs run <job.md>
+  openknowledge jobs daemon [jobs-dir] --once
   openknowledge runtime plan --config runtime.toml
   openknowledge runtime build --config runtime.toml
   openknowledge runtime serve --config runtime.toml
   openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role agents --config runtime.toml
+  openknowledge runtime worker --role jobs --config runtime.toml
   openknowledge deploy railway [path] --dry-run
   openknowledge deploy railway [path] --yes
   openknowledge new [folder]
@@ -4860,7 +4867,8 @@ Commands:
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
   review     Print advisory AI review prompts.
-  agents     Experimental: run and manage local agent jobs from Markdown specs.
+  agent      Experimental: run a human-driven Codex agent in a workspace.
+  jobs       Experimental: run and manage scheduled jobs from Markdown specs.
   runtime    Run isolated public serving and private maintenance roles.
   deploy     Provision a self-hosted runtime on a supported provider.
   new        Scaffold a local Open Knowledge bundle.
@@ -4890,11 +4898,13 @@ Examples:
   openknowledge rules docs,changelog --path Wiki
   openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
   openknowledge review rules --rules docs,changelog --path Wiki
-  openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md
-  openknowledge agents validate .openknowledge/agents/jobs
-  openknowledge agents run .openknowledge/agents/jobs/docs.md --dry-run
-  openknowledge agents status .openknowledge/agents/jobs
-  openknowledge agents runs .
+  openknowledge agent "Update this knowledge base from the current source files"
+  openknowledge agent exec --isolate "Audit the wiki and fix stale pages"
+  openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md
+  openknowledge jobs validate .openknowledge/jobs
+  openknowledge jobs run .openknowledge/jobs/docs.md --dry-run
+  openknowledge jobs status .openknowledge/jobs
+  openknowledge jobs runs .
   openknowledge setup --rules docs,changelog
   openknowledge new ./project-memory
   openknowledge new --no-agents --no-setup ./source-wiki

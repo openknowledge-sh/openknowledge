@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-runs.schema.json",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/job-runs.schema.json",
   "title": "Open Knowledge agent run inventory v1",
   "type": "object",
   "required": ["schemaVersion", "repo_root", "runs", "issues"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "repo_root": {"type": "string"},
-    "runs": {"type": "array", "items": {"$ref": "agent-run-summary.schema.json"}},
+    "runs": {"type": "array", "items": {"$ref": "job-run-summary.schema.json"}},
     "issues": {
       "type": "array",
       "items": {

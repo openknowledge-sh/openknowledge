@@ -11,10 +11,10 @@ timestamp: 2026-07-16T00:00:00Z
 `openknowledge runtime` deploys one repository across two trust zones. `serve`
 is public and consumes only verified immutable artifacts. The private zone has
 two roles with separate state: `publisher` owns GitHub credentials
-and artifact promotion, while `agents` owns the model credential and scheduled
+and artifact promotion, while `jobs` owns the model credential and scheduled
 worktrees. Neither private role receives both credentials. On platforms without
 shared volumes, publisher exposes a capability-authenticated API only on the
-provider's private network; the agent worker still accepts no inbound traffic.
+provider's private network; the jobs worker still accepts no inbound traffic.
 
 ```mermaid
 flowchart LR
@@ -22,8 +22,8 @@ flowchart LR
   Publisher -->|"verified immutable generation"| Artifacts["Artifact store"]
   Artifacts -->|"read only"| Serve["Public serve<br/>wiki + search + MCP"]
   Publisher -->|"production Git bundle"| Exchange["Untrusted bundle exchange"]
-  Exchange --> Agents["Private agents<br/>OpenAI only"]
-  Agents -->|"branch bundle + request"| Exchange
+  Exchange --> Jobs["Private jobs worker<br/>OpenAI only"]
+  Jobs -->|"branch bundle + request"| Exchange
   Publisher -->|"validated branch + draft PR"| GitHub
 ```
 
@@ -36,7 +36,7 @@ openknowledge runtime build --config runtime.toml --no-publish
 openknowledge runtime serve --config runtime.toml
 openknowledge runtime serve --config runtime.toml --check
 openknowledge runtime worker --role publisher --config runtime.toml [--once]
-openknowledge runtime worker --role agents --config runtime.toml [--once]
+openknowledge runtime worker --role jobs --config runtime.toml [--once]
 ```
 
 `plan` strictly parses the whole TOML file, normalizes paths/routes/specs, and
@@ -83,10 +83,10 @@ repository_url = "https://github.com/OWNER/REPOSITORY.git"
 remote = "origin"
 production_branch = "main"
 poll_interval = "30s"
-run_agents = true
-jobs_path = ".openknowledge/agents/jobs"
+run_jobs = true
+jobs_path = ".openknowledge/jobs"
 exchange_dir = "/exchange"
-# Remote agent-only role on a platform without shared volumes:
+# Remote job-only role on a platform without shared volumes:
 # exchange_url = "http://publisher.railway.internal:8090"
 # exchange_token_env = "OPENKNOWLEDGE_EXCHANGE_TOKEN"
 
@@ -235,7 +235,7 @@ three hardened Docker targets.
 
 ---
 
-<!-- okf-footer: agent-maintenance -->
+<!-- okf-footer: job-maintenance -->
 
 > **Source anchors**
 >

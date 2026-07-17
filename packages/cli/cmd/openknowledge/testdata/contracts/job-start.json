@@ -9,7 +9,7 @@
     "scheduled_at": "2026-07-15T10:00:00Z",
     "started_at": "2026-07-15T10:00:01Z",
     "finished_at": null,
-    "branch": "agents/docs-audit/20260715-100000-0123456789abcdef01234567",
+    "branch": "jobs/docs-audit/20260715-100000-0123456789abcdef01234567",
     "worktree": "/state/worktrees/0123456789abcdef01234567",
     "run_record": "/state/runs/0123456789abcdef01234567/run.json",
     "phase": "agent"

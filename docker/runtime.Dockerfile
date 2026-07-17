@@ -33,7 +33,7 @@ USER openknowledge:openknowledge
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge", "runtime", "worker", "--role", "publisher"]
 CMD ["--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]
 
-# Credential-free agent worker: Git plus an explicitly pinned Codex CLI.
+# Credential-free jobs worker: Git plus an explicitly pinned Codex CLI.
 # Override the version at build time as part of a reviewed runtime upgrade.
 FROM node:22-bookworm-slim AS worker
 ARG CODEX_VERSION=0.128.0
@@ -51,4 +51,4 @@ RUN chmod 0755 /usr/local/bin/openknowledge-worker-entrypoint \
 	&& chown -R openknowledge:openknowledge /var/lib/openknowledge /exchange
 USER openknowledge:openknowledge
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-worker-entrypoint"]
-CMD ["--role", "agents", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]
+CMD ["--role", "jobs", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]

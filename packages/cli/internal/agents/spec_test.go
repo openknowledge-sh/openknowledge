@@ -95,12 +95,12 @@ func TestParseJobFileEnforcesStrictFrontmatterSchema(t *testing.T) {
 		{
 			name:     "unknown top-level field",
 			content:  "---\nid: strict\nagnt: {}\nagent: {command: agent}\n---\nPrompt.\n",
-			expected: "agnt: is not a supported agent job field",
+			expected: "agnt: is not a supported job field",
 		},
 		{
 			name:     "unknown nested field",
 			content:  "---\nid: strict\nagent: {command: agent, argz: []}\n---\nPrompt.\n",
-			expected: "agent.argz: is not a supported agent job field",
+			expected: "agent.argz: is not a supported job field",
 		},
 		{
 			name:     "boolean string",

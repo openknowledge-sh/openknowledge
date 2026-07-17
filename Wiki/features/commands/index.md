@@ -14,8 +14,10 @@ anchors. Keep this index as the quick map.
 * [Validate](validate.md) - validate a bundle against OKF with configurable rule severities and optional JSON reports.
 * [Rules](rules.md) - print and inspect canonical agent maintenance rules.
 * [Review](review.md) - print advisory AI review prompts for maintenance rules.
-* [Agents](agents.md) - experimental local agent job validation, scheduling,
-  execution, observation, and control.
+* [Agent](agent.md) - experimental interactive or one-shot Codex work in the
+  current filesystem, with opt-in worktree isolation.
+* [Jobs](jobs.md) - experimental declarative scheduling, isolated execution,
+  observation, and control.
 * [Runtime](runtime.md) - plan, build, serve, and reconcile self-hosted
   immutable knowledge-base generations.
 * [Deploy](deploy.md) - validate and provision the isolated runtime on Railway

@@ -104,7 +104,7 @@ func validateJobObject(prefix string, data map[string]any, schema map[string]job
 		}
 		rule, supported := schema[key]
 		if !supported {
-			*issues = append(*issues, ValidationIssue{Field: field, Message: "is not a supported agent job field"})
+			*issues = append(*issues, ValidationIssue{Field: field, Message: "is not a supported job field"})
 			continue
 		}
 		validateJobField(field, data[key], rule, issues)

@@ -12,22 +12,22 @@ Open Knowledge CLI exposes versioned JSON contracts for automation, MCP tools,
 editors, CI, and other knowledge-base ecosystem integrations. Every covered
 top-level object declares `schemaVersion: "1"`; the independent `specVersion`
 field identifies the selected Open Knowledge Format revision where applicable.
-The experimental agent contracts currently have one schema only and may change
+The experimental job contracts currently have one schema only and may change
 in place before the CLI reaches 1.0.
 
 ## Covered Outputs
 
 | Schema | CLI surface |
 | --- | --- |
-| `agent-list.schema.json` | `openknowledge agents list --json` |
-| `agent-status.schema.json` | `openknowledge agents status --json` |
-| `agent-runs.schema.json` | `openknowledge agents runs --json` |
-| `agent-spawn.schema.json` | `openknowledge agents spawn --json` |
-| `agent-control.schema.json` | `openknowledge agents stop|kill --json` |
-| `agent-run-summary.schema.json` | Shared privacy-minimized run summary for management outputs |
-| `agent-validation.schema.json` | `openknowledge agents validate --json` |
-| `agent-run-plan.schema.json` | `openknowledge agents run --dry-run` and persisted `plan.json` |
-| `agent-run-record.schema.json` | Persisted agent `run.json` lifecycle records, including `cancelled` and `killed` |
+| `job-list.schema.json` | `openknowledge jobs list --json` |
+| `job-status.schema.json` | `openknowledge jobs status --json` |
+| `job-runs.schema.json` | `openknowledge jobs runs --json` |
+| `job-start.schema.json` | `openknowledge jobs start --json` |
+| `job-control.schema.json` | `openknowledge jobs stop|kill --json` |
+| `job-run-summary.schema.json` | Shared privacy-minimized run summary for management outputs |
+| `job-validation.schema.json` | `openknowledge jobs validate --json` |
+| `job-run-plan.schema.json` | `openknowledge jobs run --dry-run` and persisted `plan.json` |
+| `job-run-record.schema.json` | Persisted agent `run.json` lifecycle records, including `cancelled` and `killed` |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
@@ -190,7 +190,7 @@ empty snapshot cannot provide by itself.
 
 ---
 
-<!-- okf-footer: agent-maintenance -->
+<!-- okf-footer: job-maintenance -->
 
 > **Source anchors**
 >

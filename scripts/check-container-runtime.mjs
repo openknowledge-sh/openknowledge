@@ -96,8 +96,8 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
   if (!/^USER\s+openknowledge:openknowledge\s*$/m.test(worker)) {
     failures.push("worker target must run as openknowledge:openknowledge");
   }
-  if (!/CMD \["--role", "agents", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"\]/.test(worker)) {
-    failures.push("worker target must default to the isolated agents role and provider-injected configuration");
+  if (!/CMD \["--role", "jobs", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"\]/.test(worker)) {
+    failures.push("worker target must default to the isolated jobs role and provider-injected configuration");
   }
   for (const required of [
     "artifacts:/artifacts:ro",

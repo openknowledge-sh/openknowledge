@@ -16,40 +16,40 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
-const defaultAgentsJobsPath = ".openknowledge/agents/jobs"
+const defaultJobsPath = ".openknowledge/jobs"
 
-var startDetachedAgentProcess = agents.StartDetachedProcess
+var startDetachedJobProcess = agents.StartDetachedProcess
 
-func runAgents(args []string) int {
+func runJobs(args []string) int {
 	if len(args) == 0 || isHelpFlag(args[0]) {
-		fmt.Fprint(os.Stdout, agentsHelpText())
+		fmt.Fprint(os.Stdout, jobsHelpText())
 		return 0
 	}
 
 	switch args[0] {
 	case "new":
-		return runAgentsNew(args[1:])
+		return runJobsNew(args[1:])
 	case "list":
-		return runAgentsList(args[1:])
+		return runJobsList(args[1:])
 	case "status":
-		return runAgentsStatus(args[1:])
+		return runJobsStatus(args[1:])
 	case "runs":
-		return runAgentsRuns(args[1:])
-	case "spawn":
-		return runAgentsSpawn(args[1:])
+		return runJobsRuns(args[1:])
+	case "start":
+		return runJobsStart(args[1:])
 	case "stop":
-		return runAgentsControl(args[1:], "stop")
+		return runJobsControl(args[1:], "stop")
 	case "kill":
-		return runAgentsControl(args[1:], "kill")
+		return runJobsControl(args[1:], "kill")
 	case "validate":
-		return runAgentsValidate(args[1:])
+		return runJobsValidate(args[1:])
 	case "run":
-		return runAgentsRun(args[1:])
+		return runJobsRun(args[1:])
 	case "daemon":
-		return runAgentsDaemon(args[1:])
+		return runJobsDaemon(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown agents subcommand: %s\n\n", args[0])
-		fmt.Fprint(os.Stderr, agentsHelpText())
+		fmt.Fprintf(os.Stderr, "unknown jobs subcommand: %s\n\n", args[0])
+		fmt.Fprint(os.Stderr, jobsHelpText())
 		return 2
 	}
 }
@@ -62,12 +62,12 @@ type agentStatusOutput struct {
 	Issues        []agents.RunIssue  `json:"issues"`
 }
 
-func runAgentsStatus(args []string) int {
+func runJobsStatus(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsStatusHelpText())
+		fmt.Fprint(os.Stdout, jobsStatusHelpText())
 		return 0
 	}
-	path, jsonOutput, err := parseAgentsInventoryArgs(args, defaultAgentsJobsPath, "status")
+	path, jsonOutput, err := parseJobsInventoryArgs(args, defaultJobsPath, "status")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -100,7 +100,7 @@ func runAgentsStatus(args []string) int {
 			return printAgentCommandError(err)
 		}
 	} else if len(statuses) == 0 {
-		fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
+		fmt.Fprintf(os.Stdout, "no jobs found at %s\n", path)
 	} else {
 		fmt.Fprintln(os.Stdout, "JOB\tENABLED\tSCHEDULE\tNEXT_ELIGIBLE\tLAST_RUN\tLAST_STATUS\tACTIVE_RUNS")
 		for _, status := range statuses {
@@ -128,7 +128,7 @@ func runAgentsStatus(args []string) int {
 		}
 	}
 	for _, issue := range issues {
-		fmt.Fprintf(os.Stderr, "agent status issue at %s: %s\n", issue.Path, issue.Error)
+		fmt.Fprintf(os.Stderr, "job status issue at %s: %s\n", issue.Path, issue.Error)
 	}
 	if len(issues) > 0 {
 		return 1
@@ -143,12 +143,12 @@ type agentRunsOutput struct {
 	Issues        []agents.RunIssue   `json:"issues"`
 }
 
-func runAgentsRuns(args []string) int {
+func runJobsRuns(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsRunsHelpText())
+		fmt.Fprint(os.Stdout, jobsRunsHelpText())
 		return 0
 	}
-	options, err := parseAgentsRunsArgs(args)
+	options, err := parseJobsRunsArgs(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -173,7 +173,7 @@ func runAgentsRuns(args []string) int {
 			return printAgentCommandError(err)
 		}
 	} else if len(filtered) == 0 {
-		fmt.Fprintf(os.Stdout, "no agent runs found for %s\n", repoRoot)
+		fmt.Fprintf(os.Stdout, "no job runs found for %s\n", repoRoot)
 	} else {
 		fmt.Fprintln(os.Stdout, "RUN\tJOB\tSTATUS\tPHASE\tSCHEDULED\tSTARTED\tFINISHED")
 		for _, run := range filtered {
@@ -191,7 +191,7 @@ func runAgentsRuns(args []string) int {
 		}
 	}
 	for _, issue := range issues {
-		fmt.Fprintf(os.Stderr, "agent run record issue at %s: %s\n", issue.Path, issue.Error)
+		fmt.Fprintf(os.Stderr, "job run record issue at %s: %s\n", issue.Path, issue.Error)
 	}
 	if len(issues) > 0 {
 		return 1
@@ -199,18 +199,18 @@ func runAgentsRuns(args []string) int {
 	return 0
 }
 
-type agentSpawnOutput struct {
+type agentStartOutput struct {
 	SchemaVersion string            `json:"schemaVersion"`
 	SupervisorPID int               `json:"supervisor_pid"`
 	Run           agents.RunSummary `json:"run"`
 }
 
-func runAgentsSpawn(args []string) int {
+func runJobsStart(args []string) int {
 	if len(args) == 0 || hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsSpawnHelpText())
+		fmt.Fprint(os.Stdout, jobsStartHelpText())
 		return 0
 	}
-	options, err := parseAgentsSpawnArgs(args)
+	options, err := parseJobsStartArgs(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -229,7 +229,7 @@ func runAgentsSpawn(args []string) int {
 		return printAgentCommandError(err)
 	}
 	if _, err := os.Stat(plan.RunDir); err == nil {
-		fmt.Fprintf(os.Stderr, "agent run already exists: %s\n", plan.RunDir)
+		fmt.Fprintf(os.Stderr, "job run already exists: %s\n", plan.RunDir)
 		return 1
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return printAgentCommandError(err)
@@ -238,26 +238,26 @@ func runAgentsSpawn(args []string) int {
 	if err != nil {
 		return printAgentCommandError(err)
 	}
-	childArgs := []string{"agents", "run", options.path, "--at", scheduledAt.Format(time.RFC3339Nano)}
+	childArgs := []string{"jobs", "run", options.path, "--at", scheduledAt.Format(time.RFC3339Nano)}
 	if options.executor != "" {
 		childArgs = append(childArgs, "--executor", options.executor)
 	}
-	pid, err := startDetachedAgentProcess(executable, childArgs, os.Environ())
+	pid, err := startDetachedJobProcess(executable, childArgs, os.Environ())
 	if err != nil {
-		return printAgentCommandError(fmt.Errorf("start detached agent supervisor: %w", err))
+		return printAgentCommandError(fmt.Errorf("start detached job supervisor: %w", err))
 	}
 	summary, err := waitForAgentRun(plan.RepoRoot, plan.RunID, 5*time.Second)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "started agent supervisor %d but its run record was not ready: %v\n", pid, err)
+		fmt.Fprintf(os.Stderr, "started job supervisor %d but its run record was not ready: %v\n", pid, err)
 		return 1
 	}
-	output := agentSpawnOutput{SchemaVersion: okf.MachineSchemaVersion, SupervisorPID: pid, Run: summary}
+	output := agentStartOutput{SchemaVersion: okf.MachineSchemaVersion, SupervisorPID: pid, Run: summary}
 	if options.json {
 		if err := printJSON(output); err != nil {
 			return printAgentCommandError(err)
 		}
 	} else {
-		fmt.Fprintf(os.Stdout, "agent run %s %s\n", summary.RunID, summary.Status)
+		fmt.Fprintf(os.Stdout, "job run %s %s\n", summary.RunID, summary.Status)
 		fmt.Fprintf(os.Stdout, "supervisor: %d\n", pid)
 		fmt.Fprintf(os.Stdout, "run: %s\n", summary.RunRecord)
 	}
@@ -290,12 +290,12 @@ type agentControlOutput struct {
 	Run           agents.RunSummary `json:"run"`
 }
 
-func runAgentsControl(args []string, action string) int {
+func runJobsControl(args []string, action string) int {
 	if len(args) == 0 || hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsControlHelpText(action))
+		fmt.Fprint(os.Stdout, jobsControlHelpText(action))
 		return 0
 	}
-	options, err := parseAgentsControlArgs(args, action)
+	options, err := parseJobsControlArgs(args, action)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -332,17 +332,17 @@ func runAgentsControl(args []string, action string) int {
 			return printAgentCommandError(err)
 		}
 	} else {
-		fmt.Fprintf(os.Stdout, "agent run %s %s\n", summary.RunID, summary.Status)
+		fmt.Fprintf(os.Stdout, "job run %s %s\n", summary.RunID, summary.Status)
 	}
 	return 0
 }
 
-func runAgentsNew(args []string) int {
+func runJobsNew(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsNewHelpText())
+		fmt.Fprint(os.Stdout, jobsNewHelpText())
 		return 0
 	}
-	options, err := parseAgentsNewArgs(args)
+	options, err := parseJobsNewArgs(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -371,15 +371,15 @@ func runAgentsNew(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	fmt.Fprintf(os.Stdout, "created agent job: %s\n", options.out)
-	fmt.Fprintf(os.Stdout, "validate: openknowledge agents validate %s\n", options.out)
-	fmt.Fprintf(os.Stdout, "dry run: openknowledge agents run %s --dry-run\n", options.out)
+	fmt.Fprintf(os.Stdout, "created job: %s\n", options.out)
+	fmt.Fprintf(os.Stdout, "validate: openknowledge jobs validate %s\n", options.out)
+	fmt.Fprintf(os.Stdout, "dry run: openknowledge jobs run %s --dry-run\n", options.out)
 	return 0
 }
 
-func runAgentsList(args []string) int {
+func runJobsList(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsListHelpText())
+		fmt.Fprint(os.Stdout, jobsListHelpText())
 		return 0
 	}
 	jsonOutput := false
@@ -389,17 +389,17 @@ func runAgentsList(args []string) int {
 		case arg == "--json":
 			jsonOutput = true
 		case strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(os.Stderr, "unknown agents list option: %s\n", arg)
+			fmt.Fprintf(os.Stderr, "unknown jobs list option: %s\n", arg)
 			return 2
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) > 1 {
-		fmt.Fprintln(os.Stderr, "agents list accepts at most one path")
+		fmt.Fprintln(os.Stderr, "jobs list accepts at most one path")
 		return 2
 	}
-	path := defaultAgentsJobsPath
+	path := defaultJobsPath
 	if len(positionals) == 1 {
 		path = positionals[0]
 	}
@@ -409,7 +409,7 @@ func runAgentsList(args []string) int {
 			if jsonOutput {
 				return printAgentListJSON(path, nil)
 			}
-			fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
+			fmt.Fprintf(os.Stdout, "no jobs found at %s\n", path)
 			return 0
 		}
 		return printAgentCommandError(err)
@@ -418,7 +418,7 @@ func runAgentsList(args []string) int {
 		if jsonOutput {
 			return printAgentListJSON(path, jobs)
 		}
-		fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
+		fmt.Fprintf(os.Stdout, "no jobs found at %s\n", path)
 		return 0
 	}
 	sort.Slice(jobs, func(first int, second int) bool {
@@ -484,9 +484,9 @@ func printAgentListJSON(path string, jobs []agents.Job) int {
 	return 0
 }
 
-func runAgentsValidate(args []string) int {
+func runJobsValidate(args []string) int {
 	if len(args) == 0 || hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsValidateHelpText())
+		fmt.Fprint(os.Stdout, jobsValidateHelpText())
 		return 0
 	}
 	jsonOutput := false
@@ -496,14 +496,14 @@ func runAgentsValidate(args []string) int {
 		case arg == "--json":
 			jsonOutput = true
 		case strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(os.Stderr, "unknown agents validate option: %s\n", arg)
+			fmt.Fprintf(os.Stderr, "unknown jobs validate option: %s\n", arg)
 			return 2
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) != 1 {
-		fmt.Fprintln(os.Stderr, "agents validate requires exactly one job file or directory")
+		fmt.Fprintln(os.Stderr, "jobs validate requires exactly one job file or directory")
 		return 2
 	}
 	path := positionals[0]
@@ -518,11 +518,11 @@ func runAgentsValidate(args []string) int {
 		return printAgentValidationJSON(path, jobs, nil)
 	}
 	if len(jobs) == 0 {
-		fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
+		fmt.Fprintf(os.Stdout, "no jobs found at %s\n", path)
 		return 0
 	}
 	for _, job := range jobs {
-		fmt.Fprintf(os.Stdout, "valid agent job: %s (%s)\n", job.ID, job.Path)
+		fmt.Fprintf(os.Stdout, "valid job: %s (%s)\n", job.ID, job.Path)
 	}
 	return 0
 }
@@ -577,12 +577,12 @@ func printAgentValidationJSON(path string, jobs []agents.Job, validationErr erro
 	return 0
 }
 
-func runAgentsRun(args []string) int {
+func runJobsRun(args []string) int {
 	if len(args) == 0 || hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsRunHelpText())
+		fmt.Fprint(os.Stdout, jobsRunHelpText())
 		return 0
 	}
-	options, err := parseAgentsRunArgs(args)
+	options, err := parseJobsRunArgs(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -608,14 +608,14 @@ func runAgentsRun(args []string) int {
 	})
 	if err != nil {
 		if record.RunID != "" {
-			fmt.Fprintf(os.Stderr, "agent run %s failed: %v\n", record.RunID, err)
+			fmt.Fprintf(os.Stderr, "job run %s failed: %v\n", record.RunID, err)
 		} else {
-			fmt.Fprintf(os.Stderr, "agent run failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "job run failed: %v\n", err)
 		}
 		return 1
 	}
 	if !options.dryRun {
-		fmt.Fprintf(os.Stdout, "agent run %s %s\n", record.RunID, record.Status)
+		fmt.Fprintf(os.Stdout, "job run %s %s\n", record.RunID, record.Status)
 		fmt.Fprintf(os.Stdout, "run: %s\n", filepath.Join(record.Plan.RunDir, "run.json"))
 		if record.Status == "skipped" {
 			fmt.Fprintf(os.Stdout, "reason: %s\n", record.StatusText)
@@ -626,12 +626,12 @@ func runAgentsRun(args []string) int {
 	return 0
 }
 
-func runAgentsDaemon(args []string) int {
+func runJobsDaemon(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, agentsDaemonHelpText())
+		fmt.Fprint(os.Stdout, jobsDaemonHelpText())
 		return 0
 	}
-	options, err := parseAgentsDaemonArgs(args)
+	options, err := parseJobsDaemonArgs(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -651,35 +651,35 @@ func runAgentsDaemon(args []string) int {
 	}
 }
 
-type agentsRunCLIOptions struct {
+type jobsRunCLIOptions struct {
 	path     string
 	dryRun   bool
 	at       string
 	executor string
 }
 
-type agentsSpawnCLIOptions struct {
+type jobsStartCLIOptions struct {
 	path     string
 	at       string
 	executor string
 	json     bool
 }
 
-type agentsRunsCLIOptions struct {
+type jobsRunsCLIOptions struct {
 	repo   string
 	job    string
 	status string
 	json   bool
 }
 
-type agentsControlCLIOptions struct {
+type jobsControlCLIOptions struct {
 	runID string
 	repo  string
 	wait  time.Duration
 	json  bool
 }
 
-func parseAgentsInventoryArgs(args []string, defaultPath string, command string) (string, bool, error) {
+func parseJobsInventoryArgs(args []string, defaultPath string, command string) (string, bool, error) {
 	jsonOutput := false
 	positionals := make([]string, 0, 1)
 	for _, arg := range args {
@@ -687,13 +687,13 @@ func parseAgentsInventoryArgs(args []string, defaultPath string, command string)
 		case arg == "--json":
 			jsonOutput = true
 		case strings.HasPrefix(arg, "-"):
-			return "", false, fmt.Errorf("unknown agents %s option: %s", command, arg)
+			return "", false, fmt.Errorf("unknown jobs %s option: %s", command, arg)
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) > 1 {
-		return "", false, fmt.Errorf("agents %s accepts at most one path", command)
+		return "", false, fmt.Errorf("jobs %s accepts at most one path", command)
 	}
 	if len(positionals) == 1 {
 		defaultPath = positionals[0]
@@ -701,8 +701,8 @@ func parseAgentsInventoryArgs(args []string, defaultPath string, command string)
 	return defaultPath, jsonOutput, nil
 }
 
-func parseAgentsRunsArgs(args []string) (agentsRunsCLIOptions, error) {
-	options := agentsRunsCLIOptions{repo: "."}
+func parseJobsRunsArgs(args []string) (jobsRunsCLIOptions, error) {
+	options := jobsRunsCLIOptions{repo: "."}
 	positionals := make([]string, 0, 1)
 	jobSet := false
 	statusSet := false
@@ -731,13 +731,13 @@ func parseAgentsRunsArgs(args []string) (agentsRunsCLIOptions, error) {
 			options.status = strings.TrimPrefix(arg, "--status=")
 			statusSet = true
 		case strings.HasPrefix(arg, "-"):
-			return options, fmt.Errorf("unknown agents runs option: %s", arg)
+			return options, fmt.Errorf("unknown jobs runs option: %s", arg)
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) > 1 {
-		return options, fmt.Errorf("agents runs accepts at most one repository path")
+		return options, fmt.Errorf("jobs runs accepts at most one repository path")
 	}
 	if len(positionals) == 1 {
 		options.repo = positionals[0]
@@ -751,8 +751,8 @@ func parseAgentsRunsArgs(args []string) (agentsRunsCLIOptions, error) {
 	return options, nil
 }
 
-func parseAgentsSpawnArgs(args []string) (agentsSpawnCLIOptions, error) {
-	var options agentsSpawnCLIOptions
+func parseJobsStartArgs(args []string) (jobsStartCLIOptions, error) {
+	var options jobsStartCLIOptions
 	runArgs := make([]string, 0, len(args))
 	for _, arg := range args {
 		if arg == "--json" {
@@ -761,12 +761,12 @@ func parseAgentsSpawnArgs(args []string) (agentsSpawnCLIOptions, error) {
 		}
 		runArgs = append(runArgs, arg)
 	}
-	parsed, err := parseAgentsRunArgs(runArgs)
+	parsed, err := parseJobsRunArgs(runArgs)
 	if err != nil {
-		return options, errors.New(strings.Replace(err.Error(), "agents run", "agents spawn", 1))
+		return options, errors.New(strings.Replace(err.Error(), "jobs run", "jobs start", 1))
 	}
 	if parsed.dryRun {
-		return options, fmt.Errorf("agents spawn does not support --dry-run")
+		return options, fmt.Errorf("jobs start does not support --dry-run")
 	}
 	options.path = parsed.path
 	options.at = parsed.at
@@ -774,12 +774,12 @@ func parseAgentsSpawnArgs(args []string) (agentsSpawnCLIOptions, error) {
 	return options, nil
 }
 
-func parseAgentsControlArgs(args []string, action string) (agentsControlCLIOptions, error) {
+func parseJobsControlArgs(args []string, action string) (jobsControlCLIOptions, error) {
 	defaultWait := 10 * time.Second
 	if action == "kill" {
 		defaultWait = 5 * time.Second
 	}
-	options := agentsControlCLIOptions{repo: ".", wait: defaultWait}
+	options := jobsControlCLIOptions{repo: ".", wait: defaultWait}
 	positionals := make([]string, 0, 1)
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
@@ -813,19 +813,19 @@ func parseAgentsControlArgs(args []string, action string) (agentsControlCLIOptio
 			}
 			options.wait = parsed
 		case strings.HasPrefix(arg, "-"):
-			return options, fmt.Errorf("unknown agents %s option: %s", action, arg)
+			return options, fmt.Errorf("unknown jobs %s option: %s", action, arg)
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) != 1 {
-		return options, fmt.Errorf("agents %s requires exactly one run id", action)
+		return options, fmt.Errorf("jobs %s requires exactly one run id", action)
 	}
 	options.runID = positionals[0]
 	return options, nil
 }
 
-type agentsNewCLIOptions struct {
+type jobsNewCLIOptions struct {
 	template  string
 	out       string
 	list      bool
@@ -833,8 +833,8 @@ type agentsNewCLIOptions struct {
 	force     bool
 }
 
-func parseAgentsNewArgs(args []string) (agentsNewCLIOptions, error) {
-	var options agentsNewCLIOptions
+func parseJobsNewArgs(args []string) (jobsNewCLIOptions, error) {
+	var options jobsNewCLIOptions
 	var positionals []string
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
@@ -858,13 +858,13 @@ func parseAgentsNewArgs(args []string) (agentsNewCLIOptions, error) {
 				return options, fmt.Errorf("--out requires a value")
 			}
 		case strings.HasPrefix(arg, "-"):
-			return options, fmt.Errorf("unknown agents new option: %s", arg)
+			return options, fmt.Errorf("unknown jobs new option: %s", arg)
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) > 1 {
-		return options, fmt.Errorf("agents new accepts at most one template id")
+		return options, fmt.Errorf("jobs new accepts at most one template id")
 	}
 	if len(positionals) == 1 {
 		options.template = positionals[0]
@@ -878,8 +878,8 @@ func parseAgentsNewArgs(args []string) (agentsNewCLIOptions, error) {
 	return options, nil
 }
 
-func parseAgentsRunArgs(args []string) (agentsRunCLIOptions, error) {
-	var options agentsRunCLIOptions
+func parseJobsRunArgs(args []string) (jobsRunCLIOptions, error) {
+	var options jobsRunCLIOptions
 	var positionals []string
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
@@ -911,13 +911,13 @@ func parseAgentsRunArgs(args []string) (agentsRunCLIOptions, error) {
 				return options, fmt.Errorf("--executor requires a value")
 			}
 		case strings.HasPrefix(arg, "-"):
-			return options, fmt.Errorf("unknown agents run option: %s", arg)
+			return options, fmt.Errorf("unknown jobs run option: %s", arg)
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) != 1 {
-		return options, fmt.Errorf("agents run requires exactly one job file")
+		return options, fmt.Errorf("jobs run requires exactly one job file")
 	}
 	normalizedExecutor, err := agents.NormalizeExecutorOverride(options.executor)
 	if err != nil {
@@ -928,7 +928,7 @@ func parseAgentsRunArgs(args []string) (agentsRunCLIOptions, error) {
 	return options, nil
 }
 
-type agentsDaemonCLIOptions struct {
+type jobsDaemonCLIOptions struct {
 	path     string
 	once     bool
 	dryRun   bool
@@ -936,8 +936,8 @@ type agentsDaemonCLIOptions struct {
 	executor string
 }
 
-func parseAgentsDaemonArgs(args []string) (agentsDaemonCLIOptions, error) {
-	options := agentsDaemonCLIOptions{path: defaultAgentsJobsPath, tick: "1m"}
+func parseJobsDaemonArgs(args []string) (jobsDaemonCLIOptions, error) {
+	options := jobsDaemonCLIOptions{path: defaultJobsPath, tick: "1m"}
 	var positionals []string
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
@@ -971,13 +971,13 @@ func parseAgentsDaemonArgs(args []string) (agentsDaemonCLIOptions, error) {
 				return options, fmt.Errorf("--executor requires a value")
 			}
 		case strings.HasPrefix(arg, "-"):
-			return options, fmt.Errorf("unknown agents daemon option: %s", arg)
+			return options, fmt.Errorf("unknown jobs daemon option: %s", arg)
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) > 1 {
-		return options, fmt.Errorf("agents daemon accepts at most one jobs directory")
+		return options, fmt.Errorf("jobs daemon accepts at most one jobs directory")
 	}
 	if len(positionals) == 1 {
 		options.path = positionals[0]
@@ -996,7 +996,7 @@ func writeAgentTemplate(path string, content string, force bool) error {
 	}
 	if !force {
 		if _, err := os.Stat(path); err == nil {
-			return fmt.Errorf("agent job already exists: %s (use --force to overwrite)", path)
+			return fmt.Errorf("job already exists: %s (use --force to overwrite)", path)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -1011,14 +1011,14 @@ func runDueAgentJobs(path string, executor string, dryRun bool) int {
 	jobs, loadFailures, err := agents.DiscoverJobsLenient(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stdout, "no agent jobs found at %s\n", path)
+			fmt.Fprintf(os.Stdout, "no jobs found at %s\n", path)
 			return 0
 		}
 		return printAgentCommandError(err)
 	}
 	failureCount := len(loadFailures)
 	for _, failure := range loadFailures {
-		fmt.Fprintf(os.Stderr, "agent job %s failed to load: %v\n", failure.Path, failure.Err)
+		fmt.Fprintf(os.Stderr, "job %s failed to load: %v\n", failure.Path, failure.Err)
 	}
 	now := time.Now()
 	dueCount := 0
@@ -1034,7 +1034,7 @@ func runDueAgentJobs(path string, executor string, dryRun bool) int {
 		}
 		plan, err := agents.BuildRunPlan(job, scheduledAt, executor)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "agent job %s failed to plan: %v\n", job.ID, err)
+			fmt.Fprintf(os.Stderr, "job %s failed to plan: %v\n", job.ID, err)
 			failureCount++
 			continue
 		}
@@ -1042,7 +1042,7 @@ func runDueAgentJobs(path string, executor string, dryRun bool) int {
 		if _, err := os.Stat(runRecord); err == nil {
 			continue
 		} else if !errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "agent job %s could not inspect run record: %v\n", job.ID, err)
+			fmt.Fprintf(os.Stderr, "job %s could not inspect run record: %v\n", job.ID, err)
 			failureCount++
 			continue
 		}
@@ -1056,22 +1056,22 @@ func runDueAgentJobs(path string, executor string, dryRun bool) int {
 		})
 		if err != nil {
 			if record.RunID != "" {
-				fmt.Fprintf(os.Stderr, "agent run %s failed: %v\n", record.RunID, err)
+				fmt.Fprintf(os.Stderr, "job run %s failed: %v\n", record.RunID, err)
 			} else {
-				fmt.Fprintf(os.Stderr, "agent run failed: %v\n", err)
+				fmt.Fprintf(os.Stderr, "job run failed: %v\n", err)
 			}
 			failureCount++
 			continue
 		}
 		if !dryRun {
-			fmt.Fprintf(os.Stdout, "agent run %s %s\n", record.RunID, record.Status)
+			fmt.Fprintf(os.Stdout, "job run %s %s\n", record.RunID, record.Status)
 		}
 	}
 	if dueCount == 0 && failureCount == 0 {
-		fmt.Fprintln(os.Stdout, "no due agent jobs")
+		fmt.Fprintln(os.Stdout, "no due jobs")
 	}
 	if failureCount > 0 {
-		fmt.Fprintf(os.Stderr, "agent daemon pass completed with %d failure(s)\n", failureCount)
+		fmt.Fprintf(os.Stderr, "jobs daemon pass completed with %d failure(s)\n", failureCount)
 		return 1
 	}
 	return 0
@@ -1096,7 +1096,7 @@ func parseAgentScheduledAt(value string) (time.Time, error) {
 func printAgentCommandError(err error) int {
 	var validation agents.ValidationError
 	if errors.As(err, &validation) {
-		fmt.Fprintln(os.Stderr, "invalid agent job:")
+		fmt.Fprintln(os.Stderr, "invalid job:")
 		for _, issue := range validation.Issues {
 			fmt.Fprintf(os.Stderr, "- %s: %s\n", issue.Field, issue.Message)
 		}
@@ -1128,38 +1128,38 @@ func printJSON(value any) error {
 	return encoder.Encode(value)
 }
 
-func agentsHelpText() string {
-	return `openknowledge agents
+func jobsHelpText() string {
+	return `openknowledge jobs
 
-Experimental command group for deterministic local agent jobs from Markdown
+Experimental command group for deterministic local jobs from Markdown
 specs with nested frontmatter. Job schema and scheduler behavior may still
 change before this surface is treated as stable.
 
 Usage:
-  openknowledge agents new
-  openknowledge agents new --list
-  openknowledge agents new --reference
-  openknowledge agents new <template>
-  openknowledge agents new <template> --out <file>
-  openknowledge agents list [path]
-  openknowledge agents status [jobs-dir]
-  openknowledge agents runs [repo]
-  openknowledge agents spawn <job.md>
-  openknowledge agents stop <run-id>
-  openknowledge agents kill <run-id>
-  openknowledge agents validate <job-or-dir>
-  openknowledge agents run <job.md>
-  openknowledge agents run <job.md> --dry-run
-  openknowledge agents daemon [jobs-dir]
-  openknowledge agents daemon [jobs-dir] --once
-  openknowledge agents --help
+  openknowledge jobs new
+  openknowledge jobs new --list
+  openknowledge jobs new --reference
+  openknowledge jobs new <template>
+  openknowledge jobs new <template> --out <file>
+  openknowledge jobs list [path]
+  openknowledge jobs status [jobs-dir]
+  openknowledge jobs runs [repo]
+  openknowledge jobs start <job.md>
+  openknowledge jobs stop <run-id>
+  openknowledge jobs kill <run-id>
+  openknowledge jobs validate <job-or-dir>
+  openknowledge jobs run <job.md>
+  openknowledge jobs run <job.md> --dry-run
+  openknowledge jobs daemon [jobs-dir]
+  openknowledge jobs daemon [jobs-dir] --once
+  openknowledge jobs --help
 
 Subcommands:
   new        List, print, or write built-in job templates.
   list       List job specs.
   status     Show schedules, next eligible slots, and active/latest runs.
   runs       List current and historical runs for a repository.
-  spawn      Start one job in a detached supervisor.
+  start      Start one job in a detached supervisor.
   stop       Request cancellation of a live run.
   kill       Force cancellation of a live run's command process tree.
   validate   Parse and schema-check job specs.
@@ -1167,74 +1167,74 @@ Subcommands:
   daemon     Poll scheduled jobs and run due jobs.
 
 Default jobs directory:
-  .openknowledge/agents/jobs
+  .openknowledge/jobs
 `
 }
 
-func agentsStatusHelpText() string {
-	return `openknowledge agents status
+func jobsStatusHelpText() string {
+	return `openknowledge jobs status
 
-Show schedules, next eligible slots, and active/latest runs for agent jobs.
+Show schedules, next eligible slots, and active/latest runs for jobs.
 
 Usage:
-  openknowledge agents status [jobs-dir]
-  openknowledge agents status [jobs-dir] --json
+  openknowledge jobs status [jobs-dir]
+  openknowledge jobs status [jobs-dir] --json
 
 The next eligible time is a scheduling slot, not a guarantee that a run will
-start. Scheduled jobs run only while an agents daemon is active.
+start. Scheduled jobs run only while a jobs daemon is active.
 `
 }
 
-func agentsRunsHelpText() string {
-	return `openknowledge agents runs
+func jobsRunsHelpText() string {
+	return `openknowledge jobs runs
 
-List current and historical agent runs for a Git repository.
+List current and historical job runs for a Git repository.
 
 Usage:
-  openknowledge agents runs [repo]
-  openknowledge agents runs [repo] --job <id>
-  openknowledge agents runs [repo] --status <status>
-  openknowledge agents runs [repo] --json
+  openknowledge jobs runs [repo]
+  openknowledge jobs runs [repo] --job <id>
+  openknowledge jobs runs [repo] --status <status>
+  openknowledge jobs runs [repo] --json
 
 Runs are ordered newest first. A persisted running record without a live
 supervisor is reported as orphaned.
 `
 }
 
-func agentsSpawnHelpText() string {
-	return `openknowledge agents spawn
+func jobsStartHelpText() string {
+	return `openknowledge jobs start
 
-Start one agent job in a detached supervisor and return after it is observable.
+Start one job in a detached supervisor and return after it is observable.
 
 Usage:
-  openknowledge agents spawn <job.md>
-  openknowledge agents spawn <job.md> --at <time>
-  openknowledge agents spawn <job.md> --executor host|docker
-  openknowledge agents spawn <job.md> --json
+  openknowledge jobs start <job.md>
+  openknowledge jobs start <job.md> --at <time>
+  openknowledge jobs start <job.md> --executor host|docker
+  openknowledge jobs start <job.md> --json
 
 Flags:
   --at         Scheduled time used for the deterministic run ID.
   --executor   Override sandbox.type with host or docker.
-  --json       Print a schemaVersion 1 spawn result.
+  --json       Print a schemaVersion 1 start result.
 `
 }
 
-func agentsControlHelpText(action string) string {
+func jobsControlHelpText(action string) string {
 	description := "Request cancellation from the live run supervisor."
 	defaultWait := "10s"
 	if action == "kill" {
 		description = "Force cancellation of the live run's current command process tree."
 		defaultWait = "5s"
 	}
-	return fmt.Sprintf(`openknowledge agents %s
+	return fmt.Sprintf(`openknowledge jobs %s
 
 %s
 
 Usage:
-  openknowledge agents %s <run-id>
-  openknowledge agents %s <run-id> --repo <path>
-  openknowledge agents %s <run-id> --wait <duration>
-  openknowledge agents %s <run-id> --json
+  openknowledge jobs %s <run-id>
+  openknowledge jobs %s <run-id> --repo <path>
+  openknowledge jobs %s <run-id> --wait <duration>
+  openknowledge jobs %s <run-id> --json
 
 Flags:
   --repo       Git repository that owns the run. Defaults to the current repo.
@@ -1244,19 +1244,19 @@ Flags:
 `, action, description, action, action, action, action, defaultWait)
 }
 
-func agentsNewHelpText() string {
-	return `openknowledge agents new
+func jobsNewHelpText() string {
+	return `openknowledge jobs new
 
-List, print, or write built-in agent job templates.
+List, print, or write built-in job templates.
 
 Usage:
-  openknowledge agents new
-  openknowledge agents new --list
-  openknowledge agents new --reference
-  openknowledge agents new <template>
-  openknowledge agents new <template> --out <file>
-  openknowledge agents new <template> --out <file> --force
-  openknowledge agents new --help
+  openknowledge jobs new
+  openknowledge jobs new --list
+  openknowledge jobs new --reference
+  openknowledge jobs new <template>
+  openknowledge jobs new <template> --out <file>
+  openknowledge jobs new <template> --out <file> --force
+  openknowledge jobs new --help
 
 Arguments:
   template     Built-in template id. Use --list to see available ids.
@@ -1268,57 +1268,57 @@ Flags:
   --force      Overwrite --out when the file already exists.
 
 Examples:
-  openknowledge agents new docs-audit
-  openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md
-  openknowledge agents new custom --out .openknowledge/agents/jobs/custom.md
-  openknowledge agents new --reference
+  openknowledge jobs new docs-audit
+  openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md
+  openknowledge jobs new custom --out .openknowledge/jobs/custom.md
+  openknowledge jobs new --reference
 `
 }
 
-func agentsListHelpText() string {
-	return `openknowledge agents list
+func jobsListHelpText() string {
+	return `openknowledge jobs list
 
-List agent job specs.
+List job specs.
 
 Usage:
-  openknowledge agents list [path]
-  openknowledge agents list [path] --json
-  openknowledge agents list --help
+  openknowledge jobs list [path]
+  openknowledge jobs list [path] --json
+  openknowledge jobs list --help
 
 Arguments:
-  path       Job file or directory. Defaults to .openknowledge/agents/jobs.
+  path       Job file or directory. Defaults to .openknowledge/jobs.
 
 Flags:
-  --json     Print the schemaVersion 1 agent inventory JSON.
+  --json     Print the schemaVersion 1 job inventory JSON.
 `
 }
 
-func agentsValidateHelpText() string {
-	return `openknowledge agents validate
+func jobsValidateHelpText() string {
+	return `openknowledge jobs validate
 
-Parse and schema-check agent job specs without running an agent.
+Parse and schema-check job specs without running an agent.
 
 Usage:
-  openknowledge agents validate <job-or-dir>
-  openknowledge agents validate <job-or-dir> --json
-  openknowledge agents validate --help
+  openknowledge jobs validate <job-or-dir>
+  openknowledge jobs validate <job-or-dir> --json
+  openknowledge jobs validate --help
 
 Flags:
   --json     Print the schemaVersion 1 validation report, including failures.
 `
 }
 
-func agentsRunHelpText() string {
-	return `openknowledge agents run
+func jobsRunHelpText() string {
+	return `openknowledge jobs run
 
-Create an isolated Git worktree and run one agent job.
+Create an isolated Git worktree and run one job.
 
 Usage:
-  openknowledge agents run <job.md>
-  openknowledge agents run <job.md> --dry-run
-  openknowledge agents run <job.md> --at <time>
-  openknowledge agents run <job.md> --executor host|docker
-  openknowledge agents run --help
+  openknowledge jobs run <job.md>
+  openknowledge jobs run <job.md> --dry-run
+  openknowledge jobs run <job.md> --at <time>
+  openknowledge jobs run <job.md> --executor host|docker
+  openknowledge jobs run --help
 
 Flags:
   --dry-run    Print the schemaVersion 1 run plan without creating a worktree.
@@ -1332,17 +1332,17 @@ Contracts:
 `
 }
 
-func agentsDaemonHelpText() string {
-	return `openknowledge agents daemon
+func jobsDaemonHelpText() string {
+	return `openknowledge jobs daemon
 
-Poll scheduled agent jobs and run due jobs.
+Poll scheduled jobs and run due jobs.
 
 Usage:
-  openknowledge agents daemon [jobs-dir]
-  openknowledge agents daemon [jobs-dir] --once
-  openknowledge agents daemon [jobs-dir] --tick <duration>
-  openknowledge agents daemon [jobs-dir] --dry-run
-  openknowledge agents daemon --help
+  openknowledge jobs daemon [jobs-dir]
+  openknowledge jobs daemon [jobs-dir] --once
+  openknowledge jobs daemon [jobs-dir] --tick <duration>
+  openknowledge jobs daemon [jobs-dir] --dry-run
+  openknowledge jobs daemon --help
 
 Flags:
   --once       Check due jobs once and exit.

@@ -495,7 +495,7 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 		fmt.Fprint(&output, "\n[publisher_api]\nenabled = true\naddress = \"[::]:8090\"\nartifact_token_env = \"OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN\"\nexchange_token_env = \"OPENKNOWLEDGE_EXCHANGE_TOKEN\"\n")
 	}
 	fmt.Fprintf(&output, "\n[serve]\naddress = %s\npoll_interval = \"5s\"\nrequest_timeout = \"30s\"\nmax_concurrency = 64\nmcp_access = %s\nmcp_token_env = \"OPENKNOWLEDGE_MCP_TOKEN\"\n", strconv.Quote(address), strconv.Quote(mcpAccess))
-	fmt.Fprintf(&output, "\n[worker]\nrepo = \"/workspace\"\nremote = \"origin\"\nproduction_branch = %s\npoll_interval = \"30s\"\nrun_agents = %t\njobs_path = \".openknowledge/agents/jobs\"\nexchange_dir = %s\n", strconv.Quote(plan.Branch), runAgents, strconv.Quote(exchangeDir))
+	fmt.Fprintf(&output, "\n[worker]\nrepo = \"/workspace\"\nremote = \"origin\"\nproduction_branch = %s\npoll_interval = \"30s\"\nrun_jobs = %t\njobs_path = \".openknowledge/jobs\"\nexchange_dir = %s\n", strconv.Quote(plan.Branch), runAgents, strconv.Quote(exchangeDir))
 	if repositoryURL != "" {
 		fmt.Fprintf(&output, "repository_url = %s\n", strconv.Quote(repositoryURL))
 	}

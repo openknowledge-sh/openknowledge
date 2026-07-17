@@ -11,15 +11,15 @@ the source tree and from the public URL.
 
 | Schema | CLI output |
 | --- | --- |
-| `agent-list.schema.json` | `openknowledge agents list --json` |
-| `agent-status.schema.json` | `openknowledge agents status --json` |
-| `agent-runs.schema.json` | `openknowledge agents runs --json` |
-| `agent-spawn.schema.json` | `openknowledge agents spawn --json` |
-| `agent-control.schema.json` | `openknowledge agents stop|kill --json` |
-| `agent-run-summary.schema.json` | Shared run summary used by agent management outputs |
-| `agent-validation.schema.json` | `openknowledge agents validate --json` |
-| `agent-run-plan.schema.json` | `openknowledge agents run --dry-run` and persisted `plan.json` |
-| `agent-run-record.schema.json` | Persisted agent `run.json`, including cancellation and kill outcomes |
+| `job-list.schema.json` | `openknowledge jobs list --json` |
+| `job-status.schema.json` | `openknowledge jobs status --json` |
+| `job-runs.schema.json` | `openknowledge jobs runs --json` |
+| `job-start.schema.json` | `openknowledge jobs start --json` |
+| `job-control.schema.json` | `openknowledge jobs stop|kill --json` |
+| `job-run-summary.schema.json` | Shared run summary used by agent management outputs |
+| `job-validation.schema.json` | `openknowledge jobs validate --json` |
+| `job-run-plan.schema.json` | `openknowledge jobs run --dry-run` and persisted `plan.json` |
+| `job-run-record.schema.json` | Persisted agent `run.json`, including cancellation and kill outcomes |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge to json` |
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |

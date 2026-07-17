@@ -67,7 +67,7 @@ type WorkerConfig struct {
 	Remote           string `toml:"remote" json:"remote"`
 	ProductionBranch string `toml:"production_branch" json:"production_branch"`
 	PollInterval     string `toml:"poll_interval" json:"poll_interval"`
-	RunAgents        bool   `toml:"run_agents" json:"run_agents"`
+	RunJobs          bool   `toml:"run_jobs" json:"run_jobs"`
 	JobsPath         string `toml:"jobs_path" json:"jobs_path"`
 	GitTokenEnv      string `toml:"git_token_env" json:"git_token_env,omitempty"`
 	ExchangeDir      string `toml:"exchange_dir" json:"exchange_dir"`
@@ -174,7 +174,7 @@ func defaultConfig() Config {
 			Remote:           "origin",
 			ProductionBranch: "main",
 			PollInterval:     "30s",
-			JobsPath:         ".openknowledge/agents/jobs",
+			JobsPath:         ".openknowledge/jobs",
 			GitTokenEnv:      "GITHUB_TOKEN",
 		},
 		GitHub: GitHubConfig{

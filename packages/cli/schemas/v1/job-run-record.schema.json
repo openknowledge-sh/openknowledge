@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-run-record.schema.json",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/job-run-record.schema.json",
   "title": "Open Knowledge agent run record v1",
   "type": "object",
   "required": [
@@ -15,7 +15,7 @@
     "scheduled_at": {"type": "string", "format": "date-time"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
-    "plan": {"$ref": "agent-run-plan.schema.json"},
+    "plan": {"$ref": "job-run-plan.schema.json"},
     "agent": {"$ref": "#/$defs/commandResult"},
     "verify": {"type": "array", "items": {"$ref": "#/$defs/commandResult"}},
     "error": {"type": "string"},

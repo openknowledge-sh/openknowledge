@@ -36,7 +36,7 @@ workspace:
   repo: "."
   base: HEAD
   strategy: branch
-  branch: "agents/{{id}}/{{date}}-{{run_id}}"
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
 sandbox:
   type: host
@@ -80,7 +80,7 @@ workspace:
   repo: "."
   base: HEAD
   strategy: branch
-  branch: "agents/{{id}}/{{date}}-{{run_id}}"
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
 sandbox:
   type: host
@@ -115,7 +115,7 @@ workspace:
   repo: "."
   base: HEAD
   strategy: branch
-  branch: "agents/{{id}}/{{date}}-{{run_id}}"
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
 sandbox:
   type: host
@@ -137,7 +137,7 @@ End with COMPLETE.
 		},
 		{
 			ID:          "custom",
-			Title:       "Custom Agent Job",
+			Title:       "Custom Job",
 			Description: "A blank starting point for a project-specific scheduled agent.",
 			Filename:    "custom-agent.md",
 			Content: `---
@@ -156,7 +156,7 @@ workspace:
   repo: "."
   base: HEAD
   strategy: branch
-  branch: "agents/{{id}}/{{date}}-{{run_id}}"
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
 sandbox:
   type: host
@@ -189,24 +189,24 @@ func FindBuiltinTemplate(id string) (Template, bool) {
 
 func RenderTemplateCatalog() string {
 	var builder strings.Builder
-	builder.WriteString("Open Knowledge Agent Job Templates\n\n")
-	builder.WriteString("Use `openknowledge agents new <template>` to print a template, or add `--out <file>` to write it.\n\n")
+	builder.WriteString("Open Knowledge Job Templates\n\n")
+	builder.WriteString("Use `openknowledge jobs new <template>` to print a template, or add `--out <file>` to write it.\n\n")
 	builder.WriteString("Templates:\n")
 	for _, template := range BuiltinTemplates() {
 		builder.WriteString(fmt.Sprintf("- %s: %s\n", template.ID, template.Description))
 	}
 	builder.WriteString("\nExamples:\n")
-	builder.WriteString("  openknowledge agents new docs-audit\n")
-	builder.WriteString("  openknowledge agents new docs-audit --out .openknowledge/agents/jobs/docs-audit.md\n")
-	builder.WriteString("  openknowledge agents new custom --out .openknowledge/agents/jobs/custom.md\n")
-	builder.WriteString("  openknowledge agents new --reference\n")
+	builder.WriteString("  openknowledge jobs new docs-audit\n")
+	builder.WriteString("  openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md\n")
+	builder.WriteString("  openknowledge jobs new custom --out .openknowledge/jobs/custom.md\n")
+	builder.WriteString("  openknowledge jobs new --reference\n")
 	return builder.String()
 }
 
 func RenderFrontmatterReference() string {
-	return `Open Knowledge Agent Job Frontmatter
+	return `Open Knowledge Job Frontmatter
 
-Agent jobs are Markdown files with one YAML-like frontmatter block followed by
+Jobs are Markdown files with one YAML-like frontmatter block followed by
 the agent prompt body. Nested maps and lists are supported for the job schema.
 
 Example:
@@ -227,7 +227,7 @@ workspace:
   repo: "."
   base: HEAD
   strategy: branch
-  branch: "agents/{{id}}/{{date}}-{{run_id}}"
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
 sandbox:
   type: host
@@ -265,7 +265,7 @@ Field reference:
 - verify.timeout: Positive timeout applied to each verification command. Defaults to 15m.
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.
-- output.pr: Ask the private runtime worker to push the committed branch and open a draft GitHub pull request. Local agents run records never publish credentials or raw logs.
+- output.pr: Ask the private runtime worker to push the committed branch and open a draft GitHub pull request. Local job run records never publish credentials or raw logs.
 - concurrency.key: Optional global key shared by jobs that must not overlap.
   Uses letters, numbers, dots, underscores, or hyphens, up to 128 characters.
 - concurrency.policy: skip; this is the default when a key is present. A
@@ -273,13 +273,13 @@ Field reference:
 
 Run lifecycle:
 
-1. openknowledge agents validate parses and schema-checks the job.
-2. openknowledge agents run --dry-run prints the resolved RunPlan.
-3. openknowledge agents run creates a Git worktree and branch.
+1. openknowledge jobs validate parses and schema-checks the job.
+2. openknowledge jobs run --dry-run prints the resolved RunPlan.
+3. openknowledge jobs run creates a Git worktree and branch.
 4. The configured agent command receives the Markdown body on stdin.
 5. Verification commands run in the same worktree.
 6. Logs, prompt, plan, run.json, and diff.patch are written outside the Git
-   repository under the per-repository agent state directory. Override its
-   platform config default with OPENKNOWLEDGE_AGENTS_STATE_DIR.
+   repository under the per-repository jobs state directory. Override its
+   platform config default with OPENKNOWLEDGE_JOBS_STATE_DIR.
 `
 }

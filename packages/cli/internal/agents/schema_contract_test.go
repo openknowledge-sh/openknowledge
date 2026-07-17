@@ -27,7 +27,7 @@ Inspect the repository.
 	}
 	runTestGit(t, root, "add", "job.md")
 	runTestGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
-	t.Setenv(AgentsStateDirEnv, filepath.Join(t.TempDir(), "agent-state"))
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "job-state"))
 
 	job, err := ParseJobFile(jobPath)
 	if err != nil {
@@ -62,8 +62,8 @@ Inspect the repository.
 func compileAgentArtifactSchemas(t *testing.T) map[string]*jsonschema.Schema {
 	t.Helper()
 	paths := []string{
-		filepath.Join("..", "..", "schemas", "v1", "agent-run-plan.schema.json"),
-		filepath.Join("..", "..", "schemas", "v1", "agent-run-record.schema.json"),
+		filepath.Join("..", "..", "schemas", "v1", "job-run-plan.schema.json"),
+		filepath.Join("..", "..", "schemas", "v1", "job-run-record.schema.json"),
 	}
 	compiler := jsonschema.NewCompiler()
 	compiler.DefaultDraft(jsonschema.Draft2020)

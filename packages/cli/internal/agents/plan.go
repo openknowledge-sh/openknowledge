@@ -42,10 +42,10 @@ type RunPlan struct {
 	Concurrency   Concurrency `json:"concurrency,omitempty"`
 }
 
-const RunPlanSchemaID = "https://openknowledge.sh/schemas/cli/v1/agent-run-plan.schema.json"
-const RunRecordSchemaID = "https://openknowledge.sh/schemas/cli/v1/agent-run-record.schema.json"
+const RunPlanSchemaID = "https://openknowledge.sh/schemas/cli/v1/job-run-plan.schema.json"
+const RunRecordSchemaID = "https://openknowledge.sh/schemas/cli/v1/job-run-record.schema.json"
 
-const AgentsStateDirEnv = "OPENKNOWLEDGE_AGENTS_STATE_DIR"
+const JobsStateDirEnv = "OPENKNOWLEDGE_JOBS_STATE_DIR"
 
 func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunPlan, error) {
 	if err := ValidateJob(job); err != nil {
@@ -90,18 +90,18 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	runID := stableRunID(job.ID, scheduledAt, jobHash, baseSHA)
 	branch := renderTemplate(job.Workspace.Branch, templateValues(job, scheduledAt, runID, ""))
 	if branch == "" {
-		branch = renderTemplate("agents/{{id}}/{{date}}-{{run_id}}", templateValues(job, scheduledAt, runID, ""))
+		branch = renderTemplate("jobs/{{id}}/{{date}}-{{run_id}}", templateValues(job, scheduledAt, runID, ""))
 	}
 	branch = sanitizeBranch(branch)
 	values := templateValues(job, scheduledAt, runID, branch)
 	branch = renderTemplate(branch, values)
 
-	stateRoot, err := AgentStateDirectory()
+	stateRoot, err := JobsStateDirectory()
 	if err != nil {
 		return RunPlan{}, err
 	}
 	if pathInside(repoRoot, stateRoot) {
-		return RunPlan{}, fmt.Errorf("agent state directory must be outside the Git repository: %s", stateRoot)
+		return RunPlan{}, fmt.Errorf("jobs state directory must be outside the Git repository: %s", stateRoot)
 	}
 	repositoryState := filepath.Join(stateRoot, repositoryStateName(repoRoot))
 	runDir := filepath.Join(repositoryState, "runs", runID)
@@ -160,15 +160,15 @@ func normalizedConcurrency(concurrency Concurrency) Concurrency {
 	return concurrency
 }
 
-func AgentStateDirectory() (string, error) {
-	if configured := strings.TrimSpace(os.Getenv(AgentsStateDirEnv)); configured != "" {
+func JobsStateDirectory() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv(JobsStateDirEnv)); configured != "" {
 		return canonicalPath(configured)
 	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return canonicalPath(filepath.Join(configDir, "openknowledge", "agents"))
+	return canonicalPath(filepath.Join(configDir, "openknowledge", "jobs"))
 }
 
 func canonicalPath(path string) (string, error) {

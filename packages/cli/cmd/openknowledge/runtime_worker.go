@@ -44,7 +44,7 @@ func runRuntimeWorker(args []string) int {
 	flags.SetOutput(os.Stderr)
 	configPath := flags.String("config", okruntime.DefaultConfigFile, "runtime TOML configuration")
 	once := flags.Bool("once", false, "run one reconciliation pass and exit")
-	role := flags.String("role", "publisher", "worker role: publisher, agents, or all")
+	role := flags.String("role", "publisher", "worker role: publisher, jobs, or all")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -52,8 +52,8 @@ func runRuntimeWorker(args []string) int {
 		fmt.Fprintln(os.Stderr, "runtime worker accepts no positional arguments")
 		return 2
 	}
-	if *role != "publisher" && *role != "agents" && *role != "all" {
-		fmt.Fprintln(os.Stderr, "--role must be publisher, agents, or all")
+	if *role != "publisher" && *role != "jobs" && *role != "all" {
+		fmt.Fprintln(os.Stderr, "--role must be publisher, jobs, or all")
 		return 2
 	}
 	config, err := okruntime.LoadConfig(*configPath)
@@ -61,7 +61,7 @@ func runRuntimeWorker(args []string) int {
 		return printAgentCommandError(err)
 	}
 	if *role == "all" && config.GitHub.Enabled {
-		return printAgentCommandError(fmt.Errorf("--role all cannot run with GitHub credentials; run separate publisher and agents roles"))
+		return printAgentCommandError(fmt.Errorf("--role all cannot run with GitHub credentials; run separate publisher and jobs roles"))
 	}
 	if err := os.MkdirAll(config.Runtime.StateDir, 0700); err != nil {
 		return printAgentCommandError(err)
@@ -94,7 +94,7 @@ func runRuntimeWorker(args []string) int {
 		switch *role {
 		case "publisher":
 			passErr = runtimePublisherPass(ctx, config)
-		case "agents":
+		case "jobs":
 			passErr = runtimeAgentWorkerPass(ctx, config)
 		default:
 			passErr = runtimeWorkerPass(ctx, config)
@@ -176,7 +176,7 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 		}
 		fmt.Fprintf(os.Stderr, "runtime worker published %s generation %s\n", mapped.ID, result.Generation)
 	}
-	if config.Worker.RunAgents && config.GitHub.Enabled {
+	if config.Worker.RunJobs && config.GitHub.Enabled {
 		if err := publishRuntimeExchangePullRequests(ctx, config, checkout, token); err != nil {
 			failures = append(failures, err)
 		}
@@ -185,8 +185,8 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 }
 
 func runtimeAgentWorkerPass(ctx context.Context, config okruntime.Config) error {
-	if !config.Worker.RunAgents {
-		return fmt.Errorf("worker.run_agents must be true for the agents role")
+	if !config.Worker.RunJobs {
+		return fmt.Errorf("worker.run_jobs must be true for the jobs role")
 	}
 	if config.Worker.ExchangeURL != "" {
 		if err := downloadRuntimeSourceBundle(ctx, config); err != nil {
@@ -325,10 +325,10 @@ func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout 
 	if err != nil {
 		return err
 	}
-	command := exec.CommandContext(ctx, executable, "agents", "daemon", jobs, "--once")
+	command := exec.CommandContext(ctx, executable, "jobs", "daemon", jobs, "--once")
 	command.Dir = checkout
 	environment := runtimeEnvironmentWithout(os.Environ(), config.Worker.GitTokenEnv, config.GitHub.TokenEnv, config.Worker.ExchangeTokenEnv)
-	command.Env = runtimeEnvironmentWith(environment, agents.AgentsStateDirEnv, filepath.Join(config.Runtime.StateDir, "agents"))
+	command.Env = runtimeEnvironmentWith(environment, agents.JobsStateDirEnv, filepath.Join(config.Runtime.StateDir, "jobs"))
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {
@@ -607,16 +607,16 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 }
 
 func listRuntimeAgentRuns(config okruntime.Config, checkout string) ([]agents.RunSummary, []agents.RunIssue, error) {
-	state := filepath.Join(config.Runtime.StateDir, "agents")
-	previous, present := os.LookupEnv(agents.AgentsStateDirEnv)
-	if err := os.Setenv(agents.AgentsStateDirEnv, state); err != nil {
+	state := filepath.Join(config.Runtime.StateDir, "jobs")
+	previous, present := os.LookupEnv(agents.JobsStateDirEnv)
+	if err := os.Setenv(agents.JobsStateDirEnv, state); err != nil {
 		return nil, nil, err
 	}
 	defer func() {
 		if present {
-			_ = os.Setenv(agents.AgentsStateDirEnv, previous)
+			_ = os.Setenv(agents.JobsStateDirEnv, previous)
 		} else {
-			_ = os.Unsetenv(agents.AgentsStateDirEnv)
+			_ = os.Unsetenv(agents.JobsStateDirEnv)
 		}
 	}()
 	runs, issues, _, err := agents.ListRuns(checkout)
@@ -770,12 +770,12 @@ func writePrivateRuntimeJSON(target string, value any) error {
 }
 
 func runtimeWorkerHelpText() string {
-	return `openknowledge runtime worker --config runtime.toml [--once] [--role publisher|agents|all]
+	return `openknowledge runtime worker --config runtime.toml [--once] [--role publisher|jobs|all]
 
 Run the private, ingress-free reconciliation loop. Production Docker deployment
-uses separate publisher and agents processes with isolated state volumes and an
+uses separate publisher and jobs processes with isolated state volumes and an
 untrusted Git-bundle exchange: publisher alone receives GitHub credentials and
-artifact write access; agents alone receive the model credential. The combined
+artifact write access; jobs alone receive the model credential. The combined
 all role is for local use without GitHub credentials.
 
 Agent commands receive only each job's explicit sandbox.env allowlist. Raw run
