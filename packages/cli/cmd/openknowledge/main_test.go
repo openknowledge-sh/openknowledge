@@ -42,7 +42,7 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"runtime      Build, serve, and maintain an isolated knowledge runtime.",
 		"validate     Validate a bundle against an OKF spec.",
 		"openknowledge setup Wiki --from .",
-		"openknowledge agent suggestions",
+		"openknowledge agent insights",
 		"openknowledge deploy railway Wiki --dry-run",
 	}
 	for _, expected := range required {

@@ -411,9 +411,9 @@ unknown sections/fields and wrong value types fail closed. See the
 `openknowledge agent` is the human-facing path. It starts Codex by default and
 supports Claude Code, Grok, or OpenCode with `--runtime`. It accepts an optional
 initial prompt or runs a non-interactive task with `agent exec`. A versioned
-Open Knowledge steering contract is prepended by default. `agent init` executes
-the canonical setup interview and `agent from` executes the source-to-wiki
-workflow; `agent doctor` probes installed harnesses without starting a model.
+Open Knowledge steering contract is prepended by default. Managed onboarding
+and source generation use `openknowledge setup`; `agent doctor` probes installed
+harnesses without starting a model.
 Direct filesystem editing is the default, so local sessions do not create a
 branch, commit, or pull request.
 Add `--isolate` to create and retain a dedicated branch and Git worktree at the
@@ -428,19 +428,20 @@ the current repository to `Wiki`, installs project-scoped skills and native
 project hooks, and records the relationship in
 `.openknowledge/integration.toml`. Direct harness sessions and
 `openknowledge agent` then write private, uncommitted Markdown observations to
-`Wiki/suggestions/`. The bounded observer analyzes available session messages,
+`Wiki/insights/`. The bounded observer analyzes available session messages,
 tool events, failures, retries, validation events, and Git changes, but commits
 neither raw transcripts nor credentials.
 
-Review the connected knowledge base with `openknowledge agent suggestions`,
-apply a clean embedded patch locally with
-`openknowledge agent suggestions apply <file>`, or mark one dismissed.
-For cloud maintenance, generate `.openknowledge/jobs/suggestions.md` with
-`openknowledge jobs new suggestions --out .openknowledge/jobs/suggestions.md`.
-It is an ordinary 24-hour Job that handles
-at most five pending suggestions through the existing isolated worktree,
-validation, commit, branch bundle, and draft-PR lifecycle. Suggestions always
-declare `okf_publish: false` and are absent from every public artifact.
+Review the inbox with `openknowledge agent insights`. Execute one locally with
+`openknowledge agent insights run <insight>`, process all pending items with
+`run --all`, or add `--isolate` for a retained local branch and worktree. The
+agent performs fresh research, leaves an ordinary uncommitted Git diff, and the
+CLI validates the result before marking an insight resolved. Insights contain
+only a sanitized outcome, evidence, and likely targets—never a patch or base
+commit. For scheduled maintenance, generate `.openknowledge/jobs/insights.md`
+with `openknowledge jobs new insights --out .openknowledge/jobs/insights.md`.
+Insights always declare `okf_publish: false` and are absent from every public
+artifact.
 
 `openknowledge jobs` is experimental. It runs deterministic automation
 around local agent CLIs, but the job schema and scheduler behavior may still
@@ -498,9 +499,10 @@ Nested job commands also support
 | `openknowledge agent doctor [--runtime <runtime>]` | Experimental: probe supported harness installations. |
 | `openknowledge agent integrate --global` | Install discovery-only user skills without hooks or observation. |
 | `openknowledge agent integrate <wiki>` | Connect a repository to a knowledge base and install project skills/hooks. |
-| `openknowledge agent suggestions [wiki]` | List pending private Markdown suggestions oldest first; without a path, use the project integration. |
-| `openknowledge agent suggestions apply <file>` | Atomically preflight and apply a suggestion as uncommitted changes. |
-| `openknowledge agent suggestions dismiss <file>` | Mark a pending suggestion dismissed. |
+| `openknowledge agent insights [wiki]` | List pending private Markdown insights oldest first; without a path, use the project integration. |
+| `openknowledge agent insights run <insight>` | Research and implement one insight locally, validate it, and leave an uncommitted diff. |
+| `openknowledge agent insights run --all [--isolate]` | Process all pending insights directly or in a retained local branch/worktree. |
+| `openknowledge agent insights dismiss <insight>` | Mark a pending insight dismissed. |
 | `openknowledge jobs new` | Experimental: list built-in local agent job templates. |
 | `openknowledge jobs new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
 | `openknowledge jobs new --reference` | Experimental: print the supported agent-job schema. |

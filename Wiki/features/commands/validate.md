@@ -116,7 +116,7 @@ Current rule names are:
 | `markdown-syntax` | warning | Markdown body syntax looks malformed. |
 | `okf-version` | warning | Root `okf_version` differs from the selected spec. |
 | `publish-metadata` | error | Publication flags or target maps use invalid values. |
-| `suggestion-contract` | error | A suggestion is publishable, has an unsupported status, or omits required suggestion metadata/targets. |
+| `insight-contract` | error | An insight is publishable, has an unsupported status, or omits required insight metadata/targets. |
 | `link-target` | warning | A local Markdown link is missing or escapes the root. |
 | `rule-catalog` | error | A custom rule document under configured `[rules].paths` is missing required structure, collides with another rule ID, or `[rules]` config is invalid. |
 

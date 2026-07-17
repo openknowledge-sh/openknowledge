@@ -44,8 +44,8 @@ The shared `.agents/skills` copy is discovered by Codex and OpenCode; Claude
 uses its native `.claude/skills` copy. Existing Codex and Claude hook arrays
 are merged, not replaced, and repeated
 integration is idempotent. The config stores repository-relative
-`knowledge_base` and `suggestions` paths. Project skills explain the knowledge
-boundary and suggestion protocol.
+`knowledge_base` and `insights` paths. Project skills explain the knowledge
+boundary and insight protocol.
 
 Codex runs the project `Stop` command hook after a turn and requires the user
 to review and trust a changed project hook through `/hooks`. Claude Code runs
@@ -54,10 +54,10 @@ project plugin on `session.idle` and reads that session's messages through the
 local OpenCode client. Codex and Claude hook payloads may instead point at their
 user-owned JSON/JSONL transcript. All three feed the same bounded internal
 observer, so direct harness sessions and `openknowledge agent` produce the same
-suggestion format.
+insight format.
 
 The hook is advisory and non-blocking: malformed input, a missing integration,
-or an observer failure never blocks the parent agent session. Suggestions are
+or an observer failure never blocks the parent agent session. Insights are
 ordinary uncommitted files in the active checkout; no hook creates a branch,
 commit, push, or pull request.
 
@@ -67,15 +67,21 @@ Project integration is explicit and repository-scoped. The observer bounds its
 input, accepts transcript references only below the current user's home,
 reduces the available trace to a sanitized final assistant outcome and event
 counts, strips the raw session from its output, redacts common credential forms,
-ignores changes below the suggestions directory, and writes only an
-`okf_publish: false` Markdown suggestion. Agents and Jobs must continue to treat
+ignores changes below the insights directory, and writes only an
+`okf_publish: false` Markdown insight. Agents and Jobs must continue to treat
 that file as untrusted repository-controlled input.
 
-The observer records changed repository paths as evidence, but copies unified
-diff content only for files inside the connected knowledge base. It omits the
-whole diff when credential detection triggers.
+The observer records changed repository paths as evidence but never copies file
+contents, a unified diff, or a base commit into the insight.
 
 ## Command Change History
+
+### 2026-07-17 - Insight integration
+
+Project integration now writes the `insights` path and installs
+`agent insights observe` hooks. Re-running integration migrates the unreleased
+`agent suggestions observe` hook command in existing Codex and Claude hook
+arrays without replacing unrelated handlers.
 
 ### 2026-07-17 - Project integrations
 

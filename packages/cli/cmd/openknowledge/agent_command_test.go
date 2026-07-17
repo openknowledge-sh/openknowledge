@@ -13,13 +13,13 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 )
 
-func TestAgentNamespacesIntegrationAndSuggestions(t *testing.T) {
+func TestAgentNamespacesIntegrationAndInsights(t *testing.T) {
 	tests := []struct {
 		args []string
 		want string
 	}{
 		{args: []string{"integrate", "--help"}, want: "openknowledge agent integrate"},
-		{args: []string{"suggestions", "--help"}, want: "openknowledge agent suggestions"},
+		{args: []string{"insights", "--help"}, want: "openknowledge agent insights"},
 	}
 	for _, test := range tests {
 		stdout, stderr, code := captureMainOutput(t, func() int { return runAgent(test.args) })
@@ -27,15 +27,19 @@ func TestAgentNamespacesIntegrationAndSuggestions(t *testing.T) {
 			t.Fatalf("runAgent(%v) code=%d stdout=%q stderr=%q", test.args, code, stdout, stderr)
 		}
 	}
-	for _, removedRoot := range []string{"integrate", "suggestions"} {
+	for _, removedRoot := range []string{"integrate", "insights", "suggestions"} {
 		_, stderr, code := captureMainOutput(t, func() int { return dispatchCLI([]string{removedRoot, "--help"}) })
 		if code != 2 || !strings.Contains(stderr, "unknown command: "+removedRoot) {
 			t.Fatalf("expected removed top-level %s to be unknown, code=%d stderr=%q", removedRoot, code, stderr)
 		}
 	}
+	_, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"suggestions", "--help"}) })
+	if code != 2 || !strings.Contains(stderr, "use openknowledge agent insights") {
+		t.Fatalf("expected legacy agent suggestions to fail, code=%d stderr=%q", code, stderr)
+	}
 }
 
-func TestAgentSuggestionsDiscoversIntegratedKnowledgeBase(t *testing.T) {
+func TestAgentInsightsDiscoversIntegratedKnowledgeBase(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
 	wiki := filepath.Join(repo, "Knowledge")
@@ -54,8 +58,8 @@ func TestAgentSuggestionsDiscoversIntegratedKnowledgeBase(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chdir(originalDirectory) })
 
-	stdout, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"suggestions"}) })
-	if code != 0 || stderr != "" || !strings.Contains(stdout, "No pending suggestions.") {
+	stdout, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"insights"}) })
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "No pending insights.") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }

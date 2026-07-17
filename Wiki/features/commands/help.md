@@ -114,7 +114,7 @@ top-level `new` name is not retained as an alias.
 ### 2026-07-17 - Workflow-oriented root help
 
 Root help now presents the CLI through four product workflows instead of an
-exhaustive flat usage matrix. Project integration and suggestion review are
+exhaustive flat usage matrix. Project integration and insight execution are
 nested under `openknowledge agent` without duplicate top-level forms.
 
 ### 2026-07-17

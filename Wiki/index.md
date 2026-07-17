@@ -37,8 +37,8 @@ custom theme.
   isolation.
 * [agent integrate](features/commands/integrate.md) - install discovery-only global
   skills or repository-scoped skills and observation hooks.
-* [agent suggestions](features/commands/suggestions.md) - list, apply, dismiss, and
-  reconcile private Markdown session insights.
+* [agent insights](features/commands/insights.md) - capture, review, dismiss, and
+  execute private evidence-backed knowledge observations.
 * [jobs](features/commands/jobs.md) - validate, schedule, run, observe, and
   control declarative jobs in isolated worktrees.
 

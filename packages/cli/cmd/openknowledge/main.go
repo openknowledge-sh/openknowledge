@@ -192,7 +192,7 @@ func cliErrorCommand(args []string) string {
 	}
 	root := args[0]
 	nested := map[string]map[string]bool{
-		"agent":    {"exec": true, "integrate": true, "suggestions": true},
+		"agent":    {"exec": true, "integrate": true, "insights": true},
 		"jobs":     {"new": true, "list": true, "status": true, "runs": true, "start": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
 		"deploy":   {"railway": true},
 		"runtime":  {"plan": true, "build": true, "serve": true, "worker": true},
@@ -4801,7 +4801,7 @@ Start with a workflow above, then run openknowledge <command> --help.
 
 Common flows:
   openknowledge setup Wiki --from .
-  openknowledge agent suggestions
+  openknowledge agent insights
   openknowledge validate Wiki
   openknowledge search Wiki "deployment model"
   openknowledge view Wiki

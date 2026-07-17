@@ -36,43 +36,44 @@ that were updated.
 
 * Reorganized root help around four product workflows instead of listing every
   flag combination as a peer concept.
-* Nested project integration and the suggestion inbox under
+* Nested project integration and the insight inbox under
   `openknowledge agent`; no duplicate top-level forms were retained for this
   previously unreleased feature.
-* Made `agent suggestions` discover the connected knowledge base by default,
+* Made `agent insights` discover the connected knowledge base by default,
   and collapsed Job boundary checks plus normal OKF validation into the single
-  portable `agent suggestions verify` command.
+  portable `agent insights verify` command.
 * Recorded the product interface direction that the subsequent command-surface
   consolidation implements.
 * Source anchors: `packages/cli/cmd/openknowledge/{main,agent_command}.go` and
   `Wiki/decisions/product-interface.md`.
-* Docs updated: `README.md`, `Wiki/features/commands/{agent,help,integrate,suggestions}.md`,
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,help,integrate,insights}.md`,
   `Wiki/decisions/{index,product-interface}.md`, and `Wiki/changelog/cli.md`.
 
-### 2026-07-17 - Project integrations and Markdown suggestions
+### 2026-07-17 - Project integrations and Markdown insights
 
 * Added `openknowledge agent integrate --global` for discovery-only Codex,
   Claude Code, and OpenCode skills, plus `openknowledge agent integrate <wiki>` for an
   explicit repository config, project skills, and idempotently merged project
   observation hooks.
 * Added a shared bounded observer that writes atomic, uncommitted, deduplicated
-  `Wiki/suggestions/*.md` files with semantic intent, evidence, declared
-  targets, base commit, unified diff, and mandatory `okf_publish: false`. It
+  `Wiki/insights/*.md` files with a sanitized outcome, evidence, likely targets,
+  and mandatory `okf_publish: false`, but no patch or base commit. It
   analyzes available session messages and tool/error/retry/validation events
   while persisting only sanitized outcomes and aggregate evidence, never the
   raw transcript.
-* Added oldest-first `openknowledge agent suggestions`, atomic `apply` and `dismiss`,
-  strict suggestion validation/publication exclusion, and target-bound Job
-  verification.
-* Added `openknowledge jobs new suggestions`, an ordinary current-schema Job
-  template that processes at most five pending suggestions every 24 hours and
+* Added oldest-first `openknowledge agent insights`, direct and isolated local
+  `run`, batch `run --all`, and `dismiss`. Successful runs require a local agent,
+  knowledge-boundary checks, normal OKF validation, and leave an uncommitted
+  Git diff; failures leave insights pending.
+* Added `openknowledge jobs new insights`, an ordinary current-schema Job
+  template that processes at most five pending insights every 24 hours and
   reuses the existing worktree, verification, commit, bundle, and draft-PR
   lifecycle without a new worker role or reconciler schema.
-* Source anchors: `packages/cli/cmd/openknowledge/{integrate_command,suggestions_command}.go`,
-  `packages/cli/internal/{integration,suggestions}/`,
+* Source anchors: `packages/cli/cmd/openknowledge/{integrate_command,insights_command}.go`,
+  `packages/cli/internal/{integration,insights}/`,
   `packages/cli/internal/agents/templates.go`, and
   `packages/cli/internal/okf/validation_rules.go`.
-* Docs updated: `README.md`, `Wiki/features/commands/{agent,help,index,integrate,jobs,suggestions}.md`,
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,help,index,integrate,insights,jobs}.md`,
   `Wiki/index.md`, and `Wiki/changelog/cli.md`.
 
 ### 2026-07-17 - Steered multi-harness agent runtime

@@ -51,19 +51,18 @@ user does not adopt agents or the hosted runtime.
 
 ## Shipped Shape
 
-Project integration and the suggestion inbox belong to the agent-maintenance
+Project integration and the insight inbox belong to the agent-maintenance
 workflow:
 
 ```sh
 openknowledge agent integrate Wiki
-openknowledge agent suggestions
-openknowledge agent suggestions apply Wiki/suggestions/<file>.md
+openknowledge agent insights
+openknowledge agent insights run <insight>
 ```
 
-There are no parallel top-level `integrate` or `suggestions` forms because the
-feature has not shipped yet. `jobs` remains top-level because it is the
-declarative automation and scheduling primitive, not a mode of one interactive
-session.
+There are no parallel top-level `integrate` or `insights` forms. `jobs` remains
+top-level because it is the declarative automation and scheduling primitive,
+not a mode of one interactive session.
 
 Root help groups every command under the four workflows and places portable
 prompt generators and low-level scaffolding in an advanced section.
@@ -96,11 +95,11 @@ The primary activation flow should fit in one explanation:
 
 ```text
 Create or connect an OKF knowledge base, use it locally or as a service, let
-agents capture evidence-backed suggestions, and merge validated maintenance
-through normal Git review.
+agents capture evidence-backed insights, and turn them into validated local
+diffs or reviewed changes through normal Git review.
 ```
 
-The suggestion loop should be measured by accepted useful suggestions, not by
+The insight loop should be measured by accepted useful insights, not by
 the number of observations created. Runtime breadth should be judged by whether
 it makes that same knowledge lifecycle safely operable, not as a separate
 feature-count goal.

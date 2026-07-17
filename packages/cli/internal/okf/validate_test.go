@@ -71,25 +71,25 @@ func TestValidateConceptRequiresType(t *testing.T) {
 	}
 }
 
-func TestValidateSuggestionRequiresPrivateContract(t *testing.T) {
+func TestValidateInsightRequiresPrivateContract(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "suggestions/unsafe.md", "---\ntype: Open Knowledge Suggestion\ntitle: Unsafe\nstatus: pending\nokf_publish: true\n---\n\n# Unsafe\n")
+	writeFile(t, root, "insights/unsafe.md", "---\ntype: Open Knowledge Insight\ntitle: Unsafe\nstatus: pending\nokf_publish: true\n---\n\n# Unsafe\n")
 
 	result, err := Validate(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(result.Errors) == 0 {
-		t.Fatal("expected unsafe suggestion to fail validation")
+		t.Fatal("expected unsafe insight to fail validation")
 	}
 	found := false
 	for _, issue := range result.Errors {
-		if issue.Rule == "suggestion-contract" && strings.Contains(issue.Message, "okf_publish: false") {
+		if issue.Rule == "insight-contract" && strings.Contains(issue.Message, "okf_publish: false") {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("missing suggestion contract error: %#v", result.Errors)
+		t.Fatalf("missing insight contract error: %#v", result.Errors)
 	}
 }
 

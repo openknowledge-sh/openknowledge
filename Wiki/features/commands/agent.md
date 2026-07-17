@@ -18,7 +18,7 @@ Git publication to the surrounding runtime.
 When the repository has been connected with
 [`openknowledge agent integrate`](integrate.md), the native project hooks also observe
 sessions launched through this proxy. The proxy does not have a separate
-suggestion implementation; direct Codex, Claude Code, OpenCode, and
+insight implementation; direct Codex, Claude Code, OpenCode, and
 `openknowledge agent` sessions all feed the same project observer.
 
 Unlike declarative [`jobs`](jobs.md), local sessions need no Markdown job,
@@ -35,7 +35,8 @@ openknowledge agent --runtime opencode --model provider/model
 openknowledge agent exec "Update the whitepaper"
 openknowledge agent exec --runtime claude "Repair citations"
 openknowledge agent integrate Wiki
-openknowledge agent suggestions
+openknowledge agent insights
+openknowledge agent insights run <insight>
 openknowledge agent doctor
 openknowledge agent doctor --runtime opencode --json
 openknowledge agent exec --isolate "Update the wiki"
@@ -49,7 +50,7 @@ openknowledge agent exec --isolate "Update the wiki"
 | `exec <prompt>` | required | Runs one non-interactive task and returns the harness exit status. |
 | `doctor` | all runtimes | Probes harness executables without starting a model session. An explicit unavailable `--runtime` exits nonzero. |
 | `integrate <wiki>` | - | Installs project-scoped discovery skills and observation hooks. `--global` installs discovery-only user skills. |
-| `suggestions [wiki]` | `Wiki` | Lists the private maintenance inbox; nested `apply` and `dismiss` manage individual suggestions. |
+| `insights [wiki]` | integrated wiki | Lists the private maintenance inbox; `run`, `run --all`, and `dismiss` process it locally. |
 | `--runtime` | `codex` | Selects `codex`, `claude`, `grok`, or `opencode`. |
 | `--model` | harness default | Passes a harness-specific model override. |
 | `--path` | current directory | Selects the editable workspace. |
@@ -105,6 +106,12 @@ or opens a pull request for this human-facing mode.
 
 ## Command Change History
 
+### 2026-07-17 - Local insight execution
+
+Added the evidence-only `insights` inbox with direct and isolated `run`, batch
+`run --all`, and `dismiss`. Removed the unreleased patch-bearing `suggestions`
+surface without a compatibility alias.
+
 ### 2026-07-17 - Multi-harness Open Knowledge agent
 
 Added Codex, Claude Code, Grok Build, and OpenCode adapters; the default versioned steering
@@ -115,12 +122,12 @@ canonical [`openknowledge setup`](setup.md) command.
 ### 2026-07-17 - Project observation integration
 
 Documented that project-scoped hooks installed by `openknowledge agent integrate`
-observe proxy and directly launched harness sessions through one suggestion
+observe proxy and directly launched harness sessions through one insight
 format.
 
 ### 2026-07-17 - Unified agent-maintenance namespace
 
-Grouped project integration and the private suggestion inbox under the existing
+Grouped project integration and the private insight inbox under the existing
 `agent` command.
 
 ### 2026-07-17 - Initial human-facing command

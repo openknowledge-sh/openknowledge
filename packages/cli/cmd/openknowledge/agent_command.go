@@ -16,18 +16,19 @@ import (
 )
 
 type agentCLIOptions struct {
-	operation   string
-	isolate     bool
-	path        string
-	model       string
-	prompt      string
-	runtime     string
-	runtimeSet  bool
-	noSteer     bool
-	rules       string
-	json        bool
-	from        fromOptions
-	setupTarget string
+	operation    string
+	isolate      bool
+	path         string
+	model        string
+	prompt       string
+	runtime      string
+	runtimeSet   bool
+	noSteer      bool
+	rules        string
+	json         bool
+	from         fromOptions
+	setupTarget  string
+	modeOverride string
 }
 
 type agentDoctorEntry struct {
@@ -52,8 +53,11 @@ func runAgent(args []string) int {
 		switch args[0] {
 		case "integrate":
 			return runIntegrate(args[1:])
+		case "insights":
+			return runInsights(args[1:])
 		case "suggestions":
-			return runSuggestions(args[1:])
+			fmt.Fprintln(os.Stderr, "agent suggestions was removed; use openknowledge agent insights")
+			return 2
 		}
 	}
 	if hasHelpFlag(args) {
@@ -97,6 +101,9 @@ func runAgentWithOptions(options agentCLIOptions) int {
 	}
 	if options.isolate {
 		mode = "isolated"
+	}
+	if options.modeOverride != "" {
+		mode = options.modeOverride
 	}
 	if !options.noSteer {
 		task = agents.SteeredAgentPrompt(task, mode)
@@ -305,9 +312,10 @@ Usage:
   openknowledge agent exec "<prompt>"
   openknowledge agent integrate <wiki>
   openknowledge agent integrate --global
-  openknowledge agent suggestions [wiki]
-  openknowledge agent suggestions apply <suggestion.md>
-  openknowledge agent suggestions dismiss <suggestion.md>
+  openknowledge agent insights [wiki]
+  openknowledge agent insights run <insight>
+  openknowledge agent insights run --all [--isolate]
+  openknowledge agent insights dismiss <insight>
   openknowledge agent doctor [--runtime <runtime>] [--json]
 
 Flags:
@@ -322,7 +330,7 @@ Executable overrides:
   OPENKNOWLEDGE_OPENCODE
 
 Integration installs native harness discovery and project observation. The
-suggestions command reviews the private knowledge-maintenance inbox.
+insights command reviews and executes the private knowledge-maintenance inbox.
 
 Run openknowledge agent exec --help for non-interactive usage.
 `

@@ -29,7 +29,7 @@ openknowledge jobs new --list
 openknowledge jobs new --reference
 openknowledge jobs new docs-audit
 openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md
-openknowledge jobs new suggestions --out .openknowledge/jobs/suggestions.md
+openknowledge jobs new insights --out .openknowledge/jobs/insights.md
 openknowledge jobs list [path]
 openknowledge jobs list [path] --json
 openknowledge jobs status [jobs-dir]
@@ -194,14 +194,14 @@ Built-in templates:
 | `docs-audit` | Audit README and Wiki command docs against CLI behavior, then run tests and wiki validation. |
 | `wiki-health` | Periodically run OKF validation and fix broken links or malformed docs. |
 | `release-check` | Manually check tests, docs, changelog memory, and wiki validation before a release. |
-| `suggestions` | Apply up to five pending private Markdown suggestions through the existing worktree, verification, commit, and draft-PR lifecycle. |
+| `insights` | Research and resolve up to five pending private Markdown insights through the existing worktree, verification, commit, and draft-PR lifecycle. |
 | `custom` | Blank starting point for a project-specific scheduled agent. |
 
-The `suggestions` template is deliberately not a new runtime role. It uses the
+The `insights` template is deliberately not a new runtime role. It uses the
 same Job schema and runner as every other template. Its prompt owns oldest-first
-batching and semantic fallback for stale patches; `suggestions verify` enforces
+batching and fresh evidence checks; `insights verify` enforces
 the Wiki/target boundary before normal OKF validation. See
-[`openknowledge agent suggestions`](suggestions.md).
+[`openknowledge agent insights`](insights.md).
 
 Use `openknowledge jobs new --reference` to print the supported job schema,
 template variables, run lifecycle, and output artifact layout without creating
@@ -490,6 +490,12 @@ platform: Unix cancellation starts with `SIGTERM`, while Windows uses the
 available tree-termination facility. `kill` is intentionally forceful.
 
 ## Command Change History
+
+### 2026-07-17 - Insight maintenance template
+
+Replaced the unreleased patch-applying `suggestions` template with `insights`.
+The new template researches evidence-only observations, marks successful items
+resolved, and reuses normal isolated verification, commit, and draft-PR output.
 
 ### 2026-07-17 - Harness runtime schema
 

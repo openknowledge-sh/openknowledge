@@ -41,7 +41,7 @@ func TestInstallProjectWritesConfigSkillsAndMergesHooksIdempotently(t *testing.T
 	if err := os.MkdirAll(wiki, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	existing := []byte("{\n  \"hooks\": {\n    \"Stop\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"existing\"}]}]\n  }\n}\n")
+	existing := []byte("{\n  \"hooks\": {\n    \"Stop\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"existing\"}]}, {\"hooks\": [{\"type\": \"command\", \"command\": \"openknowledge agent suggestions observe --runtime codex\"}]}]\n  }\n}\n")
 	if err := os.MkdirAll(filepath.Join(repo, ".codex"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestInstallProjectWritesConfigSkillsAndMergesHooksIdempotently(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.KnowledgeBase != "Wiki" || config.Suggestions != "Wiki/suggestions" {
+	if config.KnowledgeBase != "Wiki" || config.Insights != "Wiki/insights" {
 		t.Fatalf("config = %#v", config)
 	}
 	for _, path := range []string{".agents/skills/openknowledge/SKILL.md", ".claude/skills/openknowledge/SKILL.md", ".opencode/plugins/openknowledge-observer.js"} {
@@ -81,14 +81,17 @@ func TestInstallProjectWritesConfigSkillsAndMergesHooksIdempotently(t *testing.T
 		t.Fatal(err)
 	}
 	text := string(content)
-	if strings.Count(text, "openknowledge agent suggestions observe --runtime codex") != 1 || !strings.Contains(text, "existing") {
+	if strings.Count(text, "openknowledge agent insights observe --runtime codex") != 1 || !strings.Contains(text, "existing") {
 		t.Fatalf("unexpected hooks:\n%s", text)
+	}
+	if strings.Contains(text, "agent suggestions") {
+		t.Fatalf("legacy suggestions hook was not migrated:\n%s", text)
 	}
 	claudeSettings, err := os.ReadFile(filepath.Join(repo, ".claude", "settings.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(string(claudeSettings), "openknowledge agent suggestions observe --runtime claude") != 1 || !strings.Contains(string(claudeSettings), `"async": true`) {
+	if strings.Count(string(claudeSettings), "openknowledge agent insights observe --runtime claude") != 1 || !strings.Contains(string(claudeSettings), `"async": true`) {
 		t.Fatalf("unexpected Claude hooks:\n%s", claudeSettings)
 	}
 }

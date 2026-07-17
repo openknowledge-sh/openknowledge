@@ -1,11 +1,10 @@
-package suggestions
+package insights
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,25 +27,23 @@ const (
 )
 
 var (
-	diffBlockPattern = regexp.MustCompile("(?s)```diff[\\t ]*\\n(.*?)\\n```")
 	statusPattern    = regexp.MustCompile(`(?m)^status:[\t ]*([^\r\n#]+)[\t ]*$`)
 	unsafeSecret     = regexp.MustCompile(`(?i)(api[_-]?key|token|authorization|password|secret)["' ]*[:=]["' ]*(?:bearer[ ]+)?[^,\s"']+`)
 	credentialToken  = regexp.MustCompile(`\b(?:sk|xai|ghp|github_pat)-[A-Za-z0-9_-]{10,}\b`)
 	knownSecretToken = regexp.MustCompile(`(?i)\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|\bAIza[A-Za-z0-9_-]{20,}\b|\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b`)
 )
 
-type Suggestion struct {
+type Insight struct {
 	Path        string
 	Title       string
 	Description string
 	Status      string
 	ID          string
+	Kind        string
 	Runtime     string
 	CreatedAt   time.Time
-	Base        string
 	Targets     []string
 	Body        string
-	Patch       string
 }
 
 type Observation struct {
@@ -56,7 +53,6 @@ type Observation struct {
 	Payload      []byte
 	ChangedPaths []string
 	Trace        TraceStats
-	PatchOmitted bool
 	Now          time.Time
 }
 
@@ -70,55 +66,58 @@ type TraceStats struct {
 	Validations       int
 }
 
-func Parse(path string) (Suggestion, error) {
+func Parse(path string) (Insight, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return Suggestion{}, err
+		return Insight{}, err
 	}
 	return ParseContent(path, content)
 }
 
-func ParseContent(path string, content []byte) (Suggestion, error) {
+func ParseContent(path string, content []byte) (Insight, error) {
 	document, err := okf.ParseFrontmatterDocument(content)
 	if err != nil {
-		return Suggestion{}, err
+		return Insight{}, err
 	}
 	if !document.Has {
-		return Suggestion{}, fmt.Errorf("suggestion is missing frontmatter")
+		return Insight{}, fmt.Errorf("insight is missing frontmatter")
 	}
 	get := func(key string) string { return strings.TrimSpace(document.Values[key]) }
-	suggestion := Suggestion{
+	insight := Insight{
 		Path: path, Title: get("title"), Description: get("description"), Status: strings.ToLower(get("status")),
-		ID: get("okf_suggestion_id"), Runtime: get("okf_suggestion_runtime"), Base: get("okf_suggestion_base"), Body: document.Body,
+		ID: get("okf_insight_id"), Kind: get("okf_insight_kind"), Runtime: get("okf_insight_runtime"), Body: document.Body,
 	}
-	if get("type") != "Open Knowledge Suggestion" {
-		return Suggestion{}, fmt.Errorf("type must be Open Knowledge Suggestion")
+	if get("type") != "Open Knowledge Insight" {
+		return Insight{}, fmt.Errorf("type must be Open Knowledge Insight")
 	}
 	if published, ok := document.Data["okf_publish"].(bool); !ok || published {
-		return Suggestion{}, fmt.Errorf("okf_publish must be false")
+		return Insight{}, fmt.Errorf("okf_publish must be false")
 	}
-	if suggestion.Title == "" || suggestion.ID == "" || suggestion.Base == "" {
-		return Suggestion{}, fmt.Errorf("title, okf_suggestion_id, and okf_suggestion_base are required")
+	if insight.Title == "" || insight.ID == "" || insight.Kind == "" || insight.Runtime == "" {
+		return Insight{}, fmt.Errorf("title, okf_insight_id, okf_insight_kind, and okf_insight_runtime are required")
 	}
-	if !validStatus(suggestion.Status) {
-		return Suggestion{}, fmt.Errorf("unsupported suggestion status %q", suggestion.Status)
+	if !validStatus(insight.Status) {
+		return Insight{}, fmt.Errorf("unsupported insight status %q", insight.Status)
 	}
-	created := get("okf_suggestion_created_at")
+	created := get("okf_insight_created_at")
 	if created == "" {
-		return Suggestion{}, fmt.Errorf("okf_suggestion_created_at is required")
+		return Insight{}, fmt.Errorf("okf_insight_created_at is required")
 	}
-	suggestion.CreatedAt, err = time.Parse(time.RFC3339, created)
+	insight.CreatedAt, err = time.Parse(time.RFC3339, created)
 	if err != nil {
-		return Suggestion{}, fmt.Errorf("invalid okf_suggestion_created_at: %w", err)
+		return Insight{}, fmt.Errorf("invalid okf_insight_created_at: %w", err)
 	}
-	suggestion.Targets, err = stringList(document.Data["okf_suggestion_targets"])
-	if err != nil || len(suggestion.Targets) == 0 {
-		return Suggestion{}, fmt.Errorf("okf_suggestion_targets must be a non-empty string list")
+	insight.Targets, err = stringList(document.Data["okf_insight_targets"])
+	if err != nil || len(insight.Targets) == 0 {
+		return Insight{}, fmt.Errorf("okf_insight_targets must be a non-empty string list")
 	}
-	if match := diffBlockPattern.FindStringSubmatch(document.Body); len(match) == 2 {
-		suggestion.Patch = strings.TrimSpace(match[1]) + "\n"
+	for _, target := range insight.Targets {
+		clean := filepath.ToSlash(filepath.Clean(target))
+		if filepath.IsAbs(target) || clean == ".." || strings.HasPrefix(clean, "../") {
+			return Insight{}, fmt.Errorf("insight targets must be knowledge-base-relative paths")
+		}
 	}
-	return suggestion, nil
+	return insight, nil
 }
 
 func VerifyRun(wiki string) error {
@@ -134,7 +133,7 @@ func VerifyRun(wiki string) error {
 	allowed := map[string]bool{}
 	allowAll := false
 	for _, path := range changed {
-		if path != wikiPath+"/suggestions" && !strings.HasPrefix(path, wikiPath+"/suggestions/") {
+		if path != wikiPath+"/insights" && !strings.HasPrefix(path, wikiPath+"/insights/") {
 			continue
 		}
 		current, err := Parse(filepath.Join(repo, filepath.FromSlash(path)))
@@ -152,7 +151,7 @@ func VerifyRun(wiki string) error {
 		if err != nil {
 			return fmt.Errorf("verify previous %s: %w", path, err)
 		}
-		if previous.Status != "pending" || current.Status != "applied" {
+		if previous.Status != "pending" || current.Status != "resolved" {
 			continue
 		}
 		for _, target := range current.Targets {
@@ -165,14 +164,14 @@ func VerifyRun(wiki string) error {
 		}
 	}
 	for _, path := range changed {
-		if path == wikiPath+"/suggestions" || strings.HasPrefix(path, wikiPath+"/suggestions/") {
+		if path == wikiPath+"/insights" || strings.HasPrefix(path, wikiPath+"/insights/") {
 			continue
 		}
 		if !strings.HasPrefix(path, wikiPath+"/") {
-			return fmt.Errorf("suggestion job changed file outside knowledge base: %s", path)
+			return fmt.Errorf("insight job changed file outside knowledge base: %s", path)
 		}
 		if !allowAll && !allowed[path] {
-			return fmt.Errorf("suggestion job changed undeclared target: %s", path)
+			return fmt.Errorf("insight job changed undeclared target: %s", path)
 		}
 		if _, err := gitShow(repo, "HEAD:"+path); err != nil && (strings.HasSuffix(strings.ToLower(path), ".md") || strings.HasSuffix(strings.ToLower(path), ".markdown")) {
 			content, readErr := os.ReadFile(filepath.Join(repo, filepath.FromSlash(path)))
@@ -192,19 +191,19 @@ func VerifyRun(wiki string) error {
 	return nil
 }
 
-func Pending(wiki string) ([]Suggestion, error) {
+func Pending(wiki string) ([]Insight, error) {
 	directory := wiki
-	if filepath.Base(filepath.Clean(directory)) != "suggestions" {
-		directory = filepath.Join(directory, "suggestions")
+	if filepath.Base(filepath.Clean(directory)) != "insights" {
+		directory = filepath.Join(directory, "insights")
 	}
 	entries, err := os.ReadDir(directory)
 	if os.IsNotExist(err) {
-		return []Suggestion{}, nil
+		return []Insight{}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	items := make([]Suggestion, 0)
+	items := make([]Insight, 0)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".md") {
 			continue
@@ -226,46 +225,49 @@ func Pending(wiki string) ([]Suggestion, error) {
 	return items, nil
 }
 
-func Apply(path string) error {
-	suggestion, err := Parse(path)
-	if err != nil {
-		return err
-	}
-	if suggestion.Status != "pending" {
-		return fmt.Errorf("suggestion status is %s, expected pending", suggestion.Status)
-	}
-	if strings.TrimSpace(suggestion.Patch) == "" {
-		return fmt.Errorf("suggestion has no unified diff to apply")
-	}
-	repo, config, err := integration.FindRepository(path)
-	if err != nil {
-		return err
-	}
-	if err := validatePatchTargets(suggestion.Patch, repo, config.KnowledgeBase, suggestion.Targets); err != nil {
-		return err
-	}
-	if err := gitApply(repo, suggestion.Patch, true, false); err != nil {
-		return fmt.Errorf("patch does not apply cleanly: %w", err)
-	}
-	if err := gitApply(repo, suggestion.Patch, false, false); err != nil {
-		return fmt.Errorf("apply patch: %w", err)
-	}
-	if err := updateStatus(path, "applied"); err != nil {
-		rollbackErr := gitApply(repo, suggestion.Patch, false, true)
-		return errors.Join(fmt.Errorf("update suggestion status: %w", err), rollbackErr)
-	}
-	return nil
-}
-
 func Dismiss(path string) error {
-	suggestion, err := Parse(path)
+	insight, err := Parse(path)
 	if err != nil {
 		return err
 	}
-	if suggestion.Status != "pending" {
-		return fmt.Errorf("suggestion status is %s, expected pending", suggestion.Status)
+	if insight.Status != "pending" {
+		return fmt.Errorf("insight status is %s, expected pending", insight.Status)
 	}
 	return updateStatus(path, "dismissed")
+}
+
+func Resolve(path string) error {
+	insight, err := Parse(path)
+	if err != nil {
+		return err
+	}
+	if insight.Status != "pending" {
+		return fmt.Errorf("insight status is %s, expected pending", insight.Status)
+	}
+	return updateStatus(path, "resolved")
+}
+
+func ResolveAll(paths []string) error {
+	for _, path := range paths {
+		insight, err := Parse(path)
+		if err != nil {
+			return err
+		}
+		if insight.Status != "pending" {
+			return fmt.Errorf("insight status is %s, expected pending: %s", insight.Status, path)
+		}
+	}
+	resolved := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if err := updateStatus(path, "resolved"); err != nil {
+			for index := len(resolved) - 1; index >= 0; index-- {
+				_ = updateStatus(resolved[index], "pending")
+			}
+			return err
+		}
+		resolved = append(resolved, path)
+	}
+	return nil
 }
 
 func Observe(directory string, observation Observation) (string, bool, error) {
@@ -300,30 +302,25 @@ func Observe(directory string, observation Observation) (string, bool, error) {
 		observation.Summary = metadata.summary
 	}
 	observation.Trace = metadata.stats
-	base := gitOutput(repo, "rev-parse", "--short=12", "HEAD")
-	if base == "" {
-		return "", false, fmt.Errorf("resolve Git base commit")
-	}
-	exclude := ":(exclude)" + filepath.ToSlash(config.Suggestions) + "/**"
 	changed, err := changedPaths(repo)
 	if err != nil {
 		return "", false, err
 	}
-	if onlySuggestionChanges(changed, filepath.ToSlash(config.Suggestions)) {
+	if onlyInsightChanges(changed, filepath.ToSlash(config.Insights)) {
 		return "", false, nil
 	}
-	observation.ChangedPaths = nonSuggestionPaths(changed, filepath.ToSlash(config.Suggestions))
-	patch, err := workingTreePatch(repo, filepath.ToSlash(config.KnowledgeBase), filepath.ToSlash(config.Suggestions), exclude)
-	if err != nil {
-		return "", false, err
-	}
-	if strings.TrimSpace(patch) == "" && strings.TrimSpace(observation.Summary) == "" {
+	observation.ChangedPaths = nonInsightPaths(changed, filepath.ToSlash(config.Insights))
+	if len(observation.ChangedPaths) == 0 && strings.TrimSpace(observation.Summary) == "" {
 		return "", false, nil
 	}
-	identity := observation.SessionID + "\x00" + observation.Runtime + "\x00" + base + "\x00" + strings.Join(observation.ChangedPaths, "\x00") + "\x00" + patch
+	summary := sanitizeSummary(observation.Summary)
+	if summary == "" {
+		summary = "Review the knowledge impact of the completed agent session."
+	}
+	identity := observation.SessionID + "\x00" + observation.Runtime + "\x00" + strings.Join(observation.ChangedPaths, "\x00") + "\x00" + summary
 	digest := sha256.Sum256([]byte(identity))
 	id := hex.EncodeToString(digest[:])[:12]
-	directoryPath := filepath.Join(repo, filepath.FromSlash(config.Suggestions))
+	directoryPath := filepath.Join(repo, filepath.FromSlash(config.Insights))
 	if err := os.MkdirAll(directoryPath, 0o755); err != nil {
 		return "", false, err
 	}
@@ -338,19 +335,11 @@ func Observe(directory string, observation Observation) (string, bool, error) {
 	} else if !os.IsNotExist(err) {
 		return "", false, err
 	}
-	targets := patchTargets(patch, filepath.ToSlash(config.KnowledgeBase))
+	targets := likelyTargets(observation.ChangedPaths, filepath.ToSlash(config.KnowledgeBase))
 	if len(targets) == 0 {
 		targets = []string{"."}
 	}
-	if containsCredential(patch) {
-		observation.PatchOmitted = true
-		patch = ""
-	}
-	summary := sanitizeSummary(observation.Summary)
-	if summary == "" {
-		summary = "Review the knowledge impact of the completed agent session."
-	}
-	content := render(observation, id, base, targets, summary, patch)
+	content := render(observation, id, targets, summary)
 	if err := writeExclusiveAtomic(path, []byte(content)); err != nil {
 		if os.IsExist(err) {
 			return path, false, nil
@@ -586,22 +575,15 @@ func escapesPath(path string) bool {
 	return path == ".." || strings.HasPrefix(path, ".."+string(filepath.Separator))
 }
 
-func render(observation Observation, id, base string, targets []string, summary, patch string) string {
+func render(observation Observation, id string, targets []string, summary string) string {
 	var builder strings.Builder
 	created := observation.Now.UTC().Format(time.RFC3339)
-	title := "Review knowledge from " + observation.Runtime + " session"
-	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Suggestion\ntitle: %s\ndescription: A project-scoped agent session produced a knowledge maintenance candidate.\nstatus: pending\nokf_publish: false\nokf_suggestion_id: %s\nokf_suggestion_kind: session-observation\nokf_suggestion_runtime: %s\nokf_suggestion_created_at: %s\nokf_suggestion_base: %s\nokf_suggestion_targets:\n", title, id, observation.Runtime, created, base)
+	title := "Knowledge insight from " + observation.Runtime + " session"
+	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: A project-scoped agent session produced a knowledge maintenance insight.\nstatus: pending\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: session-observation\nokf_insight_runtime: %s\nokf_insight_created_at: %s\nokf_insight_targets:\n", title, id, observation.Runtime, created)
 	for _, target := range targets {
 		fmt.Fprintf(&builder, "  - %s\n", strconv.Quote(target))
 	}
-	builder.WriteString("tags: [suggestion, session-observation]\n---\n\n# " + title + "\n\n## Suggested knowledge\n\n" + summary + "\n\n## Evidence\n\n")
-	if strings.TrimSpace(patch) == "" {
-		if observation.PatchOmitted {
-			builder.WriteString("- The proposed patch was omitted because it may contain a credential. Use the semantic outcome and inspect the repository directly.\n")
-		} else {
-			builder.WriteString("- The session completed without a knowledge-base diff. Review its semantic outcome before applying.\n")
-		}
-	}
+	builder.WriteString("tags: [insight, session-observation]\n---\n\n# " + title + "\n\n## Insight\n\n" + summary + "\n\n## Evidence\n\n")
 	for _, path := range observation.ChangedPaths {
 		display := strings.NewReplacer("`", "'", "\r", " ", "\n", " ").Replace(path)
 		builder.WriteString("- Session changed `" + display + "`.\n")
@@ -611,7 +593,6 @@ func render(observation Observation, id, base string, targets []string, summary,
 			observation.Trace.UserMessages, observation.Trace.AssistantMessages, observation.Trace.ToolCalls, observation.Trace.ToolResults,
 			observation.Trace.Errors, observation.Trace.Retries, observation.Trace.Validations)
 	}
-	builder.WriteString("\n## Proposed patch\n\n```diff\n" + strings.TrimRight(patch, "\n") + "\n```\n")
 	return builder.String()
 }
 
@@ -653,79 +634,10 @@ func writeExclusiveAtomic(path string, content []byte) error {
 	return os.Rename(tempPath, path)
 }
 
-func gitApply(repo, patch string, check, reverse bool) error {
-	args := []string{"apply", "--binary", "--whitespace=nowarn"}
-	if check {
-		args = append(args, "--check")
-	}
-	if reverse {
-		args = append(args, "--reverse")
-	}
-	command := exec.Command("git", args...)
-	command.Dir = repo
-	command.Stdin = strings.NewReader(patch)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s", strings.TrimSpace(string(output)))
-	}
-	return nil
-}
-
-func gitOutput(repo string, args ...string) string {
-	command := exec.Command("git", args...)
-	command.Dir = repo
-	output, err := command.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(output))
-}
-
-func workingTreePatch(repo, wikiPath, suggestionsPath, exclude string) (string, error) {
-	command := exec.Command("git", "diff", "--binary", "--no-ext-diff", "HEAD", "--", wikiPath, exclude)
-	command.Dir = repo
-	output, err := command.Output()
-	if err != nil {
-		return "", err
-	}
-	var builder strings.Builder
-	builder.Write(output)
-	paths, err := changedPaths(repo)
-	if err != nil {
-		return "", err
-	}
-	for _, path := range paths {
-		if path == suggestionsPath || strings.HasPrefix(path, suggestionsPath+"/") {
-			continue
-		}
-		if path != wikiPath && !strings.HasPrefix(path, wikiPath+"/") {
-			continue
-		}
-		tracked := exec.Command("git", "ls-files", "--error-unmatch", "--", path)
-		tracked.Dir = repo
-		if tracked.Run() == nil {
-			continue
-		}
-		info, statErr := os.Lstat(filepath.Join(repo, filepath.FromSlash(path)))
-		if statErr != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		diff := exec.Command("git", "diff", "--no-index", "--binary", "--", os.DevNull, path)
-		diff.Dir = repo
-		untracked, diffErr := diff.Output()
-		var exitErr *exec.ExitError
-		if diffErr != nil && (!errors.As(diffErr, &exitErr) || exitErr.ExitCode() != 1) {
-			return "", diffErr
-		}
-		builder.Write(untracked)
-	}
-	return builder.String(), nil
-}
-
-func nonSuggestionPaths(paths []string, suggestionsPath string) []string {
+func nonInsightPaths(paths []string, insightsPath string) []string {
 	result := make([]string, 0, len(paths))
 	for _, path := range paths {
-		if path == suggestionsPath || strings.HasPrefix(path, suggestionsPath+"/") {
+		if path == insightsPath || strings.HasPrefix(path, insightsPath+"/") {
 			continue
 		}
 		result = append(result, path)
@@ -733,48 +645,34 @@ func nonSuggestionPaths(paths []string, suggestionsPath string) []string {
 	return result
 }
 
-func onlySuggestionChanges(paths []string, suggestionsPath string) bool {
+func onlyInsightChanges(paths []string, insightsPath string) bool {
 	if len(paths) == 0 {
 		return false
 	}
 	for _, path := range paths {
-		if path != suggestionsPath && !strings.HasPrefix(path, suggestionsPath+"/") {
+		if path != insightsPath && !strings.HasPrefix(path, insightsPath+"/") {
 			return false
 		}
 	}
 	return true
 }
 
-func patchTargets(patch, wiki string) []string {
+func likelyTargets(paths []string, wiki string) []string {
 	seen := map[string]bool{}
-	var paths []string
-	for _, line := range strings.Split(patch, "\n") {
-		var path string
-		switch {
-		case strings.HasPrefix(line, "+++ b/"):
-			path = strings.TrimPrefix(line, "+++ b/")
-		case strings.HasPrefix(line, "--- a/"):
-			path = strings.TrimPrefix(line, "--- a/")
-		default:
+	result := make([]string, 0, len(paths))
+	prefix := strings.TrimSuffix(wiki, "/") + "/"
+	for _, path := range paths {
+		if !strings.HasPrefix(path, prefix) {
 			continue
 		}
-		if path == "/dev/null" || strings.Contains(path, "../") {
-			continue
-		}
-		if wiki != "" {
-			prefix := strings.TrimSuffix(wiki, "/") + "/"
-			if !strings.HasPrefix(path, prefix) {
-				continue
-			}
-			path = strings.TrimPrefix(path, prefix)
-		}
+		path = strings.TrimPrefix(path, prefix)
 		if !seen[path] {
 			seen[path] = true
-			paths = append(paths, path)
+			result = append(result, path)
 		}
 	}
-	sort.Strings(paths)
-	return paths
+	sort.Strings(result)
+	return result
 }
 
 func changedPaths(repo string) ([]string, error) {
@@ -812,44 +710,115 @@ func changedPaths(repo string) ([]string, error) {
 	return paths, nil
 }
 
+type ChangeGuard struct {
+	repo  string
+	head  string
+	state map[string]string
+}
+
+func CaptureChangeGuard(repo string) (ChangeGuard, error) {
+	head, err := gitHead(repo)
+	if err != nil {
+		return ChangeGuard{}, err
+	}
+	state, err := worktreeState(repo)
+	if err != nil {
+		return ChangeGuard{}, err
+	}
+	return ChangeGuard{repo: repo, head: head, state: state}, nil
+}
+
+func (guard ChangeGuard) ValidateKnowledgeOnly(wiki, insightDirectory string) error {
+	head, err := gitHead(guard.repo)
+	if err != nil {
+		return err
+	}
+	if head != guard.head {
+		return fmt.Errorf("insight agent changed Git HEAD; local insight runs must leave changes uncommitted")
+	}
+	after, err := worktreeState(guard.repo)
+	if err != nil {
+		return err
+	}
+	wiki = strings.TrimSuffix(filepath.ToSlash(filepath.Clean(wiki)), "/")
+	insightDirectory = strings.TrimSuffix(filepath.ToSlash(filepath.Clean(insightDirectory)), "/")
+	paths := map[string]bool{}
+	for path := range guard.state {
+		paths[path] = true
+	}
+	for path := range after {
+		paths[path] = true
+	}
+	for path := range paths {
+		if guard.state[path] == after[path] {
+			continue
+		}
+		if path == insightDirectory || strings.HasPrefix(path, insightDirectory+"/") {
+			return fmt.Errorf("insight agent edited the insight inbox: %s", path)
+		}
+		if path != wiki && !strings.HasPrefix(path, wiki+"/") {
+			return fmt.Errorf("insight agent changed file outside knowledge base: %s", path)
+		}
+	}
+	return nil
+}
+
+func worktreeState(repo string) (map[string]string, error) {
+	paths, err := changedPaths(repo)
+	if err != nil {
+		return nil, err
+	}
+	state := make(map[string]string, len(paths))
+	for _, path := range paths {
+		fingerprint, err := fileFingerprint(filepath.Join(repo, filepath.FromSlash(path)))
+		if err != nil {
+			return nil, err
+		}
+		state[path] = fingerprint
+	}
+	return state, nil
+}
+
+func fileFingerprint(path string) (string, error) {
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return "missing", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(path)
+		if err != nil {
+			return "", err
+		}
+		return "symlink:" + target, nil
+	}
+	if !info.Mode().IsRegular() {
+		return "mode:" + info.Mode().String(), nil
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256(content)
+	return hex.EncodeToString(digest[:]), nil
+}
+
+func gitHead(repo string) (string, error) {
+	command := exec.Command("git", "rev-parse", "HEAD")
+	command.Dir = repo
+	output, err := command.Output()
+	if err != nil {
+		return "", fmt.Errorf("resolve Git HEAD: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 func gitShow(repo, object string) ([]byte, error) {
 	command := exec.Command("git", "show", object)
 	command.Dir = repo
 	return command.Output()
-}
-
-func validatePatchTargets(patch, repo, wiki string, targets []string) error {
-	paths := patchTargets(patch, "")
-	if len(paths) == 0 {
-		return fmt.Errorf("unified diff has no target files")
-	}
-	wiki = strings.TrimSuffix(filepath.ToSlash(wiki), "/")
-	allowed := map[string]bool{}
-	allowAll := false
-	for _, target := range targets {
-		clean := filepath.ToSlash(filepath.Clean(target))
-		if clean == "." {
-			allowAll = true
-			continue
-		}
-		if filepath.IsAbs(target) || clean == ".." || strings.HasPrefix(clean, "../") {
-			return fmt.Errorf("target escapes knowledge base: %s", target)
-		}
-		allowed[wiki+"/"+clean] = true
-	}
-	for _, path := range paths {
-		clean := filepath.ToSlash(filepath.Clean(path))
-		if clean == filepath.ToSlash(filepath.Clean(repo)) || !strings.HasPrefix(clean, wiki+"/") {
-			return fmt.Errorf("patch changes file outside knowledge base: %s", path)
-		}
-		if strings.HasPrefix(clean, wiki+"/suggestions/") {
-			return fmt.Errorf("patch must not edit suggestion files: %s", path)
-		}
-		if !allowAll && !allowed[clean] {
-			return fmt.Errorf("patch changes undeclared target: %s", path)
-		}
-	}
-	return nil
 }
 
 func sanitizeSummary(value string) string {
@@ -861,10 +830,6 @@ func sanitizeSummary(value string) string {
 		value = value[:600] + "…"
 	}
 	return value
-}
-
-func containsCredential(value string) bool {
-	return unsafeSecret.MatchString(value) || credentialToken.MatchString(value) || knownSecretToken.MatchString(value)
 }
 
 func stringList(value any) ([]string, error) {
@@ -885,7 +850,7 @@ func stringList(value any) ([]string, error) {
 
 func validStatus(status string) bool {
 	switch status {
-	case "pending", "applied", "dismissed", "blocked":
+	case "pending", "resolved", "dismissed", "blocked":
 		return true
 	}
 	return false
