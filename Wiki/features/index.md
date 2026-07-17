@@ -14,6 +14,8 @@ update the smallest relevant page.
 * [Go API](go-api.md) - public read-only package for embedding the same parser, validation, retrieval, and graph core used by the CLI.
 * [Self-hosted runtime](commands/runtime.md) - isolated public serving, private
   worker reconciliation, immutable artifacts, HTTP MCP, and Docker deployment.
+* [Provider deployment](commands/deploy.md) - five-minute Railway provisioning
+  without domain registration or credential co-location.
 * [Commands](commands/) - command-by-command reference pages.
 * [Exporters](exporters/) - shipped bundle conversion targets.
 

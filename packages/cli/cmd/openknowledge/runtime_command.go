@@ -153,6 +153,9 @@ func buildRuntimeKnowledgeGeneration(config okruntime.Config, knowledge okruntim
 	if !knowledge.Publish {
 		return runtimeBuildResult{}, fmt.Errorf("knowledge base is configured with publish = false")
 	}
+	if publish && config.ArtifactStore.Type != "filesystem" {
+		return runtimeBuildResult{}, fmt.Errorf("runtime build can promote only to a filesystem artifact store")
+	}
 	absoluteOut, err := okf.WriteDirectoryAtomically(out, func(staging string) error {
 		public := filepath.Join(staging, "public")
 		if _, err := writeViewerHTMLWithVersion(knowledge.Path, public, knowledge.Spec); err != nil {

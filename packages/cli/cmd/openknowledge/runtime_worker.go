@@ -81,6 +81,13 @@ func runRuntimeWorker(args []string) int {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var publisherAPIErrors <-chan error
+	if config.PublisherAPI.Enabled && (*role == "publisher" || *role == "all") && !*once {
+		publisherAPIErrors, err = startRuntimePublisherAPIServer(ctx, config)
+		if err != nil {
+			return printAgentCommandError(err)
+		}
+	}
 	interval, _ := time.ParseDuration(config.Worker.PollInterval)
 	for {
 		var passErr error
@@ -106,6 +113,12 @@ func runRuntimeWorker(args []string) int {
 		case <-ctx.Done():
 			timer.Stop()
 			return 0
+		case serverErr, ok := <-publisherAPIErrors:
+			timer.Stop()
+			if ok && serverErr != nil {
+				return printAgentCommandError(fmt.Errorf("publisher private API: %w", serverErr))
+			}
+			publisherAPIErrors = nil
 		case <-timer.C:
 		}
 	}
@@ -174,6 +187,11 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 func runtimeAgentWorkerPass(ctx context.Context, config okruntime.Config) error {
 	if !config.Worker.RunAgents {
 		return fmt.Errorf("worker.run_agents must be true for the agents role")
+	}
+	if config.Worker.ExchangeURL != "" {
+		if err := downloadRuntimeSourceBundle(ctx, config); err != nil {
+			return err
+		}
 	}
 	checkout, err := syncRuntimeAgentRepository(ctx, config)
 	if err != nil {
@@ -309,7 +327,7 @@ func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout 
 	}
 	command := exec.CommandContext(ctx, executable, "agents", "daemon", jobs, "--once")
 	command.Dir = checkout
-	environment := runtimeEnvironmentWithout(os.Environ(), config.Worker.GitTokenEnv, config.GitHub.TokenEnv)
+	environment := runtimeEnvironmentWithout(os.Environ(), config.Worker.GitTokenEnv, config.GitHub.TokenEnv, config.Worker.ExchangeTokenEnv)
 	command.Env = runtimeEnvironmentWith(environment, agents.AgentsStateDirEnv, filepath.Join(config.Runtime.StateDir, "agents"))
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
@@ -438,6 +456,12 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 		}
 		target := filepath.Join(runsDir, record.RunID)
 		if _, err := os.Stat(target); err == nil {
+			if config.Worker.ExchangeURL != "" {
+				if err := uploadRuntimeExchangeRun(ctx, config, record.RunID, target); err != nil {
+					failures = append(failures, err)
+					continue
+				}
+			}
 			_ = writePrivateRuntimeJSON(marker, map[string]any{"run_id": record.RunID, "exported": true})
 			continue
 		}
@@ -474,6 +498,12 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 			_ = os.RemoveAll(staging)
 			failures = append(failures, err)
 			continue
+		}
+		if config.Worker.ExchangeURL != "" {
+			if err := uploadRuntimeExchangeRun(ctx, config, record.RunID, target); err != nil {
+				failures = append(failures, err)
+				continue
+			}
 		}
 		_ = writePrivateRuntimeJSON(marker, map[string]any{"run_id": record.RunID, "exported": true})
 		fmt.Fprintf(os.Stderr, "runtime agent worker exported run %s for private publication\n", record.RunID)

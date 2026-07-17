@@ -23,6 +23,7 @@ type Config struct {
 	Root           string                `toml:"-" json:"-"`
 	Runtime        RuntimeConfig         `toml:"runtime" json:"runtime"`
 	ArtifactStore  ArtifactStoreConfig   `toml:"artifact_store" json:"artifact_store"`
+	PublisherAPI   PublisherAPIConfig    `toml:"publisher_api" json:"publisher_api"`
 	Serve          ServeConfig           `toml:"serve" json:"serve"`
 	Worker         WorkerConfig          `toml:"worker" json:"worker"`
 	GitHub         GitHubConfig          `toml:"github" json:"github"`
@@ -34,8 +35,20 @@ type RuntimeConfig struct {
 }
 
 type ArtifactStoreConfig struct {
-	Type string `toml:"type" json:"type"`
-	Path string `toml:"path" json:"path"`
+	Type     string `toml:"type" json:"type"`
+	Path     string `toml:"path" json:"path"`
+	URL      string `toml:"url" json:"url,omitempty"`
+	TokenEnv string `toml:"token_env" json:"token_env,omitempty"`
+}
+
+// PublisherAPIConfig controls the authenticated, private-network transport used
+// when a deployment platform cannot share one filesystem volume between roles.
+// Artifact and exchange credentials are deliberately separate capabilities.
+type PublisherAPIConfig struct {
+	Enabled          bool   `toml:"enabled" json:"enabled"`
+	Address          string `toml:"address" json:"address"`
+	ArtifactTokenEnv string `toml:"artifact_token_env" json:"artifact_token_env,omitempty"`
+	ExchangeTokenEnv string `toml:"exchange_token_env" json:"exchange_token_env,omitempty"`
 }
 
 type ServeConfig struct {
@@ -58,6 +71,8 @@ type WorkerConfig struct {
 	JobsPath         string `toml:"jobs_path" json:"jobs_path"`
 	GitTokenEnv      string `toml:"git_token_env" json:"git_token_env,omitempty"`
 	ExchangeDir      string `toml:"exchange_dir" json:"exchange_dir"`
+	ExchangeURL      string `toml:"exchange_url" json:"exchange_url,omitempty"`
+	ExchangeTokenEnv string `toml:"exchange_token_env" json:"exchange_token_env,omitempty"`
 }
 
 type GitHubConfig struct {
@@ -82,6 +97,34 @@ type KnowledgeBaseConfig struct {
 }
 
 func LoadConfig(file string) (Config, error) {
+	if strings.HasPrefix(file, "env:") {
+		name := strings.TrimSpace(strings.TrimPrefix(file, "env:"))
+		if !validEnvironmentName(name) {
+			return Config{}, fmt.Errorf("invalid runtime configuration environment variable: %s", name)
+		}
+		content, present := os.LookupEnv(name)
+		if !present || strings.TrimSpace(content) == "" {
+			return Config{}, fmt.Errorf("runtime configuration environment variable %s is empty", name)
+		}
+		config, err := ParseConfig([]byte(content))
+		if err != nil {
+			return Config{}, fmt.Errorf("env:%s: %w", name, err)
+		}
+		root := strings.TrimSpace(os.Getenv("OPENKNOWLEDGE_RUNTIME_ROOT"))
+		if root == "" {
+			root = "/workspace"
+		}
+		absoluteRoot, err := filepath.Abs(root)
+		if err != nil {
+			return Config{}, err
+		}
+		config.Path = "env:" + name
+		config.Root = absoluteRoot
+		if err := config.resolvePaths(absoluteRoot); err != nil {
+			return Config{}, fmt.Errorf("env:%s: %w", name, err)
+		}
+		return config, nil
+	}
 	content, err := os.ReadFile(file)
 	if err != nil {
 		return Config{}, err
@@ -117,6 +160,7 @@ func ParseConfig(content []byte) (Config, error) {
 func defaultConfig() Config {
 	return Config{
 		ArtifactStore: ArtifactStoreConfig{Type: "filesystem"},
+		PublisherAPI:  PublisherAPIConfig{Address: "127.0.0.1:8090"},
 		Serve: ServeConfig{
 			Address:        "127.0.0.1:8080",
 			PollInterval:   "5s",
@@ -188,11 +232,35 @@ func (config Config) Validate() error {
 	if strings.TrimSpace(config.Runtime.StateDir) == "" {
 		return fmt.Errorf("runtime.state_dir is required")
 	}
-	if config.ArtifactStore.Type != "filesystem" {
-		return fmt.Errorf("artifact_store.type must be filesystem")
+	if config.ArtifactStore.Type != "filesystem" && config.ArtifactStore.Type != "http" {
+		return fmt.Errorf("artifact_store.type must be filesystem or http")
 	}
 	if strings.TrimSpace(config.ArtifactStore.Path) == "" {
 		return fmt.Errorf("artifact_store.path is required")
+	}
+	if config.ArtifactStore.Type == "http" {
+		if err := validatePrivateRuntimeURL("artifact_store.url", config.ArtifactStore.URL); err != nil {
+			return err
+		}
+		if !validEnvironmentName(config.ArtifactStore.TokenEnv) {
+			return fmt.Errorf("artifact_store.token_env is required for http stores")
+		}
+	} else if config.ArtifactStore.URL != "" || config.ArtifactStore.TokenEnv != "" {
+		return fmt.Errorf("artifact_store.url and token_env require type = http")
+	}
+	if config.PublisherAPI.Enabled {
+		if config.ArtifactStore.Type != "filesystem" {
+			return fmt.Errorf("publisher_api requires a filesystem artifact store")
+		}
+		if _, _, err := net.SplitHostPort(config.PublisherAPI.Address); err != nil {
+			return fmt.Errorf("publisher_api.address must be host:port: %w", err)
+		}
+		if !validEnvironmentName(config.PublisherAPI.ArtifactTokenEnv) || !validEnvironmentName(config.PublisherAPI.ExchangeTokenEnv) {
+			return fmt.Errorf("publisher_api artifact_token_env and exchange_token_env are required")
+		}
+		if config.PublisherAPI.ArtifactTokenEnv == config.PublisherAPI.ExchangeTokenEnv {
+			return fmt.Errorf("publisher_api artifact and exchange token environments must be different")
+		}
 	}
 	if _, _, err := net.SplitHostPort(config.Serve.Address); err != nil {
 		return fmt.Errorf("serve.address must be host:port: %w", err)
@@ -229,6 +297,16 @@ func (config Config) Validate() error {
 	}
 	if err := positiveDuration("worker.poll_interval", config.Worker.PollInterval); err != nil {
 		return err
+	}
+	if config.Worker.ExchangeURL != "" {
+		if err := validatePrivateRuntimeURL("worker.exchange_url", config.Worker.ExchangeURL); err != nil {
+			return err
+		}
+		if !validEnvironmentName(config.Worker.ExchangeTokenEnv) {
+			return fmt.Errorf("worker.exchange_token_env is required with exchange_url")
+		}
+	} else if config.Worker.ExchangeTokenEnv != "" {
+		return fmt.Errorf("worker.exchange_token_env requires exchange_url")
 	}
 	if config.GitHub.Enabled {
 		if !strings.HasPrefix(config.GitHub.APIURL, "https://") && !strings.HasPrefix(config.GitHub.APIURL, "http://127.0.0.1:") {
@@ -331,4 +409,41 @@ func validGitBranch(value string) bool {
 		!strings.Contains(value, "//") && !strings.Contains(value, "@{") &&
 		!strings.Contains(value, "\\") && !strings.ContainsAny(value, " ~^:?*[") &&
 		!strings.ContainsFunc(value, func(character rune) bool { return character < 0x20 || character == 0x7f })
+}
+
+func validEnvironmentName(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index, character := range value {
+		if (character >= 'A' && character <= 'Z') || character == '_' || (index > 0 && character >= '0' && character <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validatePrivateRuntimeURL(field string, value string) error {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || parsed.User != nil {
+		return fmt.Errorf("%s must be an absolute private http(s) URL", field)
+	}
+	if parsed.Path != "" && parsed.Path != "/" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("%s must not contain credentials, path, query, or fragment", field)
+	}
+	if parsed.Scheme == "https" {
+		return nil
+	}
+	if parsed.Scheme != "http" {
+		return fmt.Errorf("%s must use HTTPS or private-network HTTP", field)
+	}
+	host := parsed.Hostname()
+	if host == "localhost" || strings.HasSuffix(host, ".railway.internal") {
+		return nil
+	}
+	if address := net.ParseIP(host); address != nil && (address.IsLoopback() || address.IsPrivate()) {
+		return nil
+	}
+	return fmt.Errorf("%s permits plain HTTP only for loopback, private IPs, or *.railway.internal", field)
 }

@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -32,6 +33,56 @@ mcp = true
 	}
 	if _, err := ParseConfig([]byte("[runtime]\nstate_dir='state'\nunknown=true\n")); err == nil || !strings.Contains(err.Error(), "missing in the target struct") {
 		t.Fatalf("expected unknown field refusal, got %v", err)
+	}
+}
+
+func TestLoadConfigSupportsSecretFreeEnvironmentConfiguration(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("OPENKNOWLEDGE_RUNTIME_ROOT", root)
+	t.Setenv("TEST_RUNTIME_CONFIG", `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "http"
+path = "cache"
+url = "http://publisher.railway.internal:8090"
+token_env = "ARTIFACT_TOKEN"
+[worker]
+exchange_url = "http://publisher.railway.internal:8090"
+exchange_token_env = "EXCHANGE_TOKEN"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`)
+	config, err := LoadConfig("env:TEST_RUNTIME_CONFIG")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Path != "env:TEST_RUNTIME_CONFIG" || config.Root != root {
+		t.Fatalf("unexpected environment config identity: %#v", config)
+	}
+	if config.ArtifactStore.Path != filepath.Join(root, "cache") || config.KnowledgeBases[0].Path != filepath.Join(root, "Wiki") {
+		t.Fatalf("environment config paths were not rooted safely: %#v", config)
+	}
+}
+
+func TestParseConfigRejectsPublicPlainHTTPTransport(t *testing.T) {
+	_, err := ParseConfig([]byte(`
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "http"
+path = "cache"
+url = "http://public.example.com"
+token_env = "TOKEN"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`))
+	if err == nil || !strings.Contains(err.Error(), "plain HTTP") {
+		t.Fatalf("expected public HTTP refusal, got %v", err)
 	}
 }
 

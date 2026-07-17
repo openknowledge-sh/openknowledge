@@ -18,6 +18,8 @@ anchors. Keep this index as the quick map.
   execution, observation, and control.
 * [Runtime](runtime.md) - plan, build, serve, and reconcile self-hosted
   immutable knowledge-base generations.
+* [Deploy](deploy.md) - validate and provision the isolated runtime on Railway
+  with provider-generated, custom, or no-public endpoint modes.
 * [List](list.md) - print bundle inventory with optional JSON output.
 
 ## Connect And Resolve Bundles

@@ -210,3 +210,42 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_DIST_TAG: ${{ needs.verify.outputs.npm_tag }}
         run: npm publish --provenance --access public --tag "$NPM_DIST_TAG"
+
+  runtime_images:
+    needs: [verify, publish_release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+
+      - name: Authenticate GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Publish isolated runtime images
+        shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          NPM_TAG: ${{ needs.verify.outputs.npm_tag }}
+        run: |
+          for role in serve publisher worker; do
+            image="ghcr.io/openknowledge-sh/openknowledge-runtime-$role"
+            tags=(--tag "$image:$VERSION")
+            if [ "$NPM_TAG" = "latest" ]; then
+              tags+=(--tag "$image:latest")
+            fi
+            docker buildx build \
+              --file docker/runtime.Dockerfile \
+              --target "$role" \
+              --build-arg "VERSION=$VERSION" \
+              "${tags[@]}" \
+              --push \
+              .
+          done

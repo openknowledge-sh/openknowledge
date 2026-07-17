@@ -22,6 +22,7 @@ openknowledge <command> --help
 openknowledge <command> -h
 openknowledge agents <subcommand> --help
 openknowledge runtime <subcommand> --help
+openknowledge deploy railway --help
 ```
 
 Command-specific help also accepts `-help`, because the command dispatcher
@@ -72,6 +73,8 @@ Usage:
   openknowledge runtime serve --config runtime.toml
   openknowledge runtime worker --role publisher --config runtime.toml
   openknowledge runtime worker --role agents --config runtime.toml
+  openknowledge deploy railway [path] --dry-run
+  openknowledge deploy railway [path] --yes
   openknowledge new --no-agents --no-setup [folder]
 
 Commands:
@@ -80,6 +83,7 @@ Commands:
   rules      Print agent maintenance rules.
   agents     Experimental: run and manage local agent jobs from Markdown specs.
   runtime    Run isolated public serving and private maintenance roles.
+  deploy     Provision a self-hosted runtime on a supported provider.
 ```
 
 ## Use Cases

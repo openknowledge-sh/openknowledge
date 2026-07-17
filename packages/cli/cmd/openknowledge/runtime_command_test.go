@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,8 +12,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
+
+type runtimeHandlerRoundTripper struct {
+	handler http.Handler
+}
+
+func (transport runtimeHandlerRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	response := httptest.NewRecorder()
+	transport.handler.ServeHTTP(response, request)
+	return response.Result(), nil
+}
 
 func TestRuntimeBuildAndServeUseOnlyVerifiedPublicGeneration(t *testing.T) {
 	root := t.TempDir()
@@ -151,6 +164,131 @@ publish = true
 	after, ok := manager.snapshot("wiki")
 	if !ok || after.Pointer.ContentDigest != before.Pointer.ContentDigest {
 		t.Fatalf("expected last valid snapshot to remain active: %#v", after)
+	}
+}
+
+func TestRuntimePrivateTransportSynchronizesVerifiedGenerationAndSeparatesCapabilities(t *testing.T) {
+	root := t.TempDir()
+	enablePublicArtifactTest(t, filepath.Join(root, "Wiki"))
+	writeViewerFile(t, root, "Wiki/index.md", "# Private transport v1\n")
+	writeViewerFile(t, root, "runtime.toml", `
+[runtime]
+state_dir = "publisher-state"
+[artifact_store]
+type = "filesystem"
+path = "publisher-artifacts"
+[publisher_api]
+enabled = true
+address = "127.0.0.1:8090"
+artifact_token_env = "TEST_ARTIFACT_TOKEN"
+exchange_token_env = "TEST_EXCHANGE_TOKEN"
+[worker]
+exchange_dir = "publisher-exchange"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`)
+	artifactCapability := strings.Repeat("a", 40)
+	exchangeCapability := strings.Repeat("e", 40)
+	t.Setenv("TEST_ARTIFACT_TOKEN", artifactCapability)
+	t.Setenv("TEST_EXCHANGE_TOKEN", exchangeCapability)
+	publisherConfig, err := okruntime.LoadConfig(filepath.Join(root, "runtime.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := buildRuntimeKnowledgeGeneration(publisherConfig, publisherConfig.KnowledgeBases[0], "first", filepath.Join(root, "first"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisherHandler, err := newRuntimePublisherAPIHandler(publisherConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unauthorized := runtimeRequest(t, publisherHandler, http.MethodGet, "/v1/artifacts/wiki/active.json", "", map[string]string{"Authorization": "Bearer " + exchangeCapability})
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("exchange capability read artifact endpoint: %d", unauthorized.Code)
+	}
+	crossScope := runtimeRequest(t, publisherHandler, http.MethodGet, "/v1/exchange/source.bundle", "", map[string]string{"Authorization": "Bearer " + artifactCapability})
+	if crossScope.Code != http.StatusUnauthorized {
+		t.Fatalf("artifact capability read exchange endpoint: %d", crossScope.Code)
+	}
+	if err := os.MkdirAll(publisherConfig.Worker.ExchangeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(publisherConfig.Worker.ExchangeDir, "source.bundle"), []byte("private git bundle"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	source := runtimeRequest(t, publisherHandler, http.MethodGet, "/v1/exchange/source.bundle", "", map[string]string{"Authorization": "Bearer " + exchangeCapability})
+	if source.Code != http.StatusOK || source.Body.String() != "private git bundle" {
+		t.Fatalf("unexpected source exchange response %d: %q", source.Code, source.Body.String())
+	}
+	proposal := filepath.Join(root, "proposal")
+	if err := os.MkdirAll(proposal, 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeViewerFile(t, proposal, "branch.bundle", "untrusted branch bundle")
+	bundleDigest, err := okf.SHA256File(filepath.Join(proposal, "branch.bundle"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeViewerFile(t, proposal, "request.json", fmt.Sprintf(`{"version":1,"run_id":"run-1","job_id":"refresh","branch":"agent/refresh","base_sha":"%s","head_sha":"%s","bundle_sha256":"%s","verify_count":1}`+"\n", strings.Repeat("a", 40), strings.Repeat("b", 40), bundleDigest))
+	var proposalArchive bytes.Buffer
+	if err := okruntime.WriteDirectoryArchive(&proposalArchive, proposal); err != nil {
+		t.Fatal(err)
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		request := httptest.NewRequest(http.MethodPut, "/v1/exchange/runs/run-1", bytes.NewReader(proposalArchive.Bytes()))
+		request.Header.Set("Authorization", "Bearer "+exchangeCapability)
+		response := httptest.NewRecorder()
+		publisherHandler.ServeHTTP(response, request)
+		want := http.StatusCreated
+		if attempt == 1 {
+			want = http.StatusNoContent
+		}
+		if response.Code != want {
+			t.Fatalf("exchange upload attempt %d = %d, want %d: %s", attempt, response.Code, want, response.Body.String())
+		}
+	}
+	if _, err := os.Stat(filepath.Join(publisherConfig.Worker.ExchangeDir, "runs", "run-1", "request.json")); err != nil {
+		t.Fatalf("publisher did not atomically store proposal: %v", err)
+	}
+
+	serveConfig := publisherConfig
+	serveConfig.PublisherAPI.Enabled = false
+	serveConfig.ArtifactStore = okruntime.ArtifactStoreConfig{Type: "http", Path: filepath.Join(root, "serve-cache"), URL: "http://127.0.0.1:8090", TokenEnv: "TEST_ARTIFACT_TOKEN"}
+	serveConfig.Runtime.StateDir = filepath.Join(root, "serve-state")
+	handler, err := newRuntimeServeHandler(serveConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.snapshots.client.Transport = runtimeHandlerRoundTripper{handler: publisherHandler}
+	if failures := handler.snapshots.refresh(); len(failures) != 0 {
+		t.Fatalf("remote activation failed: %v", failures)
+	}
+	page := runtimeRequest(t, handler, http.MethodGet, "/", "", nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Private transport v1") {
+		t.Fatalf("unexpected remotely synchronized page %d: %s", page.Code, page.Body.String())
+	}
+	before, ok := handler.snapshots.snapshot("wiki")
+	if !ok || before.Pointer.ContentDigest != first.ContentDigest {
+		t.Fatalf("unexpected first remote snapshot: %#v", before)
+	}
+
+	writeViewerFile(t, root, "Wiki/index.md", "# Private transport v2\n")
+	second, err := buildRuntimeKnowledgeGeneration(publisherConfig, publisherConfig.KnowledgeBases[0], "second", filepath.Join(root, "second"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(publisherConfig.ArtifactStore.Path, "wiki", "generations", second.Generation, "public", "index.html"), []byte("tampered"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if failures := handler.snapshots.refresh(); len(failures) == 0 {
+		t.Fatal("expected publisher to refuse a tampered active generation")
+	}
+	after, ok := handler.snapshots.snapshot("wiki")
+	if !ok || after.Pointer.ContentDigest != before.Pointer.ContentDigest {
+		t.Fatalf("serve did not retain last verified generation: %#v", after)
 	}
 }
 

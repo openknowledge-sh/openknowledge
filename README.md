@@ -57,6 +57,8 @@ It gives you:
   maintenance
 - a Docker runtime with public `serve`, credentialed private `publisher`, and
   model-capable private `worker` roles separated by artifacts and Git bundles
+- `openknowledge deploy railway` for secret-scoped, idempotent provisioning
+  with a Railway URL, a user-owned custom domain, or no public endpoint
 
 Open Knowledge implements Google's [Open Knowledge Format v0.1][okf-spec]
 specification, a Markdown and YAML-frontmatter standard designed to stay easy
@@ -73,6 +75,7 @@ to inspect, diff, validate, and maintain.
 | :package: | Portable publishing | HTML exports include `llms.txt`, `openknowledge.json`, and a bundle archive so published wikis can be connected again. |
 | :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and experimental agent job commands provide structured views that automation can trust. |
 | :shield: | Isolated runtime | `runtime serve` consumes only public generations; publisher and agent roles keep GitHub and model credentials in different containers and state volumes. |
+| :rocket: | Five-minute deploy | `deploy railway` validates publication, provisions isolated services and volumes, and never purchases or registers a domain. |
 
 ```mermaid
 flowchart LR
@@ -234,6 +237,29 @@ receives the OpenAI key. They use separate persistent checkouts and exchange
 only bounded Git bundles and sanitized request records. See the
 [runtime command reference](Wiki/features/commands/runtime.md) before using the
 example in production.
+
+### Deploy the runtime to Railway
+
+```sh
+# Review the exact resources and credential names; no secrets are read or shown.
+openknowledge deploy railway Wiki --dry-run
+
+# Provision serve, publisher, worker, volumes, and a Railway technical URL.
+openknowledge deploy railway Wiki --yes
+```
+
+Use `--domain docs.example.com` only for a hostname you already own; the result
+prints Railway's required CNAME/TXT records. Use `--no-public-endpoint` for a
+private deployment or `--without-worker` when scheduled OpenAI agents are not
+needed. Open Knowledge never searches for, buys, or registers domains. Railway
+CLI v5+ authentication, a GitHub token (or authenticated `gh`), and
+`OPENAI_API_KEY` are required for the full mutating deployment. See the
+[deploy command reference](Wiki/features/commands/deploy.md).
+
+Keep `.openknowledge/deployments/railway.json` after the first run; it contains
+no secrets and lets later runs reuse the same resources safely. The command
+returns after Railway accepts the redeploy. Verify the generated endpoint at
+`/_openknowledge/readyz` once the publisher has produced its first snapshot.
 
 ## How It Works
 
@@ -448,6 +474,8 @@ Nested agent commands also support
 | `openknowledge runtime serve --config runtime.toml` | Serve verified static wiki, search, and optional read-only HTTP MCP snapshots. |
 | `openknowledge runtime worker --role publisher --config runtime.toml` | Fetch production, promote artifacts, validate agent bundles, and publish draft PR output with GitHub credentials. |
 | `openknowledge runtime worker --role agents --config runtime.toml` | Run scheduled agents with the model credential and export proposed Git branches without GitHub or artifact access. |
+| `openknowledge deploy railway [path] --dry-run` | Validate publication and print the secret-free Railway resource plan. |
+| `openknowledge deploy railway [path] --yes` | Idempotently provision isolated runtime services, credentials, volumes, and the selected public endpoint mode. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |
 | `openknowledge new --no-agents --no-setup [folder]` | Scaffold without starter agent rules or a setup handoff. |
 | `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |

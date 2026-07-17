@@ -31,25 +31,51 @@ type runtimeGenerationSnapshot struct {
 }
 
 type runtimeSnapshotManager struct {
+	config    okruntime.Config
 	store     okruntime.FilesystemStore
 	knowledge []okruntime.KnowledgeBaseConfig
+	client    *http.Client
+	token     string
+	initErr   error
 	mu        sync.RWMutex
 	active    map[string]runtimeGenerationSnapshot
 }
 
 func newRuntimeSnapshotManager(config okruntime.Config) *runtimeSnapshotManager {
+	token := ""
+	var initErr error
+	if config.ArtifactStore.Type == "http" {
+		token = strings.TrimSpace(os.Getenv(config.ArtifactStore.TokenEnv))
+		if len(token) < 32 {
+			initErr = fmt.Errorf("artifact store token environment variable %s must contain at least 32 bytes", config.ArtifactStore.TokenEnv)
+		}
+	}
+	requestTimeout, _ := time.ParseDuration(config.Serve.RequestTimeout)
 	return &runtimeSnapshotManager{
+		config:    config,
 		store:     okruntime.FilesystemStore{Root: config.ArtifactStore.Path},
 		knowledge: append([]okruntime.KnowledgeBaseConfig(nil), config.KnowledgeBases...),
+		client:    &http.Client{Timeout: requestTimeout},
+		token:     token,
+		initErr:   initErr,
 		active:    make(map[string]runtimeGenerationSnapshot),
 	}
 }
 
 func (manager *runtimeSnapshotManager) refresh() []error {
+	if manager.initErr != nil {
+		return []error{manager.initErr}
+	}
 	var failures []error
 	for _, knowledge := range manager.knowledge {
 		if !knowledge.Publish {
 			continue
+		}
+		if manager.config.ArtifactStore.Type == "http" {
+			if err := manager.syncRemote(knowledge); err != nil {
+				failures = append(failures, fmt.Errorf("%s remote sync: %w", knowledge.ID, err))
+				continue
+			}
 		}
 		pointer, root, err := manager.store.Active(knowledge.ID)
 		if err != nil {
@@ -74,6 +100,78 @@ func (manager *runtimeSnapshotManager) refresh() []error {
 		fmt.Fprintf(os.Stderr, "runtime serve activated %s generation %s\n", knowledge.ID, pointer.Generation)
 	}
 	return failures
+}
+
+func (manager *runtimeSnapshotManager) syncRemote(knowledge okruntime.KnowledgeBaseConfig) error {
+	base := strings.TrimSuffix(manager.config.ArtifactStore.URL, "/") + "/v1/artifacts/" + knowledge.ID
+	pointerResponse, err := manager.remoteGET(base + "/" + okruntime.ActivePointerFile)
+	if err != nil {
+		return err
+	}
+	defer pointerResponse.Body.Close()
+	var pointer okruntime.ActivePointer
+	content, err := io.ReadAll(io.LimitReader(pointerResponse.Body, (64<<10)+1))
+	if err != nil || len(content) > 64<<10 {
+		return fmt.Errorf("read active pointer: response exceeds limit")
+	}
+	if err := okf.DecodeStrictJSON(content, &pointer); err != nil {
+		return fmt.Errorf("decode active pointer: %w", err)
+	}
+	if pointer.Type != okruntime.ActivePointerType || pointer.Version != okruntime.GenerationManifestVersion ||
+		pointer.KnowledgeBaseID != knowledge.ID || !runtimeExchangeIdentifierPattern.MatchString(pointer.Generation) {
+		return fmt.Errorf("invalid active pointer identity")
+	}
+	if local, _, err := manager.store.Active(knowledge.ID); err == nil && local.Generation == pointer.Generation && local.ContentDigest == pointer.ContentDigest {
+		return nil
+	}
+	archiveResponse, err := manager.remoteGET(base + "/generations/" + pointer.Generation + ".tar.gz")
+	if err != nil {
+		return err
+	}
+	defer archiveResponse.Body.Close()
+	if err := os.MkdirAll(manager.config.Runtime.StateDir, 0700); err != nil {
+		return err
+	}
+	staging, err := os.MkdirTemp(manager.config.Runtime.StateDir, ".remote-generation-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(staging)
+	if err := okruntime.ExtractDirectoryArchive(archiveResponse.Body, staging, runtimeTransportArchiveMaxBytes); err != nil {
+		return err
+	}
+	manifest, err := okruntime.LoadAndValidateGeneration(staging)
+	if err != nil {
+		return fmt.Errorf("validate remote generation: %w", err)
+	}
+	if manifest.KnowledgeBaseID != knowledge.ID || okruntime.GenerationName(manifest) != pointer.Generation || manifest.ContentDigest != pointer.ContentDigest {
+		return fmt.Errorf("remote generation does not match active pointer")
+	}
+	published, _, err := manager.store.Publish(staging)
+	if err != nil {
+		return err
+	}
+	if published.Generation != pointer.Generation || published.ContentDigest != pointer.ContentDigest {
+		return fmt.Errorf("local artifact cache identity mismatch")
+	}
+	return nil
+}
+
+func (manager *runtimeSnapshotManager) remoteGET(target string) (*http.Response, error) {
+	request, err := http.NewRequest(http.MethodGet, target, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+manager.token)
+	request.Header.Set("Accept", "application/json, application/gzip, application/octet-stream")
+	response, err := manager.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, runtimeHTTPError(response)
+	}
+	return response, nil
 }
 
 func (manager *runtimeSnapshotManager) snapshot(id string) (runtimeGenerationSnapshot, bool) {
@@ -195,9 +293,13 @@ func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, erro
 			return nil, fmt.Errorf("MCP token environment variable %s is empty", config.Serve.MCPTokenEnv)
 		}
 	}
+	snapshots := newRuntimeSnapshotManager(config)
+	if snapshots.initErr != nil {
+		return nil, snapshots.initErr
+	}
 	return &runtimeServeHandler{
 		config:    config,
-		snapshots: newRuntimeSnapshotManager(config),
+		snapshots: snapshots,
 		semaphore: make(chan struct{}, config.Serve.MaxConcurrency),
 		mcpToken:  token,
 		sessions:  make(map[string]*runtimeMCPSession),

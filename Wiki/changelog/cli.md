@@ -14,6 +14,32 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-17 - Five-minute Railway runtime deployment
+
+* Added `openknowledge deploy railway [path]` with local publication preflight,
+  a secret-free `--dry-run`, explicit `--yes` mutation gate, full/serve-only
+  topologies, public/token/off MCP, and provider-generated, user-owned custom,
+  or no-public endpoint modes. Open Knowledge never registers a domain.
+* Added idempotent Railway project, image service, per-role volume, variable,
+  redeploy, and endpoint reconciliation. A mode-0600 state file stores resource
+  IDs and incomplete progress but never credential values; variables are sent
+  through stdin rather than command arguments.
+* Deployment results report `deployment-triggered` until callers independently
+  observe `/_openknowledge/readyz`; the retained state file is the explicit
+  resource adoption record for idempotent reruns.
+* Added a private publisher transport for platforms that cannot share volumes:
+  separate artifact and exchange bearer capabilities, bounded link-free
+  archives, traversal-safe atomic proposal uploads, remote generation
+  revalidation, and last-valid serve fallback.
+* Made the three runtime images accept strict TOML through
+  `env:OPENKNOWLEDGE_RUNTIME_CONFIG` and added release publication for separate
+  serve, publisher, and worker images on GHCR.
+* Source anchors: `packages/cli/cmd/openknowledge/{deploy_command,runtime_private_api,runtime_serve,runtime_worker}.go`,
+  `packages/cli/internal/runtime/{config,archive}.go`,
+  `docker/runtime.Dockerfile`, and `.github/workflows/release.yml`.
+* Docs updated: `README.md`, `Wiki/features/commands/{deploy,runtime,help,index}.md`,
+  `Wiki/features/{index,operations}.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-17 - Deny-by-default targeted publication
 
 * Made public artifact creation a bundle-level explicit opt-in through

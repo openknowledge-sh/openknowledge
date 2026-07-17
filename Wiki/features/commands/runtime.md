@@ -10,9 +10,11 @@ timestamp: 2026-07-16T00:00:00Z
 
 `openknowledge runtime` deploys one repository across two trust zones. `serve`
 is public and consumes only verified immutable artifacts. The private zone has
-two ingress-free roles with separate state: `publisher` owns GitHub credentials
+two roles with separate state: `publisher` owns GitHub credentials
 and artifact promotion, while `agents` owns the model credential and scheduled
-worktrees. Neither private role receives both credentials.
+worktrees. Neither private role receives both credentials. On platforms without
+shared volumes, publisher exposes a capability-authenticated API only on the
+provider's private network; the agent worker still accepts no inbound traffic.
 
 ```mermaid
 flowchart LR
@@ -55,6 +57,18 @@ state_dir = "/var/lib/openknowledge"
 type = "filesystem"
 path = "/artifacts"
 
+# A serve-only process may instead use a private publisher as a remote source:
+# type = "http"
+# path = "/tmp/openknowledge/artifact-cache"
+# url = "http://publisher.railway.internal:8090"
+# token_env = "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN"
+
+[publisher_api]
+enabled = false
+address = "[::]:8090"
+artifact_token_env = "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN"
+exchange_token_env = "OPENKNOWLEDGE_EXCHANGE_TOKEN"
+
 [serve]
 address = "0.0.0.0:8080"
 poll_interval = "5s"
@@ -72,6 +86,9 @@ poll_interval = "30s"
 run_agents = true
 jobs_path = ".openknowledge/agents/jobs"
 exchange_dir = "/exchange"
+# Remote agent-only role on a platform without shared volumes:
+# exchange_url = "http://publisher.railway.internal:8090"
+# exchange_token_env = "OPENKNOWLEDGE_EXCHANGE_TOKEN"
 
 [github]
 enabled = true
@@ -92,8 +109,13 @@ mcp = true
 
 Unknown sections/fields, wrong types, duplicate IDs/routes, unsupported specs,
 unsafe routes, invalid durations, and incomplete GitHub authentication fail
-closed. Paths are resolved relative to `runtime.toml`. The shipped artifact
-backend is `filesystem`; S3-compatible storage is not implemented yet.
+closed. Paths are resolved relative to `runtime.toml`. Containers can read a
+strict TOML value from `env:OPENKNOWLEDGE_RUNTIME_CONFIG`; relative paths then
+use `OPENKNOWLEDGE_RUNTIME_ROOT` or `/workspace`. The shipped store modes are a
+writable `filesystem` source and an authenticated private-HTTP read-through
+cache. Plain HTTP is accepted only for loopback, private IPs, and
+`*.railway.internal`; public transports require HTTPS. S3-compatible storage is
+not implemented yet.
 
 GitHub authentication prefers an explicitly configured environment token for
 development, otherwise signs a short-lived RS256 GitHub App JWT and exchanges
@@ -154,6 +176,16 @@ publisher-owned worktree. It then pushes without force, reuses an existing open
 PR on retry, creates a draft PR otherwise, and publishes a sanitized completed
 Check. It never auto-merges.
 
+When services cannot share a volume, the same exchange crosses an authenticated
+private HTTP boundary. Artifact and exchange tokens are distinct constant-time
+bearer capabilities. Publisher serves only its currently active, fully verified
+generation as a bounded link-free archive. It serves the production Git bundle
+and accepts strict, bounded proposal archives through the exchange capability.
+Uploads are traversal-safe, digest-checked, atomic, and idempotent. The public
+serve process verifies the manifest and every file again before promoting a
+download to its local cache; a remote error or tampered archive leaves the last
+valid in-memory generation active.
+
 ## Docker Deployment And Security Boundary
 
 `docker/runtime.Dockerfile` has separate `serve`, `publisher`, and `worker`
@@ -163,8 +195,16 @@ capability drops, read-only roots, PID limits, health checks, and no Docker
 socket. The serve target is distroless and contains no Git, Node/Codex runtime,
 shell, source checkout, private volume, or credentials. Publisher contains Git
 but not Node/Codex or the OpenAI key. Worker contains Git and pinned Codex but
-not the GitHub App key or artifact store. Neither private service has a port or
-shares `.git` metadata with the other.
+not the GitHub App key or artifact store. The Compose example gives neither
+private service a port. A provider adapter may give publisher a
+private-network-only port for artifact and bundle transport; it never creates
+public ingress for publisher or worker. The roles never share `.git` metadata.
+
+The images default to `env:OPENKNOWLEDGE_RUNTIME_CONFIG`, so provider adapters
+do not need to rebuild immutable images for each repository. Releases publish
+separate `openknowledge-runtime-serve`, `-publisher`, and `-worker` images to
+GHCR. [`openknowledge deploy railway`](deploy.md) provisions the first complete
+managed topology.
 
 Public generation is refused until the source bundle explicitly sets
 `[publish] enabled = true`. `okf_publish: false` and `[publish].assets` protect
@@ -178,6 +218,21 @@ rate-limiting and TLS at the trusted ingress. OAuth/OIDC, RBAC, dashboards,
 multi-tenant operation, S3, and horizontal worker scaling are deliberately out
 of scope for this first runtime.
 
+## Command Change History
+
+### 2026-07-17 - Private provider transport
+
+Added `env:<NAME>` configuration loading, authenticated HTTP artifact caches,
+the private publisher API, separate remote exchange capabilities, bounded safe
+archives, and provider-ready image defaults. Filesystem runtime configurations
+and the hardened Compose deployment remain compatible.
+
+### 2026-07-16 - Isolated self-hosted runtime
+
+Added plan, build, serve, publisher, and agent roles; immutable generation
+promotion; viewer/search/HTTP MCP serving; GitHub draft-PR publication; and the
+three hardened Docker targets.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -187,6 +242,7 @@ of scope for this first runtime.
 > * `packages/cli/cmd/openknowledge/runtime_command.go`
 > * `packages/cli/cmd/openknowledge/runtime_serve.go`
 > * `packages/cli/cmd/openknowledge/runtime_worker.go`
+> * `packages/cli/cmd/openknowledge/runtime_private_api.go`
 > * `packages/cli/internal/runtime/`
 > * `docker/runtime.Dockerfile`
 > * `deploy/runtime/docker-compose.yml`

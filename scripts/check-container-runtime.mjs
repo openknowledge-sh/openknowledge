@@ -77,11 +77,17 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
   if (!/^USER\s+nonroot:nonroot\s*$/m.test(serve) || !/ENTRYPOINT \["\/openknowledge", "runtime", "serve"\]/.test(serve)) {
     failures.push("serve target must select nonroot:nonroot and lock its runtime serve entrypoint");
   }
+  if (!/CMD \["--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"\]/.test(serve)) {
+    failures.push("serve target must default to the provider-injected runtime configuration");
+  }
   if (/\b(?:apt-get|npm|git|codex)\b/.test(serve)) {
     failures.push("serve target must not install Git, Node/npm, or Codex runtime tooling");
   }
   if (!/^USER\s+openknowledge:openknowledge\s*$/m.test(publisher) || /@openai\/codex|\bnpm\b/.test(publisher)) {
     failures.push("publisher target must be non-root and must not contain the Codex/Node agent runtime");
+  }
+  if (!/CMD \["--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"\]/.test(publisher)) {
+    failures.push("publisher target must default to the provider-injected runtime configuration");
   }
   const codexVersion = worker.match(/^ARG\s+CODEX_VERSION=([0-9]+\.[0-9]+\.[0-9]+)\s*$/m);
   if (!codexVersion || !worker.includes(`@openai/codex@\${CODEX_VERSION}`)) {
@@ -89,6 +95,9 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
   }
   if (!/^USER\s+openknowledge:openknowledge\s*$/m.test(worker)) {
     failures.push("worker target must run as openknowledge:openknowledge");
+  }
+  if (!/CMD \["--role", "agents", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"\]/.test(worker)) {
+    failures.push("worker target must default to the isolated agents role and provider-injected configuration");
   }
   for (const required of [
     "artifacts:/artifacts:ro",

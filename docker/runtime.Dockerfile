@@ -16,6 +16,7 @@ COPY --from=cli-builder --chown=10001:10001 /out/artifacts /artifacts
 USER nonroot:nonroot
 EXPOSE 8080
 ENTRYPOINT ["/openknowledge", "runtime", "serve"]
+CMD ["--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]
 
 # Credentialed private publisher: Git and GitHub App access, but no Node/Codex
 # agent runtime or OpenAI credential.
@@ -30,6 +31,7 @@ RUN mkdir -p /var/lib/openknowledge /artifacts /exchange \
 	&& chown -R openknowledge:openknowledge /var/lib/openknowledge /artifacts /exchange
 USER openknowledge:openknowledge
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge", "runtime", "worker", "--role", "publisher"]
+CMD ["--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]
 
 # Credential-free agent worker: Git plus an explicitly pinned Codex CLI.
 # Override the version at build time as part of a reviewed runtime upgrade.
@@ -49,3 +51,4 @@ RUN chmod 0755 /usr/local/bin/openknowledge-worker-entrypoint \
 	&& chown -R openknowledge:openknowledge /var/lib/openknowledge /exchange
 USER openknowledge:openknowledge
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-worker-entrypoint"]
+CMD ["--role", "agents", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]
