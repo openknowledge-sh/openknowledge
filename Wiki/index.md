@@ -9,7 +9,7 @@ This wiki documents the Open Knowledge CLI: how to install it, run commands,
 publish bundles, and maintain CLI-facing documentation.
 
 The deployed docs living on [https://openknowledge.sh/wiki/](https://openknowledge.sh/wiki/)
-are an exported view of this OKF bundle using `openknowledge to html` and a
+are an exported view of this OKF bundle using `openknowledge export html` and a
 custom theme.
 
 ## Start Here
@@ -28,23 +28,29 @@ custom theme.
 
 ## Commands
 
-### Create Bundles
+### Create And Maintain
 
-* [setup](features/commands/setup.md) - generate setup instructions for agents.
-* [from](features/commands/from.md) - generate source-to-wiki instructions for
-  agents.
-* [new](features/commands/new.md) - scaffold a local OKF bundle.
+* [setup](features/commands/setup.md) - run managed agent onboarding,
+  validation, and project integration.
+* [agent](features/commands/agent.md) - run steered Codex, Claude Code, Grok, or
+  OpenCode sessions directly in a local filesystem, with optional worktree
+  isolation.
+* [agent integrate](features/commands/integrate.md) - install discovery-only global
+  skills or repository-scoped skills and observation hooks.
+* [agent suggestions](features/commands/suggestions.md) - list, apply, dismiss, and
+  reconcile private Markdown session insights.
+* [jobs](features/commands/jobs.md) - validate, schedule, run, observe, and
+  control declarative jobs in isolated worktrees.
+
+### Advanced Portable Tools
+
+* [scaffold](features/commands/scaffold.md) - scaffold a local OKF bundle without an agent.
+* [prompt](features/commands/prompt.md) - print portable setup, source, rules,
+  and review instructions.
 
 ### Validate And Inspect Bundles
 
 * [validate](features/commands/validate.md) - validate a bundle against OKF.
-* [rules](features/commands/rules.md) - inspect and print maintenance rules.
-* [review](features/commands/review.md) - print advisory AI review prompts.
-* [agent](features/commands/agent.md) - run steered Codex, Claude Code, Grok, or
-  OpenCode sessions and setup/source workflows directly in a local filesystem,
-  with optional worktree isolation.
-* [jobs](features/commands/jobs.md) - validate, schedule, run, observe, and
-  control declarative jobs in isolated worktrees.
 * [list](features/commands/list.md) - inspect bundle inventory with inline
   validation context.
 
@@ -53,8 +59,8 @@ custom theme.
 * [connect](features/commands/connect.md) - add a local or remote bundle to the
   local registry.
 * [disconnect](features/commands/disconnect.md) - remove a registered bundle.
-* [registry](features/commands/registry.md) - connect, refresh, inspect,
-  resolve, and disconnect registry entries.
+* [registry](features/commands/registry.md) - refresh, inspect, and resolve
+  registry entries.
 
 ### Use And Navigate Knowledge
 
@@ -70,7 +76,7 @@ custom theme.
 ### OKF Views And Publishing
 
 * [ast](features/commands/ast.md) - print the parsed OKF AST as JSON.
-* [to](features/commands/to.md) - export a bundle to HTML, JSON, tar, or graph.
+* [export](features/commands/export.md) - export a bundle to HTML, JSON, tar, or graph.
 * [HTML exporter](features/exporters/html.md) - default static viewer export
   and plain semantic HTML mode.
 * [JSON exporter](features/exporters/json.md) - normalized bundle model.

@@ -20,7 +20,7 @@ GOCACHE=/private/tmp/openknowledge-go-build-cache pnpm test:cli
 target="Wiki"
 
 openknowledge validate "$target"
-openknowledge to html --out ./packages/web/dist/wiki ${target}
+openknowledge export html --out ./packages/web/dist/wiki ${target}
 ```
 
 ## Go

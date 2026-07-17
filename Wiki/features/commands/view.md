@@ -23,7 +23,7 @@ brand comes from root `index.md` metadata in this order:
 Think of `view` as the interactive OKF view. It presents the same bundle as a
 file tree, rendered Markdown panels, local search results, validation context,
 and a source-link graph. The derivative search graph used for retrieval is
-exported with [`openknowledge to graph --type search`](/features/exporters/graph.md).
+exported with [`openknowledge export graph --type search`](/features/exporters/graph.md).
 
 ## Usage
 
@@ -167,7 +167,7 @@ Press Ctrl+C to stop.
   only `GET` and `HEAD` and sends `nosniff`, no-referrer, and sandboxed content
   policy headers.
 * `[html.theme]` in `openknowledge.toml` applies the same theme name and
-  stylesheet behavior as `openknowledge to html`. Local theme stylesheets are
+  stylesheet behavior as `openknowledge export html`. Local theme stylesheets are
   validated before rendering and cannot be symbolic links.
 * Trusted head injection is intended for local analytics, verification meta
   tags, or small loader scripts. Inline HTML and file content are inserted
@@ -213,7 +213,7 @@ Press Ctrl+C to stop.
 * Let an agent search `/api/search`, navigate a browser to `highlightURL`, and
   show the exact matched text in context.
 * Inspect the authored source graph as an interactive view of the same OKF
-  bundle that can also be exported with `openknowledge to graph`.
+  bundle that can also be exported with `openknowledge export graph`.
 * Preview bundled source and media assets in the browser.
 * Inject trusted custom `<head>` snippets that match the web deploy contract.
 

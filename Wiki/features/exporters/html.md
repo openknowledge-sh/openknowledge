@@ -22,11 +22,11 @@ JavaScript, search, graph data, or table controls.
 ## Command
 
 ```sh
-openknowledge to html --out <folder> [key-or-path]
-openknowledge to html --plain --out <folder> [key-or-path]
-openknowledge to html --head-file <file> --out <folder> [key-or-path]
-openknowledge to html --script-src <src> --out <folder> [key-or-path]
-openknowledge to html --spec <version> --out <folder> [key-or-path]
+openknowledge export html --out <folder> [key-or-path]
+openknowledge export html --plain --out <folder> [key-or-path]
+openknowledge export html --head-file <file> --out <folder> [key-or-path]
+openknowledge export html --script-src <src> --out <folder> [key-or-path]
+openknowledge export html --spec <version> --out <folder> [key-or-path]
 ```
 
 ## Arguments And Flags
@@ -126,7 +126,7 @@ Default viewer exports include remote-connect assets:
   contract is published at
   `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
 * `assets/openknowledge-bundle.tar.gz` - a portable public source bundle archive
-  generated with the same deterministic archive machinery as `openknowledge to
+  generated with the same deterministic archive machinery as `openknowledge export
   tar`, but scoped to published Markdown and `[publish].assets`. Files marked
   `okf_publish: false`, project configuration, worker state, agent jobs/logs,
   and every non-allowlisted asset are physically absent. Allowlisted assets are

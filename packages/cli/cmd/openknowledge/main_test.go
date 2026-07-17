@@ -24,138 +24,30 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
-func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
+func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 	help := helpText()
 	required := []string{
-		"Usage:",
-		"openknowledge --help",
-		"openknowledge --error-format json <command> [args...]",
-		"openknowledge <command> --help",
-		"openknowledge setup",
-		"openknowledge setup --rules <rules>",
-		"openknowledge from <source> --out <folder>",
-		"openknowledge from <source> --out <folder> --type custom --about <goal>",
-		"openknowledge rules",
-		"openknowledge rules <rules> --path <path>",
-		"openknowledge rules apply <rules> --path <path>",
-		"openknowledge rules --list",
-		"openknowledge review rules [path]",
-		"openknowledge review rules --rules <rules> --path <path>",
-		"openknowledge agent",
-		"openknowledge agent --runtime <codex|claude|grok|opencode>",
-		"openknowledge agent exec \"<prompt>\"",
-		"openknowledge agent init [--rules <rules>]",
-		"openknowledge agent from <source> --out <folder>",
-		"openknowledge agent doctor [--runtime <runtime>]",
-		"openknowledge jobs new",
-		"openknowledge jobs new <template> --out <file>",
-		"openknowledge jobs list [path]",
-		"openknowledge jobs list [path] --json",
-		"openknowledge jobs status [jobs-dir]",
-		"openknowledge jobs runs [repo]",
-		"openknowledge jobs start <job.md>",
-		"openknowledge jobs stop <run-id>",
-		"openknowledge jobs kill <run-id>",
-		"openknowledge jobs validate <job-or-dir>",
-		"openknowledge jobs validate <job-or-dir> --json",
-		"openknowledge jobs run <job.md> --dry-run",
-		"openknowledge jobs daemon [jobs-dir] --once",
-		"openknowledge runtime plan --config runtime.toml",
-		"openknowledge runtime build --config runtime.toml",
-		"openknowledge runtime serve --config runtime.toml",
-		"openknowledge runtime worker --role publisher --config runtime.toml",
-		"openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml",
-		"openknowledge new --name <name> [folder]",
-		"openknowledge new --no-agents --no-setup [folder]",
-		"openknowledge connect <source>",
-		"openknowledge connect <source> --as <key>",
-		"openknowledge disconnect <key|path>",
-		"openknowledge get <name|path> [entry-or-file]",
-		"openknowledge get <name|path> --info",
-		"openknowledge search <name|path> <query>",
-		"openknowledge search <name|path> <query> --budget <tokens>",
-		"openknowledge search <name|path> <query> --format json",
-		"openknowledge search <name|path> <query> --matches",
-		"openknowledge search <name|path> <query> --no-expand",
-		"openknowledge search --all <query>",
-		"openknowledge mcp [key-or-path]",
-		"openknowledge mcp --spec <version> [key-or-path]",
-		"openknowledge registry connect <source>",
-		"openknowledge registry connect <source> --as <key>",
-		"openknowledge registry disconnect <key|path>",
-		"openknowledge registry refresh <key|path> [--force]",
-		"openknowledge registry list --json",
-		"openknowledge registry status [key|path] --json",
-		"openknowledge registry where <name|path>",
-		"openknowledge view --name <alias-name> [path]",
-		"openknowledge view --host <host> --port <port> [path]",
-		"openknowledge view --allow-network --host <host> [path]",
-		"openknowledge view --head-file <file> [path]",
-		"openknowledge view --script-src <src> [path]",
-		"openknowledge view --no-browser [path]",
-		"openknowledge to html --out <folder> [path]",
-		"openknowledge to html --head-file <file> --out <folder> [path]",
-		"openknowledge to html --script-src <src> --out <folder> [path]",
-		"openknowledge to json --out <file> [path]",
-		"openknowledge to tar --out <file> [path]",
-		"openknowledge to graph --out <file> [path]",
-		"openknowledge to graph --type search [path]",
-		"openknowledge validate --spec <version> [key-or-path]",
-		"openknowledge validate --format json [key-or-path]",
-		"openknowledge validate --rule <rule=off|warn|error> [key-or-path]",
-		"openknowledge list --spec <version> [key-or-path]",
-		"openknowledge list --depth <n> [key-or-path]",
-		"openknowledge list --json [key-or-path]",
-		"Commands:",
-		"setup      Print an agent setup prompt.",
-		"from       Print an agent source-to-wiki generation prompt.",
-		"rules      Print agent maintenance rules.",
-		"review     Print advisory AI review prompts.",
-		"agent      Experimental: run a steered Codex, Claude Code, Grok, or OpenCode agent.",
-		"jobs       Experimental: run and manage scheduled jobs from Markdown specs.",
-		"runtime    Run isolated public serving and private maintenance roles.",
-		"new        Scaffold a local Open Knowledge bundle.",
-		"connect    Connect a local or remote knowledge bundle.",
-		"disconnect Remove a knowledge bundle connection.",
-		"get        Print a Markdown file or bundle entrypoint.",
-		"search     Build source-grounded Markdown context from a bundle.",
-		"mcp        Serve one knowledge base to MCP clients over stdio.",
-		"registry   Manage knowledge bundle connections.",
-		"view       Start the registry or knowledge base Markdown viewer.",
-		"to         Convert a bundle to another format.",
-		"spec       Print an embedded OKF spec.",
-		"validate   Validate a bundle against an OKF spec.",
-		"list       Print a bundle tree, with optional depth and JSON output.",
-		"version    Print the CLI version.",
-		"Flags:",
-		"-h, --help                Show this help.",
-		"--error-format text|json  Format command failures on stderr (default text).",
-		"Examples:",
-		"openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding",
-		"openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type custom --about \"Create an onboarding wiki\"",
-		"openknowledge rules docs,changelog --path Wiki",
-		"openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md",
-		"openknowledge review rules --rules docs,changelog --path Wiki",
-		"openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md",
-		"openknowledge jobs validate .openknowledge/jobs",
-		"openknowledge jobs run .openknowledge/jobs/docs.md --dry-run",
-		"openknowledge jobs status .openknowledge/jobs",
-		"openknowledge jobs runs .",
-		"openknowledge setup --rules docs,changelog",
-		"openknowledge new --no-agents --no-setup ./source-wiki",
-		"openknowledge validate ./project-memory",
-		"openknowledge search accessibility \"validation workflow\"",
-		"openknowledge mcp accessibility",
-		"openknowledge registry refresh team",
-		"openknowledge list --depth 2 ./project-memory",
-		"openknowledge to html --out ./site ./project-memory",
-		"openknowledge to json ./project-memory",
-		"openknowledge to graph ./project-memory",
+		"openknowledge builds, uses, and runs self-maintaining OKF knowledge bases.",
+		"Create and maintain:",
+		"Use and publish:",
+		"Run as a service:",
+		"Validate and connect:",
+		"Advanced and portable tools:",
+		"setup        Create, validate, and integrate a knowledge base with an agent.",
+		"agent        Run, integrate, and review knowledge with an agent.",
+		"jobs         Run repeatable isolated maintenance jobs from Markdown specs.",
+		"export       Export HTML, JSON, graph, or portable tar views.",
+		"prompt       Print or install portable agent instructions.",
+		"scaffold     Create a deterministic local OKF knowledge base.",
+		"runtime      Build, serve, and maintain an isolated knowledge runtime.",
+		"validate     Validate a bundle against an OKF spec.",
+		"openknowledge setup Wiki --from .",
+		"openknowledge agent suggestions",
+		"openknowledge deploy railway Wiki --dry-run",
 	}
-
 	for _, expected := range required {
 		if !strings.Contains(help, expected) {
-			t.Fatalf("expected help text to include %q:\n%s", expected, help)
+			t.Fatalf("expected help text to include %q:\\n%s", expected, help)
 		}
 	}
 
@@ -164,15 +56,17 @@ func TestHelpTextIncludesCommandsFlagsAndExamples(t *testing.T) {
 		"openknowledge where <name|path>",
 		"openknowledge use <name|path>",
 		"openknowledge open [path]",
-		"use        Print an agent entrypoint from a bundle.",
-		"open       Start the registry or knowledge base Markdown viewer.",
 		"openknowledge context",
 		"openknowledge search <name|path> <query> --expand graph",
-		"where      Print the path for a named knowledge base or path.",
+		"openknowledge agent init",
+		"openknowledge agent from",
+		"openknowledge to html",
+		"openknowledge registry connect",
+		"new          Scaffold a deterministic local OKF knowledge base.",
 	}
 	for _, unexpected := range forbidden {
 		if strings.Contains(help, unexpected) {
-			t.Fatalf("did not expect help text to include %q:\n%s", unexpected, help)
+			t.Fatalf("did not expect help text to include %q:\\n%s", unexpected, help)
 		}
 	}
 }
@@ -221,7 +115,7 @@ func TestRunMainPrintsVersionedJSONRuntimeErrors(t *testing.T) {
 	writeMainTestFile(t, filepath.Dir(out), filepath.Base(out), "not a directory\n")
 
 	stdout, stderr, code := captureMainOutput(t, func() int {
-		return runMain([]string{"--error-format=json", "to", "html", "--plain", "--out", out, root})
+		return runMain([]string{"--error-format=json", "export", "html", "--plain", "--out", out, root})
 	})
 	if code != 1 {
 		t.Fatalf("expected runtime exit code, got %d\nstdout=%s\nstderr=%s", code, stdout, stderr)
@@ -230,7 +124,7 @@ func TestRunMainPrintsVersionedJSONRuntimeErrors(t *testing.T) {
 	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
 		t.Fatalf("expected JSON runtime error: %v\n%s", err, stderr)
 	}
-	if envelope.Error.Kind != "runtime" || envelope.Error.Command != "to html" || envelope.Error.ExitCode != 1 || envelope.Error.Message == "" {
+	if envelope.Error.Kind != "runtime" || envelope.Error.Command != "export html" || envelope.Error.ExitCode != 1 || envelope.Error.Message == "" {
 		t.Fatalf("unexpected JSON runtime error: %#v", envelope)
 	}
 	if strings.Contains(envelope.Error.Command, out) {
@@ -325,19 +219,19 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"setup": {
 			help: setupHelpText(),
 			required: []string{
-				"openknowledge setup --help",
-				"openknowledge setup --rules <rules>",
-				"Print an agent setup prompt",
-				"create a bundle with",
+				"openknowledge setup [wiki] --from <source>",
+				"openknowledge setup [wiki] --runtime <codex|claude|grok|opencode>",
+				"Create or update, validate, and integrate",
 				"--rules",
-				"project, docs, decisions, changelog, research, bugs, schemas, summary, agents",
+				"default target is Wiki",
+				"openknowledge prompt",
 			},
 		},
-		"from": {
-			help: fromHelpText(),
+		"prompt from": {
+			help: promptFromHelpText(),
 			required: []string{
-				"openknowledge from <source> --out <folder>",
-				"openknowledge from <source> --out <folder> --type custom --about <goal>",
+				"openknowledge prompt from <source> --out <folder>",
+				"openknowledge prompt from <source> --out <folder> --type custom --about <goal>",
 				"Print an agent task prompt",
 				"The command does not fetch, crawl, call an LLM, or write the wiki itself",
 				"--type",
@@ -348,12 +242,12 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"avoid shell command substitution or piping",
 			},
 		},
-		"rules": {
+		"prompt rules": {
 			help: rulesHelpText(),
 			required: []string{
-				"openknowledge rules <rules> --path <path>",
-				"openknowledge rules apply <rules> --path <path>",
-				"openknowledge rules --target generic|codex|claude|cursor",
+				"openknowledge prompt rules <rules> --path <path>",
+				"openknowledge prompt rules apply <rules> --path <path>",
+				"openknowledge prompt rules --target generic|codex|claude|cursor",
 				"Print maintenance instructions for AI agents",
 				"The command does not edit files",
 				"prints non-blocking warnings after the rendered",
@@ -362,29 +256,29 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"--path",
 			},
 		},
-		"rules apply": {
+		"prompt rules apply": {
 			help: rulesApplyHelpText(),
 			required: []string{
-				"openknowledge rules apply <rules> --path <path> --file <file>",
+				"openknowledge prompt rules apply <rules> --path <path> --file <file>",
 				"managed block",
 				"--dry-run",
 				"--yes",
 				"skip confirmation",
 			},
 		},
-		"review": {
+		"prompt review": {
 			help: reviewHelpText(),
 			required: []string{
-				"openknowledge review rules [path]",
+				"openknowledge prompt review rules [path]",
 				"Print advisory AI review prompts",
 				"does not call a model",
 				"Use openknowledge validate",
 			},
 		},
-		"review rules": {
+		"prompt review rules": {
 			help: reviewRulesHelpText(),
 			required: []string{
-				"openknowledge review rules --rules <rules> --path <path>",
+				"openknowledge prompt review rules --rules <rules> --path <path>",
 				"advisory AI review prompt",
 				"--rules",
 				"--all",
@@ -422,12 +316,12 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"deterministic run ID",
 			},
 		},
-		"new": {
-			help: newHelpText(),
+		"scaffold": {
+			help: scaffoldHelpText(),
 			required: []string{
-				"openknowledge new --name <name> [folder]",
-				"openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]",
-				"openknowledge new --no-agents --no-setup [folder]",
+				"openknowledge scaffold --name <name> [folder]",
+				"openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]",
+				"openknowledge scaffold --no-agents --no-setup [folder]",
 				"Arguments:",
 				"--name",
 				"--bundle-entry",
@@ -444,28 +338,12 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"manifest URL, tar archive URL, or Git URL",
 			},
 		},
-		"registry connect": {
-			help: connectHelpText("openknowledge registry connect"),
-			required: []string{
-				"openknowledge registry connect <source> --as <key>",
-				"openknowledge registry connect <source> --access read|write",
-				"openknowledge registry connect --help",
-			},
-		},
 		"disconnect": {
 			help: disconnectHelpText("openknowledge disconnect"),
 			required: []string{
 				"openknowledge disconnect <key|path> --keep-files",
 				"openknowledge disconnect <key|path> --delete-files",
 				"Delete the complete cache only for CLI-managed remote sources",
-			},
-		},
-		"registry disconnect": {
-			help: disconnectHelpText("openknowledge registry disconnect"),
-			required: []string{
-				"openknowledge registry disconnect <key|path> --keep-files",
-				"openknowledge registry disconnect <key|path> --delete-files",
-				"openknowledge registry disconnect --help",
 			},
 		},
 		"get": {
@@ -513,8 +391,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"registry": {
 			help: registryHelpText(),
 			required: []string{
-				"openknowledge registry connect <source> --as <key>",
-				"openknowledge registry disconnect <key|path> --keep-files",
+				"canonical top-level openknowledge connect",
+				"openknowledge disconnect",
 				"openknowledge registry refresh <key|path> --force",
 				"openknowledge registry list --json",
 				"openknowledge registry status [key|path] --json",
@@ -585,25 +463,25 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"latest, 0.1",
 			},
 		},
-		"to": {
-			help: toHelpText(),
+		"export": {
+			help: exportHelpText(),
 			required: []string{
-				"openknowledge to html --out <folder> [path]",
-				"openknowledge to html --plain --out <folder> [path]",
-				"openknowledge to html --head-file <file> --out <folder> [path]",
-				"openknowledge to html --script-src <src> --out <folder> [path]",
-				"openknowledge to json --out <file> [path]",
-				"openknowledge to tar --out <file> [path]",
-				"openknowledge to graph --out <file> [path]",
-				"openknowledge to graph --type search [path]",
+				"openknowledge export html --out <folder> [path]",
+				"openknowledge export html --plain --out <folder> [path]",
+				"openknowledge export html --head-file <file> --out <folder> [path]",
+				"openknowledge export html --script-src <src> --out <folder> [path]",
+				"openknowledge export json --out <file> [path]",
+				"openknowledge export tar --out <file> [path]",
+				"openknowledge export graph --out <file> [path]",
+				"openknowledge export graph --type search [path]",
 				"Targets:",
 			},
 		},
-		"to html": {
-			help: toHTMLHelpText(),
+		"export html": {
+			help: exportHTMLHelpText(),
 			required: []string{
-				"openknowledge to html --plain --out <folder> [path]",
-				"openknowledge to html --spec <version> --out <folder> [path]",
+				"openknowledge export html --plain --out <folder> [path]",
+				"openknowledge export html --spec <version> --out <folder> [path]",
 				"--head-file",
 				"--head-html",
 				"--script-src",
@@ -615,26 +493,26 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"Built-in variables are defined in viewer_theme.css",
 			},
 		},
-		"to json": {
-			help: toJSONHelpText(),
+		"export json": {
+			help: exportJSONHelpText(),
 			required: []string{
-				"openknowledge to json --out <file> [path]",
+				"openknowledge export json --out <file> [path]",
 				"Output file. Defaults to stdout.",
 			},
 		},
-		"to tar": {
-			help: toTarHelpText(),
+		"export tar": {
+			help: exportTarHelpText(),
 			required: []string{
-				"openknowledge to tar --out <file> [path]",
+				"openknowledge export tar --out <file> [path]",
 				"Write a portable tar.gz archive",
 				"Output archive file. Required.",
 			},
 		},
-		"to graph": {
-			help: toGraphHelpText(),
+		"export graph": {
+			help: exportGraphHelpText(),
 			required: []string{
-				"openknowledge to graph --out <file> [path]",
-				"openknowledge to graph --type search [path]",
+				"openknowledge export graph --out <file> [path]",
+				"openknowledge export graph --type search [path]",
 				"Write node and edge graph JSON",
 				"source",
 				"search",
@@ -721,7 +599,7 @@ func TestRulesCommandListsRules(t *testing.T) {
 		t.Fatalf("expected rules --list to succeed, got exit code %d\n%s", code, output)
 	}
 	for _, expected := range []string{
-		"openknowledge rules prints maintenance instructions",
+		"openknowledge prompt rules prints maintenance instructions",
 		"does not edit files",
 		"Available rules:",
 		"project",
@@ -851,7 +729,7 @@ func TestReviewRulesHelpUsesSubcommandHelp(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected review rules help to succeed, got %d", code)
 	}
-	if !strings.Contains(output, "openknowledge review rules --rules <rules> --path <path>") {
+	if !strings.Contains(output, "openknowledge prompt review rules --rules <rules> --path <path>") {
 		t.Fatalf("expected review rules subcommand help:\n%s", output)
 	}
 }
@@ -935,7 +813,7 @@ func TestRulesApplyWritesManagedBlockToFile(t *testing.T) {
 	content := string(readMainTestFile(t, agentFile))
 	for _, expected := range []string{
 		okf.RulesBlockStart,
-		"This Codex instruction block is managed by `openknowledge rules apply`.",
+		"This Codex instruction block is managed by `openknowledge prompt rules apply`.",
 		"Docs rules:",
 		okf.RulesBlockEnd,
 	} {
@@ -1062,7 +940,7 @@ func TestRulesApplyConfirmationMessagesDescribeWriteType(t *testing.T) {
 
 func TestSetupCommandAcceptsRules(t *testing.T) {
 	output, code := captureMainStdout(t, func() int {
-		return runSetup([]string{"--rules", "docs,changelog"})
+		return runPromptSetup([]string{"--rules", "docs,changelog"})
 	})
 	if code != 0 {
 		t.Fatalf("expected setup command with rules to succeed, got exit code %d\n%s", code, output)
@@ -1081,7 +959,7 @@ func TestSetupCommandAcceptsRules(t *testing.T) {
 
 func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 	output, code := captureMainStdout(t, func() int {
-		return runFrom([]string{
+		return runPromptFrom([]string{
 			"https://github.com/openknowledge-sh/openknowledge",
 			"--out", "Wiki",
 			"--type", "custom",
@@ -1099,7 +977,7 @@ func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 		"Wiki type: `custom`",
 		"Custom goal: `Help contributors understand releases`",
 		"Depth: 2",
-		"openknowledge new --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
+		"openknowledge scaffold --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
 		"okf_generated_from",
 		"openknowledge validate \"Wiki\"",
 	} {
@@ -1109,11 +987,11 @@ func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 	}
 }
 
-func TestNewCommandCanSkipAgentAndSetupDocs(t *testing.T) {
+func TestScaffoldCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "source-wiki")
 
 	output, code := captureMainStdout(t, func() int {
-		return runNew([]string{
+		return runScaffold([]string{
 			"--name", "Source Wiki",
 			"--no-agents",
 			"--no-setup",
@@ -1121,7 +999,7 @@ func TestNewCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 		})
 	})
 	if code != 0 {
-		t.Fatalf("expected new command to succeed, got exit code %d\n%s", code, output)
+		t.Fatalf("expected scaffold command to succeed, got exit code %d\n%s", code, output)
 	}
 	for _, expected := range []string{
 		"Created knowledge base",
@@ -1130,7 +1008,7 @@ func TestNewCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 		"+ SPEC.md",
 	} {
 		if !strings.Contains(output, expected) {
-			t.Fatalf("expected new output to include %q:\n%s", expected, output)
+			t.Fatalf("expected scaffold output to include %q:\n%s", expected, output)
 		}
 	}
 	for _, unexpected := range []string{
@@ -1139,7 +1017,7 @@ func TestNewCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 		"Agent handoff",
 	} {
 		if strings.Contains(output, unexpected) {
-			t.Fatalf("did not expect new output to include %q:\n%s", unexpected, output)
+			t.Fatalf("did not expect scaffold output to include %q:\n%s", unexpected, output)
 		}
 	}
 	for _, name := range []string{"AGENTS.md", "SETUP.MD"} {
@@ -1201,7 +1079,7 @@ func TestParseBundleEntryFlags(t *testing.T) {
 }
 
 func TestParseToOptionsAllowsPathBeforeFlags(t *testing.T) {
-	options, err := parseToOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1", "--plain", "--head-html", `<meta name="ok-head">`, "--script-src=/analytics.js"})
+	options, err := parseExportOptions([]string{"./project-memory", "--out", "./site", "--spec", "0.1", "--plain", "--head-html", `<meta name="ok-head">`, "--script-src=/analytics.js"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1280,13 +1158,13 @@ func TestRunConnectAcceptsFlagsBeforeAndAfterDocumentedSourceArgument(t *testing
 		{
 			name: "registry flags after source",
 			run: func(root string, key string) int {
-				return runRegistry([]string{"connect", root, "--as", key, "--access", "write", "--no-validate"})
+				return runConnect([]string{root, "--as", key, "--access", "write", "--no-validate"}, "openknowledge connect")
 			},
 		},
 		{
 			name: "registry flags before source",
 			run: func(root string, key string) int {
-				return runRegistry([]string{"connect", "--as", key, "--access", "write", "--no-validate", root})
+				return runConnect([]string{"--as", key, "--access", "write", "--no-validate", root}, "openknowledge connect")
 			},
 		},
 	}
@@ -1340,13 +1218,13 @@ func TestRunDisconnectAcceptsFlagsBeforeAndAfterDocumentedTargetArgument(t *test
 		{
 			name: "registry flag after target",
 			run: func(key string) int {
-				return runRegistry([]string{"disconnect", key, "--delete-files"})
+				return runDisconnect([]string{key, "--delete-files"}, "openknowledge disconnect")
 			},
 		},
 		{
 			name: "registry flag before target",
 			run: func(key string) int {
-				return runRegistry([]string{"disconnect", "--delete-files", key})
+				return runDisconnect([]string{"--delete-files", key}, "openknowledge disconnect")
 			},
 		},
 	}
@@ -1731,13 +1609,13 @@ func TestRunSearchExpandsRelatedContextByDefault(t *testing.T) {
 	}
 }
 
-func TestRunToTarWritesPortableArchive(t *testing.T) {
+func TestRunExportTarWritesPortableArchive(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Bundle\n")
 	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
 	out := filepath.Join(t.TempDir(), "bundle.tar.gz")
 
-	code := runToTar([]string{"--out", out, root})
+	code := runExportTar([]string{"--out", out, root})
 	if code != 0 {
 		t.Fatalf("expected to tar to succeed, got exit code %d", code)
 	}
@@ -1757,14 +1635,14 @@ func TestRunToTarWritesPortableArchive(t *testing.T) {
 	}
 }
 
-func TestRunToHTMLInjectsTrustedHeadHTML(t *testing.T) {
+func TestRunExportHTMLInjectsTrustedHeadHTML(t *testing.T) {
 	root := t.TempDir()
 	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\nRead [Topic](notes/topic.md).\n")
 	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\n---\n\n# Topic\n")
 
-	code := runToHTML([]string{
+	code := runExportHTML([]string{
 		"--head-html", `<meta name="ok-export-head" content="1">`,
 		"--script-src", "/analytics.js",
 		"--out", out,
@@ -1785,13 +1663,13 @@ func TestRunToHTMLInjectsTrustedHeadHTML(t *testing.T) {
 	}
 }
 
-func TestRunToGraphPrintsGraphJSON(t *testing.T) {
+func TestRunExportGraphPrintsGraphJSON(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Home\n\nRead [Topic](notes/topic.md).\n")
 	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\ntitle: Topic\n---\n\n# Topic\n")
 
 	output, code := captureMainStdout(t, func() int {
-		return runToGraph([]string{root})
+		return runExportGraph([]string{root})
 	})
 	if code != 0 {
 		t.Fatalf("expected to graph to succeed, got exit code %d", code)
@@ -1811,13 +1689,13 @@ func TestRunToGraphPrintsGraphJSON(t *testing.T) {
 	}
 }
 
-func TestRunToGraphPrintsSearchGraphJSON(t *testing.T) {
+func TestRunExportGraphPrintsSearchGraphJSON(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Home\n\nRead [Topic](notes/topic.md).\n")
 	writeMainTestFile(t, root, "notes/topic.md", "---\ntype: Note\ntitle: Topic\n---\n\n# Topic\n\n## Details\n\nSearchable details.\n")
 
 	output, code := captureMainStdout(t, func() int {
-		return runToGraph([]string{"--type", "search", root})
+		return runExportGraph([]string{"--type", "search", root})
 	})
 	if code != 0 {
 		t.Fatalf("expected to graph --type search to succeed, got exit code %d", code)

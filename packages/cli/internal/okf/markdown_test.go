@@ -170,7 +170,7 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 				"GOCACHE=/tmp/openknowledge pnpm test:cli",
 				"target=\"Wiki\"",
 				"openknowledge validate $target --strict",
-				"openknowledge to html --out ./dist ${target}",
+				"openknowledge export html --out ./dist ${target}",
 				"```",
 			}, "\n"),
 			required: []string{
@@ -179,7 +179,7 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 				`<span class="tok-variable">GOCACHE</span>=/tmp/openknowledge <span class="tok-command">pnpm</span> test:cli`,
 				`<span class="tok-variable">target</span>=<span class="tok-string">&#34;Wiki&#34;</span>`,
 				`<span class="tok-command">openknowledge</span> validate <span class="tok-variable">$target</span> <span class="tok-flag">--strict</span>`,
-				`<span class="tok-command">openknowledge</span> to html <span class="tok-flag">--out</span> ./dist <span class="tok-variable">${target}</span>`,
+				`<span class="tok-command">openknowledge</span> <span class="tok-keyword">export</span> html <span class="tok-flag">--out</span> ./dist <span class="tok-variable">${target}</span>`,
 			},
 		},
 		{

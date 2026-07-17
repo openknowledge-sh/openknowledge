@@ -26,7 +26,7 @@ For command-surface work, start from the matching page under
 [features/commands](features/commands/). Agent setup and maintenance-rule
 changes should read both [setup](features/commands/setup.md) and
 [rules](features/commands/rules.md), because `openknowledge setup --rules` and
-`openknowledge rules` share the same canonical rule catalog.
+`openknowledge prompt rules` shares the same canonical rule catalog.
 
 The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
 
@@ -36,7 +36,7 @@ The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
 * Update the relevant page under [features/commands](features/commands/) or [features/exporters](features/exporters/) when behavior, arguments, examples, or use cases change.
 * Update [features/commands/rules.md](features/commands/rules.md) when agent maintenance rule IDs, descriptions, generated instructions, `--path`, `--target`, `rules apply`, or setup rule selection changes.
 * For each command page, maintain a dated command change history for major command-surface changes, including added, removed, renamed, or behavior-changing arguments, flags, subcommands, frontmatter/config properties, output fields, and exit-code semantics.
-* Keep shipped behavior separate from planned work. Planned `openknowledge to graph` work belongs on [features/exporters/graph.md](features/exporters/graph.md) until implemented.
+* Keep shipped behavior separate from planned work. Planned `openknowledge export graph` work belongs on [features/exporters/graph.md](features/exporters/graph.md) until implemented.
 * Preserve source paths in prose or code spans when a page depends on specific files.
 * Keep pages concise and scan-friendly. Prefer sections for purpose, usage, arguments, use cases, and implementation notes.
 * Put agent-maintenance material at the end of concept pages in a footer block

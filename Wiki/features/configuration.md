@@ -113,10 +113,10 @@ must be physically absent from every public generation.
 
 * `openknowledge validate` applies `[validation.rules]` and uses `[rules]` for
   deterministic rule-catalog checks.
-* `openknowledge rules` and `openknowledge review rules` use `[rules]` for
+* `openknowledge prompt rules` and `openknowledge prompt review rules` use `[rules]` for
   custom catalog paths and default selection.
 * `openknowledge view` uses `[html.theme]`.
-* Default `openknowledge to html` uses `[html.theme]`, `[html.source]`, and
+* Default `openknowledge export html` uses `[html.theme]`, `[html.source]`, and
   `[html.site]` together through the same strict parser used during validation,
   and uses `[publish]` for the bundle gate and public asset allowlist.
 * Plain HTML also requires `publish.enabled`; JSON, graph, and standalone tar

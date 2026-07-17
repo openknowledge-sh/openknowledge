@@ -16,9 +16,9 @@ assets are not part of this projection.
 ## Command
 
 ```sh
-openknowledge to json [key-or-path]
-openknowledge to json --out <file> [key-or-path]
-openknowledge to json --spec <version> [key-or-path]
+openknowledge export json [key-or-path]
+openknowledge export json --out <file> [key-or-path]
+openknowledge export json --spec <version> [key-or-path]
 ```
 
 ## Arguments And Flags
@@ -31,14 +31,14 @@ openknowledge to json --spec <version> [key-or-path]
 
 ## Behavior
 
-`to json` parses and validates the bundle before serialization. Validation
+`export json` parses and validates the bundle before serialization. Validation
 errors and warnings are included in the top-level `issues` array and attached to
 matching files. When `--out` is omitted, the JSON is printed to stdout. The
 HTML-only `--plain` flag is rejected for JSON.
 
 The `files` array contains parsed `.md` and `.markdown` documents only.
 Non-Markdown assets remain visible through `openknowledge list --json` and are
-preserved by `openknowledge to tar`.
+preserved by `openknowledge export tar`.
 
 The top-level object declares `schemaVersion: "1"` for the normalized CLI JSON
 contract and `specVersion` for the selected Open Knowledge Format version.

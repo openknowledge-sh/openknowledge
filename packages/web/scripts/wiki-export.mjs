@@ -44,7 +44,7 @@ export async function exportWiki(out = path.join(distRoot, "wiki"), options = {}
     await rm(out, { recursive: true, force: true });
   }
 
-  const args = ["to", "html", "--out", out];
+  const args = ["export", "html", "--out", out];
   const headHTML = options.headHTML === undefined ? await landingAnalyticsHeadHTML() : options.headHTML;
   if (headHTML.trim()) {
     args.push("--head-html", headHTML);

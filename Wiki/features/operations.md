@@ -114,7 +114,7 @@ mutable actions or additional write scopes.
 the Open Knowledge HTML exporter for this repository wiki:
 
 ```sh
-openknowledge to html --head-html '<landing analytics head HTML>' --out packages/web/dist/wiki Wiki
+openknowledge export html --head-html '<landing analytics head HTML>' --out packages/web/dist/wiki Wiki
 ```
 
 That makes the public website's `wiki/` path a static viewer export of the
@@ -143,7 +143,7 @@ OPENKNOWLEDGE_SCRIPT_SRC=/analytics.js pnpm build:web
 `OPENKNOWLEDGE_SCRIPT_SRC` accepts comma- or newline-separated values. Script
 URLs may be relative, `http:`, or `https:`.
 
-`openknowledge to html` supports the same trusted head injection flags and
+`openknowledge export html` supports the same trusted head injection flags and
 environment variables for default viewer exports. Use `--head-file`,
 `--head-html`, or repeatable `--script-src` when another deployed wiki needs its
 own analytics or verification tags.

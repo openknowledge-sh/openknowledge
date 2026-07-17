@@ -8,16 +8,16 @@ timestamp: 2026-06-20T00:00:00Z
 
 # Tar Exporter
 
-`openknowledge to tar` writes a portable `tar.gz` archive of an Open Knowledge
+`openknowledge export tar` writes a portable `tar.gz` archive of an Open Knowledge
 bundle. The archive is the transport format used by published HTML exports and
 remote `connect` materialization.
 
 ## Command
 
 ```sh
-openknowledge to tar --out <file> [key-or-path]
-openknowledge to tar --spec <version> --out <file> [key-or-path]
-openknowledge to tar --help
+openknowledge export tar --out <file> [key-or-path]
+openknowledge export tar --spec <version> --out <file> [key-or-path]
+openknowledge export tar --help
 ```
 
 ## Behavior
@@ -43,14 +43,14 @@ Default viewer HTML exports call the same archive writer and place the archive
 at `assets/openknowledge-bundle.tar.gz`. The companion `openknowledge.json`
 manifest is contract version `1` with type `openknowledge.bundle`, a concrete
 supported OKF `spec`, `archiveFormat: "tar.gz"`, the archive path, and its
-required SHA-256. Unlike the standalone source-preserving `to tar` command, the
+required SHA-256. Unlike the standalone source-preserving `export tar` command, the
 public HTML export first requires `[publish] enabled = true`, then uses an
 explicit publication set: Markdown marked `okf_publish: false` is omitted, and
 non-Markdown files are omitted unless they
 match `[publish].assets`. Asset patterns cannot re-include Markdown;
 `.git`, `.openknowledge`, and `openknowledge.toml` are always absent. This keeps
 drafts, runtime state, job definitions, logs, and incidental repository files
-out of the remote-connect artifact. The standalone `to tar` command intentionally
+out of the remote-connect artifact. The standalone `export tar` command intentionally
 remains a complete source export. The Draft 2020-12 manifest contract is published at
 `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
 
@@ -136,7 +136,7 @@ Source anchors: `packages/cli/internal/okf/paths.go`,
 Default HTML exports now omit every Markdown file marked
 `okf_publish: false` from `assets/openknowledge-bundle.tar.gz`, matching the
 existing HTML, static payload, graph, and discovery-file filter. Standalone
-`openknowledge to tar` remains a complete source-bundle export. Source anchors:
+`openknowledge export tar` remains a complete source-bundle export. Source anchors:
 `packages/cli/internal/okf/archive.go`,
 `packages/cli/cmd/openknowledge/viewer.go`, and
 `packages/cli/cmd/openknowledge/viewer_test.go`.
@@ -176,5 +176,5 @@ Source anchors: `packages/cli/internal/okf/archive.go`,
 > **Update notes**
 >
 > Update this page when archive layout, manifest fields, remote extraction safety,
-> or `to tar` command output changes. CLI behavior changes also require
+> or `export tar` command output changes. CLI behavior changes also require
 > [CLI changelog](/changelog/cli.md) updates.

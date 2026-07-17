@@ -15,6 +15,12 @@ That contract tells the agent to treat workspace files as source of truth,
 preserve provenance, respect publication gates, validate its work, and leave
 Git publication to the surrounding runtime.
 
+When the repository has been connected with
+[`openknowledge agent integrate`](integrate.md), the native project hooks also observe
+sessions launched through this proxy. The proxy does not have a separate
+suggestion implementation; direct Codex, Claude Code, OpenCode, and
+`openknowledge agent` sessions all feed the same project observer.
+
 Unlike declarative [`jobs`](jobs.md), local sessions need no Markdown job,
 schedule, run record, or commit policy. They edit the selected filesystem
 directly unless `--isolate` creates a retained branch and worktree.
@@ -28,8 +34,8 @@ openknowledge agent --runtime grok --model grok-4.5
 openknowledge agent --runtime opencode --model provider/model
 openknowledge agent exec "Update the whitepaper"
 openknowledge agent exec --runtime claude "Repair citations"
-openknowledge agent init --rules docs,changelog
-openknowledge agent from https://example.com/docs --out Wiki
+openknowledge agent integrate Wiki
+openknowledge agent suggestions
 openknowledge agent doctor
 openknowledge agent doctor --runtime opencode --json
 openknowledge agent exec --isolate "Update the wiki"
@@ -41,9 +47,9 @@ openknowledge agent exec --isolate "Update the wiki"
 | --- | --- | --- |
 | initial prompt | none | Starts an interactive harness session with the steered task. With no task, the contract asks the agent to wait for one. |
 | `exec <prompt>` | required | Runs one non-interactive task and returns the harness exit status. |
-| `init` | - | Executes the existing setup prompt in an interactive harness. Accepts `--rules`. |
-| `from <source>` | - | Executes the existing source-to-wiki prompt. Accepts the same `--out`, `--type`, `--about`, and `--depth` inputs as [`openknowledge from`](from.md). |
 | `doctor` | all runtimes | Probes harness executables without starting a model session. An explicit unavailable `--runtime` exits nonzero. |
+| `integrate <wiki>` | - | Installs project-scoped discovery skills and observation hooks. `--global` installs discovery-only user skills. |
+| `suggestions [wiki]` | `Wiki` | Lists the private maintenance inbox; nested `apply` and `dismiss` manage individual suggestions. |
 | `--runtime` | `codex` | Selects `codex`, `claude`, `grok`, or `opencode`. |
 | `--model` | harness default | Passes a harness-specific model override. |
 | `--path` | current directory | Selects the editable workspace. |
@@ -102,8 +108,20 @@ or opens a pull request for this human-facing mode.
 ### 2026-07-17 - Multi-harness Open Knowledge agent
 
 Added Codex, Claude Code, Grok Build, and OpenCode adapters; the default versioned steering
-contract; `--runtime`, `--no-steer`, and executable overrides; `init`, `from`,
-and `doctor`.
+contract; `--runtime`, `--no-steer`, executable overrides, setup/source
+workflow adapters, and `doctor`. Setup adapters are now invoked through the
+canonical [`openknowledge setup`](setup.md) command.
+
+### 2026-07-17 - Project observation integration
+
+Documented that project-scoped hooks installed by `openknowledge agent integrate`
+observe proxy and directly launched harness sessions through one suggestion
+format.
+
+### 2026-07-17 - Unified agent-maintenance namespace
+
+Grouped project integration and the private suggestion inbox under the existing
+`agent` command.
 
 ### 2026-07-17 - Initial human-facing command
 

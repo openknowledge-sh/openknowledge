@@ -5,17 +5,19 @@ anchors. Keep this index as the quick map.
 
 ## Create Bundles
 
-* [Setup](setup.md) - agent setup prompt generation.
-* [New](new.md) - scaffold a local OKF bundle.
-* [From](from.md) - print a source-to-wiki generation prompt for agents.
+* [Setup](setup.md) - managed agent onboarding, validation, and integration.
+* [Scaffold](scaffold.md) - scaffold a local OKF bundle.
 
 ## Validate And Inspect Bundles
 
 * [Validate](validate.md) - validate a bundle against OKF with configurable rule severities and optional JSON reports.
-* [Rules](rules.md) - print and inspect canonical agent maintenance rules.
-* [Review](review.md) - print advisory AI review prompts for maintenance rules.
+* [Prompt](prompt.md) - advanced portable setup, source, rules, and review prompts.
 * [Agent](agent.md) - experimental steered Codex, Claude Code, Grok, or OpenCode
-  sessions, executable setup/source workflows, and opt-in worktree isolation.
+  sessions, project integration, suggestion review, and opt-in worktree isolation.
+* [Agent integrate](integrate.md) - install global discovery skills or project-scoped
+  skills and observation hooks.
+* [Agent suggestions](suggestions.md) - review private Markdown session insights and
+  feed them into ordinary Jobs maintenance.
 * [Jobs](jobs.md) - experimental declarative scheduling, isolated execution,
   observation, and control.
 * [Runtime](runtime.md) - plan, build, serve, and reconcile self-hosted
@@ -28,8 +30,7 @@ anchors. Keep this index as the quick map.
 
 * [Connect](connect.md) - add a local or remote OKF bundle to the local knowledge registry.
 * [Disconnect](disconnect.md) - remove a connected bundle from the local registry.
-* [Registry](registry.md) - manage bundle connections, refreshes, offline
-  integrity checks, listing, and path lookup.
+* [Registry](registry.md) - refreshes, offline integrity checks, listing, and path lookup.
 
 ## Use And Navigate Knowledge
 
@@ -42,7 +43,7 @@ anchors. Keep this index as the quick map.
 ## OKF Views And Publishing
 
 * [AST](ast.md) - print the parsed OKF AST as JSON.
-* [To](to.md) - conversion command group.
+* [Export](export.md) - HTML, JSON, tar, and graph output command group.
 * [HTML exporter](/features/exporters/html.md)
 * [JSON exporter](/features/exporters/json.md)
 * [Tar exporter](/features/exporters/tar.md)

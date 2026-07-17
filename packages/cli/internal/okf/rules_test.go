@@ -10,11 +10,11 @@ import (
 func TestRenderRulesListExplainsCommandAndRules(t *testing.T) {
 	output := RenderRulesList()
 	required := []string{
-		"openknowledge rules prints maintenance instructions",
+		"openknowledge prompt rules prints maintenance instructions",
 		"The command does not edit files",
-		"openknowledge rules docs,changelog --path Wiki",
-		"openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md",
-		"openknowledge setup --rules docs,changelog",
+		"openknowledge prompt rules docs,changelog --path Wiki",
+		"openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md",
+		"openknowledge prompt setup --rules docs,changelog",
 		"project",
 		"changelog",
 	}
@@ -272,7 +272,7 @@ rule_review_evidence: [git diff, Wiki/security/]
 func TestRulesWikiWarningsDescribeMissingAndEmptyPaths(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "missing")
 	warnings := RulesWikiWarnings(missing)
-	if len(warnings) == 0 || !strings.Contains(warnings[0], "does not exist") || !strings.Contains(warnings[0], "Agent action: create the wiki first") {
+	if len(warnings) == 0 || !strings.Contains(warnings[0], "does not exist") || !strings.Contains(warnings[0], "Agent action: create the wiki first") || !strings.Contains(warnings[0], "openknowledge scaffold") {
 		t.Fatalf("expected missing path warning, got %#v", warnings)
 	}
 
@@ -281,7 +281,7 @@ func TestRulesWikiWarningsDescribeMissingAndEmptyPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	warnings = RulesWikiWarnings(empty)
-	if len(warnings) == 0 || !strings.Contains(warnings[0], "contains no Markdown") || !strings.Contains(warnings[0], "Agent action: initialize it") {
+	if len(warnings) == 0 || !strings.Contains(warnings[0], "contains no Markdown") || !strings.Contains(warnings[0], "Agent action: initialize it") || !strings.Contains(warnings[0], "openknowledge scaffold") {
 		t.Fatalf("expected empty wiki warning, got %#v", warnings)
 	}
 }

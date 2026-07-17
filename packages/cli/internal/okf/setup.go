@@ -28,7 +28,7 @@ Use these seed questions only when context cannot answer them:
 2. Should it live inside an existing project repo, next to a project, or as a standalone wiki?
 3. Which use case is closest: code/project memory, personal knowledge, team/work memory, research/data dump, recurring automation output, or something else?
 4. Which maintenance rules should future agents follow, if any?
-   Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents. Run openknowledge rules --list for descriptions.
+   Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents. Run openknowledge prompt rules --list for descriptions.
 5. Are there privacy, safety, source-boundary, or "do not edit" rules?
 
 After the user answers:
@@ -36,7 +36,7 @@ After the user answers:
 - If the user chose a colocated project wiki, prefer a folder such as .openknowledge or knowledge inside that project unless they ask otherwise.
 - If the user chose a standalone wiki, prefer a clear standalone folder name.
 - Run:
-  openknowledge new --name "<knowledge base name>" "<folder path>"
+  openknowledge scaffold --name "<knowledge base name>" "<folder path>"
 
 After creation:
 - Read SETUP.MD, AGENTS.md, SPEC.md, index.md, and log.md from the new bundle.

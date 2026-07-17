@@ -89,10 +89,7 @@ func TestASTHelpTextDocumentsJSONOutput(t *testing.T) {
 		}
 	}
 
-	for _, expected := range []string{
-		"openknowledge ast [path]",
-		"ast        Print parsed OKF AST JSON.",
-	} {
+	for _, expected := range []string{"Advanced and portable tools:", "ast          Print parsed OKF AST JSON."} {
 		if !strings.Contains(helpText(), expected) {
 			t.Fatalf("expected root help to include %q:\n%s", expected, helpText())
 		}

@@ -1,82 +1,68 @@
 ---
 type: Command Documentation
 title: openknowledge setup
-description: Prints an agent setup prompt for creating and customizing a knowledge base.
+description: Runs the managed agent onboarding workflow for a knowledge base.
 tags: [openknowledge, cli, command, setup]
 timestamp: 2026-06-18T00:00:00Z
 ---
 
 # `openknowledge setup`
 
-`openknowledge setup` prints a prompt intended for an AI coding agent. To run
-that workflow immediately through a supported harness, use
-`openknowledge agent init`; `openknowledge agent init --rules docs,changelog`
-reuses this exact prompt builder instead of maintaining a second setup flow. The
-prompt asks the agent to inspect the current workspace or target folder, read
-relevant user or project memories when the runtime exposes them, ask only the
-missing setup questions, create a bundle with `openknowledge new`, customize
-it, choose maintenance rules such as docs, changelog, decisions, research, bugs,
-schemas, summaries, or general project memory, configure repo-scoped or
-user-scoped skills with focused lower-reasoning subagent guidance when useful,
-validate it, and finish with the concrete post-setup loop:
-`openknowledge list`, `openknowledge search`, `openknowledge get`, and opening
-the finished wiki with `openknowledge view`.
+`openknowledge setup [wiki]` is the canonical onboarding command. It runs the
+setup workflow through Codex by default, or Claude Code, Grok, or OpenCode via
+`--runtime`. After the agent finishes, the CLI requires the target bundle to
+exist, validates it, and installs the repository-scoped discovery skills and
+observation hooks.
 
-The optional `--rules` flag preselects comma-separated built-in maintenance
-rules in the prompt. It uses the same built-in rule IDs listed by
-`openknowledge rules --list`. The generated setup prompt also tells agents to
-run `openknowledge rules --list` when they need rule descriptions.
+With `--from <source>`, the same command executes the source-to-wiki workflow.
+The source may be a repository, local folder, or website. This replaces the
+former public `agent init`, `agent from`, and top-level `from` surfaces.
+Portable print-only variants live under [`openknowledge prompt`](prompt.md).
 
 ## Usage
 
 ```sh
-openknowledge setup
-openknowledge setup --rules docs,changelog
-openknowledge agent init --runtime claude --rules docs,changelog
+openknowledge setup Wiki
+openknowledge setup Wiki --rules docs,changelog
+openknowledge setup Wiki --runtime claude
+openknowledge setup Wiki --from https://example.com/docs
+openknowledge setup Wiki --from ./existing-repo --type custom --about "Release operations"
 openknowledge setup --help
 ```
 
 ## Arguments And Flags
 
-No positional arguments are accepted.
+The optional positional argument selects the target wiki and defaults to
+`Wiki`. Setup must run inside a Git repository so project integration has a
+stable repository root.
 
 | Flag | Description |
 | --- | --- |
-| `--rules <rules>` | Suggest comma-separated maintenance rules for setup. |
+| `--from <source>` | Run the source-to-wiki workflow instead of a new setup interview. |
+| `--runtime <runtime>` | Select `codex`, `claude`, `grok`, or `opencode`. |
+| `--model <model>` | Override the harness model. |
+| `--rules <rules>` | Preselect comma-separated maintenance rules for a new setup. Incompatible with `--from`. |
+| `--type <type>` | Select `understanding` or `custom` for `--from`. |
+| `--about <goal>` | Supply the custom source-to-wiki goal. Requires `--from`. |
+| `--depth <n>` | Supply a positive traversal hint. Requires `--from`. |
 | `--help` | Print setup-specific help. |
 
 Built-in canonical rules are `project`, `docs`, `decisions`, `changelog`,
 `research`, `bugs`, `schemas`, `summary`, and `agents`.
 
-## Example Output
+## Completion Contract
 
-`openknowledge setup --rules docs,changelog` prints a full setup prompt for an
-agent. The beginning and selected-rule block look like:
-
-```text
-This setup guide is meant to be executed by an AI coding agent.
-
-If you are a human reading this in your terminal, pass it to an agent instead:
-  copy this entire prompt and paste it into Codex, Claude Code, Cursor,
-  Cowork, or another coding agent that can edit this workspace.
-
-You are helping the user create an agentic LLM wiki with Open Knowledge.
-
-Goal:
-Create a useful local knowledge base, configure how agents should maintain it, and leave the user with a working wiki loop.
-
-Selected maintenance rules:
-Use these as the starting point for AGENTS.md, workflow docs, and any agent instruction files.
-- docs: Keep docs in sync with implementation.
-- changelog: Track user-facing changes.
-```
+Setup succeeds only when all three stages succeed: the selected agent harness
+finishes, the target is a valid OKF bundle, and project integration installs.
+Agent failure, a missing target, validation findings, or integration failure
+produce a nonzero exit. Existing uncommitted repository changes remain visible
+to the agent.
 
 ## Use Cases
 
-* Start a project wiki from inside an agent session.
-* Execute the complete setup interview directly with Codex, Claude Code, Grok,
-  or OpenCode through `openknowledge agent init`.
-* Generate a reusable bootstrap prompt for agent CLIs.
+* Start a project wiki through Codex, Claude Code, Grok, or OpenCode.
+* Refresh a wiki from an existing repository, folder, or website with one
+  `--from` mode instead of a separate command.
 * Preselect known maintenance loops, for example docs plus changelog, while
   still letting the setup agent inspect context before creating files.
 * Let setup interviews adapt to the existing workspace, project docs, and
@@ -85,19 +71,18 @@ Use these as the starting point for AGENTS.md, workflow docs, and any agent inst
   changelog, decisions, research, bugs, schemas, summary, or project memory.
 * Seed repo-scoped or user-scoped skills with guidance for spawning focused
   lower-reasoning subagents for bounded wiki maintenance tasks.
-* Keep interactive agent stdin available by copying the printed prompt into the
-  agent instead of wrapping the command in shell substitution or pipes.
 * Leave the user with the use/navigation commands for the created bundle:
   `openknowledge list`, `openknowledge search`, `openknowledge get`, and open
   the finished wiki with `openknowledge view`.
 
 ## Command Change History
 
-### 2026-07-17 - Executable setup workflow
+### 2026-07-17 - Canonical managed onboarding
 
-`openknowledge agent init` now executes the canonical setup prompt through a
-selected supported harness while preserving `--rules`. `openknowledge setup`
-remains the portable print-only surface.
+`openknowledge setup [wiki]` now owns executable onboarding, including the
+`--from` source mode, validation, and project integration. Print-only setup and
+source workflows moved under `openknowledge prompt`; `agent init` and
+`agent from` were removed before 1.0.
 
 ### 2026-07-06 - Use/navigation loop
 
@@ -114,7 +99,7 @@ starting point for
 `AGENTS.md`, workflow docs, and agent instruction files. The default setup
 prompt also lists the available built-in canonical rules and points the user
 toward the same maintenance-loop vocabulary exposed by
-`openknowledge rules --list`.
+`openknowledge prompt rules --list`.
 
 ---
 
@@ -122,6 +107,7 @@ toward the same maintenance-loop vocabulary exposed by
 
 > **Source anchors**
 >
+> * `packages/cli/cmd/openknowledge/setup_command.go`
 > * `packages/cli/internal/okf/setup.go`
 > * `packages/cli/internal/okf/new.go`
 > * `packages/cli/internal/okf/rules.go`

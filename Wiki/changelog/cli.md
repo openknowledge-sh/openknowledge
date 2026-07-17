@@ -14,6 +14,67 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-17 - Canonical onboarding and smaller command surface
+
+* Made `openknowledge setup [wiki]` the single managed onboarding workflow.
+  `--from <source>` selects source-grounded generation; success now requires
+  the agent workflow, OKF validation, and project integration to all complete.
+* Moved portable prompt tools under
+  `openknowledge prompt setup|from|rules|review` and removed the previous
+  top-level prompt commands plus `agent init` and `agent from` without aliases.
+* Renamed the publishing namespace from `to` to `export` without a legacy
+  alias. Kept connection mutation only at top-level `connect` and `disconnect`;
+  `registry` now exposes inspection and refresh operations only.
+* Renamed the low-level deterministic bundle command from `new` to `scaffold`
+  so it is clearly distinct from managed `setup`; no legacy alias remains.
+* Source anchors: `packages/cli/cmd/openknowledge/{main,setup_command,prompt_command,agent_command}.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/{setup,scaffold,prompt,agent,export,registry,connect,disconnect,index}.md`,
+  `Wiki/features/tooling-model.md`, and
+  `Wiki/decisions/product-interface.md`.
+
+### 2026-07-17 - Workflow-oriented CLI entry points
+
+* Reorganized root help around four product workflows instead of listing every
+  flag combination as a peer concept.
+* Nested project integration and the suggestion inbox under
+  `openknowledge agent`; no duplicate top-level forms were retained for this
+  previously unreleased feature.
+* Made `agent suggestions` discover the connected knowledge base by default,
+  and collapsed Job boundary checks plus normal OKF validation into the single
+  portable `agent suggestions verify` command.
+* Recorded the product interface direction that the subsequent command-surface
+  consolidation implements.
+* Source anchors: `packages/cli/cmd/openknowledge/{main,agent_command}.go` and
+  `Wiki/decisions/product-interface.md`.
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,help,integrate,suggestions}.md`,
+  `Wiki/decisions/{index,product-interface}.md`, and `Wiki/changelog/cli.md`.
+
+### 2026-07-17 - Project integrations and Markdown suggestions
+
+* Added `openknowledge agent integrate --global` for discovery-only Codex,
+  Claude Code, and OpenCode skills, plus `openknowledge agent integrate <wiki>` for an
+  explicit repository config, project skills, and idempotently merged project
+  observation hooks.
+* Added a shared bounded observer that writes atomic, uncommitted, deduplicated
+  `Wiki/suggestions/*.md` files with semantic intent, evidence, declared
+  targets, base commit, unified diff, and mandatory `okf_publish: false`. It
+  analyzes available session messages and tool/error/retry/validation events
+  while persisting only sanitized outcomes and aggregate evidence, never the
+  raw transcript.
+* Added oldest-first `openknowledge agent suggestions`, atomic `apply` and `dismiss`,
+  strict suggestion validation/publication exclusion, and target-bound Job
+  verification.
+* Added `openknowledge jobs new suggestions`, an ordinary current-schema Job
+  template that processes at most five pending suggestions every 24 hours and
+  reuses the existing worktree, verification, commit, bundle, and draft-PR
+  lifecycle without a new worker role or reconciler schema.
+* Source anchors: `packages/cli/cmd/openknowledge/{integrate_command,suggestions_command}.go`,
+  `packages/cli/internal/{integration,suggestions}/`,
+  `packages/cli/internal/agents/templates.go`, and
+  `packages/cli/internal/okf/validation_rules.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,help,index,integrate,jobs,suggestions}.md`,
+  `Wiki/index.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-17 - Steered multi-harness agent runtime
 
 * Generalized `openknowledge agent` from a Codex launcher into a closed

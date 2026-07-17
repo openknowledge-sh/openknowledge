@@ -187,13 +187,13 @@ func RulesWikiWarnings(wiki string) []string {
 	}
 	info, err := os.Stat(wiki)
 	if os.IsNotExist(err) {
-		return []string{fmt.Sprintf("Open Knowledge wiki path does not exist: %s. Agent action: create the wiki first, for example with `openknowledge new %q`, or rerun with an existing wiki path.", wiki, wiki)}
+		return []string{fmt.Sprintf("Open Knowledge wiki path does not exist: %s. Agent action: create the wiki first, for example with `openknowledge scaffold %q`, or rerun with an existing wiki path.", wiki, wiki)}
 	}
 	if err != nil {
 		return []string{fmt.Sprintf("Open Knowledge wiki path could not be inspected: %s (%v). Agent action: check filesystem permissions or choose another wiki path before relying on these rules.", wiki, err)}
 	}
 	if !info.IsDir() {
-		return []string{fmt.Sprintf("Open Knowledge wiki path is not a directory: %s. Agent action: use an existing Open Knowledge folder or create one with `openknowledge new <folder>`.", wiki)}
+		return []string{fmt.Sprintf("Open Knowledge wiki path is not a directory: %s. Agent action: use an existing Open Knowledge folder or create one with `openknowledge scaffold <folder>`.", wiki)}
 	}
 
 	markdownCount := 0
@@ -213,7 +213,7 @@ func RulesWikiWarnings(wiki string) []string {
 		return []string{fmt.Sprintf("Open Knowledge wiki path could not be scanned for Markdown: %s (%v). Agent action: fix filesystem access or invalid directory entries, then rerun this command.", wiki, walkErr)}
 	}
 	if markdownCount == 0 {
-		return []string{fmt.Sprintf("Open Knowledge wiki path contains no Markdown files: %s. Agent action: initialize it with `openknowledge new %q` if it is empty, or add OKF Markdown files before relying on these rules.", wiki, wiki)}
+		return []string{fmt.Sprintf("Open Knowledge wiki path contains no Markdown files: %s. Agent action: initialize it with `openknowledge scaffold %q` if it is empty, or add OKF Markdown files before relying on these rules.", wiki, wiki)}
 	}
 
 	result, err := Validate(wiki)
@@ -293,13 +293,13 @@ func ruleTargetLine(target string) (string, error) {
 func managedRuleTargetLine(target string) (string, error) {
 	switch target {
 	case "generic":
-		return "This block is managed by `openknowledge rules apply`.", nil
+		return "This block is managed by `openknowledge prompt rules apply`.", nil
 	case "codex":
-		return "This Codex instruction block is managed by `openknowledge rules apply`.", nil
+		return "This Codex instruction block is managed by `openknowledge prompt rules apply`.", nil
 	case "claude":
-		return "This Claude Code instruction block is managed by `openknowledge rules apply`.", nil
+		return "This Claude Code instruction block is managed by `openknowledge prompt rules apply`.", nil
 	case "cursor":
-		return "This Cursor rules block is managed by `openknowledge rules apply`.", nil
+		return "This Cursor rules block is managed by `openknowledge prompt rules apply`.", nil
 	default:
 		return "", fmt.Errorf("unsupported rules target %q; use generic, codex, claude, or cursor", target)
 	}

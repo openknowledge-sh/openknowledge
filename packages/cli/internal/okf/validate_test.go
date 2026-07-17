@@ -71,6 +71,28 @@ func TestValidateConceptRequiresType(t *testing.T) {
 	}
 }
 
+func TestValidateSuggestionRequiresPrivateContract(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "suggestions/unsafe.md", "---\ntype: Open Knowledge Suggestion\ntitle: Unsafe\nstatus: pending\nokf_publish: true\n---\n\n# Unsafe\n")
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) == 0 {
+		t.Fatal("expected unsafe suggestion to fail validation")
+	}
+	found := false
+	for _, issue := range result.Errors {
+		if issue.Rule == "suggestion-contract" && strings.Contains(issue.Message, "okf_publish: false") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing suggestion contract error: %#v", result.Errors)
+	}
+}
+
 func TestValidateRejectsInvalidUTF8Markdown(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "concept.md")

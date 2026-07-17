@@ -1,181 +1,34 @@
 ---
 type: Command Documentation
-title: openknowledge from
-description: Prints an agent prompt for turning a source into an OKF bundle.
-tags: [openknowledge, cli, command, generation, agents]
-timestamp: 2026-07-07T00:00:00Z
-status: shipped
+title: openknowledge prompt from
+description: Prints a portable source-to-wiki prompt without starting an agent.
+tags: [openknowledge, cli, command, prompt, source]
+timestamp: 2026-07-17T00:00:00Z
 ---
 
-# `openknowledge from`
+# `openknowledge prompt from`
 
-`openknowledge from` prints an agent task prompt for turning a source into an
-Open Knowledge wiki.
-
-The simple model is:
-
-```text
-source URL or path -> local agent task -> OKF Markdown bundle
-```
-
-Like `openknowledge setup`, this command does not do the source reading or file
-writing itself. It prints a prompt for a local agent. The agent reads the
-source, asks only missing questions, writes the wiki, validates it, and gives
-the user the next commands. This should work in Codex, Claude Code, Cursor,
-Cowork, or any other agent app or CLI that can access the source and write
-files.
+This advanced command prints the canonical instructions used to turn a
+repository, folder, or website into an OKF bundle. It does not call a model or
+write the wiki. For the managed workflow, use
+`openknowledge setup Wiki --from <source>`; that command also validates and
+integrates the result.
 
 ## Usage
 
 ```sh
-openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki
-openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding
-openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
-openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help new contributors understand the plugin system and release workflow."
-openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type understanding --depth 2
-openknowledge from ./local-repo --out Wiki --type understanding
-openknowledge from --help
+openknowledge prompt from <source> --out Wiki
+openknowledge prompt from <source> --out Wiki --type understanding
+openknowledge prompt from <source> --out Wiki --type custom --about "Release operations"
+openknowledge prompt from https://example.com/docs --out Wiki --depth 2
 ```
 
-Generate the prompt, then copy the terminal output into Codex, Claude Code,
-Cursor, Cowork, or another agent that can access the source and edit the
-output folder:
+`--type understanding` is the default architecture-and-workflows recipe.
+`--type custom` uses `--about` when supplied or asks the receiving agent to
+clarify the goal. `--depth` is a positive crawl or traversal hint. The printed
+prompt requires source provenance and validation.
 
-```sh
-openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
-```
-
-Avoid shell command substitution or piping for interactive agent CLIs; those
-patterns can be flagged by security tools and can break interactive stdin.
-
-## Arguments And Flags
-
-| Name | Kind | Description |
-| --- | --- | --- |
-| `source` | argument | Source URL or local path. Examples include GitHub repositories, generic Git repositories, local paths, and websites. |
-| `--out <path>` | flag | Target Open Knowledge bundle folder. |
-| `--type <type>` | flag | Generation profile. Values are `understanding` and `custom`; defaults to `understanding`. |
-| `--about <text>` | flag | Non-interactive goal for `--type custom`. |
-| `--depth <count>` | flag | Website crawl depth or repository traversal depth where a source adapter supports it. |
-| `--help` | flag | Print command-specific help. |
-
-The CLI-facing flag is `--type`, but generated bundle metadata should store the
-value in a namespaced key such as `okf_wiki_type` so it does not conflict with
-concept-document `type` frontmatter.
-
-## Example Output
-
-This command prints an agent prompt:
-
-```sh
-openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help contributors understand releases"
-```
-
-The first part looks like:
-
-```text
-This source-to-wiki guide is meant to be executed by an AI coding or research agent.
-
-If you are a human reading this in your terminal, pass it to an agent instead:
-  copy this entire prompt and paste it into Codex, Claude Code, Cursor,
-  Cowork, or another agent that can access the source and edit the output folder.
-
-Simple model:
-source URL or path -> local agent task -> OKF Markdown bundle
-
-Inputs:
-- Source: `https://github.com/openknowledge-sh/openknowledge`
-- Source kind: GitHub repository
-- Output wiki path: `Wiki`
-- Wiki type: `custom`
-- Custom goal: `Help contributors understand releases`
-```
-
-## What The Agent Does
-
-The generated task should be concrete and short:
-
-1. Inspect the source before writing.
-2. Ask the user only for missing intent or scope.
-3. Create or update the OKF bundle at `--out`. For a missing or empty output
-   folder, initialize it with
-   `openknowledge new --name "<clear wiki name>" --no-agents --no-setup <out>`
-   unless the user explicitly wants starter agent rules or a setup handoff.
-4. Keep raw copied material separate from synthesized pages.
-5. Preserve source links, source files, line ranges, commit IDs, or canonical
-   page URLs where available.
-6. Run `openknowledge validate "<out>"`.
-7. Finish with the useful next commands: `openknowledge list`,
-   `openknowledge search`, `openknowledge get`, and `openknowledge view`.
-
-Repository sources should keep commit provenance and source-file anchors.
-Website sources should keep canonical URLs, crawl depth, source titles, and
-fetch timestamps. The result should always be ordinary OKF Markdown so the
-rest of the CLI works without a generation runtime.
-
-## Generation Types
-
-Think of `--type` as a generation recipe.
-
-| Type | Purpose |
-| --- | --- |
-| `understanding` | Default DeepWiki-style wiki for understanding a repo or site: overview, architecture, structure, workflows, entrypoints, diagrams when useful, glossary, and citations. |
-| `custom` | Ask what the wiki should help with, who it is for, what to focus on, and how deep to go. `--about` supplies that goal without an interview. |
-
-`custom` should compose the same underlying generation rules as other types,
-then store the chosen goal and rules so future refreshes keep the same intent.
-
-## Stored Metadata
-
-The generated prompt asks the agent to write root metadata like this when it is
-useful:
-
-```yaml
----
-okf_version: "0.1"
-okf_bundle_name: "owner-repo"
-okf_bundle_title: "owner/repo Understanding"
-okf_wiki_type: understanding
-okf_generation_goal: "Help new contributors understand the plugin system."
-okf_generation_rules: [overview, architecture, workflows, glossary, citations]
-okf_generated_from:
-  kind: github
-  url: https://github.com/openknowledge-sh/openknowledge
-  branch: main
-  commit: abc123
-  generated_at: 2026-07-07T12:00:00Z
-  generator: openknowledge from
----
-```
-
-Generated concept pages still use normal OKF `type` values such as
-`Repository Overview`, `Architecture Overview`, `Module`,
-`Development Workflow`, `API Reference`, or `Glossary`.
-
-## Refresh Behavior
-
-If the output bundle already has `okf_generated_from` metadata, `from` should
-prefer an update flow over a full rewrite.
-
-For repositories, compare the recorded commit with the current commit, inspect
-changed files, and update only affected pages where practical. For websites,
-compare known URLs and page content where available.
-
-Refreshes should preserve human edits when possible. Generated pages should
-make their provenance explicit enough that an agent can distinguish generated
-sections from later human-maintained notes.
-
-## Command Change History
-
-### 2026-07-07
-
-`openknowledge from` shipped as a prompt-producing source-to-wiki command. It
-accepts one source argument, requires `--out`, defaults `--type` to
-`understanding`, supports `--type custom`, accepts `--about` for non-interactive
-custom goals, and accepts `--depth` as a crawl or traversal hint. Its generated
-prompt initializes fresh source-generated bundles with `openknowledge new`
-plus `--no-agents --no-setup` so the output does not include an unnecessary
-interactive setup handoff or starter agent rules unless the user asks for them.
+The old top-level `openknowledge from` form was removed before 1.0.
 
 ---
 
@@ -183,13 +36,5 @@ interactive setup handoff or starter agent rules unless the user asks for them.
 
 > **Source anchors**
 >
-> * `packages/cli/cmd/openknowledge/main.go`
 > * `packages/cli/internal/okf/from.go`
-> * `packages/cli/cmd/openknowledge/main_test.go`
-> * `packages/cli/internal/okf/from_test.go`
->
-> **Update notes**
->
-> Update this page when `from` flags, supported generation types, prompt
-> behavior, or provenance guidance change. CLI behavior changes also require
-> [CLI changelog](/changelog/cli.md) updates.
+> * `packages/cli/cmd/openknowledge/prompt_command.go`

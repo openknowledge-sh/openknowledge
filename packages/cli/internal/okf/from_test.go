@@ -25,9 +25,10 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 		"copy this entire prompt and paste it into Codex",
 		"Avoid shell command substitution or piping",
 		"DeepWiki-style understanding wiki",
-		"openknowledge new --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
+		"openknowledge scaffold --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
 		"unless the user explicitly wants starter agent rules or an interactive setup handoff document",
 		"okf_generated_from",
+		"list, search, get, view, validate, and export work",
 		"openknowledge validate \"Wiki\"",
 		"openknowledge list \"Wiki\"",
 		"openknowledge search \"Wiki\" \"<query>\"",
@@ -40,8 +41,8 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 		}
 	}
 	forbidden := []string{
-		"codex \"$(" + "openknowledge from",
-		"openknowledge from ... " + "| codex",
+		"codex \"$(" + "openknowledge prompt from",
+		"openknowledge prompt from ... " + "| codex",
 	}
 	for _, unexpected := range forbidden {
 		if strings.Contains(prompt, unexpected) {

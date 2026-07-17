@@ -30,12 +30,10 @@ recognizes the common Go flag help spelling after a subcommand.
 
 ## Behavior
 
-Root help prints the supported command surface, global help flag, examples, and
-the command-specific help convention. Its examples include rule generation,
-setup rule selection, rule review prompt generation, a minimal
-`openknowledge new` scaffold, a source-wiki scaffold without setup or agent
-handoff files, a scaffold with optional bundle metadata, and a `connect`
-example that registers the generated bundle under a stable key.
+Root help organizes the supported command surface around creating and
+maintaining knowledge, using and publishing it, running it as a service, and
+validating or connecting it. It shows only representative end-to-end flows;
+command-specific help owns exhaustive flags and variants.
 Unknown commands print the root usage to stderr and exit with status `2`.
 
 The root-only `--error-format text|json` option must precede the command. Its
@@ -53,48 +51,48 @@ direct and isolated modes separately.
 
 ## Example Output
 
-`openknowledge --help` starts with the root summary, usage forms, and command
-list:
+Root help uses progressive disclosure: it names the complete capability groups
+and representative commands, while command-specific help owns detailed flags
+and variants.
 
 ```text
-openknowledge creates and validates Open Knowledge Format v0.1 bundles.
+openknowledge builds, uses, and runs self-maintaining OKF knowledge bases.
 
 Usage:
   openknowledge --help
   openknowledge --error-format json <command> [args...]
   openknowledge <command> --help
-  openknowledge setup
-  openknowledge setup --rules <rules>
-  openknowledge from <source> --out <folder>
-  openknowledge agent ["<initial prompt>"]
-  openknowledge agent --runtime <codex|claude|grok|opencode>
-  openknowledge agent exec [--isolate] "<prompt>"
-  openknowledge agent init [--rules <rules>]
-  openknowledge agent from <source> --out <folder>
-  openknowledge agent doctor [--runtime <runtime>]
-  openknowledge jobs new <template> --out <file>
-  openknowledge jobs run <job.md> --dry-run
-  openknowledge jobs status [jobs-dir]
-  openknowledge jobs runs [repo]
-  openknowledge runtime plan --config runtime.toml
-  openknowledge runtime build --config runtime.toml
-  openknowledge runtime serve --config runtime.toml
-  openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml
-  openknowledge deploy railway [path] --dry-run
-  openknowledge deploy railway [path] --yes
-  openknowledge new --no-agents --no-setup [folder]
 
-Commands:
-  setup      Print an agent setup prompt.
-  from       Print an agent source-to-wiki generation prompt.
-  rules      Print agent maintenance rules.
-  agent      Experimental: run a steered Codex, Claude Code, Grok, or OpenCode agent.
-  jobs       Experimental: run and manage scheduled jobs from Markdown specs.
-  runtime    Run isolated public serving and private maintenance roles.
-  deploy     Provision a self-hosted runtime on a supported provider.
+Create and maintain:
+  setup        Create, validate, and integrate a knowledge base with an agent.
+  agent        Run, integrate, and review knowledge with an agent.
+  jobs         Run repeatable isolated maintenance jobs from Markdown specs.
+
+Use and publish:
+  get          Read an exact Markdown file or bundle entrypoint.
+  search       Build source-grounded context from one or more knowledge bases.
+  list         Inspect knowledge-base structure.
+  view         Browse knowledge locally.
+  mcp          Connect an MCP client to read-only knowledge tools.
+  export       Export HTML, JSON, graph, or portable tar views.
+
+Run as a service:
+  runtime      Build, serve, and maintain an isolated knowledge runtime.
+  deploy       Provision that runtime on a supported provider.
+
+Validate and connect:
+  validate     Validate a bundle against an OKF spec.
+  connect      Connect a local or remote knowledge base.
+  disconnect   Remove a knowledge-base connection.
+  registry     Refresh, inspect, and resolve connected knowledge bases.
+
+Advanced and portable tools:
+  scaffold     Create a deterministic local OKF knowledge base.
+  prompt       Print or install portable agent instructions.
+  ast          Print parsed OKF AST JSON.
+  spec         Print an embedded OKF spec.
+  version      Print the CLI version.
 ```
-
 ## Use Cases
 
 * Discover the current command surface.
@@ -102,6 +100,22 @@ Commands:
 * Give agents a stable entry point before setup.
 
 ## Command Change History
+
+### 2026-07-17 - Workflow consolidation
+
+Root help now presents `setup`, `agent`, and `jobs` as the maintenance workflow,
+uses `export` as the only publishing namespace, reserves `connect` and
+`disconnect` for registry mutation, and places print-only tools under the
+advanced `prompt` namespace. Removed pre-1.0 command forms are not aliases.
+
+The low-level deterministic bundle command is named `scaffold`; the former
+top-level `new` name is not retained as an alias.
+
+### 2026-07-17 - Workflow-oriented root help
+
+Root help now presents the CLI through four product workflows instead of an
+exhaustive flat usage matrix. Project integration and suggestion review are
+nested under `openknowledge agent` without duplicate top-level forms.
 
 ### 2026-07-17
 
@@ -208,7 +222,7 @@ Root help added `openknowledge search <name|path> <query>`,
 the previous query-mode usage forms and keeps search as the standalone
 retrieval command. This was the pre-2026-07-09 search surface.
 
-Root help added `openknowledge to graph --type search [path]` for derivative
+Root help added `openknowledge export graph --type search [path]` for derivative
 search graph exports.
 
 ### 2026-07-05
@@ -241,11 +255,11 @@ Root help added `openknowledge connect <source>`,
 `openknowledge connect <source> --as <key>`, a `connect` command summary, and a
 quick example for connecting a bundle with an explicit key.
 
-Root help added `openknowledge to tar --out <file> [path]` and the `tar`
+Root help added `openknowledge export tar --out <file> [path]` and the `tar`
 converter target for portable bundle archives.
 
-Root help added `openknowledge to graph [path]`,
-`openknowledge to graph --out <file> [path]`, and the `graph` converter target
+Root help added `openknowledge export graph [path]`,
+`openknowledge export graph --out <file> [path]`, and the `graph` converter target
 for AST-backed link graph JSON.
 
 Root help added the previous query usage, JSON output usage, and a quick

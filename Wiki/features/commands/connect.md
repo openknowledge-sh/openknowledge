@@ -9,9 +9,9 @@ timestamp: 2026-06-20T00:00:00Z
 # `openknowledge connect`
 
 `openknowledge connect` adds an Open Knowledge bundle to the user's
-registry so later commands can refer to it by a stable key. It is syntactic
-sugar for `openknowledge registry connect`, with the same parsing, output, and
-exit-code behavior as the registry subcommand.
+registry so later commands can refer to it by a stable key. It is the single
+canonical command for connection mutation; the registry namespace is reserved
+for inspection and refresh operations.
 
 The command connects existing local directories directly. Remote sources are
 materialized into the Open Knowledge cache before registration. Resolution order
@@ -233,7 +233,7 @@ are preserved. Source anchors: `packages/cli/internal/okf/archive.go`,
 
 ### 2026-07-15 - Positional-first flags
 
-`openknowledge connect` and `openknowledge registry connect` now parse
+`openknowledge connect` now parses
 `--as`, `--access`, and `--no-validate` after `<source>` as documented while
 continuing to accept flag-first forms. Source anchors:
 `packages/cli/cmd/openknowledge/main.go` and

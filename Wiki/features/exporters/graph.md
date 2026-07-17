@@ -9,7 +9,7 @@ status: shipped
 
 # Graph Exporter
 
-`openknowledge to graph` writes AST-backed graph JSON for an Open Knowledge
+`openknowledge export graph` writes AST-backed graph JSON for an Open Knowledge
 bundle. The default source graph describes authored files and local links.
 The search graph is a derivative retrieval layer built from Markdown heading
 chunks.
@@ -17,12 +17,12 @@ chunks.
 ## Usage
 
 ```sh
-openknowledge to graph [key-or-path]
-openknowledge to graph --out <file> [key-or-path]
-openknowledge to graph --type source [key-or-path]
-openknowledge to graph --type search [key-or-path]
-openknowledge to graph --spec <version> [key-or-path]
-openknowledge to graph --help
+openknowledge export graph [key-or-path]
+openknowledge export graph --out <file> [key-or-path]
+openknowledge export graph --type source [key-or-path]
+openknowledge export graph --type search [key-or-path]
+openknowledge export graph --spec <version> [key-or-path]
+openknowledge export graph --help
 ```
 
 ## Types
@@ -62,7 +62,7 @@ graph edge kinds include:
 
 ## Behavior
 
-`to graph` uses the same AST-backed bundle parser as `to json`, the viewer
+`export graph` uses the same AST-backed bundle parser as `export json`, the viewer
 knowledge graph, and CLI search chunking. Markdown links inside fenced code
 blocks are ignored by the AST parser and therefore do not become graph edges.
 
@@ -89,7 +89,7 @@ checked JSON Schema plus golden snapshot.
 
 ### 2026-07-06
 
-`openknowledge to graph` added `--type source|search`. The default source graph
+`openknowledge export graph` added `--type source|search`. The default source graph
 keeps the existing file/link model. The search graph adds derivative chunk
 nodes and typed graph edges for source-grounded retrieval.
 
@@ -109,5 +109,5 @@ nodes and typed graph edges for source-grounded retrieval.
 >
 > **Update notes**
 >
-> Graph output changes should update [openknowledge to](/features/commands/to.md),
+> Graph output changes should update [openknowledge export](/features/commands/export.md),
 > README command tables, root help, and [CLI changelog](/changelog/cli.md).

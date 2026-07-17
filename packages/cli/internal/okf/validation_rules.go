@@ -72,6 +72,49 @@ func validateConcept(rel string, meta ASTFrontmatter, result *Result) {
 		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "concept-type", Message: "concept frontmatter must include non-empty type"})
 	}
 	validatePublicationMetadata(rel, meta, result)
+	validateSuggestion(rel, meta, result)
+}
+
+func validateSuggestion(rel string, meta ASTFrontmatter, result *Result) {
+	normalizedRel := filepath.ToSlash(rel)
+	inSuggestions := strings.HasPrefix(normalizedRel, "suggestions/") || strings.Contains(normalizedRel, "/suggestions/")
+	if frontmatterString(meta, "type") != "Open Knowledge Suggestion" && !inSuggestions {
+		return
+	}
+	add := func(message string) {
+		result.Errors = append(result.Errors, Issue{Path: rel, Line: 1, Rule: "suggestion-contract", Message: message})
+	}
+	if frontmatterString(meta, "type") != "Open Knowledge Suggestion" {
+		add("documents under suggestions/ must use type Open Knowledge Suggestion")
+	}
+	published, ok := meta.Data["okf_publish"].(bool)
+	if !ok || published {
+		add("Open Knowledge suggestions must declare okf_publish: false")
+	}
+	status := strings.ToLower(frontmatterString(meta, "status"))
+	switch status {
+	case "pending", "applied", "dismissed", "blocked":
+	default:
+		add("suggestion status must be pending, applied, dismissed, or blocked")
+	}
+	for _, key := range []string{"title", "okf_suggestion_id", "okf_suggestion_kind", "okf_suggestion_runtime", "okf_suggestion_created_at", "okf_suggestion_base"} {
+		if frontmatterString(meta, key) == "" {
+			add(fmt.Sprintf("suggestion frontmatter must include non-empty %s", key))
+		}
+	}
+	targets, ok := meta.Data["okf_suggestion_targets"].([]any)
+	if !ok || len(targets) == 0 {
+		add("okf_suggestion_targets must be a non-empty list")
+		return
+	}
+	for _, target := range targets {
+		value, ok := target.(string)
+		clean := filepath.ToSlash(filepath.Clean(value))
+		if !ok || strings.TrimSpace(value) == "" || filepath.IsAbs(value) || clean == ".." || strings.HasPrefix(clean, "../") {
+			add("suggestion targets must be non-empty knowledge-base-relative paths")
+			return
+		}
+	}
 }
 
 func validatePublicationMetadata(rel string, meta ASTFrontmatter, result *Result) {

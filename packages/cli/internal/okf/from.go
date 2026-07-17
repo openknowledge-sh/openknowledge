@@ -80,10 +80,10 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteByte('\n')
 
 	builder.WriteString("Write the wiki:\n")
-	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `openknowledge new --name \"<clear wiki name>\" --no-agents --no-setup %q` before customizing it.\n", markdownCode(options.Out), options.Out))
+	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `openknowledge scaffold --name \"<clear wiki name>\" --no-agents --no-setup %q` before customizing it.\n", markdownCode(options.Out), options.Out))
 	builder.WriteString("- Use `--no-agents --no-setup` for generated source wikis unless the user explicitly wants starter agent rules or an interactive setup handoff document.\n")
 	builder.WriteString("- Keep raw copied material separate from synthesized wiki pages.\n")
-	builder.WriteString("- Write ordinary OKF Markdown so list, search, get, view, validate, and to work without a generation runtime.\n")
+	builder.WriteString("- Write ordinary OKF Markdown so list, search, get, view, validate, and export work without a generation runtime.\n")
 	builder.WriteString("- Use normal concept page `type` values such as `Repository Overview`, `Architecture Overview`, `Module`, `Development Workflow`, `API Reference`, `Research Synthesis`, or `Glossary`.\n")
 	builder.WriteString("- Add or update root metadata such as `okf_wiki_type`, `okf_generation_goal`, `okf_generation_rules`, and `okf_generated_from` when useful.\n")
 	builder.WriteString("- Preserve source links, source files, line ranges, commit IDs, canonical URLs, crawl depth, and fetch timestamps where available.\n")
@@ -135,35 +135,4 @@ func inferFromSourceKind(source string) string {
 		return "local path"
 	}
 	return "source path"
-}
-
-func fromCommand(options FromPromptOptions) string {
-	parts := []string{"openknowledge", "from", shellQuote(options.Source), "--out", shellQuote(options.Out)}
-	if options.Type != "" && options.Type != DefaultFromType {
-		parts = append(parts, "--type", shellQuote(options.Type))
-	} else if options.Type == DefaultFromType {
-		parts = append(parts, "--type", shellQuote(options.Type))
-	}
-	if strings.TrimSpace(options.About) != "" {
-		parts = append(parts, "--about", shellQuote(strings.TrimSpace(options.About)))
-	}
-	if options.Depth > 0 {
-		parts = append(parts, "--depth", fmt.Sprintf("%d", options.Depth))
-	}
-	return strings.Join(parts, " ")
-}
-
-func shellQuote(value string) string {
-	if value == "" {
-		return "''"
-	}
-	if strings.IndexFunc(value, func(r rune) bool {
-		return !(r >= 'A' && r <= 'Z') &&
-			!(r >= 'a' && r <= 'z') &&
-			!(r >= '0' && r <= '9') &&
-			!strings.ContainsRune("@%_+=:,./-", r)
-	}) == -1 {
-		return value
-	}
-	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }

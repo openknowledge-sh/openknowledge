@@ -15,7 +15,8 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"Do not ask a fixed questionnaire",
 		"Use these seed questions only when context cannot answer them",
 		"Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents.",
-		"openknowledge rules --list",
+		"openknowledge prompt rules --list",
+		"openknowledge scaffold --name \"<knowledge base name>\" \"<folder path>\"",
 		"copy this entire prompt and paste it into Codex",
 		"Avoid shell command substitution or piping",
 		"context-specific questions",
@@ -31,8 +32,8 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		}
 	}
 	forbidden := []string{
-		"codex \"$(" + "openknowledge setup)\"",
-		"openknowledge setup " + "| codex",
+		"codex \"$(" + "openknowledge prompt setup)\"",
+		"openknowledge prompt setup " + "| codex",
 	}
 	for _, unexpected := range forbidden {
 		if strings.Contains(prompt, unexpected) {
@@ -61,7 +62,7 @@ func TestGeneratedSetupHandoffRequiresContextFirstInterview(t *testing.T) {
 		"Do not ask a\nfixed generic questionnaire",
 		"context-specific questions only for missing or ambiguous details",
 		"which maintenance rules apply",
-		"openknowledge rules --list",
+		"openknowledge prompt rules --list",
 		"spawn focused subagents with lower reasoning effort",
 		"read exact Markdown with openknowledge get",
 		"browse it with openknowledge view",

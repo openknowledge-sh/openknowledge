@@ -1,14 +1,14 @@
 ---
 type: Command Documentation
-title: openknowledge new
+title: openknowledge scaffold
 description: Scaffolds a minimal Open Knowledge bundle.
 tags: [openknowledge, cli, command, scaffold]
 timestamp: 2026-06-18T00:00:00Z
 ---
 
-# `openknowledge new`
+# `openknowledge scaffold`
 
-`openknowledge new` creates a minimal OKF bundle with `index.md`, `log.md`, and
+`openknowledge scaffold` creates a minimal OKF bundle with `index.md`, `log.md`, and
 `SPEC.md`. By default it also creates `AGENTS.md` starter rules and a
 `SETUP.MD` agent handoff so an agent can shape the final wiki around the user's
 domain.
@@ -16,11 +16,11 @@ domain.
 ## Usage
 
 ```sh
-openknowledge new [folder]
-openknowledge new --name <name> [folder]
-openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
-openknowledge new --no-agents --no-setup [folder]
-openknowledge new --help
+openknowledge scaffold [folder]
+openknowledge scaffold --name <name> [folder]
+openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]
+openknowledge scaffold --no-agents --no-setup [folder]
+openknowledge scaffold --help
 ```
 
 ## Arguments And Flags
@@ -53,11 +53,11 @@ only `index.md`, `log.md`, and `SPEC.md`.
 When `--no-setup` is used, terminal output omits the "Agent handoff" section
 because there is no `SETUP.MD` document to hand to an agent.
 
-When bundle metadata flags are provided, `new` writes optional Open Knowledge
+When bundle metadata flags are provided, `scaffold` writes optional Open Knowledge
 CLI metadata into the root `index.md` frontmatter as flat `okf_bundle_*` keys.
 This metadata is a tooling layer used by `connect` for bundle naming and
 discovery and by `get` for entrypoint routing; it is not required for OKF
-conformance. Without these flags, `new` writes only `okf_version: "0.1"` in the
+conformance. Without these flags, `scaffold` writes only `okf_version: "0.1"` in the
 root index frontmatter.
 
 `--bundle-entry` accepts repeatable `name=path` values. For example,
@@ -69,10 +69,10 @@ entrypoint document.
 ## Quick Examples
 
 ```sh
-openknowledge new ./project-memory
-openknowledge new --no-agents --no-setup ./source-wiki
-openknowledge new --name "Project Memory" ./project-memory
-openknowledge new --name "Accessibility Review" \
+openknowledge scaffold ./project-memory
+openknowledge scaffold --no-agents --no-setup ./source-wiki
+openknowledge scaffold --name "Project Memory" ./project-memory
+openknowledge scaffold --name "Accessibility Review" \
   --bundle-name accessibility \
   --bundle-purpose "Accessibility review guidance." \
   --bundle-tag accessibility \
@@ -83,7 +83,7 @@ openknowledge new --name "Accessibility Review" \
 
 ## Example Output
 
-`openknowledge new --name "Project Memory" ./project-memory` prints a scaffold
+`openknowledge scaffold --name "Project Memory" ./project-memory` prints a scaffold
 summary and an agent handoff prompt:
 
 ```text
@@ -118,10 +118,16 @@ Agent handoff
 
 ## Command Change History
 
+### 2026-07-17 - Renamed from `new`
+
+Renamed the low-level deterministic command to `openknowledge scaffold` so its
+role is explicit next to the managed `openknowledge setup` workflow. The former
+top-level `new` name was removed without an alias before 1.0.
+
 ### 2026-07-07
 
 Added `--no-agents` and `--no-setup` so callers such as
-`openknowledge from` can initialize source-generated bundles without creating
+`openknowledge setup --from` can initialize source-generated bundles without creating
 starter agent rules or a temporary setup handoff document.
 
 ---

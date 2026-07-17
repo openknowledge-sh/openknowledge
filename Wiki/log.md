@@ -2,6 +2,19 @@
 
 ## 2026-07-17
 
+* **Canonical product interface**: Consolidated managed onboarding into
+  `openknowledge setup [wiki]`, including source mode, validation, and project
+  integration. Moved print-oriented tools under `openknowledge prompt`, renamed
+  publishing to `export`, renamed the low-level `new` command to `scaffold`,
+  removed duplicate registry mutation commands, and accepted the corresponding
+  product-interface decision.
+
+* **Project integrations and suggestions**: Added discovery-only global skills,
+  project-scoped Codex/Claude/OpenCode hooks, atomic private Markdown
+  suggestions, `agent integrate` and auto-discovered `agent suggestions`
+  workflows, target-bound OKF verification, and an ordinary scheduled
+  suggestions Job template without new top-level commands.
+
 * **Steered multi-harness runtime**: Generalized the local agent and scheduled
   job surfaces across Codex, Claude Code, Grok, and OpenCode, added executable
   setup/source workflows, strict runtime/model job definitions, per-harness

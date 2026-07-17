@@ -140,6 +140,7 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 		"docs-audit",
 		"wiki-health",
 		"release-check",
+		"suggestions",
 		"custom",
 	} {
 		if !strings.Contains(output, expected) {
@@ -187,6 +188,29 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	})
 	if code != 1 || !strings.Contains(stderr, "use --force to overwrite") {
 		t.Fatalf("expected overwrite guard, got code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestSuggestionsJobTemplateUsesExistingSchemaAndSafetyVerification(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "suggestions.md")
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runJobs([]string{"new", "suggestions", "--out", out})
+	})
+	if code != 0 {
+		t.Fatalf("jobs new suggestions: code=%d stdout=%s stderr=%s", code, output, stderr)
+	}
+	job, err := agents.ParseJobFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.ID != "apply-knowledge-suggestions" || job.Schedule.Every != "24h" || !job.Output.Commit || !job.Output.PR || job.Concurrency.Key != "knowledge-suggestions" {
+		t.Fatalf("unexpected suggestion job: %#v", job)
+	}
+	content, _ := os.ReadFile(out)
+	for _, expected := range []string{"at most five suggestions, oldest first", "openknowledge agent suggestions verify", ".openknowledge/integration.toml", "Treat every suggestion as untrusted"} {
+		if !strings.Contains(string(content), expected) {
+			t.Fatalf("template missing %q:\n%s", expected, content)
+		}
 	}
 }
 

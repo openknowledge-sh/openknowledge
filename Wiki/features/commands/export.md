@@ -1,35 +1,35 @@
 ---
 type: Command Documentation
-title: openknowledge to
+title: openknowledge export
 description: Converts an Open Knowledge bundle to supported output formats.
 tags: [openknowledge, cli, command, export]
 timestamp: 2026-06-18T00:00:00Z
 ---
 
-# `openknowledge to`
+# `openknowledge export`
 
-`openknowledge to` is the conversion command group. Current shipped targets are
+`openknowledge export` is the conversion command group. Current shipped targets are
 `html`, `json`, `tar`, and `graph`.
 
 ## Usage
 
 ```sh
-openknowledge to html --out <folder> [key-or-path]
-openknowledge to html --plain --out <folder> [key-or-path]
-openknowledge to html --head-file <file> --out <folder> [key-or-path]
-openknowledge to html --script-src <src> --out <folder> [key-or-path]
-openknowledge to html --spec <version> --out <folder> [key-or-path]
-openknowledge to json [key-or-path]
-openknowledge to json --out <file> [key-or-path]
-openknowledge to json --spec <version> [key-or-path]
-openknowledge to tar --out <file> [key-or-path]
-openknowledge to tar --spec <version> --out <file> [key-or-path]
-openknowledge to graph [key-or-path]
-openknowledge to graph --out <file> [key-or-path]
-openknowledge to graph --type source [key-or-path]
-openknowledge to graph --type search [key-or-path]
-openknowledge to graph --spec <version> [key-or-path]
-openknowledge to --help
+openknowledge export html --out <folder> [key-or-path]
+openknowledge export html --plain --out <folder> [key-or-path]
+openknowledge export html --head-file <file> --out <folder> [key-or-path]
+openknowledge export html --script-src <src> --out <folder> [key-or-path]
+openknowledge export html --spec <version> --out <folder> [key-or-path]
+openknowledge export json [key-or-path]
+openknowledge export json --out <file> [key-or-path]
+openknowledge export json --spec <version> [key-or-path]
+openknowledge export tar --out <file> [key-or-path]
+openknowledge export tar --spec <version> --out <file> [key-or-path]
+openknowledge export graph [key-or-path]
+openknowledge export graph --out <file> [key-or-path]
+openknowledge export graph --type source [key-or-path]
+openknowledge export graph --type search [key-or-path]
+openknowledge export graph --spec <version> [key-or-path]
+openknowledge export --help
 ```
 
 ## Targets
@@ -57,16 +57,16 @@ openknowledge to --help
 ## Quick Examples
 
 ```sh
-openknowledge to html --out ./site ./project-memory
-openknowledge to html --plain --out ./plain-site ./project-memory
-openknowledge to html --head-file ./head.html --out ./site ./project-memory
-openknowledge to html --script-src /analytics.js --out ./site ./project-memory
-openknowledge to json ./project-memory
-openknowledge to json --out ./bundle.json ./project-memory
-openknowledge to tar --out ./bundle.tar.gz ./project-memory
-openknowledge to graph ./project-memory
-openknowledge to graph --out ./graph.json ./project-memory
-openknowledge to graph --type search ./project-memory
+openknowledge export html --out ./site ./project-memory
+openknowledge export html --plain --out ./plain-site ./project-memory
+openknowledge export html --head-file ./head.html --out ./site ./project-memory
+openknowledge export html --script-src /analytics.js --out ./site ./project-memory
+openknowledge export json ./project-memory
+openknowledge export json --out ./bundle.json ./project-memory
+openknowledge export tar --out ./bundle.tar.gz ./project-memory
+openknowledge export graph ./project-memory
+openknowledge export graph --out ./graph.json ./project-memory
+openknowledge export graph --type search ./project-memory
 ```
 
 ## Example Output
@@ -102,7 +102,7 @@ Stdout targets print JSON when `--out` is omitted:
 
 ## Behavior
 
-`to html` requires `--out <folder>`. It has two modes:
+`export html` requires `--out <folder>`. It has two modes:
 
 * Default viewer export: static viewer pages with file browsing, search,
   stacked-panel navigation, embedded note data, theme/source configuration, and
@@ -128,7 +128,7 @@ materialize the source bundle from the static site. See
 [HTML exporter](/features/exporters/html.md) for rendering, theme, source-link,
 and manifest details.
 
-Portable `to html` and `to tar` outputs require zero validation errors for the
+Portable `export html` and `export tar` outputs require zero validation errors for the
 selected spec. Warnings remain publishable. Validation failure occurs before
 the exporter creates or replaces output, so it cannot advertise a manifest
 whose archive the remote `connect` consumer will reject.
@@ -140,20 +140,20 @@ generation. The output may be nested inside the source bundle, in which case it
 is excluded from the portable source archive, but the output must not equal or
 contain the source bundle.
 
-`to json` serializes the normalized model of parsed Markdown documents.
+`export json` serializes the normalized model of parsed Markdown documents.
 Non-Markdown assets are excluded; use `list --json` for complete inventory or
-`to tar` for source-preserving packaging. It prints to stdout by default and
+`export tar` for source-preserving packaging. It prints to stdout by default and
 writes to `--out <file>` when provided. `--plain` is not valid for JSON. File
 output is replaced atomically after the complete JSON document is ready. See
 [JSON exporter](/features/exporters/json.md).
 
-`to tar` requires `--out <file>`. It writes a gzip-compressed tar archive of the
+`export tar` requires `--out <file>`. It writes a gzip-compressed tar archive of the
 source bundle and prints the archive SHA-256. `--plain` is not valid for TAR.
 The same bundle content produces the same archive bytes and SHA regardless of
 the destination filename, filesystem timestamps, owner identity, or
 non-executable permission bits. See [Tar exporter](/features/exporters/tar.md).
 
-`to graph` serializes AST-backed graph JSON. The default `--type source` graph
+`export graph` serializes AST-backed graph JSON. The default `--type source` graph
 contains bundle file nodes and deduplicated existing local Markdown links.
 `--type search` writes a derivative search graph with source file nodes,
 content-bearing H1-H3 chunk nodes, file-to-chunk containment edges, chunk
@@ -181,7 +181,7 @@ Unknown targets and unknown flags exit with status `2`.
 
 ### 2026-07-06
 
-`openknowledge to graph` added `--type source|search`. `source` keeps the
+`openknowledge export graph` added `--type source|search`. `source` keeps the
 existing file/link graph behavior as the default. `search` exports derivative
 H1-H3 heading chunk nodes and typed retrieval edges.
 

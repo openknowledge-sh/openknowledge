@@ -192,21 +192,21 @@ func cliErrorCommand(args []string) string {
 	}
 	root := args[0]
 	nested := map[string]map[string]bool{
-		"agent":    {"exec": true},
+		"agent":    {"exec": true, "integrate": true, "suggestions": true},
 		"jobs":     {"new": true, "list": true, "status": true, "runs": true, "start": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
 		"deploy":   {"railway": true},
 		"runtime":  {"plan": true, "build": true, "serve": true, "worker": true},
-		"registry": {"connect": true, "disconnect": true, "refresh": true, "list": true, "status": true, "where": true},
-		"review":   {"rules": true},
-		"to":       {"html": true, "json": true, "tar": true, "graph": true},
+		"registry": {"refresh": true, "list": true, "status": true, "where": true},
+		"prompt":   {"setup": true, "from": true, "rules": true, "review": true},
+		"export":   {"html": true, "json": true, "tar": true, "graph": true},
 	}
 	if subcommands, ok := nested[root]; ok && len(args) > 1 && subcommands[args[1]] {
 		return root + " " + args[1]
 	}
 	knownRoots := map[string]bool{
-		"setup": true, "from": true, "rules": true, "review": true, "agent": true, "jobs": true,
-		"new": true, "connect": true, "disconnect": true, "get": true, "search": true,
-		"mcp": true, "ast": true, "registry": true, "view": true, "to": true,
+		"setup": true, "prompt": true, "agent": true, "jobs": true,
+		"scaffold": true, "connect": true, "disconnect": true, "get": true, "search": true,
+		"mcp": true, "ast": true, "registry": true, "view": true, "export": true,
 		"runtime": true, "deploy": true, "spec": true, "validate": true, "list": true, "version": true,
 	}
 	if knownRoots[root] {
@@ -227,12 +227,8 @@ func dispatchCLI(args []string) int {
 		return 0
 	case "setup":
 		return runSetup(args[1:])
-	case "from":
-		return runFrom(args[1:])
-	case "rules":
-		return runRules(args[1:])
-	case "review":
-		return runReview(args[1:])
+	case "prompt":
+		return runPrompt(args[1:])
 	case "agent":
 		return runAgent(args[1:])
 	case "jobs":
@@ -241,8 +237,8 @@ func dispatchCLI(args []string) int {
 		return runRuntime(args[1:])
 	case "deploy":
 		return runDeploy(args[1:])
-	case "new":
-		return runNew(args[1:])
+	case "scaffold":
+		return runScaffold(args[1:])
 	case "connect":
 		return runConnect(args[1:], "openknowledge connect")
 	case "disconnect":
@@ -259,8 +255,8 @@ func dispatchCLI(args []string) int {
 		return runRegistry(args[1:])
 	case "view":
 		return runView(args[1:])
-	case "to":
-		return runTo(args[1:])
+	case "export":
+		return runExport(args[1:])
 	case "spec":
 		return runSpec(args[1:])
 	case "validate":
@@ -276,9 +272,9 @@ func dispatchCLI(args []string) int {
 	}
 }
 
-func runSetup(args []string) int {
+func runPromptSetup(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, setupHelpText())
+		fmt.Fprint(os.Stdout, promptSetupHelpText())
 		return 0
 	}
 	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
@@ -289,7 +285,7 @@ func runSetup(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "setup accepts no positional arguments")
+		fmt.Fprintln(os.Stderr, "prompt setup accepts no positional arguments")
 		return 2
 	}
 
@@ -315,9 +311,9 @@ type fromOptions struct {
 	depth    int
 }
 
-func runFrom(args []string) int {
+func runPromptFrom(args []string) int {
 	if len(args) == 0 || hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, fromHelpText())
+		fmt.Fprint(os.Stdout, promptFromHelpText())
 		return 0
 	}
 	options, err := parseFromOptions(args)
@@ -400,17 +396,17 @@ func parseFromOptions(args []string) (fromOptions, error) {
 			}
 			options.depth = depth
 		case strings.HasPrefix(arg, "-"):
-			return fromOptions{}, fmt.Errorf("unknown from option: %s", arg)
+			return fromOptions{}, fmt.Errorf("unknown prompt from option: %s", arg)
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) != 1 {
-		return fromOptions{}, fmt.Errorf("usage: openknowledge from <source> --out <path>")
+		return fromOptions{}, fmt.Errorf("usage: openknowledge prompt from <source> --out <path>")
 	}
 	options.source = positionals[0]
 	if strings.TrimSpace(options.out) == "" {
-		return fromOptions{}, fmt.Errorf("from requires --out <path>")
+		return fromOptions{}, fmt.Errorf("prompt from requires --out <path>")
 	}
 	return options, nil
 }
@@ -944,12 +940,12 @@ func runSpec(args []string) int {
 	return 0
 }
 
-func runNew(args []string) int {
+func runScaffold(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, newHelpText())
+		fmt.Fprint(os.Stdout, scaffoldHelpText())
 		return 0
 	}
-	fs := flag.NewFlagSet("new", flag.ContinueOnError)
+	fs := flag.NewFlagSet("scaffold", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	nameFlag := fs.String("name", "", "knowledge base name")
 	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
@@ -965,7 +961,7 @@ func runNew(args []string) int {
 		return 2
 	}
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "new accepts at most one folder path")
+		fmt.Fprintln(os.Stderr, "scaffold accepts at most one folder path")
 		return 2
 	}
 
@@ -1043,10 +1039,6 @@ func runRegistry(args []string) int {
 	switch args[0] {
 	case "list":
 		return runRegistryList(args[1:])
-	case "connect":
-		return runConnect(args[1:], "openknowledge registry connect")
-	case "disconnect":
-		return runDisconnect(args[1:], "openknowledge registry disconnect")
 	case "refresh":
 		return runRegistryRefresh(args[1:])
 	case "status":
@@ -4241,29 +4233,29 @@ func runList(args []string) int {
 	return 0
 }
 
-func runTo(args []string) int {
+func runExport(args []string) int {
 	if len(args) == 0 || isHelpFlag(args[0]) {
-		fmt.Fprint(os.Stdout, toHelpText())
+		fmt.Fprint(os.Stdout, exportHelpText())
 		return 0
 	}
 
 	switch args[0] {
 	case "html":
-		return runToHTML(args[1:])
+		return runExportHTML(args[1:])
 	case "json":
-		return runToJSON(args[1:])
+		return runExportJSON(args[1:])
 	case "tar":
-		return runToTar(args[1:])
+		return runExportTar(args[1:])
 	case "graph":
-		return runToGraph(args[1:])
+		return runExportGraph(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown to target: %s\n\n", args[0])
-		fmt.Fprint(os.Stderr, toHelpText())
+		fmt.Fprintf(os.Stderr, "unknown export target: %s\n\n", args[0])
+		fmt.Fprint(os.Stderr, exportHelpText())
 		return 2
 	}
 }
 
-type toOptions struct {
+type exportOptions struct {
 	path       string
 	out        string
 	spec       string
@@ -4274,18 +4266,18 @@ type toOptions struct {
 	scriptSrcs []string
 }
 
-func runToHTML(args []string) int {
+func runExportHTML(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, toHTMLHelpText())
+		fmt.Fprint(os.Stdout, exportHTMLHelpText())
 		return 0
 	}
-	options, err := parseToOptions(args)
+	options, err := parseExportOptions(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
 	if options.out == "" {
-		fmt.Fprintln(os.Stderr, "openknowledge to html requires --out <folder>")
+		fmt.Fprintln(os.Stderr, "openknowledge export html requires --out <folder>")
 		return 2
 	}
 	if options.plain {
@@ -4327,12 +4319,12 @@ func runToHTML(args []string) int {
 	return 0
 }
 
-func runToJSON(args []string) int {
+func runExportJSON(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, toJSONHelpText())
+		fmt.Fprint(os.Stdout, exportJSONHelpText())
 		return 0
 	}
-	options, err := parseToOptions(args)
+	options, err := parseExportOptions(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -4384,12 +4376,12 @@ func runToJSON(args []string) int {
 	return 0
 }
 
-func runToTar(args []string) int {
+func runExportTar(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, toTarHelpText())
+		fmt.Fprint(os.Stdout, exportTarHelpText())
 		return 0
 	}
-	options, err := parseToOptions(args)
+	options, err := parseExportOptions(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -4407,7 +4399,7 @@ func runToTar(args []string) int {
 		return 2
 	}
 	if options.out == "" {
-		fmt.Fprintln(os.Stderr, "openknowledge to tar requires --out <file>")
+		fmt.Fprintln(os.Stderr, "openknowledge export tar requires --out <file>")
 		return 2
 	}
 
@@ -4431,12 +4423,12 @@ func runToTar(args []string) int {
 
 // graph export has two shapes: source preserves the original file/link graph,
 // while search adds derivative chunk nodes for retrieval and visualization.
-func runToGraph(args []string) int {
+func runExportGraph(args []string) int {
 	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, toGraphHelpText())
+		fmt.Fprint(os.Stdout, exportGraphHelpText())
 		return 0
 	}
-	options, err := parseToOptions(args)
+	options, err := parseExportOptions(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -4484,85 +4476,85 @@ func runToGraph(args []string) int {
 	return 0
 }
 
-func parseToOptions(args []string) (toOptions, error) {
-	options := toOptions{path: ".", spec: "latest"}
+func parseExportOptions(args []string) (exportOptions, error) {
+	options := exportOptions{path: ".", spec: "latest"}
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
 		case arg == "--out":
 			index++
 			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
-				return toOptions{}, fmt.Errorf("--out requires a value")
+				return exportOptions{}, fmt.Errorf("--out requires a value")
 			}
 			options.out = args[index]
 		case strings.HasPrefix(arg, "--out="):
 			options.out = strings.TrimPrefix(arg, "--out=")
 			if strings.TrimSpace(options.out) == "" {
-				return toOptions{}, fmt.Errorf("--out requires a value")
+				return exportOptions{}, fmt.Errorf("--out requires a value")
 			}
 		case arg == "--spec":
 			index++
 			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
-				return toOptions{}, fmt.Errorf("--spec requires a value")
+				return exportOptions{}, fmt.Errorf("--spec requires a value")
 			}
 			options.spec = args[index]
 		case strings.HasPrefix(arg, "--spec="):
 			options.spec = strings.TrimPrefix(arg, "--spec=")
 			if strings.TrimSpace(options.spec) == "" {
-				return toOptions{}, fmt.Errorf("--spec requires a value")
+				return exportOptions{}, fmt.Errorf("--spec requires a value")
 			}
 		case arg == "--type":
 			index++
 			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
-				return toOptions{}, fmt.Errorf("--type requires a value")
+				return exportOptions{}, fmt.Errorf("--type requires a value")
 			}
 			options.graphType = args[index]
 		case strings.HasPrefix(arg, "--type="):
 			options.graphType = strings.TrimPrefix(arg, "--type=")
 			if strings.TrimSpace(options.graphType) == "" {
-				return toOptions{}, fmt.Errorf("--type requires a value")
+				return exportOptions{}, fmt.Errorf("--type requires a value")
 			}
 		case arg == "--plain":
 			options.plain = true
 		case arg == "--head-file":
 			index++
 			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
-				return toOptions{}, fmt.Errorf("--head-file requires a value")
+				return exportOptions{}, fmt.Errorf("--head-file requires a value")
 			}
 			options.headFile = args[index]
 		case strings.HasPrefix(arg, "--head-file="):
 			options.headFile = strings.TrimPrefix(arg, "--head-file=")
 			if strings.TrimSpace(options.headFile) == "" {
-				return toOptions{}, fmt.Errorf("--head-file requires a value")
+				return exportOptions{}, fmt.Errorf("--head-file requires a value")
 			}
 		case arg == "--head-html":
 			index++
 			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
-				return toOptions{}, fmt.Errorf("--head-html requires a value")
+				return exportOptions{}, fmt.Errorf("--head-html requires a value")
 			}
 			options.headHTML = args[index]
 		case strings.HasPrefix(arg, "--head-html="):
 			options.headHTML = strings.TrimPrefix(arg, "--head-html=")
 			if strings.TrimSpace(options.headHTML) == "" {
-				return toOptions{}, fmt.Errorf("--head-html requires a value")
+				return exportOptions{}, fmt.Errorf("--head-html requires a value")
 			}
 		case arg == "--script-src":
 			index++
 			if index >= len(args) || strings.TrimSpace(args[index]) == "" {
-				return toOptions{}, fmt.Errorf("--script-src requires a value")
+				return exportOptions{}, fmt.Errorf("--script-src requires a value")
 			}
 			options.scriptSrcs = append(options.scriptSrcs, args[index])
 		case strings.HasPrefix(arg, "--script-src="):
 			src := strings.TrimPrefix(arg, "--script-src=")
 			if strings.TrimSpace(src) == "" {
-				return toOptions{}, fmt.Errorf("--script-src requires a value")
+				return exportOptions{}, fmt.Errorf("--script-src requires a value")
 			}
 			options.scriptSrcs = append(options.scriptSrcs, src)
 		case strings.HasPrefix(arg, "-"):
-			return toOptions{}, fmt.Errorf("unknown flag: %s", arg)
+			return exportOptions{}, fmt.Errorf("unknown flag: %s", arg)
 		default:
 			if options.path != "." {
-				return toOptions{}, fmt.Errorf("to accepts at most one path")
+				return exportOptions{}, fmt.Errorf("to accepts at most one path")
 			}
 			options.path = arg
 		}
@@ -4570,7 +4562,7 @@ func parseToOptions(args []string) (toOptions, error) {
 	return options, nil
 }
 
-func (options toOptions) headFlag() string {
+func (options exportOptions) headFlag() string {
 	if options.headFile != "" {
 		return "--head-file"
 	}
@@ -4583,7 +4575,7 @@ func (options toOptions) headFlag() string {
 	return ""
 }
 
-func (options toOptions) headInjectionOptions() headInjectionOptions {
+func (options exportOptions) headInjectionOptions() headInjectionOptions {
 	headHTML := options.headHTML
 	if strings.TrimSpace(headHTML) == "" {
 		headHTML = os.Getenv("OPENKNOWLEDGE_HEAD_HTML")
@@ -4764,175 +4756,57 @@ func isHelpFlag(arg string) bool {
 }
 
 func helpText() string {
-	return `openknowledge creates and validates Open Knowledge Format v0.1 bundles.
+	return `openknowledge builds, uses, and runs self-maintaining OKF knowledge bases.
 
 Usage:
   openknowledge --help
   openknowledge --error-format json <command> [args...]
   openknowledge <command> --help
-  openknowledge setup
-  openknowledge setup --rules <rules>
-  openknowledge from <source> --out <folder>
-  openknowledge from <source> --out <folder> --type understanding
-  openknowledge from <source> --out <folder> --type custom --about <goal>
-  openknowledge rules
-  openknowledge rules <rules> --path <path>
-  openknowledge rules apply <rules> --path <path>
-  openknowledge rules --list
-  openknowledge review rules [path]
-  openknowledge review rules --rules <rules> --path <path>
-  openknowledge review rules --all [path]
-  openknowledge agent
-  openknowledge agent "<initial prompt>"
-  openknowledge agent --runtime <codex|claude|grok|opencode>
-  openknowledge agent exec "<prompt>"
-  openknowledge agent exec --isolate "<prompt>"
-  openknowledge agent init [--rules <rules>]
-  openknowledge agent from <source> --out <folder>
-  openknowledge agent doctor [--runtime <runtime>]
-  openknowledge jobs new
-  openknowledge jobs new <template> --out <file>
-  openknowledge jobs list [path]
-  openknowledge jobs list [path] --json
-  openknowledge jobs status [jobs-dir]
-  openknowledge jobs runs [repo]
-  openknowledge jobs start <job.md>
-  openknowledge jobs stop <run-id>
-  openknowledge jobs kill <run-id>
-  openknowledge jobs validate <job-or-dir>
-  openknowledge jobs validate <job-or-dir> --json
-  openknowledge jobs run <job.md> --dry-run
-  openknowledge jobs run <job.md>
-  openknowledge jobs daemon [jobs-dir] --once [--runtime <runtime>]
-  openknowledge runtime plan --config runtime.toml
-  openknowledge runtime build --config runtime.toml
-  openknowledge runtime serve --config runtime.toml
-  openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml
-  openknowledge deploy railway [path] --dry-run
-  openknowledge deploy railway [path] --yes
-  openknowledge new [folder]
-  openknowledge new --name <name> [folder]
-  openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
-  openknowledge new --no-agents --no-setup [folder]
-  openknowledge connect <source>
-  openknowledge connect <source> --as <key>
-  openknowledge disconnect <key|path>
-  openknowledge get <name|path> [entry-or-file]
-  openknowledge get <name|path> --info
-  openknowledge search <name|path> <query>
-  openknowledge search <name|path> <query> --budget <tokens>
-  openknowledge search <name|path> <query> --format json
-  openknowledge search <name|path> <query> --matches
-  openknowledge search <name|path> <query> --no-expand
-  openknowledge search --all <query>
-  openknowledge mcp [key-or-path]
-  openknowledge mcp --spec <version> [key-or-path]
-  openknowledge ast [path]
-  openknowledge ast --out <file> [path]
-  openknowledge registry connect <source>
-  openknowledge registry connect <source> --as <key>
-  openknowledge registry disconnect <key|path>
-  openknowledge registry refresh <key|path> [--force]
-  openknowledge registry list
-  openknowledge registry list --json
-  openknowledge registry status [key|path]
-  openknowledge registry status [key|path] --json
-  openknowledge registry where <name|path>
-  openknowledge view [path]
-  openknowledge view --name <alias-name> [path]
-  openknowledge view --host <host> --port <port> [path]
-  openknowledge view --allow-network --host <host> [path]
-  openknowledge view --head-file <file> [path]
-  openknowledge view --script-src <src> [path]
-  openknowledge view --no-browser [path]
-  openknowledge to html --out <folder> [path]
-  openknowledge to html --head-file <file> --out <folder> [path]
-  openknowledge to html --script-src <src> --out <folder> [path]
-  openknowledge to json [path]
-  openknowledge to json --out <file> [path]
-  openknowledge to tar --out <file> [path]
-  openknowledge to graph [path]
-  openknowledge to graph --out <file> [path]
-  openknowledge to graph --type search [path]
-  openknowledge spec latest|<version>
-  openknowledge validate [key-or-path]
-  openknowledge validate --spec <version> [key-or-path]
-  openknowledge validate --format json [key-or-path]
-  openknowledge validate --rule <rule=off|warn|error> [key-or-path]
-  openknowledge list [key-or-path]
-  openknowledge list --spec <version> [key-or-path]
-  openknowledge list --depth <n> [key-or-path]
-  openknowledge list --json [key-or-path]
-  openknowledge version
 
-Commands:
-  setup      Print an agent setup prompt.
-  from       Print an agent source-to-wiki generation prompt.
-  rules      Print agent maintenance rules.
-  review     Print advisory AI review prompts.
-  agent      Experimental: run a steered Codex, Claude Code, Grok, or OpenCode agent.
-  jobs       Experimental: run and manage scheduled jobs from Markdown specs.
-  runtime    Run isolated public serving and private maintenance roles.
-  deploy     Provision a self-hosted runtime on a supported provider.
-  new        Scaffold a local Open Knowledge bundle.
-  connect    Connect a local or remote knowledge bundle.
-  disconnect Remove a knowledge bundle connection.
-  get        Print a Markdown file or bundle entrypoint.
-  search     Build source-grounded Markdown context from a bundle.
-  mcp        Serve one knowledge base to MCP clients over stdio.
-  ast        Print parsed OKF AST JSON.
-  registry   Manage knowledge bundle connections.
-  view       Start the registry or knowledge base Markdown viewer.
-  to         Convert a bundle to another format.
-  spec       Print an embedded OKF spec.
-  validate   Validate a bundle against an OKF spec.
-  list       Print a bundle tree, with optional depth and JSON output.
-  version    Print the CLI version.
+Create and maintain:
+  setup        Create, validate, and integrate a knowledge base with an agent.
+  agent        Run, integrate, and review knowledge with an agent.
+  jobs         Run repeatable isolated maintenance jobs from Markdown specs.
+
+Use and publish:
+  get          Read an exact Markdown file or bundle entrypoint.
+  search       Build source-grounded context from one or more knowledge bases.
+  list         Inspect knowledge-base structure.
+  view         Browse knowledge locally.
+  mcp          Connect an MCP client to read-only knowledge tools.
+  export       Export HTML, JSON, graph, or portable tar views.
+
+Run as a service:
+  runtime      Build, serve, and maintain an isolated knowledge runtime.
+  deploy       Provision that runtime on a supported provider.
+
+Validate and connect:
+  validate     Validate a bundle against an OKF spec.
+  connect      Connect a local or remote knowledge base.
+  disconnect   Remove a knowledge-base connection.
+  registry     Refresh, inspect, and resolve connected knowledge bases.
+
+Advanced and portable tools:
+  scaffold     Create a deterministic local OKF knowledge base.
+  prompt       Print or install portable agent instructions.
+  ast          Print parsed OKF AST JSON.
+  spec         Print an embedded OKF spec.
+  version      Print the CLI version.
 
 Flags:
   -h, --help                Show this help.
   --error-format text|json  Format command failures on stderr (default text).
 
-Run openknowledge <command> --help for command-specific help.
+Start with a workflow above, then run openknowledge <command> --help.
 
-Examples:
-  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type understanding
-  openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type custom --about "Create an onboarding wiki"
-  openknowledge rules docs,changelog --path Wiki
-  openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
-  openknowledge review rules --rules docs,changelog --path Wiki
-  openknowledge agent "Update this knowledge base from the current source files"
-  openknowledge agent exec --isolate "Audit the wiki and fix stale pages"
-  openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md
-  openknowledge jobs validate .openknowledge/jobs
-  openknowledge jobs run .openknowledge/jobs/docs.md --dry-run
-  openknowledge jobs status .openknowledge/jobs
-  openknowledge jobs runs .
-  openknowledge setup --rules docs,changelog
-  openknowledge new ./project-memory
-  openknowledge new --no-agents --no-setup ./source-wiki
-  openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
-  openknowledge connect ./accessibility --as accessibility
-  openknowledge get accessibility --info
-  openknowledge get accessibility
-  openknowledge search accessibility "validation workflow"
-  openknowledge mcp accessibility
-  openknowledge ast ./project-memory
-  openknowledge disconnect accessibility
-  openknowledge registry connect ./team-wiki --as team
-  openknowledge registry refresh team
-  openknowledge registry where accessibility
-  openknowledge list personal
-  openknowledge validate ./project-memory
-  openknowledge to html --out ./site ./project-memory
-  openknowledge to json ./project-memory
-  openknowledge to tar --out ./bundle.tar.gz ./project-memory
-  openknowledge to graph ./project-memory
-  openknowledge list --json ./project-memory
-  openknowledge list --depth 2 ./project-memory
-  openknowledge view
-  openknowledge view ./project-memory
+Common flows:
+  openknowledge setup Wiki --from .
+  openknowledge agent suggestions
+  openknowledge validate Wiki
+  openknowledge search Wiki "deployment model"
+  openknowledge view Wiki
+  openknowledge export html --out ./site Wiki
+  openknowledge deploy railway Wiki --dry-run
 `
 }
 
@@ -5113,10 +4987,6 @@ func registryHelpText() string {
 Manage knowledge bundle connections.
 
 Usage:
-  openknowledge registry connect <source>
-  openknowledge registry connect <source> --as <key>
-  openknowledge registry disconnect <key|path>
-  openknowledge registry disconnect <key|path> --keep-files
   openknowledge registry refresh <key|path>
   openknowledge registry refresh <key|path> --force
   openknowledge registry list
@@ -5130,11 +5000,11 @@ Registry keys are shortcuts for local or cached knowledge bundle paths.
 Path-based commands continue to work directly, for example openknowledge list
 ./project-memory.
 
-Top-level openknowledge connect and openknowledge disconnect are aliases for
-the registry subcommands.
+Use the canonical top-level openknowledge connect and openknowledge disconnect
+commands to mutate the registry.
 
 Examples:
-  openknowledge registry connect ./project-memory --as personal
+  openknowledge connect ./project-memory --as personal
   openknowledge registry list
   openknowledge registry list --json
   openknowledge registry refresh personal
@@ -5220,23 +5090,23 @@ Examples:
 `
 }
 
-func toHelpText() string {
-	return fmt.Sprintf(`openknowledge to
+func exportHelpText() string {
+	return fmt.Sprintf(`openknowledge export
 
 Convert an Open Knowledge bundle to another format.
 
 Usage:
-  openknowledge to html --out <folder> [path]
-  openknowledge to html --plain --out <folder> [path]
-  openknowledge to html --head-file <file> --out <folder> [path]
-  openknowledge to html --script-src <src> --out <folder> [path]
-  openknowledge to json [path]
-  openknowledge to json --out <file> [path]
-  openknowledge to tar --out <file> [path]
-  openknowledge to graph [path]
-  openknowledge to graph --out <file> [path]
-  openknowledge to graph --type search [path]
-  openknowledge to --help
+  openknowledge export html --out <folder> [path]
+  openknowledge export html --plain --out <folder> [path]
+  openknowledge export html --head-file <file> --out <folder> [path]
+  openknowledge export html --script-src <src> --out <folder> [path]
+  openknowledge export json [path]
+  openknowledge export json --out <file> [path]
+  openknowledge export tar --out <file> [path]
+  openknowledge export graph [path]
+  openknowledge export graph --out <file> [path]
+  openknowledge export graph --type search [path]
+  openknowledge export --help
 
 Targets:
   html       Write a static HTML site. Defaults to the viewer app bundle.
@@ -5256,18 +5126,18 @@ Versions:
 `, supportedSpecVersionsText())
 }
 
-func toHTMLHelpText() string {
-	return fmt.Sprintf(`openknowledge to html
+func exportHTMLHelpText() string {
+	return fmt.Sprintf(`openknowledge export html
 
 Write a static HTML site for an Open Knowledge bundle.
 
 Usage:
-  openknowledge to html --out <folder> [path]
-  openknowledge to html --plain --out <folder> [path]
-  openknowledge to html --head-file <file> --out <folder> [path]
-  openknowledge to html --script-src <src> --out <folder> [path]
-  openknowledge to html --spec <version> --out <folder> [path]
-  openknowledge to html --help
+  openknowledge export html --out <folder> [path]
+  openknowledge export html --plain --out <folder> [path]
+  openknowledge export html --head-file <file> --out <folder> [path]
+  openknowledge export html --script-src <src> --out <folder> [path]
+  openknowledge export html --spec <version> --out <folder> [path]
+  openknowledge export html --help
 
 Arguments:
   path        Knowledge base root. Defaults to the current directory.
@@ -5285,9 +5155,9 @@ Flags:
   --spec       OKF spec version. Defaults to latest.
 
 Examples:
-  openknowledge to html --head-file ./head.html --out ./site ./project-memory
-  openknowledge to html --script-src /analytics.js --out ./site ./project-memory
-  openknowledge to html --head-html '<meta name="robots" content="noindex">' --out ./site ./project-memory
+  openknowledge export html --head-file ./head.html --out ./site ./project-memory
+  openknowledge export html --script-src /analytics.js --out ./site ./project-memory
+  openknowledge export html --head-html '<meta name="robots" content="noindex">' --out ./site ./project-memory
 
 Connect:
   Default viewer exports include openknowledge.json and
@@ -5303,16 +5173,16 @@ Versions:
 `, supportedSpecVersionsText())
 }
 
-func toJSONHelpText() string {
-	return fmt.Sprintf(`openknowledge to json
+func exportJSONHelpText() string {
+	return fmt.Sprintf(`openknowledge export json
 
 Write normalized JSON for an Open Knowledge bundle.
 
 Usage:
-  openknowledge to json [path]
-  openknowledge to json --out <file> [path]
-  openknowledge to json --spec <version> [path]
-  openknowledge to json --help
+  openknowledge export json [path]
+  openknowledge export json --out <file> [path]
+  openknowledge export json --spec <version> [path]
+  openknowledge export json --help
 
 Arguments:
   path        Knowledge base root. Defaults to the current directory.
@@ -5326,15 +5196,15 @@ Versions:
 `, supportedSpecVersionsText())
 }
 
-func toTarHelpText() string {
-	return fmt.Sprintf(`openknowledge to tar
+func exportTarHelpText() string {
+	return fmt.Sprintf(`openknowledge export tar
 
 Write a portable tar.gz archive for an Open Knowledge bundle.
 
 Usage:
-  openknowledge to tar --out <file> [path]
-  openknowledge to tar --spec <version> --out <file> [path]
-  openknowledge to tar --help
+  openknowledge export tar --out <file> [path]
+  openknowledge export tar --spec <version> --out <file> [path]
+  openknowledge export tar --help
 
 Arguments:
   path        Knowledge base root. Defaults to the current directory.
@@ -5348,18 +5218,18 @@ Versions:
 `, supportedSpecVersionsText())
 }
 
-func toGraphHelpText() string {
-	return fmt.Sprintf(`openknowledge to graph
+func exportGraphHelpText() string {
+	return fmt.Sprintf(`openknowledge export graph
 
 Write node and edge graph JSON for an Open Knowledge bundle.
 
 Usage:
-  openknowledge to graph [path]
-  openknowledge to graph --out <file> [path]
-  openknowledge to graph --type source [path]
-  openknowledge to graph --type search [path]
-  openknowledge to graph --spec <version> [path]
-  openknowledge to graph --help
+  openknowledge export graph [path]
+  openknowledge export graph --out <file> [path]
+  openknowledge export graph --type source [path]
+  openknowledge export graph --type search [path]
+  openknowledge export graph --spec <version> [path]
+  openknowledge export graph --help
 
 Arguments:
   path        Knowledge base root. Defaults to the current directory.
@@ -5382,18 +5252,18 @@ Versions:
 `, supportedSpecVersionsText())
 }
 
-func setupHelpText() string {
-	return `openknowledge setup
+func promptSetupHelpText() string {
+	return `openknowledge prompt setup
 
 Print an agent setup prompt for creating and customizing a knowledge base.
 
 Usage:
-  openknowledge setup
-  openknowledge setup --rules <rules>
-  openknowledge setup --help
+  openknowledge prompt setup
+  openknowledge prompt setup --rules <rules>
+  openknowledge prompt setup --help
 
 The prompt tells an agent to inspect the current workspace, ask tailored
-questions, create a bundle with openknowledge new, customize the scaffold, and
+questions, create a bundle with openknowledge scaffold, customize the scaffold, and
 validate the result.
 
 Options:
@@ -5401,12 +5271,12 @@ Options:
 
 Available rules:
   project, docs, decisions, changelog, research, bugs, schemas, summary, agents.
-  Run openknowledge rules --list for descriptions.
+  Run openknowledge prompt rules --list for descriptions.
 `
 }
 
-func fromHelpText() string {
-	return `openknowledge from
+func promptFromHelpText() string {
+	return `openknowledge prompt from
 
 Print an agent task prompt for turning a source into an Open Knowledge wiki.
 
@@ -5415,12 +5285,12 @@ prints a prompt for Codex, Claude Code, Cursor, Cowork, or another local agent
 that can access the source and write files.
 
 Usage:
-  openknowledge from <source> --out <folder>
-  openknowledge from <source> --out <folder> --type understanding
-  openknowledge from <source> --out <folder> --type custom
-  openknowledge from <source> --out <folder> --type custom --about <goal>
-  openknowledge from <source> --out <folder> --depth <count>
-  openknowledge from --help
+  openknowledge prompt from <source> --out <folder>
+  openknowledge prompt from <source> --out <folder> --type understanding
+  openknowledge prompt from <source> --out <folder> --type custom
+  openknowledge prompt from <source> --out <folder> --type custom --about <goal>
+  openknowledge prompt from <source> --out <folder> --depth <count>
+  openknowledge prompt from --help
 
 Arguments:
   source      Source URL or local path. Examples include GitHub repositories,
@@ -5443,15 +5313,15 @@ Behavior:
   agent CLIs.
 
 Examples:
-  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki
-  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
-  openknowledge from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help new contributors understand the release workflow"
-  openknowledge from https://openknowledge.sh/wiki/ --out Wiki --type understanding --depth 2
+  openknowledge prompt from https://github.com/openknowledge-sh/openknowledge --out Wiki
+  openknowledge prompt from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
+  openknowledge prompt from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help new contributors understand the release workflow"
+  openknowledge prompt from https://openknowledge.sh/wiki/ --out Wiki --type understanding --depth 2
 `
 }
 
 func rulesHelpText() string {
-	return `openknowledge rules
+	return `openknowledge prompt rules
 
 Print maintenance instructions for AI agents.
 
@@ -5467,13 +5337,13 @@ OKF. Each warning includes an agent action. In a terminal warnings print after
 the rules on stdout; with pipes or redirection they print to stderr.
 
 Usage:
-  openknowledge rules
-  openknowledge rules <rules>
-  openknowledge rules <rules> --path <path>
-  openknowledge rules --target generic|codex|claude|cursor
-  openknowledge rules apply <rules> --path <path>
-  openknowledge rules --list
-  openknowledge rules --help
+  openknowledge prompt rules
+  openknowledge prompt rules <rules>
+  openknowledge prompt rules <rules> --path <path>
+  openknowledge prompt rules --target generic|codex|claude|cursor
+  openknowledge prompt rules apply <rules> --path <path>
+  openknowledge prompt rules --list
+  openknowledge prompt rules --help
 
 Arguments:
   rules       Comma-separated maintenance rules to include.
@@ -5487,14 +5357,14 @@ Options:
   --list      List available rules.
 
 Examples:
-  openknowledge rules docs,changelog --path Wiki
-  openknowledge rules changelog --path Wiki --target codex
-  openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
+  openknowledge prompt rules docs,changelog --path Wiki
+  openknowledge prompt rules changelog --path Wiki --target codex
+  openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md
 `
 }
 
 func rulesApplyHelpText() string {
-	return `openknowledge rules apply
+	return `openknowledge prompt rules apply
 
 Write generated maintenance instructions into an agent instruction file.
 
@@ -5503,13 +5373,13 @@ running it again replaces the previous generated block instead of duplicating it
 It still checks the wiki path and prints non-blocking warnings with agent actions.
 
 Usage:
-  openknowledge rules apply
-  openknowledge rules apply <rules>
-  openknowledge rules apply <rules> --path <path>
-  openknowledge rules apply <rules> --path <path> --file <file>
-  openknowledge rules apply <rules> --path <path> --dry-run
-  openknowledge rules apply <rules> --path <path> --yes
-  openknowledge rules apply --help
+  openknowledge prompt rules apply
+  openknowledge prompt rules apply <rules>
+  openknowledge prompt rules apply <rules> --path <path>
+  openknowledge prompt rules apply <rules> --path <path> --file <file>
+  openknowledge prompt rules apply <rules> --path <path> --dry-run
+  openknowledge prompt rules apply <rules> --path <path> --yes
+  openknowledge prompt rules apply --help
 
 Arguments:
   rules       Comma-separated maintenance rules to include.
@@ -5526,14 +5396,14 @@ Options:
   --dry-run   Print the managed block that would be written without editing.
 
 Examples:
-  openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md
-  openknowledge rules apply changelog --path Wiki --yes
-  openknowledge rules apply docs --path Wiki --dry-run
+  openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md
+  openknowledge prompt rules apply changelog --path Wiki --yes
+  openknowledge prompt rules apply docs --path Wiki --dry-run
 `
 }
 
 func reviewHelpText() string {
-	return `openknowledge review
+	return `openknowledge prompt review
 
 Print advisory AI review prompts for Open Knowledge workflows.
 
@@ -5541,23 +5411,23 @@ The command does not call a model, edit files, or decide validation status.
 Use openknowledge validate for deterministic CI-safe checks.
 
 Usage:
-  openknowledge review rules [path]
-  openknowledge review rules --rules <rules> --path <path>
-  openknowledge review rules --all [path]
-  openknowledge review --help
+  openknowledge prompt review rules [path]
+  openknowledge prompt review rules --rules <rules> --path <path>
+  openknowledge prompt review rules --all [path]
+  openknowledge prompt review --help
 
 Subcommands:
   rules      Print an AI review prompt for selected maintenance rules.
 
 Examples:
-  openknowledge review rules Wiki
-  openknowledge review rules --rules docs,changelog --path Wiki
-  openknowledge review rules --all Wiki
+  openknowledge prompt review rules Wiki
+  openknowledge prompt review rules --rules docs,changelog --path Wiki
+  openknowledge prompt review rules --all Wiki
 `
 }
 
 func reviewRulesHelpText() string {
-	return `openknowledge review rules
+	return `openknowledge prompt review rules
 
 Print an advisory AI review prompt for Open Knowledge maintenance rules.
 
@@ -5565,11 +5435,11 @@ The prompt tells an agent to inspect evidence, run deterministic validation,
 and report source-backed findings. It does not call a model or edit files.
 
 Usage:
-  openknowledge review rules [path]
-  openknowledge review rules --path <path>
-  openknowledge review rules --rules <rules> --path <path>
-  openknowledge review rules --all [path]
-  openknowledge review rules --help
+  openknowledge prompt review rules [path]
+  openknowledge prompt review rules --path <path>
+  openknowledge prompt review rules --rules <rules> --path <path>
+  openknowledge prompt review rules --all [path]
+  openknowledge prompt review rules --help
 
 Arguments:
   path       Open Knowledge wiki path. Defaults to .openknowledge.
@@ -5581,23 +5451,23 @@ Options:
   --all      Review every built-in and local custom rule.
 
 Examples:
-  openknowledge review rules Wiki
-  openknowledge review rules --rules docs,changelog --path Wiki
-  openknowledge review rules --all Wiki
+  openknowledge prompt review rules Wiki
+  openknowledge prompt review rules --rules docs,changelog --path Wiki
+  openknowledge prompt review rules --all Wiki
 `
 }
 
-func newHelpText() string {
-	return `openknowledge new
+func scaffoldHelpText() string {
+	return `openknowledge scaffold
 
 Scaffold a local Open Knowledge bundle.
 
 Usage:
-  openknowledge new [folder]
-  openknowledge new --name <name> [folder]
-  openknowledge new --bundle-name <id> --bundle-purpose <text> [folder]
-  openknowledge new --no-agents --no-setup [folder]
-  openknowledge new --help
+  openknowledge scaffold [folder]
+  openknowledge scaffold --name <name> [folder]
+  openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]
+  openknowledge scaffold --no-agents --no-setup [folder]
+  openknowledge scaffold --help
 
 Arguments:
   folder       Destination folder. Defaults to a slug derived from the name.
@@ -5621,10 +5491,10 @@ Flags:
                Do not create SETUP.MD or print the setup handoff prompt.
 
 Examples:
-  openknowledge new ./project-memory
-  openknowledge new --no-agents --no-setup ./source-wiki
-  openknowledge new --name "Project Memory" ./project-memory
-  openknowledge new --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility
+  openknowledge scaffold ./project-memory
+  openknowledge scaffold --no-agents --no-setup ./source-wiki
+  openknowledge scaffold --name "Project Memory" ./project-memory
+  openknowledge scaffold --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility
 `
 }
 

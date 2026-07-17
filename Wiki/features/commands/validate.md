@@ -115,6 +115,8 @@ Current rule names are:
 | `frontmatter-format` | warning | Frontmatter is parseable but not cleanly formatted. |
 | `markdown-syntax` | warning | Markdown body syntax looks malformed. |
 | `okf-version` | warning | Root `okf_version` differs from the selected spec. |
+| `publish-metadata` | error | Publication flags or target maps use invalid values. |
+| `suggestion-contract` | error | A suggestion is publishable, has an unsupported status, or omits required suggestion metadata/targets. |
 | `link-target` | warning | A local Markdown link is missing or escapes the root. |
 | `rule-catalog` | error | A custom rule document under configured `[rules].paths` is missing required structure, collides with another rule ID, or `[rules]` config is invalid. |
 
@@ -178,7 +180,7 @@ syntax error at any nesting depth, or a non-mapping YAML root, is a
 `frontmatter` error.
 
 `openknowledge validate` checks custom maintenance rules and `[rules]`
-configuration structurally, not semantically. Use `openknowledge review rules`
+configuration structurally, not semantically. Use `openknowledge prompt review rules`
 when you want an advisory AI-assisted review of whether selected rules appear
 to have been followed.
 

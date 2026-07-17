@@ -518,16 +518,16 @@ func customRuleSetFromDocument(document ASTDocument) (RuleSet, []Issue) {
 
 func renderRulesList(ruleSets []RuleSet) string {
 	var builder strings.Builder
-	builder.WriteString("openknowledge rules prints maintenance instructions for AI agents.\n\n")
+	builder.WriteString("openknowledge prompt rules prints maintenance instructions for AI agents.\n\n")
 	builder.WriteString("Use it when you already have, or plan to create, an Open Knowledge wiki and want\n")
 	builder.WriteString("Codex, Claude, Cursor, or another coding agent to keep it up to date.\n\n")
 	builder.WriteString("The command does not edit files. It prints a Markdown block you can paste into\n")
 	builder.WriteString("AGENTS.md, CLAUDE.md, Cursor rules, or any project instruction file.\n\n")
 	builder.WriteString("Custom rules can be added as OKF Markdown files under rules/ in the selected wiki.\n\n")
 	builder.WriteString("Usage:\n")
-	builder.WriteString("  openknowledge rules docs,changelog --path Wiki\n")
-	builder.WriteString("  openknowledge rules apply docs,changelog --path Wiki --file AGENTS.md\n")
-	builder.WriteString("  openknowledge setup --rules docs,changelog\n\n")
+	builder.WriteString("  openknowledge prompt rules docs,changelog --path Wiki\n")
+	builder.WriteString("  openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md\n")
+	builder.WriteString("  openknowledge prompt setup --rules docs,changelog\n\n")
 	builder.WriteString("Available rules:\n\n")
 	for _, ruleSet := range ruleSets {
 		builder.WriteString(fmt.Sprintf("  %-14s %s\n", ruleSet.ID, ruleSet.Summary))
@@ -552,7 +552,7 @@ func resolveRuleSetsFromCatalog(ruleSets []RuleSet, ids []string) ([]RuleSet, er
 		}
 		ruleSet, ok := byID[id]
 		if !ok {
-			return nil, fmt.Errorf("unknown rule %q; run openknowledge rules --list", id)
+			return nil, fmt.Errorf("unknown rule %q; run openknowledge prompt rules --list", id)
 		}
 		if _, ok := seen[id]; ok {
 			continue

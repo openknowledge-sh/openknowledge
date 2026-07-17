@@ -29,6 +29,7 @@ openknowledge jobs new --list
 openknowledge jobs new --reference
 openknowledge jobs new docs-audit
 openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md
+openknowledge jobs new suggestions --out .openknowledge/jobs/suggestions.md
 openknowledge jobs list [path]
 openknowledge jobs list [path] --json
 openknowledge jobs status [jobs-dir]
@@ -193,7 +194,14 @@ Built-in templates:
 | `docs-audit` | Audit README and Wiki command docs against CLI behavior, then run tests and wiki validation. |
 | `wiki-health` | Periodically run OKF validation and fix broken links or malformed docs. |
 | `release-check` | Manually check tests, docs, changelog memory, and wiki validation before a release. |
+| `suggestions` | Apply up to five pending private Markdown suggestions through the existing worktree, verification, commit, and draft-PR lifecycle. |
 | `custom` | Blank starting point for a project-specific scheduled agent. |
+
+The `suggestions` template is deliberately not a new runtime role. It uses the
+same Job schema and runner as every other template. Its prompt owns oldest-first
+batching and semantic fallback for stale patches; `suggestions verify` enforces
+the Wiki/target boundary before normal OKF validation. See
+[`openknowledge agent suggestions`](suggestions.md).
 
 Use `openknowledge jobs new --reference` to print the supported job schema,
 template variables, run lifecycle, and output artifact layout without creating

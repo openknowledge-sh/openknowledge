@@ -10,7 +10,7 @@ timestamp: 2026-06-20T00:00:00Z
 
 `openknowledge disconnect` removes one knowledge bundle connection from the
 user registry. It unregisters the connection and keeps files by default. It is
-a top-level alias for `openknowledge registry disconnect`.
+the single canonical command for removing connections.
 
 Local `connect` targets create non-managed connections. Remote manifest, tar,
 and Git targets create CLI-managed cache entries. `disconnect --delete-files`
@@ -46,7 +46,7 @@ openknowledge disconnect --help
   entries.
 
 Disconnect flags may appear before or after the required `<key-or-path>`
-argument. Top-level and `registry disconnect` forms use the same parsing.
+argument.
 
 After resolution, the command removes the registry entry and prints the key,
 path, and file action. Default and `--keep-files` output uses `files kept`.
@@ -105,7 +105,7 @@ anchors: `packages/cli/internal/okf/registry.go`,
 
 ### 2026-07-15 - Positional-first flags
 
-`openknowledge disconnect` and `openknowledge registry disconnect` now parse
+`openknowledge disconnect` now parses
 `--keep-files` and `--delete-files` after `<key-or-path>` as documented while
 continuing to accept flag-first forms. Source anchors:
 `packages/cli/cmd/openknowledge/main.go` and
@@ -113,9 +113,7 @@ continuing to accept flag-first forms. Source anchors:
 
 ### 2026-06-20
 
-`openknowledge disconnect` became the top-level alias for the registry
-`disconnect` subcommand after connection management moved under the registry
-namespace.
+`openknowledge disconnect` became the canonical connection-removal command.
 
 `openknowledge disconnect` shipped with key/path target resolution,
 `--keep-files`, guarded `--delete-files`, unknown-target key hints, and

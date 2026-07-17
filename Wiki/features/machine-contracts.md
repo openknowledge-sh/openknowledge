@@ -29,11 +29,11 @@ in place before the CLI reaches 1.0.
 | `job-run-plan.schema.json` | `openknowledge jobs run --dry-run` and persisted `plan.json` |
 | `job-run-record.schema.json` | Persisted agent `run.json` lifecycle records, including `cancelled` and `killed` |
 | `ast.schema.json` | `openknowledge ast` |
-| `bundle.schema.json` | `openknowledge to json` |
+| `bundle.schema.json` | `openknowledge export json` |
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
 | `federated-search-context.schema.json` | `openknowledge search --all <query> --format json` |
 | `federated-search-results.schema.json` | `openknowledge search --all <query> --matches --format json` |
-| `graph.schema.json` | `openknowledge to graph`, including source and search graph types |
+| `graph.schema.json` | `openknowledge export graph`, including source and search graph types |
 | `list.schema.json` | `openknowledge list --json` |
 | `registry-list.schema.json` | `openknowledge registry list --json` |
 | `registry-status.schema.json` | `openknowledge registry status --json` |

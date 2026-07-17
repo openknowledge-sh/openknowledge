@@ -16,17 +16,18 @@ import (
 )
 
 type agentCLIOptions struct {
-	operation  string
-	isolate    bool
-	path       string
-	model      string
-	prompt     string
-	runtime    string
-	runtimeSet bool
-	noSteer    bool
-	rules      string
-	json       bool
-	from       fromOptions
+	operation   string
+	isolate     bool
+	path        string
+	model       string
+	prompt      string
+	runtime     string
+	runtimeSet  bool
+	noSteer     bool
+	rules       string
+	json        bool
+	from        fromOptions
+	setupTarget string
 }
 
 type agentDoctorEntry struct {
@@ -47,6 +48,14 @@ var runAgentProcess = func(ctx context.Context, executable string, arguments []s
 }
 
 func runAgent(args []string) int {
+	if len(args) > 0 {
+		switch args[0] {
+		case "integrate":
+			return runIntegrate(args[1:])
+		case "suggestions":
+			return runSuggestions(args[1:])
+		}
+	}
 	if hasHelpFlag(args) {
 		if len(args) > 0 && args[0] == "exec" {
 			fmt.Fprint(os.Stdout, agentExecHelpText())
@@ -60,6 +69,10 @@ func runAgent(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	return runAgentWithOptions(options)
+}
+
+func runAgentWithOptions(options agentCLIOptions) int {
 	if options.operation == "doctor" {
 		return runAgentDoctor(options)
 	}
@@ -151,6 +164,9 @@ func agentTask(options agentCLIOptions) (task string, mode string, interactive b
 			return "", "", false, err
 		}
 		prompt, err := okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs})
+		if err == nil && options.setupTarget != "" {
+			prompt += fmt.Sprintf("\nFor this setup, create or update the knowledge base at %s.\n", options.setupTarget)
+		}
 		return prompt, "init", true, err
 	case "from":
 		prompt, err := okf.FromPrompt(okf.FromPromptOptions{
@@ -170,22 +186,19 @@ func parseAgentArgs(args []string) (agentCLIOptions, error) {
 	options := agentCLIOptions{path: ".", runtime: agents.RuntimeCodex}
 	if len(args) > 0 {
 		switch args[0] {
-		case "exec", "init", "from", "doctor":
+		case "exec", "doctor":
 			options.operation = args[0]
 			args = args[1:]
+		case "init", "from":
+			return options, fmt.Errorf("agent %s was removed; use openknowledge setup", args[0])
 		}
 	}
 	positionals := make([]string, 0, 1)
-	fromArgs := make([]string, 0, len(args))
 	for index := 0; index < len(args); index++ {
 		argument := args[index]
 		switch {
 		case argument == "--":
-			if options.operation == "from" {
-				fromArgs = append(fromArgs, args[index+1:]...)
-			} else {
-				positionals = append(positionals, args[index+1:]...)
-			}
+			positionals = append(positionals, args[index+1:]...)
 			index = len(args)
 		case argument == "--isolate":
 			options.isolate = true
@@ -193,7 +206,7 @@ func parseAgentArgs(args []string) (agentCLIOptions, error) {
 			options.noSteer = true
 		case argument == "--json" && options.operation == "doctor":
 			options.json = true
-		case argument == "--path" || argument == "--model" || argument == "--runtime" || argument == "--rules":
+		case argument == "--path" || argument == "--model" || argument == "--runtime":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
 				return options, err
@@ -206,8 +219,6 @@ func parseAgentArgs(args []string) (agentCLIOptions, error) {
 			case "--runtime":
 				options.runtime = strings.ToLower(value)
 				options.runtimeSet = true
-			case "--rules":
-				options.rules = value
 			}
 			index = next
 		case strings.HasPrefix(argument, "--path="):
@@ -217,10 +228,6 @@ func parseAgentArgs(args []string) (agentCLIOptions, error) {
 		case strings.HasPrefix(argument, "--runtime="):
 			options.runtime = strings.ToLower(strings.TrimPrefix(argument, "--runtime="))
 			options.runtimeSet = true
-		case strings.HasPrefix(argument, "--rules="):
-			options.rules = strings.TrimPrefix(argument, "--rules=")
-		case options.operation == "from":
-			fromArgs = append(fromArgs, argument)
 		case strings.HasPrefix(argument, "-"):
 			return options, fmt.Errorf("unknown agent option: %s", argument)
 		default:
@@ -233,26 +240,14 @@ func parseAgentArgs(args []string) (agentCLIOptions, error) {
 	if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
 		return options, err
 	}
-	if options.operation == "from" {
-		parsed, err := parseFromOptions(fromArgs)
-		if err != nil {
-			return options, err
-		}
-		options.from = parsed
-	} else if len(positionals) > 0 {
+	if len(positionals) > 0 {
 		options.prompt = strings.Join(positionals, " ")
 	}
 	if options.operation == "exec" && strings.TrimSpace(options.prompt) == "" {
 		return options, fmt.Errorf("agent exec requires a prompt")
 	}
-	if options.operation == "init" && strings.TrimSpace(options.prompt) != "" {
-		return options, fmt.Errorf("agent init accepts no positional arguments")
-	}
 	if options.operation == "doctor" && len(positionals) > 0 {
 		return options, fmt.Errorf("agent doctor accepts no positional arguments")
-	}
-	if options.operation != "init" && strings.TrimSpace(options.rules) != "" {
-		return options, fmt.Errorf("--rules is only valid with agent init")
 	}
 	if options.operation == "doctor" && (options.isolate || options.noSteer || options.model != "" || options.path != ".") {
 		return options, fmt.Errorf("agent doctor accepts only --runtime and --json")
@@ -308,8 +303,11 @@ Usage:
   openknowledge agent ["<initial prompt>"]
   openknowledge agent --runtime <codex|claude|grok|opencode>
   openknowledge agent exec "<prompt>"
-  openknowledge agent init [--rules <rules>]
-  openknowledge agent from <source> --out <folder>
+  openknowledge agent integrate <wiki>
+  openknowledge agent integrate --global
+  openknowledge agent suggestions [wiki]
+  openknowledge agent suggestions apply <suggestion.md>
+  openknowledge agent suggestions dismiss <suggestion.md>
   openknowledge agent doctor [--runtime <runtime>] [--json]
 
 Flags:
@@ -322,6 +320,9 @@ Flags:
 Executable overrides:
   OPENKNOWLEDGE_CODEX, OPENKNOWLEDGE_CLAUDE, OPENKNOWLEDGE_GROK,
   OPENKNOWLEDGE_OPENCODE
+
+Integration installs native harness discovery and project observation. The
+suggestions command reviews the private knowledge-maintenance inbox.
 
 Run openknowledge agent exec --help for non-interactive usage.
 `

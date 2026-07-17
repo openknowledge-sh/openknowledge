@@ -10,7 +10,55 @@ import (
 	"testing"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 )
+
+func TestAgentNamespacesIntegrationAndSuggestions(t *testing.T) {
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"integrate", "--help"}, want: "openknowledge agent integrate"},
+		{args: []string{"suggestions", "--help"}, want: "openknowledge agent suggestions"},
+	}
+	for _, test := range tests {
+		stdout, stderr, code := captureMainOutput(t, func() int { return runAgent(test.args) })
+		if code != 0 || stderr != "" || !strings.Contains(stdout, test.want) {
+			t.Fatalf("runAgent(%v) code=%d stdout=%q stderr=%q", test.args, code, stdout, stderr)
+		}
+	}
+	for _, removedRoot := range []string{"integrate", "suggestions"} {
+		_, stderr, code := captureMainOutput(t, func() int { return dispatchCLI([]string{removedRoot, "--help"}) })
+		if code != 2 || !strings.Contains(stderr, "unknown command: "+removedRoot) {
+			t.Fatalf("expected removed top-level %s to be unknown, code=%d stderr=%q", removedRoot, code, stderr)
+		}
+	}
+}
+
+func TestAgentSuggestionsDiscoversIntegratedKnowledgeBase(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	wiki := filepath.Join(repo, "Knowledge")
+	if err := os.MkdirAll(wiki, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := integration.InstallProject(wiki); err != nil {
+		t.Fatal(err)
+	}
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(originalDirectory) })
+
+	stdout, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"suggestions"}) })
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "No pending suggestions.") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
 
 func TestAgentExecUsesCurrentFilesystemByDefault(t *testing.T) {
 	directory := t.TempDir()
@@ -101,27 +149,12 @@ func TestAgentSupportsClaudeAndOpenCodeAdapters(t *testing.T) {
 	}
 }
 
-func TestAgentInitAndFromExecuteExistingPromptBuilders(t *testing.T) {
-	directory := t.TempDir()
-	stubCodexResolver(t, "/test/codex")
-	original := runAgentProcess
-	t.Cleanup(func() { runAgentProcess = original })
-	var prompts []string
-	runAgentProcess = func(_ context.Context, _ string, arguments []string, _ string) error {
-		prompts = append(prompts, arguments[len(arguments)-1])
-		return nil
-	}
-	if code := runAgent([]string{"init", "--path", directory, "--rules", "docs"}); code != 0 {
-		t.Fatalf("agent init exited %d", code)
-	}
-	if code := runAgent([]string{"from", "https://example.test/docs", "--out", "Wiki", "--path", directory}); code != 0 {
-		t.Fatalf("agent from exited %d", code)
-	}
-	if len(prompts) != 2 || !strings.Contains(prompts[0], "This setup guide is meant to be executed") || !strings.Contains(prompts[0], "Open Knowledge agent contract") {
-		t.Fatalf("init did not reuse setup prompt: %#v", prompts)
-	}
-	if !strings.Contains(prompts[1], "https://example.test/docs") || !strings.Contains(prompts[1], "Wiki") || !strings.Contains(prompts[1], "Execution mode") && !strings.Contains(prompts[1], "Generate the requested") {
-		t.Fatalf("from did not reuse source prompt: %s", prompts[1])
+func TestAgentInitAndFromWereConsolidatedIntoSetup(t *testing.T) {
+	for _, removed := range []string{"init", "from"} {
+		_, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{removed}) })
+		if code != 2 || !strings.Contains(stderr, "use openknowledge setup") {
+			t.Fatalf("agent %s code=%d stderr=%q", removed, code, stderr)
+		}
 	}
 }
 
