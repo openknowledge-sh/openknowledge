@@ -409,7 +409,10 @@ session in the current directory, accepts an optional initial prompt, or runs a
 single non-interactive task with `agent exec`. Direct filesystem editing is the
 default, so local sessions do not create a branch, commit, or pull request.
 Add `--isolate` to create and retain a dedicated branch and Git worktree at the
-repository's current `HEAD`.
+repository's current `HEAD`. Open Knowledge probes Codex executables before
+creating the worktree, skips broken `PATH` candidates, and on macOS can use the
+Codex binary bundled with Codex or ChatGPT. Set `OPENKNOWLEDGE_CODEX` to require
+one explicit executable name or path.
 
 `openknowledge jobs` is experimental. It runs deterministic automation
 around local agent CLIs, but the job schema and scheduler behavior may still

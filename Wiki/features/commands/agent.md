@@ -45,9 +45,17 @@ task and requires a prompt.
 | `--path <directory>` | no | Selects the editable directory. Defaults to the current directory. |
 | `--model <model>` | no | Passes an explicit model override to Codex. |
 | `--isolate` | no | Creates and retains a branch and worktree at the repository's current `HEAD`. |
+| `OPENKNOWLEDGE_CODEX` | no | Requires one explicit Codex executable name or path instead of automatic discovery. |
 
 Both modes explicitly request Codex's `workspace-write` sandbox. The Codex
 process inherits the current terminal, environment, and authentication state.
+
+Before creating an isolated worktree, Open Knowledge runs a bounded
+`--version` probe against Codex candidates. It tries every `codex` executable
+found through `PATH`; on macOS it also checks binaries bundled with Codex.app
+and ChatGPT.app. A broken wrapper is skipped when a later candidate works.
+When `OPENKNOWLEDGE_CODEX` is set, that exact executable is probed and failure
+is reported without fallback.
 
 ## Direct Mode
 
@@ -88,6 +96,10 @@ one-shot `exec` modes. Direct filesystem editing is the default and
 group named `agents` was removed rather than retained as an alias; declarative
 automation now lives under [`jobs`](jobs.md).
 
+Codex executable discovery now probes candidates before creating isolated
+state, skips broken wrappers, checks supported macOS app bundles, and supports
+the fail-closed `OPENKNOWLEDGE_CODEX` override.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -96,6 +108,7 @@ automation now lives under [`jobs`](jobs.md).
 >
 > * `packages/cli/cmd/openknowledge/agent_command.go`
 > * `packages/cli/cmd/openknowledge/agent_command_test.go`
+> * `packages/cli/cmd/openknowledge/codex_resolver.go`
 > * `packages/cli/internal/agents/adhoc.go`
 >
 > **Update notes**

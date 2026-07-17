@@ -14,6 +14,19 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-17 - Resilient Codex executable discovery
+
+* `openknowledge agent` now runs a bounded version probe before creating an
+  isolated worktree, skips broken `codex` wrappers when another `PATH`
+  candidate works, and checks Codex.app and ChatGPT.app bundles on macOS.
+* Added the fail-closed `OPENKNOWLEDGE_CODEX` executable name/path override.
+  An invalid explicit override is reported directly and never silently falls
+  back to another installation.
+* Source anchors: `packages/cli/cmd/openknowledge/{agent_command,codex_resolver}.go`
+  and `packages/cli/cmd/openknowledge/agent_command_test.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/agent.md`, and
+  `Wiki/changelog/cli.md`.
+
 ### 2026-07-17 - Human-facing agents and declarative jobs
 
 * Added `openknowledge agent` for interactive Codex sessions and

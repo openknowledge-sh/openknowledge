@@ -21,8 +21,8 @@ type agentCLIOptions struct {
 	prompt  string
 }
 
-var runAgentProcess = func(ctx context.Context, arguments []string, directory string) error {
-	command := exec.CommandContext(ctx, "codex", arguments...)
+var runAgentProcess = func(ctx context.Context, executable string, arguments []string, directory string) error {
+	command := exec.CommandContext(ctx, executable, arguments...)
 	command.Dir = directory
 	command.Env = os.Environ()
 	command.Stdin = os.Stdin
@@ -55,6 +55,11 @@ func runAgent(args []string) int {
 		return 1
 	} else if !info.IsDir() {
 		fmt.Fprintf(os.Stderr, "agent path is not a directory: %s\n", directory)
+		return 1
+	}
+	executable, err := resolveCodexExecutable(context.Background())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 
@@ -94,16 +99,12 @@ func runAgent(args []string) int {
 		signal.Notify(interrupts, os.Interrupt)
 		defer signal.Stop(interrupts)
 	}
-	if err := runAgentProcess(ctx, arguments, directory); err != nil {
+	if err := runAgentProcess(ctx, executable, arguments, directory); err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
 			return exitError.ExitCode()
 		}
-		if errors.Is(err, exec.ErrNotFound) {
-			fmt.Fprintln(os.Stderr, "codex executable was not found in PATH")
-		} else {
-			fmt.Fprintf(os.Stderr, "run Codex agent: %v\n", err)
-		}
+		fmt.Fprintf(os.Stderr, "run Codex agent: %v\n", err)
 		return 1
 	}
 	return 0
@@ -177,6 +178,11 @@ Flags:
   --model      Codex model override.
   --isolate    Create and retain a dedicated Git branch and worktree at HEAD.
 
+Environment:
+  OPENKNOWLEDGE_CODEX
+               Codex executable name or path. Without it, Open Knowledge probes
+               PATH candidates and supported macOS app bundles.
+
 Run openknowledge agent exec --help for non-interactive usage.
 `
 }
@@ -197,5 +203,10 @@ Flags:
   --path       Directory the agent should edit. Defaults to the current directory.
   --model      Codex model override.
   --isolate    Create and retain a dedicated Git branch and worktree at HEAD.
+
+Environment:
+  OPENKNOWLEDGE_CODEX
+               Codex executable name or path. Without it, Open Knowledge probes
+               PATH candidates and supported macOS app bundles.
 `
 }

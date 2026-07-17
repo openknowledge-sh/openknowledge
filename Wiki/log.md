@@ -8,6 +8,9 @@
   automation group with declarative `jobs`, renamed detached `spawn` to
   `start`, and aligned runtime roles, paths, environment variables, schemas,
   help, README, and Wiki documentation without compatibility aliases.
+* **Codex executable discovery**: Made `openknowledge agent` probe and skip
+  broken Codex wrappers, use supported macOS app-bundled binaries when
+  available, and honor a fail-closed `OPENKNOWLEDGE_CODEX` override.
 
 ## 2026-07-15
 
