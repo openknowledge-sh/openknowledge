@@ -4784,8 +4784,12 @@ Usage:
   openknowledge review rules --all [path]
   openknowledge agent
   openknowledge agent "<initial prompt>"
+  openknowledge agent --runtime <codex|claude|grok|opencode>
   openknowledge agent exec "<prompt>"
   openknowledge agent exec --isolate "<prompt>"
+  openknowledge agent init [--rules <rules>]
+  openknowledge agent from <source> --out <folder>
+  openknowledge agent doctor [--runtime <runtime>]
   openknowledge jobs new
   openknowledge jobs new <template> --out <file>
   openknowledge jobs list [path]
@@ -4799,12 +4803,12 @@ Usage:
   openknowledge jobs validate <job-or-dir> --json
   openknowledge jobs run <job.md> --dry-run
   openknowledge jobs run <job.md>
-  openknowledge jobs daemon [jobs-dir] --once
+  openknowledge jobs daemon [jobs-dir] --once [--runtime <runtime>]
   openknowledge runtime plan --config runtime.toml
   openknowledge runtime build --config runtime.toml
   openknowledge runtime serve --config runtime.toml
   openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role jobs --config runtime.toml
+  openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml
   openknowledge deploy railway [path] --dry-run
   openknowledge deploy railway [path] --yes
   openknowledge new [folder]
@@ -4867,7 +4871,7 @@ Commands:
   from       Print an agent source-to-wiki generation prompt.
   rules      Print agent maintenance rules.
   review     Print advisory AI review prompts.
-  agent      Experimental: run a human-driven Codex agent in a workspace.
+  agent      Experimental: run a steered Codex, Claude Code, Grok, or OpenCode agent.
   jobs       Experimental: run and manage scheduled jobs from Markdown specs.
   runtime    Run isolated public serving and private maintenance roles.
   deploy     Provision a self-hosted runtime on a supported provider.

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -325,7 +326,7 @@ publish = true
 		t.Fatal(err)
 	}
 	publisherCheckout := filepath.Join(config.Runtime.StateDir, "publisher-repository")
-	agentCheckout, err := syncRuntimeAgentRepository(t.Context(), config)
+	agentCheckout, err := syncRuntimeAgentRepository(t.Context(), config, "codex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,6 +377,33 @@ publish = true
 	}
 	if _, err := os.Stat(filepath.Join(secondRoot, "source", "guide.md")); err != nil {
 		t.Fatalf("expected second generation content: %v", err)
+	}
+}
+
+func TestRuntimePlanReportsAndEnforcesRequiredAgentRuntimes(t *testing.T) {
+	root := t.TempDir()
+	jobs := filepath.Join(root, ".openknowledge", "jobs")
+	writeViewerFile(t, root, ".openknowledge/jobs/codex.md", "---\nid: codex-job\nagent: {runtime: codex}\n---\nMaintain docs.\n")
+	writeViewerFile(t, root, ".openknowledge/jobs/claude.md", "---\nid: claude-job\nagent: {runtime: claude}\n---\nMaintain docs.\n")
+	config := okruntime.Config{Worker: okruntime.WorkerConfig{RunJobs: true, Repo: root, JobsPath: jobs, Runtimes: []string{"claude", "codex"}}}
+	required, err := runtimeRequiredRuntimes(config)
+	if err != nil || !reflect.DeepEqual(required, []string{"claude", "codex"}) {
+		t.Fatalf("required=%#v err=%v", required, err)
+	}
+	config.Worker.Runtimes = []string{"codex"}
+	if _, err := runtimeRequiredRuntimes(config); err == nil || !strings.Contains(err.Error(), "requires runtime claude") {
+		t.Fatalf("expected missing worker refusal, got %v", err)
+	}
+}
+
+func TestRuntimePlanReportsNoRequiredRuntimeWithoutJobDefinitions(t *testing.T) {
+	root := t.TempDir()
+	config := okruntime.Config{Worker: okruntime.WorkerConfig{
+		RunJobs: true, Repo: root, JobsPath: filepath.Join(root, ".openknowledge", "jobs"), Runtimes: []string{"codex"},
+	}}
+	required, err := runtimeRequiredRuntimes(config)
+	if err != nil || len(required) != 0 {
+		t.Fatalf("required=%#v err=%v", required, err)
 	}
 }
 

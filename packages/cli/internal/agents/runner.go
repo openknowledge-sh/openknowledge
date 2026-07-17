@@ -268,6 +268,11 @@ func ensureRunnablePlan(plan RunPlan, job Job) error {
 			return fmt.Errorf("sandbox.env variable %s is not set in the runner environment", name)
 		}
 	}
+	for _, name := range plan.Agent.Env {
+		if _, present := os.LookupEnv(name); !present {
+			return fmt.Errorf("agent credential variable %s is not set in the runner environment", name)
+		}
+	}
 	return nil
 }
 
@@ -338,9 +343,11 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 	}
 	defer stderrFile.Close()
 
-	execCommand := commandForPlan(ctx, plan, command)
+	execCommand := commandForPlan(ctx, plan, command, stdin)
 	configureCommandCancellation(execCommand)
-	execCommand.Stdin = strings.NewReader(stdin)
+	if command.PromptMode == PromptStdin || command.PromptMode == "" {
+		execCommand.Stdin = strings.NewReader(stdin)
+	}
 	execCommand.Stdout = stdoutFile
 	execCommand.Stderr = stderrFile
 	err = execCommand.Start()
@@ -369,23 +376,27 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 	return result
 }
 
-func commandForPlan(ctx context.Context, plan RunPlan, command Command) *exec.Cmd {
+func commandForPlan(ctx context.Context, plan RunPlan, command Command, prompt string) *exec.Cmd {
 	if plan.Sandbox.Type == "docker" {
-		return exec.CommandContext(ctx, "docker", dockerCommandArgs(plan, command)...)
+		return exec.CommandContext(ctx, "docker", dockerCommandArgs(plan, command, prompt)...)
 	}
 	if command.Shell {
 		cmd := exec.CommandContext(ctx, "sh", "-lc", command.Command)
 		cmd.Dir = plan.Worktree
-		cmd.Env = hostCommandEnvironment(plan)
+		cmd.Env = hostCommandEnvironment(plan, command)
 		return cmd
 	}
-	cmd := exec.CommandContext(ctx, command.Command, command.Args...)
+	arguments := append([]string(nil), command.Args...)
+	if command.PromptMode == PromptArgument && prompt != "" {
+		arguments = append(arguments, prompt)
+	}
+	cmd := exec.CommandContext(ctx, command.Command, arguments...)
 	cmd.Dir = plan.Worktree
-	cmd.Env = hostCommandEnvironment(plan)
+	cmd.Env = hostCommandEnvironment(plan, command)
 	return cmd
 }
 
-func dockerCommandArgs(plan RunPlan, command Command) []string {
+func dockerCommandArgs(plan RunPlan, command Command, prompt string) []string {
 	network := plan.Sandbox.Network
 	if network == "" {
 		network = "none"
@@ -400,6 +411,9 @@ func dockerCommandArgs(plan RunPlan, command Command) []string {
 	for _, name := range plan.Sandbox.Env {
 		args = append(args, "--env", name)
 	}
+	for _, name := range command.Env {
+		args = append(args, "--env", name)
+	}
 	args = append(args,
 		"-v", plan.Worktree+":/workspace",
 		"-w", "/workspace",
@@ -409,7 +423,11 @@ func dockerCommandArgs(plan RunPlan, command Command) []string {
 		return append(args, "sh", "-lc", command.Command)
 	}
 	args = append(args, command.Command)
-	return append(args, command.Args...)
+	args = append(args, command.Args...)
+	if command.PromptMode == PromptArgument && prompt != "" {
+		args = append(args, prompt)
+	}
+	return args
 }
 
 func ensurePrivateHostRuntime(plan RunPlan) error {
@@ -424,7 +442,7 @@ func ensurePrivateHostRuntime(plan RunPlan) error {
 	return nil
 }
 
-func hostCommandEnvironment(plan RunPlan) []string {
+func hostCommandEnvironment(plan RunPlan, command Command) []string {
 	environment := make(map[string]string)
 	for _, name := range []string{
 		"PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "COLORTERM",
@@ -443,6 +461,11 @@ func hostCommandEnvironment(plan RunPlan) []string {
 		environment[name] = temp
 	}
 	for _, name := range plan.Sandbox.Env {
+		if value, present := os.LookupEnv(name); present {
+			environment[name] = value
+		}
+	}
+	for _, name := range command.Env {
 		if value, present := os.LookupEnv(name); present {
 			environment[name] = value
 		}

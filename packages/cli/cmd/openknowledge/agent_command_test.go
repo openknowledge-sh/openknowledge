@@ -38,9 +38,9 @@ func TestAgentExecUsesCurrentFilesystemByDefault(t *testing.T) {
 	if gotDirectory != absolute {
 		t.Fatalf("agent ran in %q, want %q", gotDirectory, absolute)
 	}
-	want := []string{"exec", "--sandbox", "workspace-write", "Update the wiki"}
-	if !reflect.DeepEqual(gotArguments, want) {
-		t.Fatalf("agent arguments = %#v, want %#v", gotArguments, want)
+	if !reflect.DeepEqual(gotArguments[:3], []string{"exec", "--sandbox", "workspace-write"}) ||
+		!strings.Contains(gotArguments[3], agents.AgentProtocolVersion) || !strings.Contains(gotArguments[3], "Task:\nUpdate the wiki") {
+		t.Fatalf("agent arguments = %#v", gotArguments)
 	}
 }
 
@@ -57,9 +57,101 @@ func TestAgentInteractiveAcceptsInitialPromptAndModel(t *testing.T) {
 	if code := runAgent([]string{"--path", directory, "--model", "gpt-test", "Start here"}); code != 0 {
 		t.Fatalf("interactive agent exited %d", code)
 	}
-	want := []string{"--sandbox", "workspace-write", "--model", "gpt-test", "Start here"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("agent arguments = %#v, want %#v", got, want)
+	if !reflect.DeepEqual(got[:4], []string{"--sandbox", "workspace-write", "--model", "gpt-test"}) ||
+		!strings.Contains(got[4], "Task:\nStart here") {
+		t.Fatalf("agent arguments = %#v", got)
+	}
+}
+
+func TestAgentSupportsClaudeAndOpenCodeAdapters(t *testing.T) {
+	directory := t.TempDir()
+	originalRun := runAgentProcess
+	originalProbe := probeCodexExecutable
+	t.Cleanup(func() {
+		runAgentProcess = originalRun
+		probeCodexExecutable = originalProbe
+	})
+	probeCodexExecutable = func(_ context.Context, _ string) error { return nil }
+	for _, test := range []struct {
+		runtime string
+		env     string
+		path    string
+		prefix  []string
+	}{
+		{runtime: "claude", env: "OPENKNOWLEDGE_CLAUDE", path: "/test/claude", prefix: []string{"--print", "--no-session-persistence", "--permission-mode", "acceptEdits"}},
+		{runtime: "grok", env: "OPENKNOWLEDGE_GROK", path: "/test/grok", prefix: []string{"--no-auto-update", "--always-approve", "--single"}},
+		{runtime: "opencode", env: "OPENKNOWLEDGE_OPENCODE", path: "/test/opencode", prefix: []string{"run", "--auto"}},
+	} {
+		t.Run(test.runtime, func(t *testing.T) {
+			t.Setenv(test.env, test.path)
+			var executable string
+			var arguments []string
+			runAgentProcess = func(_ context.Context, gotExecutable string, gotArguments []string, _ string) error {
+				executable = gotExecutable
+				arguments = append([]string(nil), gotArguments...)
+				return nil
+			}
+			if code := runAgent([]string{"exec", "--runtime", test.runtime, "--path", directory, "--no-steer", "Update docs"}); code != 0 {
+				t.Fatalf("agent exited %d", code)
+			}
+			if executable != test.path || len(arguments) < len(test.prefix)+1 || !reflect.DeepEqual(arguments[:len(test.prefix)], test.prefix) || arguments[len(arguments)-1] != "Update docs" {
+				t.Fatalf("unexpected invocation executable=%q args=%#v", executable, arguments)
+			}
+		})
+	}
+}
+
+func TestAgentInitAndFromExecuteExistingPromptBuilders(t *testing.T) {
+	directory := t.TempDir()
+	stubCodexResolver(t, "/test/codex")
+	original := runAgentProcess
+	t.Cleanup(func() { runAgentProcess = original })
+	var prompts []string
+	runAgentProcess = func(_ context.Context, _ string, arguments []string, _ string) error {
+		prompts = append(prompts, arguments[len(arguments)-1])
+		return nil
+	}
+	if code := runAgent([]string{"init", "--path", directory, "--rules", "docs"}); code != 0 {
+		t.Fatalf("agent init exited %d", code)
+	}
+	if code := runAgent([]string{"from", "https://example.test/docs", "--out", "Wiki", "--path", directory}); code != 0 {
+		t.Fatalf("agent from exited %d", code)
+	}
+	if len(prompts) != 2 || !strings.Contains(prompts[0], "This setup guide is meant to be executed") || !strings.Contains(prompts[0], "Open Knowledge agent contract") {
+		t.Fatalf("init did not reuse setup prompt: %#v", prompts)
+	}
+	if !strings.Contains(prompts[1], "https://example.test/docs") || !strings.Contains(prompts[1], "Wiki") || !strings.Contains(prompts[1], "Execution mode") && !strings.Contains(prompts[1], "Generate the requested") {
+		t.Fatalf("from did not reuse source prompt: %s", prompts[1])
+	}
+}
+
+func TestAgentDoctorReportsExplicitRuntime(t *testing.T) {
+	t.Setenv("OPENKNOWLEDGE_CLAUDE", "/test/claude")
+	originalProbe := probeCodexExecutable
+	probeCodexExecutable = func(_ context.Context, executable string) error {
+		if executable != "/test/claude" {
+			return fmt.Errorf("unexpected executable %s", executable)
+		}
+		return nil
+	}
+	t.Cleanup(func() { probeCodexExecutable = originalProbe })
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runAgent([]string{"doctor", "--runtime", "claude", "--json"})
+	})
+	if code != 0 || stderr != "" || !strings.Contains(output, `"runtime": "claude"`) || !strings.Contains(output, `"available": true`) {
+		t.Fatalf("unexpected doctor result code=%d stdout=%s stderr=%s", code, output, stderr)
+	}
+}
+
+func TestAgentRejectsOperationSpecificFlagsOutsideTheirOperation(t *testing.T) {
+	for _, args := range [][]string{
+		{"exec", "--rules", "docs", "Update docs"},
+		{"doctor", "--isolate"},
+		{"doctor", "--path", t.TempDir()},
+	} {
+		if _, err := parseAgentArgs(args); err == nil {
+			t.Fatalf("expected strict option refusal for %#v", args)
+		}
 	}
 }
 

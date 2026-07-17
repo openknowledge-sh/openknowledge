@@ -32,10 +32,10 @@ type ScheduleSpec struct {
 }
 
 type AgentSpec struct {
-	Command          string   `json:"command"`
-	Args             []string `json:"args,omitempty"`
-	Timeout          string   `json:"timeout,omitempty"`
-	CompletionSignal string   `json:"completion_signal,omitempty"`
+	Runtime          string `json:"runtime"`
+	Model            string `json:"model,omitempty"`
+	Timeout          string `json:"timeout,omitempty"`
+	CompletionSignal string `json:"completion_signal,omitempty"`
 }
 
 type WorkspaceSpec struct {
@@ -204,8 +204,10 @@ func ValidateJob(job Job) error {
 	} else if !validJobID.MatchString(job.ID) {
 		add("id", "must contain only letters, numbers, dots, underscores, or hyphens")
 	}
-	if strings.TrimSpace(job.Agent.Command) == "" {
-		add("agent.command", "is required")
+	if strings.TrimSpace(job.Agent.Runtime) == "" {
+		add("agent.runtime", "is required")
+	} else if _, err := HarnessForRuntime(job.Agent.Runtime); err != nil {
+		add("agent.runtime", "%s", err.Error())
 	}
 	if job.Agent.Timeout != "" {
 		if duration, err := time.ParseDuration(job.Agent.Timeout); err != nil {
@@ -340,8 +342,8 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 	}
 	if agent := getMap(data, "agent"); agent != nil {
 		job.Agent = AgentSpec{
-			Command:          getString(agent, "command"),
-			Args:             getStringSlice(agent, "args"),
+			Runtime:          strings.ToLower(getString(agent, "runtime")),
+			Model:            getString(agent, "model"),
 			Timeout:          getString(agent, "timeout"),
 			CompletionSignal: getString(agent, "completion_signal"),
 		}

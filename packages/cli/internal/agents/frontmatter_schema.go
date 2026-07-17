@@ -33,8 +33,8 @@ var agentJobFrontmatterSchema = map[string]jobFieldSchema{
 	"agent": {
 		kind: jobObjectField,
 		fields: map[string]jobFieldSchema{
-			"command":           {kind: jobStringField},
-			"args":              {kind: jobStringListField},
+			"runtime":           {kind: jobStringField},
+			"model":             {kind: jobStringField},
 			"timeout":           {kind: jobStringField},
 			"completion_signal": {kind: jobStringField},
 		},

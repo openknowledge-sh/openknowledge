@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -62,17 +63,18 @@ type ServeConfig struct {
 }
 
 type WorkerConfig struct {
-	Repo             string `toml:"repo" json:"repo"`
-	RepositoryURL    string `toml:"repository_url" json:"repository_url,omitempty"`
-	Remote           string `toml:"remote" json:"remote"`
-	ProductionBranch string `toml:"production_branch" json:"production_branch"`
-	PollInterval     string `toml:"poll_interval" json:"poll_interval"`
-	RunJobs          bool   `toml:"run_jobs" json:"run_jobs"`
-	JobsPath         string `toml:"jobs_path" json:"jobs_path"`
-	GitTokenEnv      string `toml:"git_token_env" json:"git_token_env,omitempty"`
-	ExchangeDir      string `toml:"exchange_dir" json:"exchange_dir"`
-	ExchangeURL      string `toml:"exchange_url" json:"exchange_url,omitempty"`
-	ExchangeTokenEnv string `toml:"exchange_token_env" json:"exchange_token_env,omitempty"`
+	Repo             string   `toml:"repo" json:"repo"`
+	RepositoryURL    string   `toml:"repository_url" json:"repository_url,omitempty"`
+	Remote           string   `toml:"remote" json:"remote"`
+	ProductionBranch string   `toml:"production_branch" json:"production_branch"`
+	PollInterval     string   `toml:"poll_interval" json:"poll_interval"`
+	RunJobs          bool     `toml:"run_jobs" json:"run_jobs"`
+	JobsPath         string   `toml:"jobs_path" json:"jobs_path"`
+	Runtimes         []string `toml:"runtimes" json:"runtimes,omitempty"`
+	GitTokenEnv      string   `toml:"git_token_env" json:"git_token_env,omitempty"`
+	ExchangeDir      string   `toml:"exchange_dir" json:"exchange_dir"`
+	ExchangeURL      string   `toml:"exchange_url" json:"exchange_url,omitempty"`
+	ExchangeTokenEnv string   `toml:"exchange_token_env" json:"exchange_token_env,omitempty"`
 }
 
 type GitHubConfig struct {
@@ -297,6 +299,22 @@ func (config Config) Validate() error {
 	}
 	if err := positiveDuration("worker.poll_interval", config.Worker.PollInterval); err != nil {
 		return err
+	}
+	seenRuntimes := make(map[string]bool)
+	for index, runtimeName := range config.Worker.Runtimes {
+		runtimeName = strings.ToLower(strings.TrimSpace(runtimeName))
+		if _, err := agents.HarnessForRuntime(runtimeName); err != nil {
+			return fmt.Errorf("worker.runtimes[%d]: %w", index, err)
+		}
+		if seenRuntimes[runtimeName] {
+			return fmt.Errorf("worker.runtimes[%d] is duplicated: %s", index, runtimeName)
+		}
+		seenRuntimes[runtimeName] = true
+		config.Worker.Runtimes[index] = runtimeName
+	}
+	sort.Strings(config.Worker.Runtimes)
+	if config.Worker.RunJobs && len(config.Worker.Runtimes) == 0 {
+		return fmt.Errorf("worker.runtimes must list at least one supported runtime when run_jobs = true")
 	}
 	if config.Worker.ExchangeURL != "" {
 		if err := validatePrivateRuntimeURL("worker.exchange_url", config.Worker.ExchangeURL); err != nil {

@@ -14,6 +14,27 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-17 - Steered multi-harness agent runtime
+
+* Generalized `openknowledge agent` from a Codex launcher into a closed
+  Codex/Claude Code/Grok Build/OpenCode interface with `--runtime`, optional `--model`,
+  executable overrides, `doctor`, and a default versioned Open Knowledge
+  steering contract. Added executable `agent init` and `agent from` workflows.
+* Replaced arbitrary experimental job `agent.command`/`agent.args` execution
+  with strict `agent.runtime` plus optional `agent.model`. Job run plans now
+  carry the resolved runtime and prompt transport, and model credentials are
+  scoped to the harness subprocess rather than verification commands.
+* Added strict `worker.runtimes`, per-runtime job filtering, checkout/state
+  isolation, runtime-plan inference, and separate pinned Codex, Claude Code,
+  Grok Build, and OpenCode worker images. Compose and Railway provision only selected
+  harness workers, each with its own state and credential boundary.
+* Source anchors: `packages/cli/cmd/openknowledge/{agent_command,agents_command,deploy_command,runtime_command,runtime_worker}.go`,
+  `packages/cli/internal/agents/{harness,plan,runner,spec}.go`,
+  `packages/cli/internal/runtime/config.go`, `docker/runtime.Dockerfile`, and
+  `.github/workflows/release.yml`.
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,jobs,runtime,deploy,setup}.md`,
+  `Wiki/features/operations.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-17 - Resilient Codex executable discovery
 
 * `openknowledge agent` now runs a bounded version probe before creating an

@@ -23,7 +23,7 @@
     "worktree": {"type": "string"},
     "run_dir": {"type": "string"},
     "prompt": {"type": "string"},
-    "agent": {"$ref": "#/$defs/command"},
+    "agent": {"$ref": "#/$defs/agentCommand"},
     "verify": {"type": "array", "items": {"$ref": "#/$defs/command"}},
     "verify_timeout": {"type": "string", "minLength": 1},
     "sandbox": {"$ref": "#/$defs/sandbox"},
@@ -31,12 +31,32 @@
     "concurrency": {"$ref": "#/$defs/concurrency"}
   },
   "$defs": {
+    "agentCommand": {
+      "allOf": [
+        {"$ref": "#/$defs/command"},
+        {
+          "type": "object",
+          "required": ["runtime", "command", "prompt_mode"],
+          "properties": {
+            "runtime": {"enum": ["codex", "claude", "grok", "opencode"]},
+            "command": {"type": "string"},
+            "args": {"type": "array", "items": {"type": "string"}},
+            "prompt_mode": {"enum": ["argument", "stdin"]},
+            "env": {"type": "array", "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}},
+            "shell": {"type": "boolean"}
+          }
+        }
+      ]
+    },
     "command": {
       "type": "object",
       "required": ["command"],
       "properties": {
+        "runtime": {"enum": ["codex", "claude", "grok", "opencode"]},
         "command": {"type": "string"},
         "args": {"type": "array", "items": {"type": "string"}},
+        "prompt_mode": {"enum": ["argument", "stdin"]},
+        "env": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}},
         "shell": {"type": "boolean"}
       },
       "additionalProperties": false

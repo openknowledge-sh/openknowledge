@@ -101,14 +101,14 @@ func TestRunSupervisorHandlesStopAndKillRequests(t *testing.T) {
 	}
 	for _, action := range []string{"stop", "kill"} {
 		t.Run(action, func(t *testing.T) {
+			installTestCodex(t, "#!/bin/sh\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n")
 			repo := t.TempDir()
 			runTestGit(t, repo, "init")
 			jobPath := filepath.Join(repo, "job.md")
 			jobContent := `---
 id: managed-run
 agent:
-  command: sh
-  args: ["-c", "trap 'exit 0' TERM; while :; do sleep 1; done"]
+  runtime: codex
 workspace: {repo: ".", base: HEAD}
 concurrency: {key: managed-run}
 ---

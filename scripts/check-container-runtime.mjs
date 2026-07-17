@@ -54,7 +54,7 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("Container toolchains are aligned; web, serve, publisher, and worker runtimes enforce non-root isolation");
+  console.log("Container toolchains are aligned; web, serve, publisher, and per-harness worker runtimes enforce non-root isolation");
 }
 
 function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
@@ -62,9 +62,15 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
   const builder = runtimeStages.find((stage) => /\sAS\s+cli-builder\s*$/m.test(stage.split("\n", 1)[0]));
   const serve = runtimeStages.find((stage) => /\sAS\s+serve\s*$/m.test(stage.split("\n", 1)[0]));
   const publisher = runtimeStages.find((stage) => /\sAS\s+publisher\s*$/m.test(stage.split("\n", 1)[0]));
-  const worker = runtimeStages.find((stage) => /\sAS\s+worker\s*$/m.test(stage.split("\n", 1)[0]));
-  if (!builder || !serve || !publisher || !worker) {
-    failures.push("runtime.Dockerfile must define cli-builder, serve, publisher, and worker targets");
+  const workerBase = runtimeStages.find((stage) => /\sAS\s+worker-base\s*$/m.test(stage.split("\n", 1)[0]));
+  const workerTargets = Object.fromEntries(
+    ["codex", "claude", "grok", "opencode"].map((runtime) => [
+      runtime,
+      runtimeStages.find((stage) => new RegExp(`\\sAS\\s+worker-${runtime}\\s*$`, "m").test(stage.split("\n", 1)[0])),
+    ]),
+  );
+  if (!builder || !serve || !publisher || !workerBase || Object.values(workerTargets).some((stage) => !stage)) {
+    failures.push("runtime.Dockerfile must define cli-builder, serve, publisher, worker-base, and codex/claude/grok/opencode worker targets");
     return;
   }
   const runtimeGo = builder.match(/^golang:([0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:-|@|\s)/);
@@ -89,37 +95,58 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
   if (!/CMD \["--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"\]/.test(publisher)) {
     failures.push("publisher target must default to the provider-injected runtime configuration");
   }
-  const codexVersion = worker.match(/^ARG\s+CODEX_VERSION=([0-9]+\.[0-9]+\.[0-9]+)\s*$/m);
-  if (!codexVersion || !worker.includes(`@openai/codex@\${CODEX_VERSION}`)) {
-    failures.push("worker target must install Codex through an explicitly pinned CODEX_VERSION build argument");
-  }
-  if (!/^USER\s+openknowledge:openknowledge\s*$/m.test(worker)) {
-    failures.push("worker target must run as openknowledge:openknowledge");
-  }
-  if (!/CMD \["--role", "jobs", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"\]/.test(worker)) {
-    failures.push("worker target must default to the isolated jobs role and provider-injected configuration");
+  const harnessContracts = {
+    codex: { version: "CODEX_VERSION", install: "@openai/codex@${CODEX_VERSION}" },
+    claude: { version: "CLAUDE_CODE_VERSION", install: "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" },
+    grok: { version: "GROK_VERSION", install: "@xai-official/grok@${GROK_VERSION}" },
+    opencode: { version: "OPENCODE_VERSION", install: "opencode-ai@${OPENCODE_VERSION}" },
+  };
+  for (const [runtime, worker] of Object.entries(workerTargets)) {
+    const contract = harnessContracts[runtime];
+    const version = worker.match(new RegExp(`^ARG\\s+${contract.version}=([0-9]+\\.[0-9]+\\.[0-9]+)\\s*$`, "m"));
+    if (!version || !worker.includes(contract.install)) {
+      failures.push(`worker-${runtime} must install its harness through an explicitly pinned ${contract.version} build argument`);
+    }
+    if (!/^USER\s+openknowledge:openknowledge\s*$/m.test(worker)) {
+      failures.push(`worker-${runtime} must run as openknowledge:openknowledge`);
+    }
+    if (!new RegExp(`ENV OPENKNOWLEDGE_AGENT_RUNTIME=${runtime}`).test(worker)) {
+      failures.push(`worker-${runtime} must declare its closed harness identity`);
+    }
+    if (!worker.includes(`CMD ["--role", "jobs", "--runtime", "${runtime}", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]`)) {
+      failures.push(`worker-${runtime} must default to its isolated jobs role and provider-injected configuration`);
+    }
   }
   for (const required of [
     "artifacts:/artifacts:ro",
     "cap_drop: [\"ALL\"]",
     "no-new-privileges:true",
-    "openai_api_key",
+    "codex_api_key",
+    "anthropic_api_key",
+    "xai_api_key",
+    "opencode_api_key",
     "github_app_key",
   ]) {
     if (!compose.includes(required)) {
       failures.push(`runtime Compose must include ${required}`);
     }
   }
-  const workerService = composeService(compose, "worker");
-  if (/^\s+ports:/m.test(workerService)) {
-    failures.push("runtime worker service must not publish ports");
-  }
-  if (/github_app_key|artifacts:\/artifacts/.test(workerService)) {
-    failures.push("agent worker must not mount GitHub credentials or the artifact store");
+  for (const runtime of ["codex", "claude", "grok", "opencode"]) {
+    const workerService = composeService(compose, `worker-${runtime}`);
+    if (!workerService) {
+      failures.push(`runtime Compose must define worker-${runtime}`);
+      continue;
+    }
+    if (/^\s+ports:/m.test(workerService)) {
+      failures.push(`runtime worker-${runtime} service must not publish ports`);
+    }
+    if (/github_app_key|artifacts:\/artifacts/.test(workerService)) {
+      failures.push(`worker-${runtime} must not mount GitHub credentials or the artifact store`);
+    }
   }
   const publisherService = composeService(compose, "publisher");
-  if (/openai_api_key|target:\s+worker/.test(publisherService)) {
-    failures.push("publisher must not mount the OpenAI credential or Codex worker image");
+  if (/codex_api_key|anthropic_api_key|xai_api_key|opencode_api_key|target:\s+worker-/.test(publisherService)) {
+    failures.push("publisher must not mount model credentials or an agent worker image");
   }
 }
 

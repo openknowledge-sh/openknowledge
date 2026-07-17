@@ -20,6 +20,7 @@ production_branch = "main"
 poll_interval = "30s"
 run_jobs = true
 jobs_path = ".openknowledge/jobs"
+runtimes = ["codex", "claude", "grok", "opencode"]
 exchange_dir = "/exchange"
 
 [github]

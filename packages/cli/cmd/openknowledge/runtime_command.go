@@ -6,21 +6,24 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
 
 type runtimePlan struct {
-	SchemaVersion  string                          `json:"schemaVersion"`
-	Config         string                          `json:"config"`
-	StateDir       string                          `json:"stateDir"`
-	ArtifactStore  okruntime.ArtifactStoreConfig   `json:"artifactStore"`
-	Serve          okruntime.ServeConfig           `json:"serve"`
-	Worker         okruntime.WorkerConfig          `json:"worker"`
-	GitHub         okruntime.GitHubConfig          `json:"github"`
-	KnowledgeBases []okruntime.KnowledgeBaseConfig `json:"knowledgeBases"`
+	SchemaVersion    string                          `json:"schemaVersion"`
+	Config           string                          `json:"config"`
+	StateDir         string                          `json:"stateDir"`
+	ArtifactStore    okruntime.ArtifactStoreConfig   `json:"artifactStore"`
+	Serve            okruntime.ServeConfig           `json:"serve"`
+	Worker           okruntime.WorkerConfig          `json:"worker"`
+	GitHub           okruntime.GitHubConfig          `json:"github"`
+	KnowledgeBases   []okruntime.KnowledgeBaseConfig `json:"knowledgeBases"`
+	RequiredRuntimes []string                        `json:"requiredRuntimes,omitempty"`
 }
 
 type runtimeBuildResult struct {
@@ -73,20 +76,61 @@ func runRuntimePlan(args []string) int {
 	if err != nil {
 		return printAgentCommandError(err)
 	}
+	requiredRuntimes, err := runtimeRequiredRuntimes(config)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
 	plan := runtimePlan{
-		SchemaVersion:  okf.MachineSchemaVersion,
-		Config:         config.Path,
-		StateDir:       config.Runtime.StateDir,
-		ArtifactStore:  config.ArtifactStore,
-		Serve:          config.Serve,
-		Worker:         config.Worker,
-		GitHub:         config.GitHub,
-		KnowledgeBases: config.KnowledgeBases,
+		SchemaVersion:    okf.MachineSchemaVersion,
+		Config:           config.Path,
+		StateDir:         config.Runtime.StateDir,
+		ArtifactStore:    config.ArtifactStore,
+		Serve:            config.Serve,
+		Worker:           config.Worker,
+		GitHub:           config.GitHub,
+		KnowledgeBases:   config.KnowledgeBases,
+		RequiredRuntimes: requiredRuntimes,
 	}
 	if err := printJSON(plan); err != nil {
 		return printAgentCommandError(err)
 	}
 	return 0
+}
+
+func runtimeRequiredRuntimes(config okruntime.Config) ([]string, error) {
+	if !config.Worker.RunJobs {
+		return nil, nil
+	}
+	path := config.Worker.JobsPath
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(config.Worker.Repo, path)
+	}
+	jobs, failures, err := agents.DiscoverJobsLenient(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("discover runtime jobs: %w", err)
+	}
+	if len(failures) > 0 {
+		return nil, fmt.Errorf("discover runtime jobs: %w", failures[0])
+	}
+	set := make(map[string]bool)
+	for _, job := range jobs {
+		if !job.Enabled {
+			continue
+		}
+		if !runtimeListed(config.Worker.Runtimes, job.Agent.Runtime) {
+			return nil, fmt.Errorf("job %s requires runtime %s, which is not enabled by worker.runtimes", job.ID, job.Agent.Runtime)
+		}
+		set[job.Agent.Runtime] = true
+	}
+	result := make([]string, 0, len(set))
+	for runtimeName := range set {
+		result = append(result, runtimeName)
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 func runRuntimeBuild(args []string) int {
@@ -249,10 +293,10 @@ Usage:
   openknowledge runtime build --config runtime.toml [--id <id>] [--commit <sha>]
   openknowledge runtime serve --config runtime.toml
   openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role jobs --config runtime.toml
+  openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml
 
 The public serve role reads only verified immutable generations from the
-artifact store. Private publisher and agent roles use isolated state and no
+artifact store. Private publisher and per-harness jobs roles use isolated state and no
 inbound ports; GitHub and model credentials are never mounted into one role.
 `
 }

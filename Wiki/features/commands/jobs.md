@@ -10,8 +10,8 @@ timestamp: 2026-07-17T00:00:00Z
 
 `openknowledge jobs` is experimental. It validates, plans, and runs local
 agent jobs from Markdown files with nested frontmatter. The frontmatter is the
-deterministic job contract; the Markdown body is the prompt passed to the
-configured agent CLI.
+deterministic job contract; the Markdown body is combined with the versioned
+Open Knowledge steering contract and passed to the selected harness.
 
 Because the command group is still experimental, job frontmatter fields,
 scheduler semantics, run artifact layout, and executor behavior may change
@@ -53,6 +53,7 @@ openknowledge jobs daemon [jobs-dir] --tick 5m
 openknowledge jobs daemon [jobs-dir] --dry-run
 openknowledge jobs daemon [jobs-dir] --executor host
 openknowledge jobs daemon [jobs-dir] --executor docker
+openknowledge jobs daemon [jobs-dir] --runtime codex
 openknowledge jobs <subcommand> --help
 openknowledge jobs --help
 ```
@@ -61,10 +62,11 @@ The default jobs directory is `.openknowledge/jobs`.
 
 ## Kickstart: First Local Runtime
 
-There is no separate Open Knowledge agent server to configure. The runtime is
-the local executable declared by `agent.command`; Open Knowledge prepares the
-worktree and prompt, starts that executable, records its output, and optionally
-runs verification commands. `jobs new` is a convenient scaffold, not a
+There is no separate Open Knowledge agent server to configure. The selected
+`agent.runtime` adapter prepares the canonical Codex, Claude Code, Grok, or OpenCode
+invocation; Open Knowledge prepares the worktree and steered prompt, starts the
+harness, records its output, and optionally runs verification commands.
+`jobs new` is a convenient scaffold, not a
 required registration step: a hand-written valid job Markdown file works too.
 
 The shortest setup flow is:
@@ -83,8 +85,8 @@ existing Codex CLI login:
 command -v codex
 codex login status
 
-# Host jobs receive an isolated HOME. Point Codex at the existing state and
-# make that variable available to the job explicitly.
+# Host jobs receive an isolated HOME. Point Codex at existing local state when
+# using subscription authentication.
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 
 # Create a starting job.
@@ -92,9 +94,8 @@ openknowledge jobs new custom \
   --out .openknowledge/jobs/my-agent.md
 ```
 
-Edit `.openknowledge/jobs/my-agent.md`. At minimum, set the id, agent
-command, prompt body, and any verification commands. For the Codex example,
-keep `codex exec` and explicitly allow `CODEX_HOME`:
+Edit `.openknowledge/jobs/my-agent.md`. At minimum, set the id, runtime, prompt
+body, and any verification commands:
 
 ```md
 ---
@@ -104,8 +105,7 @@ schedule:
   every: 24h
   timezone: UTC
 agent:
-  command: codex
-  args: [exec]
+  runtime: codex
   timeout: 30m
   completion_signal: COMPLETE
 workspace:
@@ -172,13 +172,12 @@ openknowledge jobs daemon .openknowledge/jobs --once
 openknowledge jobs daemon .openknowledge/jobs --tick 1m
 ```
 
-For another local agent, replace `agent.command`, `agent.args`, and the names in
-`sandbox.env` with the executable, non-interactive arguments, and configuration
-variables supported by that CLI. Host jobs can access the repository and any
-explicitly exposed configuration, so only run trusted job files and trusted
-verification commands. Codex documents `CODEX_HOME` as the root containing its
-configuration and authentication state; the directory must already exist. See
-the [Codex environment variable reference](https://learn.chatgpt.com/docs/config-file/environment-variables).
+For another harness, set `agent.runtime: claude`, `grok`, or `opencode`.
+Open Knowledge owns the non-interactive arguments. `agent.model` selects a
+harness-specific model; Grok Build accepts xAI model IDs directly, while
+OpenCode uses `provider/model`.
+Host jobs can access the repository and explicitly exposed `sandbox.env`
+capabilities, so only run trusted jobs and verification commands.
 
 ## Built-In Templates
 
@@ -212,18 +211,15 @@ schedule:
   cron: "0 9 * * MON"
   timezone: UTC
 agent:
-  command: codex
-  args:
-    - exec
-    - --model
-    - gpt-5
+  runtime: codex
+  model: gpt-5
   timeout: 45m
   completion_signal: COMPLETE
 workspace:
   repo: "."
   base: main
   strategy: branch
-  branch: "agents/{{id}}/{{date}}-{{run_id}}"
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
 sandbox:
   type: host
@@ -231,7 +227,7 @@ sandbox:
 # image: example.test/agent:latest
 # network: none
 # Explicit host variables needed by either executor:
-# env: [OPENAI_API_KEY]
+# env: [PROJECT_SPECIFIC_CAPABILITY]
 verify:
   commands:
     - go test ./packages/cli/...
@@ -264,8 +260,8 @@ Supported top-level fields:
 | `schedule.cron` | Five-field cron subset with `*`, comma-separated numbers, weekday names, or `@hourly`, `@daily`, `@weekly`. |
 | `schedule.every` | Go duration interval such as `1h` or `24h`. |
 | `schedule.timezone` | IANA time zone for schedule evaluation. |
-| `agent.command` | Required executable name. |
-| `agent.args` | Optional argument list. |
+| `agent.runtime` | Required harness: `codex`, `claude`, `grok`, or `opencode`. Unknown runtimes fail closed. |
+| `agent.model` | Optional harness-specific model override. |
 | `agent.timeout` | Agent command timeout. Defaults to `30m`. |
 | `agent.completion_signal` | Optional string that must appear in agent stdout or stderr. |
 | `workspace.repo` | Git repository path. Defaults to `.` relative to the job file. |
@@ -276,12 +272,12 @@ Supported top-level fields:
 | `sandbox.type` | `host` or `docker`. Defaults to `host`. |
 | `sandbox.image` | Required for Docker execution. Must be one image reference without whitespace or a leading hyphen. |
 | `sandbox.network` | Docker network mode: `none` or `bridge`. Defaults to `none`; use `bridge` to opt into network access. |
-| `sandbox.env` | Environment variable names to inherit explicitly from the runner. Values are never stored in the job or run plan. |
+| `sandbox.env` | Non-model environment variable names to inherit explicitly. Harness credentials are selected by the adapter and scoped only to the agent command. Values are never stored in the job or run plan. |
 | `verify.commands` | Shell commands run after the agent command in the same worktree. |
 | `verify.timeout` | Positive timeout applied separately to each verification command. Defaults to `15m`. |
 | `output.commit` | When true, commits worktree changes after verification. |
 | `output.commit_message` | Optional commit message. Defaults to `Run agent job <id>` when `output.commit` is true. |
-| `output.pr` | Requests a branch bundle and draft pull request when the successful run is reconciled by the isolated `agents` and `publisher` runtime roles. Local `jobs run` still stops after commit. |
+| `output.pr` | Requests a branch bundle and draft pull request when the successful run is reconciled by isolated `jobs` and `publisher` runtime roles. Local `jobs run` still stops after commit. |
 | `concurrency.key` | Optional global key shared by jobs that must not overlap. At most 128 letters, numbers, dots, underscores, or hyphens. |
 | `concurrency.policy` | `skip`; defaults to `skip` when a key is present. |
 
@@ -308,8 +304,8 @@ parsing. The closed contract is published as `job-validation.schema.json`.
 `jobs list --json` returns a `schemaVersion: "1"` envelope with the absolute
 discovery path and an always-present, deterministically id/path-sorted `jobs`
 array. Entries expose id, enabled state, absolute job path, structured schedule,
-agent executable, sandbox type, and normalized concurrency policy. Prompt
-bodies, command arguments, and environment values are deliberately excluded
+agent runtime, sandbox type, and normalized concurrency policy. Prompt bodies,
+model values, command arguments, and environment values are deliberately excluded
 from discovery. A missing or empty jobs directory succeeds with `jobs: []`.
 The closed contract is published as `job-list.schema.json`.
 
@@ -420,13 +416,20 @@ image values are rejected, so job data cannot inject `docker run` flags.
 Host commands do not inherit the CLI process environment wholesale. They keep
 only a small runtime baseline such as `PATH`, locale, terminal, and required
 Windows process variables, then receive isolated `HOME` and temporary
-directories below the private run directory. A job that needs a credential or
-tool-specific setting must list its variable name in `sandbox.env`; the value
-must exist in the runner environment when a real run starts. Docker forwards
-the same explicit names with `--env NAME` and otherwise relies on image-defined
-environment defaults. Environment values are not serialized into `job.md`,
-`plan.json`, or `run.json`. Managed home/temp names, malformed names, and
-case-insensitive duplicates are rejected.
+directories below the private run directory. Project-specific capabilities
+must be listed in `sandbox.env`. The adapter separately selects only credentials
+recognized for its runtime, records only their names, and injects them into the
+agent command; verification commands do not inherit them. Docker applies the
+same command-specific split. Environment values are never serialized into
+`job.md`, `plan.json`, or `run.json`. Managed home/temp names, malformed names,
+and case-insensitive duplicates are rejected.
+
+Recognized credentials are `CODEX_API_KEY`; `ANTHROPIC_API_KEY` or
+`CLAUDE_CODE_OAUTH_TOKEN`; `XAI_API_KEY` for Grok; and the OpenCode candidates
+`OPENCODE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY`.
+The shipped Grok worker uses `XAI_API_KEY`. The OpenCode worker exposes its
+separate provider secret as `OPENCODE_API_KEY`; repository OpenCode
+configuration decides which provider consumes it.
 
 Dry-run output, every persisted `plan.json`, and `run.json` use the single
 current `schemaVersion: "1"` agent contract. The run record embeds the complete
@@ -450,6 +453,8 @@ run-record inspection, or execution failures. A failing `--once` pass returns
 status `1` only after every loadable due job has been attempted. Without
 `--once`, the daemon reports the pass failures and continues polling using
 `--tick`, defaulting to `1m`; one bad job cannot stop unrelated schedules.
+`--runtime codex|claude|grok|opencode` restricts a daemon to one harness and is used
+by isolated cloud worker services.
 
 The agent command defaults to a `30m` timeout unless `agent.timeout` is set.
 Every verification command has its own `verify.timeout`, defaulting to `15m`.
@@ -477,6 +482,14 @@ platform: Unix cancellation starts with `SIGTERM`, while Windows uses the
 available tree-termination facility. `kill` is intentionally forceful.
 
 ## Command Change History
+
+### 2026-07-17 - Harness runtime schema
+
+Replaced arbitrary `agent.command` and `agent.args` with the closed
+`agent.runtime` (`codex`, `claude`, `grok`, or `opencode`) and optional `agent.model`
+contract. Every job receives `openknowledge-agent/v1` steering. Added
+runtime-filtered daemons, canonical non-interactive adapter arguments, and
+agent-command-only credential forwarding. No compatibility parsing is kept.
 
 ### 2026-07-17 - Jobs replace the former agents command group
 
@@ -617,9 +630,10 @@ the source checkout. Source anchors: `packages/cli/internal/agents/plan.go`,
 ### 2026-07-15 - Explicit agent environment capabilities
 
 Host agent and verification commands no longer inherit arbitrary runner
-environment variables. Jobs declare required names through `sandbox.env`,
-while host commands receive isolated home/temp directories and Docker forwards
-only the declared names. Source anchors:
+environment variables. Jobs declare project-specific names through
+`sandbox.env`; model credentials are now added separately to the selected
+agent command and are absent from verification. Host commands receive isolated
+home/temp directories and Docker forwards only the selected names. Source anchors:
 `packages/cli/internal/agents/spec.go`,
 `packages/cli/internal/agents/runner.go`,
 `packages/cli/internal/agents/templates.go`,

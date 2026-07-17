@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,14 +12,28 @@ import (
 	"strings"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 type agentCLIOptions struct {
-	exec    bool
-	isolate bool
-	path    string
-	model   string
-	prompt  string
+	operation  string
+	isolate    bool
+	path       string
+	model      string
+	prompt     string
+	runtime    string
+	runtimeSet bool
+	noSteer    bool
+	rules      string
+	json       bool
+	from       fromOptions
+}
+
+type agentDoctorEntry struct {
+	Runtime    string `json:"runtime"`
+	Available  bool   `json:"available"`
+	Executable string `json:"executable,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 var runAgentProcess = func(ctx context.Context, executable string, arguments []string, directory string) error {
@@ -45,6 +60,10 @@ func runAgent(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
+	if options.operation == "doctor" {
+		return runAgentDoctor(options)
+	}
+
 	directory, err := filepath.Abs(options.path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -57,7 +76,25 @@ func runAgent(args []string) int {
 		fmt.Fprintf(os.Stderr, "agent path is not a directory: %s\n", directory)
 		return 1
 	}
-	executable, err := resolveCodexExecutable(context.Background())
+
+	task, mode, interactive, err := agentTask(options)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if options.isolate {
+		mode = "isolated"
+	}
+	if !options.noSteer {
+		task = agents.SteeredAgentPrompt(task, mode)
+	}
+
+	command, err := agents.BuildHarnessCommand(agents.AgentSpec{Runtime: options.runtime, Model: options.model}, interactive)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	executable, err := resolveAgentExecutable(context.Background(), options.runtime)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -75,26 +112,20 @@ func runAgent(args []string) int {
 		fmt.Fprintf(os.Stderr, "branch: %s\n", isolated.Branch)
 	}
 
-	arguments := make([]string, 0, 8)
-	if options.exec {
-		arguments = append(arguments, "exec")
-	}
-	arguments = append(arguments, "--sandbox", "workspace-write")
-	if options.model != "" {
-		arguments = append(arguments, "--model", options.model)
-	}
-	if options.prompt != "" {
-		arguments = append(arguments, options.prompt)
+	arguments := append([]string(nil), command.Args...)
+	if task != "" {
+		if command.PromptMode == agents.PromptStdin && len(arguments) > 0 && arguments[len(arguments)-1] == "-" {
+			arguments = arguments[:len(arguments)-1]
+		}
+		arguments = append(arguments, task)
 	}
 
 	ctx := context.Background()
-	if options.exec {
+	if !interactive {
 		var stop context.CancelFunc
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt)
 		defer stop()
 	} else {
-		// The interactive Codex TUI receives terminal interrupts directly. Keep
-		// this wrapper alive so it does not terminate the session first.
 		interrupts := make(chan os.Signal, 1)
 		signal.Notify(interrupts, os.Interrupt)
 		defer signal.Stop(interrupts)
@@ -104,42 +135,92 @@ func runAgent(args []string) int {
 		if errors.As(err, &exitError) {
 			return exitError.ExitCode()
 		}
-		fmt.Fprintf(os.Stderr, "run Codex agent: %v\n", err)
+		fmt.Fprintf(os.Stderr, "run %s agent: %v\n", options.runtime, err)
 		return 1
 	}
 	return 0
 }
 
+func agentTask(options agentCLIOptions) (task string, mode string, interactive bool, err error) {
+	switch options.operation {
+	case "exec":
+		return options.prompt, "local", false, nil
+	case "init":
+		ruleIDs, err := parseRuleIDs(options.rules)
+		if err != nil {
+			return "", "", false, err
+		}
+		prompt, err := okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs})
+		return prompt, "init", true, err
+	case "from":
+		prompt, err := okf.FromPrompt(okf.FromPromptOptions{
+			Source: options.from.source,
+			Out:    options.from.out,
+			Type:   options.from.wikiType,
+			About:  options.from.about,
+			Depth:  options.from.depth,
+		})
+		return prompt, "from", true, err
+	default:
+		return options.prompt, "local", true, nil
+	}
+}
+
 func parseAgentArgs(args []string) (agentCLIOptions, error) {
-	options := agentCLIOptions{path: "."}
-	if len(args) > 0 && args[0] == "exec" {
-		options.exec = true
-		args = args[1:]
+	options := agentCLIOptions{path: ".", runtime: agents.RuntimeCodex}
+	if len(args) > 0 {
+		switch args[0] {
+		case "exec", "init", "from", "doctor":
+			options.operation = args[0]
+			args = args[1:]
+		}
 	}
 	positionals := make([]string, 0, 1)
+	fromArgs := make([]string, 0, len(args))
 	for index := 0; index < len(args); index++ {
 		argument := args[index]
 		switch {
 		case argument == "--":
-			positionals = append(positionals, args[index+1:]...)
+			if options.operation == "from" {
+				fromArgs = append(fromArgs, args[index+1:]...)
+			} else {
+				positionals = append(positionals, args[index+1:]...)
+			}
 			index = len(args)
 		case argument == "--isolate":
 			options.isolate = true
-		case argument == "--path" || argument == "--model":
+		case argument == "--no-steer":
+			options.noSteer = true
+		case argument == "--json" && options.operation == "doctor":
+			options.json = true
+		case argument == "--path" || argument == "--model" || argument == "--runtime" || argument == "--rules":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
 				return options, err
 			}
-			if argument == "--path" {
+			switch argument {
+			case "--path":
 				options.path = value
-			} else {
+			case "--model":
 				options.model = value
+			case "--runtime":
+				options.runtime = strings.ToLower(value)
+				options.runtimeSet = true
+			case "--rules":
+				options.rules = value
 			}
 			index = next
 		case strings.HasPrefix(argument, "--path="):
 			options.path = strings.TrimPrefix(argument, "--path=")
 		case strings.HasPrefix(argument, "--model="):
 			options.model = strings.TrimPrefix(argument, "--model=")
+		case strings.HasPrefix(argument, "--runtime="):
+			options.runtime = strings.ToLower(strings.TrimPrefix(argument, "--runtime="))
+			options.runtimeSet = true
+		case strings.HasPrefix(argument, "--rules="):
+			options.rules = strings.TrimPrefix(argument, "--rules=")
+		case options.operation == "from":
+			fromArgs = append(fromArgs, argument)
 		case strings.HasPrefix(argument, "-"):
 			return options, fmt.Errorf("unknown agent option: %s", argument)
 		default:
@@ -149,39 +230,98 @@ func parseAgentArgs(args []string) (agentCLIOptions, error) {
 	if strings.TrimSpace(options.path) == "" {
 		return options, fmt.Errorf("--path requires a value")
 	}
-	if len(positionals) > 0 {
+	if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
+		return options, err
+	}
+	if options.operation == "from" {
+		parsed, err := parseFromOptions(fromArgs)
+		if err != nil {
+			return options, err
+		}
+		options.from = parsed
+	} else if len(positionals) > 0 {
 		options.prompt = strings.Join(positionals, " ")
 	}
-	if options.exec && strings.TrimSpace(options.prompt) == "" {
+	if options.operation == "exec" && strings.TrimSpace(options.prompt) == "" {
 		return options, fmt.Errorf("agent exec requires a prompt")
 	}
+	if options.operation == "init" && strings.TrimSpace(options.prompt) != "" {
+		return options, fmt.Errorf("agent init accepts no positional arguments")
+	}
+	if options.operation == "doctor" && len(positionals) > 0 {
+		return options, fmt.Errorf("agent doctor accepts no positional arguments")
+	}
+	if options.operation != "init" && strings.TrimSpace(options.rules) != "" {
+		return options, fmt.Errorf("--rules is only valid with agent init")
+	}
+	if options.operation == "doctor" && (options.isolate || options.noSteer || options.model != "" || options.path != ".") {
+		return options, fmt.Errorf("agent doctor accepts only --runtime and --json")
+	}
 	return options, nil
+}
+
+func runAgentDoctor(options agentCLIOptions) int {
+	runtimes := agents.SupportedAgentRuntimes()
+	if options.runtimeSet {
+		runtimes = []string{options.runtime}
+	}
+	entries := make([]agentDoctorEntry, 0, len(runtimes))
+	available := 0
+	for _, runtime := range runtimes {
+		executable, err := resolveAgentExecutable(context.Background(), runtime)
+		entry := agentDoctorEntry{Runtime: runtime, Available: err == nil, Executable: executable}
+		if err != nil {
+			entry.Error = err.Error()
+		} else {
+			available++
+		}
+		entries = append(entries, entry)
+	}
+	if options.json {
+		encoded, _ := json.MarshalIndent(map[string]any{"schemaVersion": okf.MachineSchemaVersion, "runtimes": entries}, "", "  ")
+		fmt.Fprintln(os.Stdout, string(encoded))
+	} else {
+		for _, entry := range entries {
+			if entry.Available {
+				fmt.Fprintf(os.Stdout, "%s\tavailable\t%s\n", entry.Runtime, entry.Executable)
+			} else {
+				fmt.Fprintf(os.Stdout, "%s\tunavailable\t%s\n", entry.Runtime, entry.Error)
+			}
+		}
+	}
+	if options.runtimeSet && available == 0 {
+		return 1
+	}
+	if available == 0 {
+		return 1
+	}
+	return 0
 }
 
 func agentHelpText() string {
 	return `openknowledge agent
 
-Start a human-driven Codex agent in a local knowledge workspace. By default the
-agent edits the selected filesystem directly; no branch, worktree, commit, or
-pull request is created.
+Start a steered Open Knowledge agent using Codex, Claude Code, Grok, or OpenCode.
+Local sessions edit the selected filesystem directly unless --isolate is set.
 
 Usage:
-  openknowledge agent
-  openknowledge agent "<initial prompt>"
-  openknowledge agent --path <directory>
-  openknowledge agent --isolate ["<initial prompt>"]
+  openknowledge agent ["<initial prompt>"]
+  openknowledge agent --runtime <codex|claude|grok|opencode>
   openknowledge agent exec "<prompt>"
-  openknowledge agent exec --isolate "<prompt>"
+  openknowledge agent init [--rules <rules>]
+  openknowledge agent from <source> --out <folder>
+  openknowledge agent doctor [--runtime <runtime>] [--json]
 
 Flags:
+  --runtime    Agent harness. Defaults to codex.
   --path       Directory the agent should edit. Defaults to the current directory.
-  --model      Codex model override.
+  --model      Harness-specific model override.
   --isolate    Create and retain a dedicated Git branch and worktree at HEAD.
+  --no-steer   Pass only the user or generated workflow prompt.
 
-Environment:
-  OPENKNOWLEDGE_CODEX
-               Codex executable name or path. Without it, Open Knowledge probes
-               PATH candidates and supported macOS app bundles.
+Executable overrides:
+  OPENKNOWLEDGE_CODEX, OPENKNOWLEDGE_CLAUDE, OPENKNOWLEDGE_GROK,
+  OPENKNOWLEDGE_OPENCODE
 
 Run openknowledge agent exec --help for non-interactive usage.
 `
@@ -190,23 +330,20 @@ Run openknowledge agent exec --help for non-interactive usage.
 func agentExecHelpText() string {
 	return `openknowledge agent exec
 
-Run one non-interactive Codex task. The task edits the selected filesystem
-directly unless --isolate is set.
+Run one non-interactive Open Knowledge agent task. The task edits the selected
+filesystem directly unless --isolate is set.
 
 Usage:
   openknowledge agent exec "<prompt>"
-  openknowledge agent exec --path <directory> "<prompt>"
-  openknowledge agent exec --model <model> "<prompt>"
+  openknowledge agent exec --runtime claude "<prompt>"
+  openknowledge agent exec --runtime opencode --model xai/<model> "<prompt>"
   openknowledge agent exec --isolate "<prompt>"
 
 Flags:
+  --runtime    codex, claude, grok, or opencode. Defaults to codex.
   --path       Directory the agent should edit. Defaults to the current directory.
-  --model      Codex model override.
+  --model      Harness-specific model override.
   --isolate    Create and retain a dedicated Git branch and worktree at HEAD.
-
-Environment:
-  OPENKNOWLEDGE_CODEX
-               Codex executable name or path. Without it, Open Knowledge probes
-               PATH candidates and supported macOS app bundles.
+  --no-steer   Do not prepend the Open Knowledge agent contract.
 `
 }

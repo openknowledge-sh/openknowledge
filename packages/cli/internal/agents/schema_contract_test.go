@@ -11,12 +11,13 @@ import (
 )
 
 func TestRuntimeAgentArtifactsSatisfyPublishedSchemas(t *testing.T) {
+	installTestCodex(t, "")
 	root := t.TempDir()
 	runTestGit(t, root, "init")
 	jobPath := filepath.Join(root, "job.md")
 	jobContent := `---
 id: schema-contract
-agent: {command: git, args: [--version]}
+agent: {runtime: codex}
 workspace: {repo: ".", base: HEAD}
 concurrency: {key: schema-contract}
 ---

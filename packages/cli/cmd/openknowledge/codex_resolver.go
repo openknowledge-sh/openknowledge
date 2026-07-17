@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 )
 
 const codexExecutableEnv = "OPENKNOWLEDGE_CODEX"
@@ -41,6 +43,28 @@ func resolveCodexExecutable(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("no Codex CLI executable found; install Codex or set %s to a working executable", codexExecutableEnv)
 	}
 	return "", fmt.Errorf("no working Codex CLI found; reinstall Codex or set %s to a working executable (checked %s)", codexExecutableEnv, strings.Join(failures, "; "))
+}
+
+func resolveAgentExecutable(ctx context.Context, runtimeName string) (string, error) {
+	if runtimeName == "codex" {
+		return resolveCodexExecutable(ctx)
+	}
+	definition, err := agents.HarnessForRuntime(runtimeName)
+	if err != nil {
+		return "", err
+	}
+	configured := strings.TrimSpace(os.Getenv(definition.ExecutableEnv))
+	if configured == "" {
+		configured = definition.Executable
+	}
+	candidate, err := resolveConfiguredExecutable(configured)
+	if err != nil {
+		return "", fmt.Errorf("%s runtime: %w; install %s or set %s", runtimeName, err, definition.Executable, definition.ExecutableEnv)
+	}
+	if err := probeCodexExecutable(ctx, candidate); err != nil {
+		return "", fmt.Errorf("%s runtime executable %s is unusable: %w", runtimeName, candidate, err)
+	}
+	return candidate, nil
 }
 
 func resolveConfiguredExecutable(configured string) (string, error) {

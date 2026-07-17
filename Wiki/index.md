@@ -40,8 +40,9 @@ custom theme.
 * [validate](features/commands/validate.md) - validate a bundle against OKF.
 * [rules](features/commands/rules.md) - inspect and print maintenance rules.
 * [review](features/commands/review.md) - print advisory AI review prompts.
-* [agent](features/commands/agent.md) - run interactive or one-shot Codex work
-  directly in a local filesystem, with optional worktree isolation.
+* [agent](features/commands/agent.md) - run steered Codex, Claude Code, Grok, or
+  OpenCode sessions and setup/source workflows directly in a local filesystem,
+  with optional worktree isolation.
 * [jobs](features/commands/jobs.md) - validate, schedule, run, observe, and
   control declarative jobs in isolated worktrees.
 * [list](features/commands/list.md) - inspect bundle inventory with inline

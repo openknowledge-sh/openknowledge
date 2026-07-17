@@ -19,10 +19,12 @@
     "branch": "jobs/docs-audit/20260715-090000-0123456789abcdef01234567",
     "worktree": "/state/project/worktrees/0123456789abcdef01234567",
     "run_dir": "/state/project/runs/0123456789abcdef01234567",
-    "prompt": "Audit the documentation.\n",
+    "prompt": "Open Knowledge agent contract (openknowledge-agent/v1)\n\nTask:\nAudit the documentation.\n",
     "agent": {
+      "runtime": "codex",
       "command": "codex",
-      "args": ["exec"]
+      "args": ["exec", "--sandbox", "workspace-write", "-"],
+      "prompt_mode": "stdin"
     },
     "verify": [
       {
@@ -35,7 +37,7 @@
       "type": "docker",
       "image": "example.test/agent:latest",
       "network": "none",
-      "env": ["OPENAI_API_KEY"]
+      "env": ["PROJECT_READ_TOKEN"]
     },
     "output": {
       "commit": true,
@@ -48,7 +50,7 @@
   },
   "agent": {
     "command": "codex",
-    "args": ["exec"],
+    "args": ["exec", "--sandbox", "workspace-write", "-"],
     "exit_code": 0,
     "started_at": "2026-07-15T09:00:02Z",
     "finished_at": "2026-07-15T09:00:45Z",

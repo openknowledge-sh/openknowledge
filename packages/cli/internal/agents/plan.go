@@ -15,9 +15,12 @@ import (
 )
 
 type Command struct {
-	Command string   `json:"command"`
-	Args    []string `json:"args,omitempty"`
-	Shell   bool     `json:"shell,omitempty"`
+	Runtime    string   `json:"runtime,omitempty"`
+	Command    string   `json:"command"`
+	Args       []string `json:"args,omitempty"`
+	PromptMode string   `json:"prompt_mode,omitempty"`
+	Env        []string `json:"env,omitempty"`
+	Shell      bool     `json:"shell,omitempty"`
 }
 
 type RunPlan struct {
@@ -129,7 +132,22 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 		verifyTimeout = "15m"
 	}
 
-	prompt := renderTemplate(job.Prompt, values)
+	prompt := SteeredAgentPrompt(renderTemplate(job.Prompt, values), "job")
+	agentCommand, err := BuildHarnessCommand(job.Agent, false)
+	if err != nil {
+		return RunPlan{}, ValidationError{Issues: []ValidationIssue{{Field: "agent.runtime", Message: err.Error()}}}
+	}
+	definition, _ := HarnessForRuntime(job.Agent.Runtime)
+	if sandbox.Type == "host" {
+		if configured := strings.TrimSpace(os.Getenv(definition.ExecutableEnv)); configured != "" {
+			agentCommand.Command = configured
+		}
+	}
+	for _, name := range definition.Credentials {
+		if _, present := os.LookupEnv(name); present {
+			agentCommand.Env = append(agentCommand.Env, name)
+		}
+	}
 	return RunPlan{
 		SchemaVersion: okf.MachineSchemaVersion,
 		RunID:         runID,
@@ -144,7 +162,7 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 		Worktree:      worktree,
 		RunDir:        runDir,
 		Prompt:        prompt,
-		Agent:         Command{Command: job.Agent.Command, Args: append([]string(nil), job.Agent.Args...)},
+		Agent:         agentCommand,
 		Verify:        verify,
 		VerifyTimeout: verifyTimeout,
 		Sandbox:       sandbox,

@@ -149,6 +149,10 @@ pre-1.0 experimental agent command surface is explicitly exempt: its job,
 plan, run-record, and management contracts may change in place until the
 feature is stabilized.
 
+The current job plan's `agent` command is closed over `runtime`, executable
+arguments, `prompt_mode`, and credential names. Verification commands use the
+generic command shape and do not receive the agent credential list.
+
 Schemas are closed at defined object boundaries with
 `additionalProperties: false`. Integrations can therefore distinguish a
 deliberate additive contract change from accidental encoder/schema drift.

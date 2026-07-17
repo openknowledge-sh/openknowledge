@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -86,7 +87,7 @@ func TestRailwayDeployPlanIsSecretFreeAndModelsProviderEndpoint(t *testing.T) {
 	if plan.Endpoint.Mode != "custom" || plan.Endpoint.Domain != "docs.example.com" {
 		t.Fatalf("unexpected custom endpoint: %#v", plan.Endpoint)
 	}
-	if len(plan.Services) != 3 || plan.Services[0].Role != "publisher" || plan.Services[1].Role != "serve" || plan.Services[2].Role != "worker" {
+	if len(plan.Services) != 3 || plan.Services[0].Role != "publisher" || plan.Services[1].Role != "serve" || plan.Services[2].Role != "worker-codex" {
 		t.Fatalf("unexpected isolated services: %#v", plan.Services)
 	}
 	if plan.Services[0].Public || !plan.Services[1].Public || plan.Services[2].Public {
@@ -94,6 +95,66 @@ func TestRailwayDeployPlanIsSecretFreeAndModelsProviderEndpoint(t *testing.T) {
 	}
 	if plan.Services[0].VolumePath == "" || plan.Services[2].VolumePath == "" || plan.Services[1].VolumePath != "" {
 		t.Fatalf("Railway volumes must be owned by private stateful roles: %#v", plan.Services)
+	}
+}
+
+func TestRailwayDeployInfersOneIsolatedServicePerJobRuntime(t *testing.T) {
+	repository, wiki := newDeployTestRepository(t)
+	writeViewerFile(t, repository, ".openknowledge/jobs/claude.md", "---\nid: claude-refresh\nagent: {runtime: claude}\n---\nRefresh docs.\n")
+	writeViewerFile(t, repository, ".openknowledge/jobs/grok.md", "---\nid: grok-refresh\nagent: {runtime: grok, model: grok-4.5}\n---\nRefresh research.\n")
+	writeViewerFile(t, repository, ".openknowledge/jobs/opencode.md", "---\nid: opencode-research\nagent: {runtime: opencode, model: custom/research}\n---\nResearch updates.\n")
+	runtimeGitTest(t, repository, "add", ".openknowledge/jobs")
+	runtimeGitTest(t, repository, "commit", "-m", "add agent jobs")
+	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "multi-state.json"))
+	options.Runtimes = ""
+	plan, err := buildRailwayDeployPlan(options, wiki)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(plan.Runtimes, []string{"claude", "grok", "opencode"}) {
+		t.Fatalf("unexpected inferred runtimes: %#v", plan.Runtimes)
+	}
+	roles := make([]string, 0, len(plan.Services))
+	for _, service := range plan.Services {
+		roles = append(roles, service.Role)
+	}
+	if !reflect.DeepEqual(roles, []string{"publisher", "serve", "worker-claude", "worker-grok", "worker-opencode"}) {
+		t.Fatalf("unexpected services: %#v", plan.Services)
+	}
+	if !strings.Contains(plan.Services[2].Config, `runtimes = ["claude","grok","opencode"]`) || !strings.Contains(plan.Services[3].Image, "worker-grok") || !strings.Contains(plan.Services[4].Image, "worker-opencode") {
+		t.Fatalf("runtime plan did not configure isolated workers: %#v", plan.Services)
+	}
+}
+
+func TestRailwayDeployOmitsWorkersWhenNoEnabledJobsAreInferred(t *testing.T) {
+	repository, wiki := newDeployTestRepository(t)
+	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "no-workers-state.json"))
+	options.Runtimes = ""
+	plan, err := buildRailwayDeployPlan(options, wiki)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Runtimes) != 0 || len(plan.Services) != 2 {
+		t.Fatalf("expected publisher and serve only, got runtimes=%#v services=%#v", plan.Runtimes, plan.Services)
+	}
+	if strings.Contains(plan.Services[0].Config, "runtimes =") || strings.Contains(plan.Services[0].Config, "run_jobs = true") {
+		t.Fatalf("publisher config unexpectedly enabled jobs: %s", plan.Services[0].Config)
+	}
+}
+
+func TestRailwayDeployScopesGrokAndOpenCodeCredentialsSeparately(t *testing.T) {
+	options := defaultRailwayDeployTestOptions("state.json")
+	if got := deployRuntimeCredentialEnvironment("grok"); got != "XAI_API_KEY" {
+		t.Fatalf("Grok credential target = %q", got)
+	}
+	if got := deployRuntimeCredentialEnvironment("opencode"); got != "OPENCODE_API_KEY" {
+		t.Fatalf("OpenCode credential target = %q", got)
+	}
+	if got := deployRuntimeCredentialSource(options, "grok"); got != options.GrokKeyEnv {
+		t.Fatalf("Grok credential source = %q", got)
+	}
+	if got := deployRuntimeCredentialSource(options, "opencode"); got != options.OpenCodeKeyEnv {
+		t.Fatalf("OpenCode credential source = %q", got)
 	}
 }
 
@@ -105,7 +166,7 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	secrets := deploySecrets{GitHubToken: "github-secret", OpenAIKey: "openai-secret", ArtifactToken: "artifact-secret", ExchangeToken: "exchange-secret"}
+	secrets := deploySecrets{GitHubToken: "github-secret", AgentKeys: map[string]string{"codex": "openai-secret"}, ArtifactToken: "artifact-secret", ExchangeToken: "exchange-secret"}
 	runner := &fakeRailwayRunner{}
 	provider := railwayProvider{runner: runner}
 	first, err := provider.Apply(t.Context(), plan, secrets)
@@ -202,7 +263,7 @@ func TestRailwayProviderPersistsRecoverableIncompleteStateOnFailure(t *testing.T
 	}
 	runner := &fakeRailwayRunner{FailOn: "variable set GITHUB_TOKEN"}
 	provider := railwayProvider{runner: runner}
-	secrets := deploySecrets{GitHubToken: "github", OpenAIKey: "openai", ArtifactToken: "artifact", ExchangeToken: "exchange"}
+	secrets := deploySecrets{GitHubToken: "github", AgentKeys: map[string]string{"codex": "openai"}, ArtifactToken: "artifact", ExchangeToken: "exchange"}
 	if _, err := provider.Apply(t.Context(), plan, secrets); err == nil {
 		t.Fatal("expected injected provider failure")
 	}
@@ -256,7 +317,8 @@ func TestRailwayDeployPreflightsCommittedProductionSnapshot(t *testing.T) {
 func defaultRailwayDeployTestOptions(state string) railwayDeployOptions {
 	return railwayDeployOptions{
 		Name: "test-knowledge", Branch: "main", MCPAccess: "public",
-		GitHubTokenEnv: "GITHUB_TOKEN", OpenAIKeyEnv: "OPENAI_API_KEY", MCPTokenEnv: "OPENKNOWLEDGE_MCP_TOKEN",
+		Runtimes:       "codex",
+		GitHubTokenEnv: "GITHUB_TOKEN", CodexKeyEnv: "CODEX_API_KEY", ClaudeKeyEnv: "ANTHROPIC_API_KEY", GrokKeyEnv: "XAI_API_KEY", OpenCodeKeyEnv: "OPENCODE_API_KEY", MCPTokenEnv: "OPENKNOWLEDGE_MCP_TOKEN",
 		ImagePrefix: "ghcr.io/openknowledge-sh/openknowledge-runtime", ImageTag: "test", StatePath: state,
 	}
 }

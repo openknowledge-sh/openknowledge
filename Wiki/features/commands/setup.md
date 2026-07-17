@@ -8,7 +8,10 @@ timestamp: 2026-06-18T00:00:00Z
 
 # `openknowledge setup`
 
-`openknowledge setup` prints a prompt intended for an AI coding agent. The
+`openknowledge setup` prints a prompt intended for an AI coding agent. To run
+that workflow immediately through a supported harness, use
+`openknowledge agent init`; `openknowledge agent init --rules docs,changelog`
+reuses this exact prompt builder instead of maintaining a second setup flow. The
 prompt asks the agent to inspect the current workspace or target folder, read
 relevant user or project memories when the runtime exposes them, ask only the
 missing setup questions, create a bundle with `openknowledge new`, customize
@@ -29,6 +32,7 @@ run `openknowledge rules --list` when they need rule descriptions.
 ```sh
 openknowledge setup
 openknowledge setup --rules docs,changelog
+openknowledge agent init --runtime claude --rules docs,changelog
 openknowledge setup --help
 ```
 
@@ -70,6 +74,8 @@ Use these as the starting point for AGENTS.md, workflow docs, and any agent inst
 ## Use Cases
 
 * Start a project wiki from inside an agent session.
+* Execute the complete setup interview directly with Codex, Claude Code, Grok,
+  or OpenCode through `openknowledge agent init`.
 * Generate a reusable bootstrap prompt for agent CLIs.
 * Preselect known maintenance loops, for example docs plus changelog, while
   still letting the setup agent inspect context before creating files.
@@ -86,6 +92,12 @@ Use these as the starting point for AGENTS.md, workflow docs, and any agent inst
   the finished wiki with `openknowledge view`.
 
 ## Command Change History
+
+### 2026-07-17 - Executable setup workflow
+
+`openknowledge agent init` now executes the canonical setup prompt through a
+selected supported harness while preserving `--rules`. `openknowledge setup`
+remains the portable print-only surface.
 
 ### 2026-07-06 - Use/navigation loop
 

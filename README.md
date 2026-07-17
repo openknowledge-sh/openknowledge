@@ -10,8 +10,9 @@ Open Knowledge creates Git-native project knowledge bases in plain Markdown and
 can deploy them as isolated public and private runtimes. The public role serves
 an immutable filtered wiki, search, and optional read-only HTTP MCP. The private
 runtime splits GitHub publication from model execution: a credentialed publisher
-follows production and promotes artifacts, while a credential-free agent worker
-runs scheduled jobs and proposes draft pull requests through Git bundles.
+follows production and promotes artifacts, while isolated Codex, Claude Code,
+Grok, or OpenCode workers run scheduled jobs and propose draft pull requests through
+Git bundles without receiving GitHub credentials.
 
 [🌐 Website](https://openknowledge.sh) | [📖 README](README.md) |
 [🗂️ Repository wiki](Wiki/index.md) | [📝 Changelog](Wiki/changelog/cli.md) |
@@ -53,8 +54,8 @@ It gives you:
 - local registry aliases so agents can address knowledge bases by stable names
 - a local viewer and static publisher with connect manifests and portable
   bundle archives
-- optional experimental Markdown-authored local agent jobs for scheduled
-  maintenance
+- a steered local agent interface for Codex, Claude Code, Grok, and OpenCode, plus
+  optional experimental Markdown-authored jobs for scheduled maintenance
 - a Docker runtime with public `serve`, credentialed private `publisher`, and
   model-capable private `worker` roles separated by artifacts and Git bundles
 - `openknowledge deploy railway` for secret-scoped, idempotent provisioning
@@ -68,13 +69,13 @@ to inspect, diff, validate, and maintain.
 
 | | Capability | What it gives you |
 | --- | --- | --- |
-| :robot: | Agent setup | `openknowledge setup`, `from`, and `rules` print prompts that let local agents create and maintain useful project memory. |
+| :robot: | Agent setup | `openknowledge agent init` and `agent from` execute setup workflows through Codex, Claude Code, Grok, or OpenCode; `setup`, `from`, and `rules` retain portable print-only prompts. |
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
 | :mag: | Retrieval | `search` builds budget-bounded Markdown context by default, while `get`, `list`, and `view` support exact reads, structure, and browsing. |
 | :electric_plug: | MCP integration | `mcp` serves exact resources, source-grounded search, and validation to compatible LLM hosts over read-only stdio. |
 | :package: | Portable publishing | HTML exports include `llms.txt`, `openknowledge.json`, and a bundle archive so published wikis can be connected again. |
 | :gear: | Deterministic checks | `validate`, `ast`, JSON, graph, and experimental agent job commands provide structured views that automation can trust. |
-| :shield: | Isolated runtime | `runtime serve` consumes only public generations; publisher and agent roles keep GitHub and model credentials in different containers and state volumes. |
+| :shield: | Isolated runtime | `runtime serve` consumes only public generations; publisher and per-harness jobs roles keep GitHub and model credentials in different containers and state volumes. |
 | :rocket: | Five-minute deploy | `deploy railway` validates publication, provisions isolated services and volumes, and never purchases or registers a domain. |
 
 ```mermaid
@@ -223,18 +224,19 @@ openknowledge to tar --out ./project-memory.tar.gz ./project-memory
 
 ### Run the isolated Docker runtime
 
-Copy and edit `deploy/runtime/runtime.toml`, create the two secret files named
-by `deploy/runtime/docker-compose.yml`, then run:
+Copy and edit `deploy/runtime/runtime.toml`, create the GitHub App secret plus
+the model-key files for the harness profiles you want, then run, for example:
 
 ```sh
-docker compose -f deploy/runtime/docker-compose.yml up --build
+docker compose -f deploy/runtime/docker-compose.yml --profile codex up --build
+# Add --profile claude, --profile grok, and/or --profile opencode when enabled.
 ```
 
 The `serve` container mounts the artifact volume read-only and receives no Git,
-OpenAI, or GitHub credentials. The ingress-free `publisher` alone receives the
-GitHub App key and artifact write access. The ingress-free `worker` alone
-receives the OpenAI key. They use separate persistent checkouts and exchange
-only bounded Git bundles and sanitized request records. See the
+model, or GitHub credentials. The ingress-free `publisher` alone receives the
+GitHub App key and artifact write access. Each ingress-free harness worker gets
+only its model/provider key and a separate persistent checkout. The roles
+exchange only bounded Git bundles and sanitized request records. See the
 [runtime command reference](Wiki/features/commands/runtime.md) before using the
 example in production.
 
@@ -244,16 +246,20 @@ example in production.
 # Review the exact resources and credential names; no secrets are read or shown.
 openknowledge deploy railway Wiki --dry-run
 
-# Provision serve, publisher, worker, volumes, and a Railway technical URL.
+# Provision serve, publisher, inferred harness workers, volumes, and a Railway URL.
 openknowledge deploy railway Wiki --yes
 ```
 
 Use `--domain docs.example.com` only for a hostname you already own; the result
 prints Railway's required CNAME/TXT records. Use `--no-public-endpoint` for a
-private deployment or `--without-worker` when scheduled OpenAI agents are not
-needed. Open Knowledge never searches for, buys, or registers domains. Railway
-CLI v5+ authentication, a GitHub token (or authenticated `gh`), and
-`OPENAI_API_KEY` are required for the full mutating deployment. See the
+private deployment or `--without-worker` when scheduled agents are not needed.
+Open Knowledge infers `codex`, `claude`, `grok`, and `opencode` workers from enabled job
+files; no enabled jobs means no worker, and `--runtimes` can override that
+selection. It never searches for, buys,
+or registers domains. Railway CLI v5+ authentication, a GitHub token (or
+authenticated `gh`), and the selected harness keys (`CODEX_API_KEY`,
+`ANTHROPIC_API_KEY`, `XAI_API_KEY`, and/or `OPENCODE_API_KEY`) are
+required for the full mutating deployment. See the
 [deploy command reference](Wiki/features/commands/deploy.md).
 
 Keep `.openknowledge/deployments/railway.json` after the first run; it contains
@@ -404,20 +410,24 @@ unknown sections/fields and wrong value types fail closed. See the
 
 ### Experimental Agent And Jobs
 
-`openknowledge agent` is the human-facing path. It starts an interactive Codex
-session in the current directory, accepts an optional initial prompt, or runs a
-single non-interactive task with `agent exec`. Direct filesystem editing is the
-default, so local sessions do not create a branch, commit, or pull request.
+`openknowledge agent` is the human-facing path. It starts Codex by default and
+supports Claude Code, Grok, or OpenCode with `--runtime`. It accepts an optional
+initial prompt or runs a non-interactive task with `agent exec`. A versioned
+Open Knowledge steering contract is prepended by default. `agent init` executes
+the canonical setup interview and `agent from` executes the source-to-wiki
+workflow; `agent doctor` probes installed harnesses without starting a model.
+Direct filesystem editing is the default, so local sessions do not create a
+branch, commit, or pull request.
 Add `--isolate` to create and retain a dedicated branch and Git worktree at the
-repository's current `HEAD`. Open Knowledge probes Codex executables before
-creating the worktree, skips broken `PATH` candidates, and on macOS can use the
-Codex binary bundled with Codex or ChatGPT. Set `OPENKNOWLEDGE_CODEX` to require
-one explicit executable name or path.
+repository's current `HEAD`. Open Knowledge probes harness executables before
+creating the worktree. Overrides are `OPENKNOWLEDGE_CODEX`,
+`OPENKNOWLEDGE_CLAUDE`, `OPENKNOWLEDGE_GROK`, and `OPENKNOWLEDGE_OPENCODE`; Codex discovery also skips
+broken `PATH` wrappers and checks supported macOS app bundles.
 
 `openknowledge jobs` is experimental. It runs deterministic automation
 around local agent CLIs, but the job schema and scheduler behavior may still
 change before this command is treated as stable. Jobs are Markdown files with
-nested frontmatter for schedule, agent command, workspace, sandbox,
+nested frontmatter for schedule, closed agent runtime/model, workspace, sandbox,
 verification, and output settings. The Markdown body is the agent prompt.
 Jobs that share a `concurrency.key` use an owner-private cross-process lock;
 the supported `skip` policy records a skipped invocation without creating a
@@ -428,7 +438,7 @@ Use `openknowledge jobs new` to list shipped templates,
 `openknowledge jobs validate` to check job specs, and
 `openknowledge jobs run <job.md> --dry-run` to print the resolved run plan.
 Run `openknowledge jobs run <job.md>` to create a Git worktree and run the
-configured agent command.
+selected Codex, Claude Code, Grok, or OpenCode adapter.
 Use `openknowledge jobs start <job.md>` for a detached run,
 `openknowledge jobs status` for schedules plus active/latest runs, and
 `openknowledge jobs runs` for repository history. Live runs can be cancelled
@@ -464,9 +474,12 @@ Nested job commands also support
 | `openknowledge rules <rules> --path <path>` | Print ready-to-paste maintenance rules for an existing wiki. |
 | `openknowledge rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
 | `openknowledge review rules [path]` | Print an advisory AI review prompt for maintenance rules. |
-| `openknowledge agent ["<initial prompt>"]` | Experimental: start an interactive Codex session that edits the selected filesystem directly. |
-| `openknowledge agent exec "<prompt>"` | Experimental: run one non-interactive Codex task in the selected filesystem. |
+| `openknowledge agent ["<initial prompt>"]` | Experimental: start a steered interactive Codex session, or select Claude Code/Grok/OpenCode with `--runtime`. |
+| `openknowledge agent exec "<prompt>"` | Experimental: run one non-interactive task through the selected harness. |
 | `openknowledge agent exec --isolate "<prompt>"` | Experimental: run one task in a retained branch and worktree. |
+| `openknowledge agent init [--rules <rules>]` | Experimental: execute the canonical knowledge-base setup workflow. |
+| `openknowledge agent from <source> --out <path>` | Experimental: execute the source-to-wiki workflow. |
+| `openknowledge agent doctor [--runtime <runtime>]` | Experimental: probe supported harness installations. |
 | `openknowledge jobs new` | Experimental: list built-in local agent job templates. |
 | `openknowledge jobs new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
 | `openknowledge jobs new --reference` | Experimental: print the supported agent-job schema. |
@@ -481,12 +494,12 @@ Nested job commands also support
 | `openknowledge jobs validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
 | `openknowledge jobs run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
 | `openknowledge jobs run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
-| `openknowledge jobs daemon [jobs-dir] --once` | Experimental: attempt every due job once and report an aggregate failure after the pass. |
+| `openknowledge jobs daemon [jobs-dir] --once [--runtime <runtime>]` | Experimental: attempt due jobs, optionally restricted to one harness. |
 | `openknowledge runtime plan --config runtime.toml` | Strictly validate and print the normalized self-hosted runtime plan. |
 | `openknowledge runtime build --config runtime.toml` | Build and promote filtered immutable public generations. |
 | `openknowledge runtime serve --config runtime.toml` | Serve verified static wiki, search, and optional read-only HTTP MCP snapshots. |
 | `openknowledge runtime worker --role publisher --config runtime.toml` | Fetch production, promote artifacts, validate agent bundles, and publish draft PR output with GitHub credentials. |
-| `openknowledge runtime worker --role jobs --config runtime.toml` | Run scheduled jobs with the model credential and export proposed Git branches without GitHub or artifact access. |
+| `openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml` | Run one harness's scheduled jobs with its model credential and export proposed Git branches without GitHub or artifact access. |
 | `openknowledge deploy railway [path] --dry-run` | Validate publication and print the secret-free Railway resource plan. |
 | `openknowledge deploy railway [path] --yes` | Idempotently provision isolated runtime services, credentials, volumes, and the selected public endpoint mode. |
 | `openknowledge new [folder]` | Scaffold a local Open Knowledge bundle. |

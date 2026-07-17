@@ -22,7 +22,7 @@ flowchart LR
   Publisher -->|"verified immutable generation"| Artifacts["Artifact store"]
   Artifacts -->|"read only"| Serve["Public serve<br/>wiki + search + MCP"]
   Publisher -->|"production Git bundle"| Exchange["Untrusted bundle exchange"]
-  Exchange --> Jobs["Private jobs worker<br/>OpenAI only"]
+  Exchange --> Jobs["Private jobs workers<br/>one harness each"]
   Jobs -->|"branch bundle + request"| Exchange
   Publisher -->|"validated branch + draft PR"| GitHub
 ```
@@ -36,11 +36,13 @@ openknowledge runtime build --config runtime.toml --no-publish
 openknowledge runtime serve --config runtime.toml
 openknowledge runtime serve --config runtime.toml --check
 openknowledge runtime worker --role publisher --config runtime.toml [--once]
-openknowledge runtime worker --role jobs --config runtime.toml [--once]
+openknowledge runtime worker --role jobs --runtime codex --config runtime.toml [--once]
 ```
 
-`plan` strictly parses the whole TOML file, normalizes paths/routes/specs, and
-prints JSON without starting a process. `build` atomically creates a filtered
+`plan` strictly parses the whole TOML file, normalizes paths/routes/specs,
+inspects enabled job files, and prints `requiredRuntimes` without starting a
+process. It fails if a job selects a harness missing from `worker.runtimes`.
+`build` atomically creates a filtered
 generation and, unless `--no-publish` is set, promotes it to the filesystem
 artifact store. `serve --check` verifies every configured active generation
 without binding a port. Each `worker --once` role runs one reconciliation pass.
@@ -85,6 +87,7 @@ production_branch = "main"
 poll_interval = "30s"
 run_jobs = true
 jobs_path = ".openknowledge/jobs"
+runtimes = ["codex", "claude", "grok", "opencode"]
 exchange_dir = "/exchange"
 # Remote job-only role on a platform without shared volumes:
 # exchange_url = "http://publisher.railway.internal:8090"
@@ -121,9 +124,12 @@ GitHub authentication prefers an explicitly configured environment token for
 development, otherwise signs a short-lived RS256 GitHub App JWT and exchanges
 it for an installation token. Only the publisher resolves that token, and it is
 passed to Git through process environment configuration rather than command
-arguments. The agent role has no GitHub secret, remote credential, or artifact
-mount. Jobs must still explicitly list `OPENAI_API_KEY` or another required
-capability in `sandbox.env`.
+arguments. The jobs role has no GitHub secret, remote credential, or artifact
+mount. Model credentials are selected by the closed runtime adapter and exposed
+only to the agent subprocess: `CODEX_API_KEY` for Codex,
+`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code,
+`XAI_API_KEY` for Grok, and a configured provider key for OpenCode. They do not belong in
+`sandbox.env`, which is reserved for explicit project capabilities.
 
 ## Generation And Promotion
 
@@ -161,11 +167,13 @@ deployed root exposes:
 Each private role owns its own `runtime.state_dir` and exclusive lock. The
 publisher maintains the credentialed production checkout, promotes a generation
 only for a new source commit, and atomically exports that branch as
-`source.bundle`. The agent role clones or refreshes a separate checkout from
-that bundle, runs due jobs through the existing isolated-worktree runner, and
-exports successful proposals as a branch bundle plus a strict sanitized JSON
-request. Raw prompts, logs, tool calls, diffs, and environment metadata remain
-on the agent state volume.
+`source.bundle`. Each configured jobs runtime clones or refreshes a separate
+checkout from that bundle, selects only jobs whose `agent.runtime` matches its
+`--runtime`, runs them in isolated worktrees, and exports successful proposals
+as a branch bundle plus a strict sanitized JSON request. Raw prompts, logs,
+tool calls, diffs, and environment metadata remain on that runtime's private
+state volume. If exactly one runtime is configured, `--runtime` may be omitted;
+multi-runtime production workers must select it explicitly.
 
 The exchange volume is treated as attacker-controlled input. Before any push,
 the publisher bounds and hashes the bundle, validates identifiers and Git refs,
@@ -188,23 +196,39 @@ valid in-memory generation active.
 
 ## Docker Deployment And Security Boundary
 
-`docker/runtime.Dockerfile` has separate `serve`, `publisher`, and `worker`
-targets, and
+`docker/runtime.Dockerfile` has separate `serve`, `publisher`, `worker-base`,
+`worker-codex`, `worker-claude`, `worker-grok`, and `worker-opencode` targets, and
 `deploy/runtime/docker-compose.yml` wires separate users, volumes, secrets,
 capability drops, read-only roots, PID limits, health checks, and no Docker
 socket. The serve target is distroless and contains no Git, Node/Codex runtime,
 shell, source checkout, private volume, or credentials. Publisher contains Git
-but not Node/Codex or the OpenAI key. Worker contains Git and pinned Codex but
-not the GitHub App key or artifact store. The Compose example gives neither
-private service a port. A provider adapter may give publisher a
+but no agent harness or model key. Each worker contains Git and exactly one
+pinned harness—Codex CLI, Claude Code, Grok Build, or OpenCode—but not the GitHub App key
+or artifact store. Compose profiles (`codex`, `claude`, `grok`, `opencode`) give each
+worker a distinct state volume and secret. The shipped Grok worker receives
+`XAI_API_KEY`. OpenCode receives a distinct `OPENCODE_API_KEY` placeholder;
+repository OpenCode configuration binds it to the chosen provider. No jobs worker
+publishes a port. A
+provider adapter may give publisher a
 private-network-only port for artifact and bundle transport; it never creates
 public ingress for publisher or worker. The roles never share `.git` metadata.
 
+| Compose profile | Image target | Secret file | Harness environment |
+| --- | --- | --- | --- |
+| `codex` | `worker-codex` | `secrets/codex_api_key` | `CODEX_API_KEY` |
+| `claude` | `worker-claude` | `secrets/anthropic_api_key` | `ANTHROPIC_API_KEY` |
+| `grok` | `worker-grok` | `secrets/xai_api_key` | `XAI_API_KEY` |
+| `opencode` | `worker-opencode` | `secrets/opencode_api_key` | `OPENCODE_API_KEY` |
+
+Start only profiles required by enabled job files, for example
+`docker compose -f deploy/runtime/docker-compose.yml --profile codex --profile grok up --build`.
+
 The images default to `env:OPENKNOWLEDGE_RUNTIME_CONFIG`, so provider adapters
 do not need to rebuild immutable images for each repository. Releases publish
-separate `openknowledge-runtime-serve`, `-publisher`, and `-worker` images to
-GHCR. [`openknowledge deploy railway`](deploy.md) provisions the first complete
-managed topology.
+separate `openknowledge-runtime-serve`, `-publisher`, `-worker-codex`,
+`-worker-claude`, `-worker-grok`, and `-worker-opencode` images to GHCR.
+[`openknowledge deploy railway`](deploy.md) provisions only workers required by
+enabled job definitions.
 
 Public generation is refused until the source bundle explicitly sets
 `[publish] enabled = true`. `okf_publish: false` and `[publish].assets` protect
@@ -219,6 +243,12 @@ multi-tenant operation, S3, and horizontal worker scaling are deliberately out
 of scope for this first runtime.
 
 ## Command Change History
+
+### 2026-07-17 - Closed multi-harness jobs workers
+
+Added strict `worker.runtimes`, per-runtime worker selection and state,
+runtime-aware planning, and isolated pinned images for Codex CLI, Claude Code,
+Grok Build, and OpenCode. Job credentials now flow only to the selected harness process.
 
 ### 2026-07-17 - Private provider transport
 

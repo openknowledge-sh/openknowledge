@@ -16,8 +16,8 @@ id: docs-audit
 enabled: false
 schedule: {every: 24h, timezone: Europe/Prague}
 agent:
-  command: codex
-  args: [exec, --model, gpt-5]
+  runtime: codex
+  model: gpt-5
 verify: {commands: ["go test ./...", "openknowledge validate Wiki"], timeout: 10m}
 output: {commit: true, pr: true}
 concurrency: {key: wiki-maintenance}
@@ -36,7 +36,7 @@ Review the docs.
 	if job.ID != "docs-audit" || job.Enabled || job.Schedule.Every != "24h" || job.Schedule.Timezone != "Europe/Prague" {
 		t.Fatalf("unexpected typed job scalars: %#v", job)
 	}
-	if !reflect.DeepEqual(job.Agent.Args, []string{"exec", "--model", "gpt-5"}) || !reflect.DeepEqual(job.Verify.Commands, []string{"go test ./...", "openknowledge validate Wiki"}) {
+	if job.Agent.Runtime != "codex" || job.Agent.Model != "gpt-5" || !reflect.DeepEqual(job.Verify.Commands, []string{"go test ./...", "openknowledge validate Wiki"}) {
 		t.Fatalf("unexpected flow collections: %#v", job)
 	}
 	if !job.Output.Commit || !job.Output.PR || job.Verify.Timeout != "10m" || job.Prompt != "\nReview the docs.\n" {
@@ -50,11 +50,11 @@ Review the docs.
 func TestDiscoverJobsLenientKeepsValidJobsBesideInvalidFiles(t *testing.T) {
 	dir := t.TempDir()
 	invalidPath := filepath.Join(dir, "00-invalid.md")
-	if err := os.WriteFile(invalidPath, []byte("---\nid: invalid\nagent: {command: agent, argz: []}\n---\nPrompt.\n"), 0644); err != nil {
+	if err := os.WriteFile(invalidPath, []byte("---\nid: invalid\nagent: {runtime: codex, argz: []}\n---\nPrompt.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	validPath := filepath.Join(dir, "10-valid.md")
-	if err := os.WriteFile(validPath, []byte("---\nid: valid\nagent: {command: agent}\n---\nPrompt.\n"), 0644); err != nil {
+	if err := os.WriteFile(validPath, []byte("---\nid: valid\nagent: {runtime: codex}\n---\nPrompt.\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,7 +75,7 @@ func TestDiscoverJobsLenientKeepsValidJobsBesideInvalidFiles(t *testing.T) {
 
 func TestParseJobFileRejectsMalformedNestedYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "job.md")
-	content := "---\nid: broken\nagent:\n  args: [exec, --model\n---\n\nPrompt.\n"
+	content := "---\nid: broken\nagent:\n  runtime: [codex\n---\n\nPrompt.\n"
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -94,67 +94,67 @@ func TestParseJobFileEnforcesStrictFrontmatterSchema(t *testing.T) {
 	}{
 		{
 			name:     "unknown top-level field",
-			content:  "---\nid: strict\nagnt: {}\nagent: {command: agent}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nagnt: {}\nagent: {runtime: codex}\n---\nPrompt.\n",
 			expected: "agnt: is not a supported job field",
 		},
 		{
 			name:     "unknown nested field",
-			content:  "---\nid: strict\nagent: {command: agent, argz: []}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nagent: {runtime: codex, argz: []}\n---\nPrompt.\n",
 			expected: "agent.argz: is not a supported job field",
 		},
 		{
 			name:     "boolean string",
-			content:  "---\nid: strict\nenabled: \"true\"\nagent: {command: agent}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nenabled: \"true\"\nagent: {runtime: codex}\n---\nPrompt.\n",
 			expected: "enabled: must be a boolean, got string",
 		},
 		{
-			name:     "scalar argument list",
-			content:  "---\nid: strict\nagent: {command: agent, args: exec}\n---\nPrompt.\n",
-			expected: "agent.args: must be a list of strings, got string",
+			name:     "non-string runtime",
+			content:  "---\nid: strict\nagent: {runtime: [codex]}\n---\nPrompt.\n",
+			expected: "agent.runtime: must be a string, got list",
 		},
 		{
-			name:     "non-string argument",
-			content:  "---\nid: strict\nagent: {command: agent, args: [exec, 5]}\n---\nPrompt.\n",
-			expected: "agent.args[1]: must be a string, got number",
+			name:     "unknown runtime",
+			content:  "---\nid: strict\nagent: {runtime: cursor}\n---\nPrompt.\n",
+			expected: "agent.runtime: unsupported agent runtime",
 		},
 		{
 			name:     "unknown concurrency policy",
-			content:  "---\nid: strict\nagent: {command: agent}\nconcurrency: {key: docs, policy: cancel}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nagent: {runtime: codex}\nconcurrency: {key: docs, policy: cancel}\n---\nPrompt.\n",
 			expected: "concurrency.policy: must be skip",
 		},
 		{
 			name:     "concurrency policy without key",
-			content:  "---\nid: strict\nagent: {command: agent}\nconcurrency: {policy: skip}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nagent: {runtime: codex}\nconcurrency: {policy: skip}\n---\nPrompt.\n",
 			expected: "concurrency.key: is required",
 		},
 		{
 			name:     "duplicate field",
-			content:  "---\nid: strict\nagent:\n  command: first\n  command: second\n---\nPrompt.\n",
-			expected: "frontmatter: line 5: frontmatter key \"command\" is repeated",
+			content:  "---\nid: strict\nagent:\n  runtime: codex\n  runtime: claude\n---\nPrompt.\n",
+			expected: "frontmatter: line 5: frontmatter key \"runtime\" is repeated",
 		},
 		{
 			name:     "ambiguous schedule",
-			content:  "---\nid: strict\nschedule: {cron: \"0 * * * *\", every: 1h}\nagent: {command: agent}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nschedule: {cron: \"0 * * * *\", every: 1h}\nagent: {runtime: codex}\n---\nPrompt.\n",
 			expected: "schedule: cron and every are mutually exclusive",
 		},
 		{
 			name:     "non-positive timeout",
-			content:  "---\nid: strict\nagent: {command: agent, timeout: 0s}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nagent: {runtime: codex, timeout: 0s}\n---\nPrompt.\n",
 			expected: "agent.timeout: must be positive",
 		},
 		{
 			name:     "non-positive interval",
-			content:  "---\nid: strict\nschedule: {every: -1h}\nagent: {command: agent}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nschedule: {every: -1h}\nagent: {runtime: codex}\n---\nPrompt.\n",
 			expected: "schedule.every: must be positive",
 		},
 		{
 			name:     "timezone without schedule",
-			content:  "---\nid: strict\nschedule: {timezone: UTC}\nagent: {command: agent}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nschedule: {timezone: UTC}\nagent: {runtime: codex}\n---\nPrompt.\n",
 			expected: "schedule.timezone: requires schedule.cron or schedule.every",
 		},
 		{
 			name:     "non-positive verification timeout",
-			content:  "---\nid: strict\nagent: {command: agent}\nverify: {commands: [], timeout: 0s}\n---\nPrompt.\n",
+			content:  "---\nid: strict\nagent: {runtime: codex}\nverify: {commands: [], timeout: 0s}\n---\nPrompt.\n",
 			expected: "verify.timeout: must be positive",
 		},
 	}
@@ -190,7 +190,7 @@ func TestExecutorOverrideValidationFailsClosed(t *testing.T) {
 
 	job := Job{
 		ID:      "fail-closed",
-		Agent:   AgentSpec{Command: "true"},
+		Agent:   AgentSpec{Runtime: RuntimeCodex},
 		Sandbox: SandboxSpec{Type: "host"},
 	}
 	if _, err := BuildRunPlan(job, time.Now(), "doker"); err == nil || !strings.Contains(err.Error(), "executor: must be host or docker") {
@@ -201,7 +201,7 @@ func TestExecutorOverrideValidationFailsClosed(t *testing.T) {
 func TestValidateJobRejectsUnsafeDockerSandboxValues(t *testing.T) {
 	base := Job{
 		ID:    "docker-job",
-		Agent: AgentSpec{Command: "agent"},
+		Agent: AgentSpec{Runtime: RuntimeCodex},
 		Sandbox: SandboxSpec{
 			Type:    "docker",
 			Image:   "example.test/agent:latest",
@@ -237,7 +237,7 @@ func TestValidateJobRejectsUnsafeDockerSandboxValues(t *testing.T) {
 func TestValidateJobRequiresExplicitSafeEnvironmentNames(t *testing.T) {
 	base := Job{
 		ID:      "environment-job",
-		Agent:   AgentSpec{Command: "agent"},
+		Agent:   AgentSpec{Runtime: RuntimeCodex},
 		Sandbox: SandboxSpec{Type: "host", Env: []string{"OPENAI_API_KEY", "CI"}},
 	}
 	if err := ValidateJob(base); err != nil {

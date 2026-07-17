@@ -27,9 +27,7 @@ schedule:
   cron: "0 9 * * MON"
   timezone: UTC
 agent:
-  command: codex
-  args:
-    - exec
+  runtime: codex
   timeout: 45m
   completion_signal: COMPLETE
 workspace:
@@ -71,9 +69,7 @@ schedule:
   cron: "0 8 * * *"
   timezone: UTC
 agent:
-  command: codex
-  args:
-    - exec
+  runtime: codex
   timeout: 30m
   completion_signal: COMPLETE
 workspace:
@@ -106,9 +102,7 @@ End with COMPLETE.
 id: release-check
 enabled: false
 agent:
-  command: codex
-  args:
-    - exec
+  runtime: codex
   timeout: 1h
   completion_signal: COMPLETE
 workspace:
@@ -147,9 +141,7 @@ schedule:
   every: 24h
   timezone: UTC
 agent:
-  command: codex
-  args:
-    - exec
+  runtime: codex
   timeout: 30m
   completion_signal: COMPLETE
 workspace:
@@ -218,9 +210,7 @@ schedule:
   cron: "0 9 * * MON"
   timezone: UTC
 agent:
-  command: codex
-  args:
-    - exec
+  runtime: codex
   timeout: 45m
   completion_signal: COMPLETE
 workspace:
@@ -247,8 +237,8 @@ Field reference:
   weekday names in day-of-week, and @hourly, @daily, @weekly.
 - schedule.every: Go duration such as 1h or 24h.
 - schedule.timezone: IANA time zone such as UTC or Europe/Prague.
-- agent.command: Required executable name.
-- agent.args: Optional list of command arguments.
+- agent.runtime: Required supported harness: codex, claude, grok, or opencode.
+- agent.model: Optional harness-specific model override.
 - agent.timeout: Go duration. Defaults to 30m.
 - agent.completion_signal: Optional string that must appear in agent output.
 - workspace.repo: Git repo path. Defaults to "." relative to the job file.
@@ -260,8 +250,8 @@ Field reference:
 - sandbox.type: host or docker. Defaults to host.
 - sandbox.image: Docker image. Required when sandbox.type is docker; may not begin with a hyphen.
 - sandbox.network: none or bridge. Docker defaults to none; bridge is an explicit network opt-in.
-- sandbox.env: Environment variable names to inherit explicitly. Values stay outside the job and run plan.
-- verify.commands: Shell commands run after the agent command in the worktree.
+- sandbox.env: Project capability names to inherit explicitly. Values stay outside the job and run plan; known harness credentials are scoped separately.
+- verify.commands: Shell commands run after the harness exits in the worktree.
 - verify.timeout: Positive timeout applied to each verification command. Defaults to 15m.
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.
@@ -276,7 +266,7 @@ Run lifecycle:
 1. openknowledge jobs validate parses and schema-checks the job.
 2. openknowledge jobs run --dry-run prints the resolved RunPlan.
 3. openknowledge jobs run creates a Git worktree and branch.
-4. The configured agent command receives the Markdown body on stdin.
+4. The selected runtime adapter launches the harness with the steered Markdown prompt.
 5. Verification commands run in the same worktree.
 6. Logs, prompt, plan, run.json, and diff.patch are written outside the Git
    repository under the per-repository jobs state directory. Override its

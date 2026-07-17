@@ -469,7 +469,7 @@ func printAgentListJSON(path string, jobs []agents.Job) int {
 			Enabled:     job.Enabled,
 			Path:        job.Path,
 			Schedule:    job.Schedule,
-			Agent:       job.Agent.Command,
+			Agent:       job.Agent.Runtime,
 			Sandbox:     job.Sandbox.Type,
 			Concurrency: job.Concurrency,
 		})
@@ -643,7 +643,7 @@ func runJobsDaemon(args []string) int {
 	}
 
 	for {
-		code := runDueAgentJobs(options.path, options.executor, options.dryRun)
+		code := runDueAgentJobs(options.path, options.executor, options.dryRun, options.runtime)
 		if options.once {
 			return code
 		}
@@ -934,6 +934,7 @@ type jobsDaemonCLIOptions struct {
 	dryRun   bool
 	tick     string
 	executor string
+	runtime  string
 }
 
 func parseJobsDaemonArgs(args []string) (jobsDaemonCLIOptions, error) {
@@ -970,6 +971,18 @@ func parseJobsDaemonArgs(args []string) (jobsDaemonCLIOptions, error) {
 			if strings.TrimSpace(options.executor) == "" {
 				return options, fmt.Errorf("--executor requires a value")
 			}
+		case arg == "--runtime":
+			value, next, err := nextFlagValue(args, index, "--runtime")
+			if err != nil {
+				return options, err
+			}
+			options.runtime = strings.ToLower(value)
+			index = next
+		case strings.HasPrefix(arg, "--runtime="):
+			options.runtime = strings.ToLower(strings.TrimPrefix(arg, "--runtime="))
+			if strings.TrimSpace(options.runtime) == "" {
+				return options, fmt.Errorf("--runtime requires a value")
+			}
 		case strings.HasPrefix(arg, "-"):
 			return options, fmt.Errorf("unknown jobs daemon option: %s", arg)
 		default:
@@ -987,6 +1000,11 @@ func parseJobsDaemonArgs(args []string) (jobsDaemonCLIOptions, error) {
 		return options, fmt.Errorf("--executor %w", err)
 	}
 	options.executor = normalizedExecutor
+	if options.runtime != "" {
+		if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
+			return options, err
+		}
+	}
 	return options, nil
 }
 
@@ -1007,7 +1025,7 @@ func writeAgentTemplate(path string, content string, force bool) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
-func runDueAgentJobs(path string, executor string, dryRun bool) int {
+func runDueAgentJobs(path string, executor string, dryRun bool, runtimeFilter ...string) int {
 	jobs, loadFailures, err := agents.DiscoverJobsLenient(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -1023,6 +1041,9 @@ func runDueAgentJobs(path string, executor string, dryRun bool) int {
 	now := time.Now()
 	dueCount := 0
 	for _, job := range jobs {
+		if len(runtimeFilter) > 0 && runtimeFilter[0] != "" && job.Agent.Runtime != runtimeFilter[0] {
+			continue
+		}
 		scheduledAt, due, err := agents.DueScheduledAt(job, now)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", job.ID, err)
@@ -1342,6 +1363,7 @@ Usage:
   openknowledge jobs daemon [jobs-dir] --once
   openknowledge jobs daemon [jobs-dir] --tick <duration>
   openknowledge jobs daemon [jobs-dir] --dry-run
+  openknowledge jobs daemon [jobs-dir] --runtime <runtime>
   openknowledge jobs daemon --help
 
 Flags:
@@ -1349,6 +1371,7 @@ Flags:
   --tick       Polling interval. Defaults to 1m.
   --dry-run    Print resolved plans for due jobs without executing.
   --executor   Override sandbox.type with host or docker.
+  --runtime    Run only codex, claude, grok, or opencode jobs.
 
 Behavior:
   A pass attempts every loadable due job. Per-file, scheduling, planning, and

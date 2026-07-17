@@ -24,8 +24,8 @@ schedule:
   cron: "0 9 * * MON"
   timezone: UTC
 agent:
-  command: go
-  args: ["version"]
+  runtime: codex
+  model: test-model
 workspace:
   repo: "."
   base: HEAD
@@ -41,7 +41,7 @@ Audit docs.
 	writeMainTestFile(t, root, ".openknowledge/jobs/alpha.md", `---
 id: alpha-check
 enabled: false
-agent: {command: codex}
+agent: {runtime: claude}
 concurrency: {key: wiki-maintenance}
 ---
 Check first.
@@ -67,7 +67,7 @@ Check first.
 		t.Fatalf("unexpected valid agent report: %#v err=%v", validation, err)
 	}
 	invalidPath := filepath.Join(root, ".openknowledge", "invalid.md")
-	writeMainTestFile(t, root, ".openknowledge/invalid.md", "---\nid: invalid\nagent: {command: codex, argz: []}\n---\nPrompt.\n")
+	writeMainTestFile(t, root, ".openknowledge/invalid.md", "---\nid: invalid\nagent: {runtime: codex, argz: []}\n---\nPrompt.\n")
 	output, stderr, code = captureMainOutput(t, func() int {
 		return runJobs([]string{"validate", "--json", invalidPath})
 	})
@@ -101,7 +101,7 @@ Check first.
 	if inventory.SchemaVersion != okf.MachineSchemaVersion || len(inventory.Jobs) != 2 || inventory.Jobs[0].ID != "alpha-check" || inventory.Jobs[1].ID != "docs-audit" {
 		t.Fatalf("unexpected sorted agent inventory: %#v", inventory)
 	}
-	if inventory.Jobs[0].Concurrency.Policy != "skip" || inventory.Jobs[1].Schedule.Cron != "0 9 * * MON" || inventory.Jobs[1].Agent != "go" {
+	if inventory.Jobs[0].Concurrency.Policy != "skip" || inventory.Jobs[1].Schedule.Cron != "0 9 * * MON" || inventory.Jobs[1].Agent != "codex" {
 		t.Fatalf("agent inventory omitted structured discovery fields: %#v", inventory.Jobs)
 	}
 
@@ -121,7 +121,7 @@ Check first.
 	if code != 0 {
 		t.Fatalf("expected jobs run --dry-run to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
 	}
-	for _, expected := range []string{`"schemaVersion": "1"`, `"job_id": "docs-audit"`, `"branch": "jobs/docs-audit/20260707-090000-`, `"command": "go"`, `"key": "wiki-maintenance"`, `"policy": "skip"`} {
+	for _, expected := range []string{`"schemaVersion": "1"`, `"job_id": "docs-audit"`, `"branch": "jobs/docs-audit/20260707-090000-`, `"runtime": "codex"`, `"prompt_mode": "stdin"`, `"key": "wiki-maintenance"`, `"policy": "skip"`} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected dry-run output to include %q:\n%s", expected, output)
 		}
@@ -231,7 +231,7 @@ func TestJobsStartStatusRunsAndTerminalControl(t *testing.T) {
 id: managed-docs
 enabled: true
 schedule: {every: 1h, timezone: UTC}
-agent: {command: git, args: [--version]}
+agent: {runtime: codex}
 workspace: {repo: ".", base: HEAD}
 concurrency: {key: managed-docs}
 ---
@@ -333,14 +333,14 @@ func TestJobsDaemonPassIsolatesLoadAndPlanningFailures(t *testing.T) {
 	jobsDir := filepath.Join(root, ".openknowledge", "jobs")
 	writeMainTestFile(t, root, ".openknowledge/jobs/00-invalid.md", `---
 id: invalid
-agent: {command: agent, argz: []}
+agent: {runtime: codex, argz: []}
 ---
 Invalid.
 `)
 	writeMainTestFile(t, root, ".openknowledge/jobs/10-broken-plan.md", `---
 id: broken-plan
 schedule: {every: 1h}
-agent: {command: agent}
+agent: {runtime: claude}
 workspace: {repo: ../../missing}
 ---
 Cannot resolve a repository.
@@ -348,7 +348,7 @@ Cannot resolve a repository.
 	writeMainTestFile(t, root, ".openknowledge/jobs/20-valid.md", `---
 id: valid-due
 schedule: {every: 1h}
-agent: {command: agent}
+agent: {runtime: codex}
 workspace: {repo: ../..}
 ---
 Plan this job.
@@ -378,9 +378,7 @@ func TestJobsRunCreatesRunRecord(t *testing.T) {
 	jobPath := writeAgentJob(t, root, `---
 id: go-version
 agent:
-  command: go
-  args:
-    - version
+  runtime: codex
 workspace:
   repo: "."
   base: HEAD
@@ -454,8 +452,7 @@ func TestJobsSequentialRunsKeepSourceRepositoryClean(t *testing.T) {
 	jobPath := writeAgentJob(t, root, `---
 id: clean-runs
 agent:
-  command: go
-  args: [version]
+  runtime: codex
 workspace:
   repo: "."
   base: HEAD
@@ -488,8 +485,7 @@ func TestJobsRejectStateDirectoryInsideSourceRepository(t *testing.T) {
 	jobPath := writeAgentJob(t, root, `---
 id: unsafe-state
 agent:
-  command: go
-  args: [version]
+  runtime: codex
 workspace:
   repo: "."
 ---
@@ -513,8 +509,7 @@ func TestJobsVerificationTimeoutFailsRunPromptly(t *testing.T) {
 	jobPath := writeAgentJob(t, root, `---
 id: verify-timeout
 agent:
-  command: go
-  args: [version]
+  runtime: codex
 verify:
   commands: ["sleep 5"]
   timeout: 50ms
@@ -542,12 +537,23 @@ Run bounded verification.
 func newAgentTestRepo(t *testing.T) string {
 	t.Helper()
 	t.Setenv(agents.JobsStateDirEnv, t.TempDir())
+	installFakeCodex(t, "#!/bin/sh\ncat >/dev/null\nexit 0\n")
 	root := t.TempDir()
 	runGit(t, root, "init")
 	writeMainTestFile(t, root, "README.md", "# Test\n")
 	runGit(t, root, "add", "README.md")
 	runGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "initial")
 	return root
+}
+
+func installFakeCodex(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "codex")
+	if err := os.WriteFile(path, []byte(content), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(codexExecutableEnv, path)
+	return path
 }
 
 func writeAgentJob(t *testing.T, root string, content string) string {

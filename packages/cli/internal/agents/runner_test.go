@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +33,7 @@ func TestDockerCommandArgsEnforceIsolationBeforeImage(t *testing.T) {
 		"--", "example.test/agent:latest",
 		"agent", "exec", "--write",
 	}
-	if got := dockerCommandArgs(plan, command); !reflect.DeepEqual(got, want) {
+	if got := dockerCommandArgs(plan, command, ""); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected hardened Docker arguments:\ngot  %#v\nwant %#v", got, want)
 	}
 }
@@ -48,7 +49,7 @@ func TestDockerCommandArgsRequireExplicitBridgeNetwork(t *testing.T) {
 		},
 	}
 	command := Command{Command: "go test ./...", Shell: true}
-	args := dockerCommandArgs(plan, command)
+	args := dockerCommandArgs(plan, command, "")
 	if !reflect.DeepEqual(args[len(args)-5:], []string{"--", "agent:latest", "sh", "-lc", "go test ./..."}) {
 		t.Fatalf("expected image boundary and shell command, got %#v", args)
 	}
@@ -86,7 +87,7 @@ func TestHostCommandEnvironmentDoesNotInheritSecretsByDefault(t *testing.T) {
 		},
 	}
 
-	cmd := commandForPlan(context.Background(), plan, Command{Command: "agent"})
+	cmd := commandForPlan(context.Background(), plan, Command{Command: "agent"}, "")
 	environment := make(map[string]string)
 	for _, entry := range cmd.Env {
 		name, value, ok := strings.Cut(entry, "=")
@@ -111,13 +112,40 @@ func TestHostCommandEnvironmentDoesNotInheritSecretsByDefault(t *testing.T) {
 	}
 }
 
+func TestAgentCredentialEnvironmentIsNotPassedToVerification(t *testing.T) {
+	t.Setenv("CODEX_API_KEY", "agent-only-secret")
+	plan := RunPlan{
+		RunDir:   filepath.Join(t.TempDir(), "run"),
+		Worktree: t.TempDir(),
+		Sandbox:  SandboxSpec{Type: "host"},
+		Agent:    Command{Runtime: RuntimeCodex, Command: "codex", Env: []string{"CODEX_API_KEY"}},
+	}
+	agentEnvironment := hostCommandEnvironment(plan, plan.Agent)
+	verifyEnvironment := hostCommandEnvironment(plan, Command{Command: "openknowledge validate Wiki", Shell: true})
+	if !environmentContains(agentEnvironment, "CODEX_API_KEY=agent-only-secret") {
+		t.Fatalf("agent credential missing from agent command: %#v", agentEnvironment)
+	}
+	if environmentContains(verifyEnvironment, "CODEX_API_KEY=agent-only-secret") {
+		t.Fatalf("agent credential leaked into verification: %#v", verifyEnvironment)
+	}
+}
+
+func environmentContains(environment []string, expected string) bool {
+	for _, value := range environment {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
 func TestRunJobSkipsAndRecordsHeldConcurrencyKey(t *testing.T) {
 	root := t.TempDir()
 	runTestGit(t, root, "init")
 	jobPath := filepath.Join(root, "job.md")
 	content := `---
 id: concurrency-test
-agent: {command: agent}
+agent: {runtime: codex}
 workspace: {repo: ".", base: HEAD}
 concurrency: {key: wiki-maintenance, policy: skip}
 ---
@@ -175,4 +203,23 @@ func runTestGit(t *testing.T, dir string, args ...string) {
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, output)
 	}
+}
+
+func installTestCodex(t *testing.T, script string) string {
+	t.Helper()
+	name := "codex"
+	if runtime.GOOS == "windows" {
+		name = "codex.cmd"
+		if script == "" {
+			script = "@echo off\r\nexit /b 0\r\n"
+		}
+	} else if script == "" {
+		script = "#!/bin/sh\ncat >/dev/null\nexit 0\n"
+	}
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OPENKNOWLEDGE_CODEX", path)
+	return path
 }

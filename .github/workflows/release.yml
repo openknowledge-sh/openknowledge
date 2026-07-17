@@ -235,7 +235,7 @@ jobs:
           VERSION: ${{ needs.verify.outputs.version }}
           NPM_TAG: ${{ needs.verify.outputs.npm_tag }}
         run: |
-          for role in serve publisher worker; do
+          for role in serve publisher worker-codex worker-claude worker-grok worker-opencode; do
             image="ghcr.io/openknowledge-sh/openknowledge-runtime-$role"
             tags=(--tag "$image:$VERSION")
             if [ "$NPM_TAG" = "latest" ]; then

@@ -1,7 +1,9 @@
 package runtime
 
 import (
+	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -48,6 +50,36 @@ run_agents = true
 `))
 	if err == nil {
 		t.Fatalf("removed run_agents key was accepted: %v", err)
+	}
+}
+
+func TestParseConfigRequiresExplicitSupportedWorkerRuntimes(t *testing.T) {
+	base := `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[worker]
+run_jobs = true
+%s
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`
+	if _, err := ParseConfig([]byte(fmt.Sprintf(base, ""))); err == nil || !strings.Contains(err.Error(), "worker.runtimes") {
+		t.Fatalf("expected missing runtime refusal, got %v", err)
+	}
+	config, err := ParseConfig([]byte(fmt.Sprintf(base, `runtimes = ["opencode", "grok", "codex"]`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(config.Worker.Runtimes, []string{"codex", "grok", "opencode"}) {
+		t.Fatalf("unexpected normalized runtimes: %#v", config.Worker.Runtimes)
+	}
+	if _, err := ParseConfig([]byte(fmt.Sprintf(base, `runtimes = ["grok-cli"]`))); err == nil || !strings.Contains(err.Error(), "unsupported agent runtime") {
+		t.Fatalf("expected unknown runtime refusal, got %v", err)
 	}
 }
 

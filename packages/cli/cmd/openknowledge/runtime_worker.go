@@ -35,6 +35,15 @@ var runtimeExchangeSHA1Pattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 const runtimeExchangeBundleMaxBytes int64 = 512 << 20
 
+func runtimeListed(runtimes []string, candidate string) bool {
+	for _, runtimeName := range runtimes {
+		if runtimeName == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 func runRuntimeWorker(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, runtimeWorkerHelpText())
@@ -45,6 +54,7 @@ func runRuntimeWorker(args []string) int {
 	configPath := flags.String("config", okruntime.DefaultConfigFile, "runtime TOML configuration")
 	once := flags.Bool("once", false, "run one reconciliation pass and exit")
 	role := flags.String("role", "publisher", "worker role: publisher, jobs, or all")
+	agentRuntime := flags.String("runtime", "", "jobs harness runtime: codex, claude, grok, or opencode")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -63,13 +73,35 @@ func runRuntimeWorker(args []string) int {
 	if *role == "all" && config.GitHub.Enabled {
 		return printAgentCommandError(fmt.Errorf("--role all cannot run with GitHub credentials; run separate publisher and jobs roles"))
 	}
+	*agentRuntime = strings.ToLower(strings.TrimSpace(*agentRuntime))
+	if *role != "jobs" && *agentRuntime != "" {
+		return printAgentCommandError(fmt.Errorf("--runtime is only valid with --role jobs"))
+	}
+	if *agentRuntime != "" {
+		if _, err := agents.HarnessForRuntime(*agentRuntime); err != nil {
+			return printAgentCommandError(err)
+		}
+		if !runtimeListed(config.Worker.Runtimes, *agentRuntime) {
+			return printAgentCommandError(fmt.Errorf("runtime %s is not enabled by worker.runtimes", *agentRuntime))
+		}
+	}
+	if *role == "jobs" && *agentRuntime == "" {
+		if len(config.Worker.Runtimes) != 1 {
+			return printAgentCommandError(fmt.Errorf("--runtime is required when worker.runtimes contains more than one runtime"))
+		}
+		*agentRuntime = config.Worker.Runtimes[0]
+	}
 	if err := os.MkdirAll(config.Runtime.StateDir, 0700); err != nil {
 		return printAgentCommandError(err)
 	}
 	if err := os.Chmod(config.Runtime.StateDir, 0700); err != nil {
 		return printAgentCommandError(err)
 	}
-	lock := flock.New(filepath.Join(config.Runtime.StateDir, "worker-"+*role+".lock"))
+	lockName := "worker-" + *role
+	if *agentRuntime != "" {
+		lockName += "-" + *agentRuntime
+	}
+	lock := flock.New(filepath.Join(config.Runtime.StateDir, lockName+".lock"))
 	locked, err := lock.TryLock()
 	if err != nil {
 		return printAgentCommandError(err)
@@ -95,7 +127,7 @@ func runRuntimeWorker(args []string) int {
 		case "publisher":
 			passErr = runtimePublisherPass(ctx, config)
 		case "jobs":
-			passErr = runtimeAgentWorkerPass(ctx, config)
+			passErr = runtimeAgentWorkerPass(ctx, config, *agentRuntime)
 		default:
 			passErr = runtimeWorkerPass(ctx, config)
 		}
@@ -128,8 +160,10 @@ func runtimeWorkerPass(ctx context.Context, config okruntime.Config) error {
 	if err := runtimePublisherPass(ctx, config); err != nil {
 		return err
 	}
-	if err := runtimeAgentWorkerPass(ctx, config); err != nil {
-		return err
+	for _, runtimeName := range config.Worker.Runtimes {
+		if err := runtimeAgentWorkerPass(ctx, config, runtimeName); err != nil {
+			return err
+		}
 	}
 	if !config.GitHub.Enabled {
 		return nil
@@ -184,7 +218,7 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 	return errors.Join(failures...)
 }
 
-func runtimeAgentWorkerPass(ctx context.Context, config okruntime.Config) error {
+func runtimeAgentWorkerPass(ctx context.Context, config okruntime.Config, runtimeName string) error {
 	if !config.Worker.RunJobs {
 		return fmt.Errorf("worker.run_jobs must be true for the jobs role")
 	}
@@ -193,11 +227,11 @@ func runtimeAgentWorkerPass(ctx context.Context, config okruntime.Config) error 
 			return err
 		}
 	}
-	checkout, err := syncRuntimeAgentRepository(ctx, config)
+	checkout, err := syncRuntimeAgentRepository(ctx, config, runtimeName)
 	if err != nil {
 		return err
 	}
-	if err := runRuntimeAgentPass(ctx, config, checkout); err != nil {
+	if err := runRuntimeAgentPass(ctx, config, checkout, runtimeName); err != nil {
 		return err
 	}
 	return exportRuntimeAgentPullRequests(ctx, config, checkout)
@@ -311,7 +345,7 @@ func runtimeStoreAlreadyPublishes(config okruntime.Config, knowledgeID string, c
 	return err == nil && manifest.Commit == commit
 }
 
-func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout string) error {
+func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout string, runtimeName string) error {
 	jobs := config.Worker.JobsPath
 	if !filepath.IsAbs(jobs) {
 		jobs = filepath.Join(checkout, jobs)
@@ -325,10 +359,10 @@ func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout 
 	if err != nil {
 		return err
 	}
-	command := exec.CommandContext(ctx, executable, "jobs", "daemon", jobs, "--once")
+	command := exec.CommandContext(ctx, executable, "jobs", "daemon", jobs, "--once", "--runtime", runtimeName)
 	command.Dir = checkout
 	environment := runtimeEnvironmentWithout(os.Environ(), config.Worker.GitTokenEnv, config.GitHub.TokenEnv, config.Worker.ExchangeTokenEnv)
-	command.Env = runtimeEnvironmentWith(environment, agents.JobsStateDirEnv, filepath.Join(config.Runtime.StateDir, "jobs"))
+	command.Env = runtimeEnvironmentWith(environment, agents.JobsStateDirEnv, filepath.Join(config.Runtime.StateDir, "jobs-"+runtimeName))
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {
@@ -378,12 +412,12 @@ func publishRuntimeSourceBundle(ctx context.Context, config okruntime.Config, ch
 	return os.Rename(tempPath, filepath.Join(config.Worker.ExchangeDir, "source.bundle"))
 }
 
-func syncRuntimeAgentRepository(ctx context.Context, config okruntime.Config) (string, error) {
+func syncRuntimeAgentRepository(ctx context.Context, config okruntime.Config, runtimeName string) (string, error) {
 	bundle := filepath.Join(config.Worker.ExchangeDir, "source.bundle")
 	if _, err := os.Stat(bundle); err != nil {
 		return "", fmt.Errorf("publisher source bundle is not ready: %w", err)
 	}
-	checkout := filepath.Join(config.Runtime.StateDir, "agent-repository")
+	checkout := filepath.Join(config.Runtime.StateDir, "agent-repository-"+runtimeName)
 	if _, err := os.Stat(filepath.Join(checkout, ".git")); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(filepath.Dir(checkout), 0700); err != nil {
 			return "", err

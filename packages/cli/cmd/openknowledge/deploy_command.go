@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
@@ -44,6 +45,7 @@ type deployPlan struct {
 	Endpoint      deployEndpoint      `json:"publicEndpoint"`
 	StateFile     string              `json:"stateFile"`
 	Requirements  []string            `json:"credentialRequirements"`
+	Runtimes      []string            `json:"agentRuntimes,omitempty"`
 }
 
 type deployProject struct {
@@ -85,7 +87,7 @@ type deployDNSRecord struct {
 
 type deploySecrets struct {
 	GitHubToken   string
-	OpenAIKey     string
+	AgentKeys     map[string]string
 	MCPToken      string
 	ArtifactToken string
 	ExchangeToken string
@@ -179,7 +181,11 @@ func runDeployRailway(args []string) int {
 	domain := flags.String("domain", "", "attach a user-owned custom domain")
 	noPublicEndpoint := flags.Bool("no-public-endpoint", false, "do not create a Railway public endpoint")
 	githubTokenEnv := flags.String("github-token-env", "GITHUB_TOKEN", "environment variable containing the GitHub token")
-	openAIKeyEnv := flags.String("openai-key-env", "OPENAI_API_KEY", "environment variable containing the OpenAI API key")
+	runtimes := flags.String("runtimes", "", "comma-separated worker runtimes; inferred from jobs when omitted")
+	codexKeyEnv := flags.String("codex-key-env", "CODEX_API_KEY", "environment variable containing the Codex API key")
+	claudeKeyEnv := flags.String("claude-key-env", "ANTHROPIC_API_KEY", "environment variable containing the Claude API key")
+	grokKeyEnv := flags.String("grok-key-env", "XAI_API_KEY", "environment variable containing the Grok API key")
+	opencodeKeyEnv := flags.String("opencode-key-env", "OPENCODE_API_KEY", "environment variable containing the OpenCode provider key")
 	mcpTokenEnv := flags.String("mcp-token-env", "OPENKNOWLEDGE_MCP_TOKEN", "environment variable containing the MCP bearer token")
 	imagePrefix := flags.String("image-prefix", "ghcr.io/openknowledge-sh/openknowledge-runtime", "runtime image prefix")
 	imageTag := flags.String("image-tag", "latest", "runtime image tag")
@@ -201,7 +207,7 @@ func runDeployRailway(args []string) int {
 		Name: *name, Project: *project, Workspace: *workspace, Branch: *branch, Repository: *repository,
 		WithoutWorker: *withoutWorker, MCPAccess: *mcpAccess, Domain: *domain,
 		NoPublicEndpoint: *noPublicEndpoint, GitHubTokenEnv: *githubTokenEnv,
-		OpenAIKeyEnv: *openAIKeyEnv, MCPTokenEnv: *mcpTokenEnv,
+		Runtimes: *runtimes, CodexKeyEnv: *codexKeyEnv, ClaudeKeyEnv: *claudeKeyEnv, GrokKeyEnv: *grokKeyEnv, OpenCodeKeyEnv: *opencodeKeyEnv, MCPTokenEnv: *mcpTokenEnv,
 		ImagePrefix: *imagePrefix, ImageTag: *imageTag, StatePath: *statePath, DryRun: *dryRun,
 	}
 	plan, err := buildRailwayDeployPlan(options, knowledgePath)
@@ -218,7 +224,7 @@ func runDeployRailway(args []string) int {
 		fmt.Fprintln(os.Stderr, "deploy railway changes provider resources; review --dry-run and rerun with --yes")
 		return 2
 	}
-	secrets, err := resolveRailwayDeploySecrets(options)
+	secrets, err := resolveRailwayDeploySecrets(options, plan)
 	if err != nil {
 		return printAgentCommandError(err)
 	}
@@ -233,11 +239,12 @@ func runDeployRailway(args []string) int {
 }
 
 type railwayDeployOptions struct {
-	Name, Project, Workspace, Branch, Repository string
-	MCPAccess, Domain                            string
-	GitHubTokenEnv, OpenAIKeyEnv, MCPTokenEnv    string
-	ImagePrefix, ImageTag, StatePath             string
-	WithoutWorker, NoPublicEndpoint, DryRun      bool
+	Name, Project, Workspace, Branch, Repository                                       string
+	MCPAccess, Domain                                                                  string
+	Runtimes                                                                           string
+	GitHubTokenEnv, CodexKeyEnv, ClaudeKeyEnv, GrokKeyEnv, OpenCodeKeyEnv, MCPTokenEnv string
+	ImagePrefix, ImageTag, StatePath                                                   string
+	WithoutWorker, NoPublicEndpoint, DryRun                                            bool
 }
 
 func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string) (deployPlan, error) {
@@ -250,7 +257,7 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	if !validDeployBranch(options.Branch) {
 		return deployPlan{}, fmt.Errorf("--production-branch is invalid")
 	}
-	for flagName, name := range map[string]string{"--github-token-env": options.GitHubTokenEnv, "--openai-key-env": options.OpenAIKeyEnv, "--mcp-token-env": options.MCPTokenEnv} {
+	for flagName, name := range map[string]string{"--github-token-env": options.GitHubTokenEnv, "--codex-key-env": options.CodexKeyEnv, "--claude-key-env": options.ClaudeKeyEnv, "--grok-key-env": options.GrokKeyEnv, "--opencode-key-env": options.OpenCodeKeyEnv, "--mcp-token-env": options.MCPTokenEnv} {
 		if !validDeployEnvironmentName(name) {
 			return deployPlan{}, fmt.Errorf("%s must be an uppercase environment variable name", flagName)
 		}
@@ -302,6 +309,10 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	if err := validateDeployProductionSnapshot(repoRoot, relative, options.Branch); err != nil {
 		return deployPlan{}, fmt.Errorf("production branch preflight: %w", err)
 	}
+	agentRuntimes, err := resolveDeployAgentRuntimes(repoRoot, options.Runtimes, options.WithoutWorker)
+	if err != nil {
+		return deployPlan{}, err
+	}
 	repository := strings.TrimSpace(options.Repository)
 	if repository == "" {
 		repository, err = runtimeGitOutput(repoRoot, "remote", "get-url", "origin")
@@ -336,7 +347,6 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	}
 	publisherName := projectName + "-publisher"
 	serveName := projectName + "-serve"
-	workerName := projectName + "-worker"
 	endpoint := deployEndpoint{Mode: "generated"}
 	if options.NoPublicEndpoint {
 		endpoint.Mode = "none"
@@ -367,10 +377,14 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 		services[1].VariableNames = append(services[1].VariableNames, "OPENKNOWLEDGE_MCP_TOKEN")
 	}
 	if !options.WithoutWorker {
-		services = append(services, deployService{
-			Name: workerName, Role: "worker", Image: deployImage(options.ImagePrefix, "worker", options.ImageTag), VolumePath: "/var/lib/openknowledge",
-			VariableNames: []string{"OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_EXCHANGE_TOKEN", "OPENAI_API_KEY"},
-		})
+		for _, runtimeName := range agentRuntimes {
+			credential := deployRuntimeCredentialEnvironment(runtimeName)
+			services = append(services, deployService{
+				Name: projectName + "-worker-" + runtimeName, Role: "worker-" + runtimeName,
+				Image: deployImage(options.ImagePrefix, "worker-"+runtimeName, options.ImageTag), VolumePath: "/var/lib/openknowledge",
+				VariableNames: []string{"OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_EXCHANGE_TOKEN", credential},
+			})
+		}
 	}
 	plan := deployPlan{
 		SchemaVersion: okf.MachineSchemaVersion, Provider: "railway", DryRun: options.DryRun,
@@ -378,9 +392,12 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 		Repository: cloneURL, GitHubRepo: githubRepo, Branch: options.Branch,
 		KnowledgeBase: knowledge, Services: services, Endpoint: endpoint, StateFile: statePath,
 		Requirements: []string{"Railway CLI v5+ authentication", options.GitHubTokenEnv + " (or gh auth token)"},
+		Runtimes:     agentRuntimes,
 	}
 	if !options.WithoutWorker {
-		plan.Requirements = append(plan.Requirements, options.OpenAIKeyEnv)
+		for _, runtimeName := range agentRuntimes {
+			plan.Requirements = append(plan.Requirements, deployRuntimeCredentialSource(options, runtimeName))
+		}
 	}
 	if options.MCPAccess == "token" {
 		plan.Requirements = append(plan.Requirements, options.MCPTokenEnv)
@@ -396,6 +413,71 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 
 func deployImage(prefix string, role string, tag string) string {
 	return strings.TrimSuffix(strings.TrimSpace(prefix), "-") + "-" + role + ":" + strings.TrimSpace(tag)
+}
+
+func resolveDeployAgentRuntimes(repoRoot string, requested string, withoutWorker bool) ([]string, error) {
+	if withoutWorker {
+		return nil, nil
+	}
+	set := make(map[string]bool)
+	if strings.TrimSpace(requested) != "" {
+		for _, value := range strings.Split(requested, ",") {
+			runtimeName := strings.ToLower(strings.TrimSpace(value))
+			if runtimeName == "" {
+				return nil, fmt.Errorf("--runtimes must not contain empty entries")
+			}
+			if _, err := agents.HarnessForRuntime(runtimeName); err != nil {
+				return nil, err
+			}
+			set[runtimeName] = true
+		}
+	} else {
+		jobsPath := filepath.Join(repoRoot, ".openknowledge", "jobs")
+		jobs, failures, err := agents.DiscoverJobsLenient(jobsPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("discover deployment jobs: %w", err)
+		}
+		if len(failures) > 0 {
+			return nil, fmt.Errorf("discover deployment jobs: %w", failures[0])
+		}
+		for _, job := range jobs {
+			if job.Enabled {
+				set[job.Agent.Runtime] = true
+			}
+		}
+	}
+	result := make([]string, 0, len(set))
+	for runtimeName := range set {
+		result = append(result, runtimeName)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+func deployRuntimeCredentialEnvironment(runtimeName string) string {
+	switch runtimeName {
+	case agents.RuntimeClaude:
+		return "ANTHROPIC_API_KEY"
+	case agents.RuntimeGrok:
+		return "XAI_API_KEY"
+	case agents.RuntimeOpenCode:
+		return "OPENCODE_API_KEY"
+	default:
+		return "CODEX_API_KEY"
+	}
+}
+
+func deployRuntimeCredentialSource(options railwayDeployOptions, runtimeName string) string {
+	switch runtimeName {
+	case agents.RuntimeClaude:
+		return options.ClaudeKeyEnv
+	case agents.RuntimeGrok:
+		return options.GrokKeyEnv
+	case agents.RuntimeOpenCode:
+		return options.OpenCodeKeyEnv
+	default:
+		return options.CodexKeyEnv
+	}
 }
 
 func validateDeployProductionSnapshot(repoRoot string, relative string, branch string) error {
@@ -474,12 +556,12 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 		repositoryURL = plan.Repository
 		githubEnabled = true
 		publisherAPI = true
-		runAgents = true
+		runAgents = len(plan.Runtimes) > 0
 	} else if role == "serve" {
 		artifactType = "http"
 		artifactURL = "http://" + publisher + ".railway.internal:8090"
 		address = "0.0.0.0:8080"
-	} else {
+	} else if strings.HasPrefix(role, "worker-") {
 		state = "/var/lib/openknowledge"
 		exchangeDir = state + "/exchange"
 		exchangeURL = "http://" + publisher + ".railway.internal:8090"
@@ -496,6 +578,10 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 	}
 	fmt.Fprintf(&output, "\n[serve]\naddress = %s\npoll_interval = \"5s\"\nrequest_timeout = \"30s\"\nmax_concurrency = 64\nmcp_access = %s\nmcp_token_env = \"OPENKNOWLEDGE_MCP_TOKEN\"\n", strconv.Quote(address), strconv.Quote(mcpAccess))
 	fmt.Fprintf(&output, "\n[worker]\nrepo = \"/workspace\"\nremote = \"origin\"\nproduction_branch = %s\npoll_interval = \"30s\"\nrun_jobs = %t\njobs_path = \".openknowledge/jobs\"\nexchange_dir = %s\n", strconv.Quote(plan.Branch), runAgents, strconv.Quote(exchangeDir))
+	if runAgents {
+		encoded, _ := json.Marshal(plan.Runtimes)
+		fmt.Fprintf(&output, "runtimes = %s\n", encoded)
+	}
 	if repositoryURL != "" {
 		fmt.Fprintf(&output, "repository_url = %s\n", strconv.Quote(repositoryURL))
 	}
@@ -620,7 +706,7 @@ func validateCustomDeployDomain(value string) error {
 	return nil
 }
 
-func resolveRailwayDeploySecrets(options railwayDeployOptions) (deploySecrets, error) {
+func resolveRailwayDeploySecrets(options railwayDeployOptions, plan deployPlan) (deploySecrets, error) {
 	githubToken := strings.TrimSpace(os.Getenv(options.GitHubTokenEnv))
 	if githubToken == "" {
 		command := exec.Command("gh", "auth", "token")
@@ -632,11 +718,15 @@ func resolveRailwayDeploySecrets(options railwayDeployOptions) (deploySecrets, e
 	if githubToken == "" {
 		return deploySecrets{}, fmt.Errorf("GitHub credential is required in %s or gh auth", options.GitHubTokenEnv)
 	}
-	secrets := deploySecrets{GitHubToken: githubToken}
+	secrets := deploySecrets{GitHubToken: githubToken, AgentKeys: make(map[string]string)}
 	if !options.WithoutWorker {
-		secrets.OpenAIKey = strings.TrimSpace(os.Getenv(options.OpenAIKeyEnv))
-		if secrets.OpenAIKey == "" {
-			return deploySecrets{}, fmt.Errorf("agent worker requires %s", options.OpenAIKeyEnv)
+		for _, runtimeName := range plan.Runtimes {
+			source := deployRuntimeCredentialSource(options, runtimeName)
+			value := strings.TrimSpace(os.Getenv(source))
+			if value == "" {
+				return deploySecrets{}, fmt.Errorf("%s agent worker requires %s", runtimeName, source)
+			}
+			secrets.AgentKeys[runtimeName] = value
 		}
 	}
 	if options.MCPAccess == "token" {
@@ -859,9 +949,12 @@ func railwayServiceVariables(service deployService, secrets deploySecrets) map[s
 		if secrets.MCPToken != "" {
 			variables["OPENKNOWLEDGE_MCP_TOKEN"] = secrets.MCPToken
 		}
-	case "worker":
-		variables["OPENKNOWLEDGE_EXCHANGE_TOKEN"] = secrets.ExchangeToken
-		variables["OPENAI_API_KEY"] = secrets.OpenAIKey
+	default:
+		if strings.HasPrefix(service.Role, "worker-") {
+			variables["OPENKNOWLEDGE_EXCHANGE_TOKEN"] = secrets.ExchangeToken
+			runtimeName := strings.TrimPrefix(service.Role, "worker-")
+			variables[deployRuntimeCredentialEnvironment(runtimeName)] = secrets.AgentKeys[runtimeName]
+		}
 	}
 	return variables
 }
@@ -1031,12 +1124,16 @@ Options:
   --workspace ID|NAME          Workspace for a newly created project.
   --production-branch BRANCH   Production branch (default: main).
   --repository URL             GitHub repository (default: origin).
-  --without-worker             Omit the OpenAI-powered agent worker.
+  --without-worker             Omit all agent workers.
+  --runtimes LIST              Worker runtimes; infer enabled jobs when omitted.
   --mcp public|token|off       MCP exposure mode (default: public).
   --domain HOSTNAME            Attach a custom domain already owned by the user.
   --no-public-endpoint         Do not create a public Railway endpoint.
   --github-token-env NAME      GitHub token environment (default: GITHUB_TOKEN).
-  --openai-key-env NAME        OpenAI key environment (default: OPENAI_API_KEY).
+  --codex-key-env NAME         Codex key environment (default: CODEX_API_KEY).
+  --claude-key-env NAME        Claude key environment (default: ANTHROPIC_API_KEY).
+  --grok-key-env NAME          Grok key environment (default: XAI_API_KEY).
+  --opencode-key-env NAME      OpenCode provider key environment (default: OPENCODE_API_KEY).
   --mcp-token-env NAME         MCP token environment when --mcp token.
   --image-prefix IMAGE         Runtime image prefix.
   --image-tag TAG              Runtime image tag (default: latest).

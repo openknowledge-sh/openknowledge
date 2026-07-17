@@ -51,8 +51,9 @@ checksum-verified OSV Scanner, and four-ecosystem Dependabot contract.
 `pnpm check:container-runtime` requires the Docker build stage to use the
 workspace Go baseline and the final Node image to select its built-in
 unprivileged user. It also checks the self-hosted runtime's distinct
-builder/serve/publisher/worker targets, distroless non-root serve image, pinned
-Codex worker, credential-free publisher image, read-only serve artifact mount,
+builder/serve/publisher/worker-base and per-harness targets, distroless non-root
+serve image, pinned Codex/Claude Code/Grok/OpenCode workers, credential-free
+publisher image, read-only serve artifact mount,
 separate secrets and state volumes, capability drops, no-new-privileges policy,
 absence of unintended public private-role ports, and provider-injected runtime
 configuration defaults. The root test gate also runs transactional
@@ -266,10 +267,10 @@ the checksummed archives. That same job alone receives `id-token: write` and
 identity and store SLSA provenance. Setup actions, dependency installation,
 tests, builds, package inspection, and npm credential preflight never receive
 these capabilities. A separate post-release `runtime_images` job receives only
-`packages: write`; it builds the `serve`, `publisher`, and `worker` targets from
-the verified release tag and publishes versioned GHCR images, adding `latest`
-only for stable releases. It has no contents, attestation, npm, GitHub App, or
-OpenAI credential. The workflow permission checker rejects any new write
+`packages: write`; it builds the `serve`, `publisher`, `worker-codex`,
+`worker-claude`, `worker-grok`, and `worker-opencode` targets from the verified release tag and
+publishes versioned GHCR images, adding `latest` only for stable releases. It
+has no contents, attestation, npm, GitHub App, or model credential. The workflow permission checker rejects any new write
 capability or extra privileged step, and pins both the attestation action and
 its `dist/checksums.txt` input. It also locks the default-branch guard as the
 verifier's first post-checkout step.
