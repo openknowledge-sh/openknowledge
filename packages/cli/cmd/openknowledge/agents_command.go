@@ -1371,7 +1371,7 @@ Flags:
   --tick       Polling interval. Defaults to 1m.
   --dry-run    Print resolved plans for due jobs without executing.
   --executor   Override sandbox.type with host or docker.
-  --runtime    Run only codex, claude, grok, or opencode jobs.
+  --runtime    Run only codex, claude, or opencode jobs.
 
 Behavior:
   A pass attempts every loadable due job. Per-file, scheduling, planning, and

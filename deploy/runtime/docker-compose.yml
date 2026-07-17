@@ -138,42 +138,12 @@ services:
     pids_limit: 512
     restart: unless-stopped
 
-  worker-grok:
-    profiles: ["grok"]
-    build:
-      context: ../..
-      dockerfile: docker/runtime.Dockerfile
-      target: worker-grok
-      args:
-        GROK_VERSION: "${GROK_VERSION:-0.2.103}"
-    command: ["--role", "jobs", "--runtime", "grok", "--config", "/etc/openknowledge/runtime.toml"]
-    depends_on:
-      publisher:
-        condition: service_started
-    environment:
-      XAI_API_KEY_FILE: /run/secrets/xai_api_key
-    secrets:
-      - xai_api_key
-    volumes:
-      - jobs-grok-state:/var/lib/openknowledge
-      - exchange:/exchange
-      - ./runtime.toml:/etc/openknowledge/runtime.toml:ro
-    read_only: true
-    tmpfs:
-      - /tmp:size=256m,mode=1777
-    cap_drop: ["ALL"]
-    security_opt:
-      - no-new-privileges:true
-    pids_limit: 512
-    restart: unless-stopped
-
 volumes:
   artifacts:
   publisher-state:
   jobs-codex-state:
   jobs-claude-state:
   jobs-opencode-state:
-  jobs-grok-state:
   exchange:
 
 secrets:
@@ -181,8 +151,6 @@ secrets:
     file: ./secrets/codex_api_key
   anthropic_api_key:
     file: ./secrets/anthropic_api_key
-  xai_api_key:
-    file: ./secrets/xai_api_key
   opencode_api_key:
     file: ./secrets/opencode_api_key
   github_app_key:

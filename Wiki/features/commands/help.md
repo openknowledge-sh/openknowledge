@@ -66,6 +66,7 @@ Usage:
 Create and maintain:
   setup        Create, validate, and integrate a knowledge base with an agent.
   agent        Run, integrate, and review knowledge with an agent.
+  insights     Capture and resolve knowledge-maintenance insights.
   jobs         Run repeatable isolated maintenance jobs from Markdown specs.
 
 Use and publish:
@@ -101,21 +102,27 @@ Advanced and portable tools:
 
 ## Command Change History
 
+### 2026-07-17 - Root insights workflow
+
+Root help now presents `insights` beside `setup`, `agent`, and `jobs`. The
+representative flow uses deterministic `insights create`; detailed capture and
+agent execution variants remain in command-specific help.
+
 ### 2026-07-17 - Workflow consolidation
 
-Root help now presents `setup`, `agent`, and `jobs` as the maintenance workflow,
+Root help now presents `setup`, `agent`, `insights`, and `jobs` as the maintenance workflow,
 uses `export` as the only publishing namespace, reserves `connect` and
 `disconnect` for registry mutation, and places print-only tools under the
-advanced `prompt` namespace. Removed pre-1.0 command forms are not aliases.
+advanced `prompt` namespace.
 
-The low-level deterministic bundle command is named `scaffold`; the former
-top-level `new` name is not retained as an alias.
+The low-level deterministic bundle command is named `scaffold`.
 
 ### 2026-07-17 - Workflow-oriented root help
 
 Root help now presents the CLI through four product workflows instead of an
-exhaustive flat usage matrix. Project integration and insight execution are
-nested under `openknowledge agent` without duplicate top-level forms.
+exhaustive flat usage matrix. Project integration was initially nested under
+`openknowledge agent`; the later root insights entry records the final shared
+maintenance interface.
 
 ### 2026-07-17
 

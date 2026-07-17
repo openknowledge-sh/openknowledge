@@ -9,7 +9,7 @@ timestamp: 2026-06-18T00:00:00Z
 # `openknowledge setup`
 
 `openknowledge setup [wiki]` is the canonical onboarding command. It runs the
-setup workflow through Codex by default, or Claude Code, Grok, or OpenCode via
+setup workflow through Codex by default, or Claude Code or OpenCode via
 `--runtime`. After the agent finishes, the CLI requires the target bundle to
 exist, validates it, and installs the repository-scoped discovery skills and
 observation hooks.
@@ -39,7 +39,7 @@ stable repository root.
 | Flag | Description |
 | --- | --- |
 | `--from <source>` | Run the source-to-wiki workflow instead of a new setup interview. |
-| `--runtime <runtime>` | Select `codex`, `claude`, `grok`, or `opencode`. |
+| `--runtime <runtime>` | Select `codex`, `claude`, or `opencode`. |
 | `--model <model>` | Override the harness model. |
 | `--rules <rules>` | Preselect comma-separated maintenance rules for a new setup. Incompatible with `--from`. |
 | `--type <type>` | Select `understanding` or `custom` for `--from`. |
@@ -60,7 +60,7 @@ to the agent.
 
 ## Use Cases
 
-* Start a project wiki through Codex, Claude Code, Grok, or OpenCode.
+* Start a project wiki through Codex, Claude Code, or OpenCode.
 * Refresh a wiki from an existing repository, folder, or website with one
   `--from` mode instead of a separate command.
 * Preselect known maintenance loops, for example docs plus changelog, while

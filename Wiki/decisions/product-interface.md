@@ -41,8 +41,7 @@ user does not adopt agents or the hosted runtime.
 
 1. Root help starts with outcomes and workflows, not an exhaustive flag matrix.
 2. Command-specific help owns detailed variants and machine-contract options.
-3. A capability has one canonical user-facing home. This pre-1.0 interface does
-   not retain compatibility aliases for removed command forms.
+3. A capability has one canonical user-facing home.
 4. Operational implementation details stay below `runtime`; provider-specific
    provisioning stays below `deploy`.
 5. Deterministic OKF operations never require an agent, network, or runtime.
@@ -51,18 +50,22 @@ user does not adopt agents or the hosted runtime.
 
 ## Shipped Shape
 
-Project integration and the insight inbox belong to the agent-maintenance
-workflow:
+Project integration belongs to agent setup, while insights are the shared
+agentic maintenance workflow used by people, agents, hooks, and Jobs:
 
 ```sh
 openknowledge agent integrate Wiki
-openknowledge agent insights
-openknowledge agent insights run <insight>
+openknowledge insights create "Document the deployment rollback workflow"
+openknowledge insights
+openknowledge insights run <insight>
 ```
 
-There are no parallel top-level `integrate` or `insights` forms. `jobs` remains
-top-level because it is the declarative automation and scheduling primitive,
-not a mode of one interactive session.
+Project integration is exposed through `agent integrate`; insight maintenance
+is exposed through the root `insights` workflow. `insights create` is
+deterministic and model-free; `insights run` is the agentic
+research-and-implementation step. `jobs` remains top-level because it is the
+declarative automation and scheduling primitive, not a mode of one interactive
+session.
 
 Root help groups every command under the four workflows and places portable
 prompt generators and low-level scaffolding in an advanced section.

@@ -193,7 +193,7 @@ Usage:
   openknowledge setup [wiki] --rules <rules>
   openknowledge setup [wiki] --from <source>
   openknowledge setup [wiki] --from <source> --type understanding|custom
-  openknowledge setup [wiki] --runtime <codex|claude|grok|opencode>
+  openknowledge setup [wiki] --runtime <codex|claude|opencode>
 
 The default target is Wiki and the default runtime is Codex. Without --from,
 the agent runs the guided setup workflow. With --from, it runs the

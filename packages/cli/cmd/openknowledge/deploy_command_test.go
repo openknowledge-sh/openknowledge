@@ -101,7 +101,6 @@ func TestRailwayDeployPlanIsSecretFreeAndModelsProviderEndpoint(t *testing.T) {
 func TestRailwayDeployInfersOneIsolatedServicePerJobRuntime(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
 	writeViewerFile(t, repository, ".openknowledge/jobs/claude.md", "---\nid: claude-refresh\nagent: {runtime: claude}\n---\nRefresh docs.\n")
-	writeViewerFile(t, repository, ".openknowledge/jobs/grok.md", "---\nid: grok-refresh\nagent: {runtime: grok, model: grok-4.5}\n---\nRefresh research.\n")
 	writeViewerFile(t, repository, ".openknowledge/jobs/opencode.md", "---\nid: opencode-research\nagent: {runtime: opencode, model: custom/research}\n---\nResearch updates.\n")
 	runtimeGitTest(t, repository, "add", ".openknowledge/jobs")
 	runtimeGitTest(t, repository, "commit", "-m", "add agent jobs")
@@ -111,17 +110,17 @@ func TestRailwayDeployInfersOneIsolatedServicePerJobRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(plan.Runtimes, []string{"claude", "grok", "opencode"}) {
+	if !reflect.DeepEqual(plan.Runtimes, []string{"claude", "opencode"}) {
 		t.Fatalf("unexpected inferred runtimes: %#v", plan.Runtimes)
 	}
 	roles := make([]string, 0, len(plan.Services))
 	for _, service := range plan.Services {
 		roles = append(roles, service.Role)
 	}
-	if !reflect.DeepEqual(roles, []string{"publisher", "serve", "worker-claude", "worker-grok", "worker-opencode"}) {
+	if !reflect.DeepEqual(roles, []string{"publisher", "serve", "worker-claude", "worker-opencode"}) {
 		t.Fatalf("unexpected services: %#v", plan.Services)
 	}
-	if !strings.Contains(plan.Services[2].Config, `runtimes = ["claude","grok","opencode"]`) || !strings.Contains(plan.Services[3].Image, "worker-grok") || !strings.Contains(plan.Services[4].Image, "worker-opencode") {
+	if !strings.Contains(plan.Services[2].Config, `runtimes = ["claude","opencode"]`) || !strings.Contains(plan.Services[3].Image, "worker-opencode") {
 		t.Fatalf("runtime plan did not configure isolated workers: %#v", plan.Services)
 	}
 }
@@ -142,16 +141,10 @@ func TestRailwayDeployOmitsWorkersWhenNoEnabledJobsAreInferred(t *testing.T) {
 	}
 }
 
-func TestRailwayDeployScopesGrokAndOpenCodeCredentialsSeparately(t *testing.T) {
+func TestRailwayDeployScopesOpenCodeCredentialsSeparately(t *testing.T) {
 	options := defaultRailwayDeployTestOptions("state.json")
-	if got := deployRuntimeCredentialEnvironment("grok"); got != "XAI_API_KEY" {
-		t.Fatalf("Grok credential target = %q", got)
-	}
 	if got := deployRuntimeCredentialEnvironment("opencode"); got != "OPENCODE_API_KEY" {
 		t.Fatalf("OpenCode credential target = %q", got)
-	}
-	if got := deployRuntimeCredentialSource(options, "grok"); got != options.GrokKeyEnv {
-		t.Fatalf("Grok credential source = %q", got)
 	}
 	if got := deployRuntimeCredentialSource(options, "opencode"); got != options.OpenCodeKeyEnv {
 		t.Fatalf("OpenCode credential source = %q", got)
@@ -318,7 +311,7 @@ func defaultRailwayDeployTestOptions(state string) railwayDeployOptions {
 	return railwayDeployOptions{
 		Name: "test-knowledge", Branch: "main", MCPAccess: "public",
 		Runtimes:       "codex",
-		GitHubTokenEnv: "GITHUB_TOKEN", CodexKeyEnv: "CODEX_API_KEY", ClaudeKeyEnv: "ANTHROPIC_API_KEY", GrokKeyEnv: "XAI_API_KEY", OpenCodeKeyEnv: "OPENCODE_API_KEY", MCPTokenEnv: "OPENKNOWLEDGE_MCP_TOKEN",
+		GitHubTokenEnv: "GITHUB_TOKEN", CodexKeyEnv: "CODEX_API_KEY", ClaudeKeyEnv: "ANTHROPIC_API_KEY", OpenCodeKeyEnv: "OPENCODE_API_KEY", MCPTokenEnv: "OPENKNOWLEDGE_MCP_TOKEN",
 		ImagePrefix: "ghcr.io/openknowledge-sh/openknowledge-runtime", ImageTag: "test", StatePath: state,
 	}
 }

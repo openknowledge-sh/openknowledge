@@ -35,6 +35,7 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"Advanced and portable tools:",
 		"setup        Create, validate, and integrate a knowledge base with an agent.",
 		"agent        Run, integrate, and review knowledge with an agent.",
+		"insights     Capture and resolve knowledge-maintenance insights.",
 		"jobs         Run repeatable isolated maintenance jobs from Markdown specs.",
 		"export       Export HTML, JSON, graph, or portable tar views.",
 		"prompt       Print or install portable agent instructions.",
@@ -42,7 +43,7 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"runtime      Build, serve, and maintain an isolated knowledge runtime.",
 		"validate     Validate a bundle against an OKF spec.",
 		"openknowledge setup Wiki --from .",
-		"openknowledge agent insights",
+		"openknowledge insights create \"Document the deployment rollback workflow\"",
 		"openknowledge deploy railway Wiki --dry-run",
 	}
 	for _, expected := range required {
@@ -220,11 +221,21 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: setupHelpText(),
 			required: []string{
 				"openknowledge setup [wiki] --from <source>",
-				"openknowledge setup [wiki] --runtime <codex|claude|grok|opencode>",
+				"openknowledge setup [wiki] --runtime <codex|claude|opencode>",
 				"Create or update, validate, and integrate",
 				"--rules",
 				"default target is Wiki",
 				"openknowledge prompt",
+			},
+		},
+		"insights": {
+			help: insightsHelpText(),
+			required: []string{
+				"openknowledge insights create \"<insight>\"",
+				"openknowledge insights list [wiki]",
+				"openknowledge insights run --all",
+				"private evidence-only insight",
+				"--target and --evidence may be repeated",
 			},
 		},
 		"prompt from": {

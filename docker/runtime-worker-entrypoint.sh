@@ -17,9 +17,6 @@ case "${OPENKNOWLEDGE_AGENT_RUNTIME:-}" in
   claude)
     read_secret ANTHROPIC_API_KEY "${ANTHROPIC_API_KEY_FILE:-}"
     ;;
-  grok)
-    read_secret XAI_API_KEY "${XAI_API_KEY_FILE:-}"
-    ;;
   opencode)
     read_secret OPENCODE_API_KEY "${OPENCODE_API_KEY_FILE:-}"
     ;;

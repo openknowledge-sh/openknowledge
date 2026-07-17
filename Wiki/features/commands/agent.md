@@ -1,15 +1,15 @@
 ---
 type: Command Documentation
 title: openknowledge agent
-description: Experimental steered Open Knowledge sessions through Codex, Claude Code, Grok, or OpenCode.
-tags: [openknowledge, cli, command, agent, codex, claude, grok, opencode]
+description: Experimental steered Open Knowledge sessions through Codex, Claude Code, or OpenCode.
+tags: [openknowledge, cli, command, agent, codex, claude, opencode]
 timestamp: 2026-07-17T00:00:00Z
 ---
 
 # `openknowledge agent`
 
 `openknowledge agent` is the human-facing interface over supported agent
-harnesses. It launches Codex by default, or Claude Code/Grok/OpenCode through
+harnesses. It launches Codex by default, or Claude Code/OpenCode through
 `--runtime`, and prepends the versioned `openknowledge-agent/v1` contract.
 That contract tells the agent to treat workspace files as source of truth,
 preserve provenance, respect publication gates, validate its work, and leave
@@ -30,13 +30,10 @@ directly unless `--isolate` creates a retained branch and worktree.
 ```sh
 openknowledge agent
 openknowledge agent --runtime claude
-openknowledge agent --runtime grok --model grok-4.5
 openknowledge agent --runtime opencode --model provider/model
 openknowledge agent exec "Update the whitepaper"
 openknowledge agent exec --runtime claude "Repair citations"
 openknowledge agent integrate Wiki
-openknowledge agent insights
-openknowledge agent insights run <insight>
 openknowledge agent doctor
 openknowledge agent doctor --runtime opencode --json
 openknowledge agent exec --isolate "Update the wiki"
@@ -50,15 +47,14 @@ openknowledge agent exec --isolate "Update the wiki"
 | `exec <prompt>` | required | Runs one non-interactive task and returns the harness exit status. |
 | `doctor` | all runtimes | Probes harness executables without starting a model session. An explicit unavailable `--runtime` exits nonzero. |
 | `integrate <wiki>` | - | Installs project-scoped discovery skills and observation hooks. `--global` installs discovery-only user skills. |
-| `insights [wiki]` | integrated wiki | Lists the private maintenance inbox; `run`, `run --all`, and `dismiss` process it locally. |
-| `--runtime` | `codex` | Selects `codex`, `claude`, `grok`, or `opencode`. |
+| `--runtime` | `codex` | Selects `codex`, `claude`, or `opencode`. |
 | `--model` | harness default | Passes a harness-specific model override. |
 | `--path` | current directory | Selects the editable workspace. |
 | `--isolate` | false | Creates and retains a branch/worktree at `HEAD`. |
 | `--no-steer` | false | Passes only the user or generated workflow prompt. |
 
 Executable overrides are `OPENKNOWLEDGE_CODEX`, `OPENKNOWLEDGE_CLAUDE`, and
-`OPENKNOWLEDGE_GROK`, and `OPENKNOWLEDGE_OPENCODE`. Each explicit override is version-probed and fails
+`OPENKNOWLEDGE_OPENCODE`. Each explicit override is version-probed and fails
 closed. Codex discovery additionally skips broken `PATH` wrappers and checks
 supported macOS Codex.app and ChatGPT.app bundles.
 
@@ -68,25 +64,22 @@ supported macOS Codex.app and ChatGPT.app bundles.
 | --- | --- | --- |
 | Codex | `codex --sandbox workspace-write` | `codex exec --sandbox workspace-write <prompt>` locally; scheduled jobs use the explicit stdin form `codex exec ... -`. |
 | Claude Code | `claude` | `claude --print --no-session-persistence` with `acceptEdits` and a narrow allowlist for Open Knowledge validation and read-only Git inspection. |
-| Grok Build | `grok` | `grok --no-auto-update --always-approve --single <prompt>`; optional `--model` selects an xAI or configured custom model. |
 | OpenCode | `opencode` | `opencode run --auto`; explicit deny rules in project configuration still apply. |
 
 Codex documents `exec` as its non-interactive CI surface, Claude Code documents
-`--print`, Grok documents `--single`, and OpenCode documents `run`. Open Knowledge owns the common task,
+`--print`, and OpenCode documents `run`. Open Knowledge owns the common task,
 workspace, and publication contract while each adapter owns the vendor CLI
 arguments.
 
 Upstream references: [Codex CLI](https://developers.openai.com/codex/cli/),
 [Claude Code CLI](https://code.claude.com/docs/en/cli-usage),
-[Grok Build CLI](https://docs.x.ai/build/cli/headless-scripting),
 [OpenCode CLI](https://opencode.ai/docs/cli/), and
 [OpenCode providers](https://opencode.ai/docs/providers/).
 
 Local OpenCode follows the user's normal provider configuration. A headless
 OpenCode worker receives `OPENCODE_API_KEY`; repository `opencode.json` may bind
 that placeholder to any provider and should choose a default model or set
-`agent.model`. The separate official Grok worker receives `XAI_API_KEY` with no
-credential file required.
+`agent.model`.
 
 ## Direct And Isolated Modes
 
@@ -104,17 +97,28 @@ base:     HEAD
 The worktree is retained after the harness exits. Open Knowledge never commits
 or opens a pull request for this human-facing mode.
 
+Knowledge-maintenance observations use the adjacent, harness-independent
+[`openknowledge insights`](insights.md) interface. `insights create` captures a
+durable gap without starting a model; `insights run` sends one or all pending
+items through the selected local agent runtime.
+
 ## Command Change History
+
+### 2026-07-17 - Root insights workflow
+
+Documented [`openknowledge insights`](insights.md) as the shared insight inbox
+and execution loop. The agent command remains the harness/session interface;
+insights remain usable by people, agents, hooks, and scheduled Jobs without
+choosing a harness during capture.
 
 ### 2026-07-17 - Local insight execution
 
 Added the evidence-only `insights` inbox with direct and isolated `run`, batch
-`run --all`, and `dismiss`. Removed the unreleased patch-bearing `suggestions`
-surface without a compatibility alias.
+`run --all`, and `dismiss`.
 
 ### 2026-07-17 - Multi-harness Open Knowledge agent
 
-Added Codex, Claude Code, Grok Build, and OpenCode adapters; the default versioned steering
+Added Codex, Claude Code, and OpenCode adapters; the default versioned steering
 contract; `--runtime`, `--no-steer`, executable overrides, setup/source
 workflow adapters, and `doctor`. Setup adapters are now invoked through the
 canonical [`openknowledge setup`](setup.md) command.

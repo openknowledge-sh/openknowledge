@@ -152,7 +152,7 @@ sandbox:
   type: host
 verify:
   commands:
-    - openknowledge agent insights verify
+    - openknowledge insights verify
 output:
   commit: true
   pr: true
@@ -296,7 +296,7 @@ Field reference:
   weekday names in day-of-week, and @hourly, @daily, @weekly.
 - schedule.every: Go duration such as 1h or 24h.
 - schedule.timezone: IANA time zone such as UTC or Europe/Prague.
-- agent.runtime: Required supported harness: codex, claude, grok, or opencode.
+- agent.runtime: Required supported harness: codex, claude, or opencode.
 - agent.model: Optional harness-specific model override.
 - agent.timeout: Go duration. Defaults to 30m.
 - agent.completion_signal: Optional string that must appear in agent output.

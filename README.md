@@ -11,7 +11,7 @@ can deploy them as isolated public and private runtimes. The public role serves
 an immutable filtered wiki, search, and optional read-only HTTP MCP. The private
 runtime splits GitHub publication from model execution: a credentialed publisher
 follows production and promotes artifacts, while isolated Codex, Claude Code,
-Grok, or OpenCode workers run scheduled jobs and propose draft pull requests through
+or OpenCode workers run scheduled jobs and propose draft pull requests through
 Git bundles without receiving GitHub credentials.
 
 [🌐 Website](https://openknowledge.sh) | [📖 README](README.md) |
@@ -54,7 +54,7 @@ It gives you:
 - local registry aliases so agents can address knowledge bases by stable names
 - a local viewer and static publisher with connect manifests and portable
   bundle archives
-- a steered local agent interface for Codex, Claude Code, Grok, and OpenCode, plus
+- a steered local agent interface for Codex, Claude Code, and OpenCode, plus
   optional experimental Markdown-authored jobs for scheduled maintenance
 - a Docker runtime with public `serve`, credentialed private `publisher`, and
   model-capable private `worker` roles separated by artifacts and Git bundles
@@ -69,7 +69,7 @@ to inspect, diff, validate, and maintain.
 
 | | Capability | What it gives you |
 | --- | --- | --- |
-| :robot: | Agent setup | `openknowledge setup [wiki]` creates or refreshes a wiki through Codex, Claude Code, Grok, or OpenCode; add `--from <source>` to ground it in existing material. |
+| :robot: | Agent setup | `openknowledge setup [wiki]` creates or refreshes a wiki through Codex, Claude Code, or OpenCode; add `--from <source>` to ground it in existing material. |
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
 | :mag: | Retrieval | `search` builds budget-bounded Markdown context by default, while `get`, `list`, and `view` support exact reads, structure, and browsing. |
 | :electric_plug: | MCP integration | `mcp` serves exact resources, source-grounded search, and validation to compatible LLM hosts over read-only stdio. |
@@ -120,7 +120,7 @@ Preselect maintenance rules when you already know the wiki shape:
 openknowledge setup Wiki --rules docs,changelog
 ```
 
-Select another installed harness with `--runtime claude`, `--runtime grok`, or
+Select another installed harness with `--runtime claude` or
 `--runtime opencode`. For print-only prompts, use the advanced `prompt`
 namespace.
 
@@ -228,7 +228,7 @@ the model-key files for the harness profiles you want, then run, for example:
 
 ```sh
 docker compose -f deploy/runtime/docker-compose.yml --profile codex up --build
-# Add --profile claude, --profile grok, and/or --profile opencode when enabled.
+# Add --profile claude and/or --profile opencode when enabled.
 ```
 
 The `serve` container mounts the artifact volume read-only and receives no Git,
@@ -252,12 +252,12 @@ openknowledge deploy railway Wiki --yes
 Use `--domain docs.example.com` only for a hostname you already own; the result
 prints Railway's required CNAME/TXT records. Use `--no-public-endpoint` for a
 private deployment or `--without-worker` when scheduled agents are not needed.
-Open Knowledge infers `codex`, `claude`, `grok`, and `opencode` workers from enabled job
+Open Knowledge infers `codex`, `claude`, and `opencode` workers from enabled job
 files; no enabled jobs means no worker, and `--runtimes` can override that
 selection. It never searches for, buys,
 or registers domains. Railway CLI v5+ authentication, a GitHub token (or
 authenticated `gh`), and the selected harness keys (`CODEX_API_KEY`,
-`ANTHROPIC_API_KEY`, `XAI_API_KEY`, and/or `OPENCODE_API_KEY`) are
+`ANTHROPIC_API_KEY`, and/or `OPENCODE_API_KEY`) are
 required for the full mutating deployment. See the
 [deploy command reference](Wiki/features/commands/deploy.md).
 
@@ -409,7 +409,7 @@ unknown sections/fields and wrong value types fail closed. See the
 ### Experimental Agent And Jobs
 
 `openknowledge agent` is the human-facing path. It starts Codex by default and
-supports Claude Code, Grok, or OpenCode with `--runtime`. It accepts an optional
+supports Claude Code or OpenCode with `--runtime`. It accepts an optional
 initial prompt or runs a non-interactive task with `agent exec`. A versioned
 Open Knowledge steering contract is prepended by default. Managed onboarding
 and source generation use `openknowledge setup`; `agent doctor` probes installed
@@ -419,7 +419,7 @@ branch, commit, or pull request.
 Add `--isolate` to create and retain a dedicated branch and Git worktree at the
 repository's current `HEAD`. Open Knowledge probes harness executables before
 creating the worktree. Overrides are `OPENKNOWLEDGE_CODEX`,
-`OPENKNOWLEDGE_CLAUDE`, `OPENKNOWLEDGE_GROK`, and `OPENKNOWLEDGE_OPENCODE`; Codex discovery also skips
+`OPENKNOWLEDGE_CLAUDE`, and `OPENKNOWLEDGE_OPENCODE`; Codex discovery also skips
 broken `PATH` wrappers and checks supported macOS app bundles.
 
 `openknowledge agent integrate --global` installs only a discovery skill for Codex,
@@ -432,13 +432,17 @@ project hooks, and records the relationship in
 tool events, failures, retries, validation events, and Git changes, but commits
 neither raw transcripts nor credentials.
 
-Review the inbox with `openknowledge agent insights`. Execute one locally with
-`openknowledge agent insights run <insight>`, process all pending items with
-`run --all`, or add `--isolate` for a retained local branch and worktree. The
-agent performs fresh research, leaves an ordinary uncommitted Git diff, and the
-CLI validates the result before marking an insight resolved. Insights contain
-only a sanitized outcome, evidence, and likely targets—never a patch or base
-commit. For scheduled maintenance, generate `.openknowledge/jobs/insights.md`
+`openknowledge insights` is the small shared interface for people, agents, and
+automation. Capture a durable knowledge gap deterministically with
+`openknowledge insights create "<summary>"`; repeat `--target` and `--evidence`
+when the likely knowledge location or source evidence is known. List pending
+items with `openknowledge insights`, execute one with
+`openknowledge insights run <insight>`, process all with `run --all`, or add
+`--isolate` for a retained local branch and worktree. `create` never invokes a
+model; `run` performs fresh agent research, leaves an ordinary uncommitted Git
+diff, and validates the result before marking an insight resolved. Insights
+contain only a sanitized outcome, evidence, and likely targets—never a patch or
+base commit. For scheduled maintenance, generate `.openknowledge/jobs/insights.md`
 with `openknowledge jobs new insights --out .openknowledge/jobs/insights.md`.
 Insights always declare `okf_publish: false` and are absent from every public
 artifact.
@@ -457,7 +461,7 @@ Use `openknowledge jobs new` to list shipped templates,
 `openknowledge jobs validate` to check job specs, and
 `openknowledge jobs run <job.md> --dry-run` to print the resolved run plan.
 Run `openknowledge jobs run <job.md>` to create a Git worktree and run the
-selected Codex, Claude Code, Grok, or OpenCode adapter.
+selected Codex, Claude Code, or OpenCode adapter.
 Use `openknowledge jobs start <job.md>` for a detached run,
 `openknowledge jobs status` for schedules plus active/latest runs, and
 `openknowledge jobs runs` for repository history. Live runs can be cancelled
@@ -493,16 +497,17 @@ Nested job commands also support
 | `openknowledge prompt rules <rules> --path <path>` | Print ready-to-paste maintenance rules. |
 | `openknowledge prompt rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
 | `openknowledge prompt review rules [path]` | Print an advisory AI rule-review prompt. |
-| `openknowledge agent ["<initial prompt>"]` | Experimental: start a steered interactive Codex session, or select Claude Code/Grok/OpenCode with `--runtime`. |
+| `openknowledge agent ["<initial prompt>"]` | Experimental: start a steered interactive Codex session, or select Claude Code/OpenCode with `--runtime`. |
 | `openknowledge agent exec "<prompt>"` | Experimental: run one non-interactive task through the selected harness. |
 | `openknowledge agent exec --isolate "<prompt>"` | Experimental: run one task in a retained branch and worktree. |
 | `openknowledge agent doctor [--runtime <runtime>]` | Experimental: probe supported harness installations. |
 | `openknowledge agent integrate --global` | Install discovery-only user skills without hooks or observation. |
 | `openknowledge agent integrate <wiki>` | Connect a repository to a knowledge base and install project skills/hooks. |
-| `openknowledge agent insights [wiki]` | List pending private Markdown insights oldest first; without a path, use the project integration. |
-| `openknowledge agent insights run <insight>` | Research and implement one insight locally, validate it, and leave an uncommitted diff. |
-| `openknowledge agent insights run --all [--isolate]` | Process all pending insights directly or in a retained local branch/worktree. |
-| `openknowledge agent insights dismiss <insight>` | Mark a pending insight dismissed. |
+| `openknowledge insights create "<summary>" [--target <path>] [--evidence <text>]` | Deterministically capture a private, evidence-only knowledge insight. |
+| `openknowledge insights [list] [wiki]` | List pending private Markdown insights oldest first; without a path, use the project integration. |
+| `openknowledge insights run <insight>` | Research and implement one insight locally, validate it, and leave an uncommitted diff. |
+| `openknowledge insights run --all [--isolate]` | Process all pending insights directly or in a retained local branch/worktree. |
+| `openknowledge insights dismiss <insight>` | Mark a pending insight dismissed. |
 | `openknowledge jobs new` | Experimental: list built-in local agent job templates. |
 | `openknowledge jobs new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
 | `openknowledge jobs new --reference` | Experimental: print the supported agent-job schema. |

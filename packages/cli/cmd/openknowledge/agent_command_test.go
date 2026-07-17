@@ -13,33 +13,18 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 )
 
-func TestAgentNamespacesIntegrationAndInsights(t *testing.T) {
-	tests := []struct {
-		args []string
-		want string
-	}{
-		{args: []string{"integrate", "--help"}, want: "openknowledge agent integrate"},
-		{args: []string{"insights", "--help"}, want: "openknowledge agent insights"},
+func TestAgentIntegrationAndRootInsightsNamespaces(t *testing.T) {
+	stdout, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"integrate", "--help"}) })
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "openknowledge agent integrate") {
+		t.Fatalf("agent integrate help code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	for _, test := range tests {
-		stdout, stderr, code := captureMainOutput(t, func() int { return runAgent(test.args) })
-		if code != 0 || stderr != "" || !strings.Contains(stdout, test.want) {
-			t.Fatalf("runAgent(%v) code=%d stdout=%q stderr=%q", test.args, code, stdout, stderr)
-		}
-	}
-	for _, removedRoot := range []string{"integrate", "insights", "suggestions"} {
-		_, stderr, code := captureMainOutput(t, func() int { return dispatchCLI([]string{removedRoot, "--help"}) })
-		if code != 2 || !strings.Contains(stderr, "unknown command: "+removedRoot) {
-			t.Fatalf("expected removed top-level %s to be unknown, code=%d stderr=%q", removedRoot, code, stderr)
-		}
-	}
-	_, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"suggestions", "--help"}) })
-	if code != 2 || !strings.Contains(stderr, "use openknowledge agent insights") {
-		t.Fatalf("expected legacy agent suggestions to fail, code=%d stderr=%q", code, stderr)
+	stdout, stderr, code = captureMainOutput(t, func() int { return dispatchCLI([]string{"insights", "--help"}) })
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "openknowledge insights") {
+		t.Fatalf("root insights help code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }
 
-func TestAgentInsightsDiscoversIntegratedKnowledgeBase(t *testing.T) {
+func TestRootInsightsDiscoversIntegratedKnowledgeBase(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
 	wiki := filepath.Join(repo, "Knowledge")
@@ -58,7 +43,7 @@ func TestAgentInsightsDiscoversIntegratedKnowledgeBase(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chdir(originalDirectory) })
 
-	stdout, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"insights"}) })
+	stdout, stderr, code := captureMainOutput(t, func() int { return dispatchCLI([]string{"insights"}) })
 	if code != 0 || stderr != "" || !strings.Contains(stdout, "No pending insights.") {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
@@ -131,7 +116,6 @@ func TestAgentSupportsClaudeAndOpenCodeAdapters(t *testing.T) {
 		prefix  []string
 	}{
 		{runtime: "claude", env: "OPENKNOWLEDGE_CLAUDE", path: "/test/claude", prefix: []string{"--print", "--no-session-persistence", "--permission-mode", "acceptEdits"}},
-		{runtime: "grok", env: "OPENKNOWLEDGE_GROK", path: "/test/grok", prefix: []string{"--no-auto-update", "--always-approve", "--single"}},
 		{runtime: "opencode", env: "OPENKNOWLEDGE_OPENCODE", path: "/test/opencode", prefix: []string{"run", "--auto"}},
 	} {
 		t.Run(test.runtime, func(t *testing.T) {
@@ -150,15 +134,6 @@ func TestAgentSupportsClaudeAndOpenCodeAdapters(t *testing.T) {
 				t.Fatalf("unexpected invocation executable=%q args=%#v", executable, arguments)
 			}
 		})
-	}
-}
-
-func TestAgentInitAndFromWereConsolidatedIntoSetup(t *testing.T) {
-	for _, removed := range []string{"init", "from"} {
-		_, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{removed}) })
-		if code != 2 || !strings.Contains(stderr, "use openknowledge setup") {
-			t.Fatalf("agent %s code=%d stderr=%q", removed, code, stderr)
-		}
 	}
 }
 

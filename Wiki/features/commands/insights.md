@@ -1,21 +1,22 @@
 ---
 type: Command Documentation
-title: openknowledge agent insights
+title: openknowledge insights
 description: Capture, review, and execute private evidence-backed knowledge insights.
 tags: [openknowledge, cli, command, insights, observation, agent]
 timestamp: 2026-07-17T00:00:00Z
 ---
 
-# `openknowledge agent insights`
+# `openknowledge insights`
 
-Insights are durable observations captured while an agent is working on
-another task. They preserve a concise outcome, evidence, and likely knowledge
-targets without pretending to be a finished change. An insight never embeds a
-Git patch, base commit, raw transcript, credential, or executable instruction.
+Insights are the small shared maintenance interface for people, agents, and
+automation. They preserve a concise knowledge gap, evidence, and likely
+knowledge targets without pretending to be a finished change. An insight may
+be explicitly captured or observed from another agent session, but never embeds
+a Git patch, base commit, raw transcript, credential, or executable instruction.
 
 ```text
-agent session
-    -> private Markdown insight
+person, agent, or session observer
+    -> deterministic private Markdown insight
     -> local agent research and implementation
     -> OKF validation
     -> ordinary uncommitted Git diff
@@ -25,19 +26,38 @@ agent session
 ## Usage
 
 ```sh
-openknowledge agent insights
-openknowledge agent insights Wiki
-openknowledge agent insights run <insight>
-openknowledge agent insights run --all
-openknowledge agent insights run <insight> --runtime claude
-openknowledge agent insights run <insight> --isolate
-openknowledge agent insights dismiss <insight>
+openknowledge insights
+openknowledge insights list Wiki
+openknowledge insights create "Document the deployment rollback workflow"
+openknowledge insights create "Document rollback" --target operations/deploy.md --evidence "deploy.sh exposes rollback"
+openknowledge insights run <insight>
+openknowledge insights run --all
+openknowledge insights run <insight> --runtime claude
+openknowledge insights run <insight> --isolate
+openknowledge insights dismiss <insight>
 openknowledge jobs new insights --out .openknowledge/jobs/insights.md
 ```
 
 With no path, listing discovers the connected knowledge base from
 `.openknowledge/integration.toml` and prints pending insights oldest first.
 `<insight>` may be a path, filename, filename stem, or insight ID.
+
+## Explicit Capture
+
+`create` is deterministic and never starts a model. It discovers the project
+integration, sanitizes the summary and evidence, writes a private pending
+insight, and deduplicates identical captures. `--target` and `--evidence` may
+be repeated. Without a target the insight points at the complete knowledge base
+with `.`. Targets must remain knowledge-base-relative; the command also refuses
+an insights directory that resolves through a symlink outside the wiki.
+
+This makes capture equally simple from a terminal or an agent skill:
+
+```sh
+openknowledge insights create "<durable knowledge gap>" \
+  --target "<likely wiki path>" \
+  --evidence "<concise repository evidence>"
+```
 
 ## Local Execution
 
@@ -58,7 +78,7 @@ failure, or validation failure leaves the relevant insight pending and keeps
 the filesystem available for inspection.
 
 `run --all` processes all currently pending insights in one local agent run and
-one validation pass. `--runtime` selects Codex, Claude Code, Grok, or OpenCode;
+one validation pass. `--runtime` selects Codex, Claude Code, or OpenCode;
 `--model` supplies the harness-specific model override.
 
 ## Markdown Contract
@@ -91,12 +111,18 @@ There is no dedicated insight worker or queue service.
 
 ## Command Change History
 
+### 2026-07-17 - Root agentic interface
+
+Made `openknowledge insights` the canonical shared interface and added the
+deterministic `create` command alongside listing, local execution, batch
+execution, and dismissal. Project hooks and the scheduled Job use the same root
+namespace through hidden observation and verification operations.
+
 ### 2026-07-17 - Insights and local execution
 
-Replaced the unreleased patch-bearing suggestions protocol with evidence-only
-insights. Added direct and isolated local `run`, batch `run --all`, explicit
-`dismiss`, boundary enforcement, validation, and the optional `insights` Job
-template. No `agent suggestions` compatibility alias remains.
+Added evidence-only insights with direct and isolated local `run`, batch
+`run --all`, explicit `dismiss`, boundary enforcement, validation, and the
+optional `insights` Job template.
 
 ---
 

@@ -14,19 +14,53 @@ that were updated.
 
 ## Unreleased
 
+### 2026-07-17 - Closed three-harness runtime surface
+
+* Restricted local agents, scheduled Jobs, runtime workers, and Railway
+  deployment to Codex, Claude Code, and OpenCode. Other runtime identifiers now
+  fail closed instead of producing an executable worker plan.
+* Aligned credential forwarding, Docker targets, Compose profiles, release
+  images, schemas, help, examples, and provider planning with the three
+  supported harnesses.
+* Source anchors: `packages/cli/internal/agents/harness.go`,
+  `packages/cli/cmd/openknowledge/{agent_command,deploy_command,runtime_worker}.go`,
+  `docker/runtime.Dockerfile`, `deploy/runtime/`, and
+  `.github/workflows/release.yml`.
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,deploy,insights,jobs,runtime,setup}.md`,
+  `Wiki/features/operations.md`, `Wiki/index.md`, `Wiki/log.md`, and
+  `Wiki/changelog/cli.md`.
+
+### 2026-07-17 - Shared root insights workflow
+
+* Made `openknowledge insights` the canonical shared interface for people,
+  agents, session observers, and scheduled maintenance.
+* Added deterministic `insights create "<summary>"` with repeatable `--target`
+  and `--evidence`. Capture sanitizes secrets, deduplicates identical insights,
+  validates knowledge-relative targets, and refuses an inbox that escapes the
+  integrated wiki through a symlink; it never starts a model.
+* Moved `list`, `run`, `run --all`, and `dismiss` to the root workflow. Updated
+  project hooks and the built-in insights Job to use hidden root `observe` and
+  `verify` operations.
+* Source anchors: `packages/cli/cmd/openknowledge/{main,agent_command,insights_command}.go`,
+  `packages/cli/internal/{insights,integration}/`, and
+  `packages/cli/internal/agents/templates.go`.
+* Docs updated: `README.md`, `Wiki/features/commands/{agent,help,index,integrate,insights,jobs}.md`,
+  `Wiki/features/tooling-model.md`, `Wiki/index.md`,
+  `Wiki/decisions/product-interface.md`, and `Wiki/changelog/cli.md`.
+
 ### 2026-07-17 - Canonical onboarding and smaller command surface
 
 * Made `openknowledge setup [wiki]` the single managed onboarding workflow.
   `--from <source>` selects source-grounded generation; success now requires
   the agent workflow, OKF validation, and project integration to all complete.
 * Moved portable prompt tools under
-  `openknowledge prompt setup|from|rules|review` and removed the previous
-  top-level prompt commands plus `agent init` and `agent from` without aliases.
-* Renamed the publishing namespace from `to` to `export` without a legacy
-  alias. Kept connection mutation only at top-level `connect` and `disconnect`;
+  `openknowledge prompt setup|from|rules|review`; managed execution is exposed
+  only through `openknowledge setup`.
+* Renamed the publishing namespace from `to` to `export`. Kept connection
+  mutation only at top-level `connect` and `disconnect`;
   `registry` now exposes inspection and refresh operations only.
 * Renamed the low-level deterministic bundle command from `new` to `scaffold`
-  so it is clearly distinct from managed `setup`; no legacy alias remains.
+  so it is clearly distinct from managed `setup`.
 * Source anchors: `packages/cli/cmd/openknowledge/{main,setup_command,prompt_command,agent_command}.go`.
 * Docs updated: `README.md`, `Wiki/features/commands/{setup,scaffold,prompt,agent,export,registry,connect,disconnect,index}.md`,
   `Wiki/features/tooling-model.md`, and
@@ -36,12 +70,11 @@ that were updated.
 
 * Reorganized root help around four product workflows instead of listing every
   flag combination as a peer concept.
-* Nested project integration and the insight inbox under
-  `openknowledge agent`; no duplicate top-level forms were retained for this
-  previously unreleased feature.
-* Made `agent insights` discover the connected knowledge base by default,
+* Established project integration under `openknowledge agent integrate` and the
+  shared insight workflow under root `openknowledge insights`.
+* Made insight listing discover the connected knowledge base by default,
   and collapsed Job boundary checks plus normal OKF validation into the single
-  portable `agent insights verify` command.
+  portable insights verification operation.
 * Recorded the product interface direction that the subsequent command-surface
   consolidation implements.
 * Source anchors: `packages/cli/cmd/openknowledge/{main,agent_command}.go` and
@@ -61,7 +94,7 @@ that were updated.
   analyzes available session messages and tool/error/retry/validation events
   while persisting only sanitized outcomes and aggregate evidence, never the
   raw transcript.
-* Added oldest-first `openknowledge agent insights`, direct and isolated local
+* Added oldest-first insight listing, direct and isolated local
   `run`, batch `run --all`, and `dismiss`. Successful runs require a local agent,
   knowledge-boundary checks, normal OKF validation, and leave an uncommitted
   Git diff; failures leave insights pending.
@@ -79,7 +112,7 @@ that were updated.
 ### 2026-07-17 - Steered multi-harness agent runtime
 
 * Generalized `openknowledge agent` from a Codex launcher into a closed
-  Codex/Claude Code/Grok Build/OpenCode interface with `--runtime`, optional `--model`,
+  Codex/Claude Code/OpenCode interface with `--runtime`, optional `--model`,
   executable overrides, `doctor`, and a default versioned Open Knowledge
   steering contract. Added executable `agent init` and `agent from` workflows.
 * Replaced arbitrary experimental job `agent.command`/`agent.args` execution
@@ -88,7 +121,7 @@ that were updated.
   scoped to the harness subprocess rather than verification commands.
 * Added strict `worker.runtimes`, per-runtime job filtering, checkout/state
   isolation, runtime-plan inference, and separate pinned Codex, Claude Code,
-  Grok Build, and OpenCode worker images. Compose and Railway provision only selected
+  and OpenCode worker images. Compose and Railway provision only selected
   harness workers, each with its own state and credential boundary.
 * Source anchors: `packages/cli/cmd/openknowledge/{agent_command,agents_command,deploy_command,runtime_command,runtime_worker}.go`,
   `packages/cli/internal/agents/{harness,plan,runner,spec}.go`,

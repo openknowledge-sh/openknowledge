@@ -29,7 +29,7 @@ const (
 var (
 	statusPattern    = regexp.MustCompile(`(?m)^status:[\t ]*([^\r\n#]+)[\t ]*$`)
 	unsafeSecret     = regexp.MustCompile(`(?i)(api[_-]?key|token|authorization|password|secret)["' ]*[:=]["' ]*(?:bearer[ ]+)?[^,\s"']+`)
-	credentialToken  = regexp.MustCompile(`\b(?:sk|xai|ghp|github_pat)-[A-Za-z0-9_-]{10,}\b`)
+	credentialToken  = regexp.MustCompile(`\b(?:sk|ghp|github_pat)-[A-Za-z0-9_-]{10,}\b`)
 	knownSecretToken = regexp.MustCompile(`(?i)\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|\bAIza[A-Za-z0-9_-]{20,}\b|\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b`)
 )
 
@@ -54,6 +54,13 @@ type Observation struct {
 	ChangedPaths []string
 	Trace        TraceStats
 	Now          time.Time
+}
+
+type CreateOptions struct {
+	Summary  string
+	Evidence []string
+	Targets  []string
+	Now      time.Time
 }
 
 type TraceStats struct {
@@ -270,6 +277,47 @@ func ResolveAll(paths []string) error {
 	return nil
 }
 
+func Create(directory string, options CreateOptions) (string, bool, error) {
+	repo, config, err := integration.FindRepository(directory)
+	if err != nil {
+		return "", false, err
+	}
+	summary := sanitizeSummary(options.Summary)
+	if summary == "" {
+		return "", false, fmt.Errorf("insight summary must not be empty")
+	}
+	targets, err := normalizeTargets(options.Targets)
+	if err != nil {
+		return "", false, err
+	}
+	evidence := sanitizeEvidence(options.Evidence)
+	if options.Now.IsZero() {
+		options.Now = time.Now().UTC()
+	}
+	identity := "explicit\x00" + summary + "\x00" + strings.Join(targets, "\x00") + "\x00" + strings.Join(evidence, "\x00")
+	digest := sha256.Sum256([]byte(identity))
+	id := hex.EncodeToString(digest[:])[:12]
+	directoryPath, err := integratedInbox(repo, config)
+	if err != nil {
+		return "", false, err
+	}
+	if existing, _ := filepath.Glob(filepath.Join(directoryPath, "*-"+id+".md")); len(existing) > 0 {
+		return existing[0], false, nil
+	}
+	path := filepath.Join(directoryPath, options.Now.UTC().Format("2006-01-02")+"-explicit-knowledge-"+id+".md")
+	content := renderCreatedInsight(options.Now, id, targets, summary, evidence)
+	if _, err := ParseContent(path, []byte(content)); err != nil {
+		return "", false, fmt.Errorf("render insight: %w", err)
+	}
+	if err := writeExclusiveAtomic(path, []byte(content)); err != nil {
+		if os.IsExist(err) {
+			return path, false, nil
+		}
+		return "", false, err
+	}
+	return path, true, nil
+}
+
 func Observe(directory string, observation Observation) (string, bool, error) {
 	if os.Getenv("OPENKNOWLEDGE_OBSERVER") == "1" {
 		return "", false, nil
@@ -320,8 +368,8 @@ func Observe(directory string, observation Observation) (string, bool, error) {
 	identity := observation.SessionID + "\x00" + observation.Runtime + "\x00" + strings.Join(observation.ChangedPaths, "\x00") + "\x00" + summary
 	digest := sha256.Sum256([]byte(identity))
 	id := hex.EncodeToString(digest[:])[:12]
-	directoryPath := filepath.Join(repo, filepath.FromSlash(config.Insights))
-	if err := os.MkdirAll(directoryPath, 0o755); err != nil {
+	directoryPath, err := integratedInbox(repo, config)
+	if err != nil {
 		return "", false, err
 	}
 	slug := "session-knowledge"
@@ -596,6 +644,66 @@ func render(observation Observation, id string, targets []string, summary string
 	return builder.String()
 }
 
+func renderCreatedInsight(now time.Time, id string, targets []string, summary string, evidence []string) string {
+	title := truncateRunes(summary, 96)
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: Explicitly captured knowledge maintenance insight.\nstatus: pending\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: explicit\nokf_insight_runtime: cli\nokf_insight_created_at: %s\nokf_insight_targets:\n", strconv.Quote(title), id, now.UTC().Format(time.RFC3339))
+	for _, target := range targets {
+		fmt.Fprintf(&builder, "  - %s\n", strconv.Quote(target))
+	}
+	builder.WriteString("tags: [insight, explicit]\n---\n\n# " + title + "\n\n## Insight\n\n" + summary + "\n\n## Evidence\n\n")
+	if len(evidence) == 0 {
+		builder.WriteString("- Explicitly reported through the Open Knowledge CLI; research current repository evidence before applying it.\n")
+	} else {
+		for _, item := range evidence {
+			builder.WriteString("- " + item + "\n")
+		}
+	}
+	return builder.String()
+}
+
+func normalizeTargets(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return []string{"."}, nil
+	}
+	seen := map[string]bool{}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		clean := filepath.ToSlash(filepath.Clean(value))
+		if value == "" || filepath.IsAbs(value) || clean == ".." || strings.HasPrefix(clean, "../") {
+			return nil, fmt.Errorf("insight targets must be non-empty knowledge-base-relative paths")
+		}
+		if !seen[clean] {
+			seen[clean] = true
+			result = append(result, clean)
+		}
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+func sanitizeEvidence(values []string) []string {
+	seen := map[string]bool{}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = sanitizeSummary(value)
+		if value != "" && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+func truncateRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit-1]) + "…"
+}
+
 func updateStatus(path, status string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -628,10 +736,63 @@ func writeExclusiveAtomic(path string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(path); err == nil {
-		return os.ErrExist
+	if err := os.Link(tempPath, path); err != nil {
+		return err
 	}
-	return os.Rename(tempPath, path)
+	return nil
+}
+
+func integratedInbox(repo string, config integration.Config) (string, error) {
+	repo, err := filepath.Abs(repo)
+	if err != nil {
+		return "", err
+	}
+	resolvedRepo, err := filepath.EvalSymlinks(repo)
+	if err != nil {
+		return "", err
+	}
+	wiki := filepath.Join(repo, filepath.FromSlash(config.KnowledgeBase))
+	resolvedWiki, err := filepath.EvalSymlinks(wiki)
+	if err != nil {
+		return "", fmt.Errorf("resolve integrated knowledge base: %w", err)
+	}
+	if !pathWithin(resolvedRepo, resolvedWiki) {
+		return "", fmt.Errorf("integrated knowledge base escapes its repository")
+	}
+	inbox := filepath.Join(repo, filepath.FromSlash(config.Insights))
+	info, err := os.Lstat(inbox)
+	if os.IsNotExist(err) {
+		resolvedParent, parentErr := filepath.EvalSymlinks(filepath.Dir(inbox))
+		if parentErr != nil {
+			return "", parentErr
+		}
+		if !pathWithin(resolvedWiki, resolvedParent) {
+			return "", fmt.Errorf("integrated insights directory escapes its knowledge base")
+		}
+		if err := os.Mkdir(inbox, 0o755); err != nil && !os.IsExist(err) {
+			return "", err
+		}
+		info, err = os.Lstat(inbox)
+	}
+	if err != nil {
+		return "", err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return "", fmt.Errorf("integrated insights path must be a real directory inside the knowledge base")
+	}
+	resolvedInbox, err := filepath.EvalSymlinks(inbox)
+	if err != nil {
+		return "", err
+	}
+	if !pathWithin(resolvedWiki, resolvedInbox) || resolvedInbox == resolvedWiki {
+		return "", fmt.Errorf("integrated insights directory escapes its knowledge base")
+	}
+	return resolvedInbox, nil
+}
+
+func pathWithin(root, candidate string) bool {
+	relative, err := filepath.Rel(root, candidate)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func nonInsightPaths(paths []string, insightsPath string) []string {

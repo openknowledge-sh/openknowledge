@@ -87,7 +87,7 @@ production_branch = "main"
 poll_interval = "30s"
 run_jobs = true
 jobs_path = ".openknowledge/jobs"
-runtimes = ["codex", "claude", "grok", "opencode"]
+runtimes = ["codex", "claude", "opencode"]
 exchange_dir = "/exchange"
 # Remote job-only role on a platform without shared volumes:
 # exchange_url = "http://publisher.railway.internal:8090"
@@ -127,8 +127,8 @@ passed to Git through process environment configuration rather than command
 arguments. The jobs role has no GitHub secret, remote credential, or artifact
 mount. Model credentials are selected by the closed runtime adapter and exposed
 only to the agent subprocess: `CODEX_API_KEY` for Codex,
-`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code,
-`XAI_API_KEY` for Grok, and a configured provider key for OpenCode. They do not belong in
+`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, and a
+configured provider key for OpenCode. They do not belong in
 `sandbox.env`, which is reserved for explicit project capabilities.
 
 ## Generation And Promotion
@@ -197,16 +197,16 @@ valid in-memory generation active.
 ## Docker Deployment And Security Boundary
 
 `docker/runtime.Dockerfile` has separate `serve`, `publisher`, `worker-base`,
-`worker-codex`, `worker-claude`, `worker-grok`, and `worker-opencode` targets, and
+`worker-codex`, `worker-claude`, and `worker-opencode` targets, and
 `deploy/runtime/docker-compose.yml` wires separate users, volumes, secrets,
 capability drops, read-only roots, PID limits, health checks, and no Docker
 socket. The serve target is distroless and contains no Git, Node/Codex runtime,
 shell, source checkout, private volume, or credentials. Publisher contains Git
 but no agent harness or model key. Each worker contains Git and exactly one
-pinned harness—Codex CLI, Claude Code, Grok Build, or OpenCode—but not the GitHub App key
-or artifact store. Compose profiles (`codex`, `claude`, `grok`, `opencode`) give each
-worker a distinct state volume and secret. The shipped Grok worker receives
-`XAI_API_KEY`. OpenCode receives a distinct `OPENCODE_API_KEY` placeholder;
+pinned harness—Codex CLI, Claude Code, or OpenCode—but not the GitHub App key
+or artifact store. Compose profiles (`codex`, `claude`, `opencode`) give each
+worker a distinct state volume and secret. OpenCode receives a distinct
+`OPENCODE_API_KEY` placeholder;
 repository OpenCode configuration binds it to the chosen provider. No jobs worker
 publishes a port. A
 provider adapter may give publisher a
@@ -217,16 +217,15 @@ public ingress for publisher or worker. The roles never share `.git` metadata.
 | --- | --- | --- | --- |
 | `codex` | `worker-codex` | `secrets/codex_api_key` | `CODEX_API_KEY` |
 | `claude` | `worker-claude` | `secrets/anthropic_api_key` | `ANTHROPIC_API_KEY` |
-| `grok` | `worker-grok` | `secrets/xai_api_key` | `XAI_API_KEY` |
 | `opencode` | `worker-opencode` | `secrets/opencode_api_key` | `OPENCODE_API_KEY` |
 
 Start only profiles required by enabled job files, for example
-`docker compose -f deploy/runtime/docker-compose.yml --profile codex --profile grok up --build`.
+`docker compose -f deploy/runtime/docker-compose.yml --profile codex --profile opencode up --build`.
 
 The images default to `env:OPENKNOWLEDGE_RUNTIME_CONFIG`, so provider adapters
 do not need to rebuild immutable images for each repository. Releases publish
 separate `openknowledge-runtime-serve`, `-publisher`, `-worker-codex`,
-`-worker-claude`, `-worker-grok`, and `-worker-opencode` images to GHCR.
+`-worker-claude`, and `-worker-opencode` images to GHCR.
 [`openknowledge deploy railway`](deploy.md) provisions only workers required by
 enabled job definitions.
 
@@ -248,7 +247,7 @@ of scope for this first runtime.
 
 Added strict `worker.runtimes`, per-runtime worker selection and state,
 runtime-aware planning, and isolated pinned images for Codex CLI, Claude Code,
-Grok Build, and OpenCode. Job credentials now flow only to the selected harness process.
+and OpenCode. Job credentials now flow only to the selected harness process.
 
 ### 2026-07-17 - Private provider transport
 

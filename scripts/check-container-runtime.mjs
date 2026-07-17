@@ -64,13 +64,13 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
   const publisher = runtimeStages.find((stage) => /\sAS\s+publisher\s*$/m.test(stage.split("\n", 1)[0]));
   const workerBase = runtimeStages.find((stage) => /\sAS\s+worker-base\s*$/m.test(stage.split("\n", 1)[0]));
   const workerTargets = Object.fromEntries(
-    ["codex", "claude", "grok", "opencode"].map((runtime) => [
+    ["codex", "claude", "opencode"].map((runtime) => [
       runtime,
       runtimeStages.find((stage) => new RegExp(`\\sAS\\s+worker-${runtime}\\s*$`, "m").test(stage.split("\n", 1)[0])),
     ]),
   );
   if (!builder || !serve || !publisher || !workerBase || Object.values(workerTargets).some((stage) => !stage)) {
-    failures.push("runtime.Dockerfile must define cli-builder, serve, publisher, worker-base, and codex/claude/grok/opencode worker targets");
+    failures.push("runtime.Dockerfile must define cli-builder, serve, publisher, worker-base, and codex/claude/opencode worker targets");
     return;
   }
   const runtimeGo = builder.match(/^golang:([0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:-|@|\s)/);
@@ -98,7 +98,6 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
   const harnessContracts = {
     codex: { version: "CODEX_VERSION", install: "@openai/codex@${CODEX_VERSION}" },
     claude: { version: "CLAUDE_CODE_VERSION", install: "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" },
-    grok: { version: "GROK_VERSION", install: "@xai-official/grok@${GROK_VERSION}" },
     opencode: { version: "OPENCODE_VERSION", install: "opencode-ai@${OPENCODE_VERSION}" },
   };
   for (const [runtime, worker] of Object.entries(workerTargets)) {
@@ -123,7 +122,6 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
     "no-new-privileges:true",
     "codex_api_key",
     "anthropic_api_key",
-    "xai_api_key",
     "opencode_api_key",
     "github_app_key",
   ]) {
@@ -131,7 +129,7 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
       failures.push(`runtime Compose must include ${required}`);
     }
   }
-  for (const runtime of ["codex", "claude", "grok", "opencode"]) {
+  for (const runtime of ["codex", "claude", "opencode"]) {
     const workerService = composeService(compose, `worker-${runtime}`);
     if (!workerService) {
       failures.push(`runtime Compose must define worker-${runtime}`);
@@ -145,7 +143,7 @@ function checkKnowledgeRuntimeImages(dockerfile, compose, requiredGoVersion) {
     }
   }
   const publisherService = composeService(compose, "publisher");
-  if (/codex_api_key|anthropic_api_key|xai_api_key|opencode_api_key|target:\s+worker-/.test(publisherService)) {
+  if (/codex_api_key|anthropic_api_key|opencode_api_key|target:\s+worker-/.test(publisherService)) {
     failures.push("publisher must not mount model credentials or an agent worker image");
   }
 }

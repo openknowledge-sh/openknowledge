@@ -11,15 +11,16 @@
 
 * **Project integrations and insights**: Added discovery-only global skills,
   project-scoped Codex/Claude/OpenCode hooks, atomic private Markdown
-  insights, `agent integrate`, auto-discovered `agent insights`, direct and
-  isolated local execution, knowledge-boundary/OKF verification, and an
-  ordinary scheduled insights Job template without a new worker role.
+  insights, `agent integrate`, the shared root `insights create|list|run|dismiss`
+  interface, direct and isolated local execution, knowledge-boundary/OKF
+  verification, and an ordinary scheduled insights Job template without a new
+  worker role.
 
 * **Steered multi-harness runtime**: Generalized the local agent and scheduled
-  job surfaces across Codex, Claude Code, Grok, and OpenCode, added executable
+  job surfaces across Codex, Claude Code, and OpenCode, added executable
   setup/source workflows, strict runtime/model job definitions, per-harness
   credentials and workers, runtime-aware Railway deployment, official headless
-  Grok Build support, and provider-configurable OpenCode support.
+  harness support, and provider-configurable OpenCode support.
 * **Agent and jobs split**: Added the human-facing `openknowledge agent` and
   one-shot `agent exec` flows with direct filesystem editing by default and
   opt-in retained worktree isolation. Replaced the experimental `agents`

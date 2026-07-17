@@ -73,12 +73,3 @@ USER openknowledge:openknowledge
 ENV OPENKNOWLEDGE_AGENT_RUNTIME=opencode
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-worker-entrypoint"]
 CMD ["--role", "jobs", "--runtime", "opencode", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]
-
-FROM worker-base AS worker-grok
-ARG GROK_VERSION=0.2.103
-RUN npm install --global "@xai-official/grok@${GROK_VERSION}" \
-    && npm cache clean --force
-USER openknowledge:openknowledge
-ENV OPENKNOWLEDGE_AGENT_RUNTIME=grok
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-worker-entrypoint"]
-CMD ["--role", "jobs", "--runtime", "grok", "--config", "env:OPENKNOWLEDGE_RUNTIME_CONFIG"]

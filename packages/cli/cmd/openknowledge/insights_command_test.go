@@ -13,6 +13,37 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 )
 
+func TestRootInsightsCreateCapturesExplicitInsight(t *testing.T) {
+	repo, _ := setupInsightCommandRepository(t)
+	withinDirectory(t, repo, func() {
+		stdout, stderr, code := captureMainOutput(t, func() int {
+			return dispatchCLI([]string{
+				"insights", "create", "Document", "the", "rollback", "workflow",
+				"--target", "guide.md", "--evidence", "The deploy script has a rollback command.",
+			})
+		})
+		if code != 0 || stderr != "" || !strings.Contains(stdout, "Created insight Wiki/insights/") {
+			t.Fatalf("create code=%d stdout=%q stderr=%q", code, stdout, stderr)
+		}
+		items, err := insights.Pending(filepath.Join(repo, "Wiki"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(items) != 2 {
+			t.Fatalf("pending insights = %#v", items)
+		}
+		var created insights.Insight
+		for _, item := range items {
+			if item.Runtime == "cli" {
+				created = item
+			}
+		}
+		if created.Title != "Document the rollback workflow" || strings.Join(created.Targets, ",") != "guide.md" {
+			t.Fatalf("created insight = %#v", created)
+		}
+	})
+}
+
 func TestAgentInsightsRunCreatesValidatedLocalDiffAndResolvesInsight(t *testing.T) {
 	repo, insightPath := setupInsightCommandRepository(t)
 	stubCodexResolver(t, "/test/codex")
@@ -30,7 +61,7 @@ func TestAgentInsightsRunCreatesValidatedLocalDiffAndResolvesInsight(t *testing.
 	}
 	withinDirectory(t, repo, func() {
 		stdout, stderr, code := captureMainOutput(t, func() int {
-			return runAgent([]string{"insights", "run", "local-insight"})
+			return dispatchCLI([]string{"insights", "run", "local-insight"})
 		})
 		if code != 0 {
 			t.Fatalf("run insight code=%d stdout=%s stderr=%s", code, stdout, stderr)
@@ -65,7 +96,7 @@ func TestAgentInsightsRunRejectsOutOfBoundaryAgentEditAndKeepsPending(t *testing
 	}
 	withinDirectory(t, repo, func() {
 		_, stderr, code := captureMainOutput(t, func() int {
-			return runAgent([]string{"insights", "run", insightPath})
+			return dispatchCLI([]string{"insights", "run", insightPath})
 		})
 		if code != 1 || !strings.Contains(stderr, "outside knowledge base") {
 			t.Fatalf("boundary code=%d stderr=%s", code, stderr)
@@ -101,7 +132,7 @@ okf_insight_targets:
 	}
 	withinDirectory(t, repo, func() {
 		_, stderr, code := captureMainOutput(t, func() int {
-			return runAgent([]string{"insights", "run", external})
+			return dispatchCLI([]string{"insights", "run", external})
 		})
 		if code != 1 || !strings.Contains(stderr, "inside the integrated inbox") {
 			t.Fatalf("external insight code=%d stderr=%s", code, stderr)
@@ -140,7 +171,7 @@ func TestAgentInsightsRunAllResolvesPendingBatchInOneLocalRun(t *testing.T) {
 	}
 	withinDirectory(t, repo, func() {
 		stdout, stderr, code := captureMainOutput(t, func() int {
-			return runAgent([]string{"insights", "run", "--all"})
+			return dispatchCLI([]string{"insights", "run", "--all"})
 		})
 		if code != 0 || !strings.Contains(stdout, "Resolved 2 insight(s)") {
 			t.Fatalf("batch code=%d stdout=%s stderr=%s", code, stdout, stderr)
@@ -176,7 +207,7 @@ func TestAgentInsightsRunIsolateCopiesUntrackedInsightAndResolvesWorktreeCopy(t 
 	}
 	withinDirectory(t, repo, func() {
 		_, stderr, code := captureMainOutput(t, func() int {
-			return runAgent([]string{"insights", "run", "local-insight", "--isolate"})
+			return dispatchCLI([]string{"insights", "run", "local-insight", "--isolate"})
 		})
 		if code != 0 || !strings.Contains(stderr, "isolated insight workspace:") {
 			t.Fatalf("isolated code=%d stderr=%s", code, stderr)

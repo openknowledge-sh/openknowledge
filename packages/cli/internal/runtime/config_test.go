@@ -71,14 +71,14 @@ publish = true
 	if _, err := ParseConfig([]byte(fmt.Sprintf(base, ""))); err == nil || !strings.Contains(err.Error(), "worker.runtimes") {
 		t.Fatalf("expected missing runtime refusal, got %v", err)
 	}
-	config, err := ParseConfig([]byte(fmt.Sprintf(base, `runtimes = ["opencode", "grok", "codex"]`)))
+	config, err := ParseConfig([]byte(fmt.Sprintf(base, `runtimes = ["opencode", "claude", "codex"]`)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(config.Worker.Runtimes, []string{"codex", "grok", "opencode"}) {
+	if !reflect.DeepEqual(config.Worker.Runtimes, []string{"claude", "codex", "opencode"}) {
 		t.Fatalf("unexpected normalized runtimes: %#v", config.Worker.Runtimes)
 	}
-	if _, err := ParseConfig([]byte(fmt.Sprintf(base, `runtimes = ["grok-cli"]`))); err == nil || !strings.Contains(err.Error(), "unsupported agent runtime") {
+	if _, err := ParseConfig([]byte(fmt.Sprintf(base, `runtimes = ["unsupported"]`))); err == nil || !strings.Contains(err.Error(), "unsupported agent runtime") {
 		t.Fatalf("expected unknown runtime refusal, got %v", err)
 	}
 }

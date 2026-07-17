@@ -184,7 +184,6 @@ func runDeployRailway(args []string) int {
 	runtimes := flags.String("runtimes", "", "comma-separated worker runtimes; inferred from jobs when omitted")
 	codexKeyEnv := flags.String("codex-key-env", "CODEX_API_KEY", "environment variable containing the Codex API key")
 	claudeKeyEnv := flags.String("claude-key-env", "ANTHROPIC_API_KEY", "environment variable containing the Claude API key")
-	grokKeyEnv := flags.String("grok-key-env", "XAI_API_KEY", "environment variable containing the Grok API key")
 	opencodeKeyEnv := flags.String("opencode-key-env", "OPENCODE_API_KEY", "environment variable containing the OpenCode provider key")
 	mcpTokenEnv := flags.String("mcp-token-env", "OPENKNOWLEDGE_MCP_TOKEN", "environment variable containing the MCP bearer token")
 	imagePrefix := flags.String("image-prefix", "ghcr.io/openknowledge-sh/openknowledge-runtime", "runtime image prefix")
@@ -207,7 +206,7 @@ func runDeployRailway(args []string) int {
 		Name: *name, Project: *project, Workspace: *workspace, Branch: *branch, Repository: *repository,
 		WithoutWorker: *withoutWorker, MCPAccess: *mcpAccess, Domain: *domain,
 		NoPublicEndpoint: *noPublicEndpoint, GitHubTokenEnv: *githubTokenEnv,
-		Runtimes: *runtimes, CodexKeyEnv: *codexKeyEnv, ClaudeKeyEnv: *claudeKeyEnv, GrokKeyEnv: *grokKeyEnv, OpenCodeKeyEnv: *opencodeKeyEnv, MCPTokenEnv: *mcpTokenEnv,
+		Runtimes: *runtimes, CodexKeyEnv: *codexKeyEnv, ClaudeKeyEnv: *claudeKeyEnv, OpenCodeKeyEnv: *opencodeKeyEnv, MCPTokenEnv: *mcpTokenEnv,
 		ImagePrefix: *imagePrefix, ImageTag: *imageTag, StatePath: *statePath, DryRun: *dryRun,
 	}
 	plan, err := buildRailwayDeployPlan(options, knowledgePath)
@@ -239,12 +238,12 @@ func runDeployRailway(args []string) int {
 }
 
 type railwayDeployOptions struct {
-	Name, Project, Workspace, Branch, Repository                                       string
-	MCPAccess, Domain                                                                  string
-	Runtimes                                                                           string
-	GitHubTokenEnv, CodexKeyEnv, ClaudeKeyEnv, GrokKeyEnv, OpenCodeKeyEnv, MCPTokenEnv string
-	ImagePrefix, ImageTag, StatePath                                                   string
-	WithoutWorker, NoPublicEndpoint, DryRun                                            bool
+	Name, Project, Workspace, Branch, Repository                           string
+	MCPAccess, Domain                                                      string
+	Runtimes                                                               string
+	GitHubTokenEnv, CodexKeyEnv, ClaudeKeyEnv, OpenCodeKeyEnv, MCPTokenEnv string
+	ImagePrefix, ImageTag, StatePath                                       string
+	WithoutWorker, NoPublicEndpoint, DryRun                                bool
 }
 
 func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string) (deployPlan, error) {
@@ -257,7 +256,7 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	if !validDeployBranch(options.Branch) {
 		return deployPlan{}, fmt.Errorf("--production-branch is invalid")
 	}
-	for flagName, name := range map[string]string{"--github-token-env": options.GitHubTokenEnv, "--codex-key-env": options.CodexKeyEnv, "--claude-key-env": options.ClaudeKeyEnv, "--grok-key-env": options.GrokKeyEnv, "--opencode-key-env": options.OpenCodeKeyEnv, "--mcp-token-env": options.MCPTokenEnv} {
+	for flagName, name := range map[string]string{"--github-token-env": options.GitHubTokenEnv, "--codex-key-env": options.CodexKeyEnv, "--claude-key-env": options.ClaudeKeyEnv, "--opencode-key-env": options.OpenCodeKeyEnv, "--mcp-token-env": options.MCPTokenEnv} {
 		if !validDeployEnvironmentName(name) {
 			return deployPlan{}, fmt.Errorf("%s must be an uppercase environment variable name", flagName)
 		}
@@ -458,8 +457,6 @@ func deployRuntimeCredentialEnvironment(runtimeName string) string {
 	switch runtimeName {
 	case agents.RuntimeClaude:
 		return "ANTHROPIC_API_KEY"
-	case agents.RuntimeGrok:
-		return "XAI_API_KEY"
 	case agents.RuntimeOpenCode:
 		return "OPENCODE_API_KEY"
 	default:
@@ -471,8 +468,6 @@ func deployRuntimeCredentialSource(options railwayDeployOptions, runtimeName str
 	switch runtimeName {
 	case agents.RuntimeClaude:
 		return options.ClaudeKeyEnv
-	case agents.RuntimeGrok:
-		return options.GrokKeyEnv
 	case agents.RuntimeOpenCode:
 		return options.OpenCodeKeyEnv
 	default:
@@ -1132,7 +1127,6 @@ Options:
   --github-token-env NAME      GitHub token environment (default: GITHUB_TOKEN).
   --codex-key-env NAME         Codex key environment (default: CODEX_API_KEY).
   --claude-key-env NAME        Claude key environment (default: ANTHROPIC_API_KEY).
-  --grok-key-env NAME          Grok key environment (default: XAI_API_KEY).
   --opencode-key-env NAME      OpenCode provider key environment (default: OPENCODE_API_KEY).
   --mcp-token-env NAME         MCP token environment when --mcp token.
   --image-prefix IMAGE         Runtime image prefix.

@@ -20,6 +20,12 @@ type insightRunOptions struct {
 	model   string
 }
 
+type insightCreateOptions struct {
+	summary  string
+	targets  []string
+	evidence []string
+}
+
 func runInsights(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, insightsHelpText())
@@ -27,11 +33,15 @@ func runInsights(args []string) int {
 	}
 	if len(args) > 0 {
 		switch args[0] {
+		case "create":
+			return runInsightsCreate(args[1:])
+		case "list":
+			return listInsights(args[1:])
 		case "run":
 			return runInsightsExecution(args[1:])
 		case "dismiss":
 			if len(args) != 2 {
-				fmt.Fprintln(os.Stderr, "agent insights dismiss requires one insight")
+				fmt.Fprintln(os.Stderr, "insights dismiss requires one insight")
 				return 2
 			}
 			item, err := resolveInsight(args[1])
@@ -59,7 +69,7 @@ func listInsights(args []string) int {
 	if len(args) == 1 {
 		path = args[0]
 	} else if len(args) > 1 {
-		fmt.Fprintln(os.Stderr, "agent insights accepts one knowledge base path")
+		fmt.Fprintln(os.Stderr, "insights list accepts one knowledge base path")
 		return 2
 	}
 	if path == "" {
@@ -87,6 +97,70 @@ func listInsights(args []string) int {
 		fmt.Fprintf(os.Stdout, "%s\t%s\t%s\n", item.CreatedAt.Format(time.RFC3339), rel, item.Title)
 	}
 	return 0
+}
+
+func runInsightsCreate(args []string) int {
+	options, err := parseInsightCreateOptions(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	path, created, err := insights.Create(".", insights.CreateOptions{
+		Summary: options.summary, Evidence: options.evidence, Targets: options.targets,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	display := path
+	if repo, _, err := integration.FindRepository("."); err == nil {
+		if relative, relErr := filepath.Rel(repo, path); relErr == nil {
+			display = relative
+		}
+	} else if relative, err := filepath.Rel(".", path); err == nil {
+		display = relative
+	}
+	if created {
+		fmt.Fprintf(os.Stdout, "Created insight %s.\n", display)
+	} else {
+		fmt.Fprintf(os.Stdout, "Insight already exists at %s.\n", display)
+	}
+	return 0
+}
+
+func parseInsightCreateOptions(args []string) (insightCreateOptions, error) {
+	options := insightCreateOptions{}
+	positionals := make([]string, 0, 1)
+	for index := 0; index < len(args); index++ {
+		argument := args[index]
+		switch {
+		case argument == "--target" || argument == "--evidence":
+			value, next, err := nextFlagValue(args, index, argument)
+			if err != nil {
+				return options, err
+			}
+			switch argument {
+			case "--target":
+				options.targets = append(options.targets, value)
+			case "--evidence":
+				options.evidence = append(options.evidence, value)
+			}
+			index = next
+		case strings.HasPrefix(argument, "--target="):
+			options.targets = append(options.targets, strings.TrimPrefix(argument, "--target="))
+		case strings.HasPrefix(argument, "--evidence="):
+			options.evidence = append(options.evidence, strings.TrimPrefix(argument, "--evidence="))
+		case strings.HasPrefix(argument, "-"):
+			return options, fmt.Errorf("unknown insights create option: %s", argument)
+		default:
+			positionals = append(positionals, argument)
+		}
+	}
+	options.summary = strings.TrimSpace(strings.Join(positionals, " "))
+	if options.summary == "" {
+		return options, fmt.Errorf("insights create requires a summary")
+	}
+	return options, nil
 }
 
 func runInsightsExecution(args []string) int {
@@ -241,18 +315,18 @@ func parseInsightRunOptions(args []string) (insightRunOptions, error) {
 		case strings.HasPrefix(argument, "--model="):
 			options.model = strings.TrimPrefix(argument, "--model=")
 		case strings.HasPrefix(argument, "-"):
-			return options, fmt.Errorf("unknown agent insights run option: %s", argument)
+			return options, fmt.Errorf("unknown insights run option: %s", argument)
 		case options.target == "":
 			options.target = argument
 		default:
-			return options, fmt.Errorf("agent insights run accepts one insight or --all")
+			return options, fmt.Errorf("insights run accepts one insight or --all")
 		}
 	}
 	if options.all && options.target != "" {
-		return options, fmt.Errorf("agent insights run cannot combine an insight with --all")
+		return options, fmt.Errorf("insights run cannot combine an insight with --all")
 	}
 	if !options.all && options.target == "" {
-		return options, fmt.Errorf("agent insights run requires one insight or --all")
+		return options, fmt.Errorf("insights run requires one insight or --all")
 	}
 	if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
 		return options, err
@@ -362,7 +436,7 @@ func insightExecutionPrompt(wiki string, selected []insights.Insight) string {
 
 func runInsightsVerify(args []string) int {
 	if len(args) > 1 {
-		fmt.Fprintln(os.Stderr, "agent insights verify accepts at most one repository path")
+		fmt.Fprintln(os.Stderr, "insights verify accepts at most one repository path")
 		return 2
 	}
 	path := "."
@@ -407,22 +481,26 @@ func runInsightObservation(args []string) int {
 }
 
 func insightsHelpText() string {
-	return `openknowledge agent insights
+	return `openknowledge insights
 
-Review or execute project-scoped Open Knowledge insights locally.
+Capture, review, or execute project-scoped Open Knowledge insights locally.
 
 Usage:
-  openknowledge agent insights
-  openknowledge agent insights [wiki]
-  openknowledge agent insights run <insight>
-  openknowledge agent insights run --all
-  openknowledge agent insights run <insight> --runtime <runtime> [--model <model>]
-  openknowledge agent insights run <insight> --isolate
-  openknowledge agent insights dismiss <insight>
+  openknowledge insights
+  openknowledge insights list [wiki]
+  openknowledge insights create "<insight>"
+  openknowledge insights create "<insight>" --target <path> [--evidence <text>]
+  openknowledge insights run <insight>
+  openknowledge insights run --all
+  openknowledge insights run <insight> --runtime <runtime> [--model <model>]
+  openknowledge insights run <insight> --isolate
+  openknowledge insights dismiss <insight>
 
-With no path, list discovers the connected knowledge base and prints pending
-insights oldest first. Run asks a local agent to research and implement one or
-all insights, validates the knowledge base, and leaves an uncommitted Git diff.
+With no subcommand, list discovers the connected knowledge base and prints
+pending insights oldest first. Create records a private evidence-only insight
+in that project; --target and --evidence may be repeated. Run asks a local agent
+to research and implement one or all insights, validates the knowledge base,
+and leaves an uncommitted Git diff.
 The default edits the current checkout; --isolate retains a local branch and
 worktree. Failed agent execution, out-of-bound edits, or validation leave the
 insight pending. Insight files contain evidence and likely targets, never an

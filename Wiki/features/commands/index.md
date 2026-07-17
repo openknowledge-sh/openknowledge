@@ -12,11 +12,11 @@ anchors. Keep this index as the quick map.
 
 * [Validate](validate.md) - validate a bundle against OKF with configurable rule severities and optional JSON reports.
 * [Prompt](prompt.md) - advanced portable setup, source, rules, and review prompts.
-* [Agent](agent.md) - experimental steered Codex, Claude Code, Grok, or OpenCode
-  sessions, project integration, insight execution, and opt-in worktree isolation.
+* [Agent](agent.md) - experimental steered Codex, Claude Code, or OpenCode
+  sessions, project integration, and opt-in worktree isolation.
 * [Agent integrate](integrate.md) - install global discovery skills or project-scoped
   skills and observation hooks.
-* [Agent insights](insights.md) - capture, review, and execute private
+* [Insights](insights.md) - capture, review, and execute private
   evidence-backed knowledge observations locally or through Jobs.
 * [Jobs](jobs.md) - experimental declarative scheduling, isolated execution,
   observation, and control.

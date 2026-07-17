@@ -16,7 +16,7 @@ loops over that same object, not separate knowledge models.
 
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
-| Create and maintain | `setup`, `agent`, `jobs`; advanced `scaffold` and `prompt` | Onboard a wiki, maintain it interactively, capture and execute insights, and schedule repeatable work. |
+| Create and maintain | `setup`, `agent`, `insights`, `jobs`; advanced `scaffold` and `prompt` | Onboard a wiki, maintain it interactively, capture and execute insights, and schedule repeatable work. |
 | Use and publish | `get`, `search`, `list`, `view`, `mcp`, `export` | Read exact knowledge, retrieve context, browse, integrate clients, and publish portable views. |
 | Run as a service | `runtime`, `deploy` | Build immutable generations, serve public knowledge, and reconcile private maintenance. |
 | Validate and connect | `validate`, `connect`, `disconnect`, `registry` | Check OKF independently and resolve local or remote bundles. |

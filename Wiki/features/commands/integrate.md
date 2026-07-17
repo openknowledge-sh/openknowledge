@@ -79,9 +79,9 @@ contents, a unified diff, or a base commit into the insight.
 ### 2026-07-17 - Insight integration
 
 Project integration now writes the `insights` path and installs
-`agent insights observe` hooks. Re-running integration migrates the unreleased
-`agent suggestions observe` hook command in existing Codex and Claude hook
-arrays without replacing unrelated handlers.
+`insights observe` hooks without changing unrelated handlers. The project skill
+directs agents to capture deliberate gaps through
+`openknowledge insights create` instead of handcrafting Markdown files.
 
 ### 2026-07-17 - Project integrations
 

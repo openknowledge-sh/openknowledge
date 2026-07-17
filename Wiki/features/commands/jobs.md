@@ -64,7 +64,7 @@ The default jobs directory is `.openknowledge/jobs`.
 ## Kickstart: First Local Runtime
 
 There is no separate Open Knowledge agent server to configure. The selected
-`agent.runtime` adapter prepares the canonical Codex, Claude Code, Grok, or OpenCode
+`agent.runtime` adapter prepares the canonical Codex, Claude Code, or OpenCode
 invocation; Open Knowledge prepares the worktree and steered prompt, starts the
 harness, records its output, and optionally runs verification commands.
 `jobs new` is a convenient scaffold, not a
@@ -173,10 +173,9 @@ openknowledge jobs daemon .openknowledge/jobs --once
 openknowledge jobs daemon .openknowledge/jobs --tick 1m
 ```
 
-For another harness, set `agent.runtime: claude`, `grok`, or `opencode`.
+For another harness, set `agent.runtime: claude` or `opencode`.
 Open Knowledge owns the non-interactive arguments. `agent.model` selects a
-harness-specific model; Grok Build accepts xAI model IDs directly, while
-OpenCode uses `provider/model`.
+harness-specific model; OpenCode uses `provider/model`.
 Host jobs can access the repository and explicitly exposed `sandbox.env`
 capabilities, so only run trusted jobs and verification commands.
 
@@ -201,7 +200,7 @@ The `insights` template is deliberately not a new runtime role. It uses the
 same Job schema and runner as every other template. Its prompt owns oldest-first
 batching and fresh evidence checks; `insights verify` enforces
 the Wiki/target boundary before normal OKF validation. See
-[`openknowledge agent insights`](insights.md).
+[`openknowledge insights`](insights.md).
 
 Use `openknowledge jobs new --reference` to print the supported job schema,
 template variables, run lifecycle, and output artifact layout without creating
@@ -268,7 +267,7 @@ Supported top-level fields:
 | `schedule.cron` | Five-field cron subset with `*`, comma-separated numbers, weekday names, or `@hourly`, `@daily`, `@weekly`. |
 | `schedule.every` | Go duration interval such as `1h` or `24h`. |
 | `schedule.timezone` | IANA time zone for schedule evaluation. |
-| `agent.runtime` | Required harness: `codex`, `claude`, `grok`, or `opencode`. Unknown runtimes fail closed. |
+| `agent.runtime` | Required harness: `codex`, `claude`, or `opencode`. Unknown runtimes fail closed. |
 | `agent.model` | Optional harness-specific model override. |
 | `agent.timeout` | Agent command timeout. Defaults to `30m`. |
 | `agent.completion_signal` | Optional string that must appear in agent stdout or stderr. |
@@ -433,9 +432,8 @@ same command-specific split. Environment values are never serialized into
 and case-insensitive duplicates are rejected.
 
 Recognized credentials are `CODEX_API_KEY`; `ANTHROPIC_API_KEY` or
-`CLAUDE_CODE_OAUTH_TOKEN`; `XAI_API_KEY` for Grok; and the OpenCode candidates
-`OPENCODE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY`.
-The shipped Grok worker uses `XAI_API_KEY`. The OpenCode worker exposes its
+`CLAUDE_CODE_OAUTH_TOKEN`; and the OpenCode candidates `OPENCODE_API_KEY`,
+`OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`. The OpenCode worker exposes its
 separate provider secret as `OPENCODE_API_KEY`; repository OpenCode
 configuration decides which provider consumes it.
 
@@ -461,7 +459,7 @@ run-record inspection, or execution failures. A failing `--once` pass returns
 status `1` only after every loadable due job has been attempted. Without
 `--once`, the daemon reports the pass failures and continues polling using
 `--tick`, defaulting to `1m`; one bad job cannot stop unrelated schedules.
-`--runtime codex|claude|grok|opencode` restricts a daemon to one harness and is used
+`--runtime codex|claude|opencode` restricts a daemon to one harness and is used
 by isolated cloud worker services.
 
 The agent command defaults to a `30m` timeout unless `agent.timeout` is set.
@@ -493,14 +491,14 @@ available tree-termination facility. `kill` is intentionally forceful.
 
 ### 2026-07-17 - Insight maintenance template
 
-Replaced the unreleased patch-applying `suggestions` template with `insights`.
-The new template researches evidence-only observations, marks successful items
-resolved, and reuses normal isolated verification, commit, and draft-PR output.
+Added the `insights` maintenance template. It researches evidence-only
+observations, marks successful items resolved, and reuses normal isolated
+verification, commit, and draft-PR output.
 
 ### 2026-07-17 - Harness runtime schema
 
 Replaced arbitrary `agent.command` and `agent.args` with the closed
-`agent.runtime` (`codex`, `claude`, `grok`, or `opencode`) and optional `agent.model`
+`agent.runtime` (`codex`, `claude`, or `opencode`) and optional `agent.model`
 contract. Every job receives `openknowledge-agent/v1` steering. Added
 runtime-filtered daemons, canonical non-interactive adapter arguments, and
 agent-command-only credential forwarding. No compatibility parsing is kept.

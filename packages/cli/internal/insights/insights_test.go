@@ -73,6 +73,69 @@ func TestObserveWritesPrivateInsightWithoutPatchOrBaseAndIgnoresRecursion(t *tes
 	}
 }
 
+func TestCreateWritesPrivateEvidenceOnlyInsightAndDeduplicates(t *testing.T) {
+	repo, wiki := setupRepository(t)
+	now := time.Date(2026, 7, 17, 16, 5, 0, 0, time.UTC)
+	options := CreateOptions{
+		Summary:  "Document deployment rollback. token=very-secret-token",
+		Evidence: []string{"The deploy script exposes a rollback command.", "api_key=another-secret"},
+		Targets:  []string{"operations/deploy.md", "guide.md", "guide.md"},
+		Now:      now,
+	}
+	subdirectory := filepath.Join(repo, "packages")
+	if err := os.Mkdir(subdirectory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path, created, err := Create(subdirectory, options)
+	if err != nil || !created {
+		t.Fatalf("create: path=%q created=%v err=%v", path, created, err)
+	}
+	again, created, err := Create(repo, options)
+	if err != nil || created || again != path {
+		t.Fatalf("duplicate: path=%q created=%v err=%v", again, created, err)
+	}
+	item, err := Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Status != "pending" || item.Runtime != "cli" || item.Kind != "explicit" ||
+		strings.Join(item.Targets, ",") != "guide.md,operations/deploy.md" {
+		t.Fatalf("item = %#v", item)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	if strings.Contains(text, "very-secret-token") || strings.Contains(text, "another-secret") || !strings.Contains(text, "[redacted]") {
+		t.Fatalf("secret sanitization failed:\n%s", text)
+	}
+	result, err := okf.Validate(wiki)
+	if err != nil || len(result.Errors) != 0 {
+		t.Fatalf("validation: %#v %v", result.Errors, err)
+	}
+}
+
+func TestCreateRejectsUnsafeTargetsAndSymlinkedInbox(t *testing.T) {
+	repo, wiki := setupRepository(t)
+	for _, target := range []string{"../README.md", filepath.Join(repo, "README.md"), ""} {
+		if _, _, err := Create(repo, CreateOptions{Summary: "Unsafe", Targets: []string{target}}); err == nil || !strings.Contains(err.Error(), "knowledge-base-relative") {
+			t.Fatalf("unsafe target %q was accepted: %v", target, err)
+		}
+	}
+	inbox := filepath.Join(wiki, "insights")
+	if err := os.RemoveAll(inbox); err != nil {
+		t.Fatal(err)
+	}
+	external := t.TempDir()
+	if err := os.Symlink(external, inbox); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Create(repo, CreateOptions{Summary: "Must stay inside the wiki"}); err == nil || !strings.Contains(err.Error(), "real directory") {
+		t.Fatalf("symlinked inbox was accepted: %v", err)
+	}
+}
+
 func TestObserveAnalyzesTranscriptWithoutPersistingRawSession(t *testing.T) {
 	repo, _ := setupRepository(t)
 	home := t.TempDir()

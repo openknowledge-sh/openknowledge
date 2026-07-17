@@ -9,7 +9,6 @@ import (
 const (
 	RuntimeCodex    = "codex"
 	RuntimeClaude   = "claude"
-	RuntimeGrok     = "grok"
 	RuntimeOpenCode = "opencode"
 
 	PromptArgument = "argument"
@@ -38,17 +37,11 @@ var harnessDefinitions = map[string]HarnessDefinition{
 		ExecutableEnv: "OPENKNOWLEDGE_CLAUDE",
 		Credentials:   []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"},
 	},
-	RuntimeGrok: {
-		Runtime:       RuntimeGrok,
-		Executable:    "grok",
-		ExecutableEnv: "OPENKNOWLEDGE_GROK",
-		Credentials:   []string{"XAI_API_KEY"},
-	},
 	RuntimeOpenCode: {
 		Runtime:       RuntimeOpenCode,
 		Executable:    "opencode",
 		ExecutableEnv: "OPENKNOWLEDGE_OPENCODE",
-		Credentials:   []string{"OPENCODE_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY"},
+		Credentials:   []string{"OPENCODE_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"},
 	},
 }
 
@@ -112,16 +105,6 @@ func BuildHarnessCommand(spec AgentSpec, interactive bool) (Command, error) {
 		}
 		if spec.Model != "" {
 			command.Args = append(command.Args, "--model", spec.Model)
-		}
-	case RuntimeGrok:
-		if !interactive {
-			command.Args = append(command.Args, "--no-auto-update", "--always-approve")
-		}
-		if spec.Model != "" {
-			command.Args = append(command.Args, "--model", spec.Model)
-		}
-		if !interactive {
-			command.Args = append(command.Args, "--single")
 		}
 	}
 	return command, nil

@@ -32,12 +32,12 @@ custom theme.
 
 * [setup](features/commands/setup.md) - run managed agent onboarding,
   validation, and project integration.
-* [agent](features/commands/agent.md) - run steered Codex, Claude Code, Grok, or
+* [agent](features/commands/agent.md) - run steered Codex, Claude Code, or
   OpenCode sessions directly in a local filesystem, with optional worktree
   isolation.
 * [agent integrate](features/commands/integrate.md) - install discovery-only global
   skills or repository-scoped skills and observation hooks.
-* [agent insights](features/commands/insights.md) - capture, review, dismiss, and
+* [insights](features/commands/insights.md) - capture, review, dismiss, and
   execute private evidence-backed knowledge observations.
 * [jobs](features/commands/jobs.md) - validate, schedule, run, observe, and
   control declarative jobs in isolated worktrees.

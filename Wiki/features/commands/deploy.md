@@ -33,7 +33,7 @@ openknowledge deploy railway Wiki --no-public-endpoint --yes
 openknowledge deploy railway Wiki --without-worker --yes
 
 # Override inference and deploy only Claude Code and OpenCode workers.
-openknowledge deploy railway Wiki --runtimes claude,grok,opencode --yes
+openknowledge deploy railway Wiki --runtimes claude,opencode --yes
 ```
 
 Provider changes require `--yes`. `--dry-run` performs local OKF and publication
@@ -54,17 +54,16 @@ credential values.
 | `--production-branch` | `main` | Branch fetched and published by the private publisher. |
 | `--repository` | Git `origin` | GitHub repository URL used by the publisher. |
 | `--without-worker` | false | Omit all scheduled-agent services. |
-| `--runtimes` | inferred from enabled jobs | Comma-separated `codex`, `claude`, `grok`, and/or `opencode` workers. No enabled jobs means no worker unless this flag is explicit. |
+| `--runtimes` | inferred from enabled jobs | Comma-separated `codex`, `claude`, and/or `opencode` workers. No enabled jobs means no worker unless this flag is explicit. |
 | `--mcp` | `public` | `public`, `token`, or `off`. Search and viewer remain available. |
 | `--domain` | unset | Attach a custom hostname already owned by the user. |
 | `--no-public-endpoint` | false | Do not create public ingress. Mutually exclusive with `--domain`. |
 | `--github-token-env` | `GITHUB_TOKEN` | GitHub token source; authenticated `gh` is the fallback. |
 | `--codex-key-env` | `CODEX_API_KEY` | Local source environment for the Codex worker credential. |
 | `--claude-key-env` | `ANTHROPIC_API_KEY` | Local source environment for the Claude Code worker credential. |
-| `--grok-key-env` | `XAI_API_KEY` | Local source environment for the official Grok worker credential. |
 | `--opencode-key-env` | `OPENCODE_API_KEY` | Local source environment for the OpenCode provider credential; repository OpenCode config binds it to a provider. |
 | `--mcp-token-env` | `OPENKNOWLEDGE_MCP_TOKEN` | Required with `--mcp token`. |
-| `--image-prefix` | official GHCR prefix | Override the six runtime image repositories. |
+| `--image-prefix` | official GHCR prefix | Override the five runtime image repositories. |
 | `--image-tag` | `latest` | Runtime image tag. Pin a release in controlled production. |
 | `--state` | `.openknowledge/deployments/railway.json` | Secret-free idempotency state. |
 | `--dry-run` | false | Validate and print a plan without provider mutation. |
@@ -82,7 +81,6 @@ flowchart LR
   Serve -->|"artifact capability<br/>private HTTP"| Publisher["publisher<br/>GitHub + artifact source of truth"]
   Codex["worker-codex<br/>Codex CLI"] -->|"exchange capability<br/>private HTTP"| Publisher
   Claude["worker-claude<br/>Claude Code"] -->|"exchange capability<br/>private HTTP"| Publisher
-  Grok["worker-grok<br/>Grok Build"] -->|"exchange capability<br/>private HTTP"| Publisher
   OpenCode["worker-opencode<br/>OpenCode + configured provider"] -->|"exchange capability<br/>private HTTP"| Publisher
   Publisher --> GitHub["production branch + draft PRs"]
 ```
@@ -154,7 +152,7 @@ without an additional state service.
 
 Railway now infers harnesses from enabled jobs or accepts `--runtimes`, creates
 one isolated service and volume per harness, and scopes Codex, Claude Code,
-Grok, and OpenCode provider keys to their corresponding worker only.
+and OpenCode provider keys to their corresponding worker only.
 
 ### 2026-07-17 - Railway five-minute deployment
 

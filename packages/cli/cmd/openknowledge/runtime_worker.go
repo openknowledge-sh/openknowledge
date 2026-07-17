@@ -54,7 +54,7 @@ func runRuntimeWorker(args []string) int {
 	configPath := flags.String("config", okruntime.DefaultConfigFile, "runtime TOML configuration")
 	once := flags.Bool("once", false, "run one reconciliation pass and exit")
 	role := flags.String("role", "publisher", "worker role: publisher, jobs, or all")
-	agentRuntime := flags.String("runtime", "", "jobs harness runtime: codex, claude, grok, or opencode")
+	agentRuntime := flags.String("runtime", "", "jobs harness runtime: codex, claude, or opencode")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}

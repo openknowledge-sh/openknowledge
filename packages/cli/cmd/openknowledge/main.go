@@ -192,7 +192,8 @@ func cliErrorCommand(args []string) string {
 	}
 	root := args[0]
 	nested := map[string]map[string]bool{
-		"agent":    {"exec": true, "integrate": true, "insights": true},
+		"agent":    {"exec": true, "integrate": true},
+		"insights": {"create": true, "list": true, "run": true, "dismiss": true, "verify": true, "observe": true},
 		"jobs":     {"new": true, "list": true, "status": true, "runs": true, "start": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
 		"deploy":   {"railway": true},
 		"runtime":  {"plan": true, "build": true, "serve": true, "worker": true},
@@ -204,7 +205,7 @@ func cliErrorCommand(args []string) string {
 		return root + " " + args[1]
 	}
 	knownRoots := map[string]bool{
-		"setup": true, "prompt": true, "agent": true, "jobs": true,
+		"setup": true, "prompt": true, "agent": true, "insights": true, "jobs": true,
 		"scaffold": true, "connect": true, "disconnect": true, "get": true, "search": true,
 		"mcp": true, "ast": true, "registry": true, "view": true, "export": true,
 		"runtime": true, "deploy": true, "spec": true, "validate": true, "list": true, "version": true,
@@ -231,6 +232,8 @@ func dispatchCLI(args []string) int {
 		return runPrompt(args[1:])
 	case "agent":
 		return runAgent(args[1:])
+	case "insights":
+		return runInsights(args[1:])
 	case "jobs":
 		return runJobs(args[1:])
 	case "runtime":
@@ -4766,6 +4769,7 @@ Usage:
 Create and maintain:
   setup        Create, validate, and integrate a knowledge base with an agent.
   agent        Run, integrate, and review knowledge with an agent.
+  insights     Capture and resolve knowledge-maintenance insights.
   jobs         Run repeatable isolated maintenance jobs from Markdown specs.
 
 Use and publish:
@@ -4801,7 +4805,7 @@ Start with a workflow above, then run openknowledge <command> --help.
 
 Common flows:
   openknowledge setup Wiki --from .
-  openknowledge agent insights
+  openknowledge insights create "Document the deployment rollback workflow"
   openknowledge validate Wiki
   openknowledge search Wiki "deployment model"
   openknowledge view Wiki

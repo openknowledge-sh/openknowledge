@@ -53,11 +53,6 @@ func runAgent(args []string) int {
 		switch args[0] {
 		case "integrate":
 			return runIntegrate(args[1:])
-		case "insights":
-			return runInsights(args[1:])
-		case "suggestions":
-			fmt.Fprintln(os.Stderr, "agent suggestions was removed; use openknowledge agent insights")
-			return 2
 		}
 	}
 	if hasHelpFlag(args) {
@@ -303,19 +298,15 @@ func runAgentDoctor(options agentCLIOptions) int {
 func agentHelpText() string {
 	return `openknowledge agent
 
-Start a steered Open Knowledge agent using Codex, Claude Code, Grok, or OpenCode.
+Start a steered Open Knowledge agent using Codex, Claude Code, or OpenCode.
 Local sessions edit the selected filesystem directly unless --isolate is set.
 
 Usage:
   openknowledge agent ["<initial prompt>"]
-  openknowledge agent --runtime <codex|claude|grok|opencode>
+  openknowledge agent --runtime <codex|claude|opencode>
   openknowledge agent exec "<prompt>"
   openknowledge agent integrate <wiki>
   openknowledge agent integrate --global
-  openknowledge agent insights [wiki]
-  openknowledge agent insights run <insight>
-  openknowledge agent insights run --all [--isolate]
-  openknowledge agent insights dismiss <insight>
   openknowledge agent doctor [--runtime <runtime>] [--json]
 
 Flags:
@@ -326,11 +317,10 @@ Flags:
   --no-steer   Pass only the user or generated workflow prompt.
 
 Executable overrides:
-  OPENKNOWLEDGE_CODEX, OPENKNOWLEDGE_CLAUDE, OPENKNOWLEDGE_GROK,
-  OPENKNOWLEDGE_OPENCODE
+  OPENKNOWLEDGE_CODEX, OPENKNOWLEDGE_CLAUDE, OPENKNOWLEDGE_OPENCODE
 
-Integration installs native harness discovery and project observation. The
-insights command reviews and executes the private knowledge-maintenance inbox.
+Integration installs native harness discovery and project observation. Use
+openknowledge insights to capture and resolve knowledge-maintenance insights.
 
 Run openknowledge agent exec --help for non-interactive usage.
 `
@@ -345,11 +335,11 @@ filesystem directly unless --isolate is set.
 Usage:
   openknowledge agent exec "<prompt>"
   openknowledge agent exec --runtime claude "<prompt>"
-  openknowledge agent exec --runtime opencode --model xai/<model> "<prompt>"
+  openknowledge agent exec --runtime opencode --model <provider/model> "<prompt>"
   openknowledge agent exec --isolate "<prompt>"
 
 Flags:
-  --runtime    codex, claude, grok, or opencode. Defaults to codex.
+  --runtime    codex, claude, or opencode. Defaults to codex.
   --path       Directory the agent should edit. Defaults to the current directory.
   --model      Harness-specific model override.
   --isolate    Create and retain a dedicated Git branch and worktree at HEAD.
