@@ -19,7 +19,10 @@ page records release-level changes.
   directory below the Railway volume mount, avoiding an unsupported `chmod` of
   the provider-owned mount root while keeping artifacts and exchange data
   persistent.
-- Source: `packages/cli/cmd/openknowledge/deploy_command.go`.
+- Avoided redundant permission changes when the runtime state directory is
+  already private, while still tightening a permissive existing directory.
+- Source: `packages/cli/cmd/openknowledge/deploy_command.go`,
+  `packages/cli/cmd/openknowledge/runtime_worker.go`.
 
 ### 2026-07-18 — Short CLI alias
 

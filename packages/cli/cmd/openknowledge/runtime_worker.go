@@ -91,10 +91,7 @@ func runRuntimeWorker(args []string) int {
 		}
 		*agentRuntime = config.Worker.Runtimes[0]
 	}
-	if err := os.MkdirAll(config.Runtime.StateDir, 0700); err != nil {
-		return printAgentCommandError(err)
-	}
-	if err := os.Chmod(config.Runtime.StateDir, 0700); err != nil {
+	if err := ensureRuntimeStateDirectory(config.Runtime.StateDir); err != nil {
 		return printAgentCommandError(err)
 	}
 	lockName := "worker-" + *role
@@ -154,6 +151,27 @@ func runRuntimeWorker(args []string) int {
 		case <-timer.C:
 		}
 	}
+}
+
+func ensureRuntimeStateDirectory(path string) error {
+	return ensureRuntimeStateDirectoryWith(path, os.Chmod)
+}
+
+func ensureRuntimeStateDirectoryWith(path string, chmod func(string, os.FileMode) error) error {
+	if err := os.MkdirAll(path, 0700); err != nil {
+		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("runtime state path is not a directory: %s", path)
+	}
+	if info.Mode().Perm() == 0700 {
+		return nil
+	}
+	return chmod(path, 0700)
 }
 
 func runtimeWorkerPass(ctx context.Context, config okruntime.Config) error {

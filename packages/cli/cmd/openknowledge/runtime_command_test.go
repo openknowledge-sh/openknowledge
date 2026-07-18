@@ -27,6 +27,41 @@ func (transport runtimeHandlerRoundTripper) RoundTrip(request *http.Request) (*h
 	return response.Result(), nil
 }
 
+func TestEnsureRuntimeStateDirectorySkipsRedundantChmod(t *testing.T) {
+	state := filepath.Join(t.TempDir(), "state")
+	if err := os.Mkdir(state, 0700); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	err := ensureRuntimeStateDirectoryWith(state, func(string, os.FileMode) error {
+		called = true
+		return fmt.Errorf("chmod should not be called")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("private runtime state directory was chmodded again")
+	}
+}
+
+func TestEnsureRuntimeStateDirectoryTightensExistingPermissions(t *testing.T) {
+	state := filepath.Join(t.TempDir(), "state")
+	if err := os.Mkdir(state, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureRuntimeStateDirectory(state); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0700 {
+		t.Fatalf("runtime state mode = %04o, want 0700", info.Mode().Perm())
+	}
+}
+
 func TestRuntimeBuildAndServeUseOnlyVerifiedPublicGeneration(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "Wiki/index.md", "# Runtime Knowledge\n\nSearchable public guidance.\n")
