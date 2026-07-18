@@ -539,6 +539,7 @@ func validateDeployProductionSnapshot(repoRoot string, relative string, branch s
 
 func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string {
 	publisher := plan.Project.Name + "-publisher"
+	volumeRoot := "/var/lib/openknowledge"
 	state := "/tmp/openknowledge"
 	artifactType := "filesystem"
 	artifactPath := "/tmp/openknowledge/artifacts"
@@ -551,9 +552,9 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 	runAgents := false
 	address := "127.0.0.1:8080"
 	if role == "publisher" {
-		state = "/var/lib/openknowledge"
-		artifactPath = state + "/artifacts"
-		exchangeDir = state + "/exchange"
+		state = volumeRoot + "/state"
+		artifactPath = volumeRoot + "/artifacts"
+		exchangeDir = volumeRoot + "/exchange"
 		repositoryURL = plan.Repository
 		githubEnabled = true
 		publisherAPI = true
@@ -563,8 +564,8 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 		artifactURL = "http://" + publisher + ".railway.internal:8090"
 		address = "0.0.0.0:8080"
 	} else if strings.HasPrefix(role, "worker-") {
-		state = "/var/lib/openknowledge"
-		exchangeDir = state + "/exchange"
+		state = volumeRoot + "/state"
+		exchangeDir = volumeRoot + "/exchange"
 		exchangeURL = "http://" + publisher + ".railway.internal:8090"
 		runAgents = true
 	}

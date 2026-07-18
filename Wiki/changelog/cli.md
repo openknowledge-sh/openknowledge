@@ -13,6 +13,14 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Railway non-root volume startup
+
+- Moved generated publisher and worker state into a process-owned child
+  directory below the Railway volume mount, avoiding an unsupported `chmod` of
+  the provider-owned mount root while keeping artifacts and exchange data
+  persistent.
+- Source: `packages/cli/cmd/openknowledge/deploy_command.go`.
+
 ### 2026-07-18 — Short CLI alias
 
 - Added `okn` as an installed alias for `openknowledge` in both the shell and
