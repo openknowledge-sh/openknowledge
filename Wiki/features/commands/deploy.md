@@ -85,10 +85,10 @@ Completed reruns reconcile variables and redeploy without recreating the
 topology. Narrowing a deployed topology or changing its image source requires
 explicit provider cleanup.
 
-Generated publisher and worker configuration keeps runtime state in a
-process-owned child directory below the Railway volume root. This preserves
-non-root isolation without attempting to change provider-owned mount
-permissions.
+Generated publisher configuration keeps replaceable checkout, build, and lock
+state on ephemeral storage. Published artifacts and exchange data remain on
+the persistent volume. Workers keep state in a process-owned child directory
+below their volume root. Neither role changes provider-owned mount permissions.
 
 Railway progress diagnostics are read separately from JSON command output, so
 interactive status text cannot hide resource IDs or break recovery state.

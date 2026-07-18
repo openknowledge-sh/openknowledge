@@ -552,7 +552,6 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 	runAgents := false
 	address := "127.0.0.1:8080"
 	if role == "publisher" {
-		state = volumeRoot + "/state"
 		artifactPath = volumeRoot + "/artifacts"
 		exchangeDir = volumeRoot + "/exchange"
 		repositoryURL = plan.Repository

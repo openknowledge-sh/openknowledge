@@ -123,13 +123,14 @@ func TestRailwayDeployPlanIsSecretFreeAndModelsProviderEndpoint(t *testing.T) {
 	if plan.Services[0].VolumePath == "" || plan.Services[2].VolumePath == "" || plan.Services[1].VolumePath != "" {
 		t.Fatalf("Railway volumes must be owned by private stateful roles: %#v", plan.Services)
 	}
-	for _, service := range []deployService{plan.Services[0], plan.Services[2]} {
-		if !strings.Contains(service.Config, `state_dir = "/var/lib/openknowledge/state"`) {
-			t.Fatalf("%s state must use a process-owned directory below the Railway mount: %s", service.Role, service.Config)
-		}
-		if strings.Contains(service.Config, `state_dir = "/var/lib/openknowledge"`) {
-			t.Fatalf("%s must not chmod the provider-owned Railway mount root: %s", service.Role, service.Config)
-		}
+	if !strings.Contains(plan.Services[0].Config, `state_dir = "/tmp/openknowledge"`) {
+		t.Fatalf("publisher checkout and build state must stay off the Railway volume: %s", plan.Services[0].Config)
+	}
+	if !strings.Contains(plan.Services[2].Config, `state_dir = "/var/lib/openknowledge/state"`) {
+		t.Fatalf("worker state must use a process-owned directory below the Railway mount: %s", plan.Services[2].Config)
+	}
+	if strings.Contains(plan.Services[2].Config, `state_dir = "/var/lib/openknowledge"`) {
+		t.Fatalf("worker must not chmod the provider-owned Railway mount root: %s", plan.Services[2].Config)
 	}
 	if !strings.Contains(plan.Services[0].Config, `path = "/var/lib/openknowledge/artifacts"`) ||
 		!strings.Contains(plan.Services[0].Config, `exchange_dir = "/var/lib/openknowledge/exchange"`) {

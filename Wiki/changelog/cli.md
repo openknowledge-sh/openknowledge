@@ -15,10 +15,9 @@ page records release-level changes.
 
 ### 2026-07-18 — Railway non-root volume startup
 
-- Moved generated publisher and worker state into a process-owned child
-  directory below the Railway volume mount, avoiding an unsupported `chmod` of
-  the provider-owned mount root while keeping artifacts and exchange data
-  persistent.
+- Kept publisher checkout, build, and lock state on ephemeral container storage;
+  published artifacts and exchange data remain on the persistent Railway
+  volume. Worker state uses a process-owned child directory below its mount.
 - Avoided redundant permission changes when the runtime state directory is
   already private, while still tightening a permissive existing directory.
 - Source: `packages/cli/cmd/openknowledge/deploy_command.go`,
