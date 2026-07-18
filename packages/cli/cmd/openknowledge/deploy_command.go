@@ -936,6 +936,7 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 			}
 		}
 		current := state.Services[service.Role]
+		sourceTriggeredDeploy := false
 		if !current.SourceConnected {
 			if _, err := provider.runner.Run(ctx, working, nil, "service", "source", "connect", "--repo", service.Source.Repository, "--branch", service.Source.Branch, "--service", current.ID, "--json"); err != nil {
 				return deployResult{}, fmt.Errorf("connect Railway source for %s: %w", service.Name, err)
@@ -945,9 +946,12 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 			if err := saveRailwayDeployState(plan.StateFile, state); err != nil {
 				return deployResult{}, err
 			}
+			sourceTriggeredDeploy = true
 		}
-		if _, err := provider.runner.Run(ctx, working, nil, "redeploy", "--service", service.Name, "--yes", "--json"); err != nil {
-			return deployResult{}, err
+		if !sourceTriggeredDeploy {
+			if _, err := provider.runner.Run(ctx, working, nil, "redeploy", "--service", service.Name, "--yes", "--json"); err != nil {
+				return deployResult{}, err
+			}
 		}
 		current = state.Services[service.Role]
 		current.Deployed = true

@@ -215,7 +215,7 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 	if _, err := provider.Apply(t.Context(), plan, secrets); err != nil {
 		t.Fatal(err)
 	}
-	addCount, volumeCount, sourceCount, domainCount := 0, 0, 0, 0
+	addCount, volumeCount, sourceCount, redeployCount, domainCount := 0, 0, 0, 0, 0
 	for _, call := range runner.Calls {
 		joined := strings.Join(call.Arguments, " ")
 		if strings.HasPrefix(joined, "add ") {
@@ -230,6 +230,9 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 				t.Fatalf("source connection omitted repository or branch: %s", joined)
 			}
 		}
+		if strings.HasPrefix(joined, "redeploy ") {
+			redeployCount++
+		}
 		if strings.HasPrefix(joined, "domain ") {
 			domainCount++
 		}
@@ -239,8 +242,8 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 			}
 		}
 	}
-	if addCount != 3 || volumeCount != 2 || sourceCount != 3 || domainCount != 1 {
-		t.Fatalf("provider duplicated resources: add=%d volume=%d source=%d domain=%d calls=%#v", addCount, volumeCount, sourceCount, domainCount, runner.Calls)
+	if addCount != 3 || volumeCount != 2 || sourceCount != 3 || redeployCount != 3 || domainCount != 1 {
+		t.Fatalf("provider duplicated resources: add=%d volume=%d source=%d redeploy=%d domain=%d calls=%#v", addCount, volumeCount, sourceCount, redeployCount, domainCount, runner.Calls)
 	}
 	state, err := os.ReadFile(statePath)
 	if err != nil {

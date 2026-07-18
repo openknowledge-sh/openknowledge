@@ -23,6 +23,8 @@ page records release-level changes.
   retaining separate roles, ingress, volumes, and credentials.
 - Migrated version 1 deployment state to repository sources in place and
   removed runtime-image publication from the release workflow.
+- Treated Railway source connection as the initial deployment trigger instead
+  of immediately issuing a conflicting redundant redeploy.
 - Source: `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`,
   `packages/cli/cmd/openknowledge/deploy_command.go`,
   `.github/workflows/release.yml`.
