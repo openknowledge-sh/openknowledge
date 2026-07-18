@@ -134,6 +134,10 @@ For each configured route the service exposes the static viewer,
 `/_openknowledge/healthz`; readiness for an active snapshot is at
 `/_openknowledge/readyz`.
 
+The service sends a restrictive Content Security Policy. Generated viewer code
+loads from same-origin export assets instead of executable inline scripts, so
+the default policy does not need `unsafe-inline` for JavaScript.
+
 ## Security boundary
 
 The publisher maintains the credentialed checkout and independently validates

@@ -719,13 +719,31 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 7 {
+	if len(result.Written) != 11 {
 		t.Fatalf("expected exported viewer files plus discovery files, bundle manifest, and archive, got %#v", result.Written)
 	}
 
-	index := readViewerExportFile(t, out, "index.html")
-	if !strings.Contains(index, `data-note-workspace`) || !strings.Contains(index, `data-static-notes`) {
-		t.Fatalf("expected exported index to include static viewer app bundle:\n%s", index)
+	indexHTML := readViewerExportFile(t, out, "index.html")
+	viewerRuntime := readViewerExportFile(t, out, viewerThemeScriptAsset) +
+		readViewerExportFile(t, out, viewerShortcutsScriptAsset) +
+		readViewerExportFile(t, out, viewerAppScriptAsset) +
+		readViewerExportFile(t, out, viewerSearchScriptAsset)
+	index := indexHTML + viewerRuntime
+	if !strings.Contains(indexHTML, `data-note-workspace`) || !strings.Contains(indexHTML, `data-static-notes`) {
+		t.Fatalf("expected exported index to include static viewer data:\n%s", indexHTML)
+	}
+	for _, src := range []string{
+		`assets/openknowledge/viewer-theme.js`,
+		`assets/openknowledge/viewer-shortcuts.js`,
+		`assets/openknowledge/viewer-app.js`,
+		`assets/openknowledge/viewer-search.js`,
+	} {
+		if !strings.Contains(indexHTML, `src="`+src+`"`) {
+			t.Fatalf("expected exported index to load same-origin script %s:\n%s", src, indexHTML)
+		}
+	}
+	if strings.Contains(indexHTML, `<script>`) {
+		t.Fatalf("generated viewer code must not require executable inline scripts:\n%s", indexHTML)
 	}
 	if !strings.Contains(index, `data-viewer-theme="night"`) ||
 		!strings.Contains(index, `const defaultPreset = "night";`) ||
@@ -784,6 +802,11 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if !strings.Contains(setup, `href="../index.html"`) {
 		t.Fatalf("expected nested exported page to keep relative static fallback link:\n%s", setup)
 	}
+	if !strings.Contains(setup, `src="../assets/openknowledge/viewer-theme.js"`) ||
+		!strings.Contains(setup, `src="../assets/openknowledge/viewer-app.js"`) ||
+		strings.Contains(setup, `<script>`) {
+		t.Fatalf("expected nested exported page to load same-origin scripts without executable inline code:\n%s", setup)
+	}
 	if !strings.Contains(setup, `class="ok-frontmatter" data-frontmatter`) ||
 		strings.Contains(setup, `class="ok-frontmatter" data-frontmatter open`) ||
 		!strings.Contains(setup, `data-value="false"`) ||
@@ -837,7 +860,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,assets/public/logo.svg,index.html,llms.txt,openknowledge.json,public.html" {
+	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,assets/openknowledge/viewer-app.js,assets/openknowledge/viewer-search.js,assets/openknowledge/viewer-shortcuts.js,assets/openknowledge/viewer-theme.js,assets/public/logo.svg,index.html,llms.txt,openknowledge.json,public.html" {
 		t.Fatalf("expected only published viewer files, got %#v", result.Written)
 	}
 	if content := readViewerExportFile(t, out, "assets/public/logo.svg"); content != "<svg/>\n" {
@@ -1188,7 +1211,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 6 {
+	if len(result.Written) != 10 {
 		t.Fatalf("expected exported pages plus theme stylesheet, discovery file, manifest, and archive, got %#v", result.Written)
 	}
 

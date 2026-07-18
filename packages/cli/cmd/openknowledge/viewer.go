@@ -746,6 +746,14 @@ type viewerFileData struct {
 	StaticJSON  template.JS
 	GraphJSON   template.JS
 	HeadHTML    template.HTML
+	Scripts     viewerScriptURLs
+}
+
+type viewerScriptURLs struct {
+	Theme     string
+	Shortcuts string
+	App       string
+	Search    string
 }
 
 type viewerAssetData struct {
@@ -1615,6 +1623,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 			StaticJSON:  staticJSON,
 			GraphJSON:   graphJSON,
 			HeadHTML:    options.HeadHTML,
+			Scripts:     viewerStaticScriptURLs(file.Path),
 		}
 
 		var builder strings.Builder
@@ -1634,6 +1643,11 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 		return okf.HTMLResult{}, err
 	}
 	written = append(written, publishedAssets...)
+	scriptAssets, err := writeViewerScriptAssets(absoluteOut)
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	written = append(written, scriptAssets...)
 	archiveResult, err := writeViewerExportBundleAssets(bundle.Root, absoluteOut, version, sourceExcludes)
 	if err != nil {
 		return okf.HTMLResult{}, err
@@ -1647,6 +1661,60 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 
 	sort.Strings(written)
 	return okf.HTMLResult{Root: bundle.Root, Out: absoluteOut, Written: written}, nil
+}
+
+const (
+	viewerThemeScriptAsset     = "assets/openknowledge/viewer-theme.js"
+	viewerShortcutsScriptAsset = "assets/openknowledge/viewer-shortcuts.js"
+	viewerAppScriptAsset       = "assets/openknowledge/viewer-app.js"
+	viewerSearchScriptAsset    = "assets/openknowledge/viewer-search.js"
+)
+
+func viewerStaticScriptURLs(currentPath string) viewerScriptURLs {
+	return viewerScriptURLs{
+		Theme:     viewerStaticAssetURL(currentPath, viewerThemeScriptAsset),
+		Shortcuts: viewerStaticAssetURL(currentPath, viewerShortcutsScriptAsset),
+		App:       viewerStaticAssetURL(currentPath, viewerAppScriptAsset),
+		Search:    viewerStaticAssetURL(currentPath, viewerSearchScriptAsset),
+	}
+}
+
+func viewerStaticAssetURL(currentPath string, assetPath string) string {
+	currentHTML := viewerHTMLPath(currentPath)
+	relative, err := filepath.Rel(filepath.Dir(filepath.FromSlash(currentHTML)), filepath.FromSlash(assetPath))
+	if err != nil {
+		return filepath.ToSlash(assetPath)
+	}
+	return filepath.ToSlash(relative)
+}
+
+func writeViewerScriptAssets(out string) ([]string, error) {
+	assets := []struct {
+		path    string
+		content string
+	}{
+		{path: viewerThemeScriptAsset, content: viewerThemeBootstrapJS},
+		{path: viewerShortcutsScriptAsset, content: viewerShortcutsJS},
+		{path: viewerAppScriptAsset, content: viewerJS},
+		{path: viewerSearchScriptAsset, content: viewerSearchJS},
+	}
+	written := make([]string, 0, len(assets))
+	for _, asset := range assets {
+		target := filepath.Join(out, filepath.FromSlash(asset.path))
+		if _, err := os.Stat(target); err == nil {
+			return nil, fmt.Errorf("generated viewer script conflicts with published asset %s", asset.path)
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(target, []byte(asset.content), 0644); err != nil {
+			return nil, err
+		}
+		written = append(written, asset.path)
+	}
+	return written, nil
 }
 
 func copyViewerPublishedAssets(root string, out string, version string, alreadyWritten string) ([]string, error) {
@@ -2855,7 +2923,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
-  <script>` + viewerThemeBootstrapJS + `</script>
+  {{if .Scripts.Theme}}<script src="{{.Scripts.Theme}}"></script>{{else}}<script>` + viewerThemeBootstrapJS + `</script>{{end}}
   <style>` + viewerCSS + `</style>
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
@@ -3113,9 +3181,9 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
-  <script>` + viewerShortcutsJS + `</script>
-  <script>` + viewerJS + `</script>
-  <script>` + viewerSearchJS + `</script>
+  {{if .Scripts.Shortcuts}}<script src="{{.Scripts.Shortcuts}}"></script>{{else}}<script>` + viewerShortcutsJS + `</script>{{end}}
+  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script>` + viewerJS + `</script>{{end}}
+  {{if .Scripts.Search}}<script src="{{.Scripts.Search}}"></script>{{else}}<script>` + viewerSearchJS + `</script>{{end}}
 </body>
 </html>`))
 

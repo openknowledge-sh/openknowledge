@@ -46,6 +46,12 @@ Viewer mode includes:
   `openknowledge connect`;
 - allowlisted public assets at their bundle-relative paths.
 
+Viewer mode writes its executable JavaScript as same-origin files below
+`assets/openknowledge/`; generated pages do not require `unsafe-inline` in
+`script-src`. Trusted inline scripts supplied through `--head-file` or
+`--head-html` remain deployment-owned and may require a CSP nonce or hash; use
+`--script-src` for trusted external scripts.
+
 Plain mode writes only semantic HTML pages. It omits viewer assets, discovery
 files, search data, source controls, and frontmatter chrome.
 
@@ -109,6 +115,8 @@ materialized source.
 >
 > - `packages/cli/internal/okf/html.go`
 > - `packages/cli/internal/okf/atomic_output.go`
+> - `packages/cli/cmd/openknowledge/viewer.go`
+> - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/cmd/openknowledge/viewer_discovery.go`
 > - `packages/cli/cmd/openknowledge/viewer_theme.go`
 > - `packages/cli/internal/okf/export_test.go`

@@ -13,6 +13,19 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Static viewer CSP compatibility
+
+- Moved generated viewer JavaScript from executable inline `<script>` blocks
+  into same-origin export assets, so Railway and runtime deployments work with
+  the default `script-src 'self' https:` policy without `unsafe-inline`.
+- Kept deployment-owned head injection explicit: custom inline scripts may
+  still require a deployment-specific nonce or hash, while `--script-src`
+  remains compatible with allowed external sources.
+- Source: `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+- Docs: `Wiki/features/exporters/html.md`,
+  `Wiki/features/commands/runtime.md`.
+
 ### 2026-07-18 — Private Railway endpoint reconciliation
 
 - Made `--no-public-endpoint` enumerate and delete existing Railway service and
