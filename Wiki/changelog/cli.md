@@ -25,6 +25,9 @@ page records release-level changes.
   removed runtime-image publication from the release workflow.
 - Treated Railway source connection as the initial deployment trigger instead
   of immediately issuing a conflicting redundant redeploy.
+- Made the generated entrypoint repair persistent-volume ownership during
+  startup and then drop to UID/GID `10001`, including for volumes created by an
+  older root-based runtime image.
 - Source: `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`,
   `packages/cli/cmd/openknowledge/deploy_command.go`,
   `.github/workflows/release.yml`.

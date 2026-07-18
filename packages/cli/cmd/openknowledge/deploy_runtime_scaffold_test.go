@@ -29,7 +29,9 @@ func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 		`releases/download/v${OPENKNOWLEDGE_VERSION}`,
 		`grep "  $asset$" checksums.txt | sha256sum -c -`,
 		`"@openai/codex@${CODEX_VERSION}"`,
+		"ca-certificates curl git gosu tini",
 		"COPY .openknowledge/runtime/entrypoint.sh",
+		"USER root:root",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("generated Dockerfile is missing %q:\n%s", expected, content)
@@ -45,9 +47,18 @@ func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	entrypointContent := string(entrypoint)
 	for _, role := range []string{"serve)", "publisher)", "worker)"} {
-		if !strings.Contains(string(entrypoint), role) {
+		if !strings.Contains(entrypointContent, role) {
 			t.Fatalf("entrypoint is missing %s role:\n%s", role, entrypoint)
+		}
+	}
+	for _, expected := range []string{
+		"chown -R openknowledge:openknowledge /var/lib/openknowledge",
+		`exec gosu openknowledge:openknowledge "$@"`,
+	} {
+		if !strings.Contains(entrypointContent, expected) {
+			t.Fatalf("entrypoint is missing %q:\n%s", expected, entrypoint)
 		}
 	}
 	info, err := os.Stat(result.Entrypoint)

@@ -52,12 +52,18 @@ same explicit `--runtimes` value for both commands, or let both infer from the
 same enabled jobs. Deployment fails before provider mutation when a planned
 worker is absent from the committed Dockerfile.
 
+The generated container starts with only enough privilege to make an attached
+Railway volume writable by UID/GID `10001`, then immediately runs the selected
+serve, publisher, or worker role as the unprivileged `openknowledge` user. This
+also makes redeploys safe when a volume was originally created by a root-based
+runtime image.
+
 To update pins, rerun `init` with the desired versions and `--force`, review
 the diff, commit, push, and redeploy:
 
 ```sh
 openknowledge deploy railway init Wiki --runtimes codex \
-  --openknowledge-version 0.7.0 --codex-version 0.128.0 --force
+  --openknowledge-version 0.7.2 --codex-version 0.128.0 --force
 ```
 
 ## Deploy options

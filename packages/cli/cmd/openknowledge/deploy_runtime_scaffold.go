@@ -192,7 +192,7 @@ ARG TARGETOS
 ARG TARGETARCH
 %s
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y ca-certificates curl git tini \
+    && apt-get install --no-install-recommends -y ca-certificates curl git gosu tini \
     && rm -rf /var/lib/apt/lists/*
 RUN set -eux; \
     asset="openknowledge_${TARGETOS}_${TARGETARCH}.tar.gz"; \
@@ -214,7 +214,7 @@ RUN groupadd --system --gid 10001 openknowledge \
 COPY .openknowledge/runtime/entrypoint.sh /usr/local/bin/openknowledge-runtime-entrypoint
 RUN chmod 0755 /usr/local/bin/openknowledge-runtime-entrypoint
 
-USER openknowledge:openknowledge
+USER root:root
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-runtime-entrypoint"]
 `, openKnowledgeVersion, arguments.String(), install)
@@ -226,16 +226,24 @@ set -eu
 
 config="${OPENKNOWLEDGE_RUNTIME_CONFIG_PATH:-env:OPENKNOWLEDGE_RUNTIME_CONFIG}"
 
+run_as_openknowledge() {
+  if [ "$(id -u)" -eq 0 ]; then
+    chown -R openknowledge:openknowledge /var/lib/openknowledge
+    exec gosu openknowledge:openknowledge "$@"
+  fi
+  exec "$@"
+}
+
 case "${OPENKNOWLEDGE_ROLE:-}" in
   serve)
-    exec openknowledge runtime serve --config "$config"
+    run_as_openknowledge openknowledge runtime serve --config "$config"
     ;;
   publisher)
-    exec openknowledge runtime worker --role publisher --config "$config"
+    run_as_openknowledge openknowledge runtime worker --role publisher --config "$config"
     ;;
   worker)
     runtime="${OPENKNOWLEDGE_AGENT_RUNTIME:?OPENKNOWLEDGE_AGENT_RUNTIME is required for the worker role}"
-    exec openknowledge runtime worker --role jobs --runtime "$runtime" --config "$config"
+    run_as_openknowledge openknowledge runtime worker --role jobs --runtime "$runtime" --config "$config"
     ;;
   *)
     echo "OPENKNOWLEDGE_ROLE must be serve, publisher, or worker" >&2

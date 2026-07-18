@@ -275,7 +275,9 @@ The generated Dockerfile pins Open Knowledge and each selected agent CLI in the
 knowledge-base repository. Railway builds that source directly, so projects can
 update Codex, Claude Code, or OpenCode independently of Open Knowledge releases.
 The CLI never overwrites project-owned pins unless `deploy railway init
---force` is explicit.
+--force` is explicit. At container startup, the generated entrypoint prepares
+the Railway volume and then drops privileges to the `openknowledge` user before
+starting any runtime role.
 
 Keep `.openknowledge/deployments/railway.json` after the first run; it contains
 no secrets and lets later runs reuse the same resources safely. The command
