@@ -97,7 +97,7 @@ The release version must match the root, npm, web, and Go fallback versions.
 Run the manual workflow from the current default-branch tip:
 
 ```text
-Actions → Release → Run workflow → version: 0.8.3
+Actions → Release → Run workflow → version: 0.8.4
 ```
 
 The workflow performs the complete quality gate before creating a tag. The

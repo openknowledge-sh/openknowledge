@@ -351,6 +351,7 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 		if prefix == "" {
 			prefix = "/"
 		}
+		response.Header().Set("Cache-Control", "no-cache")
 		http.StripPrefix(prefix, http.FileServer(http.Dir(filepath.Join(snapshot.Root, "public")))).ServeHTTP(response, request)
 	}
 }

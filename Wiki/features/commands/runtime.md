@@ -136,7 +136,9 @@ For each configured route the service exposes the static viewer,
 
 The service sends a restrictive Content Security Policy. Generated viewer code
 loads from same-origin export assets instead of executable inline scripts, so
-the default policy does not need `unsafe-inline` for JavaScript.
+the default policy does not need `unsafe-inline` for JavaScript. Static viewer
+responses use `Cache-Control: no-cache`, allowing browser caches to store them
+while requiring revalidation after a deployment replaces the generation.
 
 ## Security boundary
 

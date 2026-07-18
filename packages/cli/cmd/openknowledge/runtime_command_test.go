@@ -153,9 +153,15 @@ mcp = true
 	if !strings.Contains(index.Header().Get("Content-Security-Policy"), "script-src 'self' https:") || strings.Contains(index.Body.String(), `<script>`) {
 		t.Fatalf("runtime viewer must load generated scripts under its restrictive CSP: header=%q\n%s", index.Header().Get("Content-Security-Policy"), index.Body.String())
 	}
+	if index.Header().Get("Cache-Control") != "no-cache" {
+		t.Fatalf("runtime viewer cache policy = %q, want no-cache", index.Header().Get("Cache-Control"))
+	}
 	viewerScript := runtimeRequest(t, handler, http.MethodGet, "/assets/openknowledge/viewer-app.js", "", nil)
 	if viewerScript.Code != http.StatusOK || !strings.Contains(viewerScript.Header().Get("Content-Type"), "javascript") || !strings.Contains(viewerScript.Body.String(), "function fetchNote(path)") {
 		t.Fatalf("unexpected viewer script response %d %q: %s", viewerScript.Code, viewerScript.Header().Get("Content-Type"), viewerScript.Body.String())
+	}
+	if viewerScript.Header().Get("Cache-Control") != "no-cache" {
+		t.Fatalf("runtime viewer script cache policy = %q, want no-cache", viewerScript.Header().Get("Cache-Control"))
 	}
 	search := runtimeRequest(t, handler, http.MethodGet, "/_search?q=immutable", "", nil)
 	if search.Code != http.StatusOK || !strings.Contains(search.Body.String(), "guide.md") {

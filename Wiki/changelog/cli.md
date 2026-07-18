@@ -18,11 +18,16 @@ page records release-level changes.
 - Moved generated viewer JavaScript from executable inline `<script>` blocks
   into same-origin export assets, so Railway and runtime deployments work with
   the default `script-src 'self' https:` policy without `unsafe-inline`.
+- Made runtime-served viewer pages and assets revalidate through
+  `Cache-Control: no-cache`, preventing a browser from silently retaining an
+  older generation after a source-triggered deployment.
 - Kept deployment-owned head injection explicit: custom inline scripts may
   still require a deployment-specific nonce or hash, while `--script-src`
   remains compatible with allowed external sources.
 - Source: `packages/cli/cmd/openknowledge/viewer.go`,
-  `packages/cli/cmd/openknowledge/viewer_test.go`.
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/cmd/openknowledge/runtime_command_test.go`.
 - Docs: `Wiki/features/exporters/html.md`,
   `Wiki/features/commands/runtime.md`.
 
