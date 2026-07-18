@@ -72,7 +72,7 @@ the diff, commit, push, and redeploy:
 
 ```sh
 openknowledge deploy railway init Wiki --runtimes codex \
-  --openknowledge-version 0.8.1 --codex-version 0.128.0 --force
+  --openknowledge-version 0.8.2 --codex-version 0.128.0 --force
 ```
 
 ## Deploy options
@@ -128,7 +128,8 @@ Endpoint modes are:
 
 - default: generated `*.up.railway.app` hostname;
 - `--domain`: attach an existing hostname and return required DNS records;
-- `--no-public-endpoint`: create no public ingress.
+- `--no-public-endpoint`: remove any existing serve-domain bindings and keep
+  the service without public ingress.
 
 Open Knowledge never searches for, purchases, or registers a domain.
 

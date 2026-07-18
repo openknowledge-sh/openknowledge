@@ -48,6 +48,7 @@ type fakeRailwayRunner struct {
 	Version string
 	Calls   []fakeRailwayCall
 	FailOn  string
+	Domains []string
 }
 
 func (runner *fakeRailwayRunner) Run(_ context.Context, _ string, stdin io.Reader, arguments ...string) ([]byte, error) {
@@ -76,6 +77,17 @@ func (runner *fakeRailwayRunner) Run(_ context.Context, _ string, stdin io.Reade
 		return []byte(fmt.Sprintf(`{"id":"service-%s"}`, name)), nil
 	}
 	if len(arguments) > 0 && arguments[0] == "domain" {
+		if slicesContain(arguments, "list") {
+			items := make([]map[string]string, 0, len(runner.Domains))
+			for _, id := range runner.Domains {
+				items = append(items, map[string]string{"id": id})
+			}
+			content, _ := json.Marshal(map[string]any{"domains": items})
+			return content, nil
+		}
+		if slicesContain(arguments, "delete") {
+			return []byte(`{}`), nil
+		}
 		if len(arguments) > 1 && !strings.HasPrefix(arguments[1], "-") {
 			return []byte(fmt.Sprintf(`{"domain":%q,"dnsRecords":[{"type":"CNAME","name":%q,"value":"target.up.railway.app"},{"type":"TXT","name":"_railway","value":"verify"}]}`, arguments[1], arguments[1])), nil
 		}
@@ -423,6 +435,38 @@ func TestRailwayProviderReturnsCustomDomainDNSRecords(t *testing.T) {
 	}
 	if result.Endpoint.DNSRecords[0].Type != "CNAME" || result.Endpoint.DNSRecords[1].Type != "TXT" {
 		t.Fatalf("unexpected DNS records: %#v", result.Endpoint.DNSRecords)
+	}
+}
+
+func TestRailwayProviderRemovesExistingDomainsForPrivateEndpointMode(t *testing.T) {
+	repository, wiki := newDeployTestRepository(t)
+	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "private-state.json"))
+	options.NoPublicEndpoint = true
+	options.Runtimes = ""
+	plan, err := buildRailwayDeployPlan(options, wiki)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRailwayRunner{Domains: []string{"domain-1", "domain-2"}}
+	result, err := (railwayProvider{runner: runner}).Apply(t.Context(), plan, deploySecrets{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Endpoint.Mode != "none" {
+		t.Fatalf("private deployment returned an endpoint: %#v", result.Endpoint)
+	}
+	deleted := map[string]bool{}
+	for _, call := range runner.Calls {
+		if len(call.Arguments) > 0 && call.Arguments[0] == "domain" && slicesContain(call.Arguments, "delete") {
+			for index, value := range call.Arguments {
+				if value == "delete" && index+1 < len(call.Arguments) {
+					deleted[call.Arguments[index+1]] = true
+				}
+			}
+		}
+	}
+	if !deleted["domain-1"] || !deleted["domain-2"] || len(deleted) != 2 {
+		t.Fatalf("private endpoint reconciliation left domains behind: %#v", deleted)
 	}
 }
 

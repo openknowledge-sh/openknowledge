@@ -13,6 +13,12 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Private Railway endpoint reconciliation
+
+- Made `--no-public-endpoint` enumerate and delete existing Railway service and
+  custom domains instead of trusting possibly stale local endpoint state.
+- Source: `packages/cli/cmd/openknowledge/deploy_command.go`.
+
 ### 2026-07-18 — Railway prune removes service volumes
 
 - Made `--prune` enumerate and delete persistent volumes attached to omitted

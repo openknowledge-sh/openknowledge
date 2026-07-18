@@ -998,6 +998,20 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 	}
 	endpoint := state.Endpoint
 	if plan.Endpoint.Mode == "none" {
+		serveName := railwayServiceName(plan.Services, "serve")
+		output, err := provider.runner.Run(ctx, working, nil, "domain", "--service", serveName, "--environment", "production", "list", "--json")
+		if err != nil {
+			return deployResult{}, fmt.Errorf("list Railway domains for private serve service: %w", err)
+		}
+		domainIDs, err := railwayDomainIDs(output)
+		if err != nil {
+			return deployResult{}, fmt.Errorf("list Railway domains for private serve service: %w", err)
+		}
+		for _, domainID := range domainIDs {
+			if _, err := provider.runner.Run(ctx, working, nil, "domain", "--service", serveName, "--environment", "production", "delete", domainID, "--yes", "--json"); err != nil {
+				return deployResult{}, fmt.Errorf("delete Railway domain from private serve service: %w", err)
+			}
+		}
 		endpoint = plan.Endpoint
 	} else if endpoint.Mode == "" {
 		serveName := railwayServiceName(plan.Services, "serve")
@@ -1054,6 +1068,25 @@ func railwayVolumeIDs(content []byte) ([]string, error) {
 			return nil, fmt.Errorf("Railway volume list returned an invalid ID")
 		}
 		ids = append(ids, volume.ID)
+	}
+	return ids, nil
+}
+
+func railwayDomainIDs(content []byte) ([]string, error) {
+	var response struct {
+		Domains []struct {
+			ID string `json:"id"`
+		} `json:"domains"`
+	}
+	if err := json.Unmarshal(content, &response); err != nil {
+		return nil, fmt.Errorf("invalid Railway domain list JSON: %w", err)
+	}
+	ids := make([]string, 0, len(response.Domains))
+	for _, domain := range response.Domains {
+		if !validDeployOpaqueProviderValue(domain.ID) {
+			return nil, fmt.Errorf("Railway domain list returned an invalid ID")
+		}
+		ids = append(ids, domain.ID)
 	}
 	return ids, nil
 }
