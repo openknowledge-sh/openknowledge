@@ -144,6 +144,9 @@ curl -fsSL https://openknowledge.sh/install | bash
 # Or: npm install -g @openknowledge-sh/openknowledge
 ```
 
+Both installers expose `openknowledge` and the shorter `okn` alias. For
+example, `okn validate Wiki` is equivalent to `openknowledge validate Wiki`.
+
 Both installers verify the release checksum before publishing the binary. The
 npm wrapper also bounds downloads and decompression, limits HTTPS redirects,
 and accepts only the exact regular `openknowledge` archive member.

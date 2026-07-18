@@ -8,6 +8,9 @@ timestamp: 2026-07-18T00:00:00Z
 
 # Installation
 
+Installed releases expose both `openknowledge` and the shorter `okn` alias.
+They run the same CLI; the examples below keep the descriptive command name.
+
 ## Shell installer
 
 ```sh
@@ -16,8 +19,9 @@ curl -fsSL https://openknowledge.sh/install | bash
 
 The installer supports macOS and Linux on `amd64` and `arm64`. It downloads the
 matching release archive, verifies its SHA-256, probes the staged binary with
-`openknowledge version`, and atomically replaces the destination. Existing
-binaries survive failed downloads, checks, or probes.
+`openknowledge version`, atomically replaces the destination, and creates
+`okn` as a relative symlink. It refuses to replace an unrelated existing
+`okn` command. Existing binaries survive failed downloads, checks, or probes.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -43,10 +47,11 @@ If piping a remote script is outside your trust policy, download and inspect
 npm install -g @openknowledge-sh/openknowledge
 ```
 
-The npm package downloads the binary matching the package version. It supports
-the release platforms, including Windows assets when available, and applies
-bounded HTTPS redirects, download and expansion limits, exact checksum lookup,
-strict tar member validation, and atomic publication.
+The npm package registers both command names and downloads the binary matching
+the package version. It supports the release platforms, including Windows
+assets when available, and applies bounded HTTPS redirects, download and
+expansion limits, exact checksum lookup, strict tar member validation, and
+atomic publication.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const zlib = require("node:zlib");
+const packageManifest = require("./package.json");
 
 const {
   download,
@@ -65,6 +66,13 @@ function tarMember(name, content, type = "0", prefix = "") {
 function archive(...members) {
   return zlib.gzipSync(Buffer.concat([...members, Buffer.alloc(1024)]));
 }
+
+test("package exposes the openknowledge and okn commands", () => {
+  assert.deepEqual(packageManifest.bin, {
+    openknowledge: "bin/openknowledge.js",
+    okn: "bin/openknowledge.js",
+  });
+});
 
 test("download enforces declared and streamed byte limits", async () => {
   const declared = scriptedGet([{ headers: { "content-length": "9" }, chunks: ["ignored"] }]);

@@ -6,12 +6,17 @@ version="${OPENKNOWLEDGE_VERSION:-latest}"
 base_url="${OPENKNOWLEDGE_BASE_URL:-}"
 install_dir="${OPENKNOWLEDGE_INSTALL_DIR:-$HOME/.local/bin}"
 binary="openknowledge"
+alias_binary="okn"
 tmp=""
 staging=""
+alias_staging_dir=""
 
 cleanup() {
   if [ -n "$staging" ]; then
     rm -f -- "$staging"
+  fi
+  if [ -n "$alias_staging_dir" ]; then
+    rm -rf -- "$alias_staging_dir"
   fi
   if [ -n "$tmp" ]; then
     rm -rf -- "$tmp"
@@ -150,12 +155,21 @@ fi
 
 mkdir -p "$install_dir"
 destination="$install_dir/$binary"
+alias_destination="$install_dir/$alias_binary"
 if { [ -e "$destination" ] || [ -L "$destination" ]; } && [ ! -f "$destination" ] && [ ! -L "$destination" ]; then
   echo "openknowledge install: destination is not a regular file: $destination" >&2
   exit 1
 fi
+if [ -e "$alias_destination" ] || [ -L "$alias_destination" ]; then
+  if [ ! -L "$alias_destination" ] || [ "$(readlink "$alias_destination")" != "$binary" ]; then
+    echo "openknowledge install: alias destination is already occupied: $alias_destination" >&2
+    exit 1
+  fi
+fi
 staging="$(mktemp "$install_dir/.openknowledge.install.XXXXXX")"
 install -m 0755 "$candidate" "$staging"
+alias_staging_dir="$(mktemp -d "$install_dir/.okn.install.XXXXXX")"
+ln -s "$binary" "$alias_staging_dir/$alias_binary"
 
 if ! candidate_version="$("$staging" version)"; then
   echo "openknowledge install: downloaded binary failed its version preflight" >&2
@@ -172,12 +186,16 @@ fi
 
 mv -f -- "$staging" "$destination"
 staging=""
+mv -f -- "$alias_staging_dir/$alias_binary" "$alias_destination"
+rmdir "$alias_staging_dir"
+alias_staging_dir=""
 
 echo "Installed $candidate_version to $destination"
+echo "Installed alias $alias_destination -> $binary"
 
 case ":$PATH:" in
   *":$install_dir:"*) ;;
   *)
-    echo "Add $install_dir to PATH to run openknowledge from any shell."
+    echo "Add $install_dir to PATH to run openknowledge or okn from any shell."
     ;;
 esac

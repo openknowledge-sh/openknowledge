@@ -8,6 +8,9 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge --help`
 
+Installed releases also expose `okn` as a shorter alias. Every invocation below
+can use `okn` in place of `openknowledge`.
+
 ## Usage
 
 ```sh

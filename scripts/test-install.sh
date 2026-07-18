@@ -74,6 +74,25 @@ if [ "$("$success_install/openknowledge" version)" != "0.6.0" ]; then
   echo "installer test: successful install did not replace the old version" >&2
   exit 1
 fi
+if [ "$(readlink "$success_install/okn")" != "openknowledge" ] || [ "$("$success_install/okn" version)" != "0.6.0" ]; then
+  echo "installer test: successful install did not create a working okn alias" >&2
+  exit 1
+fi
+
+alias_collision_base="$tmp/alias-collision-release"
+alias_collision_install="$tmp/alias-collision-bin"
+mkdir -p "$alias_collision_base"
+write_release "$alias_collision_base" "0.6.0"
+write_existing "$alias_collision_install/openknowledge"
+write_existing "$alias_collision_install/okn"
+if run_installer "$alias_collision_base" "$alias_collision_install" "0.6.0" > "$tmp/alias-collision.log" 2>&1; then
+  echo "installer test: occupied okn alias unexpectedly succeeded" >&2
+  exit 1
+fi
+if [ "$("$alias_collision_install/openknowledge" version)" != "0.5.0" ] || [ "$("$alias_collision_install/okn" version)" != "0.5.0" ]; then
+  echo "installer test: occupied okn alias changed an existing command" >&2
+  exit 1
+fi
 
 checksum_base="$tmp/checksum-release"
 checksum_install="$tmp/checksum-bin"

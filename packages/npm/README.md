@@ -6,7 +6,11 @@ tooling and LLM Wikipedia-style Markdown knowledge bases for agents.
 ```sh
 npm install -g @openknowledge-sh/openknowledge
 openknowledge version
+# Short alias:
+okn version
 ```
+
+The `openknowledge` and `okn` commands run the same installed CLI.
 
 The package downloads the matching binary from GitHub Releases during
 installation. Set `OPENKNOWLEDGE_VERSION=latest` to install the latest GitHub

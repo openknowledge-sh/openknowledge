@@ -4,7 +4,8 @@
   "description": "CLI for managing Open Knowledge Format bundles.",
   "license": "Apache-2.0",
   "bin": {
-    "openknowledge": "bin/openknowledge.js"
+    "openknowledge": "bin/openknowledge.js",
+    "okn": "bin/openknowledge.js"
   },
   "scripts": {
     "postinstall": "node install.js"

@@ -13,6 +13,14 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Short CLI alias
+
+- Added `okn` as an installed alias for `openknowledge` in both the shell and
+  npm installers while keeping the original command name.
+- Made the shell installer refuse to overwrite an unrelated existing `okn`
+  command.
+- Source: `install`, `scripts/test-install.sh`, `packages/npm/`.
+
 ### 2026-07-18 — Railway CLI v5 deployment recovery
 
 - Separated Railway progress diagnostics from JSON stdout so successful v5
