@@ -17,6 +17,7 @@ const (
 	deployRuntimeDirectory        = ".openknowledge/runtime"
 	deployRuntimeDockerfile       = deployRuntimeDirectory + "/Dockerfile"
 	deployRuntimeEntrypoint       = deployRuntimeDirectory + "/entrypoint.sh"
+	deployRuntimeConfig           = deployRuntimeDirectory + "/runtime.toml"
 	defaultCodexRuntimeVersion    = "0.128.0"
 	defaultClaudeRuntimeVersion   = "2.1.212"
 	defaultOpenCodeRuntimeVersion = "1.18.3"
@@ -30,6 +31,7 @@ type deployRuntimeScaffoldResult struct {
 	RepositoryRoot       string            `json:"repositoryRoot"`
 	Dockerfile           string            `json:"dockerfile"`
 	Entrypoint           string            `json:"entrypoint"`
+	RuntimeConfig        string            `json:"runtimeConfig"`
 	OpenKnowledgeVersion string            `json:"openknowledgeVersion"`
 	AgentVersions        map[string]string `json:"agentVersions,omitempty"`
 }
@@ -53,7 +55,7 @@ func runDeployRailwayInit(args []string) int {
 	}
 	flags := flag.NewFlagSet("deploy railway init", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
-	runtimes := flags.String("runtimes", "", "comma-separated agent runtimes; inferred from enabled jobs when omitted")
+	runtimes := flags.String("runtimes", "", "comma-separated agent runtimes to install")
 	openKnowledgeVersion := flags.String("openknowledge-version", version, "Open Knowledge npm package version")
 	codexVersion := flags.String("codex-version", defaultCodexRuntimeVersion, "Codex CLI npm package version")
 	claudeVersion := flags.String("claude-version", defaultClaudeRuntimeVersion, "Claude Code npm package version")
@@ -89,9 +91,31 @@ func scaffoldRailwayRuntime(knowledgeInput string, options deployRuntimeScaffold
 	if err != nil {
 		return deployRuntimeScaffoldResult{}, err
 	}
+	root, err = filepath.Abs(root)
+	if err != nil {
+		return deployRuntimeScaffoldResult{}, err
+	}
 	repoRoot, err := runtimeGitOutput(root, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return deployRuntimeScaffoldResult{}, fmt.Errorf("knowledge base must be inside a Git repository: %w", err)
+	}
+	if evaluated, evalErr := filepath.EvalSymlinks(root); evalErr == nil {
+		root = evaluated
+	}
+	if evaluated, evalErr := filepath.EvalSymlinks(repoRoot); evalErr == nil {
+		repoRoot = evaluated
+	}
+	relative, err := filepath.Rel(repoRoot, root)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return deployRuntimeScaffoldResult{}, fmt.Errorf("knowledge base path must be inside the Git repository")
+	}
+	knowledgePath := "/workspace"
+	if relative != "." {
+		knowledgePath += "/" + filepath.ToSlash(relative)
+	}
+	knowledgeID := sanitizeDeployName(filepath.Base(root))
+	if knowledgeID == "" {
+		knowledgeID = "knowledge"
 	}
 	runtimes, err := resolveDeployAgentRuntimes(repoRoot, options.Runtimes, false)
 	if err != nil {
@@ -113,12 +137,17 @@ func scaffoldRailwayRuntime(knowledgeInput string, options deployRuntimeScaffold
 	}
 	dockerfile := renderDeployRuntimeDockerfile(openKnowledgeVersion, runtimes, versions)
 	entrypoint := renderDeployRuntimeEntrypoint()
+	runtimeConfig := renderDeployRuntimeConfig(knowledgeID, knowledgePath)
 	dockerfilePath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeDockerfile))
 	entrypointPath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeEntrypoint))
+	runtimeConfigPath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeConfig))
 	if err := writeDeployRuntimeScaffoldFile(dockerfilePath, []byte(dockerfile), 0o644, options.Force); err != nil {
 		return deployRuntimeScaffoldResult{}, err
 	}
 	if err := writeDeployRuntimeScaffoldFile(entrypointPath, []byte(entrypoint), 0o755, options.Force); err != nil {
+		return deployRuntimeScaffoldResult{}, err
+	}
+	if err := writeDeployRuntimeScaffoldFile(runtimeConfigPath, []byte(runtimeConfig), 0o644, options.Force); err != nil {
 		return deployRuntimeScaffoldResult{}, err
 	}
 	agentVersions := make(map[string]string, len(runtimes))
@@ -127,7 +156,7 @@ func scaffoldRailwayRuntime(knowledgeInput string, options deployRuntimeScaffold
 	}
 	return deployRuntimeScaffoldResult{
 		SchemaVersion: okf.MachineSchemaVersion, RepositoryRoot: repoRoot,
-		Dockerfile: dockerfilePath, Entrypoint: entrypointPath,
+		Dockerfile: dockerfilePath, Entrypoint: entrypointPath, RuntimeConfig: runtimeConfigPath,
 		OpenKnowledgeVersion: openKnowledgeVersion, AgentVersions: agentVersions,
 	}, nil
 }
@@ -185,7 +214,7 @@ func renderDeployRuntimeDockerfile(openKnowledgeVersion string, runtimes []strin
 	}
 	return fmt.Sprintf(`# syntax=docker/dockerfile:1.7
 
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim AS runtime
 
 ARG OPENKNOWLEDGE_VERSION=%s
 ARG TARGETOS
@@ -208,23 +237,79 @@ RUN set -eux; \
 
 RUN groupadd --system --gid 10001 openknowledge \
     && useradd --system --uid 10001 --gid openknowledge --home-dir /var/lib/openknowledge --create-home openknowledge \
-    && mkdir -p /var/lib/openknowledge /workspace /artifacts /exchange \
-    && chown -R openknowledge:openknowledge /var/lib/openknowledge /workspace /artifacts /exchange
+    && mkdir -p /var/lib/openknowledge /workspace /opt/openknowledge/artifacts /etc/openknowledge \
+    && chown -R openknowledge:openknowledge /var/lib/openknowledge /workspace /opt/openknowledge
+
+FROM runtime AS build
+WORKDIR /workspace
+COPY . /workspace
+ARG RAILWAY_GIT_COMMIT_SHA=local
+RUN openknowledge runtime build \
+    --config /workspace/.openknowledge/runtime/runtime.toml \
+    --commit "${RAILWAY_GIT_COMMIT_SHA:-local}"
+
+FROM runtime
 
 COPY .openknowledge/runtime/entrypoint.sh /usr/local/bin/openknowledge-runtime-entrypoint
-RUN chmod 0755 /usr/local/bin/openknowledge-runtime-entrypoint
+COPY .openknowledge/runtime/runtime.toml /etc/openknowledge/runtime.toml
+COPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts
+RUN chmod 0755 /usr/local/bin/openknowledge-runtime-entrypoint \
+    && chown -R openknowledge:openknowledge /opt/openknowledge/artifacts /etc/openknowledge/runtime.toml
 
 USER root:root
+ENV OPENKNOWLEDGE_ROLE=serve
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-runtime-entrypoint"]
 `, openKnowledgeVersion, arguments.String(), install)
+}
+
+func renderDeployRuntimeConfig(knowledgeID string, knowledgePath string) string {
+	return fmt.Sprintf(`[runtime]
+state_dir = "/tmp/openknowledge"
+
+[artifact_store]
+type = "filesystem"
+path = "/opt/openknowledge/artifacts"
+
+[serve]
+address = "0.0.0.0:8080"
+poll_interval = "5s"
+request_timeout = "30s"
+max_concurrency = 64
+mcp_access = "public"
+mcp_token_env = "OPENKNOWLEDGE_MCP_TOKEN"
+
+[worker]
+repo = "/workspace"
+remote = "origin"
+production_branch = "main"
+poll_interval = "30s"
+run_jobs = false
+jobs_path = ".openknowledge/jobs"
+exchange_dir = "/tmp/openknowledge/exchange"
+
+[[knowledge_bases]]
+id = %q
+path = %q
+route = "/"
+spec = "latest"
+publish = true
+mcp = true
+`, knowledgeID, knowledgePath)
 }
 
 func renderDeployRuntimeEntrypoint() string {
 	return `#!/bin/sh
 set -eu
 
-config="${OPENKNOWLEDGE_RUNTIME_CONFIG_PATH:-env:OPENKNOWLEDGE_RUNTIME_CONFIG}"
+config="${OPENKNOWLEDGE_RUNTIME_CONFIG_PATH:-}"
+if [ -z "$config" ]; then
+  if [ -n "${OPENKNOWLEDGE_RUNTIME_CONFIG:-}" ]; then
+    config="env:OPENKNOWLEDGE_RUNTIME_CONFIG"
+  else
+    config="/etc/openknowledge/runtime.toml"
+  fi
+fi
 
 run_as_openknowledge() {
   if [ "$(id -u)" -eq 0 ]; then
@@ -234,7 +319,7 @@ run_as_openknowledge() {
   exec "$@"
 }
 
-case "${OPENKNOWLEDGE_ROLE:-}" in
+case "${OPENKNOWLEDGE_ROLE:-serve}" in
   serve)
     run_as_openknowledge openknowledge runtime serve --config "$config"
     ;;
@@ -256,12 +341,13 @@ esac
 func deployRailwayInitHelpText() string {
 	return `openknowledge deploy railway init [path] [options]
 
-Create a repository-owned Railway runtime Dockerfile and entrypoint. Package
-versions are pinned in the generated Dockerfile and remain under project
-control. Existing files are never replaced unless --force is passed.
+Create a repository-owned Railway runtime Dockerfile, immutable build config,
+and entrypoint. The image builds the knowledge artifact from the source commit
+and serves it by default. Package versions stay under project control. Existing
+files are never replaced unless --force is passed.
 
 Options:
-  --runtimes LIST                  Agent runtimes; infer enabled jobs when omitted.
+  --runtimes LIST                  Agent runtimes to install (none by default).
   --openknowledge-version VERSION Open Knowledge GitHub release (default: this CLI).
   --codex-version VERSION         Codex CLI package version.
   --claude-version VERSION        Claude Code package version.

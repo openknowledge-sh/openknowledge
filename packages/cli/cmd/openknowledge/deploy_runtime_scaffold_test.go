@@ -10,8 +10,16 @@ import (
 func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
 	removeDeployRuntimeScaffoldForTest(t, repository)
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(repository); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(originalDirectory) })
 
-	result, err := scaffoldRailwayRuntime(wiki, deployRuntimeScaffoldOptions{
+	result, err := scaffoldRailwayRuntime(filepath.Base(wiki), deployRuntimeScaffoldOptions{
 		Runtimes: "codex", OpenKnowledgeVersion: "0.7.0", CodexVersion: "0.129.1",
 		ClaudeVersion: defaultClaudeRuntimeVersion, OpenCodeVersion: defaultOpenCodeRuntimeVersion,
 	})
@@ -30,6 +38,9 @@ func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 		`grep "  $asset$" checksums.txt | sha256sum -c -`,
 		`"@openai/codex@${CODEX_VERSION}"`,
 		"ca-certificates curl git gosu tini",
+		"ARG RAILWAY_GIT_COMMIT_SHA=local",
+		"openknowledge runtime build",
+		"COPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts",
 		"COPY .openknowledge/runtime/entrypoint.sh",
 		"USER root:root",
 	} {
@@ -67,6 +78,15 @@ func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0o755 {
 		t.Fatalf("entrypoint mode = %o, want 755", info.Mode().Perm())
+	}
+	runtimeConfig, err := os.ReadFile(result.RuntimeConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{`path = "/opt/openknowledge/artifacts"`, `path = "/workspace/Wiki"`, `publish = true`} {
+		if !strings.Contains(string(runtimeConfig), expected) {
+			t.Fatalf("runtime config is missing %q:\n%s", expected, runtimeConfig)
+		}
 	}
 }
 

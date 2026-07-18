@@ -36,6 +36,7 @@ type deployPlan struct {
 	SchemaVersion string              `json:"schemaVersion"`
 	Provider      string              `json:"provider"`
 	DryRun        bool                `json:"dryRun"`
+	Prune         bool                `json:"prune,omitempty"`
 	Project       deployProject       `json:"project"`
 	Repository    string              `json:"repository"`
 	GitHubRepo    string              `json:"githubRepository"`
@@ -192,18 +193,19 @@ func runDeployRailway(args []string) int {
 	workspace := flags.String("workspace", "", "Railway workspace ID or name for a new project")
 	branch := flags.String("production-branch", "main", "production Git branch")
 	repository := flags.String("repository", "", "GitHub repository URL (defaults to origin)")
-	withoutWorker := flags.Bool("without-worker", false, "deploy serving and publishing without the agent worker")
+	withoutWorker := flags.Bool("without-worker", false, "deprecated compatibility flag; agents are omitted by default")
 	mcpAccess := flags.String("mcp", "public", "MCP access: public, token, or off")
 	domain := flags.String("domain", "", "attach a user-owned custom domain")
 	noPublicEndpoint := flags.Bool("no-public-endpoint", false, "do not create a Railway public endpoint")
 	githubTokenEnv := flags.String("github-token-env", "GITHUB_TOKEN", "environment variable containing the GitHub token")
-	runtimes := flags.String("runtimes", "", "comma-separated worker runtimes; inferred from jobs when omitted")
+	runtimes := flags.String("runtimes", "", "comma-separated agent runtimes; enables publisher and workers")
 	codexKeyEnv := flags.String("codex-key-env", "CODEX_API_KEY", "environment variable containing the Codex API key")
 	claudeKeyEnv := flags.String("claude-key-env", "ANTHROPIC_API_KEY", "environment variable containing the Claude API key")
 	opencodeKeyEnv := flags.String("opencode-key-env", "OPENCODE_API_KEY", "environment variable containing the OpenCode provider key")
 	mcpTokenEnv := flags.String("mcp-token-env", "OPENKNOWLEDGE_MCP_TOKEN", "environment variable containing the MCP bearer token")
 	statePath := flags.String("state", "", "deployment state file")
 	dryRun := flags.Bool("dry-run", false, "validate and print the plan without changing Railway")
+	prune := flags.Bool("prune", false, "delete provider services omitted by the new topology")
 	confirmed := flags.Bool("yes", false, "confirm provider resource changes")
 	if err := flags.Parse(args); err != nil {
 		return 2
@@ -221,7 +223,7 @@ func runDeployRailway(args []string) int {
 		WithoutWorker: *withoutWorker, MCPAccess: *mcpAccess, Domain: *domain,
 		NoPublicEndpoint: *noPublicEndpoint, GitHubTokenEnv: *githubTokenEnv,
 		Runtimes: *runtimes, CodexKeyEnv: *codexKeyEnv, ClaudeKeyEnv: *claudeKeyEnv, OpenCodeKeyEnv: *opencodeKeyEnv, MCPTokenEnv: *mcpTokenEnv,
-		StatePath: *statePath, DryRun: *dryRun,
+		StatePath: *statePath, DryRun: *dryRun, Prune: *prune,
 	}
 	plan, err := buildRailwayDeployPlan(options, knowledgePath)
 	if err != nil {
@@ -257,7 +259,7 @@ type railwayDeployOptions struct {
 	Runtimes                                                               string
 	GitHubTokenEnv, CodexKeyEnv, ClaudeKeyEnv, OpenCodeKeyEnv, MCPTokenEnv string
 	StatePath                                                              string
-	WithoutWorker, NoPublicEndpoint, DryRun                                bool
+	WithoutWorker, NoPublicEndpoint, DryRun, Prune                         bool
 }
 
 func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string) (deployPlan, error) {
@@ -352,7 +354,6 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	if err != nil {
 		return deployPlan{}, err
 	}
-	publisherName := projectName + "-publisher"
 	serveName := projectName + "-serve"
 	endpoint := deployEndpoint{Mode: "generated"}
 	if options.NoPublicEndpoint {
@@ -375,19 +376,19 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	}
 	services := []deployService{
 		{
-			Name: publisherName, Role: "publisher", Source: source,
-			VolumePath:    "/var/lib/openknowledge",
-			VariableNames: []string{"RAILWAY_DOCKERFILE_PATH", "OPENKNOWLEDGE_ROLE", "OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN", "OPENKNOWLEDGE_EXCHANGE_TOKEN", "GITHUB_TOKEN"},
-		},
-		{
 			Name: serveName, Role: "serve", Source: source, Public: endpoint.Mode != "none", Port: 8080,
-			VariableNames: []string{"RAILWAY_DOCKERFILE_PATH", "OPENKNOWLEDGE_ROLE", "OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN", "PORT"},
+			VariableNames: []string{"RAILWAY_DOCKERFILE_PATH", "OPENKNOWLEDGE_ROLE", "OPENKNOWLEDGE_RUNTIME_CONFIG", "PORT"},
 		},
 	}
 	if options.MCPAccess == "token" {
-		services[1].VariableNames = append(services[1].VariableNames, "OPENKNOWLEDGE_MCP_TOKEN")
+		services[0].VariableNames = append(services[0].VariableNames, "OPENKNOWLEDGE_MCP_TOKEN")
 	}
-	if !options.WithoutWorker {
+	if len(agentRuntimes) > 0 {
+		services = append(services, deployService{
+			Name: projectName + "-publisher", Role: "publisher", Source: source,
+			VolumePath:    "/var/lib/openknowledge",
+			VariableNames: []string{"RAILWAY_DOCKERFILE_PATH", "OPENKNOWLEDGE_ROLE", "OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN", "OPENKNOWLEDGE_EXCHANGE_TOKEN", "GITHUB_TOKEN"},
+		})
 		for _, runtimeName := range agentRuntimes {
 			credential := deployRuntimeCredentialEnvironment(runtimeName)
 			services = append(services, deployService{
@@ -398,14 +399,15 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 		}
 	}
 	plan := deployPlan{
-		SchemaVersion: okf.MachineSchemaVersion, Provider: "railway", DryRun: options.DryRun,
+		SchemaVersion: okf.MachineSchemaVersion, Provider: "railway", DryRun: options.DryRun, Prune: options.Prune,
 		Project:    deployProject{Name: projectName, ID: strings.TrimSpace(options.Project), Workspace: strings.TrimSpace(options.Workspace)},
 		Repository: cloneURL, GitHubRepo: githubRepo, Branch: options.Branch,
 		KnowledgeBase: knowledge, Services: services, Endpoint: endpoint, StateFile: statePath,
-		Requirements: []string{"Railway CLI v5+ authentication", options.GitHubTokenEnv + " (or gh auth token)"},
+		Requirements: []string{"Railway CLI v5+ authentication"},
 		Runtimes:     agentRuntimes,
 	}
-	if !options.WithoutWorker {
+	if len(agentRuntimes) > 0 {
+		plan.Requirements = append(plan.Requirements, options.GitHubTokenEnv+" (or gh auth token)")
 		for _, runtimeName := range agentRuntimes {
 			plan.Requirements = append(plan.Requirements, deployRuntimeCredentialSource(options, runtimeName))
 		}
@@ -422,36 +424,26 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	return plan, nil
 }
 
-func resolveDeployAgentRuntimes(repoRoot string, requested string, withoutWorker bool) ([]string, error) {
+func resolveDeployAgentRuntimes(_ string, requested string, withoutWorker bool) ([]string, error) {
 	if withoutWorker {
+		if strings.TrimSpace(requested) != "" {
+			return nil, fmt.Errorf("--without-worker and --runtimes are mutually exclusive")
+		}
+		return nil, nil
+	}
+	if strings.TrimSpace(requested) == "" {
 		return nil, nil
 	}
 	set := make(map[string]bool)
-	if strings.TrimSpace(requested) != "" {
-		for _, value := range strings.Split(requested, ",") {
-			runtimeName := strings.ToLower(strings.TrimSpace(value))
-			if runtimeName == "" {
-				return nil, fmt.Errorf("--runtimes must not contain empty entries")
-			}
-			if _, err := agents.HarnessForRuntime(runtimeName); err != nil {
-				return nil, err
-			}
-			set[runtimeName] = true
+	for _, value := range strings.Split(requested, ",") {
+		runtimeName := strings.ToLower(strings.TrimSpace(value))
+		if runtimeName == "" {
+			return nil, fmt.Errorf("--runtimes must not contain empty entries")
 		}
-	} else {
-		jobsPath := filepath.Join(repoRoot, ".openknowledge", "jobs")
-		jobs, failures, err := agents.DiscoverJobsLenient(jobsPath)
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("discover deployment jobs: %w", err)
+		if _, err := agents.HarnessForRuntime(runtimeName); err != nil {
+			return nil, err
 		}
-		if len(failures) > 0 {
-			return nil, fmt.Errorf("discover deployment jobs: %w", failures[0])
-		}
-		for _, job := range jobs {
-			if job.Enabled {
-				set[job.Agent.Runtime] = true
-			}
-		}
+		set[runtimeName] = true
 	}
 	result := make([]string, 0, len(set))
 	for runtimeName := range set {
@@ -550,7 +542,7 @@ func validateDeployRuntimeScaffold(repoRoot string, branch string, runtimes []st
 	if reference == "" {
 		return fmt.Errorf("runtime scaffold preflight: branch %s is not available locally", branch)
 	}
-	for _, path := range []string{deployRuntimeDockerfile, deployRuntimeEntrypoint} {
+	for _, path := range []string{deployRuntimeDockerfile, deployRuntimeEntrypoint, deployRuntimeConfig} {
 		if _, err := runtimeGitOutput(repoRoot, "cat-file", "-e", reference+":"+path); err != nil {
 			return fmt.Errorf("runtime scaffold preflight: %s is not committed on %s; run openknowledge deploy railway init first", path, branch)
 		}
@@ -558,6 +550,11 @@ func validateDeployRuntimeScaffold(repoRoot string, branch string, runtimes []st
 	dockerfile, err := runtimeGitOutput(repoRoot, "show", reference+":"+deployRuntimeDockerfile)
 	if err != nil {
 		return fmt.Errorf("runtime scaffold preflight: read %s: %w", deployRuntimeDockerfile, err)
+	}
+	for _, marker := range []string{"openknowledge runtime build", "COPY --from=build /opt/openknowledge/artifacts"} {
+		if !strings.Contains(dockerfile, marker) {
+			return fmt.Errorf("runtime scaffold preflight: %s does not build an immutable knowledge artifact; rerun deploy railway init --force", deployRuntimeDockerfile)
+		}
 	}
 	for _, runtimeName := range runtimes {
 		var install string
@@ -581,7 +578,7 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 	volumeRoot := "/var/lib/openknowledge"
 	state := "/tmp/openknowledge"
 	artifactType := "filesystem"
-	artifactPath := "/tmp/openknowledge/artifacts"
+	artifactPath := "/opt/openknowledge/artifacts"
 	artifactURL := ""
 	exchangeDir := "/tmp/openknowledge/exchange"
 	exchangeURL := ""
@@ -598,8 +595,6 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 		publisherAPI = true
 		runAgents = len(plan.Runtimes) > 0
 	} else if role == "serve" {
-		artifactType = "http"
-		artifactURL = "http://" + publisher + ".railway.internal:8090"
 		address = "0.0.0.0:8080"
 	} else if strings.HasPrefix(role, "worker-") {
 		state = volumeRoot + "/state"
@@ -635,7 +630,8 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 	if plan.KnowledgeBase.Path != "." {
 		path += "/" + plan.KnowledgeBase.Path
 	}
-	fmt.Fprintf(&output, "\n[[knowledge_bases]]\nid = %s\npath = %s\nroute = \"/\"\nspec = %s\npublish = true\nmcp = %t\n", strconv.Quote(plan.KnowledgeBase.ID), strconv.Quote(path), strconv.Quote(plan.KnowledgeBase.Spec), mcpAccess != "off")
+	publish := role != "publisher"
+	fmt.Fprintf(&output, "\n[[knowledge_bases]]\nid = %s\npath = %s\nroute = \"/\"\nspec = %s\npublish = %t\nmcp = %t\n", strconv.Quote(plan.KnowledgeBase.ID), strconv.Quote(path), strconv.Quote(plan.KnowledgeBase.Spec), publish, mcpAccess != "off")
 	return output.String()
 }
 
@@ -747,19 +743,20 @@ func validateCustomDeployDomain(value string) error {
 }
 
 func resolveRailwayDeploySecrets(options railwayDeployOptions, plan deployPlan) (deploySecrets, error) {
-	githubToken := strings.TrimSpace(os.Getenv(options.GitHubTokenEnv))
-	if githubToken == "" {
-		command := exec.Command("gh", "auth", "token")
-		output, err := command.Output()
-		if err == nil {
-			githubToken = strings.TrimSpace(string(output))
+	secrets := deploySecrets{AgentKeys: make(map[string]string)}
+	if len(plan.Runtimes) > 0 {
+		githubToken := strings.TrimSpace(os.Getenv(options.GitHubTokenEnv))
+		if githubToken == "" {
+			command := exec.Command("gh", "auth", "token")
+			output, err := command.Output()
+			if err == nil {
+				githubToken = strings.TrimSpace(string(output))
+			}
 		}
-	}
-	if githubToken == "" {
-		return deploySecrets{}, fmt.Errorf("GitHub credential is required in %s or gh auth", options.GitHubTokenEnv)
-	}
-	secrets := deploySecrets{GitHubToken: githubToken, AgentKeys: make(map[string]string)}
-	if !options.WithoutWorker {
+		if githubToken == "" {
+			return deploySecrets{}, fmt.Errorf("agent deployment requires a GitHub credential in %s or gh auth", options.GitHubTokenEnv)
+		}
+		secrets.GitHubToken = githubToken
 		for _, runtimeName := range plan.Runtimes {
 			source := deployRuntimeCredentialSource(options, runtimeName)
 			value := strings.TrimSpace(os.Getenv(source))
@@ -775,14 +772,16 @@ func resolveRailwayDeploySecrets(options railwayDeployOptions, plan deployPlan) 
 			return deploySecrets{}, fmt.Errorf("token-protected MCP requires %s", options.MCPTokenEnv)
 		}
 	}
-	var err error
-	secrets.ArtifactToken, err = randomDeployToken()
-	if err != nil {
-		return deploySecrets{}, err
-	}
-	secrets.ExchangeToken, err = randomDeployToken()
-	if err != nil {
-		return deploySecrets{}, err
+	if len(plan.Runtimes) > 0 {
+		var err error
+		secrets.ArtifactToken, err = randomDeployToken()
+		if err != nil {
+			return deploySecrets{}, err
+		}
+		secrets.ExchangeToken, err = randomDeployToken()
+		if err != nil {
+			return deploySecrets{}, err
+		}
 	}
 	return secrets, nil
 }
@@ -842,10 +841,15 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 	for _, service := range plan.Services {
 		desiredRoles[service.Role] = true
 	}
+	var staleRoles []string
 	for role := range state.Services {
 		if !desiredRoles[role] {
-			return deployResult{}, fmt.Errorf("deployment state contains the %s service, but the new plan omits it; remove provider resources explicitly before narrowing topology", role)
+			staleRoles = append(staleRoles, role)
 		}
+	}
+	sort.Strings(staleRoles)
+	if len(staleRoles) > 0 && !plan.Prune {
+		return deployResult{}, fmt.Errorf("deployment state contains services omitted by the new topology (%s); review the dry-run and rerun with --prune --yes to delete them", strings.Join(staleRoles, ", "))
 	}
 	state.Complete = false
 	state.Project.Name = plan.Project.Name
@@ -881,6 +885,23 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 		if state.Project.ID == "" {
 			return deployResult{}, fmt.Errorf("Railway project creation did not return an ID")
 		}
+		if err := saveRailwayDeployState(plan.StateFile, state); err != nil {
+			return deployResult{}, err
+		}
+	}
+	for _, role := range staleRoles {
+		service := state.Services[role]
+		target := service.ID
+		if target == "" {
+			target = service.Name
+		}
+		if target == "" {
+			return deployResult{}, fmt.Errorf("cannot prune %s service because deployment state has no provider identifier", role)
+		}
+		if _, err := provider.runner.Run(ctx, working, nil, "service", "delete", "--service", target, "--environment", "production", "--yes", "--json"); err != nil {
+			return deployResult{}, fmt.Errorf("delete stale Railway service %s: %w", role, err)
+		}
+		delete(state.Services, role)
 		if err := saveRailwayDeployState(plan.StateFile, state); err != nil {
 			return deployResult{}, err
 		}
@@ -1016,7 +1037,6 @@ func railwayServiceVariables(service deployService, secrets deploySecrets) map[s
 		variables["GITHUB_TOKEN"] = secrets.GitHubToken
 	case "serve":
 		variables["OPENKNOWLEDGE_ROLE"] = "serve"
-		variables["OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN"] = secrets.ArtifactToken
 		variables["PORT"] = strconv.Itoa(service.Port)
 		if secrets.MCPToken != "" {
 			variables["OPENKNOWLEDGE_MCP_TOKEN"] = secrets.MCPToken
@@ -1178,7 +1198,7 @@ knowledge base. Open Knowledge provisions services and a provider endpoint; it
 never purchases or registers a custom domain.
 
 Providers:
-  railway    Deploy isolated serve, publisher, and optional agent services.
+  railway    Deploy an immutable serve service, with optional agent services.
 
 Run "openknowledge deploy railway --help" for provider options.
 `
@@ -1187,20 +1207,22 @@ Run "openknowledge deploy railway --help" for provider options.
 func deployRailwayHelpText() string {
 	return `openknowledge deploy railway [path] [options]
 
-Validate a public knowledge artifact, then deploy the isolated runtime to
-Railway. By default Railway assigns its own technical service URL. Pass a domain
-you already own with --domain, or disable all public ingress with
---no-public-endpoint. Open Knowledge never registers a domain.
+Validate a public knowledge artifact, then deploy an immutable runtime to
+Railway. The default topology is one serve service whose image contains the
+artifact built from the source commit. Passing --runtimes explicitly adds a
+Git-synchronizing publisher and isolated agent workers. By default Railway
+assigns its own technical service URL. Pass a domain you already own with
+--domain, or disable all public ingress with --no-public-endpoint.
 
 Options:
-  init [path]                   Create the repository-owned runtime Dockerfile.
+  init [path]                   Create the repository-owned runtime scaffold.
   --name NAME                  Project/service prefix (derived from Git by default).
   --project ID                 Reuse an existing Railway project.
   --workspace ID|NAME          Workspace for a newly created project.
   --production-branch BRANCH   Production branch (default: main).
   --repository URL             GitHub repository (default: origin).
-  --without-worker             Omit all agent workers.
-  --runtimes LIST              Worker runtimes; infer enabled jobs when omitted.
+  --without-worker             Compatibility flag; agents are already omitted by default.
+  --runtimes LIST              Enable publisher/workers for these agent runtimes.
   --mcp public|token|off       MCP exposure mode (default: public).
   --domain HOSTNAME            Attach a custom domain already owned by the user.
   --no-public-endpoint         Do not create a public Railway endpoint.
@@ -1211,6 +1233,7 @@ Options:
   --mcp-token-env NAME         MCP token environment when --mcp token.
   --state PATH                 Idempotent deployment state path.
   --dry-run                    Print a secret-free plan without provider changes.
+  --prune                      Delete services omitted by the new topology.
   --yes                        Confirm provider resource changes.
 `
 }

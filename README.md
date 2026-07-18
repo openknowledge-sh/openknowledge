@@ -246,34 +246,38 @@ example in production.
 ### Deploy the runtime to Railway
 
 ```sh
-# Generate the project-owned image definition and commit its version pins.
-openknowledge deploy railway init Wiki --runtimes codex
+# Generate the project-owned image definition and immutable artifact config.
+openknowledge deploy railway init Wiki
 git add .openknowledge/runtime
 git commit -m "Add Open Knowledge Railway runtime"
 git push
 
 # Review the exact resources and credential names; no secrets are read or shown.
-openknowledge deploy railway Wiki --runtimes codex --dry-run
+openknowledge deploy railway Wiki --dry-run
 
-# Provision serve, publisher, inferred harness workers, volumes, and a Railway URL.
-openknowledge deploy railway Wiki --runtimes codex --yes
+# Provision one serve service and a Railway URL.
+openknowledge deploy railway Wiki --yes
 ```
 
 Use `--domain docs.example.com` only for a hostname you already own; the result
 prints Railway's required CNAME/TXT records. Use `--no-public-endpoint` for a
-private deployment or `--without-worker` when scheduled agents are not needed.
-Open Knowledge infers `codex`, `claude`, and `opencode` workers from enabled job
-files; no enabled jobs means no worker, and `--runtimes` can override that
-selection. It never searches for, buys,
-or registers domains. Railway CLI v5+ authentication, a GitHub token (or
-authenticated `gh`), and the selected harness keys (`CODEX_API_KEY`,
-`ANTHROPIC_API_KEY`, and/or `OPENCODE_API_KEY`) are
-required for the full mutating deployment. See the
+private deployment. The default service does not poll Git: Railway rebuilds
+the Dockerfile for a source deployment, and that build embeds the knowledge
+artifact for the triggering commit. Railway CLI v5+ authentication is the only
+deployment credential required for this mode.
+
+Scheduled agents are explicit. Pass `--runtimes codex` (or
+`claude,opencode`) to both `init` and `deploy` to add a private Git-synchronizing
+publisher and isolated workers. Only that mode needs a GitHub token and the
+selected harness keys (`CODEX_API_KEY`, `ANTHROPIC_API_KEY`, and/or
+`OPENCODE_API_KEY`). Open Knowledge never searches for, buys, or registers
+domains. See the
 [deploy command reference](Wiki/features/commands/deploy.md).
 
-The generated Dockerfile pins Open Knowledge and each selected agent CLI in the
-knowledge-base repository. Railway builds that source directly, so projects can
-update Codex, Claude Code, or OpenCode independently of Open Knowledge releases.
+The generated multi-stage Dockerfile pins Open Knowledge and each explicitly
+selected agent CLI, builds the publication artifact from the repository source,
+and copies it into the final image. Projects can therefore update Codex, Claude
+Code, or OpenCode independently of Open Knowledge releases.
 The CLI never overwrites project-owned pins unless `deploy railway init
 --force` is explicit. At container startup, the generated entrypoint prepares
 the Railway volume and then drops privileges to the `openknowledge` user before
@@ -282,7 +286,12 @@ starting any runtime role.
 Keep `.openknowledge/deployments/railway.json` after the first run; it contains
 no secrets and lets later runs reuse the same resources safely. The command
 returns after Railway accepts the redeploy. Verify the generated endpoint at
-`/_openknowledge/readyz` once the publisher has produced its first snapshot.
+`/_openknowledge/readyz` once the image starts.
+
+To migrate an older publisher+serve deployment to the one-service default,
+first review `openknowledge deploy railway Wiki --dry-run`, then run
+`openknowledge deploy railway Wiki --prune --yes`. `--prune` explicitly deletes
+the obsolete publisher and worker services and their attached state.
 
 ## How It Works
 

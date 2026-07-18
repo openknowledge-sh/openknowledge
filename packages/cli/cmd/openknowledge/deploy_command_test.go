@@ -114,17 +114,17 @@ func TestRailwayDeployPlanIsSecretFreeAndModelsProviderEndpoint(t *testing.T) {
 	if plan.Endpoint.Mode != "custom" || plan.Endpoint.Domain != "docs.example.com" {
 		t.Fatalf("unexpected custom endpoint: %#v", plan.Endpoint)
 	}
-	if len(plan.Services) != 3 || plan.Services[0].Role != "publisher" || plan.Services[1].Role != "serve" || plan.Services[2].Role != "worker-codex" {
+	if len(plan.Services) != 3 || plan.Services[0].Role != "serve" || plan.Services[1].Role != "publisher" || plan.Services[2].Role != "worker-codex" {
 		t.Fatalf("unexpected isolated services: %#v", plan.Services)
 	}
-	if plan.Services[0].Public || !plan.Services[1].Public || plan.Services[2].Public {
+	if !plan.Services[0].Public || plan.Services[1].Public || plan.Services[2].Public {
 		t.Fatalf("only serve may be public: %#v", plan.Services)
 	}
-	if plan.Services[0].VolumePath == "" || plan.Services[2].VolumePath == "" || plan.Services[1].VolumePath != "" {
+	if plan.Services[0].VolumePath != "" || plan.Services[1].VolumePath == "" || plan.Services[2].VolumePath == "" {
 		t.Fatalf("Railway volumes must be owned by private stateful roles: %#v", plan.Services)
 	}
-	if !strings.Contains(plan.Services[0].Config, `state_dir = "/tmp/openknowledge"`) {
-		t.Fatalf("publisher checkout and build state must stay off the Railway volume: %s", plan.Services[0].Config)
+	if !strings.Contains(plan.Services[1].Config, `state_dir = "/tmp/openknowledge"`) {
+		t.Fatalf("publisher checkout state must stay off the Railway volume: %s", plan.Services[1].Config)
 	}
 	if !strings.Contains(plan.Services[2].Config, `state_dir = "/var/lib/openknowledge/state"`) {
 		t.Fatalf("worker state must use a process-owned directory below the Railway mount: %s", plan.Services[2].Config)
@@ -132,32 +132,34 @@ func TestRailwayDeployPlanIsSecretFreeAndModelsProviderEndpoint(t *testing.T) {
 	if strings.Contains(plan.Services[2].Config, `state_dir = "/var/lib/openknowledge"`) {
 		t.Fatalf("worker must not chmod the provider-owned Railway mount root: %s", plan.Services[2].Config)
 	}
-	if !strings.Contains(plan.Services[0].Config, `path = "/var/lib/openknowledge/artifacts"`) ||
-		!strings.Contains(plan.Services[0].Config, `exchange_dir = "/var/lib/openknowledge/exchange"`) {
-		t.Fatalf("publisher stores must remain on the persistent Railway volume: %s", plan.Services[0].Config)
+	if !strings.Contains(plan.Services[0].Config, `path = "/opt/openknowledge/artifacts"`) || strings.Contains(plan.Services[0].Config, `type = "http"`) {
+		t.Fatalf("serve must read its immutable image artifact directly: %s", plan.Services[0].Config)
+	}
+	if !strings.Contains(plan.Services[1].Config, `exchange_dir = "/var/lib/openknowledge/exchange"`) || !strings.Contains(plan.Services[1].Config, `publish = false`) {
+		t.Fatalf("publisher must broker agent source without rebuilding serve artifacts: %s", plan.Services[1].Config)
 	}
 }
 
-func TestRailwayDeployInfersOneIsolatedServicePerJobRuntime(t *testing.T) {
+func TestRailwayDeployCreatesOneIsolatedServicePerExplicitRuntime(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
 	writeViewerFile(t, repository, ".openknowledge/jobs/claude.md", "---\nid: claude-refresh\nagent: {runtime: claude}\n---\nRefresh docs.\n")
 	writeViewerFile(t, repository, ".openknowledge/jobs/opencode.md", "---\nid: opencode-research\nagent: {runtime: opencode, model: custom/research}\n---\nResearch updates.\n")
 	runtimeGitTest(t, repository, "add", ".openknowledge/jobs")
 	runtimeGitTest(t, repository, "commit", "-m", "add agent jobs")
 	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "multi-state.json"))
-	options.Runtimes = ""
+	options.Runtimes = "claude,opencode"
 	plan, err := buildRailwayDeployPlan(options, wiki)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(plan.Runtimes, []string{"claude", "opencode"}) {
-		t.Fatalf("unexpected inferred runtimes: %#v", plan.Runtimes)
+		t.Fatalf("unexpected explicit runtimes: %#v", plan.Runtimes)
 	}
 	roles := make([]string, 0, len(plan.Services))
 	for _, service := range plan.Services {
 		roles = append(roles, service.Role)
 	}
-	if !reflect.DeepEqual(roles, []string{"publisher", "serve", "worker-claude", "worker-opencode"}) {
+	if !reflect.DeepEqual(roles, []string{"serve", "publisher", "worker-claude", "worker-opencode"}) {
 		t.Fatalf("unexpected services: %#v", plan.Services)
 	}
 	if !strings.Contains(plan.Services[2].Config, `runtimes = ["claude","opencode"]`) || plan.Services[3].Source.Repository != "example/knowledge" {
@@ -165,7 +167,7 @@ func TestRailwayDeployInfersOneIsolatedServicePerJobRuntime(t *testing.T) {
 	}
 }
 
-func TestRailwayDeployOmitsWorkersWhenNoEnabledJobsAreInferred(t *testing.T) {
+func TestRailwayDeployDefaultsToOneImmutableServeService(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
 	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "no-workers-state.json"))
 	options.Runtimes = ""
@@ -173,11 +175,14 @@ func TestRailwayDeployOmitsWorkersWhenNoEnabledJobsAreInferred(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.Runtimes) != 0 || len(plan.Services) != 2 {
-		t.Fatalf("expected publisher and serve only, got runtimes=%#v services=%#v", plan.Runtimes, plan.Services)
+	if len(plan.Runtimes) != 0 || len(plan.Services) != 1 || plan.Services[0].Role != "serve" {
+		t.Fatalf("expected one serve service, got runtimes=%#v services=%#v", plan.Runtimes, plan.Services)
 	}
-	if strings.Contains(plan.Services[0].Config, "runtimes =") || strings.Contains(plan.Services[0].Config, "run_jobs = true") {
-		t.Fatalf("publisher config unexpectedly enabled jobs: %s", plan.Services[0].Config)
+	if strings.Contains(plan.Services[0].Config, "runtimes =") || strings.Contains(plan.Services[0].Config, "run_jobs = true") || strings.Contains(plan.Services[0].Config, "railway.internal") {
+		t.Fatalf("default serve config unexpectedly depends on agent services: %s", plan.Services[0].Config)
+	}
+	if !reflect.DeepEqual(plan.Requirements, []string{"Railway CLI v5+ authentication"}) {
+		t.Fatalf("default deployment unexpectedly requires agent credentials: %#v", plan.Requirements)
 	}
 }
 
@@ -317,6 +322,57 @@ func TestRailwayProviderMigratesV1ImageStateToRepositorySource(t *testing.T) {
 	}
 }
 
+func TestRailwayProviderRequiresExplicitPruneBeforeRemovingAgentServices(t *testing.T) {
+	repository, wiki := newDeployTestRepository(t)
+	statePath := filepath.Join(repository, "prune-state.json")
+	agentOptions := defaultRailwayDeployTestOptions(statePath)
+	agentPlan, err := buildRailwayDeployPlan(agentOptions, wiki)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRailwayRunner{}
+	provider := railwayProvider{runner: runner}
+	secrets := deploySecrets{GitHubToken: "github", AgentKeys: map[string]string{"codex": "openai"}, ArtifactToken: "artifact", ExchangeToken: "exchange"}
+	if _, err := provider.Apply(t.Context(), agentPlan, secrets); err != nil {
+		t.Fatal(err)
+	}
+
+	immutableOptions := defaultRailwayDeployTestOptions(statePath)
+	immutableOptions.Runtimes = ""
+	immutablePlan, err := buildRailwayDeployPlan(immutableOptions, wiki)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.Apply(t.Context(), immutablePlan, deploySecrets{}); err == nil || !strings.Contains(err.Error(), "--prune --yes") {
+		t.Fatalf("expected explicit prune handoff, got %v", err)
+	}
+	immutablePlan.Prune = true
+	if _, err := provider.Apply(t.Context(), immutablePlan, deploySecrets{}); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted := map[string]bool{}
+	for _, call := range runner.Calls {
+		joined := strings.Join(call.Arguments, " ")
+		if strings.HasPrefix(joined, "service delete ") {
+			deleted[fakeRailwayArgument(call.Arguments, "--service")] = true
+			if !strings.Contains(joined, "--environment production --yes --json") {
+				t.Fatalf("prune command is not explicit enough: %s", joined)
+			}
+		}
+	}
+	if !deleted["service-test-knowledge-publisher"] || !deleted["service-test-knowledge-worker-codex"] || len(deleted) != 2 {
+		t.Fatalf("unexpected pruned services: %#v", deleted)
+	}
+	state, present, err := loadRailwayDeployState(statePath)
+	if err != nil || !present {
+		t.Fatalf("missing pruned state: present=%t err=%v", present, err)
+	}
+	if len(state.Services) != 1 || state.Services["serve"].ID == "" {
+		t.Fatalf("pruned state did not retain only serve: %#v", state.Services)
+	}
+}
+
 func TestRailwayProviderRejectsOldCLIWithoutCreatingResources(t *testing.T) {
 	runner := &fakeRailwayRunner{Version: "railway 4.3.0"}
 	_, err := (railwayProvider{runner: runner}).Apply(t.Context(), deployPlan{}, deploySecrets{})
@@ -333,6 +389,7 @@ func TestRailwayProviderReturnsCustomDomainDNSRecords(t *testing.T) {
 	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "custom-state.json"))
 	options.Domain = "docs.example.com"
 	options.WithoutWorker = true
+	options.Runtimes = ""
 	plan, err := buildRailwayDeployPlan(options, wiki)
 	if err != nil {
 		t.Fatal(err)
@@ -426,7 +483,7 @@ func TestRailwayDeployRequiresCommittedProjectRuntimeScaffold(t *testing.T) {
 
 func TestRailwayDeployRejectsWorkerMissingFromCommittedRuntime(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
-	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim\n")
+	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\n")
 	runtimeGitTest(t, repository, "add", deployRuntimeDockerfile)
 	runtimeGitTest(t, repository, "commit", "-m", "remove codex runtime")
 	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "state.json"))
@@ -451,8 +508,9 @@ func newDeployTestRepository(t *testing.T) (string, string) {
 	wiki := filepath.Join(repository, "Wiki")
 	enablePublicArtifactTest(t, wiki)
 	writeViewerFile(t, repository, "Wiki/index.md", "# Deployable knowledge\n")
-	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim\nRUN npm install --global \"@openai/codex@${CODEX_VERSION}\" \"@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}\" \"opencode-ai@${OPENCODE_VERSION}\"\n")
+	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\nRUN npm install --global \"@openai/codex@${CODEX_VERSION}\" \"@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}\" \"opencode-ai@${OPENCODE_VERSION}\"\n")
 	writeViewerFile(t, repository, deployRuntimeEntrypoint, "#!/bin/sh\n")
+	writeViewerFile(t, repository, deployRuntimeConfig, renderDeployRuntimeConfig("wiki", "/workspace/Wiki"))
 	runtimeGitTest(t, repository, "init", "-b", "main")
 	runtimeGitTest(t, repository, "config", "user.name", "Deploy Test")
 	runtimeGitTest(t, repository, "config", "user.email", "deploy@example.test")

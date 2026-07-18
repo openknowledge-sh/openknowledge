@@ -13,6 +13,27 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Immutable Railway deployment by default
+
+- Changed the default Railway topology to one `serve` service whose
+  multi-stage Docker image builds and embeds the knowledge artifact for the
+  triggering source commit.
+- Made Git polling, the private publisher, persistent agent state, and isolated
+  workers explicit through `--runtimes`; enabled jobs are no longer inferred
+  during deployment.
+- Removed GitHub, model, artifact-sync, and exchange credentials from the
+  default deployment requirements.
+- Added a committed generated `runtime.toml`, so the generated image starts as
+  `serve` and can be tested locally without Railway-specific variables.
+- Added `--prune` as an explicit, fail-closed migration path for deleting
+  publisher and worker services omitted by the new topology. Existing
+  deployments can migrate with a reviewed dry-run followed by
+  `openknowledge deploy railway Wiki --prune --yes`.
+- Source: `packages/cli/cmd/openknowledge/deploy_command.go`,
+  `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`.
+- Docs: `README.md`, `Wiki/features/commands/deploy.md`,
+  `Wiki/features/commands/runtime.md`.
+
 ### 2026-07-18 — Runtime log severity
 
 - Moved successful runtime lifecycle events from standard error to standard
