@@ -898,6 +898,21 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 		if target == "" {
 			return deployResult{}, fmt.Errorf("cannot prune %s service because deployment state has no provider identifier", role)
 		}
+		if service.Volume {
+			output, err := provider.runner.Run(ctx, working, nil, "volume", "--service", target, "--environment", "production", "list", "--json")
+			if err != nil {
+				return deployResult{}, fmt.Errorf("list Railway volumes for stale %s service: %w", role, err)
+			}
+			volumeIDs, err := railwayVolumeIDs(output)
+			if err != nil {
+				return deployResult{}, fmt.Errorf("list Railway volumes for stale %s service: %w", role, err)
+			}
+			for _, volumeID := range volumeIDs {
+				if _, err := provider.runner.Run(ctx, working, nil, "volume", "--environment", "production", "delete", "--volume", volumeID, "--yes", "--json"); err != nil {
+					return deployResult{}, fmt.Errorf("delete stale Railway volume for %s: %w", role, err)
+				}
+			}
+		}
 		if _, err := provider.runner.Run(ctx, working, nil, "service", "delete", "--service", target, "--environment", "production", "--yes", "--json"); err != nil {
 			return deployResult{}, fmt.Errorf("delete stale Railway service %s: %w", role, err)
 		}
@@ -1022,6 +1037,25 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 		serviceNames = append(serviceNames, service.Name)
 	}
 	return deployResult{SchemaVersion: okf.MachineSchemaVersion, Provider: "railway", Project: state.Project, Endpoint: endpoint, Services: serviceNames, StateFile: plan.StateFile, Status: "deployment-triggered"}, nil
+}
+
+func railwayVolumeIDs(content []byte) ([]string, error) {
+	var response struct {
+		Volumes []struct {
+			ID string `json:"id"`
+		} `json:"volumes"`
+	}
+	if err := json.Unmarshal(content, &response); err != nil {
+		return nil, fmt.Errorf("invalid Railway volume list JSON: %w", err)
+	}
+	ids := make([]string, 0, len(response.Volumes))
+	for _, volume := range response.Volumes {
+		if !validDeployOpaqueProviderValue(volume.ID) {
+			return nil, fmt.Errorf("Railway volume list returned an invalid ID")
+		}
+		ids = append(ids, volume.ID)
+	}
+	return ids, nil
 }
 
 func railwayServiceVariables(service deployService, secrets deploySecrets) map[string]string {

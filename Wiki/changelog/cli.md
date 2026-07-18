@@ -13,6 +13,13 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Railway prune removes service volumes
+
+- Made `--prune` enumerate and delete persistent volumes attached to omitted
+  services before deleting those services, preventing provider-orphaned agent
+  state during migration to the immutable one-service topology.
+- Source: `packages/cli/cmd/openknowledge/deploy_command.go`.
+
 ### 2026-07-18 — Immutable Railway deployment by default
 
 - Changed the default Railway topology to one `serve` service whose

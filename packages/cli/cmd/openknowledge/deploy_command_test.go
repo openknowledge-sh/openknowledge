@@ -81,7 +81,20 @@ func (runner *fakeRailwayRunner) Run(_ context.Context, _ string, stdin io.Reade
 		}
 		return []byte(`{"domain":"generated.up.railway.app"}`), nil
 	}
+	if len(arguments) > 0 && arguments[0] == "volume" && slicesContain(arguments, "list") {
+		service := fakeRailwayArgument(arguments, "--service")
+		return []byte(fmt.Sprintf(`{"volumes":[{"id":"volume-%s"}]}`, service)), nil
+	}
 	return []byte(`{}`), nil
+}
+
+func slicesContain(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func fakeRailwayArgument(arguments []string, name string) string {
@@ -352,6 +365,7 @@ func TestRailwayProviderRequiresExplicitPruneBeforeRemovingAgentServices(t *test
 	}
 
 	deleted := map[string]bool{}
+	deletedVolumes := map[string]bool{}
 	for _, call := range runner.Calls {
 		joined := strings.Join(call.Arguments, " ")
 		if strings.HasPrefix(joined, "service delete ") {
@@ -360,9 +374,15 @@ func TestRailwayProviderRequiresExplicitPruneBeforeRemovingAgentServices(t *test
 				t.Fatalf("prune command is not explicit enough: %s", joined)
 			}
 		}
+		if strings.HasPrefix(joined, "volume --environment production delete ") {
+			deletedVolumes[fakeRailwayArgument(call.Arguments, "--volume")] = true
+		}
 	}
 	if !deleted["service-test-knowledge-publisher"] || !deleted["service-test-knowledge-worker-codex"] || len(deleted) != 2 {
 		t.Fatalf("unexpected pruned services: %#v", deleted)
+	}
+	if !deletedVolumes["volume-service-test-knowledge-publisher"] || !deletedVolumes["volume-service-test-knowledge-worker-codex"] || len(deletedVolumes) != 2 {
+		t.Fatalf("unexpected pruned volumes: %#v", deletedVolumes)
 	}
 	state, present, err := loadRailwayDeployState(statePath)
 	if err != nil || !present {

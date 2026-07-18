@@ -72,7 +72,7 @@ the diff, commit, push, and redeploy:
 
 ```sh
 openknowledge deploy railway init Wiki --runtimes codex \
-  --openknowledge-version 0.8.0 --codex-version 0.128.0 --force
+  --openknowledge-version 0.8.1 --codex-version 0.128.0 --force
 ```
 
 ## Deploy options
