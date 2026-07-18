@@ -13,6 +13,20 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Repository-owned Railway runtime
+
+- Added `openknowledge deploy railway init` to generate a project-owned,
+  non-root runtime Dockerfile with independent Open Knowledge and agent CLI
+  pins; existing project choices require explicit `--force` to replace.
+- Changed Railway provisioning from published GHCR role images to the target
+  GitHub repository source. Services share the committed Dockerfile while
+  retaining separate roles, ingress, volumes, and credentials.
+- Migrated version 1 deployment state to repository sources in place and
+  removed runtime-image publication from the release workflow.
+- Source: `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`,
+  `packages/cli/cmd/openknowledge/deploy_command.go`,
+  `.github/workflows/release.yml`.
+
 ### 2026-07-18 — Railway non-root volume startup
 
 - Kept publisher checkout, build, and lock state on ephemeral container storage;

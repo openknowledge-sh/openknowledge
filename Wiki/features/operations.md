@@ -97,15 +97,15 @@ The release version must match the root, npm, web, and Go fallback versions.
 Run the manual workflow from the current default-branch tip:
 
 ```text
-Actions → Release → Run workflow → version: 0.6.0
+Actions → Release → Run workflow → version: 0.7.0
 ```
 
 The workflow performs the complete quality gate before creating a tag. The
 publication job alone receives release write, OIDC, and attestation
 permissions. GoReleaser publishes checksums, archives, licenses, installer, and
-signed provenance; npm publishes the matching wrapper with provenance. A
-separate packages-only job publishes versioned serve, publisher, and
-per-harness runtime images to GHCR.
+signed provenance; npm publishes the matching wrapper with provenance.
+Deployable projects build their own pinned runtime from the committed
+`.openknowledge/runtime/Dockerfile`; releases do not publish role images.
 
 Stable releases use npm `latest`; prereleases use `next`. Verify an archive:
 

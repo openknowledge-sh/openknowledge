@@ -24,10 +24,9 @@ import (
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
 
-const railwayDeployStateVersion = 1
+const railwayDeployStateVersion = 2
 
 var railwayVersionPattern = regexp.MustCompile(`(?i)railway\s+(?:app\s+)?v?(\d+)\.(\d+)\.(\d+)`)
-var deployImageTagPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
 
 type deployProvider interface {
 	Apply(context.Context, deployPlan, deploySecrets) (deployResult, error)
@@ -62,14 +61,20 @@ type deployKnowledgeBase struct {
 }
 
 type deployService struct {
-	Name          string   `json:"name"`
-	Role          string   `json:"role"`
-	Image         string   `json:"image"`
-	Public        bool     `json:"public"`
-	Port          int      `json:"port,omitempty"`
-	VolumePath    string   `json:"volumePath,omitempty"`
-	VariableNames []string `json:"variableNames"`
-	Config        string   `json:"-"`
+	Name          string              `json:"name"`
+	Role          string              `json:"role"`
+	Source        deployServiceSource `json:"source"`
+	Public        bool                `json:"public"`
+	Port          int                 `json:"port,omitempty"`
+	VolumePath    string              `json:"volumePath,omitempty"`
+	VariableNames []string            `json:"variableNames"`
+	Config        string              `json:"-"`
+}
+
+type deployServiceSource struct {
+	Repository     string `json:"repository"`
+	Branch         string `json:"branch"`
+	DockerfilePath string `json:"dockerfilePath"`
 }
 
 type deployEndpoint struct {
@@ -114,12 +119,14 @@ type railwayDeployState struct {
 }
 
 type railwayServiceState struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Role     string `json:"role"`
-	Image    string `json:"image"`
-	Volume   bool   `json:"volume"`
-	Deployed bool   `json:"deployed"`
+	ID              string              `json:"id"`
+	Name            string              `json:"name"`
+	Role            string              `json:"role"`
+	Source          deployServiceSource `json:"source"`
+	SourceConnected bool                `json:"sourceConnected"`
+	Image           string              `json:"image,omitempty"`
+	Volume          bool                `json:"volume"`
+	Deployed        bool                `json:"deployed"`
 }
 
 type railwayRunner interface {
@@ -165,6 +172,9 @@ func runDeploy(args []string) int {
 }
 
 func runDeployRailway(args []string) int {
+	if len(args) > 0 && args[0] == "init" {
+		return runDeployRailwayInit(args[1:])
+	}
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, deployRailwayHelpText())
 		return 0
@@ -192,8 +202,6 @@ func runDeployRailway(args []string) int {
 	claudeKeyEnv := flags.String("claude-key-env", "ANTHROPIC_API_KEY", "environment variable containing the Claude API key")
 	opencodeKeyEnv := flags.String("opencode-key-env", "OPENCODE_API_KEY", "environment variable containing the OpenCode provider key")
 	mcpTokenEnv := flags.String("mcp-token-env", "OPENKNOWLEDGE_MCP_TOKEN", "environment variable containing the MCP bearer token")
-	imagePrefix := flags.String("image-prefix", "ghcr.io/openknowledge-sh/openknowledge-runtime", "runtime image prefix")
-	imageTag := flags.String("image-tag", "latest", "runtime image tag")
 	statePath := flags.String("state", "", "deployment state file")
 	dryRun := flags.Bool("dry-run", false, "validate and print the plan without changing Railway")
 	confirmed := flags.Bool("yes", false, "confirm provider resource changes")
@@ -213,7 +221,7 @@ func runDeployRailway(args []string) int {
 		WithoutWorker: *withoutWorker, MCPAccess: *mcpAccess, Domain: *domain,
 		NoPublicEndpoint: *noPublicEndpoint, GitHubTokenEnv: *githubTokenEnv,
 		Runtimes: *runtimes, CodexKeyEnv: *codexKeyEnv, ClaudeKeyEnv: *claudeKeyEnv, OpenCodeKeyEnv: *opencodeKeyEnv, MCPTokenEnv: *mcpTokenEnv,
-		ImagePrefix: *imagePrefix, ImageTag: *imageTag, StatePath: *statePath, DryRun: *dryRun,
+		StatePath: *statePath, DryRun: *dryRun,
 	}
 	plan, err := buildRailwayDeployPlan(options, knowledgePath)
 	if err != nil {
@@ -248,7 +256,7 @@ type railwayDeployOptions struct {
 	MCPAccess, Domain                                                      string
 	Runtimes                                                               string
 	GitHubTokenEnv, CodexKeyEnv, ClaudeKeyEnv, OpenCodeKeyEnv, MCPTokenEnv string
-	ImagePrefix, ImageTag, StatePath                                       string
+	StatePath                                                              string
 	WithoutWorker, NoPublicEndpoint, DryRun                                bool
 }
 
@@ -272,12 +280,6 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 	}
 	if strings.TrimSpace(options.Workspace) != "" && !validDeployOpaqueProviderValue(options.Workspace) {
 		return deployPlan{}, fmt.Errorf("--workspace is invalid")
-	}
-	if strings.TrimSpace(options.ImagePrefix) == "" || strings.ContainsAny(options.ImagePrefix, " \t\r\n") || strings.HasPrefix(options.ImagePrefix, "-") {
-		return deployPlan{}, fmt.Errorf("--image-prefix is invalid")
-	}
-	if !deployImageTagPattern.MatchString(options.ImageTag) {
-		return deployPlan{}, fmt.Errorf("--image-tag is invalid")
 	}
 	root, err := okf.ResolveKnowledgeRoot(knowledgeInput)
 	if err != nil {
@@ -367,15 +369,19 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 		knowledgeRelative = "."
 	}
 	knowledge := deployKnowledgeBase{ID: knowledgeID, Path: knowledgeRelative, Spec: "latest"}
+	source := deployServiceSource{Repository: githubRepo, Branch: options.Branch, DockerfilePath: deployRuntimeDockerfile}
+	if err := validateDeployRuntimeScaffold(repoRoot, options.Branch, agentRuntimes); err != nil {
+		return deployPlan{}, err
+	}
 	services := []deployService{
 		{
-			Name: publisherName, Role: "publisher", Image: deployImage(options.ImagePrefix, "publisher", options.ImageTag),
+			Name: publisherName, Role: "publisher", Source: source,
 			VolumePath:    "/var/lib/openknowledge",
-			VariableNames: []string{"OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN", "OPENKNOWLEDGE_EXCHANGE_TOKEN", "GITHUB_TOKEN"},
+			VariableNames: []string{"RAILWAY_DOCKERFILE_PATH", "OPENKNOWLEDGE_ROLE", "OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN", "OPENKNOWLEDGE_EXCHANGE_TOKEN", "GITHUB_TOKEN"},
 		},
 		{
-			Name: serveName, Role: "serve", Image: deployImage(options.ImagePrefix, "serve", options.ImageTag), Public: endpoint.Mode != "none", Port: 8080,
-			VariableNames: []string{"OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN", "PORT"},
+			Name: serveName, Role: "serve", Source: source, Public: endpoint.Mode != "none", Port: 8080,
+			VariableNames: []string{"RAILWAY_DOCKERFILE_PATH", "OPENKNOWLEDGE_ROLE", "OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN", "PORT"},
 		},
 	}
 	if options.MCPAccess == "token" {
@@ -386,8 +392,8 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 			credential := deployRuntimeCredentialEnvironment(runtimeName)
 			services = append(services, deployService{
 				Name: projectName + "-worker-" + runtimeName, Role: "worker-" + runtimeName,
-				Image: deployImage(options.ImagePrefix, "worker-"+runtimeName, options.ImageTag), VolumePath: "/var/lib/openknowledge",
-				VariableNames: []string{"OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_EXCHANGE_TOKEN", credential},
+				Source: source, VolumePath: "/var/lib/openknowledge",
+				VariableNames: []string{"RAILWAY_DOCKERFILE_PATH", "OPENKNOWLEDGE_ROLE", "OPENKNOWLEDGE_AGENT_RUNTIME", "OPENKNOWLEDGE_RUNTIME_CONFIG", "OPENKNOWLEDGE_EXCHANGE_TOKEN", credential},
 			})
 		}
 	}
@@ -414,10 +420,6 @@ func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string)
 		}
 	}
 	return plan, nil
-}
-
-func deployImage(prefix string, role string, tag string) string {
-	return strings.TrimSuffix(strings.TrimSpace(prefix), "-") + "-" + role + ":" + strings.TrimSpace(tag)
 }
 
 func resolveDeployAgentRuntimes(repoRoot string, requested string, withoutWorker bool) ([]string, error) {
@@ -533,6 +535,43 @@ func validateDeployProductionSnapshot(repoRoot string, relative string, branch s
 	}
 	if _, err := okf.BuildPublicationSetWithVersion(knowledgeRoot, "latest"); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateDeployRuntimeScaffold(repoRoot string, branch string, runtimes []string) error {
+	var reference string
+	for _, candidate := range []string{"refs/heads/" + branch, "refs/remotes/origin/" + branch} {
+		if _, err := runtimeGitOutput(repoRoot, "rev-parse", "--verify", candidate+"^{commit}"); err == nil {
+			reference = candidate
+			break
+		}
+	}
+	if reference == "" {
+		return fmt.Errorf("runtime scaffold preflight: branch %s is not available locally", branch)
+	}
+	for _, path := range []string{deployRuntimeDockerfile, deployRuntimeEntrypoint} {
+		if _, err := runtimeGitOutput(repoRoot, "cat-file", "-e", reference+":"+path); err != nil {
+			return fmt.Errorf("runtime scaffold preflight: %s is not committed on %s; run openknowledge deploy railway init first", path, branch)
+		}
+	}
+	dockerfile, err := runtimeGitOutput(repoRoot, "show", reference+":"+deployRuntimeDockerfile)
+	if err != nil {
+		return fmt.Errorf("runtime scaffold preflight: read %s: %w", deployRuntimeDockerfile, err)
+	}
+	for _, runtimeName := range runtimes {
+		var install string
+		switch runtimeName {
+		case agents.RuntimeCodex:
+			install = "@openai/codex@${CODEX_VERSION}"
+		case agents.RuntimeClaude:
+			install = "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+		case agents.RuntimeOpenCode:
+			install = "opencode-ai@${OPENCODE_VERSION}"
+		}
+		if install != "" && !strings.Contains(dockerfile, install) {
+			return fmt.Errorf("runtime scaffold preflight: %s does not install %s; rerun deploy railway init with matching --runtimes", deployRuntimeDockerfile, runtimeName)
+		}
 	}
 	return nil
 }
@@ -782,6 +821,14 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 	if !present {
 		state = railwayDeployState{Version: railwayDeployStateVersion, Project: plan.Project, Services: make(map[string]railwayServiceState)}
 	}
+	if state.Version == 1 {
+		state.Version = railwayDeployStateVersion
+		for role, service := range state.Services {
+			service.Image = ""
+			service.SourceConnected = false
+			state.Services[role] = service
+		}
+	}
 	if state.Version != railwayDeployStateVersion {
 		return deployResult{}, fmt.Errorf("unsupported Railway deployment state version: %d", state.Version)
 	}
@@ -843,19 +890,20 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 		if exists && (current.Name != service.Name || current.Role != service.Role) {
 			return deployResult{}, fmt.Errorf("deployment state service mismatch for role %s", service.Role)
 		}
-		if exists && current.Image != "" && current.Image != service.Image {
-			return deployResult{}, fmt.Errorf("service %s uses image %s in deployment state; image source changes require an explicit provider migration", service.Name, current.Image)
+		if exists && current.Source.Repository != "" && current.Source != service.Source {
+			return deployResult{}, fmt.Errorf("service %s source differs from deployment state; change the provider source explicitly before redeploying", service.Name)
 		}
-		if exists && current.Image == "" {
-			current.Image = service.Image
+		if exists && current.Source.Repository == "" {
+			current.Source = service.Source
+			current.Image = ""
 			state.Services[service.Role] = current
 		}
 		if !exists || current.ID == "" {
-			output, err := provider.runner.Run(ctx, working, nil, "add", "--image", service.Image, "--service", service.Name, "--json")
+			output, err := provider.runner.Run(ctx, working, nil, "add", "--service", service.Name, "--json")
 			if err != nil {
 				return deployResult{}, err
 			}
-			current = railwayServiceState{ID: railwayJSONField(output, "id"), Name: service.Name, Role: service.Role, Image: service.Image}
+			current = railwayServiceState{ID: railwayJSONField(output, "id"), Name: service.Name, Role: service.Role, Source: service.Source}
 			if current.ID == "" {
 				return deployResult{}, fmt.Errorf("Railway service creation did not return an ID for %s", service.Name)
 			}
@@ -887,10 +935,21 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 				return deployResult{}, fmt.Errorf("set Railway variable %s on %s: %w", name, service.Name, err)
 			}
 		}
+		current := state.Services[service.Role]
+		if !current.SourceConnected {
+			if _, err := provider.runner.Run(ctx, working, nil, "service", "source", "connect", "--repo", service.Source.Repository, "--branch", service.Source.Branch, "--service", current.ID, "--json"); err != nil {
+				return deployResult{}, fmt.Errorf("connect Railway source for %s: %w", service.Name, err)
+			}
+			current.SourceConnected = true
+			state.Services[service.Role] = current
+			if err := saveRailwayDeployState(plan.StateFile, state); err != nil {
+				return deployResult{}, err
+			}
+		}
 		if _, err := provider.runner.Run(ctx, working, nil, "redeploy", "--service", service.Name, "--yes", "--json"); err != nil {
 			return deployResult{}, err
 		}
-		current := state.Services[service.Role]
+		current = state.Services[service.Role]
 		current.Deployed = true
 		state.Services[service.Role] = current
 		if err := saveRailwayDeployState(plan.StateFile, state); err != nil {
@@ -941,13 +1000,18 @@ func (provider railwayProvider) Apply(ctx context.Context, plan deployPlan, secr
 }
 
 func railwayServiceVariables(service deployService, secrets deploySecrets) map[string]string {
-	variables := map[string]string{"OPENKNOWLEDGE_RUNTIME_CONFIG": service.Config}
+	variables := map[string]string{
+		"RAILWAY_DOCKERFILE_PATH":      service.Source.DockerfilePath,
+		"OPENKNOWLEDGE_RUNTIME_CONFIG": service.Config,
+	}
 	switch service.Role {
 	case "publisher":
+		variables["OPENKNOWLEDGE_ROLE"] = "publisher"
 		variables["OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN"] = secrets.ArtifactToken
 		variables["OPENKNOWLEDGE_EXCHANGE_TOKEN"] = secrets.ExchangeToken
 		variables["GITHUB_TOKEN"] = secrets.GitHubToken
 	case "serve":
+		variables["OPENKNOWLEDGE_ROLE"] = "serve"
 		variables["OPENKNOWLEDGE_ARTIFACT_SYNC_TOKEN"] = secrets.ArtifactToken
 		variables["PORT"] = strconv.Itoa(service.Port)
 		if secrets.MCPToken != "" {
@@ -955,8 +1019,10 @@ func railwayServiceVariables(service deployService, secrets deploySecrets) map[s
 		}
 	default:
 		if strings.HasPrefix(service.Role, "worker-") {
+			variables["OPENKNOWLEDGE_ROLE"] = "worker"
 			variables["OPENKNOWLEDGE_EXCHANGE_TOKEN"] = secrets.ExchangeToken
 			runtimeName := strings.TrimPrefix(service.Role, "worker-")
+			variables["OPENKNOWLEDGE_AGENT_RUNTIME"] = runtimeName
 			variables[deployRuntimeCredentialEnvironment(runtimeName)] = secrets.AgentKeys[runtimeName]
 		}
 	}
@@ -1123,6 +1189,7 @@ you already own with --domain, or disable all public ingress with
 --no-public-endpoint. Open Knowledge never registers a domain.
 
 Options:
+  init [path]                   Create the repository-owned runtime Dockerfile.
   --name NAME                  Project/service prefix (derived from Git by default).
   --project ID                 Reuse an existing Railway project.
   --workspace ID|NAME          Workspace for a newly created project.
@@ -1138,8 +1205,6 @@ Options:
   --claude-key-env NAME        Claude key environment (default: ANTHROPIC_API_KEY).
   --opencode-key-env NAME      OpenCode provider key environment (default: OPENCODE_API_KEY).
   --mcp-token-env NAME         MCP token environment when --mcp token.
-  --image-prefix IMAGE         Runtime image prefix.
-  --image-tag TAG              Runtime image tag (default: latest).
   --state PATH                 Idempotent deployment state path.
   --dry-run                    Print a secret-free plan without provider changes.
   --yes                        Confirm provider resource changes.

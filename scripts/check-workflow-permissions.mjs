@@ -10,7 +10,6 @@ const expectedWriteCapabilities = new Set([
   ".github/workflows/release.yml:publish_release:id-token",
   ".github/workflows/release.yml:publish_release:attestations",
   ".github/workflows/release.yml:npm:id-token",
-  ".github/workflows/release.yml:runtime_images:packages",
   ".github/workflows/security.yml:codeql:security-events",
 ]);
 const expectedPublishSteps = [

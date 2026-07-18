@@ -8,15 +8,20 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge deploy`
 
-`openknowledge deploy railway` validates a public knowledge base and provisions
-one public `serve` service, one private `publisher`, and optional private
-workers for Codex, Claude Code, and OpenCode.
+`openknowledge deploy railway init` creates a project-owned runtime image
+definition. `openknowledge deploy railway` then validates a public knowledge
+base and provisions one public `serve` service, one private `publisher`, and
+optional private workers from that repository source.
 
 ## Usage
 
 ```sh
-openknowledge deploy railway Wiki --dry-run
-openknowledge deploy railway Wiki --yes
+openknowledge deploy railway init Wiki --runtimes codex
+git add .openknowledge/runtime
+git commit -m "Add Open Knowledge Railway runtime"
+git push
+openknowledge deploy railway Wiki --runtimes codex --dry-run
+openknowledge deploy railway Wiki --runtimes codex --yes
 openknowledge deploy railway Wiki --domain docs.example.com --yes
 openknowledge deploy railway Wiki --no-public-endpoint --yes
 openknowledge deploy railway Wiki --without-worker --yes
@@ -27,7 +32,35 @@ Provider mutation requires `--yes`. `--dry-run` validates the working bundle
 and an isolated archive of the local production-branch commit, then prints a
 secret-free plan without requiring Railway authentication.
 
-## Options
+## Initialize the runtime
+
+`init` writes the files at the Git repository root, even when `[path]` points
+to a nested knowledge base.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `[path]` | `.` | Knowledge-base root used to locate the Git repository. |
+| `--runtimes` | inferred from enabled jobs | Harness CLIs to install. |
+| `--openknowledge-version` | current CLI | GitHub release binary version. |
+| `--codex-version` | `0.128.0` | Codex npm package version. |
+| `--claude-version` | `2.1.212` | Claude Code npm package version. |
+| `--opencode-version` | `1.18.3` | OpenCode npm package version. |
+| `--force` | off | Replace an existing generated scaffold. |
+
+The runtime selection used by deployment must be installed by `init`. Use the
+same explicit `--runtimes` value for both commands, or let both infer from the
+same enabled jobs. Deployment fails before provider mutation when a planned
+worker is absent from the committed Dockerfile.
+
+To update pins, rerun `init` with the desired versions and `--force`, review
+the diff, commit, push, and redeploy:
+
+```sh
+openknowledge deploy railway init Wiki --runtimes codex \
+  --openknowledge-version 0.7.0 --codex-version 0.128.0 --force
+```
+
+## Deploy options
 
 | Option | Default | Description |
 | --- | --- | --- |
@@ -47,11 +80,13 @@ secret-free plan without requiring Railway authentication.
 | `--claude-key-env` | `ANTHROPIC_API_KEY` | Claude Code credential source. |
 | `--opencode-key-env` | `OPENCODE_API_KEY` | OpenCode provider credential source. |
 | `--mcp-token-env` | `OPENKNOWLEDGE_MCP_TOKEN` | Required for token-protected MCP. |
-| `--image-prefix` | official GHCR prefix | Runtime image repositories. |
-| `--image-tag` | `latest` | Runtime image tag; pin a release in production. |
 | `--state` | `.openknowledge/deployments/railway.json` | Secret-free deployment state. |
 
 Railway CLI v5+ and authentication are required only for mutation.
+
+The files belong to the project after creation and are never replaced unless
+`--force` is explicit. Commit and push them on the production branch before
+dry-run or deployment.
 
 ## What it provisions
 
@@ -82,8 +117,18 @@ The state file records provider IDs, resources, endpoint metadata, and status,
 but never credentials. It is written with owner-only permissions. Interrupted
 deployment leaves `complete: false`; rerunning reuses recorded resources.
 Completed reruns reconcile variables and redeploy without recreating the
-topology. Narrowing a deployed topology or changing its image source requires
-explicit provider cleanup.
+topology. On the first mutating apply, version 1 image state upgrades to version
+2, clears legacy image metadata, and reconnects the existing service IDs to the
+repository without recreating services or volumes. Narrowing a deployed
+topology or changing its repository source still fails closed and requires
+explicit provider cleanup. The state version is separate from the provisional
+command-output `schemaVersion: "1"`.
+
+Each service is connected to the same GitHub repository and production branch.
+Railway builds `.openknowledge/runtime/Dockerfile`; role variables select
+`serve`, `publisher`, or the isolated agent worker. Updating an Open Knowledge
+or harness pin therefore requires only a project commit and redeploy, not a new
+Open Knowledge runtime-image release.
 
 Generated publisher configuration keeps replaceable checkout, build, and lock
 state on ephemeral storage. Published artifacts and exchange data remain on
@@ -112,6 +157,7 @@ Railway is currently the only full-runtime provider.
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/deploy_command.go`
+> - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`
 > - `packages/cli/cmd/openknowledge/deploy_command_test.go`
 > - `packages/cli/cmd/openknowledge/runtime_private_api.go`
 > - `docker/runtime.Dockerfile`

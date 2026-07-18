@@ -160,7 +160,7 @@ func TestRailwayDeployInfersOneIsolatedServicePerJobRuntime(t *testing.T) {
 	if !reflect.DeepEqual(roles, []string{"publisher", "serve", "worker-claude", "worker-opencode"}) {
 		t.Fatalf("unexpected services: %#v", plan.Services)
 	}
-	if !strings.Contains(plan.Services[2].Config, `runtimes = ["claude","opencode"]`) || !strings.Contains(plan.Services[3].Image, "worker-opencode") {
+	if !strings.Contains(plan.Services[2].Config, `runtimes = ["claude","opencode"]`) || plan.Services[3].Source.Repository != "example/knowledge" {
 		t.Fatalf("runtime plan did not configure isolated workers: %#v", plan.Services)
 	}
 }
@@ -215,7 +215,7 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 	if _, err := provider.Apply(t.Context(), plan, secrets); err != nil {
 		t.Fatal(err)
 	}
-	addCount, volumeCount, domainCount := 0, 0, 0
+	addCount, volumeCount, sourceCount, domainCount := 0, 0, 0, 0
 	for _, call := range runner.Calls {
 		joined := strings.Join(call.Arguments, " ")
 		if strings.HasPrefix(joined, "add ") {
@@ -223,6 +223,12 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 		}
 		if strings.HasPrefix(joined, "volume ") && strings.Contains(joined, " add ") {
 			volumeCount++
+		}
+		if strings.HasPrefix(joined, "service source connect ") {
+			sourceCount++
+			if !strings.Contains(joined, "--repo example/knowledge --branch main") {
+				t.Fatalf("source connection omitted repository or branch: %s", joined)
+			}
 		}
 		if strings.HasPrefix(joined, "domain ") {
 			domainCount++
@@ -233,8 +239,8 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 			}
 		}
 	}
-	if addCount != 3 || volumeCount != 2 || domainCount != 1 {
-		t.Fatalf("provider duplicated resources: add=%d volume=%d domain=%d calls=%#v", addCount, volumeCount, domainCount, runner.Calls)
+	if addCount != 3 || volumeCount != 2 || sourceCount != 3 || domainCount != 1 {
+		t.Fatalf("provider duplicated resources: add=%d volume=%d source=%d domain=%d calls=%#v", addCount, volumeCount, sourceCount, domainCount, runner.Calls)
 	}
 	state, err := os.ReadFile(statePath)
 	if err != nil {
@@ -251,6 +257,60 @@ func TestRailwayProviderIsIdempotentAndNeverPlacesSecretsInArgumentsOrState(t *t
 	}
 	if info.Mode().Perm() != 0600 {
 		t.Fatalf("deployment state mode = %04o, want 0600", info.Mode().Perm())
+	}
+}
+
+func TestRailwayProviderMigratesV1ImageStateToRepositorySource(t *testing.T) {
+	repository, wiki := newDeployTestRepository(t)
+	statePath := filepath.Join(repository, "legacy-state.json")
+	options := defaultRailwayDeployTestOptions(statePath)
+	plan, err := buildRailwayDeployPlan(options, wiki)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := railwayDeployState{
+		Version: 1, Project: deployProject{Name: plan.Project.Name, ID: "project-1"},
+		Services: make(map[string]railwayServiceState),
+	}
+	for _, service := range plan.Services {
+		legacy.Services[service.Role] = railwayServiceState{
+			ID: "legacy-" + service.Role, Name: service.Name, Role: service.Role,
+			Image:  "ghcr.io/openknowledge-sh/openknowledge-runtime-" + service.Role + ":0.6.2",
+			Volume: service.VolumePath != "", Deployed: true,
+		}
+	}
+	if err := saveRailwayDeployState(statePath, legacy); err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRailwayRunner{}
+	secrets := deploySecrets{GitHubToken: "github", AgentKeys: map[string]string{"codex": "openai"}, ArtifactToken: "artifact", ExchangeToken: "exchange"}
+	if _, err := (railwayProvider{runner: runner}).Apply(t.Context(), plan, secrets); err != nil {
+		t.Fatal(err)
+	}
+	migrated, present, err := loadRailwayDeployState(statePath)
+	if err != nil || !present {
+		t.Fatalf("missing migrated state: present=%t err=%v", present, err)
+	}
+	if migrated.Version != railwayDeployStateVersion {
+		t.Fatalf("state version = %d, want %d", migrated.Version, railwayDeployStateVersion)
+	}
+	for role, service := range migrated.Services {
+		if service.Image != "" || !service.SourceConnected || service.Source.Repository != "example/knowledge" {
+			t.Fatalf("service %s was not migrated to repository source: %#v", role, service)
+		}
+	}
+	addCount, sourceCount := 0, 0
+	for _, call := range runner.Calls {
+		joined := strings.Join(call.Arguments, " ")
+		if strings.HasPrefix(joined, "add ") {
+			addCount++
+		}
+		if strings.HasPrefix(joined, "service source connect ") {
+			sourceCount++
+		}
+	}
+	if addCount != 0 || sourceCount != len(plan.Services) {
+		t.Fatalf("legacy migration recreated services or omitted source connections: add=%d source=%d calls=%#v", addCount, sourceCount, runner.Calls)
 	}
 }
 
@@ -347,12 +407,38 @@ func TestRailwayDeployPreflightsCommittedProductionSnapshot(t *testing.T) {
 	}
 }
 
+func TestRailwayDeployRequiresCommittedProjectRuntimeScaffold(t *testing.T) {
+	repository, wiki := newDeployTestRepository(t)
+	if err := os.RemoveAll(filepath.Join(repository, filepath.FromSlash(deployRuntimeDirectory))); err != nil {
+		t.Fatal(err)
+	}
+	runtimeGitTest(t, repository, "add", "-A")
+	runtimeGitTest(t, repository, "commit", "-m", "remove runtime scaffold")
+	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "state.json"))
+	_, err := buildRailwayDeployPlan(options, wiki)
+	if err == nil || !strings.Contains(err.Error(), "deploy railway init") {
+		t.Fatalf("expected committed runtime scaffold preflight, got %v", err)
+	}
+}
+
+func TestRailwayDeployRejectsWorkerMissingFromCommittedRuntime(t *testing.T) {
+	repository, wiki := newDeployTestRepository(t)
+	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim\n")
+	runtimeGitTest(t, repository, "add", deployRuntimeDockerfile)
+	runtimeGitTest(t, repository, "commit", "-m", "remove codex runtime")
+	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "state.json"))
+	_, err := buildRailwayDeployPlan(options, wiki)
+	if err == nil || !strings.Contains(err.Error(), "matching --runtimes") {
+		t.Fatalf("expected runtime/scaffold mismatch, got %v", err)
+	}
+}
+
 func defaultRailwayDeployTestOptions(state string) railwayDeployOptions {
 	return railwayDeployOptions{
 		Name: "test-knowledge", Branch: "main", MCPAccess: "public",
 		Runtimes:       "codex",
 		GitHubTokenEnv: "GITHUB_TOKEN", CodexKeyEnv: "CODEX_API_KEY", ClaudeKeyEnv: "ANTHROPIC_API_KEY", OpenCodeKeyEnv: "OPENCODE_API_KEY", MCPTokenEnv: "OPENKNOWLEDGE_MCP_TOKEN",
-		ImagePrefix: "ghcr.io/openknowledge-sh/openknowledge-runtime", ImageTag: "test", StatePath: state,
+		StatePath: state,
 	}
 }
 
@@ -362,6 +448,8 @@ func newDeployTestRepository(t *testing.T) (string, string) {
 	wiki := filepath.Join(repository, "Wiki")
 	enablePublicArtifactTest(t, wiki)
 	writeViewerFile(t, repository, "Wiki/index.md", "# Deployable knowledge\n")
+	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim\nRUN npm install --global \"@openai/codex@${CODEX_VERSION}\" \"@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}\" \"opencode-ai@${OPENCODE_VERSION}\"\n")
+	writeViewerFile(t, repository, deployRuntimeEntrypoint, "#!/bin/sh\n")
 	runtimeGitTest(t, repository, "init", "-b", "main")
 	runtimeGitTest(t, repository, "config", "user.name", "Deploy Test")
 	runtimeGitTest(t, repository, "config", "user.email", "deploy@example.test")

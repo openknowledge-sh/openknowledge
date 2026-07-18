@@ -28,7 +28,7 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
-var version = "0.6.2"
+var version = "0.7.0"
 
 var terminal = newTerminal(os.Stdout)
 

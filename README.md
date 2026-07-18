@@ -246,11 +246,17 @@ example in production.
 ### Deploy the runtime to Railway
 
 ```sh
+# Generate the project-owned image definition and commit its version pins.
+openknowledge deploy railway init Wiki --runtimes codex
+git add .openknowledge/runtime
+git commit -m "Add Open Knowledge Railway runtime"
+git push
+
 # Review the exact resources and credential names; no secrets are read or shown.
-openknowledge deploy railway Wiki --dry-run
+openknowledge deploy railway Wiki --runtimes codex --dry-run
 
 # Provision serve, publisher, inferred harness workers, volumes, and a Railway URL.
-openknowledge deploy railway Wiki --yes
+openknowledge deploy railway Wiki --runtimes codex --yes
 ```
 
 Use `--domain docs.example.com` only for a hostname you already own; the result
@@ -264,6 +270,12 @@ authenticated `gh`), and the selected harness keys (`CODEX_API_KEY`,
 `ANTHROPIC_API_KEY`, and/or `OPENCODE_API_KEY`) are
 required for the full mutating deployment. See the
 [deploy command reference](Wiki/features/commands/deploy.md).
+
+The generated Dockerfile pins Open Knowledge and each selected agent CLI in the
+knowledge-base repository. Railway builds that source directly, so projects can
+update Codex, Claude Code, or OpenCode independently of Open Knowledge releases.
+The CLI never overwrites project-owned pins unless `deploy railway init
+--force` is explicit.
 
 Keep `.openknowledge/deployments/railway.json` after the first run; it contains
 no secrets and lets later runs reuse the same resources safely. The command
@@ -532,6 +544,7 @@ Nested job commands also support
 | `openknowledge runtime serve --config runtime.toml` | Serve verified static wiki, search, and optional read-only HTTP MCP snapshots. |
 | `openknowledge runtime worker --role publisher --config runtime.toml` | Fetch production, promote artifacts, validate agent bundles, and publish draft PR output with GitHub credentials. |
 | `openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml` | Run one harness's scheduled jobs with its model credential and export proposed Git branches without GitHub or artifact access. |
+| `openknowledge deploy railway init [path]` | Generate the repository-owned runtime Dockerfile and independently pinned CLI versions. |
 | `openknowledge deploy railway [path] --dry-run` | Validate publication and print the secret-free Railway resource plan. |
 | `openknowledge deploy railway [path] --yes` | Idempotently provision isolated runtime services, credentials, volumes, and the selected public endpoint mode. |
 | `openknowledge scaffold [folder]` | Scaffold a local Open Knowledge bundle. |
