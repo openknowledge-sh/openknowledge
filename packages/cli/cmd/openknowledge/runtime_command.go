@@ -36,6 +36,10 @@ type runtimeBuildResult struct {
 	Published     *okruntime.ActivePointer `json:"published,omitempty"`
 }
 
+func runtimeInfof(format string, arguments ...any) {
+	fmt.Fprintf(os.Stdout, format, arguments...)
+}
+
 func runRuntime(args []string) int {
 	if len(args) == 0 || isHelpFlag(args[0]) {
 		fmt.Fprint(os.Stdout, runtimeHelpText())

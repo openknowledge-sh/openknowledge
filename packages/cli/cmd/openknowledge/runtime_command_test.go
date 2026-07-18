@@ -27,6 +27,22 @@ func (transport runtimeHandlerRoundTripper) RoundTrip(request *http.Request) (*h
 	return response.Result(), nil
 }
 
+func TestRuntimeInfoUsesStdout(t *testing.T) {
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		runtimeInfof("runtime lifecycle %s\n", "ready")
+		return 0
+	})
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if stdout != "runtime lifecycle ready\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+}
+
 func TestEnsureRuntimeStateDirectorySkipsRedundantChmod(t *testing.T) {
 	state := filepath.Join(t.TempDir(), "state")
 	if err := os.Mkdir(state, 0700); err != nil {

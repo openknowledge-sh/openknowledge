@@ -252,7 +252,7 @@ func startRuntimePublisherAPIServer(ctx context.Context, config okruntime.Config
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
-	fmt.Fprintf(os.Stderr, "runtime publisher private API listening on %s\n", config.PublisherAPI.Address)
+	runtimeInfof("runtime publisher private API listening on %s\n", config.PublisherAPI.Address)
 	return errors, nil
 }
 

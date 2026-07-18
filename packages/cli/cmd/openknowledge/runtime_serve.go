@@ -97,7 +97,7 @@ func (manager *runtimeSnapshotManager) refresh() []error {
 		manager.mu.Lock()
 		manager.active[knowledge.ID] = snapshot
 		manager.mu.Unlock()
-		fmt.Fprintf(os.Stderr, "runtime serve activated %s generation %s\n", knowledge.ID, pointer.Generation)
+		runtimeInfof("runtime serve activated %s generation %s\n", knowledge.ID, pointer.Generation)
 	}
 	return failures
 }
@@ -278,7 +278,7 @@ func runRuntimeServe(args []string) int {
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
-	fmt.Fprintf(os.Stderr, "runtime serve listening on %s\n", config.Serve.Address)
+	runtimeInfof("runtime serve listening on %s\n", config.Serve.Address)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return printAgentCommandError(err)
 	}

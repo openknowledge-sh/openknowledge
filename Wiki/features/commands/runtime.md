@@ -55,6 +55,11 @@ multi-build results wrap generations in a top-level `generations` array.
 `--role all` is for local development and is rejected when GitHub integration
 is enabled.
 
+Long-running roles write successful lifecycle events such as listening,
+synchronization, publication, and generation activation to standard output.
+Usage errors, failed reconciliation passes, and other diagnostics use standard
+error so hosting platforms preserve the intended log severity.
+
 ## Configuration
 
 ```toml
@@ -158,6 +163,7 @@ repository and put TLS and rate limiting at the trusted ingress.
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/runtime_command.go`
+> - `packages/cli/cmd/openknowledge/runtime_private_api.go`
 > - `packages/cli/cmd/openknowledge/runtime_serve.go`
 > - `packages/cli/cmd/openknowledge/runtime_worker.go`
 > - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`

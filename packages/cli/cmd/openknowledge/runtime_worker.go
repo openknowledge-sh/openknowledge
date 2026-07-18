@@ -204,7 +204,7 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "runtime worker synchronized %s at %s\n", config.Worker.ProductionBranch, commit)
+	runtimeInfof("runtime worker synchronized %s at %s\n", config.Worker.ProductionBranch, commit)
 	if err := publishRuntimeSourceBundle(ctx, config, checkout); err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 			failures = append(failures, fmt.Errorf("publish %s: %w", mapped.ID, err))
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "runtime worker published %s generation %s\n", mapped.ID, result.Generation)
+		runtimeInfof("runtime worker published %s generation %s\n", mapped.ID, result.Generation)
 	}
 	if config.Worker.RunJobs && config.GitHub.Enabled {
 		if err := publishRuntimeExchangePullRequests(ctx, config, checkout, token); err != nil {
@@ -564,7 +564,7 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 			}
 		}
 		_ = writePrivateRuntimeJSON(marker, map[string]any{"run_id": record.RunID, "exported": true})
-		fmt.Fprintf(os.Stderr, "runtime agent worker exported run %s for private publication\n", record.RunID)
+		runtimeInfof("runtime agent worker exported run %s for private publication\n", record.RunID)
 	}
 	return errors.Join(failures...)
 }
@@ -659,7 +659,7 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			failures = append(failures, err)
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "runtime publisher published agent run %s as draft PR #%d\n", request.RunID, publication.PR)
+		runtimeInfof("runtime publisher published agent run %s as draft PR #%d\n", request.RunID, publication.PR)
 	}
 	return errors.Join(failures...)
 }

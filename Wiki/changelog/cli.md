@@ -13,6 +13,19 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-18 — Runtime log severity
+
+- Moved successful runtime lifecycle events from standard error to standard
+  output so Railway and other hosting platforms no longer classify healthy
+  listening, synchronization, publication, or activation messages as errors.
+- Kept usage diagnostics, failed passes, retained-generation warnings, and
+  archive failures on standard error.
+- Source: `packages/cli/cmd/openknowledge/runtime_command.go`,
+  `packages/cli/cmd/openknowledge/runtime_private_api.go`,
+  `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/cmd/openknowledge/runtime_worker.go`.
+- Docs: `Wiki/features/commands/runtime.md`.
+
 ### 2026-07-18 — Repository-owned Railway runtime
 
 - Added `openknowledge deploy railway init` to generate a project-owned,
