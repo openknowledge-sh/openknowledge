@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -299,11 +300,16 @@ func runtimeWorkerGit(ctx context.Context, config okruntime.Config, token string
 		command.Env = append(command.Env,
 			"GIT_CONFIG_COUNT=1",
 			"GIT_CONFIG_KEY_0=http.https://github.com/.extraheader",
-			"GIT_CONFIG_VALUE_0=AUTHORIZATION: bearer "+token,
+			"GIT_CONFIG_VALUE_0="+runtimeWorkerGitAuthorizationHeader(token),
 		)
 	}
 	output, err := command.CombinedOutput()
 	return strings.TrimSpace(string(output)), err
+}
+
+func runtimeWorkerGitAuthorizationHeader(token string) string {
+	credential := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + token))
+	return "AUTHORIZATION: basic " + credential
 }
 
 func runtimeWorkerToken(ctx context.Context, config okruntime.Config) (string, error) {

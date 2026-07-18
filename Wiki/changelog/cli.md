@@ -20,6 +20,9 @@ page records release-level changes.
   volume. Worker state uses a process-owned child directory below its mount.
 - Avoided redundant permission changes when the runtime state directory is
   already private, while still tightening a permissive existing directory.
+- Authenticated private GitHub Smart HTTP clone and fetch operations with an
+  ephemeral Basic extra header instead of a rejected Bearer header; credentials
+  remain absent from repository URLs and command arguments.
 - Source: `packages/cli/cmd/openknowledge/deploy_command.go`,
   `packages/cli/cmd/openknowledge/runtime_worker.go`.
 

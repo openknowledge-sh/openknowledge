@@ -94,8 +94,10 @@ Railway progress diagnostics are read separately from JSON command output, so
 interactive status text cannot hide resource IDs or break recovery state.
 
 Secret values are sent through stdin and never appear in arguments, plans,
-result JSON, or state. A successful result means Railway accepted the deploy;
-it does not wait for initial publication or DNS propagation. Check
+result JSON, or state. The publisher authenticates private GitHub clone and
+fetch operations through an ephemeral Git extra header, not a credentialed
+repository URL. A successful result means Railway accepted the deploy; it does
+not wait for initial publication or DNS propagation. Check
 `/_openknowledge/healthz` and `/_openknowledge/readyz` after deployment.
 
 Dry-run and deployment results declare `schemaVersion: "1"`, but do not yet

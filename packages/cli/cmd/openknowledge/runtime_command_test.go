@@ -62,6 +62,13 @@ func TestEnsureRuntimeStateDirectoryTightensExistingPermissions(t *testing.T) {
 	}
 }
 
+func TestRuntimeWorkerGitAuthorizationHeaderUsesGitHubBasicCredential(t *testing.T) {
+	const expected = "AUTHORIZATION: basic eC1hY2Nlc3MtdG9rZW46dGVzdC10b2tlbg=="
+	if got := runtimeWorkerGitAuthorizationHeader("test-token"); got != expected {
+		t.Fatalf("authorization header = %q, want %q", got, expected)
+	}
+}
+
 func TestRuntimeBuildAndServeUseOnlyVerifiedPublicGeneration(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "Wiki/index.md", "# Runtime Knowledge\n\nSearchable public guidance.\n")
