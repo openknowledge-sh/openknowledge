@@ -23,6 +23,7 @@ Git bundles without receiving GitHub credentials.
   <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"><img alt="OKF v0.1" src="https://img.shields.io/badge/OKF-v0.1-2f6feb"></a>
   <a href="https://openknowledge.sh"><img alt="Git-native Markdown wiki" src="https://img.shields.io/badge/wiki-git--native-0f766e"></a>
   <a href="Wiki/index.md"><img alt="Agent-ready docs" src="https://img.shields.io/badge/docs-agent--ready-6f42c1"></a>
+  <a href="https://bundledex.net"><img alt="OKF BundleDex" src="https://bundledex.net/static-badge.svg"></a>
 </p>
 
 ## Contents
