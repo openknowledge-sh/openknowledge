@@ -1,20 +1,12 @@
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { publishCLISchemas } from "./schema-distribution.mjs";
-import { distRoot as dist, exportWiki, webRoot } from "./wiki-export.mjs";
+import { distRoot as dist, exportWiki } from "./wiki-export.mjs";
 
 const headMarker = "<!-- OPENKNOWLEDGE_HEAD -->";
 
-await rm(dist, { recursive: true, force: true });
-await mkdir(dist, { recursive: true });
-
-for (const asset of ["index.html", "main.js", "favicon.png", "apple-touch-icon.png", "logo-mark.png", "og.png", "openknowledge-readme-banner.png", "styles.css", "robots.txt"]) {
-  if (asset === "index.html") {
-    await writeFile(path.join(dist, asset), await injectHeadHTML(await readFile(path.join(webRoot, asset), "utf8")));
-  } else {
-    await cp(path.join(webRoot, asset), path.join(dist, asset));
-  }
-}
+const indexPath = path.join(dist, "index.html");
+await writeFile(indexPath, await injectHeadHTML(await readFile(indexPath, "utf8")));
 
 await exportWiki(path.join(dist, "wiki"), { clean: false });
 await publishCLISchemas(path.join(dist, "schemas"));

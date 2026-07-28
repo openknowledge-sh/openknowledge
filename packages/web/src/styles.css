@@ -211,7 +211,7 @@ h3 {
   align-items: center;
   overflow: hidden;
   isolation: isolate;
-  background: #03050a url("openknowledge-readme-banner.png") center 44% / auto 100% no-repeat;
+  background: #03050a url("/openknowledge-readme-banner.png") center 44% / auto 100% no-repeat;
 }
 
 .hero::before {

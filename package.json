@@ -25,7 +25,7 @@
     "check:container-runtime": "node scripts/check-container-runtime.mjs",
     "check:repo-jobs": "go run ./packages/cli/cmd/openknowledge jobs validate .openknowledge/jobs",
     "test": "pnpm check:format && pnpm check:onboarding-docs && pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm check:security-config && pnpm check:container-runtime && pnpm check:repo-jobs && pnpm test:install && pnpm test:npm-install && pnpm test:packed-npm && pnpm test:web && pnpm test:cli",
-    "build": "pnpm build:cli && pnpm build:web"
+    "build": "pnpm build:web && pnpm build:cli"
   },
   "devDependencies": {
     "playwright": "1.61.1"

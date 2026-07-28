@@ -3,6 +3,7 @@
 /dist/
 /packages/npm/vendor/
 /packages/web/dist/
+/packages/web/viewer-dist/
 .pnpm-store/
 node_modules/
 deploy/runtime/secrets/

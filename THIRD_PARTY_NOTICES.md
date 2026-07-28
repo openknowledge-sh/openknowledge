@@ -25,7 +25,8 @@ Open Knowledge CLI embeds Mermaid 11.15.0 to render fenced `mermaid` blocks in
 the local and static HTML viewers.
 
 - Upstream repository: https://github.com/mermaid-js/mermaid
-- Embedded browser build: `packages/cli/cmd/openknowledge/viewer_mermaid.min.js`
+- Bundled viewer source: `packages/web/src/viewer/mermaid-global.ts`
+- Generated CLI asset: `packages/cli/cmd/openknowledge/viewer_assets/viewer.js`
 - License: MIT License
 - License copy: `third_party/licenses/mermaid-MIT.txt`
 

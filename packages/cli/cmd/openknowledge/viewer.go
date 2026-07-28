@@ -341,9 +341,9 @@ type viewerOptions struct {
 
 func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handler {
 	mux := http.NewServeMux()
+	registerViewerAssets(mux)
 	aliasName := options.AliasName
 	searchCache := &viewerSearchCache{root: root}
-	mux.HandleFunc("/"+viewerMermaidScriptAsset, renderViewerMermaidScript)
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/" {
 			if startPath := viewerStartPath(root); startPath != "/" {
@@ -445,7 +445,7 @@ func newReloadingRegistryViewerHandlerWithOptions(load func() ([]okf.RegistryEnt
 
 func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options viewerOptions) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/"+viewerMermaidScriptAsset, renderViewerMermaidScript)
+	registerViewerAssets(mux)
 	searchCaches := make(map[string]*viewerSearchCache)
 	var searchCachesMutex sync.Mutex
 	searchCacheForEntry := func(entry okf.RegistryEntry) (*viewerSearchCache, error) {
@@ -752,11 +752,10 @@ type viewerFileData struct {
 }
 
 type viewerScriptURLs struct {
-	Theme     string
-	Shortcuts string
-	Mermaid   string
-	App       string
-	Search    string
+	Theme      string
+	Stylesheet string
+	Data       string
+	App        string
 }
 
 type viewerAssetData struct {
@@ -965,15 +964,23 @@ func renderViewerRaw(response http.ResponseWriter, request *http.Request, root s
 	http.ServeContent(response, request, info.Name(), info.ModTime(), file)
 }
 
-func renderViewerMermaidScript(response http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodGet && request.Method != http.MethodHead {
-		response.Header().Set("Allow", "GET, HEAD")
-		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
-		return
+func registerViewerAssets(mux *http.ServeMux) {
+	mux.HandleFunc("/"+viewerThemeScriptAsset, renderViewerBundledAsset(viewerThemeScriptAsset, "application/javascript; charset=utf-8", viewerThemeBootstrapJS))
+	mux.HandleFunc("/"+viewerStylesheetAsset, renderViewerBundledAsset(viewerStylesheetAsset, "text/css; charset=utf-8", viewerCSS))
+	mux.HandleFunc("/"+viewerAppScriptAsset, renderViewerBundledAsset(viewerAppScriptAsset, "application/javascript; charset=utf-8", viewerJS))
+}
+
+func renderViewerBundledAsset(name string, contentType string, content string) http.HandlerFunc {
+	return func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet && request.Method != http.MethodHead {
+			response.Header().Set("Allow", "GET, HEAD")
+			http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		response.Header().Set("Content-Type", contentType)
+		response.Header().Set("Cache-Control", "public, max-age=3600")
+		http.ServeContent(response, request, filepath.Base(name), time.Time{}, strings.NewReader(content))
 	}
-	response.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-	response.Header().Set("Cache-Control", "public, max-age=3600")
-	http.ServeContent(response, request, "mermaid.min.js", time.Time{}, strings.NewReader(viewerMermaidJS))
 }
 
 func viewerRawAssetPath(root string, rel string) (string, bool) {
@@ -1610,6 +1617,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 	}
 	editorsJSON := viewerEditorsStaticJSON()
 	graphJSON := viewerStaticGraphJSON(bundle.Files)
+	dataJS := viewerStaticDataScript(staticJSON, graphJSON, editorsJSON)
 
 	var written []string
 	for _, file := range bundle.Files {
@@ -1633,9 +1641,6 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 			Body:        template.HTML(viewerStaticFileBody(file)),
 			Tree:        viewerStaticTree(bundle.Files, file.Path),
 			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
-			EditorsJSON: editorsJSON,
-			StaticJSON:  staticJSON,
-			GraphJSON:   graphJSON,
 			HeadHTML:    options.HeadHTML,
 			Scripts:     viewerStaticScriptURLs(file.Path),
 		}
@@ -1657,7 +1662,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 		return okf.HTMLResult{}, err
 	}
 	written = append(written, publishedAssets...)
-	scriptAssets, err := writeViewerScriptAssets(absoluteOut)
+	scriptAssets, err := writeViewerScriptAssets(absoluteOut, dataJS)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
@@ -1678,20 +1683,18 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 }
 
 const (
-	viewerThemeScriptAsset     = "assets/openknowledge/viewer-theme.js"
-	viewerShortcutsScriptAsset = "assets/openknowledge/viewer-shortcuts.js"
-	viewerMermaidScriptAsset   = "assets/openknowledge/mermaid.min.js"
-	viewerAppScriptAsset       = "assets/openknowledge/viewer-app.js"
-	viewerSearchScriptAsset    = "assets/openknowledge/viewer-search.js"
+	viewerThemeScriptAsset = "assets/openknowledge/viewer-theme.js"
+	viewerStylesheetAsset  = "assets/openknowledge/viewer.css"
+	viewerDataScriptAsset  = "assets/openknowledge/viewer-data.js"
+	viewerAppScriptAsset   = "assets/openknowledge/viewer.js"
 )
 
 func viewerStaticScriptURLs(currentPath string) viewerScriptURLs {
 	return viewerScriptURLs{
-		Theme:     viewerStaticAssetURL(currentPath, viewerThemeScriptAsset),
-		Shortcuts: viewerStaticAssetURL(currentPath, viewerShortcutsScriptAsset),
-		Mermaid:   viewerStaticAssetURL(currentPath, viewerMermaidScriptAsset),
-		App:       viewerStaticAssetURL(currentPath, viewerAppScriptAsset),
-		Search:    viewerStaticAssetURL(currentPath, viewerSearchScriptAsset),
+		Theme:      viewerStaticAssetURL(currentPath, viewerThemeScriptAsset),
+		Stylesheet: viewerStaticAssetURL(currentPath, viewerStylesheetAsset),
+		Data:       viewerStaticAssetURL(currentPath, viewerDataScriptAsset),
+		App:        viewerStaticAssetURL(currentPath, viewerAppScriptAsset),
 	}
 }
 
@@ -1704,16 +1707,20 @@ func viewerStaticAssetURL(currentPath string, assetPath string) string {
 	return filepath.ToSlash(relative)
 }
 
-func writeViewerScriptAssets(out string) ([]string, error) {
+func viewerStaticDataScript(notes template.JS, graph template.JS, editors template.JS) string {
+	return "window.OpenKnowledgeStaticData=Object.freeze({notes:" + string(notes) +
+		",graph:" + string(graph) + ",editors:" + string(editors) + "});\n"
+}
+
+func writeViewerScriptAssets(out string, dataJS string) ([]string, error) {
 	assets := []struct {
 		path    string
 		content string
 	}{
 		{path: viewerThemeScriptAsset, content: viewerThemeBootstrapJS},
-		{path: viewerShortcutsScriptAsset, content: viewerShortcutsJS},
-		{path: viewerMermaidScriptAsset, content: viewerMermaidJS},
+		{path: viewerStylesheetAsset, content: viewerCSS},
+		{path: viewerDataScriptAsset, content: dataJS},
 		{path: viewerAppScriptAsset, content: viewerJS},
-		{path: viewerSearchScriptAsset, content: viewerSearchJS},
 	}
 	written := make([]string, 0, len(assets))
 	for _, asset := range assets {
@@ -1998,13 +2005,25 @@ func viewerEditors() []viewerEditor {
 }
 
 func viewerEditorsForStatic() []viewerEditor {
-	editors := viewerEditors()
-	for index, editor := range editors {
-		if icon, ok := viewerEditorStaticIcon(editor.ID); ok {
-			editors[index].Icon = icon
-		} else {
-			editors[index].Icon = ""
+	known := knownViewerEditors()
+	editors := make([]viewerEditor, 0, len(known))
+	for _, editor := range known {
+		item := viewerEditor{
+			ID:        editor.ID,
+			Name:      editor.Name,
+			Short:     editor.Short,
+			Available: false,
 		}
+		if icon, ok := viewerEditorBrandIconByID(editor.ID); ok {
+			svg := fmt.Sprintf(
+				`<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 24 24"><title>%s</title><path fill="#%s" d="%s"/></svg>`,
+				template.HTMLEscapeString(icon.Title),
+				template.HTMLEscapeString(icon.Hex),
+				template.HTMLEscapeString(icon.Path),
+			)
+			item.Icon = "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(svg))
+		}
+		editors = append(editors, item)
 	}
 	return editors
 }
@@ -2200,36 +2219,6 @@ func viewerEditorPNGIcon(editorID string, source string) (string, error) {
 		return "", err
 	}
 	return target, nil
-}
-
-func viewerEditorStaticIcon(editorID string) (string, bool) {
-	if icon, ok := viewerEditorBrandIconByID(editorID); ok {
-		svg := fmt.Sprintf(
-			`<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 24 24"><title>%s</title><path fill="#%s" d="%s"/></svg>`,
-			template.HTMLEscapeString(icon.Title),
-			template.HTMLEscapeString(icon.Hex),
-			template.HTMLEscapeString(icon.Path),
-		)
-		return "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(svg)), true
-	}
-
-	editor, ok := knownViewerEditorByID(editorID)
-	if !ok {
-		return "", false
-	}
-	source, ok := viewerEditorIconSource(editor)
-	if !ok {
-		return "", false
-	}
-	png, err := viewerEditorPNGIcon(editor.ID, source)
-	if err != nil {
-		return "", false
-	}
-	content, err := os.ReadFile(png)
-	if err != nil {
-		return "", false
-	}
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(content), true
 }
 
 func viewerEditorBrandIconByID(editorID string) (viewerEditorBrandIcon, bool) {
@@ -2837,8 +2826,8 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
-  <script>` + viewerThemeBootstrapJS + `</script>
-  <style>` + viewerCSS + `</style>
+  <script src="/` + viewerThemeScriptAsset + `"></script>
+  <link rel="stylesheet" href="/` + viewerStylesheetAsset + `">
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
 </head>
@@ -2885,8 +2874,7 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
       </section>
     {{end}}
   </main>
-  <script>` + viewerShortcutsJS + `</script>
-  <script>` + viewerSearchJS + `</script>
+  <script src="/` + viewerAppScriptAsset + `"></script>
 </body>
 </html>`))
 
@@ -2896,8 +2884,8 @@ var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!do
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
-  <script>` + viewerThemeBootstrapJS + `</script>
-  <style>` + viewerCSS + `</style>
+  <script src="/` + viewerThemeScriptAsset + `"></script>
+  <link rel="stylesheet" href="/` + viewerStylesheetAsset + `">
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
 </head>
@@ -2940,8 +2928,8 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
-  {{if .Scripts.Theme}}<script src="{{.Scripts.Theme}}"></script>{{else}}<script>` + viewerThemeBootstrapJS + `</script>{{end}}
-  <style>` + viewerCSS + `</style>
+  {{if .Scripts.Theme}}<script src="{{.Scripts.Theme}}"></script>{{else}}<script src="/` + viewerThemeScriptAsset + `"></script>{{end}}
+  {{if .Scripts.Stylesheet}}<link rel="stylesheet" href="{{.Scripts.Stylesheet}}">{{else}}<link rel="stylesheet" href="/` + viewerStylesheetAsset + `">{{end}}
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
 </head>
@@ -3195,13 +3183,12 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     </div>
   </div>
   <a class="powered-by-openknowledge" href="https://openknowledge.sh" target="_blank" rel="noreferrer">Powered by OpenKnowledge.sh</a>
+  {{if .Scripts.Data}}<script src="{{.Scripts.Data}}"></script>{{else}}
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
-  {{if .Scripts.Shortcuts}}<script src="{{.Scripts.Shortcuts}}"></script>{{else}}<script>` + viewerShortcutsJS + `</script>{{end}}
-  {{if .Scripts.Mermaid}}<script src="{{.Scripts.Mermaid}}"></script>{{else}}<script src="/` + viewerMermaidScriptAsset + `"></script>{{end}}
-  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script>` + viewerJS + `</script>{{end}}
-  {{if .Scripts.Search}}<script src="{{.Scripts.Search}}"></script>{{else}}<script>` + viewerSearchJS + `</script>{{end}}
+  {{end}}
+  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script src="/` + viewerAppScriptAsset + `"></script>{{end}}
 </body>
 </html>`))
 

@@ -582,6 +582,10 @@
   }
 
   function readStaticNotes() {
+    const shared = window.OpenKnowledgeStaticData?.notes;
+    if (Array.isArray(shared)) {
+      return shared;
+    }
     const source = document.querySelector("[data-static-notes]");
     if (!source) {
       return [];
@@ -679,6 +683,13 @@
   }
 
   function readKnowledgeGraph() {
+    const shared = window.OpenKnowledgeStaticData?.graph;
+    if (shared) {
+      return {
+        nodes: Array.isArray(shared.nodes) ? shared.nodes : [],
+        edges: Array.isArray(shared.edges) ? shared.edges : [],
+      };
+    }
     const source = document.querySelector("[data-knowledge-graph]");
     if (!source) {
       return { nodes: [], edges: [] };
@@ -1094,15 +1105,6 @@
       return "end";
     }
     return "center";
-  }
-
-  function graphStatesConnected(links, activePath, path) {
-    if (path === activePath) {
-      return true;
-    }
-    return links.some(function (edge) {
-      return (edge.source === activePath && edge.target === path) || (edge.target === activePath && edge.source === path);
-    });
   }
 
   function graphLayoutPositions(graph, width, height, labelsByPath) {
@@ -1713,6 +1715,10 @@
       { id: "windsurf", name: "Windsurf", short: "Ws", available: false },
       { id: "zed", name: "Zed", short: "Zd", available: false }
     ];
+    const shared = window.OpenKnowledgeStaticData?.editors;
+    if (Array.isArray(shared) && shared.length) {
+      return shared;
+    }
     const source = document.querySelector("[data-editor-options]");
     if (!source) {
       return fallback;
@@ -1814,10 +1820,6 @@
 
   function orderedEditors() {
     return readEditorOrder().map(editorByID).filter(Boolean);
-  }
-
-  function activeEditor() {
-    return orderedEditors()[0] || editorOptions[0];
   }
 
   function savePrimaryEditor(editorID) {
@@ -2876,7 +2878,7 @@
 
   function updateActiveLinks() {
     const all = panels();
-    all.forEach(function (panel, index) {
+    all.forEach(function (panel) {
       panel.querySelectorAll(".note-body a.is-active-note").forEach(function (link) {
         link.classList.remove("is-active-note");
         link.removeAttribute("aria-current");
@@ -3165,10 +3167,6 @@
     updateActiveLinks();
     updateTitle();
     scrollToPanel(panel);
-  }
-
-  async function appendNote(path, animate) {
-    appendPanel(await panelForPath(path, animate));
   }
 
   function canUseStackTransition() {

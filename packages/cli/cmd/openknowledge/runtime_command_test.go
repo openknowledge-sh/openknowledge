@@ -130,7 +130,7 @@ mcp = true
 	if result.Published == nil {
 		t.Fatal("expected generation promotion")
 	}
-	for _, included := range []string{"public/index.html", "public/search-hidden.html", "public/mcp-hidden.html", "public/assets/openknowledge/viewer-theme.js", "public/assets/openknowledge/viewer-shortcuts.js", "public/assets/openknowledge/mermaid.min.js", "public/assets/openknowledge/viewer-app.js", "public/assets/openknowledge/viewer-search.js", "public/assets/public/logo.svg", "source/index.md", "source/search-hidden.md", "source/mcp-hidden.md", "source/assets/public/logo.svg", "search/index.md", "search/mcp-hidden.md", "mcp/index.md", "mcp/search-hidden.md"} {
+	for _, included := range []string{"public/index.html", "public/search-hidden.html", "public/mcp-hidden.html", "public/assets/openknowledge/viewer-theme.js", "public/assets/openknowledge/viewer-data.js", "public/assets/openknowledge/viewer.css", "public/assets/openknowledge/viewer.js", "public/assets/public/logo.svg", "source/index.md", "source/search-hidden.md", "source/mcp-hidden.md", "source/assets/public/logo.svg", "search/index.md", "search/mcp-hidden.md", "mcp/index.md", "mcp/search-hidden.md"} {
 		if _, err := os.Stat(filepath.Join(result.Output, filepath.FromSlash(included))); err != nil {
 			t.Fatalf("expected %s in generation: %v", included, err)
 		}
@@ -158,18 +158,12 @@ mcp = true
 	if index.Header().Get("Cache-Control") != "no-cache" {
 		t.Fatalf("runtime viewer cache policy = %q, want no-cache", index.Header().Get("Cache-Control"))
 	}
-	viewerScript := runtimeRequest(t, handler, http.MethodGet, "/assets/openknowledge/viewer-app.js", "", nil)
-	if viewerScript.Code != http.StatusOK || !strings.Contains(viewerScript.Header().Get("Content-Type"), "javascript") || !strings.Contains(viewerScript.Body.String(), "function fetchNote(path)") {
+	viewerScript := runtimeRequest(t, handler, http.MethodGet, "/assets/openknowledge/viewer.js", "", nil)
+	if viewerScript.Code != http.StatusOK || !strings.Contains(viewerScript.Header().Get("Content-Type"), "javascript") || !strings.Contains(viewerScript.Body.String(), "OpenKnowledgeStaticData") {
 		t.Fatalf("unexpected viewer script response %d %q: %s", viewerScript.Code, viewerScript.Header().Get("Content-Type"), viewerScript.Body.String())
 	}
 	if viewerScript.Header().Get("Cache-Control") != "no-cache" {
 		t.Fatalf("runtime viewer script cache policy = %q, want no-cache", viewerScript.Header().Get("Cache-Control"))
-	}
-	mermaidScript := runtimeRequest(t, handler, http.MethodGet, "/assets/openknowledge/mermaid.min.js", "", nil)
-	if mermaidScript.Code != http.StatusOK ||
-		!strings.Contains(mermaidScript.Header().Get("Content-Type"), "javascript") ||
-		!strings.Contains(mermaidScript.Body.String(), `globalThis["mermaid"]`) {
-		t.Fatalf("unexpected Mermaid script response %d %q", mermaidScript.Code, mermaidScript.Header().Get("Content-Type"))
 	}
 	search := runtimeRequest(t, handler, http.MethodGet, "/_search?q=immutable", "", nil)
 	if search.Code != http.StatusOK || !strings.Contains(search.Body.String(), "guide.md") {

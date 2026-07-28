@@ -442,6 +442,10 @@
   }
 
   function readStaticNotes() {
+    const shared = window.OpenKnowledgeStaticData?.notes;
+    if (Array.isArray(shared)) {
+      return shared;
+    }
     const source = document.querySelector("[data-static-notes]");
     if (!source) {
       return [];

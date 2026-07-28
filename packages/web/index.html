@@ -24,7 +24,7 @@
       gtag("js", new Date());
       gtag("config", "G-62SWM7FC2J");
     </script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/src/styles.css">
     <!-- OPENKNOWLEDGE_HEAD -->
   </head>
   <body>
@@ -92,14 +92,13 @@
               </summary>
               <div class="hero-prompt-panel">
                 <pre class="prompt-inline" id="setup-commands"><code>curl -fsSL https://openknowledge.sh/install | bash
-okn setup --agent</code></pre>
+okn setup</code></pre>
                 <p class="setup-note">
-                  Run these commands from your project repository. Setup detects installed agent
-                  runtimes and asks you to select one. It then creates a source-grounded wiki,
-                  validates it, and installs project integration. Run <code>okn setup</code>
-                  without <code>--agent</code> to print the portable task. The
+                  Run these commands yourself from the project repository. Setup prints a small,
+                  portable task. Copy that task into your existing agent, then follow the
+                  validation and integration steps that it returns. The
                   <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
-                  has the full command reference.
+                  explains the optional automated flow.
                 </p>
               </div>
             </details>
@@ -123,7 +122,7 @@ okn setup --agent</code></pre>
             </span>
             <span class="sr-only">Setup</span>
             <h3>Create with an agent</h3>
-            <p><code>setup</code> prints a portable task. Add <code>--agent</code> to run it, validate the result, and integrate project knowledge.</p>
+            <p>Run <code>okn setup</code> yourself, then paste its portable task into the agent that already works in your project.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -242,17 +241,17 @@ okn setup --agent</code></pre>
           <article class="workflow-step">
             <div class="workflow-copy">
               <h3>Create your project wiki</h3>
-              <p>Detect an installed runtime, select it, then create, validate, and integrate the wiki.</p>
+              <p>Print a source-grounded task, paste it into your agent, then follow the returned validation and integration steps.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-flag">--agent</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
               <h3>Build from another source</h3>
-              <p>Create, validate, and integrate a wiki grounded in a repository, folder, or website.</p>
+              <p>Print a task grounded in a repository, folder, or website, then give it to your agent.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://github.com/openknowledge-sh/openknowledge</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span> <span class="tok-flag">--agent</span>
-<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://openknowledge.sh/wiki/</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span> <span class="tok-flag">--agent</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://github.com/openknowledge-sh/openknowledge</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span>
+<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://openknowledge.sh/wiki/</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
@@ -301,6 +300,6 @@ okn setup --agent</code></pre>
         <p class="footer-meta">Apache-2.0 · Open source</p>
       </footer>
     </main>
-    <script src="main.js"></script>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

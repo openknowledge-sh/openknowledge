@@ -2,20 +2,11 @@ package main
 
 import _ "embed"
 
-//go:embed viewer_search.js
-var viewerSearchJS string
-
-//go:embed viewer_shortcuts.js
-var viewerShortcutsJS string
-
-//go:embed viewer_app.js
+//go:embed viewer_assets/viewer.js
 var viewerJS string
 
-//go:embed viewer_mermaid.min.js
-var viewerMermaidJS string
-
-//go:embed viewer_theme_bootstrap.js
+//go:embed viewer_assets/viewer-theme.js
 var viewerThemeBootstrapJS string
 
-//go:embed viewer_app.css
+//go:embed viewer_assets/viewer.css
 var viewerAppCSS string

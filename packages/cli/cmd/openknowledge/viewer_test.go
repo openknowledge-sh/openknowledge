@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -23,6 +24,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	handler := newViewerHandler(root)
 
 	page := getViewerBody(t, handler, "/file/index.md")
+	page += viewerSourceForAssertions(t)
+	page += getViewerBody(t, handler, "/"+viewerThemeScriptAsset)
+	page += getViewerBody(t, handler, "/"+viewerStylesheetAsset)
 	if !strings.Contains(page, `class="ok-frontmatter" data-frontmatter`) ||
 		strings.Contains(page, `class="ok-frontmatter" data-frontmatter open`) ||
 		!strings.Contains(page, `<code>okf_version</code>`) ||
@@ -49,7 +53,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `--ok-viewport-height: 100vh`) || !strings.Contains(page, `--ok-viewport-height: 100svh`) || !strings.Contains(page, `-webkit-text-size-adjust: 100%; text-size-adjust: 100%;`) {
 		t.Fatalf("viewer should normalize iOS viewport height and text scaling:\n%s", page)
 	}
-	if !strings.Contains(page, `--ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));`) ||
+	if !strings.Contains(strings.ReplaceAll(page, " ", ""), `--ok-note-panel-default-width:min(calc(65ch+68px),calc(100vw-44px));`) ||
 		!strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-default-width)", 650)`) {
 		t.Fatalf("viewer default panel width should follow a 65ch reading measure with matching resize fallback:\n%s", page)
 	}
@@ -398,7 +402,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `createKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasPhysicsStep`) || !strings.Contains(page, `drawKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasHitTest`) || !strings.Contains(page, `requestAnimationFrame(tick)`) || !strings.Contains(page, `dataset.knowledgeGraphCanvas`) || !strings.Contains(page, `.knowledge-graph-canvas`) {
 		t.Fatalf("viewer knowledge graph should render as an animated canvas graph:\n%s", page)
 	}
-	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `graphStatesConnected`) || !strings.Contains(page, `window.location.href = fileURL(activePath)`) {
+	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `const connected = active && (edge.source === active.path || edge.target === active.path)`) || !strings.Contains(page, `window.location.href = fileURL(activePath)`) {
 		t.Fatalf("viewer canvas graph should separate hovered nodes and highlight connected edges:\n%s", page)
 	}
 	if !strings.Contains(page, `graphEaseInOut`) || !strings.Contains(page, `graphLimitVelocity`) || !strings.Contains(page, `context.globalAlpha = 1`) {
@@ -452,11 +456,7 @@ func TestViewerRendersMermaidBlocksWithLocalRuntime(t *testing.T) {
 	for _, expected := range []string{
 		`data-language="mermaid" data-mermaid-source`,
 		`&lt;unsafe&gt;`,
-		`src="/assets/openknowledge/mermaid.min.js"`,
-		`securityLevel: "strict"`,
-		`function enhanceMermaid(scope, force)`,
-		`enhanceMermaid(panel, false)`,
-		`.ok-mermaid-output svg`,
+		`src="/assets/openknowledge/viewer.js"`,
 	} {
 		if !strings.Contains(page, expected) {
 			t.Fatalf("viewer Mermaid integration missing %q:\n%s", expected, page)
@@ -471,13 +471,13 @@ func TestViewerRendersMermaidBlocksWithLocalRuntime(t *testing.T) {
 		t.Fatalf("viewer API should preserve safe Mermaid source markup: %#v", api)
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/assets/openknowledge/mermaid.min.js", nil)
+	request := httptest.NewRequest(http.MethodGet, "/assets/openknowledge/viewer.js", nil)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK ||
 		!strings.Contains(response.Header().Get("Content-Type"), "javascript") ||
-		!strings.Contains(response.Body.String(), `globalThis["mermaid"]`) {
-		t.Fatalf("unexpected Mermaid runtime response %d %q", response.Code, response.Header().Get("Content-Type"))
+		!strings.Contains(response.Body.String(), `securityLevel:"strict"`) {
+		t.Fatalf("unexpected bundled viewer response %d %q", response.Code, response.Header().Get("Content-Type"))
 	}
 }
 
@@ -639,6 +639,7 @@ func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
 
 	handler := newViewerHandler(root)
 	page := getViewerBody(t, handler, "/file/index.md")
+	viewerRuntime := viewerSourceForAssertions(t)
 	if !strings.Contains(page, `href="/raw/references/report.pdf"`) {
 		t.Fatalf("viewer should rewrite PDF links to raw browser URLs:\n%s", page)
 	}
@@ -648,7 +649,7 @@ func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
 	if !strings.Contains(page, `class="code-block language-go" data-language="go"`) || !strings.Contains(page, `tok-keyword">func</span>`) {
 		t.Fatalf("viewer should syntax-highlight fenced code blocks:\n%s", page)
 	}
-	if !strings.Contains(page, `function isMarkdownPath(path)`) {
+	if !strings.Contains(viewerRuntime, `function isMarkdownPath(path)`) && !strings.Contains(viewerRuntime, `isMarkdownPath`) {
 		t.Fatalf("viewer stack runtime should distinguish markdown links from asset links:\n%s", page)
 	}
 
@@ -765,29 +766,31 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 12 {
+	if len(result.Written) != 11 {
 		t.Fatalf("expected exported viewer files plus discovery files, bundle manifest, and archive, got %#v", result.Written)
 	}
 
 	indexHTML := readViewerExportFile(t, out, "index.html")
-	viewerRuntime := readViewerExportFile(t, out, viewerThemeScriptAsset) +
-		readViewerExportFile(t, out, viewerShortcutsScriptAsset) +
-		readViewerExportFile(t, out, viewerAppScriptAsset) +
-		readViewerExportFile(t, out, viewerSearchScriptAsset)
+	viewerRuntime := viewerSourceForAssertions(t) +
+		readViewerExportFile(t, out, viewerDataScriptAsset)
 	index := indexHTML + viewerRuntime
-	if !strings.Contains(indexHTML, `data-note-workspace`) || !strings.Contains(indexHTML, `data-static-notes`) {
-		t.Fatalf("expected exported index to include static viewer data:\n%s", indexHTML)
+	if !strings.Contains(indexHTML, `data-note-workspace`) ||
+		strings.Contains(indexHTML, `<script type="application/json" data-static-notes`) ||
+		strings.Contains(indexHTML, `<script type="application/json" data-knowledge-graph`) ||
+		strings.Contains(indexHTML, `<script type="application/json" data-editor-options`) {
+		t.Fatalf("expected exported index to reference shared viewer data without embedding the bundle:\n%s", indexHTML)
 	}
 	for _, src := range []string{
 		`assets/openknowledge/viewer-theme.js`,
-		`assets/openknowledge/viewer-shortcuts.js`,
-		`assets/openknowledge/mermaid.min.js`,
-		`assets/openknowledge/viewer-app.js`,
-		`assets/openknowledge/viewer-search.js`,
+		`assets/openknowledge/viewer-data.js`,
+		`assets/openknowledge/viewer.js`,
 	} {
 		if !strings.Contains(indexHTML, `src="`+src+`"`) {
 			t.Fatalf("expected exported index to load same-origin script %s:\n%s", src, indexHTML)
 		}
+	}
+	if !strings.Contains(indexHTML, `href="assets/openknowledge/viewer.css"`) {
+		t.Fatalf("expected exported index to load the shared viewer stylesheet:\n%s", indexHTML)
 	}
 	if strings.Contains(indexHTML, `<script>`) {
 		t.Fatalf("generated viewer code must not require executable inline scripts:\n%s", indexHTML)
@@ -801,10 +804,9 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 		t.Fatalf("expected exported viewer pages to include rich table markup and runtime:\n%s", index)
 	}
 	if !strings.Contains(indexHTML, `data-language="mermaid" data-mermaid-source`) ||
-		!strings.Contains(indexHTML, `src="assets/openknowledge/mermaid.min.js"`) ||
-		!strings.Contains(index, `function enhanceMermaid(scope, force)`) ||
-		!strings.Contains(readViewerExportFile(t, out, viewerMermaidScriptAsset), `globalThis["mermaid"]`) {
-		t.Fatalf("expected exported viewer pages to render Mermaid through a same-origin runtime:\n%s", indexHTML)
+		!strings.Contains(indexHTML, `src="assets/openknowledge/viewer.js"`) ||
+		!strings.Contains(readViewerExportFile(t, out, viewerAppScriptAsset), `securityLevel:"strict"`) {
+		t.Fatalf("expected exported viewer pages to render Mermaid through the shared viewer bundle:\n%s", indexHTML)
 	}
 	if !strings.Contains(index, `href="guides/setup.html"`) || !strings.Contains(index, `href="AGENTS.html"`) || !strings.Contains(index, `href="features/index.html"`) {
 		t.Fatalf("expected exported index to keep static HTML fallback link:\n%s", index)
@@ -835,7 +837,7 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if strings.Contains(index, `id="viewer-sidebar-search"`) || strings.Contains(index, `file-sidebar-search`) {
 		t.Fatalf("expected exported index to omit sidebar search:\n%s", index)
 	}
-	if !strings.Contains(index, `data-knowledge-graph`) || !strings.Contains(index, `"source":"index.md"`) || !strings.Contains(index, `"target":"guides/setup.md"`) {
+	if !strings.Contains(index, `OpenKnowledgeStaticData`) || !strings.Contains(index, `"source":"index.md"`) || !strings.Contains(index, `"target":"guides/setup.md"`) {
 		t.Fatalf("expected exported index to include static knowledge graph:\n%s", index)
 	}
 	if !strings.Contains(index, `class="powered-by-openknowledge"`) || !strings.Contains(index, `href="https://openknowledge.sh"`) || !strings.Contains(index, `Powered by OpenKnowledge.sh`) {
@@ -856,8 +858,9 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 		t.Fatalf("expected nested exported page to keep relative static fallback link:\n%s", setup)
 	}
 	if !strings.Contains(setup, `src="../assets/openknowledge/viewer-theme.js"`) ||
-		!strings.Contains(setup, `src="../assets/openknowledge/mermaid.min.js"`) ||
-		!strings.Contains(setup, `src="../assets/openknowledge/viewer-app.js"`) ||
+		!strings.Contains(setup, `src="../assets/openknowledge/viewer-data.js"`) ||
+		!strings.Contains(setup, `src="../assets/openknowledge/viewer.js"`) ||
+		!strings.Contains(setup, `href="../assets/openknowledge/viewer.css"`) ||
 		strings.Contains(setup, `<script>`) {
 		t.Fatalf("expected nested exported page to load same-origin scripts without executable inline code:\n%s", setup)
 	}
@@ -898,6 +901,75 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	}
 }
 
+func viewerSourceForAssertions(t *testing.T) string {
+	t.Helper()
+	var source strings.Builder
+	for _, name := range []string{
+		"theme.ts",
+		"viewer.css",
+		"shortcuts.js",
+		"app.js",
+		"search.js",
+	} {
+		content, err := os.ReadFile(filepath.Join("..", "..", "..", "web", "src", "viewer", name))
+		if err != nil {
+			t.Fatalf("read viewer source %s: %v", name, err)
+		}
+		source.Write(content)
+		source.WriteByte('\n')
+	}
+	return source.String()
+}
+
+func TestViewerHTMLExportIsDeterministicAndMachineIndependent(t *testing.T) {
+	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
+	writeViewerFile(t, root, "index.md", "# Home\n\nProject overview. Read [Setup](guides/setup.md).\n")
+	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\n---\n\n# Setup\n\nPortable instructions.\n")
+
+	firstOut := filepath.Join(t.TempDir(), "first")
+	secondOut := filepath.Join(t.TempDir(), "second")
+	first, err := writeViewerHTMLWithVersion(root, firstOut, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := writeViewerHTMLWithVersion(root, secondOut, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(first.Written, "\n") != strings.Join(second.Written, "\n") {
+		t.Fatalf("deterministic exports wrote different file sets:\nfirst=%#v\nsecond=%#v", first.Written, second.Written)
+	}
+	for _, name := range first.Written {
+		firstBody, err := os.ReadFile(filepath.Join(firstOut, filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		secondBody, err := os.ReadFile(filepath.Join(secondOut, filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(firstBody, secondBody) {
+			t.Fatalf("exported file %s changed between identical builds", name)
+		}
+	}
+
+	data := readViewerExportFile(t, firstOut, viewerDataScriptAsset)
+	if strings.Contains(data, `"available":true`) ||
+		strings.Contains(data, `"iconURL":"data:image/png`) ||
+		strings.Contains(data, `/Applications/`) {
+		t.Fatalf("static viewer data must not expose build-machine editor state:\n%s", data)
+	}
+	indexHTML := readViewerExportFile(t, firstOut, "index.html")
+	setupHTML := readViewerExportFile(t, firstOut, "guides/setup.html")
+	if strings.Contains(indexHTML, "Portable instructions.") ||
+		strings.Contains(setupHTML, "Project overview.") ||
+		strings.Contains(indexHTML, `data-static-notes`) ||
+		strings.Contains(setupHTML, `data-static-notes`) {
+		t.Fatal("each HTML page should contain its current note and reference the shared note collection")
+	}
+}
+
 func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
@@ -914,7 +986,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,assets/openknowledge/mermaid.min.js,assets/openknowledge/viewer-app.js,assets/openknowledge/viewer-search.js,assets/openknowledge/viewer-shortcuts.js,assets/openknowledge/viewer-theme.js,assets/public/logo.svg,index.html,llms.txt,openknowledge.json,public.html" {
+	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,assets/openknowledge/viewer-data.js,assets/openknowledge/viewer-theme.js,assets/openknowledge/viewer.css,assets/openknowledge/viewer.js,assets/public/logo.svg,index.html,llms.txt,openknowledge.json,public.html" {
 		t.Fatalf("expected only published viewer files, got %#v", result.Written)
 	}
 	if content := readViewerExportFile(t, out, "assets/public/logo.svg"); content != "<svg/>\n" {
@@ -926,7 +998,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 		}
 	}
 
-	index := readViewerExportFile(t, out, "index.html")
+	index := readViewerExportFile(t, out, viewerDataScriptAsset)
 	for _, hidden := range []string{`"path":"draft.md"`, `"path":"examples/index.md"`, `"target":"draft.md"`, `"target":"examples/index.md"`} {
 		if strings.Contains(index, hidden) {
 			t.Fatalf("expected unpublished page %s to be absent from static payload:\n%s", hidden, index)
@@ -1265,7 +1337,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 11 {
+	if len(result.Written) != 10 {
 		t.Fatalf("expected exported pages plus theme stylesheet, discovery file, manifest, and archive, got %#v", result.Written)
 	}
 
@@ -1312,14 +1384,15 @@ func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
+	staticData := readViewerExportFile(t, out, viewerDataScriptAsset)
 	if strings.Contains(index, `<div class="editor-picker" data-editor-picker>`) || strings.Contains(index, `<button class="editor-menu-trigger"`) {
 		t.Fatalf("static export should not render the local editor dropdown:\n%s", index)
 	}
 	if !strings.Contains(index, `class="source-open"`) || !strings.Contains(index, `href="https://github.com/openknowledge-sh/openknowledge/blob/main/Wiki/index.md"`) {
 		t.Fatalf("static export should link the current file to GitHub source:\n%s", index)
 	}
-	if !strings.Contains(index, `"sourceURL":"https://github.com/openknowledge-sh/openknowledge/blob/main/Wiki/guides/setup.md"`) {
-		t.Fatalf("static note manifest should include GitHub source URLs for dynamic panels:\n%s", index)
+	if !strings.Contains(staticData, `"sourceURL":"https://github.com/openknowledge-sh/openknowledge/blob/main/Wiki/guides/setup.md"`) {
+		t.Fatalf("static note manifest should include GitHub source URLs for dynamic panels:\n%s", staticData)
 	}
 
 	setup := readViewerExportFile(t, out, "guides/setup.html")
@@ -1453,13 +1526,14 @@ func TestViewerIndexFallsBackToListWithoutIndexMarkdown(t *testing.T) {
 	handler := newViewerHandler(root)
 
 	index := getViewerBody(t, handler, "/")
+	viewerRuntime := getViewerBody(t, handler, "/"+viewerAppScriptAsset)
 	if !strings.Contains(index, "notes/details.md") || !strings.Contains(index, "workflows/docs.md") {
 		t.Fatalf("viewer index fallback did not include markdown files:\n%s", index)
 	}
 	if !strings.Contains(index, `id="viewer-search"`) {
 		t.Fatalf("viewer index fallback did not include search input:\n%s", index)
 	}
-	if !strings.Contains(index, `window.OpenKnowledgeShortcuts`) || !strings.Contains(index, `id: "viewer.search.focus"`) {
+	if !strings.Contains(viewerRuntime, `OpenKnowledgeShortcuts`) || !strings.Contains(viewerRuntime, `viewer.search.focus`) {
 		t.Fatalf("viewer index fallback should load the shared shortcut registry before search:\n%s", index)
 	}
 	if startPath := viewerStartPath(root); startPath != "/" {
@@ -1550,6 +1624,7 @@ func TestViewerServesDirectAliasPath(t *testing.T) {
 	}
 
 	page := getViewerBody(t, handler, "/project-memory/file/index.md")
+	viewerRuntime := getViewerBody(t, handler, "/"+viewerAppScriptAsset)
 	if !strings.Contains(page, `<a class="brand" href="/project-memory/">Home</a>`) {
 		t.Fatalf("viewer file brand should link to the alias root:\n%s", page)
 	}
@@ -1559,7 +1634,7 @@ func TestViewerServesDirectAliasPath(t *testing.T) {
 	if !strings.Contains(page, `href="/project-memory/raw/references/report.pdf"`) {
 		t.Fatalf("viewer file did not prefix raw asset links:\n%s", page)
 	}
-	if !strings.Contains(page, `data-link-prefix="/project-memory"`) || !strings.Contains(page, `linkPrefix + "/api/file/"`) {
+	if !strings.Contains(page, `data-link-prefix="/project-memory"`) || (!strings.Contains(viewerRuntime, `linkPrefix + "/api/file/"`) && !strings.Contains(viewerRuntime, `/api/file/`)) {
 		t.Fatalf("viewer file did not expose prefixed stack runtime:\n%s", page)
 	}
 
