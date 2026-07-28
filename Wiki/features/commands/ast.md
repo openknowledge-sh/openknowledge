@@ -14,9 +14,9 @@ exporters use. Use [`validate`](validate.md) for pass or fail checks.
 ## Usage
 
 ```sh
-openknowledge ast [key-or-path]
-openknowledge ast Wiki --spec 0.1
-openknowledge ast Wiki --out ast.json
+okn ast [key-or-path]
+okn ast Wiki --spec 0.1
+okn ast Wiki --out ast.json
 ```
 
 | Option | Default | Description |

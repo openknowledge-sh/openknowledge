@@ -8,15 +8,15 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge agent integrate`
 
-Use `openknowledge agent integrate` to connect existing agent sessions to Open
+Use `okn agent integrate` to connect existing agent sessions to Open
 Knowledge. The command supports Codex, Claude Code, and OpenCode. It does not
 replace their native interfaces.
 
 ## Usage
 
 ```sh
-openknowledge agent integrate --global
-openknowledge agent integrate Wiki
+okn agent integrate --global
+okn agent integrate Wiki
 ```
 
 ## Global discovery
@@ -31,7 +31,7 @@ install hooks, observe sessions, or write to a knowledge base.
 ## Project integration
 
 The project form requires a knowledge base inside a Git repository. For
-`openknowledge agent integrate Wiki`, the command atomically writes:
+`okn agent integrate Wiki`, the command atomically writes:
 
 ```text
 .openknowledge/integration.toml
@@ -59,7 +59,7 @@ reads the session messages through the local OpenCode client. Codex and Claude
 hook payloads can point to a user-owned JSON or JSONL transcript.
 
 All three harnesses use the same bounded internal observer. Direct sessions and
-`openknowledge agent` sessions produce the same insight format.
+`okn agent` sessions produce the same insight format.
 
 The hook is advisory and does not block the parent agent session. Malformed
 input, a missing integration, or an observer failure does not block the

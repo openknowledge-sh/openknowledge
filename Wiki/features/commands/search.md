@@ -15,11 +15,11 @@ does not call an LLM.
 ## Usage
 
 ```sh
-openknowledge search <key-or-path> <query>
-openknowledge search <key-or-path> <query> --budget 1200
-openknowledge search <key-or-path> <query> --matches
-openknowledge search <key-or-path> <query> --format json
-openknowledge search --all <query>
+okn search <key-or-path> <query>
+okn search <key-or-path> <query> --budget 1200
+okn search <key-or-path> <query> --matches
+okn search <key-or-path> <query> --format json
+okn search --all <query>
 ```
 
 | Option | Default | Description |
@@ -90,7 +90,7 @@ Use `--matches` to inspect ranked snippets and matched fields. JSON output uses
 
 The token budget is an estimate. It is not a model-specific tokenizer
 guarantee. Use
-[`openknowledge get`](get.md) when you already know the exact file to read.
+[`okn get`](get.md) when you already know the exact file to read.
 
 ---
 

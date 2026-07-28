@@ -31,7 +31,7 @@ Use this skill to keep the colocated wiki at `Wiki/` in sync with CLI behavior a
 7. Prefer direct professional reference prose: task first, copyable usage,
    explicit defaults, and no repeated product positioning or implementation
    chronology. Simple command pages should usually stay below 80 lines.
-8. After meaningful wiki edits, run `openknowledge validate "Wiki"` and fix errors or avoidable warnings before finishing.
+8. After meaningful wiki edits, run `okn validate "Wiki"` and fix errors or avoidable warnings before finishing.
 
 ## Boundaries
 

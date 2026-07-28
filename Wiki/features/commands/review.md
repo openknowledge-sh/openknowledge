@@ -8,24 +8,24 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge prompt review`
 
-Use `openknowledge prompt review` to print advisory prompts. The command does
+Use `okn prompt review` to print advisory prompts. The command does
 not call a model, edit files, or change validation status.
 
 ## Usage
 
 ```sh
-openknowledge prompt review rules Wiki
-openknowledge prompt review rules --path Wiki
-openknowledge prompt review rules --rules docs,changelog --path Wiki
-openknowledge prompt review rules --all Wiki
+okn prompt review rules Wiki
+okn prompt review rules --path Wiki
+okn prompt review rules --rules docs,changelog --path Wiki
+okn prompt review rules --all Wiki
 ```
 
-The `rules` workflow loads the same catalog as `openknowledge prompt rules`.
+The `rules` workflow loads the same catalog as `okn prompt rules`.
 The catalog contains built-in rules and wiki-local rules.
 
 The prompt asks an external agent to inspect evidence for the selected
 maintenance obligations. The findings are advisory. Use
-`openknowledge validate` to validate the OKF bundle.
+`okn validate` to validate the OKF bundle.
 
 Open Knowledge removed the old top-level `openknowledge review` form before
 1.0.

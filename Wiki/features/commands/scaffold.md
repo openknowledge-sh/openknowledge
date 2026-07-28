@@ -9,14 +9,14 @@ timestamp: 2026-07-18T00:00:00Z
 # `openknowledge scaffold`
 
 Create bundle files. The command does not start an agent or install project
-integration. For managed onboarding, use [`openknowledge setup`](setup.md).
+integration. For managed onboarding, use [`okn setup`](setup.md).
 
 ## Usage
 
 ```sh
-openknowledge scaffold [folder]
-openknowledge scaffold --name "Project Memory" ./project-memory
-openknowledge scaffold --no-agents --no-setup ./source-wiki
+okn scaffold [folder]
+okn scaffold --name "Project Memory" ./project-memory
+okn scaffold --no-agents --no-setup ./source-wiki
 ```
 
 | Option | Description |

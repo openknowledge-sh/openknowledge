@@ -16,9 +16,9 @@ This projection does not include non-Markdown assets.
 ## Command
 
 ```sh
-openknowledge export json [key-or-path]
-openknowledge export json --out <file> [key-or-path]
-openknowledge export json --spec <version> [key-or-path]
+okn export json [key-or-path]
+okn export json --out <file> [key-or-path]
+okn export json --spec <version> [key-or-path]
 ```
 
 ## Arguments and flags
@@ -38,8 +38,8 @@ Without `--out`, the command prints the JSON to stdout.
 The command does not accept the HTML-only `--plain` flag.
 
 The `files` array contains parsed `.md` and `.markdown` documents only.
-Non-Markdown assets remain visible through `openknowledge list --json` and are
-preserved by `openknowledge export tar`.
+Non-Markdown assets remain visible through `okn list --json` and are preserved
+by `okn export tar`.
 
 The top-level object declares `schemaVersion: "1"` for the normalized CLI JSON contract.
 It declares `specVersion` for the selected Open Knowledge Format version.

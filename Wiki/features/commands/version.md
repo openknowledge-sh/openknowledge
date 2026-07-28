@@ -8,14 +8,14 @@ timestamp: 2026-06-18T00:00:00Z
 
 # `openknowledge version`
 
-Use `openknowledge version` to print the CLI version. The command accepts no
+Use `okn version` to print the CLI version. The command accepts no
 arguments.
 
 ## Usage
 
 ```sh
-openknowledge version
-openknowledge version --help
+okn version
+okn version --help
 ```
 
 ## Example output

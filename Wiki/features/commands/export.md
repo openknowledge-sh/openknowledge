@@ -23,13 +23,13 @@ The source can be a local or connected knowledge base.
 ## Usage
 
 ```sh
-openknowledge export html --out ./site Wiki
-openknowledge export html --plain --out ./plain-site Wiki
-openknowledge export json Wiki
-openknowledge export json --out ./bundle.json Wiki
-openknowledge export graph Wiki
-openknowledge export graph --type search --out ./search-graph.json Wiki
-openknowledge export tar --out ./wiki.tar.gz Wiki
+okn export html --out ./site Wiki
+okn export html --plain --out ./plain-site Wiki
+okn export json Wiki
+okn export json --out ./bundle.json Wiki
+okn export graph Wiki
+okn export graph --type search --out ./search-graph.json Wiki
+okn export tar --out ./wiki.tar.gz Wiki
 ```
 
 | Option | Applies to | Default | Description |

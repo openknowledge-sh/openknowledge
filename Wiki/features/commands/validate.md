@@ -14,11 +14,11 @@ cause a failure.
 ## Usage
 
 ```sh
-openknowledge validate [key-or-path]
-openknowledge validate --format json Wiki
-openknowledge validate --format json --out report.json Wiki
-openknowledge validate --rule link-target=error Wiki
-openknowledge validate --quiet Wiki
+okn validate [key-or-path]
+okn validate --format json Wiki
+okn validate --format json --out report.json Wiki
+okn validate --rule link-target=error Wiki
+okn validate --quiet Wiki
 ```
 
 | Option | Default | Description |
@@ -96,7 +96,7 @@ defines the contract.
 }
 ```
 
-Validation is deterministic. Use `openknowledge prompt review rules` for an
+Validation is deterministic. Use `okn prompt review rules` for an
 advisory rule review. That review does not affect validation status.
 
 ---

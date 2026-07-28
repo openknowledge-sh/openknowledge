@@ -14,15 +14,27 @@ const documents = new Map([
   ],
 ]);
 const failures = [];
-const canonicalSetup = "openknowledge setup";
-const legacyProjectSetup = /^openknowledge setup Wiki --from \.$/m;
+const canonicalSetup = "okn setup";
+const legacyProjectSetup = /^(?:okn|openknowledge) setup Wiki --from \.$/m;
+const fullCommandExample = /^[ \t]*openknowledge[ \t]+[a-z]/m;
 
 for (const [name, content] of documents) {
   if (!content.includes(canonicalSetup)) {
     failures.push(`${name} is missing the canonical setup command: ${canonicalSetup}`);
   }
   if (legacyProjectSetup.test(content)) {
-    failures.push(`${name} still prescribes the legacy project setup command: openknowledge setup Wiki --from .`);
+    failures.push(`${name} still prescribes the legacy project setup command: okn setup Wiki --from .`);
+  }
+}
+
+const preferredCommandDocs = [
+  ["README.md", documents.get("README.md")],
+  ...collectMarkdown(path.join(root, "Wiki"))
+    .filter(([name]) => name !== "Wiki/SPEC.md" && name !== "Wiki/changelog/cli.md"),
+];
+for (const [name, content] of preferredCommandDocs) {
+  if (fullCommandExample.test(content)) {
+    failures.push(`${name} uses openknowledge at the start of a command example; use okn`);
   }
 }
 
@@ -33,15 +45,18 @@ if (website.includes("./project-memory")) {
 if (!website.includes("[publish] enabled = true")) {
   failures.push("packages/web/index.html must explain the explicit public-export permission");
 }
-if (!website.includes('<span class="tok-command">openknowledge</span> <span class="tok-subcommand">setup</span></code>')) {
+if (!website.includes('<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span></code>')) {
   failures.push("packages/web/index.html must present zero-argument setup as the project activation command");
+}
+if (website.includes('<span class="tok-command">openknowledge</span>')) {
+  failures.push("packages/web/index.html must use okn for shell command examples");
 }
 
 const readme = documents.get("README.md");
 if (!readme.includes("[publish]\nenabled = true")) {
   failures.push("README.md must include the fail-closed publication handoff");
 }
-if (!readme.includes("openknowledge agent doctor --runtime <runtime>")) {
+if (!readme.includes("okn agent doctor --runtime <runtime>")) {
   failures.push("README.md must retain setup runtime recovery guidance");
 }
 
@@ -52,5 +67,22 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("README, website, and wiki share the zero-argument project setup path");
+  console.log("README, website, and wiki prefer okn and share the zero-argument setup path");
+}
+
+function collectMarkdown(directory) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true });
+  const result = [];
+  for (const entry of entries) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...collectMarkdown(absolute));
+      continue;
+    }
+    if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".md") {
+      continue;
+    }
+    result.push([path.relative(root, absolute).split(path.sep).join("/"), fs.readFileSync(absolute, "utf8")]);
+  }
+  return result;
 }

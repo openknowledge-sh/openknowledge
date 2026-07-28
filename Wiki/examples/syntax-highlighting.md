@@ -8,7 +8,7 @@ timestamp: 2026-06-20T00:00:00Z
 
 # Syntax Highlighting Examples
 
-Open this page with `openknowledge view Wiki`. Compare fenced code blocks in
+Open this page with `okn view Wiki`. Compare fenced code blocks in
 the languages that the built-in highlighter supports.
 
 ## Shell
@@ -19,8 +19,8 @@ set -euo pipefail
 GOCACHE=/private/tmp/openknowledge-go-build-cache pnpm test:cli
 target="Wiki"
 
-openknowledge validate "$target"
-openknowledge export html --out ./packages/web/dist/wiki ${target}
+okn validate "$target"
+okn export html --out ./packages/web/dist/wiki ${target}
 ```
 
 ## Go

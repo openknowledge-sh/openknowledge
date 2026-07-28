@@ -14,9 +14,9 @@ Read an exact file, entrypoint, or metadata record. Use
 ## Usage
 
 ```sh
-openknowledge get <key-or-path>
-openknowledge get <key-or-path> <entry-or-file>
-openknowledge get <key-or-path> --info
+okn get <key-or-path>
+okn get <key-or-path> <entry-or-file>
+okn get <key-or-path> --info
 ```
 
 `key-or-path` can be a local Markdown file, registry key, or bundle directory.

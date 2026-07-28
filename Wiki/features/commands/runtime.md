@@ -29,13 +29,13 @@ flowchart LR
 ## Commands
 
 ```sh
-openknowledge runtime plan --config runtime.toml
-openknowledge runtime build --config runtime.toml [--id <id>] [--commit <sha>]
-openknowledge runtime build --config runtime.toml --id wiki --out ./generation
-openknowledge runtime build --config runtime.toml --no-publish
-openknowledge runtime serve --config runtime.toml [--check]
-openknowledge runtime worker --role publisher --config runtime.toml [--once]
-openknowledge runtime worker --role jobs --runtime codex --config runtime.toml [--once]
+okn runtime plan --config runtime.toml
+okn runtime build --config runtime.toml [--id <id>] [--commit <sha>]
+okn runtime build --config runtime.toml --id wiki --out ./generation
+okn runtime build --config runtime.toml --no-publish
+okn runtime serve --config runtime.toml [--check]
+okn runtime worker --role publisher --config runtime.toml [--once]
+okn runtime worker --role jobs --runtime codex --config runtime.toml [--once]
 ```
 
 | Command | Behavior |
@@ -164,7 +164,7 @@ logs, diffs, and environment metadata stay on the private worker volume.
 The repository includes local Compose targets for `serve`, `publisher`,
 `worker-codex`, `worker-claude`, and `worker-opencode`. Railway deployments use
 the project `.openknowledge/runtime/Dockerfile` and `runtime.toml`.
-`openknowledge deploy railway init` generates these files.
+`okn deploy railway init` generates these files.
 
 The default image builds the knowledge generation during `docker build`. It
 starts as a standalone `serve` process and reads

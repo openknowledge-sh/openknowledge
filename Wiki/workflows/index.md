@@ -14,5 +14,5 @@ These pages define repeatable Wiki maintenance tasks for agents.
 After each meaningful Wiki edit, run:
 
 ```sh
-openknowledge validate "Wiki"
+okn validate "Wiki"
 ```

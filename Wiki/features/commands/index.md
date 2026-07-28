@@ -1,7 +1,7 @@
 # Commands
 
 Use this index to select a command for your task. Run
-`openknowledge <command> --help` to see the exact CLI syntax.
+`okn <command> --help` to see the exact CLI syntax.
 
 ## Start here
 

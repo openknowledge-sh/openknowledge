@@ -8,15 +8,15 @@ timestamp: 2026-06-20T00:00:00Z
 
 # Tar Exporter
 
-`openknowledge export tar` writes a portable `tar.gz` archive of an Open Knowledge bundle.
+`okn export tar` writes a portable `tar.gz` archive of an Open Knowledge bundle.
 Published HTML exports and remote `connect` operations use this transport format.
 
 ## Command
 
 ```sh
-openknowledge export tar --out <file> [key-or-path]
-openknowledge export tar --spec <version> --out <file> [key-or-path]
-openknowledge export tar --help
+okn export tar --out <file> [key-or-path]
+okn export tar --spec <version> --out <file> [key-or-path]
+okn export tar --help
 ```
 
 ## Behavior
@@ -59,7 +59,7 @@ The standalone `export tar` command preserves the complete source.
 The Draft 2020-12 manifest contract is at
 `https://openknowledge.sh/schemas/cli/manifest/v1/bundle.schema.json`.
 
-Remote `openknowledge connect` downloads archives from manifests.
+Remote `okn connect` downloads archives from manifests.
 It also accepts direct `.tar`, `.tar.gz`, and `.tgz` URLs.
 It rejects unsafe archive entries, such as path traversal and symbolic links.
 It validates manifest archives against their declared spec.

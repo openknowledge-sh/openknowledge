@@ -14,10 +14,10 @@ knowledge base. Omit the target to open the registry workspace selector.
 ## Usage
 
 ```sh
-openknowledge view [key-or-path]
-openknowledge view --no-browser Wiki
-openknowledge view --host 127.0.0.1 --port 8080 Wiki
-openknowledge view --allow-network --host 0.0.0.0 Wiki
+okn view [key-or-path]
+okn view --no-browser Wiki
+okn view --host 127.0.0.1 --port 8080 Wiki
+okn view --allow-network --host 0.0.0.0 Wiki
 ```
 
 | Option | Default | Description |
@@ -41,7 +41,7 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   `mermaid` blocks as diagrams. It also shows note panels, source graphs,
   validation context, highlighted assets, and media or PDF previews.
 - AST-based search uses the same section ranking as
-  [`openknowledge search`](search.md). It also uses the same one-level link
+  [`okn search`](search.md). It also uses the same one-level link
   expansion. Results can link to and highlight the matching text.
 - The viewer shows typed YAML frontmatter, tag filters, sortable tables, and
   directory breadcrumbs.

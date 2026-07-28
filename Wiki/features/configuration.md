@@ -115,12 +115,12 @@ Use `okf_publish: false` to exclude content from each public generation.
 
 ## Consumer behavior
 
-* `openknowledge validate` applies `[validation.rules]`.
+* `okn validate` applies `[validation.rules]`.
   It uses `[rules]` for deterministic rule-catalog checks.
-* `openknowledge prompt rules` uses `[rules]` for custom catalog paths and default selection.
-* `openknowledge prompt review rules` also uses `[rules]`.
-* `openknowledge view` uses `[html.theme]`.
-* Default `openknowledge export html` uses `[html.theme]`, `[html.source]`, and `[html.site]`.
+* `okn prompt rules` uses `[rules]` for custom catalog paths and default selection.
+* `okn prompt review rules` also uses `[rules]`.
+* `okn view` uses `[html.theme]`.
+* Default `okn export html` uses `[html.theme]`, `[html.source]`, and `[html.site]`.
   It uses the same strict parser as validation.
   It uses `[publish]` for the bundle gate and public asset list.
 * Plain HTML also requires `publish.enabled`.

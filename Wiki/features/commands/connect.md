@@ -14,10 +14,10 @@ assigned key instead of a path or URL.
 ## Usage
 
 ```sh
-openknowledge connect <source>
-openknowledge connect <source> --as <key>
-openknowledge connect ./Wiki --access write
-openknowledge connect <git-url> --git-ref <ref> --git-subdir <path>
+okn connect <source>
+okn connect <source> --as <key>
+okn connect ./Wiki --access write
+okn connect <git-url> --git-ref <ref> --git-subdir <path>
 ```
 
 | Option | Default | Description |
@@ -56,7 +56,7 @@ registry key does not define it. A repeated connection can reuse its validated
 materialization.
 
 `connect` does not inspect a reused cache for remote updates. Run
-[`openknowledge registry refresh`](registry.md) to get a new generation.
+[`okn registry refresh`](registry.md) to get a new generation.
 
 ## Access and validation
 

@@ -21,7 +21,7 @@ They do not use separate knowledge models.
 | Browse and publish | `get`, `list`, `view`, `mcp`, `export` | Read exact knowledge, browse, integrate clients, and publish portable views. |
 | Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` | Resolve bundles, serve immutable generations, and provision hosted runtimes. |
 
-`openknowledge setup` is the primary project activation flow.
+`okn setup` is the primary project activation flow.
 Run it from the project repository.
 The CLI uses the current repository as its source and writes `Wiki`.
 It starts the selected interactive agent.
@@ -44,26 +44,26 @@ These rules apply to direct folders and registered sources.
 You can connect this output again.
 
 Deterministic validation does not require a model.
-`openknowledge prompt review` provides advice and does not affect validation status.
+`okn prompt review` provides advice and does not affect validation status.
 Machine-readable views use versioned Draft 2020-12 contracts.
 These views include AST, bundle, graph, list, registry, search, and validation output.
 
 ## Typical local loop
 
 ```sh
-openknowledge setup
-openknowledge search Wiki "release workflow" --budget 1200
-openknowledge validate Wiki
+okn setup
+okn search Wiki "release workflow" --budget 1200
+okn validate Wiki
 ```
 
 Use separate commands for exact reads, browsing, integrations, and publication:
 
 ```sh
-openknowledge list Wiki
-openknowledge get Wiki
-openknowledge mcp Wiki
-openknowledge view Wiki
-openknowledge export html --out ./site Wiki
+okn list Wiki
+okn get Wiki
+okn mcp Wiki
+okn view Wiki
+okn export html --out ./site Wiki
 ```
 
 ---

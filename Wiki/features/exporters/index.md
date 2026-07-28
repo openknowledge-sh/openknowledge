@@ -15,5 +15,5 @@ Exporters convert an OKF bundle to another representation.
 
 > **Maintenance**
 >
-> Exporter behavior also affects [openknowledge export](/features/commands/export.md).
+> Exporter behavior also affects [okn export](/features/commands/export.md).
 > Record most behavior changes in the [CLI changelog](/changelog/cli.md).

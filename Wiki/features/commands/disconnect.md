@@ -14,9 +14,9 @@ default.
 ## Usage
 
 ```sh
-openknowledge disconnect <key-or-path>
-openknowledge disconnect <key-or-path> --keep-files
-openknowledge disconnect <key-or-path> --delete-files
+okn disconnect <key-or-path>
+okn disconnect <key-or-path> --keep-files
+okn disconnect <key-or-path> --delete-files
 ```
 
 `--keep-files` and `--delete-files` are mutually exclusive.

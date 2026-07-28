@@ -26,6 +26,7 @@ timestamp: 2026-07-28T00:00:00Z
 - Do not use contractions, phrasal verbs, or semicolons.
 - Keep each paragraph on one topic and to a maximum of six sentences.
 - Treat Open Knowledge product terms and programming terms as approved technical terms.
+- Use `okn` in user-facing command examples.
 - Preserve the upstream text in `SPEC.md`. Apply this rule only to its local notice.
 
 ## Reference

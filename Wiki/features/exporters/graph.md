@@ -9,7 +9,7 @@ status: shipped
 
 # Graph Exporter
 
-`openknowledge export graph` writes AST-backed graph JSON for an Open Knowledge bundle.
+`okn export graph` writes AST-backed graph JSON for an Open Knowledge bundle.
 The default source graph describes authored files and local links.
 The search graph is a retrieval layer.
 The CLI builds this layer from Markdown heading chunks.
@@ -21,12 +21,12 @@ They do not infer domain entities or relationship predicates from prose.
 ## Usage
 
 ```sh
-openknowledge export graph [key-or-path]
-openknowledge export graph --out <file> [key-or-path]
-openknowledge export graph --type source [key-or-path]
-openknowledge export graph --type search [key-or-path]
-openknowledge export graph --spec <version> [key-or-path]
-openknowledge export graph --help
+okn export graph [key-or-path]
+okn export graph --out <file> [key-or-path]
+okn export graph --type source [key-or-path]
+okn export graph --type search [key-or-path]
+okn export graph --spec <version> [key-or-path]
+okn export graph --help
 ```
 
 ## Types
@@ -114,5 +114,5 @@ An unknown flag is a usage error with status `2`.
 >
 > **Update notes**
 >
-> After a graph output change, update [openknowledge export](/features/commands/export.md).
+> After a graph output change, update [okn export](/features/commands/export.md).
 > Also update the README command tables, root help, and [CLI changelog](/changelog/cli.md).

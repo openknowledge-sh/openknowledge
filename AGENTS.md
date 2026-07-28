@@ -13,7 +13,7 @@ Before making those changes, read:
 After meaningful wiki edits, run:
 
 ```sh
-openknowledge validate "Wiki"
+okn validate "Wiki"
 ```
 
 Do not update the wiki for unrelated formatting-only edits or changes that do not affect CLI behavior, docs, workflows, or release-facing behavior.

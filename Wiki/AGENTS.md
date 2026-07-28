@@ -48,14 +48,17 @@ The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
 - Include changes to arguments, examples, and use cases.
 - Update [features/commands/rules.md](features/commands/rules.md) when the rule
   catalog or rule commands change.
-- Include changes to `openknowledge setup --rules`,
-  `openknowledge prompt rules`, and `rules apply`.
+- Include changes to `okn setup --rules`, `okn prompt rules`, and
+  `rules apply`.
 - Include changes to the `--path` and `--target` flags.
 - Keep release history in the changelog. Command pages describe only the
   current interface.
 - Keep released behavior separate from planned work.
 - Do not put candidate commands or exporters in the released command index.
 - Preserve source paths when a page depends on specific files.
+- Use `okn` in user-facing command examples.
+- Use `openknowledge` only for canonical binary, package, or historical
+  references.
 - Write reference documentation, not product copy.
 - Start with the task. Give options and defaults one time.
 - Use tables only when they make comparison easier.
@@ -143,7 +146,7 @@ chronological logs.
 After a meaningful Wiki edit, run:
 
 ```sh
-openknowledge validate "Wiki"
+okn validate "Wiki"
 ```
 
 Fix all errors and avoidable warnings.

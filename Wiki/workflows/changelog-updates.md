@@ -51,7 +51,7 @@ Do not add an entry for a dependency change that does not affect users.
 Run:
 
 ```sh
-openknowledge validate "Wiki"
+okn validate "Wiki"
 ```
 
 Fix all errors and avoidable warnings.

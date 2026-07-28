@@ -43,7 +43,7 @@ and `spec` tools.
 The primary activation flow is:
 
 ```sh
-openknowledge setup
+okn setup
 ```
 
 The CLI launches the selected agent. It then validates the wiki and installs

@@ -12,8 +12,11 @@ Knowledge Format (OKF). It also searches and publishes these knowledge bases.
 
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
-openknowledge setup
+okn setup
 ```
+
+This documentation uses `okn` as the preferred command. The full
+`openknowledge` command remains available.
 
 - [Installation](features/installation.md)
 - [Command reference](features/commands/)

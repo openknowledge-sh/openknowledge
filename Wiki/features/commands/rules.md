@@ -18,12 +18,12 @@ instruction file. Repeated application produces the same block.
 ## Usage
 
 ```sh
-openknowledge prompt rules --list --path Wiki
-openknowledge prompt rules asd-ste100 --path Wiki
-openknowledge prompt rules docs,changelog --path Wiki
-openknowledge prompt rules docs --target codex
-openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md
-openknowledge prompt rules apply docs --path Wiki --dry-run
+okn prompt rules --list --path Wiki
+okn prompt rules asd-ste100 --path Wiki
+okn prompt rules docs,changelog --path Wiki
+okn prompt rules docs --target codex
+okn prompt rules apply docs,changelog --path Wiki --file AGENTS.md
+okn prompt rules apply docs --path Wiki --dry-run
 ```
 
 | Option | Default | Description |
@@ -47,7 +47,7 @@ destination. Otherwise, it uses `generic`. In a terminal, warnings follow the
 rendered output. When a caller redirects stdout, warnings go to stderr.
 
 Rule review is separate and advisory. Use
-`openknowledge prompt review rules Wiki`. Deterministic validation verifies
+`okn prompt review rules Wiki`. Deterministic validation verifies
 structure and configured validation policies. It does not evaluate subjective
 compliance.
 

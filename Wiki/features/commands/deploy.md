@@ -8,8 +8,8 @@ timestamp: 2026-07-28T00:00:00Z
 
 # `openknowledge deploy`
 
-`openknowledge deploy railway init` creates a runtime image definition in the
-project. `openknowledge deploy railway` validates a public knowledge base. It
+`okn deploy railway init` creates a runtime image definition in the
+project. `okn deploy railway` validates a public knowledge base. It
 then creates one `serve` service.
 
 The service image contains the artifact from the source commit. Git
@@ -19,18 +19,18 @@ explicitly.
 ## Usage
 
 ```sh
-openknowledge deploy railway init Wiki
+okn deploy railway init Wiki
 git add .openknowledge/runtime
 git commit -m "Add Open Knowledge Railway runtime"
 git push
-openknowledge deploy railway Wiki --dry-run
-openknowledge deploy railway Wiki --yes
-openknowledge deploy railway Wiki --domain docs.example.com --yes
-openknowledge deploy railway Wiki --no-public-endpoint --yes
+okn deploy railway Wiki --dry-run
+okn deploy railway Wiki --yes
+okn deploy railway Wiki --domain docs.example.com --yes
+okn deploy railway Wiki --no-public-endpoint --yes
 
 # Explicit scheduled-agent topology:
-openknowledge deploy railway init Wiki --runtimes claude,opencode --force
-openknowledge deploy railway Wiki --runtimes claude,opencode --yes
+okn deploy railway init Wiki --runtimes claude,opencode --force
+okn deploy railway Wiki --runtimes claude,opencode --yes
 ```
 
 Provider changes require `--yes`. `--dry-run` validates the working bundle. It
@@ -61,7 +61,7 @@ stops if a planned worker is absent. If you omit `--runtimes`, deployment does
 not infer or start agents.
 
 The generated multi-stage Dockerfile copies the repository. It runs
-`openknowledge runtime build` with the Railway trigger commit SHA. It then
+`okn runtime build` with the Railway trigger commit SHA. It then
 copies `/opt/openknowledge/artifacts` into the final image.
 
 The committed `runtime.toml` lets the same image run locally without Railway
@@ -81,7 +81,7 @@ To update pins, run `init` with the required versions and `--force`.
 4. Deploy again.
 
 ```sh
-openknowledge deploy railway init Wiki --runtimes codex \
+okn deploy railway init Wiki --runtimes codex \
   --openknowledge-version 0.8.4 --codex-version 0.128.0 --force
 ```
 
@@ -164,7 +164,7 @@ A smaller topology requires explicit `--prune`. To migrate the former
 publisher and serve topology, review the default dry run. Then run:
 
 ```sh
-openknowledge deploy railway Wiki --prune --yes
+okn deploy railway Wiki --prune --yes
 ```
 
 This command deletes publisher and worker services that are absent from the new

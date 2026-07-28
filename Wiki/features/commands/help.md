@@ -8,17 +8,17 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge --help`
 
-Installed releases include the shorter `okn` alias. You can use `okn` instead
-of `openknowledge` in each example.
+Installed releases include the shorter `okn` alias. The documentation uses
+this alias in shell examples.
 
 ## Usage
 
 ```sh
-openknowledge --help
-openknowledge -h
-openknowledge <command> --help
-openknowledge jobs <subcommand> --help
-openknowledge --error-format json <command> [args...]
+okn --help
+okn -h
+okn <command> --help
+okn jobs <subcommand> --help
+okn --error-format json <command> [args...]
 ```
 
 Command help also accepts `-h` and `-help`. Nested job commands provide

@@ -18,10 +18,10 @@ contains the prompt.
 ## Quick start
 
 ```sh
-openknowledge jobs new custom --out .openknowledge/jobs/my-job.md
-openknowledge jobs validate .openknowledge/jobs/my-job.md
-openknowledge jobs run .openknowledge/jobs/my-job.md --dry-run
-openknowledge jobs run .openknowledge/jobs/my-job.md
+okn jobs new custom --out .openknowledge/jobs/my-job.md
+okn jobs validate .openknowledge/jobs/my-job.md
+okn jobs run .openknowledge/jobs/my-job.md --dry-run
+okn jobs run .openknowledge/jobs/my-job.md
 ```
 
 The default job directory is `.openknowledge/jobs`. Install the selected Codex,
@@ -45,17 +45,17 @@ Claude Code, or OpenCode CLI. Authenticate the CLI before you run a job.
 Common flags:
 
 ```sh
-openknowledge jobs list --json
-openknowledge jobs validate <job> --json
-openknowledge jobs run <job> --executor host|docker
-openknowledge jobs run <job> --at 2026-07-18T09:00:00Z
-openknowledge jobs start <job> --json
-openknowledge jobs runs . --job <id> --status failed --json
-openknowledge jobs daemon --once
-openknowledge jobs daemon --tick 5m --runtime codex
+okn jobs list --json
+okn jobs validate <job> --json
+okn jobs run <job> --executor host|docker
+okn jobs run <job> --at 2026-07-18T09:00:00Z
+okn jobs start <job> --json
+okn jobs runs . --job <id> --status failed --json
+okn jobs daemon --once
+okn jobs daemon --tick 5m --runtime codex
 ```
 
-Run `openknowledge jobs <command> --help` for command options. `new --force`
+Run `okn jobs <command> --help` for command options. `new --force`
 permits replacement of an existing output file. `stop` and `kill` accept
 `--repo`, `--wait`, and `--json`.
 
@@ -137,7 +137,7 @@ validation.
 | `insights` | Resolve pending private insights through the job lifecycle. |
 | `custom` | Minimal starting point. |
 
-Run `openknowledge jobs new --reference` to read the embedded schema and
+Run `okn jobs new --reference` to read the embedded schema and
 artifact reference.
 
 ## Runtime behavior

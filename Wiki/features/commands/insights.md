@@ -28,16 +28,16 @@ person, agent, or session observer
 ## Usage
 
 ```sh
-openknowledge insights
-openknowledge insights list Wiki
-openknowledge insights create "Document the deployment rollback workflow"
-openknowledge insights create "Document rollback" --target operations/deploy.md --evidence "deploy.sh exposes rollback"
-openknowledge insights run <insight>
-openknowledge insights run --all
-openknowledge insights run <insight> --runtime claude
-openknowledge insights run <insight> --isolate
-openknowledge insights dismiss <insight>
-openknowledge jobs new insights --out .openknowledge/jobs/insights.md
+okn insights
+okn insights list Wiki
+okn insights create "Document the deployment rollback workflow"
+okn insights create "Document rollback" --target operations/deploy.md --evidence "deploy.sh exposes rollback"
+okn insights run <insight>
+okn insights run --all
+okn insights run <insight> --runtime claude
+okn insights run <insight> --isolate
+okn insights dismiss <insight>
+okn jobs new insights --out .openknowledge/jobs/insights.md
 ```
 
 Without a path, listing finds the connected knowledge base from
@@ -58,7 +58,7 @@ the wiki.
 Use the same command in a terminal or an agent skill:
 
 ```sh
-openknowledge insights create "<durable knowledge gap>" \
+okn insights create "<durable knowledge gap>" \
   --target "<likely wiki path>" \
   --evidence "<concise repository evidence>"
 ```

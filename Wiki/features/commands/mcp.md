@@ -15,8 +15,8 @@ validate the bundle.
 ## Usage
 
 ```sh
-openknowledge mcp [key-or-path]
-openknowledge mcp Wiki --spec 0.1
+okn mcp [key-or-path]
+okn mcp Wiki --spec 0.1
 ```
 
 Example command-based client configuration:
@@ -25,7 +25,7 @@ Example command-based client configuration:
 {
   "mcpServers": {
     "project-knowledge": {
-      "command": "openknowledge",
+      "command": "okn",
       "args": ["mcp", "Wiki"]
     }
   }
@@ -83,7 +83,7 @@ stops normally.
 
 ## Deployed HTTP MCP
 
-[`openknowledge runtime serve`](runtime.md) exposes the same read-only surface
+[`okn runtime serve`](runtime.md) exposes the same read-only surface
 at `<route>/_mcp`. It uses MCP sessions over HTTP. It reads only the filtered
 `mcp/` projection.
 

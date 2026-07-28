@@ -9,7 +9,7 @@ timestamp: 2026-07-28T00:00:00Z
 # Installation
 
 Installed releases expose both `openknowledge` and the shorter `okn` alias.
-Both names run the same CLI. The examples use the descriptive command name.
+Both names run the same CLI. The documentation uses `okn` for user commands.
 
 ## Shell installer
 

@@ -36,7 +36,7 @@ The embedded source is [0.1.md](https://github.com/openknowledge-sh/openknowledg
 The Wiki also contains a local [spec copy](../SPEC.md).
 
 `latest` resolves to `0.1`.
-`openknowledge spec 0.1` prints the embedded draft.
+`okn spec 0.1` prints the embedded draft.
 Versioned validation accepts `0.1`.
 See the [spec registry](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/spec.go).
 See these tests:

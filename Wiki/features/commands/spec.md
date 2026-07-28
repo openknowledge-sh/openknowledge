@@ -8,15 +8,15 @@ timestamp: 2026-06-18T00:00:00Z
 
 # `openknowledge spec`
 
-Use `openknowledge spec` to print an embedded OKF specification. The `latest`
+Use `okn spec` to print an embedded OKF specification. The `latest`
 selector resolves to the latest embedded version.
 
 ## Usage
 
 ```sh
-openknowledge spec latest
-openknowledge spec 0.1
-openknowledge spec --help
+okn spec latest
+okn spec 0.1
+okn spec --help
 ```
 
 ## Arguments and flags
@@ -27,7 +27,7 @@ openknowledge spec --help
 
 ## Example output
 
-`openknowledge spec latest` prints the embedded spec Markdown:
+`okn spec latest` prints the embedded spec Markdown:
 
 ```text
 # Open Knowledge Format (OKF)

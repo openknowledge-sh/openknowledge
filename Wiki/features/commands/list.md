@@ -14,9 +14,9 @@ validation context.
 ## Usage
 
 ```sh
-openknowledge list [key-or-path]
-openknowledge list --depth 2 Wiki
-openknowledge list --json Wiki
+okn list [key-or-path]
+okn list --depth 2 Wiki
+okn list --json Wiki
 ```
 
 | Option | Default | Description |

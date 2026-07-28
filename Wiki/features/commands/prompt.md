@@ -8,22 +8,22 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge prompt`
 
-`openknowledge prompt` groups portable workflows that print agent
+`okn prompt` groups portable workflows that print agent
 instructions. These workflows do not start an agent harness.
 
-Use [`openknowledge setup`](setup.md) for normal onboarding. Use this command
+Use [`okn setup`](setup.md) for normal onboarding. Use this command
 to copy a prompt, inspect the rule catalog, or update a managed instruction
 block.
 
 ## Usage
 
 ```sh
-openknowledge prompt setup --rules docs,changelog
-openknowledge prompt from <source> --out Wiki
-openknowledge prompt rules --list
-openknowledge prompt rules docs,changelog --path Wiki
-openknowledge prompt rules apply docs --path Wiki --file AGENTS.md
-openknowledge prompt review rules Wiki
+okn prompt setup --rules docs,changelog
+okn prompt from <source> --out Wiki
+okn prompt rules --list
+okn prompt rules docs,changelog --path Wiki
+okn prompt rules apply docs --path Wiki --file AGENTS.md
+okn prompt review rules Wiki
 ```
 
 ## Subcommands

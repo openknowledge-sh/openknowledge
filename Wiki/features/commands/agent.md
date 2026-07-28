@@ -8,7 +8,7 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge agent`
 
-Use `openknowledge agent` to start a supported agent harness. The command
+Use `okn agent` to start a supported agent harness. The command
 starts Codex by default. Use `--runtime` to select Claude Code or OpenCode.
 
 The command adds the versioned `openknowledge-agent/v1` contract. The contract
@@ -16,7 +16,7 @@ defines workspace files as the source of truth. It also requires provenance,
 publication controls, and validation. The surrounding runtime controls Git
 publication.
 
-When you run [`openknowledge agent integrate`](integrate.md), native project
+When you run [`okn agent integrate`](integrate.md), native project
 hooks also observe sessions from this command. The command has no separate
 insight implementation. Direct harness sessions and proxy sessions use the
 same project observer.
@@ -29,15 +29,15 @@ and worktree instead.
 ## Usage
 
 ```sh
-openknowledge agent
-openknowledge agent --runtime claude
-openknowledge agent --runtime opencode --model provider/model
-openknowledge agent exec "Update the whitepaper"
-openknowledge agent exec --runtime claude "Repair citations"
-openknowledge agent integrate Wiki
-openknowledge agent doctor
-openknowledge agent doctor --runtime opencode --json
-openknowledge agent exec --isolate "Update the wiki"
+okn agent
+okn agent --runtime claude
+okn agent --runtime opencode --model provider/model
+okn agent exec "Update the whitepaper"
+okn agent exec --runtime claude "Repair citations"
+okn agent integrate Wiki
+okn agent doctor
+okn agent doctor --runtime opencode --json
+okn agent exec --isolate "Update the wiki"
 ```
 
 ## Commands and flags
@@ -106,7 +106,7 @@ Open Knowledge keeps the worktree after the harness exits. It does not create a
 commit or pull request for this mode.
 
 Knowledge maintenance observations use
-[`openknowledge insights`](insights.md). This interface does not depend on a
+[`okn insights`](insights.md). This interface does not depend on a
 harness. `insights create` records a durable gap and does not start a model.
 `insights run` sends pending items to the selected local agent runtime.
 

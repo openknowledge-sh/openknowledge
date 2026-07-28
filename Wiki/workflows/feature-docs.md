@@ -28,7 +28,7 @@ Use this workflow for these documentation changes:
 5. Update the smallest current-state reference page.
 6. For a user-visible change, update the
    [CLI changelog](/changelog/cli.md).
-7. Run `openknowledge validate Wiki`.
+7. Run `okn validate Wiki`.
 8. Fix all errors and avoidable warnings.
 
 ## Page structure
@@ -69,6 +69,9 @@ entry.
 
 Follow the wiki-local [ASD-STE100 rule](/rules/asd-ste100.md). Use the
 technical terms that [Agent Rules](/AGENTS.md) identifies.
+
+Use `okn` in user-facing command examples. Use `openknowledge` only for
+canonical binary, package, or historical references.
 
 Use active voice and simple verb tenses. Do not use contractions, phrasal
 verbs, or semicolons.

@@ -58,7 +58,7 @@ It gives you:
   optional experimental Markdown-authored jobs for scheduled maintenance
 - a Docker runtime with public `serve`, credentialed private `publisher`, and
   model-capable private `worker` roles separated by artifacts and Git bundles
-- `openknowledge deploy railway` for secret-scoped, idempotent provisioning
+- `okn deploy railway` for secret-scoped, idempotent provisioning
   with a Railway URL, a user-owned custom domain, or no public endpoint
 
 Open Knowledge implements Google's [Open Knowledge Format v0.1][okf-spec]
@@ -69,7 +69,7 @@ to inspect, diff, validate, and maintain.
 
 | | Capability | What it gives you |
 | --- | --- | --- |
-| :robot: | Agent setup | `openknowledge setup` creates a source-grounded `Wiki` from the current project through Codex; alternate runtimes and sources remain optional. |
+| :robot: | Agent setup | `okn setup` creates a source-grounded `Wiki` from the current project through Codex; alternate runtimes and sources remain optional. |
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
 | :mag: | Retrieval | `search` builds budget-bounded Markdown context by default, while `get`, `list`, and `view` support exact reads, structure, and browsing. |
 | :electric_plug: | MCP integration | `mcp` serves exact resources, source-grounded search, and validation to compatible LLM hosts over read-only stdio. |
@@ -80,7 +80,7 @@ to inspect, diff, validate, and maintain.
 
 ```mermaid
 flowchart LR
-  Source["Repository, docs, website, or local folder"] --> Setup["openknowledge setup"]
+  Source["Repository, docs, website, or local folder"] --> Setup["okn setup"]
   Setup --> Agent["Local coding agent"]
   Agent --> Wiki["OKF Markdown wiki"]
   Wiki --> Use["get / search / list / view / mcp"]
@@ -98,7 +98,7 @@ the canonical setup command:
 
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
-openknowledge setup
+okn setup
 ```
 
 `setup` is the controller: it launches Codex by default, asks the agent to
@@ -108,7 +108,7 @@ ready; no second onboarding command is required.
 
 Before starting the interactive process, `setup` verifies that the selected
 agent CLI is installed. If preflight fails, run
-`openknowledge agent doctor --runtime <runtime>`, repair that runtime, and
+`okn agent doctor --runtime <runtime>`, repair that runtime, and
 rerun the same setup command. Authentication remains owned by the selected
 agent CLI; an authenticated runtime failure is reported with a rerun hint.
 
@@ -118,13 +118,13 @@ Pass an explicit target path without `--from` when you want the launched agent
 to interview you about a new or more open-ended knowledge base:
 
 ```sh
-openknowledge setup Wiki
+okn setup Wiki
 ```
 
 Preselect maintenance rules when you already know the wiki shape:
 
 ```sh
-openknowledge setup Wiki --rules docs,changelog
+okn setup Wiki --rules docs,changelog
 ```
 
 ### Use another source or agent runtime
@@ -133,8 +133,8 @@ Pass another repository, folder, or website to `--from` when the current
 project is not the source:
 
 ```sh
-openknowledge setup Wiki --from https://github.com/openknowledge-sh/openknowledge --type understanding
-openknowledge setup --runtime claude
+okn setup Wiki --from https://github.com/openknowledge-sh/openknowledge --type understanding
+okn setup --runtime claude
 ```
 
 The command launches a local agent to inspect the source, create or update an OKF
@@ -150,8 +150,9 @@ curl -fsSL https://openknowledge.sh/install | bash
 # Or: npm install -g @openknowledge-sh/openknowledge
 ```
 
-Both installers expose `openknowledge` and the shorter `okn` alias. For
-example, `okn validate Wiki` is equivalent to `openknowledge validate Wiki`.
+Both installers expose the preferred `okn` command and the equivalent
+`openknowledge` command. For example, `okn validate Wiki` is equivalent to
+`openknowledge validate Wiki`.
 
 Both installers verify the release checksum before publishing the binary. The
 npm wrapper also bounds downloads and decompression, limits HTTPS redirects,
@@ -179,33 +180,33 @@ the recorded workflow and commit.
 ### Create a deterministic scaffold (advanced)
 
 ```sh
-openknowledge scaffold ./project-memory
-openknowledge scaffold --no-agents --no-setup ./source-wiki
-openknowledge scaffold --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
+okn scaffold ./project-memory
+okn scaffold --no-agents --no-setup ./source-wiki
+okn scaffold --name "Accessibility Review" --bundle-name accessibility --bundle-tag accessibility ./accessibility
 ```
 
 ### Connect and navigate
 
 ```sh
-openknowledge connect ./project-memory --as personal
-openknowledge get personal --info
-openknowledge get personal
-openknowledge search personal "validation workflow"
-openknowledge search personal "validation workflow" --budget 1200
-openknowledge search personal "validation workflow" --matches
-openknowledge mcp personal
-openknowledge registry where personal
-openknowledge view personal
-openknowledge disconnect personal
+okn connect ./project-memory --as personal
+okn get personal --info
+okn get personal
+okn search personal "validation workflow"
+okn search personal "validation workflow" --budget 1200
+okn search personal "validation workflow" --matches
+okn mcp personal
+okn registry where personal
+okn view personal
+okn disconnect personal
 ```
 
 ### Validate and inspect
 
 ```sh
-openknowledge validate ./project-memory
-openknowledge validate --format json ./project-memory
-openknowledge list --depth 2 ./project-memory
-openknowledge ast ./project-memory
+okn validate ./project-memory
+okn validate --format json ./project-memory
+okn list --depth 2 ./project-memory
+okn ast ./project-memory
 ```
 
 ### Publish or export
@@ -221,12 +222,12 @@ enabled = true
 Then export the reviewed public projection:
 
 ```sh
-openknowledge export html --out ./project-site ./project-memory
-openknowledge export html --plain --out ./project-plain-site ./project-memory
-openknowledge export json ./project-memory
-openknowledge export graph ./project-memory
-openknowledge export graph --type search ./project-memory
-openknowledge export tar --out ./project-memory.tar.gz ./project-memory
+okn export html --out ./project-site ./project-memory
+okn export html --plain --out ./project-plain-site ./project-memory
+okn export json ./project-memory
+okn export graph ./project-memory
+okn export graph --type search ./project-memory
+okn export tar --out ./project-memory.tar.gz ./project-memory
 ```
 
 ### Run the isolated Docker runtime
@@ -251,16 +252,16 @@ example in production.
 
 ```sh
 # Generate the project-owned image definition and immutable artifact config.
-openknowledge deploy railway init Wiki
+okn deploy railway init Wiki
 git add .openknowledge/runtime
 git commit -m "Add Open Knowledge Railway runtime"
 git push
 
 # Review the exact resources and credential names; no secrets are read or shown.
-openknowledge deploy railway Wiki --dry-run
+okn deploy railway Wiki --dry-run
 
 # Provision one serve service and a Railway URL.
-openknowledge deploy railway Wiki --yes
+okn deploy railway Wiki --yes
 ```
 
 Use `--domain docs.example.com` only for a hostname you already own; the result
@@ -293,32 +294,32 @@ returns after Railway accepts the redeploy. Verify the generated endpoint at
 `/_openknowledge/readyz` once the image starts.
 
 To migrate an older publisher+serve deployment to the one-service default,
-first review `openknowledge deploy railway Wiki --dry-run`, then run
-`openknowledge deploy railway Wiki --prune --yes`. `--prune` explicitly deletes
+first review `okn deploy railway Wiki --dry-run`, then run
+`okn deploy railway Wiki --prune --yes`. `--prune` explicitly deletes
 the obsolete publisher and worker services and their attached state.
 
 ## How It Works
 
 ### Agent setup
 
-`openknowledge setup` runs the complete project onboarding workflow through a
+`okn setup` runs the complete project onboarding workflow through a
 supported local agent harness, using the current repository as the source and
 `Wiki` as the target. An explicit target path without `--from` starts the
 guided workflow for a new or open-ended knowledge base. The CLI validates the
 result and installs project integration after the agent finishes.
 
-`openknowledge prompt rules` prints Markdown instructions for agents that maintain an
-existing wiki. It does not edit files. Use `openknowledge prompt rules apply` when
+`okn prompt rules` prints Markdown instructions for agents that maintain an
+existing wiki. It does not edit files. Use `okn prompt rules apply` when
 you want the CLI to write an idempotent managed block into an agent instruction
 file such as `AGENTS.md`, `CLAUDE.md`, or Cursor project rules.
 
-`openknowledge prompt review rules` prints an advisory AI review prompt for checking
+`okn prompt review rules` prints an advisory AI review prompt for checking
 whether selected maintenance rules appear to have been followed. It does not
 call a model, edit files, or affect validation status.
 
 ### Source-to-wiki prompts
 
-`openknowledge prompt from <source> --out <folder>` prints a source-to-wiki agent
+`okn prompt from <source> --out <folder>` prints a source-to-wiki agent
 prompt. Use it with a GitHub repository, local path, or website entrypoint when
 you want a local agent to create or refresh an OKF bundle from existing
 material.
@@ -331,30 +332,30 @@ traversal hint for sources that need one.
 
 ### Bundle lifecycle
 
-`openknowledge scaffold` creates a minimal local bundle with a root index, update
+`okn scaffold` creates a minimal local bundle with a root index, update
 log, and pinned copy of the current spec. By default it also includes a setup
 handoff and starter agent guidance. Pass `--no-agents` or `--no-setup` when
 those optional handoff files are not useful for the workflow.
 
 After creation, humans and agents edit normal Markdown files.
-`openknowledge validate` checks the bundle, `openknowledge list` prints the
-bundle tree, `openknowledge get` prints exact files or declared entrypoints,
-and `openknowledge search` uses deterministic BM25 ranking to build
+`okn validate` checks the bundle, `okn list` prints the
+bundle tree, `okn get` prints exact files or declared entrypoints,
+and `okn search` uses deterministic BM25 ranking to build
 source-preserving Markdown context under a token budget. One-hop local links
 and backlinks are included by default when they fit; `--matches` exposes the
 underlying ranked snippets and scores. Both search shapes bind results to the
 indexed Markdown revision and expose content-addressed section locators, so an
 integration can detect stale evidence after a knowledge-base refresh.
-`openknowledge search --all <query>` searches the current local registry
+`okn search --all <query>` searches the current local registry
 snapshot, combines per-bundle ranks with deterministic reciprocal-rank fusion,
 and applies one global source limit and context budget without refreshing
 managed remotes.
 
 ### Registry and viewer
 
-`openknowledge connect` stores stable names for local paths, published
+`okn connect` stores stable names for local paths, published
 manifests, tar archives, and Git sources. A key is only an alias: path-based
-commands still work, and agents can use `openknowledge registry where <key>` to
+commands still work, and agents can use `okn registry where <key>` to
 resolve the real folder before using normal filesystem tools such as `rg`.
 Remote Git materialization is non-interactive, has a two-minute process budget,
 and caps captured subprocess diagnostics at 256 KiB, so unattended agent runs
@@ -367,8 +368,8 @@ userinfo, passwords, fragments, and known credential query parameters before
 any network or filesystem I/O. Git authentication must use SSH keys or a
 credential helper; HTTP sources must be reachable without URL-embedded secrets.
 
-`openknowledge view` starts a registry-backed local viewer.
-`openknowledge view <path-or-name>` opens one knowledge base directly. The
+`okn view` starts a registry-backed local viewer.
+`okn view <path-or-name>` opens one knowledge base directly. The
 viewer serves registered knowledge bases under stable local paths such as
 `/personal/`; those path aliases do not require DNS or `/etc/hosts` changes.
 While it is running, registry mode picks up connections, disconnections,
@@ -377,19 +378,19 @@ state fails requests instead of preserving stale routes.
 
 ### Publishing
 
-`openknowledge export html` writes a static viewer app bundle by default, including
+`okn export html` writes a static viewer app bundle by default, including
 searchable Markdown tables, `llms.txt`, an `openknowledge.json` connect
 manifest, and an `assets/openknowledge-bundle.tar.gz` source archive.
 Published exports can be connected later:
 
 ```sh
-openknowledge connect https://openknowledge.sh/wiki/
+okn connect https://openknowledge.sh/wiki/
 ```
 
-`openknowledge export html --plain` writes unstyled semantic HTML.
-`openknowledge export json` writes a normalized bundle model.
-`openknowledge export graph` writes an AST-backed source graph.
-`openknowledge export graph --type search` writes a retrieval-oriented chunk graph.
+`okn export html --plain` writes unstyled semantic HTML.
+`okn export json` writes a normalized bundle model.
+`okn export graph` writes an AST-backed source graph.
+`okn export graph --type search` writes a retrieval-oriented chunk graph.
 
 ### Go API
 
@@ -438,11 +439,11 @@ unknown sections/fields and wrong value types fail closed. See the
 
 ### Experimental Agent And Jobs
 
-`openknowledge agent` is the human-facing path. It starts Codex by default and
+`okn agent` is the human-facing path. It starts Codex by default and
 supports Claude Code or OpenCode with `--runtime`. It accepts an optional
 initial prompt or runs a non-interactive task with `agent exec`. A versioned
 Open Knowledge steering contract is prepended by default. Managed onboarding
-and source generation use `openknowledge setup`; `agent doctor` probes installed
+and source generation use `okn setup`; `agent doctor` probes installed
 harnesses without starting a model.
 Direct filesystem editing is the default, so local sessions do not create a
 branch, commit, or pull request.
@@ -452,32 +453,32 @@ creating the worktree. Overrides are `OPENKNOWLEDGE_CODEX`,
 `OPENKNOWLEDGE_CLAUDE`, and `OPENKNOWLEDGE_OPENCODE`; Codex discovery also skips
 broken `PATH` wrappers and checks supported macOS app bundles.
 
-`openknowledge agent integrate --global` installs only a discovery skill for Codex,
-Claude Code, and OpenCode. `openknowledge agent integrate Wiki` explicitly connects
+`okn agent integrate --global` installs only a discovery skill for Codex,
+Claude Code, and OpenCode. `okn agent integrate Wiki` explicitly connects
 the current repository to `Wiki`, installs project-scoped skills and native
 project hooks, and records the relationship in
 `.openknowledge/integration.toml`. Direct harness sessions and
-`openknowledge agent` then write private, uncommitted Markdown observations to
+`okn agent` then write private, uncommitted Markdown observations to
 `Wiki/insights/`. The bounded observer analyzes available session messages,
 tool events, failures, retries, validation events, and Git changes, but commits
 neither raw transcripts nor credentials.
 
-`openknowledge insights` is the small shared interface for people, agents, and
+`okn insights` is the small shared interface for people, agents, and
 automation. Capture a durable knowledge gap deterministically with
-`openknowledge insights create "<summary>"`; repeat `--target` and `--evidence`
+`okn insights create "<summary>"`; repeat `--target` and `--evidence`
 when the likely knowledge location or source evidence is known. List pending
-items with `openknowledge insights`, execute one with
-`openknowledge insights run <insight>`, process all with `run --all`, or add
+items with `okn insights`, execute one with
+`okn insights run <insight>`, process all with `run --all`, or add
 `--isolate` for a retained local branch and worktree. `create` never invokes a
 model; `run` performs fresh agent research, leaves an ordinary uncommitted Git
 diff, and validates the result before marking an insight resolved. Insights
 contain only a sanitized outcome, evidence, and likely targets—never a patch or
 base commit. For scheduled maintenance, generate `.openknowledge/jobs/insights.md`
-with `openknowledge jobs new insights --out .openknowledge/jobs/insights.md`.
+with `okn jobs new insights --out .openknowledge/jobs/insights.md`.
 Insights always declare `okf_publish: false` and are absent from every public
 artifact.
 
-`openknowledge jobs` is experimental. It runs deterministic automation
+`okn jobs` is experimental. It runs deterministic automation
 around local agent CLIs, but the job schema and scheduler behavior may still
 change before this command is treated as stable. Jobs are Markdown files with
 nested frontmatter for schedule, closed agent runtime/model, workspace, sandbox,
@@ -486,23 +487,23 @@ Jobs that share a `concurrency.key` use an owner-private cross-process lock;
 the supported `skip` policy records a skipped invocation without creating a
 second worktree when that key is already running.
 
-Use `openknowledge jobs new` to list shipped templates,
-`openknowledge jobs new <template> --out <file>` to write one,
-`openknowledge jobs validate` to check job specs, and
-`openknowledge jobs run <job.md> --dry-run` to print the resolved run plan.
-Run `openknowledge jobs run <job.md>` to create a Git worktree and run the
+Use `okn jobs new` to list shipped templates,
+`okn jobs new <template> --out <file>` to write one,
+`okn jobs validate` to check job specs, and
+`okn jobs run <job.md> --dry-run` to print the resolved run plan.
+Run `okn jobs run <job.md>` to create a Git worktree and run the
 selected Codex, Claude Code, or OpenCode adapter.
-Use `openknowledge jobs start <job.md>` for a detached run,
-`openknowledge jobs status` for schedules plus active/latest runs, and
-`openknowledge jobs runs` for repository history. Live runs can be cancelled
-with `openknowledge jobs stop <run-id>` or force-terminated with
-`openknowledge jobs kill <run-id>`; both address the owning supervisor rather
+Use `okn jobs start <job.md>` for a detached run,
+`okn jobs status` for schedules plus active/latest runs, and
+`okn jobs runs` for repository history. Live runs can be cancelled
+with `okn jobs stop <run-id>` or force-terminated with
+`okn jobs kill <run-id>`; both address the owning supervisor rather
 than trusting a stored PID. Scheduled jobs still require a running
-`openknowledge jobs daemon` process.
-`openknowledge jobs list --json` exposes a sorted, versioned discovery
+`okn jobs daemon` process.
+`okn jobs list --json` exposes a sorted, versioned discovery
 inventory with structured schedules, executor types, and concurrency keys,
 without serializing prompt bodies or environment values.
-`openknowledge jobs validate --json` emits a versioned report on stdout for
+`okn jobs validate --json` emits a versioned report on stdout for
 both valid and invalid specs; validation findings remain structured data while
 exit status `1` still marks an invalid job.
 Job dry-run plans, persisted `plan.json` and `run.json`, and management
@@ -511,107 +512,107 @@ Cancellation and kill outcomes are explicit in that run-record schema.
 
 ## Command Reference
 
-Run `openknowledge <command> --help` for command-specific flags and examples.
+Run `okn <command> --help` for command-specific flags and examples.
 Nested job commands also support
-`openknowledge jobs <subcommand> --help`.
+`okn jobs <subcommand> --help`.
 
 | Command | Purpose |
 | --- | --- |
-| `openknowledge --help` | Print command usage, summaries, and examples. |
-| `openknowledge --error-format json <command> ...` | Emit operational and usage failures as a versioned JSON envelope on stderr. |
-| `openknowledge setup` | Create `Wiki` from the current project, validate it, and install project integration. |
-| `openknowledge setup [wiki]` | Run guided setup for a new or open-ended knowledge base. |
-| `openknowledge setup [wiki] --from <source>` | Create or refresh a wiki from a source URL or path. |
-| `openknowledge prompt setup [--rules <rules>]` | Print the portable setup prompt without running an agent. |
-| `openknowledge prompt from <source> --out <folder>` | Print the portable source-to-wiki prompt. |
-| `openknowledge prompt rules --list` | List available built-in and wiki-local maintenance rules. |
-| `openknowledge prompt rules <rules> --path <path>` | Print ready-to-paste maintenance rules. |
-| `openknowledge prompt rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
-| `openknowledge prompt review rules [path]` | Print an advisory AI rule-review prompt. |
-| `openknowledge agent ["<initial prompt>"]` | Experimental: start a steered interactive Codex session, or select Claude Code/OpenCode with `--runtime`. |
-| `openknowledge agent exec "<prompt>"` | Experimental: run one non-interactive task through the selected harness. |
-| `openknowledge agent exec --isolate "<prompt>"` | Experimental: run one task in a retained branch and worktree. |
-| `openknowledge agent doctor [--runtime <runtime>]` | Experimental: probe supported harness installations. |
-| `openknowledge agent integrate --global` | Install discovery-only user skills without hooks or observation. |
-| `openknowledge agent integrate <wiki>` | Connect a repository to a knowledge base and install project skills/hooks. |
-| `openknowledge insights create "<summary>" [--target <path>] [--evidence <text>]` | Deterministically capture a private, evidence-only knowledge insight. |
-| `openknowledge insights [list] [wiki]` | List pending private Markdown insights oldest first; without a path, use the project integration. |
-| `openknowledge insights run <insight>` | Research and implement one insight locally, validate it, and leave an uncommitted diff. |
-| `openknowledge insights run --all [--isolate]` | Process all pending insights directly or in a retained local branch/worktree. |
-| `openknowledge insights dismiss <insight>` | Mark a pending insight dismissed. |
-| `openknowledge jobs new` | Experimental: list built-in local agent job templates. |
-| `openknowledge jobs new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
-| `openknowledge jobs new --reference` | Experimental: print the supported agent-job schema. |
-| `openknowledge jobs list [path]` | Experimental: list Markdown agent job specs. |
-| `openknowledge jobs list [path] --json` | Experimental: print the versioned agent discovery inventory. |
-| `openknowledge jobs status [jobs-dir]` | Experimental: show schedules, next eligible slots, and active/latest runs. |
-| `openknowledge jobs runs [repo]` | Experimental: list current and historical runs, newest first. |
-| `openknowledge jobs start <job.md>` | Experimental: start one job in a detached local supervisor. |
-| `openknowledge jobs stop <run-id>` | Experimental: request cancellation of a live supervised run. |
-| `openknowledge jobs kill <run-id>` | Experimental: force-cancel a live run's command process tree. |
-| `openknowledge jobs validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
-| `openknowledge jobs validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
-| `openknowledge jobs run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
-| `openknowledge jobs run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
-| `openknowledge jobs daemon [jobs-dir] --once [--runtime <runtime>]` | Experimental: attempt due jobs, optionally restricted to one harness. |
-| `openknowledge runtime plan --config runtime.toml` | Strictly validate and print the normalized self-hosted runtime plan. |
-| `openknowledge runtime build --config runtime.toml` | Build and promote filtered immutable public generations. |
-| `openknowledge runtime serve --config runtime.toml` | Serve verified static wiki, search, and optional read-only HTTP MCP snapshots. |
-| `openknowledge runtime worker --role publisher --config runtime.toml` | Fetch production, promote artifacts, validate agent bundles, and publish draft PR output with GitHub credentials. |
-| `openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml` | Run one harness's scheduled jobs with its model credential and export proposed Git branches without GitHub or artifact access. |
-| `openknowledge deploy railway init [path]` | Generate the repository-owned runtime Dockerfile and independently pinned CLI versions. |
-| `openknowledge deploy railway [path] --dry-run` | Validate publication and print the secret-free Railway resource plan. |
-| `openknowledge deploy railway [path] --yes` | Idempotently provision isolated runtime services, credentials, volumes, and the selected public endpoint mode. |
-| `openknowledge scaffold [folder]` | Scaffold a local Open Knowledge bundle. |
-| `openknowledge scaffold --no-agents --no-setup [folder]` | Scaffold without starter agent rules or a setup handoff. |
-| `openknowledge connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
-| `openknowledge connect <source> --as <key>` | Connect a bundle with an explicit key. |
-| `openknowledge connect <git-url> --git-ref <branch|tag|commit> --git-subdir <path>` | Connect a selected Git revision and OKF bundle root from a repository or monorepo. |
-| `openknowledge disconnect <key-or-path>` | Remove a connection while keeping files. |
-| `openknowledge disconnect <key-or-path> --delete-files` | Delete files only for CLI-managed remote caches. |
-| `openknowledge get <name-or-path>` | Print an exact local Markdown file, default entrypoint, or root `index.md`. |
-| `openknowledge get <name-or-path> <entry-or-file>` | Print a named bundle entrypoint or bundle-relative Markdown file. |
-| `openknowledge get <name-or-path> --info` | Print bundle and selected-file metadata. |
-| `openknowledge search <name-or-path> <query>` | Build source-preserving Markdown context with related authored links. |
-| `openknowledge search <name-or-path> <query> --budget <tokens>` | Bound the approximate context size. |
-| `openknowledge search <name-or-path> <query> --no-expand` | Include only direct lexical matches. |
-| `openknowledge search <name-or-path> <query> --matches` | Inspect ranked snippets, scores, and relations. |
-| `openknowledge search <name-or-path> <query> --format json` | Print structured context JSON. |
-| `openknowledge search --all <query>` | Fuse source context across every registered knowledge base under one global budget. |
-| `openknowledge search --all <query> --matches --format json` | Inspect the versioned federated rank-fusion contract. |
-| `openknowledge mcp [name-or-path]` | Serve one bundle as read-only MCP resources plus search and validation tools over stdio. |
-| `openknowledge mcp --spec <version> [name-or-path]` | Select the OKF spec used by MCP search, validation, and resource discovery. |
-| `openknowledge ast [key-or-path]` | Print parsed OKF AST JSON. |
-| `openknowledge ast --out <file> [key-or-path]` | Write parsed OKF AST JSON to a file. |
-| `openknowledge registry refresh <key-or-path> [--force]` | Atomically fetch and switch a managed remote connection to a newly validated cache generation. |
-| `openknowledge registry list` | List connected knowledge base paths. |
-| `openknowledge registry list --json` | Discover sorted connections, access capabilities, managed state, and source provenance through versioned JSON. |
-| `openknowledge registry status [key-or-path] --json` | Check local bundle, cache, Git, and provenance integrity without contacting remotes. |
-| `openknowledge registry where <name-or-path>` | Print the absolute path for a registry name or path. |
-| `openknowledge view [path]` | Start the registry or knowledge base Markdown viewer. |
-| `openknowledge view --allow-network --host <host> [path]` | Explicitly bind beyond loopback with token authentication on every route. |
-| `openknowledge view --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
-| `openknowledge export html --out <folder> [key-or-path]` | Write a static viewer app bundle plus `llms.txt`, connect manifest, and tar archive. |
-| `openknowledge export html --plain --out <folder> [key-or-path]` | Write unstyled semantic HTML files. |
-| `openknowledge export json [key-or-path]` | Print normalized Markdown-document bundle JSON. |
-| `openknowledge export json --out <file> [key-or-path]` | Write normalized Markdown-document bundle JSON to a file. |
-| `openknowledge export tar --out <file> [key-or-path]` | Write a portable bundle tar.gz archive. |
-| `openknowledge export graph [key-or-path]` | Print AST-backed source graph JSON. |
-| `openknowledge export graph --out <file> [key-or-path]` | Write AST-backed source graph JSON to a file. |
-| `openknowledge export graph --type search [key-or-path]` | Print derivative search graph JSON with H1-H3 chunk nodes. |
-| `openknowledge spec latest` | Print the latest embedded OKF spec. |
-| `openknowledge spec 0.1` | Print a specific embedded spec version. |
-| `openknowledge validate [key-or-path]` | Validate a bundle against the latest spec. |
-| `openknowledge validate --format json [key-or-path]` | Print a machine-readable validation report. |
-| `openknowledge validate --rule <rule=off\|warn\|error> [key-or-path]` | Override one validation rule severity for the run. |
-| `openknowledge list [key-or-path]` | Print a bundle tree with inline validation issues. |
-| `openknowledge list --depth <n> [key-or-path]` | Limit the displayed tree depth. |
-| `openknowledge list --json [key-or-path]` | Print machine-readable inventory output. |
-| `openknowledge version` | Print the CLI version. |
+| `okn --help` | Print command usage, summaries, and examples. |
+| `okn --error-format json <command> ...` | Emit operational and usage failures as a versioned JSON envelope on stderr. |
+| `okn setup` | Create `Wiki` from the current project, validate it, and install project integration. |
+| `okn setup [wiki]` | Run guided setup for a new or open-ended knowledge base. |
+| `okn setup [wiki] --from <source>` | Create or refresh a wiki from a source URL or path. |
+| `okn prompt setup [--rules <rules>]` | Print the portable setup prompt without running an agent. |
+| `okn prompt from <source> --out <folder>` | Print the portable source-to-wiki prompt. |
+| `okn prompt rules --list` | List available built-in and wiki-local maintenance rules. |
+| `okn prompt rules <rules> --path <path>` | Print ready-to-paste maintenance rules. |
+| `okn prompt rules apply <rules> --path <path> --file <file>` | Write or replace a managed rules block in an agent instruction file. |
+| `okn prompt review rules [path]` | Print an advisory AI rule-review prompt. |
+| `okn agent ["<initial prompt>"]` | Experimental: start a steered interactive Codex session, or select Claude Code/OpenCode with `--runtime`. |
+| `okn agent exec "<prompt>"` | Experimental: run one non-interactive task through the selected harness. |
+| `okn agent exec --isolate "<prompt>"` | Experimental: run one task in a retained branch and worktree. |
+| `okn agent doctor [--runtime <runtime>]` | Experimental: probe supported harness installations. |
+| `okn agent integrate --global` | Install discovery-only user skills without hooks or observation. |
+| `okn agent integrate <wiki>` | Connect a repository to a knowledge base and install project skills/hooks. |
+| `okn insights create "<summary>" [--target <path>] [--evidence <text>]` | Deterministically capture a private, evidence-only knowledge insight. |
+| `okn insights [list] [wiki]` | List pending private Markdown insights oldest first; without a path, use the project integration. |
+| `okn insights run <insight>` | Research and implement one insight locally, validate it, and leave an uncommitted diff. |
+| `okn insights run --all [--isolate]` | Process all pending insights directly or in a retained local branch/worktree. |
+| `okn insights dismiss <insight>` | Mark a pending insight dismissed. |
+| `okn jobs new` | Experimental: list built-in local agent job templates. |
+| `okn jobs new <template> --out <file>` | Experimental: write a built-in agent job template to a Markdown file. |
+| `okn jobs new --reference` | Experimental: print the supported agent-job schema. |
+| `okn jobs list [path]` | Experimental: list Markdown agent job specs. |
+| `okn jobs list [path] --json` | Experimental: print the versioned agent discovery inventory. |
+| `okn jobs status [jobs-dir]` | Experimental: show schedules, next eligible slots, and active/latest runs. |
+| `okn jobs runs [repo]` | Experimental: list current and historical runs, newest first. |
+| `okn jobs start <job.md>` | Experimental: start one job in a detached local supervisor. |
+| `okn jobs stop <run-id>` | Experimental: request cancellation of a live supervised run. |
+| `okn jobs kill <run-id>` | Experimental: force-cancel a live run's command process tree. |
+| `okn jobs validate <job-or-dir>` | Experimental: parse and schema-check agent job specs. |
+| `okn jobs validate <job-or-dir> --json` | Experimental: print the versioned validation report, including failures. |
+| `okn jobs run <job.md> --dry-run` | Experimental: print the resolved deterministic run plan. |
+| `okn jobs run <job.md>` | Experimental: create a Git worktree and run one local agent job. |
+| `okn jobs daemon [jobs-dir] --once [--runtime <runtime>]` | Experimental: attempt due jobs, optionally restricted to one harness. |
+| `okn runtime plan --config runtime.toml` | Strictly validate and print the normalized self-hosted runtime plan. |
+| `okn runtime build --config runtime.toml` | Build and promote filtered immutable public generations. |
+| `okn runtime serve --config runtime.toml` | Serve verified static wiki, search, and optional read-only HTTP MCP snapshots. |
+| `okn runtime worker --role publisher --config runtime.toml` | Fetch production, promote artifacts, validate agent bundles, and publish draft PR output with GitHub credentials. |
+| `okn runtime worker --role jobs --runtime <runtime> --config runtime.toml` | Run one harness's scheduled jobs with its model credential and export proposed Git branches without GitHub or artifact access. |
+| `okn deploy railway init [path]` | Generate the repository-owned runtime Dockerfile and independently pinned CLI versions. |
+| `okn deploy railway [path] --dry-run` | Validate publication and print the secret-free Railway resource plan. |
+| `okn deploy railway [path] --yes` | Idempotently provision isolated runtime services, credentials, volumes, and the selected public endpoint mode. |
+| `okn scaffold [folder]` | Scaffold a local Open Knowledge bundle. |
+| `okn scaffold --no-agents --no-setup [folder]` | Scaffold without starter agent rules or a setup handoff. |
+| `okn connect <source>` | Connect a local path, registry key, manifest URL, tar archive URL, or Git URL. |
+| `okn connect <source> --as <key>` | Connect a bundle with an explicit key. |
+| `okn connect <git-url> --git-ref <branch|tag|commit> --git-subdir <path>` | Connect a selected Git revision and OKF bundle root from a repository or monorepo. |
+| `okn disconnect <key-or-path>` | Remove a connection while keeping files. |
+| `okn disconnect <key-or-path> --delete-files` | Delete files only for CLI-managed remote caches. |
+| `okn get <name-or-path>` | Print an exact local Markdown file, default entrypoint, or root `index.md`. |
+| `okn get <name-or-path> <entry-or-file>` | Print a named bundle entrypoint or bundle-relative Markdown file. |
+| `okn get <name-or-path> --info` | Print bundle and selected-file metadata. |
+| `okn search <name-or-path> <query>` | Build source-preserving Markdown context with related authored links. |
+| `okn search <name-or-path> <query> --budget <tokens>` | Bound the approximate context size. |
+| `okn search <name-or-path> <query> --no-expand` | Include only direct lexical matches. |
+| `okn search <name-or-path> <query> --matches` | Inspect ranked snippets, scores, and relations. |
+| `okn search <name-or-path> <query> --format json` | Print structured context JSON. |
+| `okn search --all <query>` | Fuse source context across every registered knowledge base under one global budget. |
+| `okn search --all <query> --matches --format json` | Inspect the versioned federated rank-fusion contract. |
+| `okn mcp [name-or-path]` | Serve one bundle as read-only MCP resources plus search and validation tools over stdio. |
+| `okn mcp --spec <version> [name-or-path]` | Select the OKF spec used by MCP search, validation, and resource discovery. |
+| `okn ast [key-or-path]` | Print parsed OKF AST JSON. |
+| `okn ast --out <file> [key-or-path]` | Write parsed OKF AST JSON to a file. |
+| `okn registry refresh <key-or-path> [--force]` | Atomically fetch and switch a managed remote connection to a newly validated cache generation. |
+| `okn registry list` | List connected knowledge base paths. |
+| `okn registry list --json` | Discover sorted connections, access capabilities, managed state, and source provenance through versioned JSON. |
+| `okn registry status [key-or-path] --json` | Check local bundle, cache, Git, and provenance integrity without contacting remotes. |
+| `okn registry where <name-or-path>` | Print the absolute path for a registry name or path. |
+| `okn view [path]` | Start the registry or knowledge base Markdown viewer. |
+| `okn view --allow-network --host <host> [path]` | Explicitly bind beyond loopback with token authentication on every route. |
+| `okn view --name <alias-name> [path]` | Start a direct viewer with a stable local alias path. |
+| `okn export html --out <folder> [key-or-path]` | Write a static viewer app bundle plus `llms.txt`, connect manifest, and tar archive. |
+| `okn export html --plain --out <folder> [key-or-path]` | Write unstyled semantic HTML files. |
+| `okn export json [key-or-path]` | Print normalized Markdown-document bundle JSON. |
+| `okn export json --out <file> [key-or-path]` | Write normalized Markdown-document bundle JSON to a file. |
+| `okn export tar --out <file> [key-or-path]` | Write a portable bundle tar.gz archive. |
+| `okn export graph [key-or-path]` | Print AST-backed source graph JSON. |
+| `okn export graph --out <file> [key-or-path]` | Write AST-backed source graph JSON to a file. |
+| `okn export graph --type search [key-or-path]` | Print derivative search graph JSON with H1-H3 chunk nodes. |
+| `okn spec latest` | Print the latest embedded OKF spec. |
+| `okn spec 0.1` | Print a specific embedded spec version. |
+| `okn validate [key-or-path]` | Validate a bundle against the latest spec. |
+| `okn validate --format json [key-or-path]` | Print a machine-readable validation report. |
+| `okn validate --rule <rule=off\|warn\|error> [key-or-path]` | Override one validation rule severity for the run. |
+| `okn list [key-or-path]` | Print a bundle tree with inline validation issues. |
+| `okn list --depth <n> [key-or-path]` | Limit the displayed tree depth. |
+| `okn list --json [key-or-path]` | Print machine-readable inventory output. |
+| `okn version` | Print the CLI version. |
 
 ## Validation
 
-`openknowledge validate` enforces the OKF v0.1 rules that matter for a
+`okn validate` enforces the OKF v0.1 rules that matter for a
 portable bundle:
 
 - every non-reserved Markdown file has top-level YAML frontmatter
@@ -638,7 +639,7 @@ frontmatter keys, broken local links, non-blocking Markdown syntax warnings, or
 missing index files. Those link and Markdown findings are still reported as
 warnings and can be promoted to errors with `[validation.rules]` or `--rule`.
 
-For CI and editor integrations, `openknowledge validate --format json` emits a
+For CI and editor integrations, `okn validate --format json` emits a
 machine-readable report with summary counts, checks, active severity policy,
 and combined or separate issue arrays. Bundle-local `openknowledge.toml` can
 configure lint severities under `[validation.rules]`, and repeatable `--rule`

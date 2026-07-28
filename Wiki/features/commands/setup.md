@@ -8,7 +8,7 @@ timestamp: 2026-07-28T00:00:00Z
 
 # `openknowledge setup`
 
-Use `openknowledge setup` to create and integrate a wiki. Run the command in
+Use `okn setup` to create and integrate a wiki. Run the command in
 the Git repository that contains the wiki.
 
 With no arguments, the command uses the current repository as the source. It
@@ -18,19 +18,19 @@ repository-level discovery skills and observation hooks.
 
 Specify `[wiki]` without `--from` to start a guided workflow for a new
 knowledge base. Use `--from <source>` for a different repository, local
-folder, or website. Use [`openknowledge prompt`](prompt.md) to print portable
+folder, or website. Use [`okn prompt`](prompt.md) to print portable
 prompts. That command does not start an agent.
 
 ## Usage
 
 ```sh
-openknowledge setup
-openknowledge setup --runtime claude
-openknowledge setup Wiki
-openknowledge setup Wiki --rules docs,changelog
-openknowledge setup Wiki --from https://example.com/docs
-openknowledge setup Wiki --from ./existing-repo --type custom --about "Release operations"
-openknowledge setup --help
+okn setup
+okn setup --runtime claude
+okn setup Wiki
+okn setup Wiki --rules docs,changelog
+okn setup Wiki --from https://example.com/docs
+okn setup Wiki --from ./existing-repo --type custom --about "Release operations"
+okn setup --help
 ```
 
 ## Arguments and flags
@@ -60,7 +60,7 @@ Built-in canonical rules are `project`, `docs`, `decisions`, `changelog`,
 Before setup starts an interactive process, it resolves the selected runtime
 executable. A missing or unusable executable stops setup before agent work
 starts. Setup then prints this recovery command:
-`openknowledge agent doctor --runtime <runtime>`.
+`okn agent doctor --runtime <runtime>`.
 
 Setup uses the resolved executable for the complete run.
 
@@ -82,7 +82,7 @@ The knowledge base is ready when setup succeeds. You do not need a second
 onboarding command. Use search when you need context:
 
 ```sh
-openknowledge search Wiki "release workflow"
+okn search Wiki "release workflow"
 ```
 
 Setup validates the bundle. Use `get`, `list`, or `view` only when you need

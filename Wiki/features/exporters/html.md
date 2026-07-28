@@ -14,10 +14,10 @@ Both modes require `[publish] enabled = true`.
 ## Usage
 
 ```sh
-openknowledge export html --out <folder> [key-or-path]
-openknowledge export html --plain --out <folder> [key-or-path]
-openknowledge export html --head-file <file> --out <folder> [key-or-path]
-openknowledge export html --script-src <src> --out <folder> [key-or-path]
+okn export html --out <folder> [key-or-path]
+okn export html --plain --out <folder> [key-or-path]
+okn export html --head-file <file> --out <folder> [key-or-path]
+okn export html --script-src <src> --out <folder> [key-or-path]
 ```
 
 | Option | Default | Description |
@@ -43,7 +43,7 @@ Viewer mode includes:
 - `llms.txt` for pages enabled for both `viewer` and `llms`
 - `sitemap.xml` when the configuration contains `[html.site].base_url`
 - `openknowledge.json` and `assets/openknowledge-bundle.tar.gz` for remote
-  `openknowledge connect`
+  `okn connect`
 - allowed public assets at their bundle-relative paths
 
 Viewer mode writes its executable JavaScript below `assets/openknowledge/`.
@@ -109,7 +109,7 @@ It excludes project configuration and `.openknowledge` job or run state.
 It also excludes Markdown with `okf_publish: false`, including private insights.
 It excludes assets that do not match the asset list.
 
-`openknowledge connect <site-url>` validates the strict manifest and archive digest.
+`okn connect <site-url>` validates the strict manifest and archive digest.
 It also validates the extracted bundle and declared OKF version.
 Then, it registers the materialized source.
 

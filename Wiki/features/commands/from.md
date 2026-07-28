@@ -12,16 +12,16 @@ This advanced command prints instructions that convert a repository, folder,
 or website into an OKF bundle. It does not call a model or write the wiki.
 
 For a managed workflow, use
-`openknowledge setup Wiki --from <source>`. That command also validates and
+`okn setup Wiki --from <source>`. That command also validates and
 integrates the result.
 
 ## Usage
 
 ```sh
-openknowledge prompt from <source> --out Wiki
-openknowledge prompt from <source> --out Wiki --type understanding
-openknowledge prompt from <source> --out Wiki --type custom --about "Release operations"
-openknowledge prompt from https://example.com/docs --out Wiki --depth 2
+okn prompt from <source> --out Wiki
+okn prompt from <source> --out Wiki --type understanding
+okn prompt from <source> --out Wiki --type custom --about "Release operations"
+okn prompt from https://example.com/docs --out Wiki --depth 2
 ```
 
 `--type understanding` is the default architecture and workflow recipe.

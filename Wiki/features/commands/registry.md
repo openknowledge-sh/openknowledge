@@ -10,19 +10,19 @@ timestamp: 2026-07-17T00:00:00Z
 
 The registry gives stable local names to connected bundles. Use this namespace
 only for management and inspection. Use the top-level
-[`openknowledge connect`](connect.md) and
-[`openknowledge disconnect`](disconnect.md) commands to change membership.
+[`okn connect`](connect.md) and
+[`okn disconnect`](disconnect.md) commands to change membership.
 
 ## Usage
 
 ```sh
-openknowledge registry list
-openknowledge registry list --json
-openknowledge registry status [key-or-path]
-openknowledge registry status [key-or-path] --json
-openknowledge registry refresh <key-or-path>
-openknowledge registry refresh <key-or-path> --force
-openknowledge registry where <key-or-path>
+okn registry list
+okn registry list --json
+okn registry status [key-or-path]
+okn registry status [key-or-path] --json
+okn registry refresh <key-or-path>
+okn registry refresh <key-or-path> --force
+okn registry where <key-or-path>
 ```
 
 | Subcommand | Effect |

@@ -56,7 +56,7 @@ The shared schema suite compiles and validates these fixtures.
 Place the global option before the command:
 
 ```sh
-openknowledge --error-format json search
+okn --error-format json search
 ```
 
 A failure produces one JSON document on stderr.
