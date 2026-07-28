@@ -182,4 +182,22 @@ if [ "$("$invalid_install/openknowledge" version)" != "0.5.0" ]; then
   exit 1
 fi
 
+insecure_install="$tmp/insecure-base-bin"
+write_existing "$insecure_install/openknowledge"
+if OPENKNOWLEDGE_BASE_URL="http://example.test/releases" \
+  OPENKNOWLEDGE_VERSION="0.6.0" \
+  OPENKNOWLEDGE_INSTALL_DIR="$insecure_install" \
+  bash "$root/install" > "$tmp/insecure-base.log" 2>&1; then
+  echo "installer test: insecure custom release base unexpectedly succeeded" >&2
+  exit 1
+fi
+if ! grep -q "release base must use HTTPS" "$tmp/insecure-base.log"; then
+  echo "installer test: insecure custom release base did not fail before download" >&2
+  exit 1
+fi
+if [ "$("$insecure_install/openknowledge" version)" != "0.5.0" ]; then
+  echo "installer test: insecure custom release base replaced the existing binary" >&2
+  exit 1
+fi
+
 echo "Shell installer transaction tests passed"

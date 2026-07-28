@@ -1,6 +1,7 @@
 # Feature Documentation
 
 - [Tooling model](tooling-model.md) — how commands fit into one knowledge-base lifecycle.
+- [Knowledge architecture](knowledge-architecture.md) — canonical OKF source, shipped projections, and candidate retrieval layers.
 - [Installation](installation.md) — supported installation paths and verification.
 - [Configuration](configuration.md) — strict `openknowledge.toml` reference.
 - [Commands](commands/) — current CLI reference.

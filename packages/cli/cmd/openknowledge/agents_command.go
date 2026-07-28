@@ -48,8 +48,8 @@ func runJobs(args []string) int {
 	case "daemon":
 		return runJobsDaemon(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown jobs subcommand: %s\n\n", args[0])
-		fmt.Fprint(os.Stderr, jobsHelpText())
+		fmt.Fprintf(stderrOutput(), "unknown jobs subcommand: %s\n\n", args[0])
+		fmt.Fprint(stderrOutput(), jobsHelpText())
 		return 2
 	}
 }
@@ -69,7 +69,7 @@ func runJobsStatus(args []string) int {
 	}
 	path, jsonOutput, err := parseJobsInventoryArgs(args, defaultJobsPath, "status")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	jobs, loadFailures, err := agents.DiscoverJobsLenient(path)
@@ -128,7 +128,7 @@ func runJobsStatus(args []string) int {
 		}
 	}
 	for _, issue := range issues {
-		fmt.Fprintf(os.Stderr, "job status issue at %s: %s\n", issue.Path, issue.Error)
+		fmt.Fprintf(stderrOutput(), "job status issue at %s: %s\n", issue.Path, issue.Error)
 	}
 	if len(issues) > 0 {
 		return 1
@@ -150,7 +150,7 @@ func runJobsRuns(args []string) int {
 	}
 	options, err := parseJobsRunsArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	runs, issues, repoRoot, err := agents.ListRuns(options.repo)
@@ -191,7 +191,7 @@ func runJobsRuns(args []string) int {
 		}
 	}
 	for _, issue := range issues {
-		fmt.Fprintf(os.Stderr, "job run record issue at %s: %s\n", issue.Path, issue.Error)
+		fmt.Fprintf(stderrOutput(), "job run record issue at %s: %s\n", issue.Path, issue.Error)
 	}
 	if len(issues) > 0 {
 		return 1
@@ -212,12 +212,12 @@ func runJobsStart(args []string) int {
 	}
 	options, err := parseJobsStartArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	scheduledAt, err := parseAgentScheduledAt(options.at)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	job, err := agents.ParseJobFile(options.path)
@@ -229,7 +229,7 @@ func runJobsStart(args []string) int {
 		return printAgentCommandError(err)
 	}
 	if _, err := os.Stat(plan.RunDir); err == nil {
-		fmt.Fprintf(os.Stderr, "job run already exists: %s\n", plan.RunDir)
+		fmt.Fprintf(stderrOutput(), "job run already exists: %s\n", plan.RunDir)
 		return 1
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return printAgentCommandError(err)
@@ -248,7 +248,7 @@ func runJobsStart(args []string) int {
 	}
 	summary, err := waitForAgentRun(plan.RepoRoot, plan.RunID, 5*time.Second)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "started job supervisor %d but its run record was not ready: %v\n", pid, err)
+		fmt.Fprintf(stderrOutput(), "started job supervisor %d but its run record was not ready: %v\n", pid, err)
 		return 1
 	}
 	output := agentStartOutput{SchemaVersion: okf.MachineSchemaVersion, SupervisorPID: pid, Run: summary}
@@ -297,7 +297,7 @@ func runJobsControl(args []string, action string) int {
 	}
 	options, err := parseJobsControlArgs(args, action)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	summary, err := agents.GetRunSummary(options.repo, options.runID)
@@ -344,7 +344,7 @@ func runJobsNew(args []string) int {
 	}
 	options, err := parseJobsNewArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.reference {
@@ -358,9 +358,9 @@ func runJobsNew(args []string) int {
 
 	template, ok := agents.FindBuiltinTemplate(options.template)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "unknown agent template: %s\n", options.template)
-		fmt.Fprint(os.Stderr, "\n")
-		fmt.Fprint(os.Stderr, agents.RenderTemplateCatalog())
+		fmt.Fprintf(stderrOutput(), "unknown agent template: %s\n", options.template)
+		fmt.Fprint(stderrOutput(), "\n")
+		fmt.Fprint(stderrOutput(), agents.RenderTemplateCatalog())
 		return 2
 	}
 	if options.out == "" {
@@ -368,7 +368,7 @@ func runJobsNew(args []string) int {
 		return 0
 	}
 	if err := writeAgentTemplate(options.out, template.Content, options.force); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Fprintf(os.Stdout, "created job: %s\n", options.out)
@@ -389,14 +389,14 @@ func runJobsList(args []string) int {
 		case arg == "--json":
 			jsonOutput = true
 		case strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(os.Stderr, "unknown jobs list option: %s\n", arg)
+			fmt.Fprintf(stderrOutput(), "unknown jobs list option: %s\n", arg)
 			return 2
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) > 1 {
-		fmt.Fprintln(os.Stderr, "jobs list accepts at most one path")
+		fmt.Fprintln(stderrOutput(), "jobs list accepts at most one path")
 		return 2
 	}
 	path := defaultJobsPath
@@ -459,7 +459,7 @@ type agentListEntry struct {
 func printAgentListJSON(path string, jobs []agents.Job) int {
 	absolutePath, err := filepath.Abs(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	entries := make([]agentListEntry, 0, len(jobs))
@@ -477,7 +477,7 @@ func printAgentListJSON(path string, jobs []agents.Job) int {
 	output := agentListOutput{SchemaVersion: okf.MachineSchemaVersion, Path: absolutePath, Jobs: entries}
 	encoded, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Fprintln(os.Stdout, string(encoded))
@@ -496,14 +496,14 @@ func runJobsValidate(args []string) int {
 		case arg == "--json":
 			jsonOutput = true
 		case strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(os.Stderr, "unknown jobs validate option: %s\n", arg)
+			fmt.Fprintf(stderrOutput(), "unknown jobs validate option: %s\n", arg)
 			return 2
 		default:
 			positionals = append(positionals, arg)
 		}
 	}
 	if len(positionals) != 1 {
-		fmt.Fprintln(os.Stderr, "jobs validate requires exactly one job file or directory")
+		fmt.Fprintln(stderrOutput(), "jobs validate requires exactly one job file or directory")
 		return 2
 	}
 	path := positionals[0]
@@ -544,7 +544,7 @@ type agentValidationJob struct {
 func printAgentValidationJSON(path string, jobs []agents.Job, validationErr error) int {
 	absolutePath, err := filepath.Abs(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	output := agentValidationOutput{
@@ -567,7 +567,7 @@ func printAgentValidationJSON(path string, jobs []agents.Job, validationErr erro
 	}
 	encoded, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Fprintln(os.Stdout, string(encoded))
@@ -584,12 +584,12 @@ func runJobsRun(args []string) int {
 	}
 	options, err := parseJobsRunArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	scheduledAt, err := parseAgentScheduledAt(options.at)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	job, err := agents.ParseJobFile(options.path)
@@ -604,13 +604,13 @@ func runJobsRun(args []string) int {
 		DryRun:      options.dryRun,
 		ScheduledAt: scheduledAt,
 		Stdout:      os.Stdout,
-		Stderr:      os.Stderr,
+		Stderr:      stderrOutput(),
 	})
 	if err != nil {
 		if record.RunID != "" {
-			fmt.Fprintf(os.Stderr, "job run %s failed: %v\n", record.RunID, err)
+			fmt.Fprintf(stderrOutput(), "job run %s failed: %v\n", record.RunID, err)
 		} else {
-			fmt.Fprintf(os.Stderr, "job run failed: %v\n", err)
+			fmt.Fprintf(stderrOutput(), "job run failed: %v\n", err)
 		}
 		return 1
 	}
@@ -633,12 +633,12 @@ func runJobsDaemon(args []string) int {
 	}
 	options, err := parseJobsDaemonArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	interval, err := time.ParseDuration(options.tick)
 	if err != nil || interval <= 0 {
-		fmt.Fprintln(os.Stderr, "--tick must be a positive Go duration")
+		fmt.Fprintln(stderrOutput(), "--tick must be a positive Go duration")
 		return 2
 	}
 
@@ -1036,7 +1036,7 @@ func runDueAgentJobs(path string, executor string, dryRun bool, runtimeFilter ..
 	}
 	failureCount := len(loadFailures)
 	for _, failure := range loadFailures {
-		fmt.Fprintf(os.Stderr, "job %s failed to load: %v\n", failure.Path, failure.Err)
+		fmt.Fprintf(stderrOutput(), "job %s failed to load: %v\n", failure.Path, failure.Err)
 	}
 	now := time.Now()
 	dueCount := 0
@@ -1046,7 +1046,7 @@ func runDueAgentJobs(path string, executor string, dryRun bool, runtimeFilter ..
 		}
 		scheduledAt, due, err := agents.DueScheduledAt(job, now)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", job.ID, err)
+			fmt.Fprintf(stderrOutput(), "%s: %v\n", job.ID, err)
 			failureCount++
 			continue
 		}
@@ -1055,7 +1055,7 @@ func runDueAgentJobs(path string, executor string, dryRun bool, runtimeFilter ..
 		}
 		plan, err := agents.BuildRunPlan(job, scheduledAt, executor)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "job %s failed to plan: %v\n", job.ID, err)
+			fmt.Fprintf(stderrOutput(), "job %s failed to plan: %v\n", job.ID, err)
 			failureCount++
 			continue
 		}
@@ -1063,7 +1063,7 @@ func runDueAgentJobs(path string, executor string, dryRun bool, runtimeFilter ..
 		if _, err := os.Stat(runRecord); err == nil {
 			continue
 		} else if !errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "job %s could not inspect run record: %v\n", job.ID, err)
+			fmt.Fprintf(stderrOutput(), "job %s could not inspect run record: %v\n", job.ID, err)
 			failureCount++
 			continue
 		}
@@ -1073,13 +1073,13 @@ func runDueAgentJobs(path string, executor string, dryRun bool, runtimeFilter ..
 			DryRun:      dryRun,
 			ScheduledAt: scheduledAt,
 			Stdout:      os.Stdout,
-			Stderr:      os.Stderr,
+			Stderr:      stderrOutput(),
 		})
 		if err != nil {
 			if record.RunID != "" {
-				fmt.Fprintf(os.Stderr, "job run %s failed: %v\n", record.RunID, err)
+				fmt.Fprintf(stderrOutput(), "job run %s failed: %v\n", record.RunID, err)
 			} else {
-				fmt.Fprintf(os.Stderr, "job run failed: %v\n", err)
+				fmt.Fprintf(stderrOutput(), "job run failed: %v\n", err)
 			}
 			failureCount++
 			continue
@@ -1092,7 +1092,7 @@ func runDueAgentJobs(path string, executor string, dryRun bool, runtimeFilter ..
 		fmt.Fprintln(os.Stdout, "no due jobs")
 	}
 	if failureCount > 0 {
-		fmt.Fprintf(os.Stderr, "jobs daemon pass completed with %d failure(s)\n", failureCount)
+		fmt.Fprintf(stderrOutput(), "jobs daemon pass completed with %d failure(s)\n", failureCount)
 		return 1
 	}
 	return 0
@@ -1117,13 +1117,13 @@ func parseAgentScheduledAt(value string) (time.Time, error) {
 func printAgentCommandError(err error) int {
 	var validation agents.ValidationError
 	if errors.As(err, &validation) {
-		fmt.Fprintln(os.Stderr, "invalid job:")
+		fmt.Fprintln(stderrOutput(), "invalid job:")
 		for _, issue := range validation.Issues {
-			fmt.Fprintf(os.Stderr, "- %s: %s\n", issue.Field, issue.Message)
+			fmt.Fprintf(stderrOutput(), "- %s: %s\n", issue.Field, issue.Message)
 		}
 		return 1
 	}
-	fmt.Fprintln(os.Stderr, err)
+	fmt.Fprintln(stderrOutput(), err)
 	return 1
 }
 

@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
@@ -197,6 +199,156 @@ mcp = true
 	resources := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":3,"method":"resources/list","params":{}}`, map[string]string{"Mcp-Session-Id": session})
 	if resources.Code != http.StatusOK || strings.Contains(resources.Body.String(), "mcp-hidden.md") || !strings.Contains(resources.Body.String(), "search-hidden.md") {
 		t.Fatalf("unexpected MCP target projection %d: %s", resources.Code, resources.Body.String())
+	}
+}
+
+func TestRuntimeServeCachesSearchIndexPerGeneration(t *testing.T) {
+	root := t.TempDir()
+	enablePublicArtifactTest(t, filepath.Join(root, "Wiki"))
+	writeViewerFile(t, root, "Wiki/index.md", "# Cached generation v1\n\nAlpha search needle.\n")
+	writeViewerFile(t, root, "runtime.toml", `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[serve]
+max_concurrency = 16
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+route = "/"
+publish = true
+`)
+	config, err := okruntime.LoadConfig(filepath.Join(root, "runtime.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildRuntimeKnowledgeGeneration(config, config.KnowledgeBases[0], "first", filepath.Join(root, "first"), true); err != nil {
+		t.Fatal(err)
+	}
+	handler, err := newRuntimeServeHandler(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var indexBuilds atomic.Int32
+	handler.snapshots.buildSearchIndex = func(root string, version string) (okf.ContextIndex, error) {
+		indexBuilds.Add(1)
+		return okf.BuildContextIndexWithVersion(root, version)
+	}
+	if failures := handler.snapshots.refresh(); len(failures) != 0 {
+		t.Fatalf("first activation failed: %v", failures)
+	}
+	if count := indexBuilds.Load(); count != 1 {
+		t.Fatalf("search index builds after first activation = %d, want 1", count)
+	}
+	before, ok := handler.snapshots.snapshot("wiki")
+	if !ok || before.Search.Revision.IndexSHA256 == "" {
+		t.Fatalf("expected activated snapshot to contain a search index: %#v", before)
+	}
+
+	// Generation directories are immutable in production. Mutating this test
+	// fixture after activation proves requests use the snapshot's built index
+	// instead of reparsing the projection on every search.
+	searchPath := filepath.Join(before.Root, "search", "index.md")
+	originalSearch, err := os.ReadFile(searchPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeViewerFile(t, before.Root, "search/index.md", "# Mutated after activation\n\nUncached mutation needle.\n")
+	alpha := runtimeRequest(t, handler, http.MethodGet, "/_search?q=alpha", "", nil)
+	var alphaResult okf.SearchResultSet
+	if err := json.Unmarshal(alpha.Body.Bytes(), &alphaResult); err != nil {
+		t.Fatal(err)
+	}
+	if alpha.Code != http.StatusOK || len(alphaResult.Results) == 0 {
+		t.Fatalf("cached v1 search failed %d: %s", alpha.Code, alpha.Body.String())
+	}
+	mutated := runtimeRequest(t, handler, http.MethodGet, "/_search?q=uncached", "", nil)
+	var mutatedResult okf.SearchResultSet
+	if err := json.Unmarshal(mutated.Body.Bytes(), &mutatedResult); err != nil {
+		t.Fatal(err)
+	}
+	if mutated.Code != http.StatusOK || len(mutatedResult.Results) != 0 {
+		t.Fatalf("post-activation filesystem mutation reached cached search %d: %s", mutated.Code, mutated.Body.String())
+	}
+	if count := indexBuilds.Load(); count != 1 {
+		t.Fatalf("search requests rebuilt snapshot index: build count = %d, want 1", count)
+	}
+	if err := os.WriteFile(searchPath, originalSearch, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if failures := handler.snapshots.refresh(); len(failures) != 0 {
+		t.Fatalf("unchanged refresh failed: %v", failures)
+	}
+	if count := indexBuilds.Load(); count != 1 {
+		t.Fatalf("unchanged refresh rebuilt snapshot index: build count = %d, want 1", count)
+	}
+
+	writeViewerFile(t, root, "Wiki/index.md", "# Cached generation v2\n\nBeta search needle.\n")
+	if _, err := buildRuntimeKnowledgeGeneration(config, config.KnowledgeBases[0], "second", filepath.Join(root, "second"), true); err != nil {
+		t.Fatal(err)
+	}
+	if failures := handler.snapshots.refresh(); len(failures) != 0 {
+		t.Fatalf("second activation failed: %v", failures)
+	}
+	if count := indexBuilds.Load(); count != 2 {
+		t.Fatalf("search index builds after second activation = %d, want 2", count)
+	}
+	after, ok := handler.snapshots.snapshot("wiki")
+	if !ok || after.Pointer.ContentDigest == before.Pointer.ContentDigest || after.Search.Revision == before.Search.Revision {
+		t.Fatalf("expected second generation to replace the cached search index: before=%#v after=%#v", before, after)
+	}
+	beta := runtimeRequest(t, handler, http.MethodGet, "/_search?q=beta", "", nil)
+	var betaResult okf.SearchResultSet
+	if err := json.Unmarshal(beta.Body.Bytes(), &betaResult); err != nil {
+		t.Fatal(err)
+	}
+	if beta.Code != http.StatusOK || len(betaResult.Results) == 0 {
+		t.Fatalf("cached v2 search failed %d: %s", beta.Code, beta.Body.String())
+	}
+
+	const requests = 8
+	var wait sync.WaitGroup
+	errors := make(chan error, requests)
+	for index := 0; index < requests; index++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			request := httptest.NewRequest(http.MethodGet, "/_search?q=beta", nil)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "index.md") {
+				errors <- fmt.Errorf("concurrent search response %d: %s", response.Code, response.Body.String())
+			}
+		}()
+	}
+	wait.Wait()
+	close(errors)
+	for err := range errors {
+		t.Error(err)
+	}
+	if count := indexBuilds.Load(); count != 2 {
+		t.Fatalf("concurrent search requests rebuilt snapshot index: build count = %d, want 2", count)
+	}
+
+	writeViewerFile(t, root, "Wiki/index.md", "# Cached generation v3\n\nGamma search needle.\n")
+	if _, err := buildRuntimeKnowledgeGeneration(config, config.KnowledgeBases[0], "third", filepath.Join(root, "third"), true); err != nil {
+		t.Fatal(err)
+	}
+	handler.snapshots.buildSearchIndex = func(string, string) (okf.ContextIndex, error) {
+		indexBuilds.Add(1)
+		return okf.ContextIndex{}, fmt.Errorf("injected index build failure")
+	}
+	if failures := handler.snapshots.refresh(); len(failures) == 0 || !strings.Contains(failures[0].Error(), "search index") {
+		t.Fatalf("expected search index activation failure, got %v", failures)
+	}
+	retained, ok := handler.snapshots.snapshot("wiki")
+	if !ok || retained.Pointer.ContentDigest != after.Pointer.ContentDigest || retained.Search.Revision != after.Search.Revision {
+		t.Fatalf("failed index build replaced last valid snapshot: before=%#v after=%#v", after, retained)
+	}
+	if count := indexBuilds.Load(); count != 3 {
+		t.Fatalf("search index builds after rejected generation = %d, want 3", count)
 	}
 }
 

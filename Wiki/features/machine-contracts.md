@@ -3,7 +3,7 @@ type: Feature Documentation
 title: Machine-Readable Contracts
 description: JSON schemas, version domains, and compatibility for CLI automation.
 tags: [openknowledge, cli, json, schema, api, compatibility]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # Machine-Readable Contracts
@@ -36,14 +36,20 @@ present, identifies the independently versioned OKF document format.
 | `job-validation.schema.json` | `jobs validate --json` |
 | `job-run-plan.schema.json` | `jobs run --dry-run`, persisted plan |
 | `job-run-record.schema.json` | persisted lifecycle record |
+| `agent-doctor.schema.json` | `agent doctor --json` |
+| `runtime-plan.schema.json` | `runtime plan` |
+| `runtime-build.schema.json` | `runtime build` |
+| `deploy-plan.schema.json` | `deploy railway --dry-run` |
+| `deploy-result.schema.json` | successful `deploy railway` result |
+| `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
 
 Shared issue, link, retrieval, and typed-frontmatter definitions live in
 `common.schema.json`. Job contracts remain experimental and may change in place
 before 1.0.
 
-`agent doctor --json`, runtime plan/build, and Railway deploy results also
-declare `schemaVersion: "1"`, but do not currently have published schemas.
-Treat these diagnostic and operational shapes as provisional.
+Diagnostic, runtime, and Railway deployment outputs are covered by the same
+published v1 schema distribution. Golden tests marshal the current Go result
+types, and the shared schema suite compiles and validates those fixtures.
 
 ## Error envelope
 
@@ -124,5 +130,5 @@ build checks each `$id` against its public route before copying schemas.
 >
 > **Update notes**
 >
-> Update this page when a schema, version domain, provisional JSON surface, or
+> Update this page when a schema, version domain, machine-readable surface, or
 > distribution route changes.

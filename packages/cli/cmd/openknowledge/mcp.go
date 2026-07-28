@@ -81,13 +81,13 @@ func runMCP(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	specVersion := fs.String("spec", "latest", "OKF spec version")
 	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "mcp accepts at most one knowledge base key or path")
+		fmt.Fprintln(stderrOutput(), "mcp accepts at most one knowledge base key or path")
 		return 2
 	}
 
@@ -97,32 +97,32 @@ func runMCP(args []string) int {
 	}
 	resolvedSpec, ok := okf.ResolveSpecVersion(*specVersion)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "unsupported OKF spec version: %s\n", *specVersion)
+		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", *specVersion)
 		return 2
 	}
 	root, err := resolveWhereTarget(target)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	root, err = filepath.EvalSymlinks(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	info, err := os.Stat(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "knowledge base is not a directory: %s\n", root)
+		fmt.Fprintf(stderrOutput(), "knowledge base is not a directory: %s\n", root)
 		return 1
 	}
 
 	server := &mcpServer{root: root, spec: resolvedSpec, version: version}
 	if err := server.serve(os.Stdin, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	return 0

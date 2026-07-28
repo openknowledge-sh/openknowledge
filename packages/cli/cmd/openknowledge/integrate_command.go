@@ -21,21 +21,21 @@ func runIntegrate(args []string) int {
 		case arg == "--global":
 			global = true
 		case strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(os.Stderr, "unknown integrate option: %s\n", arg)
+			fmt.Fprintf(stderrOutput(), "unknown integrate option: %s\n", arg)
 			return 2
 		case path == "":
 			path = arg
 		default:
-			fmt.Fprintln(os.Stderr, "integrate accepts one knowledge base path")
+			fmt.Fprintln(stderrOutput(), "integrate accepts one knowledge base path")
 			return 2
 		}
 	}
 	if global && path != "" {
-		fmt.Fprintln(os.Stderr, "--global cannot be combined with a knowledge base path")
+		fmt.Fprintln(stderrOutput(), "--global cannot be combined with a knowledge base path")
 		return 2
 	}
 	if !global && path == "" {
-		fmt.Fprintln(os.Stderr, "integrate requires a knowledge base path or --global")
+		fmt.Fprintln(stderrOutput(), "integrate requires a knowledge base path or --global")
 		return 2
 	}
 	var result integration.InstallResult
@@ -46,7 +46,7 @@ func runIntegrate(args []string) int {
 		result, err = integration.InstallProject(path)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if global {

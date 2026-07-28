@@ -3,7 +3,7 @@ type: Feature Documentation
 title: Installation
 description: Install and verify the Open Knowledge CLI.
 tags: [openknowledge, cli, installation]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # Installation
@@ -27,7 +27,7 @@ matching release archive, verifies its SHA-256, probes the staged binary with
 | --- | --- | --- |
 | `OPENKNOWLEDGE_REPO` | `openknowledge-sh/openknowledge` | Release repository. |
 | `OPENKNOWLEDGE_VERSION` | `latest` | Release version; an optional leading `v` is normalized. |
-| `OPENKNOWLEDGE_BASE_URL` | GitHub Releases | Asset base URL; `file://` is accepted for controlled local tests. |
+| `OPENKNOWLEDGE_BASE_URL` | GitHub Releases | HTTPS asset base URL; `file://` is accepted only for controlled local tests. Plain HTTP is rejected before download. |
 | `OPENKNOWLEDGE_INSTALL_DIR` | `$HOME/.local/bin` | Destination directory. |
 
 For a stronger origin check, download an archive and verify its GitHub/Sigstore

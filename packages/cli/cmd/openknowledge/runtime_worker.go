@@ -51,7 +51,7 @@ func runRuntimeWorker(args []string) int {
 		return 0
 	}
 	flags := flag.NewFlagSet("runtime worker", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(stderrOutput())
 	configPath := flags.String("config", okruntime.DefaultConfigFile, "runtime TOML configuration")
 	once := flags.Bool("once", false, "run one reconciliation pass and exit")
 	role := flags.String("role", "publisher", "worker role: publisher, jobs, or all")
@@ -60,11 +60,11 @@ func runRuntimeWorker(args []string) int {
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "runtime worker accepts no positional arguments")
+		fmt.Fprintln(stderrOutput(), "runtime worker accepts no positional arguments")
 		return 2
 	}
 	if *role != "publisher" && *role != "jobs" && *role != "all" {
-		fmt.Fprintln(os.Stderr, "--role must be publisher, jobs, or all")
+		fmt.Fprintln(stderrOutput(), "--role must be publisher, jobs, or all")
 		return 2
 	}
 	config, err := okruntime.LoadConfig(*configPath)
@@ -130,7 +130,7 @@ func runRuntimeWorker(args []string) int {
 			passErr = runtimeWorkerPass(ctx, config)
 		}
 		if passErr != nil {
-			fmt.Fprintf(os.Stderr, "runtime worker %s pass failed: %v\n", *role, passErr)
+			fmt.Fprintf(stderrOutput(), "runtime worker %s pass failed: %v\n", *role, passErr)
 			if *once {
 				return 1
 			}
@@ -388,7 +388,7 @@ func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout 
 	environment := runtimeEnvironmentWithout(os.Environ(), config.Worker.GitTokenEnv, config.GitHub.TokenEnv, config.Worker.ExchangeTokenEnv)
 	command.Env = runtimeEnvironmentWith(environment, agents.JobsStateDirEnv, filepath.Join(config.Runtime.StateDir, "jobs-"+runtimeName))
 	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
+	command.Stderr = stderrOutput()
 	if err := command.Run(); err != nil {
 		return fmt.Errorf("scheduled agent pass: %w", err)
 	}

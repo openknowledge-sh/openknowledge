@@ -69,7 +69,8 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 	result.Results = index.rankKnowledgeSearch(options)
 	if !options.NoExpand && len(result.Results) > 0 {
 		seedCount := minInt(limit, len(result.Results))
-		neighbors := knowledgeSearchGraphNeighbors(result.Results[:seedCount], result.Results, index.Sections)
+		direct, neighbors := index.knowledgeSearchGraphExpansion(result.Results[:seedCount], result.Results)
+		result.Results = direct
 		result.Results = mergeKnowledgeSearchResults(result.Results, neighbors)
 	}
 	if len(result.Results) > limit {
@@ -85,7 +86,10 @@ func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchRes
 		return nil
 	}
 
-	corpus := newKnowledgeSearchCorpus(index.Sections)
+	corpus := index.searchCorpus
+	if len(corpus.documents) != len(index.Sections) {
+		corpus = newKnowledgeSearchCorpus(index.Sections)
+	}
 	normalizedQuery := normalizeSearchText(query)
 	var results []SearchResult
 	for _, document := range corpus.documents {
@@ -338,31 +342,32 @@ func firstKnowledgeSearchSnippet(section ContextSection, document searchDocument
 	return ""
 }
 
-func knowledgeSearchGraphNeighbors(seeds []SearchResult, direct []SearchResult, sections []ContextSection) []SearchResult {
+func (index ContextIndex) knowledgeSearchGraphExpansion(seeds []SearchResult, direct []SearchResult) ([]SearchResult, []SearchResult) {
 	if len(seeds) == 0 {
-		return nil
+		return direct, nil
 	}
 
 	// Graph expansion is intentionally shallow: one hop through authored local
 	// links plus backlinks. Relationship penalties let strong authored context
 	// outrank weak lexical matches without displacing the strongest direct hit.
-	sectionsByID := map[string]ContextSection{}
-	firstSectionByPath := map[string]ContextSection{}
-	for _, section := range sections {
-		sectionsByID[section.ID] = section
-		if existing, ok := firstSectionByPath[section.Path]; !ok || section.LineStart < existing.LineStart {
-			firstSectionByPath[section.Path] = section
-		}
+	lookup := index.sectionLookup
+	if len(lookup.byID) != len(index.Sections) {
+		lookup = newContextSectionLookup(index.Sections)
 	}
 
-	directIDs := map[string]struct{}{}
-	for _, result := range direct {
-		directIDs[result.ID] = struct{}{}
+	boostedDirect := append([]SearchResult(nil), direct...)
+	directByID := map[string]int{}
+	for resultIndex, result := range boostedDirect {
+		directByID[result.ID] = resultIndex
 	}
 
 	candidatesByID := map[string]SearchResult{}
 	addCandidate := func(section ContextSection, relation string, score float64) {
-		if _, ok := directIDs[section.ID]; ok {
+		if directIndex, ok := directByID[section.ID]; ok {
+			if rounded := roundSearchScore(score); rounded > boostedDirect[directIndex].Score {
+				boostedDirect[directIndex].Score = rounded
+			}
+			boostedDirect[directIndex].Matches = appendSortedUnique(boostedDirect[directIndex].Matches, "graph")
 			return
 		}
 		result := searchResultFromContextSection(section, roundSearchScore(score), []string{"graph"}, true, relation, nil, "", false)
@@ -373,24 +378,29 @@ func knowledgeSearchGraphNeighbors(seeds []SearchResult, direct []SearchResult, 
 	}
 
 	for _, result := range seeds {
-		section, ok := sectionsByID[result.ID]
+		section, ok := lookup.byID[result.ID]
 		if !ok {
 			continue
 		}
 		for _, link := range section.Links {
-			if link.Kind != "local" || link.TargetPath == "" || !link.Exists || link.TargetPath == section.Path {
-				continue
-			}
-			if target, ok := firstSectionByPath[link.TargetPath]; ok {
+			if target, ok := lookup.target(link); ok && target.ID != section.ID {
 				addCandidate(target, "outgoing-link", result.Score*0.55)
 			}
 		}
-		for _, candidate := range sections {
-			if candidate.Path == section.Path {
+		for _, candidate := range index.Sections {
+			if candidate.ID == section.ID {
 				continue
 			}
 			for _, link := range candidate.Links {
-				if link.Kind == "local" && link.Exists && link.TargetPath == section.Path {
+				target, targetOK := lookup.target(link)
+				if !targetOK {
+					continue
+				}
+				addressesSeed := target.ID == section.ID
+				if link.TargetAnchor == "" {
+					addressesSeed = target.Path == section.Path
+				}
+				if addressesSeed {
 					addCandidate(candidate, "backlink", result.Score*0.45)
 					break
 				}
@@ -414,7 +424,18 @@ func knowledgeSearchGraphNeighbors(seeds []SearchResult, direct []SearchResult, 
 		}
 		return candidates[i].LineStart < candidates[j].LineStart
 	})
-	return candidates
+	return mergeKnowledgeSearchResults(boostedDirect, nil), candidates
+}
+
+func appendSortedUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	values = append(values, value)
+	sort.Strings(values)
+	return values
 }
 
 func mergeKnowledgeSearchResults(direct []SearchResult, neighbors []SearchResult) []SearchResult {

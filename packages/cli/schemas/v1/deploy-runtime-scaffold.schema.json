@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/deploy-runtime-scaffold.schema.json",
+  "title": "Open Knowledge deployment runtime scaffold result v1",
+  "type": "object",
+  "required": ["schemaVersion", "repositoryRoot", "dockerfile", "entrypoint", "runtimeConfig", "openknowledgeVersion"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "repositoryRoot": {"type": "string", "minLength": 1},
+    "dockerfile": {"type": "string", "minLength": 1},
+    "entrypoint": {"type": "string", "minLength": 1},
+    "runtimeConfig": {"type": "string", "minLength": 1},
+    "openknowledgeVersion": {"type": "string", "minLength": 1},
+    "agentVersions": {
+      "type": "object",
+      "propertyNames": {"enum": ["codex", "claude", "opencode"]},
+      "additionalProperties": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": false
+}

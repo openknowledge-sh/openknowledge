@@ -52,7 +52,14 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 		}
 		return sections[i].LineStart < sections[j].LineStart
 	})
-	return ContextIndex{Root: validation.Root, Revision: revision, Sections: sections, Issues: issues}
+	return ContextIndex{
+		Root:          validation.Root,
+		Revision:      revision,
+		Sections:      sections,
+		Issues:        issues,
+		searchCorpus:  newKnowledgeSearchCorpus(sections),
+		sectionLookup: newContextSectionLookup(sections),
+	}
 }
 
 func retrievalIndexSHA256(ast ASTBundle) string {
@@ -115,7 +122,7 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 	seedCount := minInt(limit, len(direct))
 	var neighbors []SearchResult
 	if !options.NoExpand && seedCount > 0 {
-		neighbors = knowledgeSearchGraphNeighbors(direct[:seedCount], direct, index.Sections)
+		direct, neighbors = index.knowledgeSearchGraphExpansion(direct[:seedCount], direct)
 	}
 	result.Sources = packContextSources(index.Sections, direct, neighbors, budget, limit)
 	for _, source := range result.Sources {

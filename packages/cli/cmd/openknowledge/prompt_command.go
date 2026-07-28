@@ -20,7 +20,7 @@ func runPrompt(args []string) int {
 	case "review":
 		return runReview(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown prompt subcommand: %s\n", args[0])
+		fmt.Fprintf(stderrOutput(), "unknown prompt subcommand: %s\n", args[0])
 		return 2
 	}
 }

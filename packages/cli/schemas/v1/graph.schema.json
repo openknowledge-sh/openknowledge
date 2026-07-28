@@ -46,7 +46,8 @@
         "label": {"type": "string"},
         "href": {"type": "string"},
         "line": {"type": "integer", "minimum": 1},
-        "linkTargetId": {"type": "string"}
+        "linkTargetId": {"type": "string"},
+        "targetAnchor": {"type": "string"}
       },
       "additionalProperties": false
     }

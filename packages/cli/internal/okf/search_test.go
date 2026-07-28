@@ -311,3 +311,45 @@ func TestSearchKnowledgeExpansionCanReplaceWeakDirectMatchAtLimit(t *testing.T) 
 		t.Fatalf("expected strong authored neighbor to replace weak direct match, got %#v", results.Results)
 	}
 }
+
+func TestSearchKnowledgeExpansionTargetsAnchorsAndBoostsWeakDirectMatches(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "runbook.md", "---\ntype: Runbook\ntitle: Deploy Checklist\n---\n\n# Deploy\n\nUse the production deploy checklist and read [Rollback](guide.md#rollback).\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\ntitle: Operations Guide\n---\n\n# Overview\n\nGeneral notes.\n\n## Recovery\n\nDeploy recovery overview.\n\n#### Rollback\n\nRestore the previous release.\n")
+	writeFile(t, root, "owner.md", "---\ntype: Team\ntitle: Recovery Owner\n---\n\n# Owner\n\nPlatform owns [recovery](guide.md#recovery).\n")
+	writeFile(t, root, "wrong-owner.md", "---\ntype: Team\ntitle: Overview Owner\n---\n\n# Owner\n\nDocs owns [the overview](guide.md#overview).\n")
+
+	directOnly, err := SearchKnowledge(root, SearchOptions{Query: "deploy checklist", Limit: 10, Fuzzy: true, NoExpand: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseline, ok := searchResultByID(directOnly.Results, "guide#recovery")
+	if !ok {
+		t.Fatalf("expected a weak direct guide match, got %#v", directOnly.Results)
+	}
+
+	expanded, err := SearchKnowledge(root, SearchOptions{Query: "deploy checklist", Limit: 10, Fuzzy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	boosted, ok := searchResultByID(expanded.Results, "guide#recovery")
+	if !ok || boosted.Neighbor || boosted.Relation != "direct" || boosted.Score <= baseline.Score || !testContainsString(boosted.Matches, "graph") {
+		t.Fatalf("expected weak lexical match to retain direct evidence and receive the graph score, baseline=%#v expanded=%#v", baseline, boosted)
+	}
+	owner, ok := searchResultByID(expanded.Results, "owner#owner")
+	if !ok || !owner.Neighbor || owner.Relation != "backlink" {
+		t.Fatalf("expected fragment-specific backlink to the recovery chunk, got %#v", expanded.Results)
+	}
+	if _, ok := searchResultByID(expanded.Results, "wrong-owner#owner"); ok {
+		t.Fatalf("did not expect a backlink addressed to another chunk, got %#v", expanded.Results)
+	}
+}
+
+func searchResultByID(results []SearchResult, id string) (SearchResult, bool) {
+	for _, result := range results {
+		if result.ID == id {
+			return result, true
+		}
+	}
+	return SearchResult{}, false
+}

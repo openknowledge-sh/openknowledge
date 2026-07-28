@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1",
+  "provider": "railway",
+  "project": {
+    "name": "docs",
+    "id": "project-id"
+  },
+  "publicEndpoint": {
+    "mode": "generated",
+    "url": "https://docs.example.test"
+  },
+  "services": [
+    "docs-serve"
+  ],
+  "stateFile": "/workspace/.openknowledge/deployments/railway.json",
+  "status": "deployment-triggered"
+}

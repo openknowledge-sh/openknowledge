@@ -108,7 +108,7 @@ func (handler *runtimePublisherAPIHandler) serveArtifact(response http.ResponseW
 	if err := okruntime.WriteDirectoryArchive(response, root); err != nil {
 		// Headers may already be committed. Log the internal detail without
 		// exposing filesystem information to the caller.
-		fmt.Fprintf(os.Stderr, "publisher API archive failed: %v\n", err)
+		fmt.Fprintf(stderrOutput(), "publisher API archive failed: %v\n", err)
 	}
 }
 

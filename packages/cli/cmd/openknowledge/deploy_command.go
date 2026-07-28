@@ -165,8 +165,8 @@ func runDeploy(args []string) int {
 		return 0
 	}
 	if args[0] != "railway" {
-		fmt.Fprintf(os.Stderr, "unsupported deploy provider: %s\n\n", args[0])
-		fmt.Fprint(os.Stderr, deployHelpText())
+		fmt.Fprintf(stderrOutput(), "unsupported deploy provider: %s\n\n", args[0])
+		fmt.Fprint(stderrOutput(), deployHelpText())
 		return 2
 	}
 	return runDeployRailway(args[1:])
@@ -187,7 +187,7 @@ func runDeployRailway(args []string) int {
 		args = append(append([]string(nil), args[1:]...), args[0])
 	}
 	flags := flag.NewFlagSet("deploy railway", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(stderrOutput())
 	name := flags.String("name", "", "Railway project and service name prefix")
 	project := flags.String("project", "", "reuse an existing Railway project ID")
 	workspace := flags.String("workspace", "", "Railway workspace ID or name for a new project")
@@ -211,7 +211,7 @@ func runDeployRailway(args []string) int {
 		return 2
 	}
 	if flags.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "deploy railway accepts at most one knowledge base path")
+		fmt.Fprintln(stderrOutput(), "deploy railway accepts at most one knowledge base path")
 		return 2
 	}
 	knowledgePath := "."
@@ -236,7 +236,7 @@ func runDeployRailway(args []string) int {
 		return 0
 	}
 	if !*confirmed {
-		fmt.Fprintln(os.Stderr, "deploy railway changes provider resources; review --dry-run and rerun with --yes")
+		fmt.Fprintln(stderrOutput(), "deploy railway changes provider resources; review --dry-run and rerun with --yes")
 		return 2
 	}
 	secrets, err := resolveRailwayDeploySecrets(options, plan)

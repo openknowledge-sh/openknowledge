@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1",
+  "runtimes": [
+    {
+      "runtime": "codex",
+      "available": true,
+      "executable": "/usr/local/bin/codex"
+    },
+    {
+      "runtime": "claude",
+      "available": false,
+      "error": "executable not found"
+    }
+  ]
+}

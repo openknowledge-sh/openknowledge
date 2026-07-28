@@ -128,6 +128,14 @@ fi
 os="$(detect_os)"
 arch="$(detect_arch)"
 base="$(release_base)"
+case "$base" in
+  https://*) ;;
+  file://*) ;;
+  *)
+    echo "openknowledge install: release base must use HTTPS (file:// is reserved for controlled local tests)" >&2
+    exit 1
+    ;;
+esac
 asset="openknowledge_${os}_${arch}.tar.gz"
 tmp="$(mktemp -d)"
 
@@ -136,8 +144,10 @@ checksums="$tmp/checksums.txt"
 
 echo "Installing openknowledge from $base"
 curl_options=(--fail --silent --show-error --location --connect-timeout 15 --max-time 600 --retry 3)
-if [ -z "$base_url" ]; then
-  curl_options+=(--proto '=https' --tlsv1.2)
+if [[ "$base" == https://* ]]; then
+  curl_options+=(--proto '=https' --proto-redir '=https' --tlsv1.2)
+else
+  curl_options+=(--proto '=file' --proto-redir '=file')
 fi
 curl "${curl_options[@]}" "$base/$asset" -o "$archive"
 curl "${curl_options[@]}" "$base/checksums.txt" -o "$checksums"

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1",
+  "provider": "railway",
+  "dryRun": true,
+  "project": {
+    "name": "docs"
+  },
+  "repository": "/workspace",
+  "githubRepository": "example/docs",
+  "branch": "main",
+  "knowledgeBase": {
+    "id": "docs",
+    "path": "Wiki",
+    "spec": "0.1"
+  },
+  "services": [
+    {
+      "name": "docs-serve",
+      "role": "serve",
+      "source": {
+        "repository": "example/docs",
+        "branch": "main",
+        "dockerfilePath": ".openknowledge/runtime/Dockerfile"
+      },
+      "public": true,
+      "port": 8080,
+      "variableNames": [
+        "OPENKNOWLEDGE_RUNTIME_CONFIG"
+      ]
+    }
+  ],
+  "publicEndpoint": {
+    "mode": "generated"
+  },
+  "stateFile": "/workspace/.openknowledge/deployments/railway.json",
+  "credentialRequirements": []
+}

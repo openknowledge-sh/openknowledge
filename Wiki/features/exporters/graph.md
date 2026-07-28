@@ -3,7 +3,7 @@ type: Exporter Documentation
 title: Graph Exporter
 description: JSON graph export target for Open Knowledge source and search graph structure.
 tags: [openknowledge, cli, exporter, graph]
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-07-21T00:00:00Z
 status: shipped
 ---
 
@@ -13,6 +13,10 @@ status: shipped
 bundle. The default source graph describes authored files and local links.
 The search graph is a derivative retrieval layer built from Markdown heading
 chunks.
+
+These are structural document-and-chunk link graphs, not entity-resolved
+semantic knowledge graphs. They do not infer domain entities or relationship
+predicates from prose.
 
 ## Usage
 
@@ -29,7 +33,7 @@ openknowledge export graph --help
 
 | Type | Description |
 | --- | --- |
-| `source` | Default graph. Nodes are parsed bundle files; edges are deduplicated existing local Markdown links. |
+| `source` | Default graph. Nodes are parsed bundle files; every existing non-self local Markdown link occurrence is an edge, including parallel links between the same files. |
 | `search` | Derivative search graph. Nodes include bundle files and content-bearing H1-H3 Markdown chunks; edges include containment, reading order, and chunk-level local links. |
 
 ## Output
@@ -46,7 +50,8 @@ All graph JSON includes:
 Source graph nodes represent parsed bundle files, including reserved files such
 as `index.md` and `log.md`. Source graph edges use source and target Markdown
 paths, include source and target document IDs, and preserve link labels, hrefs,
-and line numbers when available. Missing local link targets remain validation
+target anchors, and line numbers when available. Parallel links between the
+same files remain separate edges. Missing local link targets remain validation
 issues instead of becoming dangling graph nodes.
 
 Search graph output includes the source graph plus content-bearing H1-H3
@@ -58,7 +63,13 @@ graph edge kinds include:
 * `contains` from a source file to one of its chunks.
 * `next` between adjacent chunks in source order.
 * `local-link` from the source chunk containing an existing local Markdown link
-  to the first chunk of the linked target file.
+  to the addressed content-bearing target chunk.
+
+A fragment selects the chunk that owns the canonical target heading. H4-H6
+headings select their containing H1-H3 chunk, and a heading-only H1-H3 target
+selects its first content-bearing descendant. A link without a fragment selects
+the first content-bearing chunk. Unresolved fragments do not create chunk
+edges. Repeated authored links remain distinct chunk edges.
 
 ## Behavior
 

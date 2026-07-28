@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # CLI Operations
@@ -32,7 +32,13 @@ pnpm build
 | `pnpm test:cli` | Run Go tests. |
 | `pnpm test:install` | Test the shell installer transactionally. |
 | `pnpm test:npm-install` | Test the npm downloader and archive parser offline. |
+| `pnpm test:packed-npm` | Pack and install the exact npm publication artifact on the active Node version. |
 | `pnpm test:web` | Test the static server without binding a socket. |
+| `pnpm test:browser` | Exercise landing-page setup and exported-viewer search/keyboard journeys in Chromium. |
+| `pnpm test:race` | Run all Go tests with the race detector. |
+| `pnpm test:coverage` | Produce `coverage.out` for the Go packages. |
+| `pnpm check:format` | Fail when committed Go files are not formatted. |
+| `pnpm check:onboarding-docs` | Keep README, website, and wiki setup/publication guidance aligned. |
 | `pnpm check:repo-jobs` | Validate repository job definitions. |
 | `pnpm check:versions` | Verify package and Go fallback version alignment. |
 | `pnpm check:workflow-pins` | Require immutable action and job-image references. |
@@ -52,18 +58,23 @@ pnpm build
 It uses read-only repository permissions, cancels superseded runs, and:
 
 1. installs frozen Go, Node, and pnpm dependencies;
-2. verifies tidy Go modules;
-3. runs `pnpm test` and `go vet`;
-4. builds the CLI and website;
-5. validates `Wiki/` with the built binary;
-6. fails if generation changed tracked files.
+2. verifies tidy Go modules and Go formatting;
+3. runs the policy/unit suite, race detector, coverage report, and `go vet`;
+4. builds the CLI and website and exercises landing/viewer journeys in a real
+   Chromium browser;
+5. validates `Wiki/` with the built binary and fails if generation changed
+   tracked files;
+6. runs CLI tests and builds on Linux, macOS, and Windows;
+7. verifies npm/web behavior and an installed packed artifact on Node 18, the
+   declared compatibility baseline.
 
 Require the `CI / verify` check in branch protection.
 
-Scheduled security automation lives in `.github/workflows/security.yml` and
-`.github/dependabot.yml`. It covers Go and JavaScript CodeQL, `govulncheck`,
-checksum-verified OSV Scanner, npm, Go modules, Actions, and Docker. Results may
-change as vulnerability databases update.
+Pull-request, `main`, and scheduled security automation lives in
+`.github/workflows/security.yml` and `.github/dependabot.yml`. It covers Go and
+JavaScript CodeQL, `govulncheck`, checksum-verified OSV Scanner, npm, Go
+modules, Actions, and Docker. Results may change as vulnerability databases
+update.
 
 ## Website
 
@@ -100,10 +111,13 @@ Run the manual workflow from the current default-branch tip:
 Actions → Release → Run workflow → version: 0.8.4
 ```
 
-The workflow performs the complete quality gate before creating a tag. The
-publication job alone receives release write, OIDC, and attestation
-permissions. GoReleaser publishes checksums, archives, licenses, installer, and
-signed provenance; npm publishes the matching wrapper with provenance.
+The workflow performs the complete quality gate before creating a tag,
+including browser journeys, race tests, a real packed npm install, and a
+GoReleaser snapshot that must contain all six supported OS/architecture
+archives. The publication job alone receives release write, OIDC, and
+attestation permissions. GoReleaser publishes checksums, archives, licenses,
+installer, and signed provenance; npm publishes the matching wrapper with
+provenance.
 Deployable projects build their own pinned runtime from the committed
 `.openknowledge/runtime/Dockerfile`; releases do not publish role images.
 

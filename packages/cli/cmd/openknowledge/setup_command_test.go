@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,6 +96,69 @@ func TestSetupDoesNotIntegrateInvalidAgentOutput(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(repo, ".openknowledge", "integration.toml")); !os.IsNotExist(err) {
 		t.Fatalf("integration should not be installed after validation failure: %v", err)
+	}
+}
+
+func TestSetupPreflightReportsRuntimeRecovery(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	t.Setenv(codexExecutableEnv, "")
+	originalDiscover := discoverCodexExecutableCandidates
+	originalProbe := probeCodexExecutable
+	originalRun := runAgentProcess
+	t.Cleanup(func() {
+		discoverCodexExecutableCandidates = originalDiscover
+		probeCodexExecutable = originalProbe
+		runAgentProcess = originalRun
+	})
+	discoverCodexExecutableCandidates = func() []string { return nil }
+	probeCodexExecutable = func(_ context.Context, _ string) error {
+		t.Fatal("setup should not probe an undiscovered executable")
+		return nil
+	}
+	runAgentProcess = func(_ context.Context, _ string, _ []string, _ string) error {
+		t.Fatal("setup should not launch an unavailable runtime")
+		return nil
+	}
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runSetup([]string{filepath.Join(repo, "Wiki")})
+	})
+	if code != 1 {
+		t.Fatalf("setup code=%d stderr=%s", code, stderr)
+	}
+	for _, expected := range []string{
+		"setup cannot start the codex runtime",
+		"openknowledge agent doctor --runtime codex",
+		"install or repair the runtime and rerun setup",
+	} {
+		if !strings.Contains(stderr, expected) {
+			t.Fatalf("missing %q in setup recovery diagnostic:\n%s", expected, stderr)
+		}
+	}
+}
+
+func TestSetupReportsAuthenticationRecoveryAfterAgentFailure(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	stubCodexResolver(t, "/test/codex")
+	original := runAgentProcess
+	t.Cleanup(func() { runAgentProcess = original })
+	runAgentProcess = func(_ context.Context, executable string, _ []string, _ string) error {
+		if executable != "/test/codex" {
+			t.Fatalf("setup executable=%q", executable)
+		}
+		return errors.New("authentication required")
+	}
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runSetup([]string{filepath.Join(repo, "Wiki")})
+	})
+	if code != 1 {
+		t.Fatalf("setup code=%d stderr=%s", code, stderr)
+	}
+	if !strings.Contains(stderr, "verify its authentication and rerun the same setup command") {
+		t.Fatalf("missing authentication recovery diagnostic:\n%s", stderr)
 	}
 }
 

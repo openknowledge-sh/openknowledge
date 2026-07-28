@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,22 +30,22 @@ func runSetup(args []string) int {
 	}
 	options, err := parseSetupArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	wikiAbs, err := filepath.Abs(options.wiki)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	repository, err := integration.RepositoryRoot(wikiAbs)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	relWiki, err := filepath.Rel(repository, wikiAbs)
 	if err != nil || relWiki == "." || relWiki == ".." || strings.HasPrefix(relWiki, ".."+string(filepath.Separator)) {
-		fmt.Fprintln(os.Stderr, "setup target must be a directory inside its Git repository")
+		fmt.Fprintln(stderrOutput(), "setup target must be a directory inside its Git repository")
 		return 2
 	}
 	relWiki = filepath.ToSlash(relWiki)
@@ -54,6 +55,13 @@ func runSetup(args []string) int {
 		runtime: options.runtime,
 		model:   options.model,
 	}
+	executable, err := resolveAgentExecutable(context.Background(), options.runtime)
+	if err != nil {
+		fmt.Fprintf(stderrOutput(), "setup cannot start the %s runtime: %v\n", options.runtime, err)
+		fmt.Fprintf(stderrOutput(), "Run \"openknowledge agent doctor --runtime %s\" to diagnose the installation, then install or repair the runtime and rerun setup.\n", options.runtime)
+		return 1
+	}
+	agentOptions.executable = executable
 	if options.source == "" {
 		agentOptions.operation = "init"
 		agentOptions.rules = options.rules
@@ -69,10 +77,11 @@ func runSetup(args []string) int {
 		}
 	}
 	if code := runAgentWithOptions(agentOptions); code != 0 {
+		fmt.Fprintf(stderrOutput(), "setup agent runtime %s exited with status %d; verify its authentication and rerun the same setup command.\n", options.runtime, code)
 		return code
 	}
 	if info, err := os.Stat(wikiAbs); err != nil || !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "setup agent did not create the knowledge base at %s\n", relWiki)
+		fmt.Fprintf(stderrOutput(), "setup agent did not create the knowledge base at %s\n", relWiki)
 		return 1
 	}
 	if code := runValidate([]string{wikiAbs}); code != 0 {
@@ -196,12 +205,31 @@ Usage:
   openknowledge setup [wiki] --from <source> --type understanding|custom
   openknowledge setup [wiki] --runtime <codex|claude|opencode>
 
+Arguments:
+  wiki        Target knowledge-base directory. Defaults to Wiki and must be
+              inside the current Git repository.
+
+Flags:
+  --from      Repository, local folder, or website source.
+  --runtime   Agent runtime: codex, claude, or opencode. Defaults to codex.
+  --model     Harness-specific model override.
+  --rules     Comma-separated maintenance rules for guided setup. Cannot be
+              combined with --from.
+  --type      Source workflow: understanding or custom. Requires --from.
+  --about     Custom source-to-wiki goal. Requires --from.
+  --depth     Non-negative source traversal hint. Requires --from; 0 lets the
+              agent choose the minimum depth.
+
 Run setup directly from a terminal in the Git repository that should own the
 knowledge base. Setup is the controller and starts an interactive agent
 process. The default target is Wiki and the default runtime is Codex. Without --from,
 the agent runs the guided setup workflow. With --from, it runs the
 source-to-wiki workflow. A successful run must leave a valid knowledge base;
 setup then installs project discovery skills and observation hooks.
+
+Before launching the agent, setup verifies that the selected runtime executable
+is available. Run openknowledge agent doctor --runtime <runtime> to diagnose the
+installation. Runtime authentication remains owned by the selected agent CLI.
 
 Use openknowledge scaffold for a deterministic scaffold without an agent or Git
 integration. Use openknowledge prompt for print-only portable instructions.

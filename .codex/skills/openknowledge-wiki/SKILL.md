@@ -24,7 +24,9 @@ Use this skill to keep the colocated wiki at `Wiki/` in sync with CLI behavior a
    block marked `<!-- okf-footer: agent-maintenance -->`. Use that footer for
    source anchors, update notes, and similar grounding metadata instead of
    prominent `##` headings.
-5. Keep shipped behavior separate from planned work. For example, `openknowledge to graph` belongs on the graph exporter candidate page until implemented.
+5. Keep shipped behavior separate from planned work. Proposed semantic graph,
+   vector retrieval, or other candidate surfaces stay on candidate pages until
+   implemented.
 6. For bounded wiki maintenance tasks, spawn focused subagents when the current runtime supports them. Prefer lower reasoning effort for those subagents because they should inspect narrow source/doc areas, draft concise updates, or validate focused assumptions rather than own broad architecture decisions.
 7. Prefer direct professional reference prose: task first, copyable usage,
    explicit defaults, and no repeated product positioning or implementation

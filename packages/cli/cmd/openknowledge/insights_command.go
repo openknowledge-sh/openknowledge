@@ -41,16 +41,16 @@ func runInsights(args []string) int {
 			return runInsightsExecution(args[1:])
 		case "dismiss":
 			if len(args) != 2 {
-				fmt.Fprintln(os.Stderr, "insights dismiss requires one insight")
+				fmt.Fprintln(stderrOutput(), "insights dismiss requires one insight")
 				return 2
 			}
 			item, err := resolveInsight(args[1])
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(stderrOutput(), err)
 				return 1
 			}
 			if err := insights.Dismiss(item.Path); err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(stderrOutput(), err)
 				return 1
 			}
 			fmt.Fprintf(os.Stdout, "Dismissed %s.\n", item.Path)
@@ -69,20 +69,20 @@ func listInsights(args []string) int {
 	if len(args) == 1 {
 		path = args[0]
 	} else if len(args) > 1 {
-		fmt.Fprintln(os.Stderr, "insights list accepts one knowledge base path")
+		fmt.Fprintln(stderrOutput(), "insights list accepts one knowledge base path")
 		return 2
 	}
 	if path == "" {
 		root, config, err := integration.FindRepository(".")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		path = filepath.Join(root, filepath.FromSlash(config.KnowledgeBase))
 	}
 	items, err := insights.Pending(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if len(items) == 0 {
@@ -102,14 +102,14 @@ func listInsights(args []string) int {
 func runInsightsCreate(args []string) int {
 	options, err := parseInsightCreateOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	path, created, err := insights.Create(".", insights.CreateOptions{
 		Summary: options.summary, Evidence: options.evidence, Targets: options.targets,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	display := path
@@ -166,12 +166,12 @@ func parseInsightCreateOptions(args []string) (insightCreateOptions, error) {
 func runInsightsExecution(args []string) int {
 	options, err := parseInsightRunOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	repo, config, err := integration.FindRepository(".")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	wiki := filepath.Join(repo, filepath.FromSlash(config.KnowledgeBase))
@@ -184,7 +184,7 @@ func runInsightsExecution(args []string) int {
 		selected = []insights.Insight{item}
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if len(selected) == 0 {
@@ -193,7 +193,7 @@ func runInsightsExecution(args []string) int {
 	}
 	for _, item := range selected {
 		if item.Status != "pending" {
-			fmt.Fprintf(os.Stderr, "insight %s is %s, expected pending\n", item.Path, item.Status)
+			fmt.Fprintf(stderrOutput(), "insight %s is %s, expected pending\n", item.Path, item.Status)
 			return 1
 		}
 	}
@@ -204,28 +204,28 @@ func runInsightsExecution(args []string) int {
 	if options.isolate {
 		workspace, err := agents.PrepareIsolatedWorkspace(repo)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		executionRepo = workspace.WorkDir
 		mode = "isolated"
-		fmt.Fprintf(os.Stderr, "isolated insight workspace: %s\n", workspace.Worktree)
-		fmt.Fprintf(os.Stderr, "branch: %s\n", workspace.Branch)
+		fmt.Fprintf(stderrOutput(), "isolated insight workspace: %s\n", workspace.Worktree)
+		fmt.Fprintf(stderrOutput(), "branch: %s\n", workspace.Branch)
 		executionItems, err = copyInsightsToWorkspace(repo, executionRepo, selected)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 	}
 
 	guard, err := insights.CaptureChangeGuard(executionRepo)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	backups, err := readInsightBackups(executionItems)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	prompt := insightExecutionPrompt(config.KnowledgeBase, executionItems)
@@ -250,7 +250,7 @@ func runInsightsExecution(args []string) int {
 	}
 	if err := guard.ValidateKnowledgeOnly(config.KnowledgeBase, config.Insights); err != nil {
 		restoreInsightBackups(backups)
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	executionWiki := filepath.Join(executionRepo, filepath.FromSlash(config.KnowledgeBase))
@@ -264,7 +264,7 @@ func runInsightsExecution(args []string) int {
 	}
 	if err := insights.ResolveAll(paths); err != nil {
 		restoreInsightBackups(backups)
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Fprintf(os.Stdout, "Resolved %d insight(s) as uncommitted local changes.\n", len(executionItems))
@@ -436,7 +436,7 @@ func insightExecutionPrompt(wiki string, selected []insights.Insight) string {
 
 func runInsightsVerify(args []string) int {
 	if len(args) > 1 {
-		fmt.Fprintln(os.Stderr, "insights verify accepts at most one repository path")
+		fmt.Fprintln(stderrOutput(), "insights verify accepts at most one repository path")
 		return 2
 	}
 	path := "."
@@ -444,12 +444,12 @@ func runInsightsVerify(args []string) int {
 		path = args[0]
 	}
 	if err := insights.VerifyRun(path); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	root, config, err := integration.FindRepository(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	return runValidate([]string{filepath.Join(root, filepath.FromSlash(config.KnowledgeBase))})

@@ -16,7 +16,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -46,8 +46,17 @@ jobs:
           go -C packages/cli mod tidy
           git diff --exit-code -- packages/cli/go.mod packages/cli/go.sum
 
+      - name: Verify source formatting
+        run: pnpm check:format
+
       - name: Test
         run: pnpm test
+
+      - name: Test Go race safety and collect coverage
+        run: |
+          pnpm test:race
+          pnpm test:coverage
+          go tool cover -func=coverage.out
 
       - name: Vet
         run: go vet ./packages/cli/...
@@ -55,8 +64,66 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Install browser test runtime
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Test browser journeys and accessibility
+        run: pnpm test:browser
+
       - name: Validate repository wiki
         run: ./bin/openknowledge validate Wiki
 
       - name: Verify generated files are current
         run: git diff --exit-code
+
+  go-platforms:
+    name: Go tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: packages/cli/go.mod
+
+      - name: Test CLI
+        run: go test ./packages/cli/...
+
+      - name: Build CLI
+        run: go build ./packages/cli/cmd/openknowledge
+
+  node-18:
+    name: Node 18 compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 18
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test supported Node baseline
+        run: |
+          pnpm test:npm-install
+          pnpm test:packed-npm
+          pnpm test:web
+          pnpm build:web

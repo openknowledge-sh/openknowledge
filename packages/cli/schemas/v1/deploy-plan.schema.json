@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/deploy-plan.schema.json",
+  "title": "Open Knowledge deployment plan v1",
+  "type": "object",
+  "required": ["schemaVersion", "provider", "dryRun", "project", "repository", "githubRepository", "branch", "knowledgeBase", "services", "publicEndpoint", "stateFile", "credentialRequirements"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "provider": {"const": "railway"},
+    "dryRun": {"type": "boolean"},
+    "prune": {"type": "boolean"},
+    "project": {"$ref": "#/$defs/project"},
+    "repository": {"type": "string", "minLength": 1},
+    "githubRepository": {"type": "string", "minLength": 1},
+    "branch": {"type": "string", "minLength": 1},
+    "knowledgeBase": {"$ref": "#/$defs/knowledgeBase"},
+    "services": {"type": "array", "items": {"$ref": "#/$defs/service"}},
+    "publicEndpoint": {"$ref": "#/$defs/endpoint"},
+    "stateFile": {"type": "string", "minLength": 1},
+    "credentialRequirements": {"type": "array", "items": {"type": "string"}},
+    "agentRuntimes": {"type": "array", "items": {"enum": ["codex", "claude", "opencode"]}}
+  },
+  "$defs": {
+    "project": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1},
+        "workspace": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "knowledgeBase": {
+      "type": "object",
+      "required": ["id", "path", "spec"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "spec": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["repository", "branch", "dockerfilePath"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "branch": {"type": "string", "minLength": 1},
+        "dockerfilePath": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "service": {
+      "type": "object",
+      "required": ["name", "role", "source", "public", "variableNames"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "source": {"$ref": "#/$defs/source"},
+        "public": {"type": "boolean"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "volumePath": {"type": "string", "minLength": 1},
+        "variableNames": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "dnsRecord": {
+      "type": "object",
+      "required": ["type", "name", "value"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {"type": "string", "minLength": 1},
+        "domain": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "minLength": 1},
+        "dnsRecords": {"type": "array", "items": {"$ref": "#/$defs/dnsRecord"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

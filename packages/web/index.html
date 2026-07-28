@@ -170,7 +170,7 @@ openknowledge setup Wiki --from .</code></pre>
             </span>
             <span class="sr-only">Checks</span>
             <h3>Trust it before use</h3>
-            <p>Validate OKF structure and local links before people or agents rely on the wiki.</p>
+            <p>Validate OKF structure and report local-link warnings before people or agents rely on the wiki; promote warnings to errors when policy requires it.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -269,27 +269,27 @@ openknowledge setup Wiki --from .</code></pre>
               <h3>Connect and retrieve</h3>
               <p>Give the bundle a stable name, then search it or browse it locally.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">connect</span> <span class="tok-path">./project-memory</span> <span class="tok-flag">--as</span> <span class="tok-value">personal</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">search</span> <span class="tok-value">personal</span> <span class="tok-string">"validation workflow"</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">view</span> <span class="tok-value">personal</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">connect</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--as</span> <span class="tok-value">project</span>
+<span class="tok-command">openknowledge</span> <span class="tok-subcommand">search</span> <span class="tok-value">project</span> <span class="tok-string">"validation workflow"</span>
+<span class="tok-command">openknowledge</span> <span class="tok-subcommand">view</span> <span class="tok-value">project</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
               <h3>Validate before use</h3>
-              <p>Catch structure and link issues before agents or publishing depend on it.</p>
+              <p>Catch structure errors and review link warnings before agents or publishing depend on the wiki.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">validate</span> <span class="tok-path">./project-memory</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">list</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span> <span class="tok-path">./project-memory</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">ast</span> <span class="tok-path">./project-memory</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">validate</span> <span class="tok-path">Wiki</span>
+<span class="tok-command">openknowledge</span> <span class="tok-subcommand">list</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span> <span class="tok-path">Wiki</span>
+<span class="tok-command">openknowledge</span> <span class="tok-subcommand">ast</span> <span class="tok-path">Wiki</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
               <h3>Publish or integrate</h3>
-              <p>Ship a static site or export portable machine-readable views.</p>
+              <p>After reviewing public content and setting <code>[publish] enabled = true</code>, ship a static site or export portable machine-readable views.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">export</span> <span class="tok-value">html</span> <span class="tok-flag">--out</span> <span class="tok-path">./project-site</span> <span class="tok-path">./project-memory</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">export</span> <span class="tok-value">json</span> <span class="tok-path">./project-memory</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">export</span> <span class="tok-value">tar</span> <span class="tok-flag">--out</span> <span class="tok-path">./project-memory.tar.gz</span> <span class="tok-path">./project-memory</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">export</span> <span class="tok-value">html</span> <span class="tok-flag">--out</span> <span class="tok-path">./project-site</span> <span class="tok-path">Wiki</span>
+<span class="tok-command">openknowledge</span> <span class="tok-subcommand">export</span> <span class="tok-value">json</span> <span class="tok-path">Wiki</span>
+<span class="tok-command">openknowledge</span> <span class="tok-subcommand">export</span> <span class="tok-value">tar</span> <span class="tok-flag">--out</span> <span class="tok-path">./project-wiki.tar.gz</span> <span class="tok-path">Wiki</span></code></pre>
           </article>
         </div>
       </section>

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1",
+  "repositoryRoot": "/workspace",
+  "dockerfile": "/workspace/.openknowledge/runtime/Dockerfile",
+  "entrypoint": "/workspace/.openknowledge/runtime/entrypoint.sh",
+  "runtimeConfig": "/workspace/.openknowledge/runtime/runtime.toml",
+  "openknowledgeVersion": "0.8.4",
+  "agentVersions": {
+    "codex": "0.128.0"
+  }
+}

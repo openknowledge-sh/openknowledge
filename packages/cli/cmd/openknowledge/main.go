@@ -77,9 +77,12 @@ func (buffer *boundedCLIErrorBuffer) Write(content []byte) (int, error) {
 }
 
 func runMain(args []string) int {
+	cliRunMutex.Lock()
+	defer cliRunMutex.Unlock()
+
 	options, commandArgs, err := parseCLIGlobalOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		usage()
 		return 2
 	}
@@ -117,39 +120,11 @@ func parseCLIGlobalOptions(args []string) (cliGlobalOptions, []string, error) {
 }
 
 func runWithJSONErrorEnvelope(args []string) int {
-	originalStderr := os.Stderr
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		_ = writeCLIErrorEnvelope(originalStderr, args, 1, fmt.Sprintf("cannot capture command errors: %v", err), false)
-		return 1
-	}
-
+	originalStderr := stderrOutput()
 	captured := boundedCLIErrorBuffer{limit: maxCLIErrorMessageBytes}
-	copyDone := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(&captured, reader)
-		copyDone <- copyErr
-	}()
-
-	exitCode := func() int {
-		os.Stderr = writer
-		defer func() {
-			os.Stderr = originalStderr
-		}()
+	exitCode := withStderrOutput(&captured, func() int {
 		return dispatchCLI(args)
-	}()
-	closeErr := writer.Close()
-	copyErr := <-copyDone
-	_ = reader.Close()
-	if closeErr != nil || copyErr != nil {
-		message := strings.TrimSpace(captured.buffer.String())
-		if message != "" {
-			message += "\n"
-		}
-		message += "cannot capture complete command error output"
-		_ = writeCLIErrorEnvelope(originalStderr, args, 1, message, true)
-		return 1
-	}
+	})
 
 	message := captured.buffer.String()
 	if exitCode == 0 || strings.TrimSpace(message) == "" {
@@ -186,120 +161,31 @@ func writeCLIErrorEnvelope(output io.Writer, args []string, exitCode int, messag
 	return encoder.Encode(envelope)
 }
 
-func cliErrorCommand(args []string) string {
-	if len(args) == 0 {
-		return "openknowledge"
-	}
-	root := args[0]
-	nested := map[string]map[string]bool{
-		"agent":    {"exec": true, "integrate": true},
-		"insights": {"create": true, "list": true, "run": true, "dismiss": true, "verify": true, "observe": true},
-		"jobs":     {"new": true, "list": true, "status": true, "runs": true, "start": true, "stop": true, "kill": true, "validate": true, "run": true, "daemon": true},
-		"deploy":   {"railway": true},
-		"runtime":  {"plan": true, "build": true, "serve": true, "worker": true},
-		"registry": {"refresh": true, "list": true, "status": true, "where": true},
-		"prompt":   {"setup": true, "from": true, "rules": true, "review": true},
-		"export":   {"html": true, "json": true, "tar": true, "graph": true},
-	}
-	if subcommands, ok := nested[root]; ok && len(args) > 1 && subcommands[args[1]] {
-		return root + " " + args[1]
-	}
-	knownRoots := map[string]bool{
-		"setup": true, "prompt": true, "agent": true, "insights": true, "jobs": true,
-		"scaffold": true, "connect": true, "disconnect": true, "get": true, "search": true,
-		"mcp": true, "ast": true, "registry": true, "view": true, "export": true,
-		"runtime": true, "deploy": true, "spec": true, "validate": true, "list": true, "version": true,
-	}
-	if knownRoots[root] {
-		return root
-	}
-	return "openknowledge"
-}
-
-func dispatchCLI(args []string) int {
-	if len(args) < 1 {
-		usage()
-		return 2
-	}
-
-	switch args[0] {
-	case "--help", "-h":
-		fmt.Fprint(os.Stdout, helpText())
-		return 0
-	case "setup":
-		return runSetup(args[1:])
-	case "prompt":
-		return runPrompt(args[1:])
-	case "agent":
-		return runAgent(args[1:])
-	case "insights":
-		return runInsights(args[1:])
-	case "jobs":
-		return runJobs(args[1:])
-	case "runtime":
-		return runRuntime(args[1:])
-	case "deploy":
-		return runDeploy(args[1:])
-	case "scaffold":
-		return runScaffold(args[1:])
-	case "connect":
-		return runConnect(args[1:], "openknowledge connect")
-	case "disconnect":
-		return runDisconnect(args[1:], "openknowledge disconnect")
-	case "get":
-		return runGet(args[1:])
-	case "search":
-		return runSearch(args[1:])
-	case "mcp":
-		return runMCP(args[1:])
-	case "ast":
-		return runAST(args[1:])
-	case "registry":
-		return runRegistry(args[1:])
-	case "view":
-		return runView(args[1:])
-	case "export":
-		return runExport(args[1:])
-	case "spec":
-		return runSpec(args[1:])
-	case "validate":
-		return runValidate(args[1:])
-	case "list":
-		return runList(args[1:])
-	case "version":
-		return runVersion(args[1:])
-	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", args[0])
-		usage()
-		return 2
-	}
-}
-
 func runPromptSetup(args []string) int {
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, promptSetupHelpText())
 		return 0
 	}
 	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	var rules string
 	fs.StringVar(&rules, "rules", "", "suggest comma-separated maintenance rules for setup")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "prompt setup accepts no positional arguments")
+		fmt.Fprintln(stderrOutput(), "prompt setup accepts no positional arguments")
 		return 2
 	}
 
 	ruleIDs, err := parseRuleIDs(rules)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	prompt, err := okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	fmt.Print(prompt)
@@ -321,7 +207,7 @@ func runPromptFrom(args []string) int {
 	}
 	options, err := parseFromOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	prompt, err := okf.FromPrompt(okf.FromPromptOptions{
@@ -332,7 +218,7 @@ func runPromptFrom(args []string) int {
 		Depth:  options.depth,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	fmt.Print(prompt)
@@ -425,13 +311,13 @@ func runRules(args []string) int {
 
 	options, err := parseRulesArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.list {
 		output, err := okf.RenderRulesListForWiki(options.wiki)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 		fmt.Print(output)
@@ -446,7 +332,7 @@ func runRules(args []string) int {
 		Rules:  options.rules,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	fmt.Print(output)
@@ -461,14 +347,14 @@ func runRulesApply(args []string) int {
 	}
 	options, err := parseRulesApplyArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	printRulesWikiWarnings(options.wiki)
 
 	targetFile, err := resolveRulesApplyFile(options)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	target := options.target
@@ -482,7 +368,7 @@ func runRulesApply(args []string) int {
 		Managed: true,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	block := okf.RenderManagedRulesBlock(rules)
@@ -491,19 +377,19 @@ func runRulesApply(args []string) int {
 		return 0
 	}
 	if err := okf.RequireRegistryWriteAccess(targetFile); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	existingBytes, err := os.ReadFile(targetFile)
 	if err != nil && !os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if err == nil && !options.yes && isTerminalFile(os.Stdin) {
 		confirmed, err := confirmRulesApplyWrite(targetFile, string(existingBytes), block)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		if !confirmed {
@@ -513,11 +399,11 @@ func runRulesApply(args []string) int {
 	}
 	updated := okf.UpsertManagedRulesBlock(string(existingBytes), block)
 	if err := os.MkdirAll(filepath.Dir(targetFile), 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if err := os.WriteFile(targetFile, []byte(updated), 0644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Printf("Updated %s\n", targetFile)
@@ -533,7 +419,7 @@ func runReview(args []string) int {
 	case "rules":
 		return runReviewRules(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown review subcommand: %s\n", args[0])
+		fmt.Fprintf(stderrOutput(), "unknown review subcommand: %s\n", args[0])
 		return 2
 	}
 }
@@ -545,7 +431,7 @@ func runReviewRules(args []string) int {
 	}
 	options, err := parseReviewRulesArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	output, err := okf.RenderRuleReviewPrompt(okf.RuleReviewOptions{
@@ -554,7 +440,7 @@ func runReviewRules(args []string) int {
 		All:   options.all,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	fmt.Print(output)
@@ -782,7 +668,7 @@ func parseRuleIDs(value string) ([]string, error) {
 }
 
 func printRulesWikiWarnings(wiki string) {
-	output := os.Stderr
+	output := stderrOutput()
 	if isTerminalFile(os.Stdout) {
 		output = os.Stdout
 	}
@@ -902,16 +788,20 @@ func rulesApplyConfirmationMessage(file string, existing string) string {
 	return fmt.Sprintf("%s already exists. This will append an Open Knowledge rules block to the file.", file)
 }
 
-func printWarning(output *os.File, message string) {
+func printWarning(output io.Writer, message string) {
 	fmt.Fprintln(output)
 	fmt.Fprintln(output, warningText(output, message))
 	fmt.Fprintln(output)
 }
 
-func warningText(output *os.File, message string) string {
+func warningText(output io.Writer, message string) string {
 	label := "⚠ Warning:"
 	text := label + " " + strings.TrimSpace(message)
-	return newTerminal(output).yellow(text)
+	file, ok := output.(*os.File)
+	if !ok {
+		return text
+	}
+	return newTerminal(file).yellow(text)
 }
 
 func isTerminalFile(file *os.File) bool {
@@ -925,13 +815,13 @@ func runSpec(args []string) int {
 		return 0
 	}
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge spec latest|<version>")
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge spec latest|<version>")
 		return 2
 	}
 
 	version, ok := okf.ResolveSpecVersion(args[0])
 	if !ok {
-		fmt.Fprintf(os.Stderr, "unsupported OKF spec version: %s\n", args[0])
+		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", args[0])
 		return 2
 	}
 
@@ -949,7 +839,7 @@ func runScaffold(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("scaffold", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	nameFlag := fs.String("name", "", "knowledge base name")
 	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
 	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
@@ -964,7 +854,7 @@ func runScaffold(args []string) int {
 		return 2
 	}
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "scaffold accepts at most one folder path")
+		fmt.Fprintln(stderrOutput(), "scaffold accepts at most one folder path")
 		return 2
 	}
 
@@ -984,14 +874,14 @@ func runScaffold(args []string) int {
 		var err error
 		name, err = prompt("Knowledge base name", defaultName)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 	}
 
 	entries, err := parseBundleEntryFlags(bundleEntries)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
@@ -1009,7 +899,7 @@ func runScaffold(args []string) int {
 		},
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
@@ -1049,8 +939,8 @@ func runRegistry(args []string) int {
 	case "where":
 		return runRegistryWhere(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown registry command: %s\n\n", args[0])
-		fmt.Fprint(os.Stderr, registryHelpText())
+		fmt.Fprintf(stderrOutput(), "unknown registry command: %s\n\n", args[0])
+		fmt.Fprint(stderrOutput(), registryHelpText())
 		return 2
 	}
 }
@@ -1084,7 +974,7 @@ func runConnect(args []string, command string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	keyFlag := fs.String("as", "", "connection key")
 	accessFlag := fs.String("access", "read", "connection access: read or write")
 	noValidateFlag := fs.Bool("no-validate", false, "skip validation status")
@@ -1094,37 +984,37 @@ func runConnect(args []string, command string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "usage: %s <source> [--as <key>] [--git-ref <ref>] [--git-subdir <path>]\n", command)
+		fmt.Fprintf(stderrOutput(), "usage: %s <source> [--as <key>] [--git-ref <ref>] [--git-subdir <path>]\n", command)
 		return 2
 	}
 
 	source := fs.Arg(0)
 	if looksLikeRemoteSource(source) {
 		if err := validateRemoteSourceURL(source); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 	}
 	gitOptions, err := parseGitMaterializationOptions(*gitRefFlag, *gitSubdirFlag)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if (gitOptions.Ref != "" || gitOptions.Subdir != "") && !looksLikeRemoteSource(source) {
-		fmt.Fprintln(os.Stderr, "--git-ref and --git-subdir require a remote Git source")
+		fmt.Fprintln(stderrOutput(), "--git-ref and --git-subdir require a remote Git source")
 		return 2
 	}
 	if (gitOptions.Ref != "" || gitOptions.Subdir != "") && (looksLikeManifestSource(source) || looksLikeArchiveSource(source)) {
-		fmt.Fprintln(os.Stderr, "--git-ref and --git-subdir cannot be used with manifest or archive sources")
+		fmt.Fprintln(stderrOutput(), "--git-ref and --git-subdir cannot be used with manifest or archive sources")
 		return 2
 	}
 	access := strings.TrimSpace(*accessFlag)
 	if access != "read" && access != "write" {
-		fmt.Fprintln(os.Stderr, "access must be read or write")
+		fmt.Fprintln(stderrOutput(), "access must be read or write")
 		return 2
 	}
 	if access == "write" && looksLikeRemoteSource(source) {
-		fmt.Fprintln(os.Stderr, "managed remote connections are read-only")
+		fmt.Fprintln(stderrOutput(), "managed remote connections are read-only")
 		return 2
 	}
 	sourceInfo := okf.RegistrySource{}
@@ -1133,7 +1023,7 @@ func runConnect(args []string, command string) int {
 		var materializedRoot string
 		materializedRoot, sourceInfo, err = materializeRemoteSourceWithOptions(source, gitOptions)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		source = materializedRoot
@@ -1141,19 +1031,19 @@ func runConnect(args []string, command string) int {
 
 	root, err := okf.ResolveKnowledgeRoot(source)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	root, err = filepath.Abs(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if info, err := os.Stat(root); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	} else if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "%s is not a directory\n", root)
+		fmt.Fprintf(stderrOutput(), "%s is not a directory\n", root)
 		return 1
 	}
 
@@ -1169,7 +1059,7 @@ func runConnect(args []string, command string) int {
 
 	entry, warning, err := okf.ConnectRegistryEntryWithSource(key, root, access, explicitKey, sourceInfo)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
@@ -1180,10 +1070,10 @@ func runConnect(args []string, command string) int {
 
 	printConnectResult(entry, bundleInfo, status)
 	if warning != "" {
-		fmt.Fprintf(os.Stderr, "warning: %s\n", warning)
+		fmt.Fprintf(stderrOutput(), "warning: %s\n", warning)
 	}
 	if metadataErr != nil {
-		fmt.Fprintf(os.Stderr, "warning: bundle metadata could not be read: %v\n", metadataErr)
+		fmt.Fprintf(stderrOutput(), "warning: bundle metadata could not be read: %v\n", metadataErr)
 	}
 	return 0
 }
@@ -2435,18 +2325,18 @@ func runDisconnect(args []string, command string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("disconnect", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	deleteFilesFlag := fs.Bool("delete-files", false, "delete CLI-managed bundle files")
 	keepFilesFlag := fs.Bool("keep-files", false, "keep bundle files")
 	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintf(os.Stderr, "usage: %s <key|path>\n", command)
+		fmt.Fprintf(stderrOutput(), "usage: %s <key|path>\n", command)
 		return 2
 	}
 	if *deleteFilesFlag && *keepFilesFlag {
-		fmt.Fprintln(os.Stderr, "--delete-files and --keep-files cannot be used together")
+		fmt.Fprintln(stderrOutput(), "--delete-files and --keep-files cannot be used together")
 		return 2
 	}
 
@@ -2454,7 +2344,7 @@ func runDisconnect(args []string, command string) int {
 	if *deleteFilesFlag {
 		entry, ok, deleteErr, err := disconnectManagedRegistryEntry(target)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		if !ok {
@@ -2463,7 +2353,7 @@ func runDisconnect(args []string, command string) int {
 		}
 		files := "deleted"
 		if deleteErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: disconnected but could not delete managed cache: %v\n", deleteErr)
+			fmt.Fprintf(stderrOutput(), "warning: disconnected but could not delete managed cache: %v\n", deleteErr)
 			files = "delete failed"
 		}
 		printDisconnectResult(entry, files)
@@ -2475,7 +2365,7 @@ func runDisconnect(args []string, command string) int {
 
 	entry, ok, err := okf.RemoveRegistryEntry(target)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if !ok {
@@ -2493,20 +2383,20 @@ func runRegistryRefresh(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("registry refresh", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	forceFlag := fs.Bool("force", false, "discard local changes in the managed cache")
 	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge registry refresh <key|path> [--force]")
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge registry refresh <key|path> [--force]")
 		return 2
 	}
 
 	target := fs.Arg(0)
 	entry, ok, err := okf.ResolveRegistryTarget(target)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if !ok {
@@ -2514,42 +2404,42 @@ func runRegistryRefresh(args []string) int {
 		return 1
 	}
 	if !entry.Managed {
-		fmt.Fprintf(os.Stderr, "connection %q is local and cannot be refreshed from a remote source\n", entry.Name)
+		fmt.Fprintf(stderrOutput(), "connection %q is local and cannot be refreshed from a remote source\n", entry.Name)
 		return 1
 	}
 	if strings.TrimSpace(entry.Source.URL) == "" {
-		fmt.Fprintf(os.Stderr, "connection %q has no recorded remote source\n", entry.Name)
+		fmt.Fprintf(stderrOutput(), "connection %q has no recorded remote source\n", entry.Name)
 		return 1
 	}
 	oldManagedRoot, err := managedCacheRootForEntry(entry)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	unlock, err := lockRemoteCache(oldManagedRoot)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	defer unlock()
 
 	current, ok, err := okf.ResolveRegistryTarget(target)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if !ok || current != entry {
-		fmt.Fprintf(os.Stderr, "connection %q changed while it was being refreshed\n", entry.Name)
+		fmt.Fprintf(stderrOutput(), "connection %q changed while it was being refreshed\n", entry.Name)
 		return 1
 	}
 	if status := inspectRegistryEntryWithCacheLock(current, true); status.State == "modified" && !*forceFlag {
-		fmt.Fprintf(os.Stderr, "managed cache for %q has local changes; use --force to discard them\n", entry.Name)
+		fmt.Fprintf(stderrOutput(), "managed cache for %q has local changes; use --force to discard them\n", entry.Name)
 		return 1
 	}
 
 	newTarget, err := newRefreshCacheTarget(oldManagedRoot, entry.Source.URL)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	newRoot, source, err := materializeRemoteSourceAtTargetWithOptions(entry.Source.URL, newTarget, false, gitMaterializationOptions{
@@ -2558,12 +2448,12 @@ func runRegistryRefresh(args []string) int {
 	})
 	if err != nil {
 		cleanupErr := removeRemoteCacheGeneration(newTarget, true)
-		fmt.Fprintln(os.Stderr, errors.Join(err, cleanupErr))
+		fmt.Fprintln(stderrOutput(), errors.Join(err, cleanupErr))
 		return 1
 	}
 	if status := inspectRegistryEntryWithCacheLock(current, true); status.State == "modified" && !*forceFlag {
 		cleanupErr := removeRemoteCacheGeneration(source.ManagedRoot, true)
-		fmt.Fprintln(os.Stderr, errors.Join(fmt.Errorf("managed cache for %q changed during refresh; use --force to discard local changes", entry.Name), cleanupErr))
+		fmt.Fprintln(stderrOutput(), errors.Join(fmt.Errorf("managed cache for %q changed during refresh; use --force to discard local changes", entry.Name), cleanupErr))
 		return 1
 	}
 
@@ -2573,7 +2463,7 @@ func runRegistryRefresh(args []string) int {
 	replacement.Source = source
 	if _, err := okf.ReplaceRegistryEntry(current, replacement); err != nil {
 		cleanupErr := removeRemoteCacheGeneration(source.ManagedRoot, true)
-		fmt.Fprintln(os.Stderr, errors.Join(err, cleanupErr))
+		fmt.Fprintln(stderrOutput(), errors.Join(err, cleanupErr))
 		return 1
 	}
 
@@ -2589,7 +2479,7 @@ func runRegistryRefresh(args []string) int {
 		fmt.Printf("%-10s %s\n", "identity", replacement.Source.SHA256)
 	}
 	if cleanupErr != nil {
-		fmt.Fprintf(os.Stderr, "warning: refreshed but could not delete the previous managed cache: %v\n", cleanupErr)
+		fmt.Fprintf(stderrOutput(), "warning: refreshed but could not delete the previous managed cache: %v\n", cleanupErr)
 		return 1
 	}
 	return 0
@@ -2783,7 +2673,7 @@ func parseInterspersedFlags(fs *flag.FlagSet, args []string) error {
 }
 
 func printUnknownConnection(target string) {
-	fmt.Fprintf(os.Stderr, "unknown knowledge bundle: %s\n", target)
+	fmt.Fprintf(stderrOutput(), "unknown knowledge bundle: %s\n", target)
 	entries, err := okf.RegistryEntries()
 	if err != nil || len(entries) == 0 {
 		return
@@ -2793,7 +2683,7 @@ func printUnknownConnection(target string) {
 		names = append(names, entry.Name)
 	}
 	sort.Strings(names)
-	fmt.Fprintf(os.Stderr, "available keys: %s\n", strings.Join(names, ", "))
+	fmt.Fprintf(stderrOutput(), "available keys: %s\n", strings.Join(names, ", "))
 }
 
 func printDisconnectResult(entry okf.RegistryEntry, files string) {
@@ -2837,20 +2727,20 @@ func runGet(args []string) int {
 	}
 	options, err := parseGetOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	if options.entry == "" {
 		if localFile, rel, ok := resolveDirectGetFile(options.target); ok {
 			if !isGetMarkdownFile(localFile) {
-				fmt.Fprintf(os.Stderr, "get only prints Markdown files: %s\n", rel)
+				fmt.Fprintf(stderrOutput(), "get only prints Markdown files: %s\n", rel)
 				return 1
 			}
 			if options.info {
 				document, err := okf.ReadMarkdownDocumentInfo(localFile, rel)
 				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
+					fmt.Fprintln(stderrOutput(), err)
 					return 1
 				}
 				printGetFileInfo(getSelection{name: rel, rel: rel, abs: localFile}, document)
@@ -2858,7 +2748,7 @@ func runGet(args []string) int {
 			}
 			content, err := os.ReadFile(localFile)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(stderrOutput(), err)
 				return 1
 			}
 			fmt.Print(string(content))
@@ -2868,18 +2758,18 @@ func runGet(args []string) int {
 
 	root, err := resolveWhereTarget(options.target)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	info, err := okf.ReadBundleInfo(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
 	if options.info {
 		if err := printGetInfo(root, info, options.entry); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		return 0
@@ -2887,12 +2777,12 @@ func runGet(args []string) int {
 
 	selection, err := selectGetTarget(root, info, options.entry)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	content, err := os.ReadFile(selection.abs)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Print(string(content))
@@ -2908,7 +2798,7 @@ func runSearch(args []string) int {
 	}
 	options, err := parseSearchOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.all {
@@ -2916,7 +2806,7 @@ func runSearch(args []string) int {
 	}
 	root, err := resolveWhereTarget(options.target)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if options.matches {
@@ -2927,11 +2817,11 @@ func runSearch(args []string) int {
 			NoExpand: options.noExpand,
 		})
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		if err := printSearchMatches(result, options.format); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		return 0
@@ -2944,11 +2834,11 @@ func runSearch(args []string) int {
 		NoExpand: options.noExpand,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if err := printSearchContext(result, options.format); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	return 0
@@ -2957,7 +2847,7 @@ func runSearch(args []string) int {
 func runFederatedSearch(options searchOptions) int {
 	entries, err := okf.RegistryEntries()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	targets := make([]okf.FederatedTarget, 0, len(entries))
@@ -2969,11 +2859,11 @@ func runFederatedSearch(options searchOptions) int {
 			Query: options.query, Limit: options.limit, Fuzzy: true, NoExpand: options.noExpand,
 		})
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		if err := printFederatedSearchMatches(result, options.format); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		return federatedSearchExitCode(result.KnowledgeBases)
@@ -2982,11 +2872,11 @@ func runFederatedSearch(options searchOptions) int {
 		Query: options.query, Budget: options.budget, Limit: options.limit, NoExpand: options.noExpand,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if err := printFederatedSearchContext(result, options.format); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	return federatedSearchExitCode(result.KnowledgeBases)
@@ -3579,19 +3469,19 @@ func runRegistryList(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("registry list", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	jsonFlag := fs.Bool("json", false, "print versioned JSON inventory")
 	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge registry list [--json]")
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge registry list [--json]")
 		return 2
 	}
 
 	entries, err := okf.RegistryEntries()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if !*jsonFlag {
@@ -3600,7 +3490,7 @@ func runRegistryList(args []string) int {
 	}
 	registryPath, err := okf.RegistryFile()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	report := registryListReport{
@@ -3623,7 +3513,7 @@ func runRegistryList(args []string) int {
 	}
 	encoded, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Println(string(encoded))
@@ -3684,25 +3574,25 @@ func runRegistryStatus(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("registry status", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	jsonFlag := fs.Bool("json", false, "print versioned JSON status")
 	if err := parseInterspersedFlags(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge registry status [key|path] [--json]")
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge registry status [key|path] [--json]")
 		return 2
 	}
 
 	entries, err := okf.RegistryEntries()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if fs.NArg() == 1 {
 		entry, ok, err := okf.ResolveRegistryTarget(fs.Arg(0))
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		if !ok {
@@ -3714,7 +3604,7 @@ func runRegistryStatus(args []string) int {
 
 	registryPath, err := okf.RegistryFile()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	report := registryStatusReport{
@@ -3731,7 +3621,7 @@ func runRegistryStatus(args []string) int {
 	if *jsonFlag {
 		encoded, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		fmt.Println(string(encoded))
@@ -3969,13 +3859,13 @@ func runRegistryWhere(args []string) int {
 		return 0
 	}
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge registry where <name|path>")
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge registry where <name|path>")
 		return 2
 	}
 
 	root, err := resolveWhereTarget(args[0])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	fmt.Println(root)
@@ -4017,7 +3907,7 @@ func runValidate(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	quiet := fs.Bool("quiet", false, "print only errors")
 	specVersion := fs.String("spec", "latest", "OKF spec version")
 	format := fs.String("format", "text", "output format: text or json")
@@ -4036,21 +3926,21 @@ func runValidate(args []string) int {
 		*format = "text"
 	}
 	if *format != "text" && *format != "json" {
-		fmt.Fprintf(os.Stderr, "unsupported validate format: %s\n", *format)
+		fmt.Fprintf(stderrOutput(), "unsupported validate format: %s\n", *format)
 		return 2
 	}
 	if *quiet && *format == "json" {
-		fmt.Fprintln(os.Stderr, "--quiet cannot be combined with JSON validation output")
+		fmt.Fprintln(stderrOutput(), "--quiet cannot be combined with JSON validation output")
 		return 2
 	}
 	if strings.TrimSpace(*out) != "" && *format != "json" {
-		fmt.Fprintln(os.Stderr, "--out requires --format json or --json")
+		fmt.Fprintln(stderrOutput(), "--out requires --format json or --json")
 		return 2
 	}
 
 	root := "."
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "validate accepts at most one key or path")
+		fmt.Fprintln(stderrOutput(), "validate accepts at most one key or path")
 		return 2
 	}
 	if fs.NArg() == 1 {
@@ -4059,24 +3949,24 @@ func runValidate(args []string) int {
 
 	root, err := okf.ResolveKnowledgeRoot(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	validationOptions, err := okf.LoadValidationOptions(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	cliOptions := okf.ValidationOptions{}
 	for _, override := range ruleOverrides {
 		rule, severity, err := okf.ParseValidationRuleOverride(override)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 		if err := okf.SetValidationRuleSeverity(&cliOptions, rule, severity); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 	}
@@ -4084,13 +3974,13 @@ func runValidate(args []string) int {
 
 	result, err := okf.ValidateWithVersionAndOptions(root, *specVersion, validationOptions)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	if *format == "json" {
 		if err := printValidationJSONResult(result, strings.TrimSpace(*out)); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		if len(result.Errors) > 0 {
@@ -4101,7 +3991,7 @@ func runValidate(args []string) int {
 
 	if *quiet {
 		for _, issue := range result.Errors {
-			fmt.Fprintln(os.Stderr, issue)
+			fmt.Fprintln(stderrOutput(), issue)
 		}
 		if len(result.Errors) > 0 {
 			return 1
@@ -4188,7 +4078,7 @@ func runList(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	asJSON := fs.Bool("json", false, "print JSON")
 	specVersion := fs.String("spec", "latest", "OKF spec version")
 	depth := fs.Int("depth", 0, "maximum tree depth; 0 means unlimited")
@@ -4196,13 +4086,13 @@ func runList(args []string) int {
 		return 2
 	}
 	if *depth < 0 {
-		fmt.Fprintln(os.Stderr, "--depth must be zero or a positive integer")
+		fmt.Fprintln(stderrOutput(), "--depth must be zero or a positive integer")
 		return 2
 	}
 
 	root := "."
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "list accepts at most one key or path")
+		fmt.Fprintln(stderrOutput(), "list accepts at most one key or path")
 		return 2
 	}
 	if fs.NArg() == 1 {
@@ -4211,13 +4101,13 @@ func runList(args []string) int {
 
 	root, err := okf.ResolveKnowledgeRoot(root)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	listing, err := okf.ListWithVersion(root, *specVersion)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
@@ -4226,7 +4116,7 @@ func runList(args []string) int {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(listing); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 		return 0
@@ -4252,8 +4142,8 @@ func runExport(args []string) int {
 	case "graph":
 		return runExportGraph(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown export target: %s\n\n", args[0])
-		fmt.Fprint(os.Stderr, exportHelpText())
+		fmt.Fprintf(stderrOutput(), "unknown export target: %s\n\n", args[0])
+		fmt.Fprint(stderrOutput(), exportHelpText())
 		return 2
 	}
 }
@@ -4276,28 +4166,28 @@ func runExportHTML(args []string) int {
 	}
 	options, err := parseExportOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.out == "" {
-		fmt.Fprintln(os.Stderr, "openknowledge export html requires --out <folder>")
+		fmt.Fprintln(stderrOutput(), "openknowledge export html requires --out <folder>")
 		return 2
 	}
 	if options.plain {
 		if flag := options.headFlag(); flag != "" {
-			fmt.Fprintf(os.Stderr, "%s requires the default viewer export; remove --plain\n", flag)
+			fmt.Fprintf(stderrOutput(), "%s requires the default viewer export; remove --plain\n", flag)
 			return 2
 		}
 	}
 	if options.graphType != "" {
-		fmt.Fprintln(os.Stderr, "unknown flag: --type")
+		fmt.Fprintln(stderrOutput(), "unknown flag: --type")
 		return 2
 	}
 
 	var result okf.HTMLResult
 	root, err := okf.ResolveKnowledgeRoot(options.path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.plain {
@@ -4305,13 +4195,13 @@ func runExportHTML(args []string) int {
 	} else {
 		headInjection, loadErr := loadHeadInjection(options.headInjectionOptions())
 		if loadErr != nil {
-			fmt.Fprintln(os.Stderr, loadErr)
+			fmt.Fprintln(stderrOutput(), loadErr)
 			return 2
 		}
 		result, err = writeViewerHTMLWithOptions(root, options.out, options.spec, viewerHTMLExportOptions{HeadHTML: headInjection})
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
@@ -4329,44 +4219,44 @@ func runExportJSON(args []string) int {
 	}
 	options, err := parseExportOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.plain {
-		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		fmt.Fprintln(stderrOutput(), "unknown flag: --plain")
 		return 2
 	}
 	if options.graphType != "" {
-		fmt.Fprintln(os.Stderr, "unknown flag: --type")
+		fmt.Fprintln(stderrOutput(), "unknown flag: --type")
 		return 2
 	}
 	if flag := options.headFlag(); flag != "" {
-		fmt.Fprintf(os.Stderr, "unknown flag: %s\n", flag)
+		fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", flag)
 		return 2
 	}
 
 	root, err := okf.ResolveKnowledgeRoot(options.path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	bundle, err := okf.ParseBundleWithVersion(root, options.spec)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
 	data, err := json.MarshalIndent(bundle, "", "  ")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	data = append(data, '\n')
 
 	if options.out != "" {
 		if err := writeOutputFileAtomically(options.out, data); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		terminal.success("Exported JSON")
@@ -4386,34 +4276,34 @@ func runExportTar(args []string) int {
 	}
 	options, err := parseExportOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.plain {
-		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		fmt.Fprintln(stderrOutput(), "unknown flag: --plain")
 		return 2
 	}
 	if options.graphType != "" {
-		fmt.Fprintln(os.Stderr, "unknown flag: --type")
+		fmt.Fprintln(stderrOutput(), "unknown flag: --type")
 		return 2
 	}
 	if flag := options.headFlag(); flag != "" {
-		fmt.Fprintf(os.Stderr, "unknown flag: %s\n", flag)
+		fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", flag)
 		return 2
 	}
 	if options.out == "" {
-		fmt.Fprintln(os.Stderr, "openknowledge export tar requires --out <file>")
+		fmt.Fprintln(stderrOutput(), "openknowledge export tar requires --out <file>")
 		return 2
 	}
 
 	root, err := okf.ResolveKnowledgeRoot(options.path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	result, err := okf.WriteBundleTarGzipWithVersion(root, options.out, options.spec, nil)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
@@ -4433,40 +4323,40 @@ func runExportGraph(args []string) int {
 	}
 	options, err := parseExportOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.plain {
-		fmt.Fprintln(os.Stderr, "unknown flag: --plain")
+		fmt.Fprintln(stderrOutput(), "unknown flag: --plain")
 		return 2
 	}
 	if flag := options.headFlag(); flag != "" {
-		fmt.Fprintf(os.Stderr, "unknown flag: %s\n", flag)
+		fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", flag)
 		return 2
 	}
 
 	root, err := okf.ResolveKnowledgeRoot(options.path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	graph, err := okf.BuildGraphWithType(root, options.spec, options.graphType)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
 	data, err := json.MarshalIndent(graph, "", "  ")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	data = append(data, '\n')
 
 	if options.out != "" {
 		if err := writeOutputFileAtomically(options.out, data); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		terminal.success("Exported graph")
@@ -4602,7 +4492,7 @@ func runVersion(args []string) int {
 		return 0
 	}
 	if len(args) != 0 {
-		fmt.Fprintln(os.Stderr, "usage: openknowledge version")
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge version")
 		return 2
 	}
 	fmt.Println(version)
@@ -4742,7 +4632,7 @@ func formatListNode(node *listTreeNode) string {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, helpText())
+	fmt.Fprint(stderrOutput(), helpText())
 }
 
 func hasHelpFlag(args []string) bool {
@@ -4756,62 +4646,6 @@ func hasHelpFlag(args []string) bool {
 
 func isHelpFlag(arg string) bool {
 	return arg == "--help" || arg == "-h" || arg == "-help"
-}
-
-func helpText() string {
-	return `openknowledge builds, uses, and runs self-maintaining OKF knowledge bases.
-
-Usage:
-  openknowledge --help
-  openknowledge --error-format json <command> [args...]
-  openknowledge <command> --help
-
-Create and maintain:
-  setup        Launch an agent to create, validate, and integrate a knowledge base.
-  agent        Run, integrate, and review knowledge with an agent.
-  insights     Capture and resolve knowledge-maintenance insights.
-  jobs         Run repeatable isolated maintenance jobs from Markdown specs.
-
-Use and publish:
-  get          Read an exact Markdown file or bundle entrypoint.
-  search       Build source-grounded context from one or more knowledge bases.
-  list         Inspect knowledge-base structure.
-  view         Browse knowledge locally.
-  mcp          Connect an MCP client to read-only knowledge tools.
-  export       Export HTML, JSON, graph, or portable tar views.
-
-Run as a service:
-  runtime      Build, serve, and maintain an isolated knowledge runtime.
-  deploy       Provision that runtime on a supported provider.
-
-Validate and connect:
-  validate     Validate a bundle against an OKF spec.
-  connect      Connect a local or remote knowledge base.
-  disconnect   Remove a knowledge-base connection.
-  registry     Refresh, inspect, and resolve connected knowledge bases.
-
-Advanced and portable tools:
-  scaffold     Create a deterministic local OKF knowledge base.
-  prompt       Print or install portable agent instructions.
-  ast          Print parsed OKF AST JSON.
-  spec         Print an embedded OKF spec.
-  version      Print the CLI version.
-
-Flags:
-  -h, --help                Show this help.
-  --error-format text|json  Format command failures on stderr (default text).
-
-Start with a workflow above, then run openknowledge <command> --help.
-
-Common flows:
-  openknowledge setup Wiki --from .
-  openknowledge insights create "Document the deployment rollback workflow"
-  openknowledge validate Wiki
-  openknowledge search Wiki "deployment model"
-  openknowledge view Wiki
-  openknowledge export html --out ./site Wiki
-  openknowledge deploy railway Wiki --dry-run
-`
 }
 
 func getHelpText() string {

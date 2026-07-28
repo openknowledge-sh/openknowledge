@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/agent-doctor.schema.json",
+  "title": "Open Knowledge agent doctor result v1",
+  "type": "object",
+  "required": ["schemaVersion", "runtimes"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "runtimes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["runtime", "available"],
+        "properties": {
+          "runtime": {"enum": ["codex", "claude", "opencode"]},
+          "available": {"type": "boolean"},
+          "executable": {"type": "string", "minLength": 1},
+          "error": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

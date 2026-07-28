@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # CLI Changelog
@@ -12,6 +12,67 @@ Current behavior belongs in the [command reference](/features/commands/). This
 page records release-level changes.
 
 ## Unreleased
+
+### 2026-07-28 — Onboarding, release, and verification hardening
+
+- Made `setup` preflight the selected agent executable before starting the
+  interactive workflow and added exact doctor/authentication recovery guidance.
+- Replaced duplicated root-command dispatch/help definitions with one command
+  catalog and routed diagnostics through an explicit writer instead of
+  temporarily replacing process-global standard error.
+- Closed the manual release-input shell-injection path and replaced textual
+  permission scanning with an actual YAML parser plus regression tests.
+- Rejected plain-HTTP custom shell-installer mirrors before download while
+  retaining `file://` only for controlled local transaction tests.
+- Added pull-request security scanning; race and coverage runs; Linux, macOS,
+  and Windows CLI certification; Node 18 compatibility; packed npm
+  installation; browser setup/search/keyboard journeys; and pre-tag
+  GoReleaser snapshot verification.
+- Added parser/archive fuzz targets and 100/1,000/10,000-section search/index
+  benchmarks.
+- Clarified the canonical `setup Wiki --from .` path, runtime recovery,
+  fail-closed publication permission, and default validation warning policy
+  across the README, website, and command/operations references.
+- Source: `packages/cli/cmd/openknowledge/{setup_command,command_catalog,cli_io}.go`,
+  `packages/cli/internal/okf/{fuzz,search_benchmark}_test.go`,
+  `packages/cli/internal/tools/checkworkflowpermissions/`,
+  `.github/workflows/{ci,release,security}.yml`, `scripts/`,
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `README.md`, `packages/web/index.html`,
+  `Wiki/features/commands/setup.md`, `Wiki/features/operations.md`.
+
+### 2026-07-21 — Anchor-aware graph retrieval
+
+- Preserved canonical Markdown fragments through machine-readable links and
+  resolved them to their owning content chunks in search graphs and one-hop
+  outgoing or backlink expansion. Lower-level headings resolve to their
+  containing retrieval chunk, while missing fragments no longer fall back to
+  an unrelated first chunk.
+- Preserved parallel source and search graph edges for repeated authored links,
+  including each occurrence's href, label, target anchor, and source line.
+- Promoted weak lexical matches with the strongest relationship-derived score
+  instead of dropping the graph evidence or returning a duplicate result.
+- Built the immutable BM25 corpus with each context index so generation-scoped
+  caches do not tokenize the complete corpus again for every query.
+- Source: `packages/cli/internal/okf/ast_links.go`,
+  `packages/cli/internal/okf/context_sections.go`,
+  `packages/cli/internal/okf/graph.go`,
+  `packages/cli/internal/okf/search_knowledge.go`,
+  `packages/cli/schemas/v1/common.schema.json`,
+  `packages/cli/schemas/v1/graph.schema.json`.
+- Docs: `Wiki/features/exporters/graph.md`,
+  `Wiki/features/commands/search.md`.
+
+### 2026-07-19 — Generation-scoped runtime search indexes
+
+- Built each runtime search context index once before activating its immutable
+  generation, then reused it across `_search` requests instead of reparsing and
+  validating the search projection for every query.
+- Replaced the cached index atomically with a new content digest; failed index
+  builds retain the last valid generation.
+- Source: `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/cmd/openknowledge/runtime_command_test.go`.
+- Docs: `Wiki/features/commands/runtime.md`.
 
 ### 2026-07-18 — Static viewer CSP compatibility
 
@@ -77,6 +138,12 @@ page records release-level changes.
   `packages/cli/cmd/openknowledge/runtime_serve.go`,
   `packages/cli/cmd/openknowledge/runtime_worker.go`.
 - Docs: `Wiki/features/commands/runtime.md`.
+
+## v0.7.2 — 2026-07-18
+
+This cumulative section records the v0.7 release line. `v0.7.0` moved Railway
+to a repository-owned runtime, `v0.7.1` removed a redundant source redeploy,
+and `v0.7.2` completed non-root persistent-volume startup.
 
 ### 2026-07-18 — Repository-owned Railway runtime
 
@@ -231,7 +298,11 @@ page records release-level changes.
 - Source: `packages/cli/cmd/openknowledge/viewer*.go`, `packages/web/`,
   `install`, `packages/npm/`, `.github/workflows/`, `Dockerfile`.
 
-## v0.6.0 Candidate
+## v0.6.1 — 2026-07-18
+
+- Corrected Railway persistent-volume ownership for the isolated runtime roles.
+
+## v0.6.0 — 2026-07-18
 
 ### 2026-07-09 — Retrieval and viewer polish
 

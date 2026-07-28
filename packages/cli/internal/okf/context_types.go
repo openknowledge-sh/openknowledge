@@ -39,10 +39,12 @@ type ContextSource struct {
 }
 
 type ContextIndex struct {
-	Root     string
-	Revision RetrievalRevision
-	Sections []ContextSection
-	Issues   []Issue
+	Root          string
+	Revision      RetrievalRevision
+	Sections      []ContextSection
+	Issues        []Issue
+	searchCorpus  knowledgeSearchCorpus
+	sectionLookup contextSectionLookup
 }
 
 type RetrievalRevision struct {
@@ -62,6 +64,7 @@ type ContextSection struct {
 	Frontmatter     map[string]string
 	Heading         string
 	HeadingPath     []string
+	Anchors         []string
 	HeadingLevel    int
 	LineStart       int
 	LineEnd         int

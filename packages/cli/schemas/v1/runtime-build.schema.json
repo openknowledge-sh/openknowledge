@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-build.schema.json",
+  "title": "Open Knowledge runtime build result v1",
+  "oneOf": [
+    {"$ref": "#/$defs/buildResult"},
+    {
+      "type": "object",
+      "required": ["schemaVersion", "generations"],
+      "properties": {
+        "schemaVersion": {"const": "1"},
+        "generations": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"$ref": "#/$defs/buildResult"}
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "buildResult": {
+      "type": "object",
+      "required": ["schemaVersion", "knowledgeBase", "generation", "commit", "contentDigest", "output"],
+      "properties": {
+        "schemaVersion": {"const": "1"},
+        "knowledgeBase": {"type": "string", "minLength": 1},
+        "generation": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "minLength": 1},
+        "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "output": {"type": "string", "minLength": 1},
+        "published": {
+          "type": "object",
+          "required": ["type", "version", "knowledgeBaseId", "generation", "contentDigest"],
+          "properties": {
+            "type": {"type": "string", "minLength": 1},
+            "version": {"type": "integer", "minimum": 1},
+            "knowledgeBaseId": {"type": "string", "minLength": 1},
+            "generation": {"type": "string", "minLength": 1},
+            "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

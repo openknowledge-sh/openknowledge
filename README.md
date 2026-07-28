@@ -106,6 +106,12 @@ inspect the current repository, creates a source-grounded `Wiki`, validates
 the result, and installs project integration. When it finishes, open the
 result with `openknowledge view Wiki`.
 
+Before starting the interactive process, `setup` verifies that the selected
+agent CLI is installed. If preflight fails, run
+`openknowledge agent doctor --runtime <runtime>`, repair that runtime, and
+rerun the same setup command. Authentication remains owned by the selected
+agent CLI; an authenticated runtime failure is reported with a rerun hint.
+
 ### Start a guided wiki without a source
 
 Omit `--from` when you want the launched agent to interview you about a new or
@@ -150,6 +156,8 @@ example, `okn validate Wiki` is equivalent to `openknowledge validate Wiki`.
 Both installers verify the release checksum before publishing the binary. The
 npm wrapper also bounds downloads and decompression, limits HTTPS redirects,
 and accepts only the exact regular `openknowledge` archive member.
+The shell installer rejects plain-HTTP custom release mirrors before any
+download; controlled local installer tests may use `file://`.
 
 Published platform archives also carry GitHub/Sigstore build provenance. After
 downloading an archive, verify its digest and signing repository identity with
@@ -215,6 +223,16 @@ openknowledge ast ./project-memory
 ```
 
 ### Publish or export
+
+Public HTML is fail-closed. Before the first public export, review the bundle
+and add this explicit permission to `./project-memory/openknowledge.toml`:
+
+```toml
+[publish]
+enabled = true
+```
+
+Then export the reviewed public projection:
 
 ```sh
 openknowledge export html --out ./project-site ./project-memory
@@ -629,9 +647,10 @@ portable bundle:
 - custom rule files under configured `[rules].paths` have canonical IDs,
   summaries, and instruction bullets
 
-It does not fail on optional fields, unknown concept types, unknown
+It does not fail by default on optional fields, unknown concept types, unknown
 frontmatter keys, broken local links, non-blocking Markdown syntax warnings, or
-missing index files.
+missing index files. Those link and Markdown findings are still reported as
+warnings and can be promoted to errors with `[validation.rules]` or `--rule`.
 
 For CI and editor integrations, `openknowledge validate --format json` emits a
 machine-readable report with summary counts, checks, active severity policy,
@@ -647,6 +666,8 @@ separately identifies the selected Open Knowledge Format version. Tests compile
 the schemas and validate golden plus representative non-empty outputs, while
 the website publishes them at
 `https://openknowledge.sh/schemas/cli/v1/<name>.schema.json`.
+The same distribution covers `agent doctor --json`, runtime plan/build, and
+Railway plan/result/runtime-scaffold outputs.
 Automation that also needs structured command failures can place the global
 `--error-format json` option before the command. Failures that wrote diagnostic
 text are emitted as one `cli-error.schema.json` document on stderr, while
@@ -668,7 +689,13 @@ invalid registry identity/path/access invariants before mutation.
 pnpm test:cli
 pnpm test:install
 pnpm test:npm-install
+pnpm test:packed-npm
 pnpm test:web
+pnpm test:browser
+pnpm test:race
+pnpm test:coverage
+pnpm check:format
+pnpm check:onboarding-docs
 pnpm check:versions
 pnpm check:workflow-pins
 pnpm check:workflow-secret-scope

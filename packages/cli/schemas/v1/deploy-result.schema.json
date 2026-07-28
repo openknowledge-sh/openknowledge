@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/deploy-result.schema.json",
+  "title": "Open Knowledge deployment result v1",
+  "type": "object",
+  "required": ["schemaVersion", "provider", "project", "publicEndpoint", "services", "stateFile", "status"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "provider": {"const": "railway"},
+    "project": {"$ref": "deploy-plan.schema.json#/$defs/project"},
+    "publicEndpoint": {"$ref": "deploy-plan.schema.json#/$defs/endpoint"},
+    "services": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "stateFile": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

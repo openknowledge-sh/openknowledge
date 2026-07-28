@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge search
 description: Build source-preserving context from local or connected knowledge bases.
 tags: [openknowledge, cli, command, search, context, graph]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-21T00:00:00Z
 ---
 
 # `openknowledge search`
@@ -64,8 +64,16 @@ both modes use `schemaVersion: "1"` and the published
   section bodies. Exact phrases, term coverage, prefixes, fuzzy matches, and
   normalized diacritics affect the score.
 - Search adds one hop of authored outgoing links and backlinks unless
-  `--no-expand` is set. It never follows external, missing, self, or transitive
-  links.
+  `--no-expand` is set. Fragments select the chunk that owns the addressed
+  heading: lower-level headings resolve to their containing H1-H3 chunk, and a
+  heading-only H1-H3 target resolves to its first content-bearing descendant.
+  Links without fragments select the first content-bearing chunk. Missing
+  fragments do not expand; search never follows external, missing, or
+  transitive links.
+- Outgoing targets receive 55% and backlinks 45% of the seed score. When a
+  target is also a lexical match, its score becomes the greater of its lexical
+  and strongest graph-derived score. It remains one direct result with its
+  lexical snippet and highlights; multiple links do not add scores together.
 - Direct evidence is packed first, followed by related sections. Only the last
   selected section may be truncated to fit the approximate token budget.
 - `--all` searches the current registry snapshot without refreshing remotes.

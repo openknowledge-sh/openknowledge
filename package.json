@@ -9,16 +9,25 @@
     "test:cli": "go test ./packages/cli/...",
     "test:install": "bash scripts/test-install.sh",
     "test:npm-install": "node --test packages/npm/install.test.js",
+    "test:packed-npm": "node scripts/test-packed-npm.mjs",
     "test:web": "pnpm --filter @openknowledge-sh/web test",
+    "test:browser": "pnpm --filter @openknowledge-sh/web test:browser",
+    "test:race": "go test -race ./packages/cli/...",
+    "test:coverage": "go test -covermode=atomic -coverprofile=coverage.out ./packages/cli/...",
     "build:cli": "go build -o bin/openknowledge ./packages/cli/cmd/openknowledge",
+    "check:format": "bash scripts/check-gofmt.sh",
+    "check:onboarding-docs": "node scripts/check-onboarding-docs.mjs",
     "check:versions": "node scripts/check-versions.mjs",
     "check:workflow-pins": "node scripts/check-workflow-pins.mjs",
     "check:workflow-secret-scope": "node scripts/check-workflow-secret-scope.mjs",
-    "check:workflow-permissions": "node scripts/check-workflow-permissions.mjs",
+    "check:workflow-permissions": "go -C packages/cli run ./internal/tools/checkworkflowpermissions",
     "check:security-config": "node scripts/check-security-config.mjs",
     "check:container-runtime": "node scripts/check-container-runtime.mjs",
     "check:repo-jobs": "go run ./packages/cli/cmd/openknowledge jobs validate .openknowledge/jobs",
-    "test": "pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm check:security-config && pnpm check:container-runtime && pnpm check:repo-jobs && pnpm test:install && pnpm test:npm-install && pnpm test:web && pnpm test:cli",
+    "test": "pnpm check:format && pnpm check:onboarding-docs && pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm check:security-config && pnpm check:container-runtime && pnpm check:repo-jobs && pnpm test:install && pnpm test:npm-install && pnpm test:packed-npm && pnpm test:web && pnpm test:cli",
     "build": "pnpm build:cli && pnpm build:web"
+  },
+  "devDependencies": {
+    "playwright": "1.61.1"
   }
 }

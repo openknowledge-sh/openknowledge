@@ -182,6 +182,24 @@ func TestLinksFromASTMarkdownMarksDirectoryIndexLinksExisting(t *testing.T) {
 	}
 }
 
+func TestLinksFromASTMarkdownPreservesTargetAnchors(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n")
+
+	markdown := ParseASTMarkdown("[Encoded](guide.md#release%20notes) and [Local](#home).\n", 1)
+	links := LinksFromASTMarkdown(root, "index.md", markdown)
+	if len(links) != 2 {
+		t.Fatalf("expected two links, got %#v", links)
+	}
+	if links[0].Kind != "local" || links[0].TargetPath != "guide.md" || links[0].TargetAnchor != "release notes" || !links[0].Exists {
+		t.Fatalf("expected decoded cross-file target anchor, got %#v", links[0])
+	}
+	if links[1].Kind != "anchor" || links[1].TargetPath != "index.md" || links[1].TargetID != "index" || links[1].TargetAnchor != "home" || !links[1].Exists {
+		t.Fatalf("expected same-document anchor target, got %#v", links[1])
+	}
+}
+
 func TestBuildGraphUsesASTBackedLocalLinks(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n\nRead [Guide](guides/setup.md), [Missing](missing.md), and [Self](index.md).\n\n```md\n[Code](guides/setup.md)\n```\n")
@@ -205,6 +223,37 @@ func TestBuildGraphUsesASTBackedLocalLinks(t *testing.T) {
 	}
 	if strings.Contains(graph.Edges[1].Href, "Code") {
 		t.Fatalf("expected graph links to ignore fenced-code links, got %#v", graph.Edges)
+	}
+}
+
+func TestBuildSourceGraphPreservesParallelLinkOccurrences(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n\nRead [Setup](guide.md#setup).\n\nRead [Recovery](guide.md#recovery).\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n\n## Setup\n\nPrepare.\n\n## Recovery\n\nRestore.\n")
+
+	graph, err := BuildGraph(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(graph.Edges) != 2 {
+		t.Fatalf("expected both authored links to remain separate, got %#v", graph.Edges)
+	}
+	if graph.Edges[0].Label != "Setup" || graph.Edges[0].TargetAnchor != "setup" || graph.Edges[1].Label != "Recovery" || graph.Edges[1].TargetAnchor != "recovery" || graph.Edges[0].Line == graph.Edges[1].Line {
+		t.Fatalf("expected occurrence metadata on parallel edges, got %#v", graph.Edges)
+	}
+}
+
+func TestBuildSourceGraphResolvesDirectoryLinksToIndex(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n\nRead [Guides](guides).\n")
+	writeFile(t, root, "guides/index.md", "# Guides\n")
+
+	graph, err := BuildGraph(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(graph.Edges) != 1 || graph.Edges[0].Source != "index.md" || graph.Edges[0].Target != "guides/index.md" {
+		t.Fatalf("expected directory link to target its index node, got %#v", graph.Edges)
 	}
 }
 
@@ -239,6 +288,41 @@ func TestBuildSearchGraphIncludesSectionChunks(t *testing.T) {
 		if !kinds[expected] {
 			t.Fatalf("expected %s edge in search graph, got %#v", expected, graph.Edges)
 		}
+	}
+}
+
+func TestBuildSearchGraphResolvesFragmentsToOwningChunks(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n\nRead [Rollback](guide.md#rollback), [Parent](guide.md#operations), and [Missing](guide.md#missing).\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n\nIntroduction.\n\n## Operations\n\n### Recovery\n\nRecovery overview. Read [Guide](#guide).\n\n#### Rollback\n\nRestore the release.\n")
+
+	graph, err := BuildGraphWithType(root, LatestSpecVersion, GraphTypeSearch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var anchored []GraphEdge
+	for _, edge := range graph.Edges {
+		if edge.Kind == "local-link" && edge.Source == "index#home" {
+			anchored = append(anchored, edge)
+		}
+	}
+	if len(anchored) != 2 {
+		t.Fatalf("expected resolved rollback and parent edges but no missing-fragment fallback, got %#v", anchored)
+	}
+	for _, edge := range anchored {
+		if edge.Target != "guide#recovery" || (edge.TargetAnchor != "rollback" && edge.TargetAnchor != "operations") {
+			t.Fatalf("expected lower-level and heading-only anchors to select the recovery chunk, got %#v", anchored)
+		}
+	}
+	var sameDocument bool
+	for _, edge := range graph.Edges {
+		if edge.Kind == "local-link" && edge.Source == "guide#recovery" && edge.Target == "guide#guide" && edge.TargetAnchor == "guide" {
+			sameDocument = true
+			break
+		}
+	}
+	if !sameDocument {
+		t.Fatalf("expected a pure fragment to create an exact same-document chunk edge, got %#v", graph.Edges)
 	}
 }
 

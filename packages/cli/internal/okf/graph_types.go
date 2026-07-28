@@ -41,4 +41,5 @@ type GraphEdge struct {
 	Href         string `json:"href,omitempty"`
 	Line         int    `json:"line,omitempty"`
 	LinkTargetID string `json:"linkTargetId,omitempty"`
+	TargetAnchor string `json:"targetAnchor,omitempty"`
 }

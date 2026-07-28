@@ -11,6 +11,8 @@ const goWork = fs.readFileSync(path.join(root, "go.work"), "utf8");
 const failures = [];
 
 const requiredWorkflowFragments = [
+  "pull_request:",
+  "branches: [main]",
   "schedule:",
   "cron:",
   "workflow_dispatch:",
@@ -82,5 +84,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("Scheduled security scans and dependency updates are configured");
+  console.log("Pull-request and scheduled security scans plus dependency updates are configured");
 }

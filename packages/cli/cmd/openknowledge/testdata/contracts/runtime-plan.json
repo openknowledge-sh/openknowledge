@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1",
+  "config": "/workspace/runtime.toml",
+  "stateDir": "/state",
+  "artifactStore": {
+    "type": "filesystem",
+    "path": "/state/artifacts"
+  },
+  "serve": {
+    "address": "127.0.0.1:8080",
+    "poll_interval": "5s",
+    "request_timeout": "15s",
+    "max_concurrency": 32,
+    "mcp_access": "public"
+  },
+  "worker": {
+    "repo": "/workspace",
+    "remote": "origin",
+    "production_branch": "main",
+    "poll_interval": "30s",
+    "run_jobs": true,
+    "jobs_path": ".openknowledge/jobs",
+    "runtimes": [
+      "codex"
+    ],
+    "exchange_dir": "/state/exchange"
+  },
+  "github": {
+    "enabled": false,
+    "api_url": "https://api.github.com",
+    "repository": "example/docs",
+    "draft_pull_request": true,
+    "checks": true
+  },
+  "knowledgeBases": [
+    {
+      "id": "docs",
+      "path": "/workspace/Wiki",
+      "route": "/",
+      "spec": "0.1",
+      "publish": true,
+      "mcp": false
+    }
+  ],
+  "requiredRuntimes": [
+    "codex"
+  ]
+}

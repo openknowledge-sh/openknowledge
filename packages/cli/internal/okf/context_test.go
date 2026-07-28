@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -73,6 +74,43 @@ func TestContextIndexUsesParsedMarkdownSections(t *testing.T) {
 	if index.Sections[0].Heading != "Top" || index.Sections[0].HeadingLevel != 0 {
 		t.Fatalf("expected context to trust parsed Markdown sections, got %#v", index.Sections[0])
 	}
+}
+
+func TestContextIndexUsesCanonicalAnchorsAndAliases(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n\nOverview.\n\n#### Repeat\n\nLower-level detail.\n\n## Repeat\n\nCanonical duplicate content.\n\n## Empty Parent\n\n### Child\n\nChild content.\n")
+
+	index, err := BuildContextIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.searchCorpus.documents) != len(index.Sections) {
+		t.Fatalf("expected query-ready BM25 corpus to be built once with the context index: sections=%d documents=%d", len(index.Sections), len(index.searchCorpus.documents))
+	}
+	byID := map[string]ContextSection{}
+	for _, section := range index.Sections {
+		byID[section.ID] = section
+	}
+	if _, ok := byID["guide#repeat-2"]; !ok {
+		t.Fatalf("expected chunk ID to preserve the canonical duplicate anchor, got %#v", index.Sections)
+	}
+	child, ok := byID["guide#child"]
+	if !ok || !reflect.DeepEqual(child.Anchors, []string{"child", "empty-parent"}) {
+		t.Fatalf("expected heading-only parent anchor to resolve to its content-bearing child, got %#v", child)
+	}
+	guide := byID["guide#guide"]
+	if !testContainsString(guide.Anchors, "repeat") {
+		t.Fatalf("expected lower-level heading anchor on its owning H1-H3 chunk, got %#v", guide)
+	}
+}
+
+func testContainsString(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
 }
 
 func TestResolveContextRanksHeadingMetadataAndBodyMatches(t *testing.T) {

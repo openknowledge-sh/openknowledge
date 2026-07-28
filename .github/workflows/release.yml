@@ -50,8 +50,10 @@ jobs:
       - name: Resolve release tag
         id: release
         shell: bash
+        env:
+          RAW_VERSION: ${{ inputs.version }}
         run: |
-          raw="${{ inputs.version }}"
+          raw="$RAW_VERSION"
           version="${raw#v}"
           tag="v${version}"
 
@@ -100,9 +102,17 @@ jobs:
 
       - name: Run release quality gate
         run: |
+          pnpm check:format
           pnpm test
+          pnpm test:race
           go vet ./packages/cli/...
           pnpm build
+
+      - name: Install browser test runtime
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Test release browser journeys
+        run: pnpm test:browser
 
       - name: Verify release binary and wiki
         shell: bash
@@ -113,10 +123,26 @@ jobs:
           ./bin/openknowledge validate Wiki
 
       - name: Verify npm package contents
-        working-directory: packages/npm
         env:
           OPENKNOWLEDGE_SKIP_DOWNLOAD: "1"
-        run: npm pack --dry-run --json
+        run: pnpm test:packed-npm
+
+      - name: Build release snapshot
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          distribution: goreleaser
+          version: v2.17.0
+          args: release --snapshot --clean
+
+      - name: Verify release snapshot artifacts
+        shell: bash
+        run: |
+          test -s dist/checksums.txt
+          archive_count="$(find dist -maxdepth 1 -type f -name 'openknowledge_*.tar.gz' | wc -l | tr -d ' ')"
+          if [ "$archive_count" != "6" ]; then
+            echo "Expected 6 darwin/linux/windows archives, found $archive_count" >&2
+            exit 1
+          fi
 
       - name: Verify npm publishing credentials
         shell: bash

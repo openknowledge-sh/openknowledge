@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -62,4 +63,17 @@ func linkTargetRel(sourceRel string, href string) string {
 		clean = filepath.ToSlash(filepath.Join(clean, "index.md"))
 	}
 	return clean
+}
+
+func linkTargetAnchor(href string) string {
+	href = strings.TrimSpace(href)
+	hash := strings.Index(href, "#")
+	if hash < 0 || hash+1 >= len(href) {
+		return ""
+	}
+	fragment := href[hash+1:]
+	if decoded, err := url.PathUnescape(fragment); err == nil {
+		fragment = decoded
+	}
+	return strings.TrimSpace(fragment)
 }

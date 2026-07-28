@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge deploy
 description: Provision the isolated Open Knowledge runtime on a supported provider.
 tags: [openknowledge, cli, deploy, railway, runtime, docker, security]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # `openknowledge deploy`
@@ -152,7 +152,7 @@ openknowledge deploy railway Wiki --prune --yes
 This deletes publisher and worker services omitted from the new plan, including
 their provider-attached volumes, while retaining the existing `serve` service.
 Changing repository source still requires explicit provider cleanup. The state
-version is separate from the provisional command-output `schemaVersion: "1"`.
+version is separate from the command-output `schemaVersion: "1"`.
 
 Each planned service is connected to the same GitHub repository and production
 branch. Railway builds `.openknowledge/runtime/Dockerfile`; role variables only
@@ -176,8 +176,9 @@ repository URL. A successful result means Railway accepted the deploy; it does
 not wait for image startup or DNS propagation. Check
 `/_openknowledge/healthz` and `/_openknowledge/readyz` after deployment.
 
-Dry-run and deployment results declare `schemaVersion: "1"`, but do not yet
-have published schemas; treat these operational JSON shapes as provisional.
+Dry-run, successful deployment, and runtime-scaffold results declare
+`schemaVersion: "1"` and are covered by `deploy-plan.schema.json`,
+`deploy-result.schema.json`, and `deploy-runtime-scaffold.schema.json`.
 
 Railway is currently the only full-runtime provider.
 

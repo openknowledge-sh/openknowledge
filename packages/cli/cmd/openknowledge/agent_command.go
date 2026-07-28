@@ -19,6 +19,7 @@ type agentCLIOptions struct {
 	operation    string
 	isolate      bool
 	path         string
+	executable   string
 	model        string
 	prompt       string
 	runtime      string
@@ -44,7 +45,7 @@ var runAgentProcess = func(ctx context.Context, executable string, arguments []s
 	command.Env = os.Environ()
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
+	command.Stderr = stderrOutput()
 	return command.Run()
 }
 
@@ -65,7 +66,7 @@ func runAgent(args []string) int {
 	}
 	options, err := parseAgentArgs(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	return runAgentWithOptions(options)
@@ -78,20 +79,20 @@ func runAgentWithOptions(options agentCLIOptions) int {
 
 	directory, err := filepath.Abs(options.path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if info, err := os.Stat(directory); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	} else if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "agent path is not a directory: %s\n", directory)
+		fmt.Fprintf(stderrOutput(), "agent path is not a directory: %s\n", directory)
 		return 1
 	}
 
 	task, mode, interactive, err := agentTask(options)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	if options.isolate {
@@ -106,25 +107,28 @@ func runAgentWithOptions(options agentCLIOptions) int {
 
 	command, err := agents.BuildHarnessCommand(agents.AgentSpec{Runtime: options.runtime, Model: options.model}, interactive)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
-	executable, err := resolveAgentExecutable(context.Background(), options.runtime)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+	executable := options.executable
+	if executable == "" {
+		executable, err = resolveAgentExecutable(context.Background(), options.runtime)
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
 	}
 
 	var isolated agents.IsolatedWorkspace
 	if options.isolate {
 		isolated, err = agents.PrepareIsolatedWorkspace(directory)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		directory = isolated.WorkDir
-		fmt.Fprintf(os.Stderr, "isolated agent workspace: %s\n", isolated.Worktree)
-		fmt.Fprintf(os.Stderr, "branch: %s\n", isolated.Branch)
+		fmt.Fprintf(stderrOutput(), "isolated agent workspace: %s\n", isolated.Worktree)
+		fmt.Fprintf(stderrOutput(), "branch: %s\n", isolated.Branch)
 	}
 
 	arguments := append([]string(nil), command.Args...)
@@ -150,7 +154,7 @@ func runAgentWithOptions(options agentCLIOptions) int {
 		if errors.As(err, &exitError) {
 			return exitError.ExitCode()
 		}
-		fmt.Fprintf(os.Stderr, "run %s agent: %v\n", options.runtime, err)
+		fmt.Fprintf(stderrOutput(), "run %s agent: %v\n", options.runtime, err)
 		return 1
 	}
 	return 0

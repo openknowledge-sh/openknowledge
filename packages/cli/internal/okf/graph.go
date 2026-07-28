@@ -57,40 +57,44 @@ func GraphFromBundle(bundle Bundle) Graph {
 		})
 	}
 
-	seenEdges := map[string]bool{}
 	edges := []GraphEdge{}
 	for _, file := range bundle.Files {
 		for _, link := range file.Links {
-			if link.Kind != "local" || link.TargetPath == "" || link.TargetPath == file.Path {
+			if link.Kind != "local" || link.TargetPath == "" || !link.Exists {
 				continue
 			}
-			target, ok := paths[link.TargetPath]
-			if !ok || !link.Exists {
+			target, ok := graphTargetFile(paths, link.TargetPath)
+			if !ok || target.Path == file.Path {
 				continue
 			}
-			key := file.Path + "\x00" + link.TargetPath
-			if seenEdges[key] {
-				continue
-			}
-			seenEdges[key] = true
 			edges = append(edges, GraphEdge{
 				Source:       file.Path,
-				Target:       link.TargetPath,
+				Target:       target.Path,
 				SourceID:     file.ID,
 				TargetID:     target.ID,
 				Label:        link.Label,
 				Href:         link.Href,
 				Line:         link.Line,
 				LinkTargetID: link.TargetID,
+				TargetAnchor: link.TargetAnchor,
 			})
 		}
 	}
 
 	sort.Slice(edges, func(i, j int) bool {
-		if edges[i].Source == edges[j].Source {
+		if edges[i].Source != edges[j].Source {
+			return edges[i].Source < edges[j].Source
+		}
+		if edges[i].Target != edges[j].Target {
 			return edges[i].Target < edges[j].Target
 		}
-		return edges[i].Source < edges[j].Source
+		if edges[i].Line != edges[j].Line {
+			return edges[i].Line < edges[j].Line
+		}
+		if edges[i].Href != edges[j].Href {
+			return edges[i].Href < edges[j].Href
+		}
+		return edges[i].Label < edges[j].Label
 	})
 
 	return Graph{
@@ -102,6 +106,14 @@ func GraphFromBundle(bundle Bundle) Graph {
 		Edges:         edges,
 		Issues:        bundle.Issues,
 	}
+}
+
+func graphTargetFile(paths map[string]BundleFile, targetPath string) (BundleFile, bool) {
+	if target, ok := paths[targetPath]; ok {
+		return target, true
+	}
+	target, ok := paths[strings.TrimSuffix(targetPath, "/")+"/index.md"]
+	return target, ok
 }
 
 func buildSearchGraphWithVersion(root string, version string) (Graph, error) {
@@ -128,7 +140,7 @@ func buildSearchGraphWithVersion(root string, version string) (Graph, error) {
 		}
 	}
 
-	firstSectionByPath := map[string]ContextSection{}
+	lookup := index.sectionLookup
 	sectionsByPath := map[string][]ContextSection{}
 	for _, section := range index.Sections {
 		graph.Nodes = append(graph.Nodes, GraphNode{
@@ -143,9 +155,6 @@ func buildSearchGraphWithVersion(root string, version string) (Graph, error) {
 			LineStart:   section.LineStart,
 			LineEnd:     section.LineEnd,
 		})
-		if existing, ok := firstSectionByPath[section.Path]; !ok || section.LineStart < existing.LineStart {
-			firstSectionByPath[section.Path] = section
-		}
 		sectionsByPath[section.Path] = append(sectionsByPath[section.Path], section)
 		sourceID := fileIDByPath[section.Path]
 		if sourceID == "" {
@@ -177,23 +186,14 @@ func buildSearchGraphWithVersion(root string, version string) (Graph, error) {
 		}
 	}
 
-	// Chunk-level link edges connect the section containing a link to the first
-	// content-bearing chunk in the target file.
-	seenChunkLinks := map[string]bool{}
+	// Chunk-level link edges connect the section containing a link to the
+	// content-bearing chunk addressed by its optional fragment.
 	for _, section := range index.Sections {
 		for _, link := range section.Links {
-			if link.Kind != "local" || link.TargetPath == "" || !link.Exists || link.TargetPath == section.Path {
+			target, ok := lookup.target(link)
+			if !ok || target.ID == section.ID {
 				continue
 			}
-			target, ok := firstSectionByPath[link.TargetPath]
-			if !ok {
-				continue
-			}
-			key := section.ID + "\x00" + target.ID + "\x00" + link.Label
-			if seenChunkLinks[key] {
-				continue
-			}
-			seenChunkLinks[key] = true
 			graph.Edges = append(graph.Edges, GraphEdge{
 				Kind:         "local-link",
 				Source:       section.ID,
@@ -204,6 +204,7 @@ func buildSearchGraphWithVersion(root string, version string) (Graph, error) {
 				Href:         link.Href,
 				Line:         link.Line,
 				LinkTargetID: link.TargetID,
+				TargetAnchor: link.TargetAnchor,
 			})
 		}
 	}
@@ -227,7 +228,16 @@ func buildSearchGraphWithVersion(root string, version string) (Graph, error) {
 		if graph.Edges[i].Source != graph.Edges[j].Source {
 			return graph.Edges[i].Source < graph.Edges[j].Source
 		}
-		return graph.Edges[i].Target < graph.Edges[j].Target
+		if graph.Edges[i].Target != graph.Edges[j].Target {
+			return graph.Edges[i].Target < graph.Edges[j].Target
+		}
+		if graph.Edges[i].Line != graph.Edges[j].Line {
+			return graph.Edges[i].Line < graph.Edges[j].Line
+		}
+		if graph.Edges[i].Href != graph.Edges[j].Href {
+			return graph.Edges[i].Href < graph.Edges[j].Href
+		}
+		return graph.Edges[i].Label < graph.Edges[j].Label
 	})
 	return graph, nil
 }

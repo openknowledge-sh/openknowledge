@@ -55,8 +55,8 @@ func runRuntime(args []string) int {
 	case "worker":
 		return runRuntimeWorker(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown runtime subcommand: %s\n\n", args[0])
-		fmt.Fprint(os.Stderr, runtimeHelpText())
+		fmt.Fprintf(stderrOutput(), "unknown runtime subcommand: %s\n\n", args[0])
+		fmt.Fprint(stderrOutput(), runtimeHelpText())
 		return 2
 	}
 }
@@ -67,13 +67,13 @@ func runRuntimePlan(args []string) int {
 		return 0
 	}
 	flags := flag.NewFlagSet("runtime plan", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(stderrOutput())
 	configPath := flags.String("config", okruntime.DefaultConfigFile, "runtime TOML configuration")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "runtime plan accepts no positional arguments")
+		fmt.Fprintln(stderrOutput(), "runtime plan accepts no positional arguments")
 		return 2
 	}
 	config, err := okruntime.LoadConfig(*configPath)
@@ -143,7 +143,7 @@ func runRuntimeBuild(args []string) int {
 		return 0
 	}
 	flags := flag.NewFlagSet("runtime build", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(stderrOutput())
 	configPath := flags.String("config", okruntime.DefaultConfigFile, "runtime TOML configuration")
 	knowledgeID := flags.String("id", "", "build only this knowledge base")
 	commit := flags.String("commit", "", "source commit identity")
@@ -153,7 +153,7 @@ func runRuntimeBuild(args []string) int {
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "runtime build accepts no positional arguments")
+		fmt.Fprintln(stderrOutput(), "runtime build accepts no positional arguments")
 		return 2
 	}
 	config, err := okruntime.LoadConfig(*configPath)
@@ -165,7 +165,7 @@ func runRuntimeBuild(args []string) int {
 		return printAgentCommandError(err)
 	}
 	if *out != "" && len(selected) != 1 {
-		fmt.Fprintln(os.Stderr, "--out requires exactly one selected knowledge base")
+		fmt.Fprintln(stderrOutput(), "--out requires exactly one selected knowledge base")
 		return 2
 	}
 	resolvedCommit := strings.TrimSpace(*commit)

@@ -54,7 +54,7 @@ func runDeployRailwayInit(args []string) int {
 		args = append(append([]string(nil), args[1:]...), args[0])
 	}
 	flags := flag.NewFlagSet("deploy railway init", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(stderrOutput())
 	runtimes := flags.String("runtimes", "", "comma-separated agent runtimes to install")
 	openKnowledgeVersion := flags.String("openknowledge-version", version, "Open Knowledge npm package version")
 	codexVersion := flags.String("codex-version", defaultCodexRuntimeVersion, "Codex CLI npm package version")
@@ -65,7 +65,7 @@ func runDeployRailwayInit(args []string) int {
 		return 2
 	}
 	if flags.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "deploy railway init accepts at most one knowledge base path")
+		fmt.Fprintln(stderrOutput(), "deploy railway init accepts at most one knowledge base path")
 		return 2
 	}
 	knowledgePath := "."

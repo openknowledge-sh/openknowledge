@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1",
+  "knowledgeBase": "docs",
+  "generation": "generation-1",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "output": "/state/artifacts/docs/generation-1",
+  "published": {
+    "type": "openknowledge-active",
+    "version": 1,
+    "knowledgeBaseId": "docs",
+    "generation": "generation-1",
+    "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

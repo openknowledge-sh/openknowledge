@@ -3,7 +3,7 @@ type: Decision
 title: Wiki Structure
 description: Setup decisions for the Open Knowledge CLI developer wiki.
 tags: [openknowledge, cli, decision, wiki]
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-07-21T00:00:00Z
 ---
 
 # Wiki Structure
@@ -29,5 +29,8 @@ repo-local skill at `.codex/skills/openknowledge-wiki/SKILL.md`.
 
 ## Boundaries
 
-The wiki should not store raw copied source material by default. Source files,
-tests, README content, and release docs remain the source of truth.
+The wiki should not store raw copied source material by default. Source and
+tests are the behavioral authority; this wiki is the canonical CLI reference;
+the README is the product overview. Within any Open Knowledge bundle, its OKF
+Markdown is the canonical corpus and generated search indexes, graphs, exports,
+and runtime artifacts are rebuildable projections.

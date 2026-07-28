@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge runtime
 description: Serve immutable knowledge generations and run isolated private maintenance roles.
 tags: [openknowledge, cli, runtime, docker, security, mcp, github]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # `openknowledge runtime`
@@ -51,6 +51,8 @@ It requires `--id` only when configuration selects multiple knowledge bases.
 Without `--out`, builds go under
 `<state_dir>/builds/<id>`. Plan and build output use `schemaVersion: "1"`;
 multi-build results wrap generations in a top-level `generations` array.
+Single-plan and single-build contracts are published as
+`runtime-plan.schema.json` and `runtime-build.schema.json`.
 
 `--role all` is for local development and is rejected when GitHub integration
 is enabled.
@@ -126,8 +128,10 @@ mcp/      # MCP projection
 
 The manifest binds the knowledge-base ID, OKF spec, source commit, and sorted
 file digests. Promotion is staged and atomic. `serve` verifies the pointer,
-manifest, and every file before switching snapshots; invalid updates leave the
-last valid snapshot active.
+manifest, and every file, then builds the search context index before switching
+snapshots. Search requests reuse that generation-scoped index. A new content
+digest replaces it atomically; invalid files or an index-build failure leave
+the last valid snapshot active.
 
 For each configured route the service exposes the static viewer,
 `_search?q=<query>&limit=<1..50>`, and optional `_mcp`. Process health is at

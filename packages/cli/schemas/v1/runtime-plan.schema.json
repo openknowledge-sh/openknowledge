@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-plan.schema.json",
+  "title": "Open Knowledge runtime plan v1",
+  "type": "object",
+  "required": ["schemaVersion", "config", "stateDir", "artifactStore", "serve", "worker", "github", "knowledgeBases"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "config": {"type": "string", "minLength": 1},
+    "stateDir": {"type": "string", "minLength": 1},
+    "artifactStore": {"$ref": "#/$defs/artifactStore"},
+    "serve": {"$ref": "#/$defs/serve"},
+    "worker": {"$ref": "#/$defs/worker"},
+    "github": {"$ref": "#/$defs/github"},
+    "knowledgeBases": {"type": "array", "items": {"$ref": "#/$defs/knowledgeBase"}},
+    "requiredRuntimes": {
+      "type": "array",
+      "items": {"enum": ["codex", "claude", "opencode"]},
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "artifactStore": {
+      "type": "object",
+      "required": ["type", "path"],
+      "properties": {
+        "type": {"enum": ["filesystem", "http"]},
+        "path": {"type": "string"},
+        "url": {"type": "string"},
+        "token_env": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "serve": {
+      "type": "object",
+      "required": ["address", "poll_interval", "request_timeout", "max_concurrency", "mcp_access"],
+      "properties": {
+        "address": {"type": "string"},
+        "poll_interval": {"type": "string"},
+        "request_timeout": {"type": "string"},
+        "max_concurrency": {"type": "integer", "minimum": 1},
+        "mcp_access": {"type": "string"},
+        "mcp_token_env": {"type": "string"},
+        "allowed_origins": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "worker": {
+      "type": "object",
+      "required": ["repo", "remote", "production_branch", "poll_interval", "run_jobs", "jobs_path", "exchange_dir"],
+      "properties": {
+        "repo": {"type": "string"},
+        "repository_url": {"type": "string"},
+        "remote": {"type": "string"},
+        "production_branch": {"type": "string"},
+        "poll_interval": {"type": "string"},
+        "run_jobs": {"type": "boolean"},
+        "jobs_path": {"type": "string"},
+        "runtimes": {"type": "array", "items": {"enum": ["codex", "claude", "opencode"]}},
+        "git_token_env": {"type": "string"},
+        "exchange_dir": {"type": "string"},
+        "exchange_url": {"type": "string"},
+        "exchange_token_env": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "github": {
+      "type": "object",
+      "required": ["enabled", "api_url", "repository", "draft_pull_request", "checks"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "api_url": {"type": "string"},
+        "repository": {"type": "string"},
+        "app_id": {"type": "integer"},
+        "installation_id": {"type": "integer"},
+        "private_key_file": {"type": "string"},
+        "token_env": {"type": "string"},
+        "draft_pull_request": {"type": "boolean"},
+        "checks": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "knowledgeBase": {
+      "type": "object",
+      "required": ["id", "path", "route", "spec", "publish", "mcp"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "route": {"type": "string"},
+        "spec": {"type": "string", "minLength": 1},
+        "publish": {"type": "boolean"},
+        "mcp": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

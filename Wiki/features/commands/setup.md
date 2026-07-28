@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge setup
 description: Runs the managed agent onboarding workflow for a knowledge base.
 tags: [openknowledge, cli, command, setup]
-timestamp: 2026-06-18T00:00:00Z
+timestamp: 2026-07-28T00:00:00Z
 ---
 
 # `openknowledge setup`
@@ -54,11 +54,18 @@ Built-in canonical rules are `project`, `docs`, `decisions`, `changelog`,
 
 ## Completion Contract
 
-Setup succeeds only when all three stages succeed: the selected agent harness
-finishes, the target is a valid OKF bundle, and project integration installs.
-Agent failure, a missing target, validation errors, or integration failure
-produce a nonzero exit. Existing uncommitted repository changes remain visible
-to the agent.
+Before launching an interactive process, setup resolves the selected runtime
+executable. A missing or unusable executable fails before agent work starts and
+prints an exact `openknowledge agent doctor --runtime <runtime>` recovery
+command. The resolved executable is reused for the run, avoiding a second
+discovery pass.
+
+Setup succeeds only when all three execution stages succeed: the selected agent
+harness finishes, the target is a valid OKF bundle, and project integration
+installs. Agent failure prints the runtime and exit status plus an
+authentication-and-rerun hint. A missing target, validation errors, or
+integration failure also produce a nonzero exit. Existing uncommitted
+repository changes remain visible to the agent.
 
 Setup is the workflow controller: it starts an interactive process for the
 selected agent runtime. Do not treat `scaffold` as an equivalent onboarding

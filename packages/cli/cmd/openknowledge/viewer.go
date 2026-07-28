@@ -39,7 +39,7 @@ func runView(args []string) int {
 		return 0
 	}
 	fs := flag.NewFlagSet("view", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderrOutput())
 	host := fs.String("host", "127.0.0.1", "host to bind")
 	port := fs.Int("port", 0, "port to bind, or 0 for a free port")
 	name := fs.String("name", "", "local alias name for direct path mode")
@@ -54,13 +54,13 @@ func runView(args []string) int {
 		return 2
 	}
 	if fs.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "view accepts at most one path")
+		fmt.Fprintln(stderrOutput(), "view accepts at most one path")
 		return 2
 	}
 	*host = strings.TrimSpace(*host)
 	accessToken, err := viewerAccessToken(*host, *allowNetwork, *tokenFlag)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
@@ -70,7 +70,7 @@ func runView(args []string) int {
 		ScriptSrcs: []string(scriptSrcs),
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	options := viewerOptions{HeadHTML: headInjection}
@@ -82,12 +82,12 @@ func runView(args []string) int {
 		target := fs.Arg(0)
 		absolute, err := resolveViewerRoot(target)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 		canWrite, err := okf.RegistryPathCanWrite(absolute)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		options.ReadOnly = !canWrite
@@ -103,7 +103,7 @@ func runView(args []string) int {
 	} else {
 		entries, err := okf.RegistryEntries()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		for _, entry := range entries {
@@ -121,7 +121,7 @@ func runView(args []string) int {
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(*host, strconv.Itoa(*port)))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 
@@ -141,7 +141,7 @@ func runView(args []string) int {
 
 	if !*noBrowser {
 		if err := openBrowser(viewURL); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not open browser: %v\n", err)
+			fmt.Fprintf(stderrOutput(), "warning: could not open browser: %v\n", err)
 		}
 	}
 
@@ -152,7 +152,7 @@ func runView(args []string) int {
 		MaxHeaderBytes:    1 << 20,
 	}
 	if err := server.Serve(listener); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	return 0

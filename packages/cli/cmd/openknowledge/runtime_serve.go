@@ -28,17 +28,19 @@ type runtimeGenerationSnapshot struct {
 	Pointer   okruntime.ActivePointer
 	Manifest  okruntime.GenerationManifest
 	Root      string
+	Search    okf.ContextIndex
 }
 
 type runtimeSnapshotManager struct {
-	config    okruntime.Config
-	store     okruntime.FilesystemStore
-	knowledge []okruntime.KnowledgeBaseConfig
-	client    *http.Client
-	token     string
-	initErr   error
-	mu        sync.RWMutex
-	active    map[string]runtimeGenerationSnapshot
+	config           okruntime.Config
+	store            okruntime.FilesystemStore
+	knowledge        []okruntime.KnowledgeBaseConfig
+	client           *http.Client
+	token            string
+	initErr          error
+	buildSearchIndex func(string, string) (okf.ContextIndex, error)
+	mu               sync.RWMutex
+	active           map[string]runtimeGenerationSnapshot
 }
 
 func newRuntimeSnapshotManager(config okruntime.Config) *runtimeSnapshotManager {
@@ -52,13 +54,14 @@ func newRuntimeSnapshotManager(config okruntime.Config) *runtimeSnapshotManager 
 	}
 	requestTimeout, _ := time.ParseDuration(config.Serve.RequestTimeout)
 	return &runtimeSnapshotManager{
-		config:    config,
-		store:     okruntime.FilesystemStore{Root: config.ArtifactStore.Path},
-		knowledge: append([]okruntime.KnowledgeBaseConfig(nil), config.KnowledgeBases...),
-		client:    &http.Client{Timeout: requestTimeout},
-		token:     token,
-		initErr:   initErr,
-		active:    make(map[string]runtimeGenerationSnapshot),
+		config:           config,
+		store:            okruntime.FilesystemStore{Root: config.ArtifactStore.Path},
+		knowledge:        append([]okruntime.KnowledgeBaseConfig(nil), config.KnowledgeBases...),
+		client:           &http.Client{Timeout: requestTimeout},
+		token:            token,
+		initErr:          initErr,
+		buildSearchIndex: okf.BuildContextIndexWithVersion,
+		active:           make(map[string]runtimeGenerationSnapshot),
 	}
 }
 
@@ -93,7 +96,12 @@ func (manager *runtimeSnapshotManager) refresh() []error {
 			failures = append(failures, fmt.Errorf("%s: %w", knowledge.ID, err))
 			continue
 		}
-		snapshot := runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: pointer, Manifest: manifest, Root: root}
+		search, err := manager.buildSearchIndex(runtimeProjectionRoot(root, "search"), manifest.Spec)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("%s search index: %w", knowledge.ID, err))
+			continue
+		}
+		snapshot := runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: pointer, Manifest: manifest, Root: root, Search: search}
 		manager.mu.Lock()
 		manager.active[knowledge.ID] = snapshot
 		manager.mu.Unlock()
@@ -215,14 +223,14 @@ func runRuntimeServe(args []string) int {
 		return 0
 	}
 	flags := flag.NewFlagSet("runtime serve", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
+	flags.SetOutput(stderrOutput())
 	configPath := flags.String("config", okruntime.DefaultConfigFile, "runtime TOML configuration")
 	check := flags.Bool("check", false, "verify active generations and exit")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
 	if flags.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "runtime serve accepts no positional arguments")
+		fmt.Fprintln(stderrOutput(), "runtime serve accepts no positional arguments")
 		return 2
 	}
 	config, err := okruntime.LoadConfig(*configPath)
@@ -236,7 +244,7 @@ func runRuntimeServe(args []string) int {
 	failures := handler.snapshots.refresh()
 	if *check {
 		for _, failure := range failures {
-			fmt.Fprintln(os.Stderr, failure)
+			fmt.Fprintln(stderrOutput(), failure)
 		}
 		if !handler.snapshots.ready() {
 			return 1
@@ -267,7 +275,7 @@ func runRuntimeServe(args []string) int {
 				return
 			case <-ticker.C:
 				for _, failure := range handler.snapshots.refresh() {
-					fmt.Fprintf(os.Stderr, "runtime serve retained last valid generation: %v\n", failure)
+					fmt.Fprintf(stderrOutput(), "runtime serve retained last valid generation: %v\n", failure)
 				}
 			}
 		}
@@ -395,11 +403,7 @@ func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, re
 		}
 		limit = value
 	}
-	result, err := okf.SearchKnowledgeWithVersion(runtimeProjectionRoot(snapshot.Root, "search"), snapshot.Manifest.Spec, okf.SearchOptions{Query: query, Limit: limit})
-	if err != nil {
-		http.Error(response, "search failed", http.StatusInternalServerError)
-		return
-	}
+	result := snapshot.Search.Search(okf.SearchOptions{Query: query, Limit: limit})
 	result.Root = snapshot.Knowledge.ID
 	response.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(response).Encode(result)

@@ -19,10 +19,11 @@ func LinksFromASTMarkdown(root string, rel string, markdown ASTMarkdown) []Link 
 	for _, markdownLink := range markdown.Links {
 		href := strings.TrimSpace(markdownLink.Href)
 		link := Link{
-			Label: strings.TrimSpace(markdownLink.Label),
-			Href:  href,
-			Kind:  markdownLink.Kind,
-			Line:  markdownLink.Line,
+			Label:        strings.TrimSpace(markdownLink.Label),
+			Href:         href,
+			Kind:         markdownLink.Kind,
+			Line:         markdownLink.Line,
+			TargetAnchor: linkTargetAnchor(href),
 		}
 		if link.Kind == "" {
 			link.Kind = linkKind(href)
@@ -31,9 +32,16 @@ func LinksFromASTMarkdown(root string, rel string, markdown ASTMarkdown) []Link 
 		targetRel := ""
 		if link.Kind == "local" {
 			targetRel = linkTargetRel(rel, href)
+		} else if link.Kind == "anchor" && link.TargetAnchor != "" {
+			targetRel = rel
+			link.TargetPath = rel
+			link.TargetID = trimMarkdownExtension(rel)
+			link.Exists = true
 		}
 		if targetRel != "" {
-			link.Kind = "local"
+			if link.Kind != "anchor" {
+				link.Kind = "local"
+			}
 			link.TargetPath = targetRel
 			link.TargetID = trimMarkdownExtension(targetRel)
 			targetPath := filepath.Join(root, filepath.FromSlash(targetRel))

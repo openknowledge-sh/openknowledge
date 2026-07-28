@@ -22,31 +22,31 @@ func runAST(args []string) int {
 	}
 	options, err := parseASTOptions(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	root, err := okf.ResolveKnowledgeRoot(options.path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 	ast, err := okf.ParseASTWithVersion(root, options.spec)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
 	data, err := json.MarshalIndent(ast, "", "  ")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	data = append(data, '\n')
 
 	if options.out != "" {
 		if err := writeOutputFileAtomically(options.out, data); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
 		terminal.success("Wrote AST")
