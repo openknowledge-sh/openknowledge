@@ -17,6 +17,8 @@ page records release-level changes.
 
 - The README became a short product entrypoint.
 - It now gives one setup path, one local usage path, and one publication path.
+- Publication guidance now distinguishes a local public bundle from deployment
+  and a live HTTP MCP endpoint. It also states the Markdown publication default.
 - Detailed command, runtime, deployment, validation, and release information
   now stays in the current-state wiki.
 - The product summary now matches the workflow groups in CLI help and the wiki.

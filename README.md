@@ -126,8 +126,12 @@ See the [command index](Wiki/features/commands/index.md) for all commands.
 
 ## Publish a wiki
 
-Public output requires explicit permission. Review the knowledge base. Then,
-add this configuration to `Wiki/openknowledge.toml`:
+`okn export html` creates a public distribution bundle in a local folder.
+It does not deploy the bundle or start an MCP server.
+
+Review the knowledge base before you create this bundle. After you enable
+publication, Markdown is public unless it sets `okf_publish: false`. Add this
+configuration to `Wiki/openknowledge.toml`:
 
 ```toml
 [publish]
@@ -140,9 +144,11 @@ Export the reviewed content:
 okn export html --out ./site Wiki
 ```
 
-The HTML export includes a static viewer, `llms.txt`, a connect manifest, and a
-portable source archive. See [HTML export](Wiki/features/exporters/html.md) and
-[`openknowledge.toml`](Wiki/features/configuration.md) for publication options.
+The bundle includes a static viewer, `llms.txt`, a connect manifest, and a
+portable source archive. A deployed runtime can also expose filtered search
+and HTTP MCP projections. See [HTML export](Wiki/features/exporters/html.md)
+and [`openknowledge.toml`](Wiki/features/configuration.md) for publication
+filters and asset options.
 
 ## Documentation
 
