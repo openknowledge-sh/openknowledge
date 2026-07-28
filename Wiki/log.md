@@ -5,6 +5,7 @@ This log tracks documentation-structure changes. Product history belongs in
 
 ## 2026-07-28
 
+- Added ASD-STE100 as an enabled wiki-local maintenance rule.
 - Applied ASD-STE100 Issue 9 rules to the project-authored Wiki text.
 - Replaced the workflow table on the main page with task sections.
 - Documented the setup preflight, recovery, and fail-closed publication handoff.

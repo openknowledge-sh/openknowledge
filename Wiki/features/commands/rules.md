@@ -19,6 +19,7 @@ instruction file. Repeated application produces the same block.
 
 ```sh
 openknowledge prompt rules --list --path Wiki
+openknowledge prompt rules asd-ste100 --path Wiki
 openknowledge prompt rules docs,changelog --path Wiki
 openknowledge prompt rules docs --target codex
 openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md
@@ -37,6 +38,9 @@ openknowledge prompt rules apply docs --path Wiki --dry-run
 Built-in IDs are `project`, `docs`, `decisions`, `changelog`, `research`,
 `bugs`, `schemas`, `summary`, and `agents`. A wiki can define additional rules
 under `rules/`. Command-line selections override configured defaults.
+
+This wiki defines the `asd-ste100` rule. Its `[rules].enabled` configuration
+selects `project` and `asd-ste100` by default.
 
 When possible, target inference selects the instruction format from the
 destination. Otherwise, it uses `generic`. In a terminal, warnings follow the

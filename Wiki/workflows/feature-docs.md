@@ -67,7 +67,7 @@ entry.
 
 ## Language
 
-Write project-authored Wiki text with ASD-STE100 Issue 9 rules. Use the
+Follow the wiki-local [ASD-STE100 rule](/rules/asd-ste100.md). Use the
 technical terms that [Agent Rules](/AGENTS.md) identifies.
 
 Use active voice and simple verb tenses. Do not use contractions, phrasal

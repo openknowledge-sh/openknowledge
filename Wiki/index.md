@@ -64,4 +64,5 @@ creation. Other advanced tools are [`prompt`](features/commands/prompt.md),
 - [Export formats](features/exporters/)
 - [Machine-readable contracts](features/machine-contracts.md)
 - [Go API](features/go-api.md)
+- [Maintenance rules](rules/)
 - [OKF v0.1 specification](SPEC.md)

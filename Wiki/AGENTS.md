@@ -89,6 +89,8 @@ The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
 Write all project-authored Wiki text with the rules in ASD-STE100 Issue 9.
 Use American English.
 
+Follow the wiki-local [ASD-STE100 rule](rules/asd-ste100.md).
+
 Use the official
 [ASD-STE100 Issue 9](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf)
 for the complete rules and dictionary.

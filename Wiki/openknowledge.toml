@@ -9,6 +9,9 @@ base_url = "https://openknowledge.sh/wiki/"
 github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"
 
+[rules]
+enabled = ["project", "asd-ste100"]
+
 [publish]
 enabled = true
 assets = ["assets/**", "examples/*.go", "examples/*.pdf"]
