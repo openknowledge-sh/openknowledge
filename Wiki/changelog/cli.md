@@ -13,6 +13,17 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-28 — Responsive viewer panel widths
+
+- Raised the resizable note-panel ceiling from a fixed 1,180 px to a responsive
+  maximum of 1,600 px, giving wide-screen tables and other broad content more
+  room while preserving desktop and mobile gutters.
+- Source: `packages/cli/cmd/openknowledge/viewer_app.js`,
+  `packages/cli/cmd/openknowledge/viewer_app.css`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+- Docs: `Wiki/features/commands/view.md`.
+
 ### 2026-07-18 — Static viewer CSP compatibility
 
 - Moved generated viewer JavaScript from executable inline `<script>` blocks

@@ -9,6 +9,7 @@
   --ok-sidebar-width: min(340px, calc(100vw - 36px));
   --ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));
   --ok-note-panel-min-width: min(360px, calc(100vw - 24px));
+  --ok-note-panel-max-width: min(1600px, calc(100vw - 24px));
 
   --ok-color-text: #202322;
   --ok-color-document-text: #3f4542;

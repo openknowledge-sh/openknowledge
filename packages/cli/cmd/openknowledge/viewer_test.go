@@ -152,8 +152,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `is-single-panel`) || !strings.Contains(page, `justify-content: center`) {
 		t.Fatalf("viewer should center a lone open panel before additional panels are opened:\n%s", page)
 	}
-	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { box-sizing: border-box; flex-basis: 100%; min-width: 100%; justify-content: center; padding-left: max(24px, calc((100vw - 1180px) / 2)); padding-right: max(24px, calc((100vw - 1180px) / 2)); }`) {
-		t.Fatalf("single-panel stack should use symmetric viewport gutters around the centered panel:\n%s", page)
+	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { box-sizing: border-box; flex-basis: 100%; min-width: 100%; justify-content: center; padding-left: clamp(24px, calc((100vw - 1180px) / 2), 80px); padding-right: clamp(24px, calc((100vw - 1180px) / 2), 80px); }`) {
+		t.Fatalf("single-panel stack should use bounded symmetric viewport gutters around the centered panel:\n%s", page)
 	}
 	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }`) {
 		t.Fatalf("single-panel mobile stack should keep symmetric mobile gutters around the centered panel:\n%s", page)
@@ -175,6 +175,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `--note-panel-width`) || !strings.Contains(page, `--ok-note-panel-min-width`) || !strings.Contains(page, `minPanelWidth`) {
 		t.Fatalf("viewer panels should expose a resizable width with a minimum width:\n%s", page)
+	}
+	if !strings.Contains(page, `--ok-note-panel-max-width`) || !strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-max-width)", 1600)`) || !strings.Contains(page, `singlePanelHorizontalGap() * 2`) {
+		t.Fatalf("viewer panels should use a responsive maximum width while preserving single-panel gutters:\n%s", page)
+	}
+	if !strings.Contains(page, `function handleViewportResize()`) || !strings.Contains(page, `panels().forEach(applyPanelWidth)`) || !strings.Contains(page, `window.addEventListener("resize", handleViewportResize)`) {
+		t.Fatalf("viewer panels should reapply their responsive width when the viewport changes:\n%s", page)
 	}
 	if !strings.Contains(page, `data-panel-resize-handle`) || !strings.Contains(page, `note-resize-handle-left`) || !strings.Contains(page, `note-resize-handle-right`) {
 		t.Fatalf("viewer panels should include left and right resize handles:\n%s", page)
@@ -1061,6 +1067,7 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 		"--ok-sidebar-width",
 		"--ok-note-panel-default-width",
 		"--ok-note-panel-min-width",
+		"--ok-note-panel-max-width",
 		"--ok-color-text",
 		"--ok-color-document-text",
 		"--ok-color-muted",

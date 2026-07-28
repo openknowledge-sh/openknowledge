@@ -443,7 +443,7 @@
   }
 
   function singlePanelHorizontalGap() {
-    return window.innerWidth <= 680 ? 12 : Math.max(22, (window.innerWidth - 1180) / 2);
+    return window.innerWidth <= 680 ? 12 : clamp((window.innerWidth - 1180) / 2, 24, 80);
   }
 
   function isSingleCenteredPanel(panel) {
@@ -452,10 +452,17 @@
   }
 
   function maxPanelWidth(panel) {
+    const responsiveMaxWidth = Math.max(
+      minPanelWidth(),
+      cssLengthPixels("var(--ok-note-panel-max-width)", 1600)
+    );
     if (isSingleCenteredPanel(panel)) {
-      return Math.max(minPanelWidth(), window.innerWidth - singlePanelHorizontalGap() * 2);
+      return Math.min(
+        responsiveMaxWidth,
+        Math.max(minPanelWidth(), window.innerWidth - singlePanelHorizontalGap() * 2)
+      );
     }
-    return Math.max(defaultPanelWidth(), 1180);
+    return Math.max(defaultPanelWidth(), responsiveMaxWidth);
   }
 
   function defaultPanelWidth() {
@@ -3488,6 +3495,11 @@
     workspace.scrollLeft = clamp(nextScroll, 0, maxWorkspaceScroll());
   }
 
+  function handleViewportResize() {
+    panels().forEach(applyPanelWidth);
+    queueWorkspaceRailUpdate();
+  }
+
   workspace.addEventListener("pointerdown", startWorkspaceDrag);
   workspace.addEventListener("pointermove", updateWorkspaceDrag);
   workspace.addEventListener("pointerup", stopWorkspaceDrag);
@@ -3496,7 +3508,7 @@
   window.addEventListener("keydown", startSpacePan, true);
   window.addEventListener("keyup", stopSpacePan, true);
   window.addEventListener("blur", cancelSpacePan);
-  window.addEventListener("resize", queueWorkspaceRailUpdate);
+  window.addEventListener("resize", handleViewportResize);
 
   if (scrollTrack && scrollThumb) {
     scrollTrack.addEventListener("pointerdown", startRailTrackJump);

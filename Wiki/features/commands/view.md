@@ -39,7 +39,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 
 - Rendered Markdown with local-link navigation, stacked note panels, source
   graph, validation context, syntax-highlighted assets, and native media/PDF
-  previews.
+  previews. Note panels can be resized from either edge; their saved widths use
+  a viewport-aware maximum up to 1,600 px while retaining safe screen gutters.
 - AST-backed search using the same section ranking and one-hop link expansion
   as [`openknowledge search`](search.md). Results can deep-link and highlight
   the matching text.
