@@ -21,9 +21,10 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"Avoid shell command substitution or piping",
 		"context-specific questions",
 		"spawn focused subagents with lower reasoning effort",
+		"Keep onboarding focused on three outcomes",
+		"Run openknowledge validate \"<folder path>\"",
 		"openknowledge search \"<folder path>\" \"<query>\"",
-		"openknowledge get \"<folder path>\" \"<file>\"",
-		"openknowledge view \"<folder path>\"",
+		"mention openknowledge get, list, or view only when the user asks",
 	}
 
 	for _, expected := range required {
@@ -34,6 +35,8 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 	forbidden := []string{
 		"codex \"$(" + "openknowledge prompt setup)\"",
 		"openknowledge prompt setup " + "| codex",
+		"After setup, offer to start the local viewer",
+		"how to view it with openknowledge view",
 	}
 	for _, unexpected := range forbidden {
 		if strings.Contains(prompt, unexpected) {
@@ -64,8 +67,9 @@ func TestGeneratedSetupHandoffRequiresContextFirstInterview(t *testing.T) {
 		"which maintenance rules apply",
 		"openknowledge prompt rules --list",
 		"spawn focused subagents with lower reasoning effort",
-		"read exact Markdown with openknowledge get",
-		"browse it with openknowledge view",
+		"confirm openknowledge validate passed",
+		"demonstrate one budget-bounded source query with openknowledge search",
+		"mention openknowledge get, list, or view only when the user asks",
 	}
 
 	for _, expected := range required {

@@ -92,7 +92,7 @@
               </summary>
               <div class="hero-prompt-panel">
                 <pre class="prompt-inline" id="setup-commands"><code>curl -fsSL https://openknowledge.sh/install | bash
-openknowledge setup Wiki --from .</code></pre>
+openknowledge setup</code></pre>
                 <p class="setup-note">
                   Run these commands from your project repository. Setup launches Codex by default,
                   creates a source-grounded wiki, validates it, and installs project integration.
@@ -122,7 +122,7 @@ openknowledge setup Wiki --from .</code></pre>
             </span>
             <span class="sr-only">Setup</span>
             <h3>Create with an agent</h3>
-            <p><code>setup</code> creates, validates, and integrates project knowledge; <code>agent</code> and <code>jobs</code> maintain it interactively or on a schedule.</p>
+            <p><code>setup</code> creates, validates, and integrates project knowledge. Agent maintenance and scheduled jobs remain optional follow-up workflows.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -204,39 +204,29 @@ openknowledge setup Wiki --from .</code></pre>
             </thead>
             <tbody>
               <tr>
-                <td>Create and maintain</td>
-                <td><code>setup</code>, <code>agent</code>, <code>jobs</code></td>
-                <td>Create, integrate, and maintain a wiki through local agents.</td>
+                <td>Start here</td>
+                <td><code>setup</code>, <code>search</code>, <code>validate</code></td>
+                <td>Create and integrate a wiki, retrieve useful context, and verify its source.</td>
               </tr>
               <tr>
-                <td>Build from another source</td>
-                <td><code>setup --from</code></td>
-                <td>Ground a wiki in a repository, folder, or website through a local agent.</td>
+                <td>Maintain and automate</td>
+                <td><code>agent</code>, <code>insights</code>, <code>jobs</code></td>
+                <td>Run optional local-agent maintenance and repeatable jobs.</td>
               </tr>
               <tr>
-                <td>Validate and inspect</td>
-                <td><code>spec</code>, <code>validate</code>, <code>list</code>, <code>ast</code></td>
-                <td>Check OKF structure and inspect parsed output.</td>
+                <td>Browse and publish</td>
+                <td><code>get</code>, <code>list</code>, <code>view</code>, <code>mcp</code>, <code>export</code></td>
+                <td>Optionally read exact files, browse locally, integrate LLM hosts, and publish the same knowledge.</td>
               </tr>
               <tr>
-                <td>Connect and resolve</td>
-                <td><code>connect</code>, <code>disconnect</code>, <code>registry</code>, <code>export tar</code></td>
-                <td>Give local or remote bundles stable names instead of remembering paths.</td>
+                <td>Connect and operate</td>
+                <td><code>connect</code>, <code>disconnect</code>, <code>registry</code>, <code>runtime</code>, <code>deploy</code></td>
+                <td>Connect knowledge bases or run them as a self-hosted service.</td>
               </tr>
               <tr>
-                <td>Retrieve and browse</td>
-                <td><code>get</code>, <code>search</code>, <code>list</code>, <code>view</code></td>
-                <td>Build ranked context, read exact files, inspect structure, and browse locally.</td>
-              </tr>
-              <tr>
-                <td>Publish and integrate</td>
-                <td><code>export json</code>, <code>export graph</code>, <code>export html</code>, <code>export html --plain</code></td>
-                <td>Ship static docs or consume the same knowledge as JSON or graph data.</td>
-              </tr>
-              <tr>
-                <td>Automate maintenance (experimental)</td>
-                <td><code>jobs</code></td>
-                <td>Run Markdown-defined local agent jobs in isolated Git worktrees.</td>
+                <td>Advanced and portable tools</td>
+                <td><code>scaffold</code>, <code>prompt</code>, <code>ast</code>, <code>spec</code>, <code>version</code></td>
+                <td>Use deterministic primitives or print instructions for another agent host.</td>
               </tr>
             </tbody>
           </table>
@@ -253,8 +243,7 @@ openknowledge setup Wiki --from .</code></pre>
               <h3>Create your project wiki</h3>
               <p>Launch an agent to inspect the current repository, create the wiki, validate it, and install project integration.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-path">.</span>
-<span class="tok-command">openknowledge</span> <span class="tok-subcommand">view</span> <span class="tok-path">Wiki</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">openknowledge</span> <span class="tok-subcommand">setup</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">

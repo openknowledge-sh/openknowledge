@@ -918,7 +918,7 @@ func runScaffold(args []string) int {
 		fmt.Println()
 		fmt.Printf("  Set up an Open Knowledge agentic wiki for this workspace. Read %s,\n", terminal.path(result.SetupPath))
 		fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
-		fmt.Println("  run openknowledge validate, and show me how to inspect it with openknowledge view.")
+		fmt.Println("  run openknowledge validate, and demonstrate one useful openknowledge search query.")
 	}
 	return 0
 }
@@ -4716,7 +4716,7 @@ Flags:
   --format       Output format: markdown or json. Defaults to markdown.
   --limit        Maximum context source or match count. Defaults to 12.
   --matches      Print ranked match diagnostics instead of packed context.
-  --no-expand    Exclude one-hop outgoing-link and backlink context.
+  --no-expand    Exclude structural document, outgoing-link, and backlink context.
   --spec         OKF spec version. Defaults to latest.
 
 Behavior:
@@ -4727,9 +4727,10 @@ Behavior:
   diacritic-insensitive matching are enabled for local CLI search.
 
   Direct evidence is packed first. By default, remaining budget can include
-  one-hop outgoing local links and backlinks with their relation. Use
-  --no-expand for direct lexical matches only, or --matches to inspect scores,
-  matched fields, snippets, and relations instead of context Markdown.
+  parent/child document context, one-hop outgoing local links, and backlinks
+  with their relation. Use --no-expand for direct lexical matches only, or
+  --matches to inspect scores, matched fields, snippets, and relations instead
+  of context Markdown.
 
   Both output modes identify the indexed Markdown revision and give every
   section a content-addressed locator so stored citations can detect refreshes.

@@ -435,6 +435,52 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 }
 
+func TestViewerRendersMermaidBlocksWithLocalRuntime(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", strings.Join([]string{
+		"# Architecture",
+		"",
+		"```mermaid",
+		"graph TD",
+		`  Input["<unsafe>"] --> Output`,
+		"```",
+		"",
+	}, "\n"))
+
+	handler := newViewerHandler(root)
+	page := getViewerBody(t, handler, "/file/index.md")
+	for _, expected := range []string{
+		`data-language="mermaid" data-mermaid-source`,
+		`&lt;unsafe&gt;`,
+		`src="/assets/openknowledge/mermaid.min.js"`,
+		`securityLevel: "strict"`,
+		`function enhanceMermaid(scope, force)`,
+		`enhanceMermaid(panel, false)`,
+		`.ok-mermaid-output svg`,
+	} {
+		if !strings.Contains(page, expected) {
+			t.Fatalf("viewer Mermaid integration missing %q:\n%s", expected, page)
+		}
+	}
+	if strings.Contains(page, "<unsafe>") {
+		t.Fatalf("viewer Mermaid source must remain escaped before browser rendering:\n%s", page)
+	}
+
+	api := getViewerJSON(t, handler, "/api/file/index.md")
+	if !strings.Contains(api.Body, `data-language="mermaid" data-mermaid-source`) || !strings.Contains(api.Body, `&lt;unsafe&gt;`) {
+		t.Fatalf("viewer API should preserve safe Mermaid source markup: %#v", api)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/assets/openknowledge/mermaid.min.js", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK ||
+		!strings.Contains(response.Header().Get("Content-Type"), "javascript") ||
+		!strings.Contains(response.Body.String(), `globalThis["mermaid"]`) {
+		t.Fatalf("unexpected Mermaid runtime response %d %q", response.Code, response.Header().Get("Content-Type"))
+	}
+}
+
 func TestViewerRendersStructuredFrontmatterByType(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Runbook](runbook.md).\n")
@@ -710,7 +756,7 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	root := t.TempDir()
 	enablePublicArtifactTest(t, root)
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md), [Agents](AGENTS.md), and [Features](features/index.md).\n\n| Kind | Required |\n| --- | --- |\n| flag | no |\n| argument | yes |\n")
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md), [Agents](AGENTS.md), and [Features](features/index.md).\n\n```mermaid\ngraph LR\n  Home --> Setup\n```\n\n| Kind | Required |\n| --- | --- |\n| flag | no |\n| argument | yes |\n")
 	writeViewerFile(t, root, "AGENTS.md", "---\ntype: Guide\ntitle: Agents\n---\n\n# Agents\n")
 	writeViewerFile(t, root, "features/index.md", "# Features\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: Setup\nenabled: false\ntags: [docs, setup]\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
@@ -719,7 +765,7 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 11 {
+	if len(result.Written) != 12 {
 		t.Fatalf("expected exported viewer files plus discovery files, bundle manifest, and archive, got %#v", result.Written)
 	}
 
@@ -735,6 +781,7 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	for _, src := range []string{
 		`assets/openknowledge/viewer-theme.js`,
 		`assets/openknowledge/viewer-shortcuts.js`,
+		`assets/openknowledge/mermaid.min.js`,
 		`assets/openknowledge/viewer-app.js`,
 		`assets/openknowledge/viewer-search.js`,
 	} {
@@ -752,6 +799,12 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	}
 	if !strings.Contains(index, `class="ok-table" data-ok-table`) || !strings.Contains(index, `function enhanceTables(scope)`) || !strings.Contains(index, `.ok-table-tools`) || !strings.Contains(index, `.ok-table-filter-panel`) {
 		t.Fatalf("expected exported viewer pages to include rich table markup and runtime:\n%s", index)
+	}
+	if !strings.Contains(indexHTML, `data-language="mermaid" data-mermaid-source`) ||
+		!strings.Contains(indexHTML, `src="assets/openknowledge/mermaid.min.js"`) ||
+		!strings.Contains(index, `function enhanceMermaid(scope, force)`) ||
+		!strings.Contains(readViewerExportFile(t, out, viewerMermaidScriptAsset), `globalThis["mermaid"]`) {
+		t.Fatalf("expected exported viewer pages to render Mermaid through a same-origin runtime:\n%s", indexHTML)
 	}
 	if !strings.Contains(index, `href="guides/setup.html"`) || !strings.Contains(index, `href="AGENTS.html"`) || !strings.Contains(index, `href="features/index.html"`) {
 		t.Fatalf("expected exported index to keep static HTML fallback link:\n%s", index)
@@ -803,6 +856,7 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 		t.Fatalf("expected nested exported page to keep relative static fallback link:\n%s", setup)
 	}
 	if !strings.Contains(setup, `src="../assets/openknowledge/viewer-theme.js"`) ||
+		!strings.Contains(setup, `src="../assets/openknowledge/mermaid.min.js"`) ||
 		!strings.Contains(setup, `src="../assets/openknowledge/viewer-app.js"`) ||
 		strings.Contains(setup, `<script>`) {
 		t.Fatalf("expected nested exported page to load same-origin scripts without executable inline code:\n%s", setup)
@@ -860,7 +914,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,assets/openknowledge/viewer-app.js,assets/openknowledge/viewer-search.js,assets/openknowledge/viewer-shortcuts.js,assets/openknowledge/viewer-theme.js,assets/public/logo.svg,index.html,llms.txt,openknowledge.json,public.html" {
+	if strings.Join(result.Written, ",") != "assets/openknowledge-bundle.tar.gz,assets/openknowledge/mermaid.min.js,assets/openknowledge/viewer-app.js,assets/openknowledge/viewer-search.js,assets/openknowledge/viewer-shortcuts.js,assets/openknowledge/viewer-theme.js,assets/public/logo.svg,index.html,llms.txt,openknowledge.json,public.html" {
 		t.Fatalf("expected only published viewer files, got %#v", result.Written)
 	}
 	if content := readViewerExportFile(t, out, "assets/public/logo.svg"); content != "<svg/>\n" {
@@ -1211,7 +1265,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 10 {
+	if len(result.Written) != 11 {
 		t.Fatalf("expected exported pages plus theme stylesheet, discovery file, manifest, and archive, got %#v", result.Written)
 	}
 

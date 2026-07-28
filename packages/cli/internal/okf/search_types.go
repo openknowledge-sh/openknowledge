@@ -37,6 +37,7 @@ type SearchResult struct {
 	Matches         []string `json:"matches,omitempty"`
 	Neighbor        bool     `json:"neighbor,omitempty"`
 	Relation        string   `json:"relation,omitempty"`
+	contextPriority int
 }
 
 type SearchIndex struct {

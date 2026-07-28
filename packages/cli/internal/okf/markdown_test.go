@@ -163,6 +163,21 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 			forbidden: []string{"<h1>Not a heading</h1>", "<script>"},
 		},
 		{
+			name: "mermaid source marker and escaping",
+			input: strings.Join([]string{
+				"```mermaid",
+				"graph TD",
+				`  A["<script>alert('no')</script>"] --> B`,
+				"```",
+			}, "\n"),
+			required: []string{
+				`<pre class="code-block language-mermaid" data-language="mermaid" data-mermaid-source><code>`,
+				"graph TD",
+				`A[&#34;&lt;script&gt;alert(&#39;no&#39;)&lt;/script&gt;&#34;] --&gt; B`,
+			},
+			forbidden: []string{"<script>", "data-mermaid-source="},
+		},
+		{
 			name: "shell highlighting",
 			input: strings.Join([]string{
 				"```sh",

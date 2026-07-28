@@ -33,6 +33,11 @@ before(async () => {
     "",
     "Read the [rollback guide](guides/rollback.md).",
     "",
+    "```mermaid",
+    "graph LR",
+    "  Handbook --> Guide",
+    "```",
+    "",
   ].join("\n"));
   await writeFile(path.join(wiki, "guides", "rollback.md"), [
     "---",
@@ -44,6 +49,12 @@ before(async () => {
     "# Rollback Guide",
     "",
     "Validate the deployment, capture evidence, and execute the rollback checklist.",
+    "",
+    "```mermaid",
+    "sequenceDiagram",
+    "  Operator->>System: Start rollback",
+    "  System-->>Operator: Confirm recovery",
+    "```",
     "",
   ].join("\n"));
 
@@ -91,13 +102,15 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   await assertSemanticPage(page, "LLM Wiki, built around your work.");
   await page.getByRole("button", { name: "Copy setup commands" }).click();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(clipboard, /openknowledge setup Wiki --from \./);
+  assert.match(clipboard, /openknowledge setup(?:\n|$)/);
+  assert.doesNotMatch(clipboard, /openknowledge setup Wiki|--from \./);
   assert.equal(errors.length, 0, `landing page browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 
 test("exported viewer supports accessible search and keyboard navigation", async () => {
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
   const errors = collectPageErrors(page);
 
   await page.goto(viewerURL, { waitUntil: "networkidle" });
@@ -113,7 +126,28 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await search.press("Escape");
   assert.equal(await search.inputValue(), "");
   assert.equal(errors.length, 0, `viewer browser errors:\n${errors.join("\n")}`);
-  await page.close();
+  await context.close();
+});
+
+test("exported viewer renders Mermaid in initial and dynamic note panels", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  const initialDiagram = page.locator('[data-note-path="index.md"] [data-mermaid-output] svg');
+  await initialDiagram.waitFor({ state: "visible" });
+  assert.equal(await page.locator('[data-note-path="index.md"] [data-mermaid-source]:visible').count(), 0);
+
+  await page.getByRole("link", { name: "rollback guide" }).click();
+  const dynamicDiagram = page.locator('[data-note-path="guides/rollback.md"] [data-mermaid-output] svg');
+  await dynamicDiagram.waitFor({ state: "visible" });
+
+  await page.locator("[data-viewer-settings-trigger]").click();
+  await page.locator('[data-theme-option="default"]').click();
+  await page.locator('[data-note-path="guides/rollback.md"] [data-mermaid-diagram][data-mermaid-state="rendered"]').waitFor();
+  assert.equal(errors.length, 0, `viewer Mermaid browser errors:\n${errors.join("\n")}`);
+  await context.close();
 });
 
 async function assertSemanticPage(page, expectedHeading) {
@@ -165,5 +199,7 @@ async function listen(server) {
 
 async function closeServer(server) {
   if (!server?.listening) return;
-  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  const closed = new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  server.closeAllConnections?.();
+  await closed;
 }

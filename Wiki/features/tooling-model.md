@@ -16,17 +16,19 @@ loops over that same object, not separate knowledge models.
 
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
-| Create and maintain | `setup`, `agent`, `insights`, `jobs`; advanced `scaffold` and `prompt` | Onboard a wiki, maintain it interactively, capture and execute insights, and schedule repeatable work. |
-| Use and publish | `get`, `search`, `list`, `view`, `mcp`, `export` | Read exact knowledge, retrieve context, browse, integrate clients, and publish portable views. |
-| Run as a service | `runtime`, `deploy` | Build immutable generations, serve public knowledge, and reconcile private maintenance. |
-| Validate and connect | `validate`, `connect`, `disconnect`, `registry` | Check OKF independently and resolve local or remote bundles. |
+| Start here | `setup`, `search`, `validate` | Create and integrate a wiki, retrieve useful context, and verify its source. |
+| Maintain and automate | `agent`, `insights`, `jobs` | Maintain knowledge interactively, capture gaps, and schedule repeatable work. |
+| Browse and publish | `get`, `list`, `view`, `mcp`, `export` | Read exact knowledge, browse, integrate clients, and publish portable views. |
+| Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` | Resolve bundles, serve immutable generations, and provision hosted runtimes. |
 
-`openknowledge setup Wiki --from .` is the primary project activation flow.
-Run it directly from the project repository: the CLI launches the selected
-interactive agent, validates the result, and installs project integration.
-Omit `--from` for a guided setup interview or point it at another repository,
-folder, or website. `scaffold` remains an advanced deterministic, agent-free
-primitive; `prompt` exposes portable print-only workflows.
+`openknowledge setup` is the primary project activation flow. Run it directly
+from the project repository: the CLI uses the current repository as its source,
+writes `Wiki`, launches the selected interactive agent, validates the result,
+and installs project integration. An explicit wiki path without `--from` starts
+a guided setup for a new or open-ended knowledge base. Use `--from` only for
+another repository, folder, or website. `scaffold` remains an advanced
+deterministic, agent-free primitive; `prompt` exposes portable print-only
+workflows.
 
 Connection mutation has one entry point per action. `connect` materializes and
 registers local, manifest, archive, or Git sources; `disconnect` removes the
@@ -45,9 +47,15 @@ Draft 2020-12 contracts.
 ## Typical Local Loop
 
 ```sh
-openknowledge setup Wiki --from .
-openknowledge list Wiki
+openknowledge setup
 openknowledge search Wiki "release workflow" --budget 1200
+openknowledge validate Wiki
+```
+
+Optional exact reads, browsing, integrations, and publishing remain separate:
+
+```sh
+openknowledge list Wiki
 openknowledge get Wiki
 openknowledge mcp Wiki
 openknowledge view Wiki

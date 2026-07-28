@@ -13,6 +13,38 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-28 — Mermaid diagrams in the viewer
+
+- Rendered fenced `mermaid` blocks as theme-aware visual diagrams in local and
+  static viewer pages instead of displaying them as ordinary code.
+- Kept the escaped source visible when Mermaid is unavailable or a diagram is
+  invalid, and used Mermaid's strict security mode for generated SVG.
+- Source: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/cmd/openknowledge/{viewer,viewer_assets}.go`,
+  `packages/cli/cmd/openknowledge/viewer_app.{js,css}`,
+  `packages/cli/cmd/openknowledge/viewer_mermaid.min.js`.
+- Docs: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`.
+
+### 2026-07-28 — Focused onboarding and document-coherent retrieval
+
+- Reduced project activation to `openknowledge setup`: the zero-argument
+  command now uses the current repository as its source and writes `Wiki`.
+  Explicit targets, alternate sources, viewer, publishing, registry, runtime,
+  jobs, scaffold, and portable prompts remain separate optional workflows.
+- Made section ranking include whole-document evidence, filename relevance,
+  stronger body evidence, and query-coverage selection so overview documents
+  can compete with specialized pages.
+- Made context packing preserve the strongest lexical seeds, add same-document
+  siblings and parent/child evidence, label non-lexical hierarchy as
+  `document-context`, and truncate prioritized oversized evidence instead of
+  skipping it for lower-ranked sections.
+- Source: `packages/cli/cmd/openknowledge/{command_catalog,setup_command}.go`,
+  `packages/cli/internal/okf/{search_knowledge,context_selection,setup,from,new}.go`,
+  `packages/cli/schemas/v1/search-context.schema.json`.
+- Docs: `README.md`, `packages/web/index.html`,
+  `Wiki/features/commands/{index,setup,search}.md`.
+
 ### 2026-07-28 — Onboarding, release, and verification hardening
 
 - Made `setup` preflight the selected agent executable before starting the
@@ -30,7 +62,7 @@ page records release-level changes.
   GoReleaser snapshot verification.
 - Added parser/archive fuzz targets and 100/1,000/10,000-section search/index
   benchmarks.
-- Clarified the canonical `setup Wiki --from .` path, runtime recovery,
+- Clarified the canonical zero-argument `setup` path, runtime recovery,
   fail-closed publication permission, and default validation warning policy
   across the README, website, and command/operations references.
 - Source: `packages/cli/cmd/openknowledge/{setup_command,command_catalog,cli_io}.go`,

@@ -69,7 +69,7 @@ to inspect, diff, validate, and maintain.
 
 | | Capability | What it gives you |
 | --- | --- | --- |
-| :robot: | Agent setup | `openknowledge setup [wiki]` creates or refreshes a wiki through Codex, Claude Code, or OpenCode; add `--from <source>` to ground it in existing material. |
+| :robot: | Agent setup | `openknowledge setup` creates a source-grounded `Wiki` from the current project through Codex; alternate runtimes and sources remain optional. |
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
 | :mag: | Retrieval | `search` builds budget-bounded Markdown context by default, while `get`, `list`, and `view` support exact reads, structure, and browsing. |
 | :electric_plug: | MCP integration | `mcp` serves exact resources, source-grounded search, and validation to compatible LLM hosts over read-only stdio. |
@@ -80,7 +80,7 @@ to inspect, diff, validate, and maintain.
 
 ```mermaid
 flowchart LR
-  Source["Repository, docs, website, or local folder"] --> Setup["openknowledge setup --from"]
+  Source["Repository, docs, website, or local folder"] --> Setup["openknowledge setup"]
   Setup --> Agent["Local coding agent"]
   Agent --> Wiki["OKF Markdown wiki"]
   Wiki --> Use["get / search / list / view / mcp"]
@@ -98,13 +98,13 @@ the canonical setup command:
 
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
-openknowledge setup Wiki --from .
+openknowledge setup
 ```
 
 `setup` is the controller: it launches Codex by default, asks the agent to
 inspect the current repository, creates a source-grounded `Wiki`, validates
-the result, and installs project integration. When it finishes, open the
-result with `openknowledge view Wiki`.
+the result, and installs project integration. When it finishes, the wiki is
+ready; no second onboarding command is required.
 
 Before starting the interactive process, `setup` verifies that the selected
 agent CLI is installed. If preflight fails, run
@@ -114,8 +114,8 @@ agent CLI; an authenticated runtime failure is reported with a rerun hint.
 
 ### Start a guided wiki without a source
 
-Omit `--from` when you want the launched agent to interview you about a new or
-more open-ended knowledge base:
+Pass an explicit target path without `--from` when you want the launched agent
+to interview you about a new or more open-ended knowledge base:
 
 ```sh
 openknowledge setup Wiki
@@ -134,7 +134,7 @@ project is not the source:
 
 ```sh
 openknowledge setup Wiki --from https://github.com/openknowledge-sh/openknowledge --type understanding
-openknowledge setup Wiki --from . --runtime claude
+openknowledge setup --runtime claude
 ```
 
 The command launches a local agent to inspect the source, create or update an OKF
@@ -164,29 +164,15 @@ downloading an archive, verify its digest and signing repository identity with
 `gh attestation verify <archive> -R openknowledge-sh/openknowledge` and inspect
 the recorded workflow and commit.
 
-For an advanced, deterministic scaffold that does not launch an agent or
-install Git integration, create and inspect a local bundle manually:
-
-```sh
-openknowledge scaffold ./project-memory
-openknowledge validate ./project-memory
-openknowledge list ./project-memory
-openknowledge search ./project-memory "validation workflow"
-openknowledge view ./project-memory
-```
-
 ## Command Map
 
 | Layer | Commands | Use them for |
 | --- | --- | --- |
-| Agent setup | `setup`, `agent`, `insights`, `jobs` | Create, integrate, and maintain a wiki through local agents and repeatable jobs. |
-| Advanced portable tools | `scaffold`, `prompt setup`, `prompt from`, `prompt rules`, `prompt review` | Scaffold without an agent or print portable instructions for an external agent host. |
-| Authoring and format hygiene | `scaffold`, `spec`, `validate`, `list`, `ast` | Create bundles, inspect structure, parse Markdown, and enforce portable OKF rules. |
-| Experimental local agent automation | `agent`, `jobs` | Run direct local agent sessions; validate, schedule, start, observe, stop, and inspect local agent jobs in isolated Git worktrees. |
-| Self-hosted runtime | `runtime`, `deploy` | Plan, build, serve, privately reconcile, and provision immutable knowledge-base generations. |
-| Registry and lifecycle | `connect`, `disconnect`, `registry`, `export tar` | Give local, published, archive, or Git knowledge bases stable names and package portable source archives. |
-| Use and navigation | `get`, `search`, `list`, `view`, `mcp` | Read exact Markdown files, inspect bundle trees, build source-preserving context, inspect ranked matches, browse locally, and connect MCP-compatible LLM hosts. |
-| Views and publishing | `export json`, `export graph`, `export graph --type search`, `export html`, `export html --plain` | Export normalized models, source graphs, retrieval graphs, static viewers, and plain semantic HTML. |
+| Start here | `setup`, `search`, `validate` | Create and integrate a wiki, retrieve useful context, and verify the source. |
+| Maintenance automation | `agent`, `insights`, `jobs` | Maintain a wiki through local agents, captured gaps, and repeatable jobs. |
+| Browse and publish | `get`, `list`, `view`, `mcp`, `export` | Optionally read exact files, browse locally, integrate LLM hosts, and publish the same knowledge. |
+| Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` | Connect knowledge bases or run them as a self-hosted service. |
+| Advanced and portable tools | `scaffold`, `prompt`, `ast`, `spec`, `version` | Use deterministic primitives or print instructions for another agent host. |
 
 ## Common Workflows
 
@@ -315,12 +301,11 @@ the obsolete publisher and worker services and their attached state.
 
 ### Agent setup
 
-`openknowledge setup [wiki]` runs the complete onboarding workflow through a
-supported local agent harness. The agent
-inspects the workspace, asks only for missing setup decisions, chooses
-maintenance rules such as `docs`, `changelog`, `decisions`, `research`,
-`bugs`, `schemas`, `summary`, or `agents`, creates the bundle, and validates
-the result. The CLI then validates the bundle and installs project integration.
+`openknowledge setup` runs the complete project onboarding workflow through a
+supported local agent harness, using the current repository as the source and
+`Wiki` as the target. An explicit target path without `--from` starts the
+guided workflow for a new or open-ended knowledge base. The CLI validates the
+result and installs project integration after the agent finishes.
 
 `openknowledge prompt rules` prints Markdown instructions for agents that maintain an
 existing wiki. It does not edit files. Use `openknowledge prompt rules apply` when
@@ -534,7 +519,8 @@ Nested job commands also support
 | --- | --- |
 | `openknowledge --help` | Print command usage, summaries, and examples. |
 | `openknowledge --error-format json <command> ...` | Emit operational and usage failures as a versioned JSON envelope on stderr. |
-| `openknowledge setup [wiki]` | Run agent-guided setup, validate the result, and install project integration. |
+| `openknowledge setup` | Create `Wiki` from the current project, validate it, and install project integration. |
+| `openknowledge setup [wiki]` | Run guided setup for a new or open-ended knowledge base. |
 | `openknowledge setup [wiki] --from <source>` | Create or refresh a wiki from a source URL or path. |
 | `openknowledge prompt setup [--rules <rules>]` | Print the portable setup prompt without running an agent. |
 | `openknowledge prompt from <source> --out <folder>` | Print the portable source-to-wiki prompt. |

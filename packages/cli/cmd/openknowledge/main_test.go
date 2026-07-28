@@ -28,12 +28,13 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 	help := helpText()
 	required := []string{
 		"openknowledge builds, uses, and runs self-maintaining OKF knowledge bases.",
-		"Create and maintain:",
-		"Use and publish:",
-		"Run as a service:",
-		"Validate and connect:",
+		"Start here:",
+		"Maintain and automate:",
+		"Browse and publish:",
+		"Connect and operate:",
 		"Advanced and portable tools:",
 		"setup        Launch an agent to create, validate, and integrate a knowledge base.",
+		"search       Build source-grounded context from one or more knowledge bases.",
 		"agent        Run, integrate, and review knowledge with an agent.",
 		"insights     Capture and resolve knowledge-maintenance insights.",
 		"jobs         Run repeatable isolated maintenance jobs from Markdown specs.",
@@ -42,9 +43,8 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"scaffold     Create a deterministic local OKF knowledge base.",
 		"runtime      Build, serve, and maintain an isolated knowledge runtime.",
 		"validate     Validate a bundle against an OKF spec.",
-		"openknowledge setup Wiki --from .",
-		"openknowledge insights create \"Document the deployment rollback workflow\"",
-		"openknowledge deploy railway Wiki --dry-run",
+		"Get started:",
+		"openknowledge setup",
 	}
 	for _, expected := range required {
 		if !strings.Contains(help, expected) {
@@ -63,6 +63,11 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"openknowledge agent from",
 		"openknowledge to html",
 		"openknowledge registry connect",
+		"openknowledge view Wiki",
+		"openknowledge insights create \"Document the deployment rollback workflow\"",
+		"openknowledge deploy railway Wiki --dry-run",
+		"openknowledge setup Wiki --from .",
+		"First workflow:",
 		"new          Scaffold a deterministic local OKF knowledge base.",
 	}
 	for _, unexpected := range forbidden {
@@ -220,17 +225,18 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 		"setup": {
 			help: setupHelpText(),
 			required: []string{
-				"openknowledge setup Wiki --from .",
+				"openknowledge setup\n",
 				"openknowledge setup [wiki] --from <source>",
-				"openknowledge setup [wiki] --runtime <codex|claude|opencode>",
+				"openknowledge setup --runtime <codex|claude|opencode>",
 				"Launch a supported agent runtime to create or update",
 				"--rules",
 				"--model",
 				"--about",
 				"--depth",
-				"default target is Wiki",
+				"writes its knowledge base to Wiki",
 				"openknowledge agent doctor --runtime <runtime>",
-				"openknowledge prompt",
+				"Advanced flags:",
+				"commands are optional",
 			},
 		},
 		"insights": {

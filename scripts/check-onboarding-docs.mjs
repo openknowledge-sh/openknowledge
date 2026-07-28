@@ -14,11 +14,15 @@ const documents = new Map([
   ],
 ]);
 const failures = [];
-const canonicalSetup = "openknowledge setup Wiki --from .";
+const canonicalSetup = "openknowledge setup";
+const legacyProjectSetup = /^openknowledge setup Wiki --from \.$/m;
 
 for (const [name, content] of documents) {
   if (!content.includes(canonicalSetup)) {
     failures.push(`${name} is missing the canonical setup command: ${canonicalSetup}`);
+  }
+  if (legacyProjectSetup.test(content)) {
+    failures.push(`${name} still prescribes the legacy project setup command: openknowledge setup Wiki --from .`);
   }
 }
 
@@ -28,6 +32,9 @@ if (website.includes("./project-memory")) {
 }
 if (!website.includes("[publish] enabled = true")) {
   failures.push("packages/web/index.html must explain the explicit public-export permission");
+}
+if (!website.includes('<span class="tok-command">openknowledge</span> <span class="tok-subcommand">setup</span></code>')) {
+  failures.push("packages/web/index.html must present zero-argument setup as the project activation command");
 }
 
 const readme = documents.get("README.md");
@@ -45,5 +52,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("README, website, and wiki share the canonical setup and publication path");
+  console.log("README, website, and wiki share the zero-argument project setup path");
 }

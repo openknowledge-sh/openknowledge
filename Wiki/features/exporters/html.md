@@ -38,19 +38,20 @@ support head injection.
 
 Viewer mode includes:
 
-- static Markdown pages with file navigation, search, graph data, stacked
-  panels, metadata inspectors, table controls, themes, and mobile layout;
+- static Markdown pages with file navigation, Mermaid diagrams, search, graph
+  data, stacked panels, metadata inspectors, table controls, themes, and mobile
+  layout;
 - `llms.txt` for pages enabled for both `viewer` and `llms`;
 - `sitemap.xml` when `[html.site].base_url` is configured;
 - `openknowledge.json` and `assets/openknowledge-bundle.tar.gz` for remote
   `openknowledge connect`;
 - allowlisted public assets at their bundle-relative paths.
 
-Viewer mode writes its executable JavaScript as same-origin files below
-`assets/openknowledge/`; generated pages do not require `unsafe-inline` in
-`script-src`. Trusted inline scripts supplied through `--head-file` or
-`--head-html` remain deployment-owned and may require a CSP nonce or hash; use
-`--script-src` for trusted external scripts.
+Viewer mode writes its executable JavaScript, including the pinned Mermaid
+runtime, as same-origin files below `assets/openknowledge/`; generated pages do
+not require `unsafe-inline` in `script-src`. Trusted inline scripts supplied
+through `--head-file` or `--head-html` remain deployment-owned and may require a
+CSP nonce or hash; use `--script-src` for trusted external scripts.
 
 Plain mode writes only semantic HTML pages. It omits viewer assets, discovery
 files, search data, source controls, and frontmatter chrome.

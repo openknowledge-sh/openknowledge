@@ -11,6 +11,9 @@ var viewerShortcutsJS string
 //go:embed viewer_app.js
 var viewerJS string
 
+//go:embed viewer_mermaid.min.js
+var viewerMermaidJS string
+
 //go:embed viewer_theme_bootstrap.js
 var viewerThemeBootstrapJS string
 

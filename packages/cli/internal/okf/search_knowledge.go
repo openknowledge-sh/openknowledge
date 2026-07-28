@@ -2,6 +2,7 @@ package okf
 
 import (
 	"math"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -90,6 +91,10 @@ func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchRes
 	if len(corpus.documents) != len(index.Sections) {
 		corpus = newKnowledgeSearchCorpus(index.Sections)
 	}
+	documentCorpus := index.documentSearchCorpus
+	if len(documentCorpus.documents) == 0 {
+		documentCorpus = newKnowledgeSearchCorpus(aggregateKnowledgeSearchSections(index.Sections))
+	}
 	normalizedQuery := normalizeSearchText(query)
 	var results []SearchResult
 	for _, document := range corpus.documents {
@@ -97,6 +102,44 @@ func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchRes
 		if ok {
 			results = append(results, searchResult)
 		}
+	}
+	documentScores := map[string]float64{}
+	for _, document := range documentCorpus.documents {
+		searchResult, ok := scoreKnowledgeSearchDocument(document, documentCorpus, terms, normalizedQuery, options.Fuzzy)
+		if ok {
+			coverage := knowledgeSearchDocumentCoverage(document, terms)
+			documentScores[searchResult.Path] = searchResult.Score * (1 + 2*math.Pow(coverage, 3))
+		}
+	}
+	bestSectionByPath := map[string]int{}
+	bestCoverageByPath := map[string]int{}
+	sectionByID := make(map[string]ContextSection, len(index.Sections))
+	for _, section := range index.Sections {
+		sectionByID[section.ID] = section
+	}
+	for index, result := range results {
+		coverage := len(contextCoveredTerms(sectionByID[result.ID], terms))
+		existing, ok := bestSectionByPath[result.Path]
+		if !ok || coverage > bestCoverageByPath[result.Path] ||
+			(coverage == bestCoverageByPath[result.Path] && results[existing].Score < result.Score) {
+			bestSectionByPath[result.Path] = index
+			bestCoverageByPath[result.Path] = coverage
+		}
+	}
+	for resultIndex := range results {
+		documentScore := documentScores[results[resultIndex].Path]
+		if documentScore == 0 {
+			continue
+		}
+		// Whole-document evidence helps overview pages compete with specialized
+		// chunks when a query's terms are distributed across several sections.
+		// Give the best section the strongest boost; keeping the smaller boost
+		// on siblings avoids flooding the top ranks with one long document.
+		boost := 0.05
+		if bestSectionByPath[results[resultIndex].Path] == resultIndex {
+			boost = 0.75
+		}
+		results[resultIndex].Score = roundSearchScore(results[resultIndex].Score + documentScore*boost)
 	}
 
 	sort.SliceStable(results, func(i, j int) bool {
@@ -109,6 +152,64 @@ func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchRes
 		return results[i].LineStart < results[j].LineStart
 	})
 	return results
+}
+
+func knowledgeSearchDocumentCoverage(document knowledgeSearchDocument, terms []string) float64 {
+	if len(terms) == 0 {
+		return 0
+	}
+	var text strings.Builder
+	for _, field := range document.fields {
+		text.WriteString(field.text)
+		text.WriteByte(' ')
+	}
+	normalized := text.String()
+	matched := 0
+	for _, term := range terms {
+		if snippetMatchesTerm(normalized, term) {
+			matched++
+		}
+	}
+	return float64(matched) / float64(len(terms))
+}
+
+func aggregateKnowledgeSearchSections(sections []ContextSection) []ContextSection {
+	byPath := map[string]int{}
+	documents := make([]ContextSection, 0)
+	for _, section := range sections {
+		documentIndex, ok := byPath[section.Path]
+		if !ok {
+			document := section
+			document.ID = section.Path
+			document.Heading = ""
+			document.HeadingPath = nil
+			document.Text = ""
+			document.EstimatedTokens = 0
+			documents = append(documents, document)
+			documentIndex = len(documents) - 1
+			byPath[section.Path] = documentIndex
+		}
+		document := &documents[documentIndex]
+		if section.Heading != "" && section.Heading != "Top" {
+			if document.Heading != "" {
+				document.Heading += "\n"
+			}
+			document.Heading += section.Heading
+		}
+		document.HeadingPath = append(document.HeadingPath, section.HeadingPath...)
+		if document.Text != "" {
+			document.Text += "\n\n"
+		}
+		document.Text += section.Text
+		document.EstimatedTokens += section.EstimatedTokens
+		if document.LineStart == 0 || section.LineStart < document.LineStart {
+			document.LineStart = section.LineStart
+		}
+		if section.LineEnd > document.LineEnd {
+			document.LineEnd = section.LineEnd
+		}
+	}
+	return documents
 }
 
 func newKnowledgeSearchCorpus(sections []ContextSection) knowledgeSearchCorpus {
@@ -129,11 +230,12 @@ func newKnowledgeSearchCorpus(sections []ContextSection) knowledgeSearchCorpus {
 				newKnowledgeSearchField("title", section.Title, 8),
 				newKnowledgeSearchField("heading", section.Heading, 12),
 				newKnowledgeSearchField("headingPath", strings.Join(section.HeadingPath, " "), 8),
+				newKnowledgeSearchField("filename", strings.TrimSuffix(filepath.Base(section.Path), filepath.Ext(section.Path)), 16),
 				newKnowledgeSearchField("path", section.Path+" "+section.ID, 5),
 				newKnowledgeSearchField("type", section.Type+" "+section.Kind, 4),
 				newKnowledgeSearchField("description", section.Description, 5),
 				newKnowledgeSearchField("metadata", frontmatterSearchText(section.Frontmatter), 2.2),
-				newKnowledgeSearchField("body", section.Text, 1),
+				newKnowledgeSearchField("body", section.Text, 4),
 			},
 			terms: map[string]struct{}{},
 		}

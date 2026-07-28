@@ -12,9 +12,7 @@ bases in Open Knowledge Format (OKF).
 
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
-openknowledge setup Wiki --from .
-openknowledge validate Wiki
-openknowledge view Wiki
+openknowledge setup
 ```
 
 - [Installation](features/installation.md)
@@ -26,10 +24,10 @@ openknowledge view Wiki
 
 | Goal | Start here |
 | --- | --- |
-| Create or maintain a wiki | [`setup`](features/commands/setup.md), [`agent`](features/commands/agent.md), [`insights`](features/commands/insights.md), [`jobs`](features/commands/jobs.md) |
-| Read and publish knowledge | [`get`](features/commands/get.md), [`search`](features/commands/search.md), [`list`](features/commands/list.md), [`view`](features/commands/view.md), [`mcp`](features/commands/mcp.md), [`export`](features/commands/export.md) |
-| Run a hosted service | [`runtime`](features/commands/runtime.md), [`deploy`](features/commands/deploy.md) |
-| Validate and connect bundles | [`validate`](features/commands/validate.md), [`connect`](features/commands/connect.md), [`disconnect`](features/commands/disconnect.md), [`registry`](features/commands/registry.md) |
+| Create, retrieve, and verify | [`setup`](features/commands/setup.md), [`search`](features/commands/search.md), [`validate`](features/commands/validate.md) |
+| Maintain and automate | [`agent`](features/commands/agent.md), [`insights`](features/commands/insights.md), [`jobs`](features/commands/jobs.md) |
+| Browse and publish | [`get`](features/commands/get.md), [`list`](features/commands/list.md), [`view`](features/commands/view.md), [`mcp`](features/commands/mcp.md), [`export`](features/commands/export.md) |
+| Connect and operate | [`connect`](features/commands/connect.md), [`disconnect`](features/commands/disconnect.md), [`registry`](features/commands/registry.md), [`runtime`](features/commands/runtime.md), [`deploy`](features/commands/deploy.md) |
 
 Advanced tools include [`scaffold`](features/commands/scaffold.md),
 [`prompt`](features/commands/prompt.md), [`ast`](features/commands/ast.md), and

@@ -13,14 +13,15 @@ import (
 )
 
 type setupCLIOptions struct {
-	wiki     string
-	source   string
-	runtime  string
-	model    string
-	rules    string
-	wikiType string
-	about    string
-	depth    int
+	wiki           string
+	source         string
+	runtime        string
+	model          string
+	rules          string
+	wikiType       string
+	about          string
+	depth          int
+	targetExplicit bool
 }
 
 func runSetup(args []string) int {
@@ -87,7 +88,11 @@ func runSetup(args []string) int {
 	if code := runValidate([]string{wikiAbs}); code != 0 {
 		return code
 	}
-	return runIntegrate([]string{wikiAbs})
+	if code := runIntegrate([]string{wikiAbs}); code != 0 {
+		return code
+	}
+	fmt.Printf("\nReady: %s\n", relWiki)
+	return 0
 }
 
 func parseSetupArgs(args []string) (setupCLIOptions, error) {
@@ -144,12 +149,24 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 	}
 	if len(positionals) == 1 {
 		options.wiki = positionals[0]
+		options.targetExplicit = true
 	}
 	if strings.TrimSpace(options.wiki) == "" {
 		return options, fmt.Errorf("setup knowledge base path must not be empty")
 	}
 	if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
 		return options, err
+	}
+	// The zero-argument path is the primary project onboarding flow: inspect the
+	// current repository and write its knowledge base to Wiki. An explicit
+	// target without --from keeps the guided, open-ended setup workflow.
+	if options.source == "" &&
+		!options.targetExplicit &&
+		strings.TrimSpace(options.rules) == "" &&
+		options.wikiType == okf.DefaultFromType &&
+		options.about == "" &&
+		options.depth == 0 {
+		options.source = "."
 	}
 	if options.source == "" {
 		if options.wikiType != okf.DefaultFromType || options.about != "" || options.depth != 0 {
@@ -198,40 +215,44 @@ Launch a supported agent runtime to create or update, validate, and integrate
 an OKF knowledge base.
 
 Usage:
-  openknowledge setup Wiki --from .
+  openknowledge setup
+  openknowledge setup --runtime <codex|claude|opencode>
   openknowledge setup [wiki]
   openknowledge setup [wiki] --rules <rules>
   openknowledge setup [wiki] --from <source>
-  openknowledge setup [wiki] --from <source> --type understanding|custom
-  openknowledge setup [wiki] --runtime <codex|claude|opencode>
 
 Arguments:
   wiki        Target knowledge-base directory. Defaults to Wiki and must be
               inside the current Git repository.
 
-Flags:
+Core flags:
   --from      Repository, local folder, or website source.
   --runtime   Agent runtime: codex, claude, or opencode. Defaults to codex.
-  --model     Harness-specific model override.
   --rules     Comma-separated maintenance rules for guided setup. Cannot be
               combined with --from.
+
+Advanced flags:
+  --model     Harness-specific model override.
   --type      Source workflow: understanding or custom. Requires --from.
   --about     Custom source-to-wiki goal. Requires --from.
   --depth     Non-negative source traversal hint. Requires --from; 0 lets the
               agent choose the minimum depth.
 
 Run setup directly from a terminal in the Git repository that should own the
-knowledge base. Setup is the controller and starts an interactive agent
-process. The default target is Wiki and the default runtime is Codex. Without --from,
-the agent runs the guided setup workflow. With --from, it runs the
-source-to-wiki workflow. A successful run must leave a valid knowledge base;
-setup then installs project discovery skills and observation hooks.
+knowledge base. With no arguments, setup inspects the current repository,
+writes its knowledge base to Wiki, and uses Codex. An explicit wiki path
+without --from starts the guided workflow for a new or open-ended knowledge
+base. Use --from only for another repository, local folder, or website. A
+successful run must leave a valid knowledge base; setup then installs project
+discovery skills and observation hooks.
 
 Before launching the agent, setup verifies that the selected runtime executable
 is available. Run openknowledge agent doctor --runtime <runtime> to diagnose the
 installation. Runtime authentication remains owned by the selected agent CLI.
 
-Use openknowledge scaffold for a deterministic scaffold without an agent or Git
-integration. Use openknowledge prompt for print-only portable instructions.
+After setup, the knowledge base is ready. Use search or validate directly when
+you need retrieval or an independent check. The viewer, publishing, registry,
+runtime, deterministic scaffold, and portable prompt commands are optional
+workflows; discover them from the grouped root help.
 `
 }

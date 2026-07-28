@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -214,6 +215,62 @@ func TestSearchKnowledgeRanksHeadingChunksWithBM25(t *testing.T) {
 	}
 	if first.Score <= 0 {
 		t.Fatalf("expected positive BM25-style score, got %#v", first)
+	}
+}
+
+func TestSearchKnowledgeUsesWholeDocumentEvidenceForOverviewPages(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "guides/projects.md", strings.Join([]string{
+		"---",
+		"type: Guide",
+		"title: Working on projects",
+		"---",
+		"",
+		"# Projects",
+		"",
+		"Project workflow overview.",
+		"",
+		"## Managing packages",
+		"",
+		"Use add to include a dependency.",
+		"",
+		"## Lock data",
+		"",
+		"The lockfile records the selected versions.",
+		"",
+		"## Environment",
+		"",
+		"The project environment is updated automatically.",
+	}, "\n"))
+	for index, body := range []string{
+		"Dependency project reference.",
+		"Lockfile project reference.",
+		"Project environment reference.",
+		"Add dependency reference.",
+		"Lockfile environment reference.",
+		"Dependency environment reference.",
+	} {
+		writeFile(t, root, fmt.Sprintf("reference/%d.md", index), fmt.Sprintf("---\ntype: Reference\ntitle: Project %s\n---\n\n# Project %s\n\n%s\n", body, body, body))
+	}
+
+	results, err := SearchKnowledge(root, SearchOptions{
+		Query: "add dependency lockfile project environment",
+		Limit: 10,
+		Fuzzy: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var overview SearchResult
+	for _, result := range results.Results {
+		if result.Path == "guides/projects.md" {
+			overview = result
+			break
+		}
+	}
+	if overview.Path == "" || overview.Heading != "Managing packages" {
+		t.Fatalf("expected the overview's best-covered section in the top ten, got %#v", results.Results)
 	}
 }
 

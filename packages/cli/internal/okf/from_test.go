@@ -28,12 +28,12 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 		"openknowledge scaffold --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
 		"unless the user explicitly wants starter agent rules or an interactive setup handoff document",
 		"okf_generated_from",
-		"list, search, get, view, validate, and export work",
+		"search and validate work without a generation runtime",
 		"openknowledge validate \"Wiki\"",
-		"openknowledge list \"Wiki\"",
 		"openknowledge search \"Wiki\" \"<query>\"",
-		"openknowledge get \"Wiki\" <file>",
-		"openknowledge view \"Wiki\"",
+		"confirm the returned evidence is relevant",
+		"what the demonstrated search returned",
+		"Mention `openknowledge get`, `list`, or `view` only when the user asks",
 	}
 	for _, expected := range required {
 		if !strings.Contains(prompt, expected) {
@@ -47,6 +47,15 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 	for _, unexpected := range forbidden {
 		if strings.Contains(prompt, unexpected) {
 			t.Fatalf("expected from prompt not to include %q:\n%s", unexpected, prompt)
+		}
+	}
+	for _, unexpected := range []string{
+		"`openknowledge list \"Wiki\"`",
+		"`openknowledge get \"Wiki\" <file>`",
+		"`openknowledge view \"Wiki\"`",
+	} {
+		if strings.Contains(prompt, unexpected) {
+			t.Fatalf("expected onboarding prompt not to prescribe %q:\n%s", unexpected, prompt)
 		}
 	}
 }

@@ -27,7 +27,7 @@ openknowledge search --all <query>
 | `--all` | off | Search the current local registry instead of one target. |
 | `--budget <tokens>` | `2400` | Approximate context budget; incompatible with `--matches`. |
 | `--limit <count>` | `12` | Maximum selected sources or displayed matches. |
-| `--no-expand` | off | Exclude linked and backlink context. |
+| `--no-expand` | off | Exclude document, linked, and backlink context expansion. |
 | `--matches` | off | Show ranked snippets instead of a context packet. |
 | `--format <format>` | `markdown` | `markdown` or `json`. |
 | `--spec <version>` | `latest` | OKF version used to read the bundle. |
@@ -60,9 +60,15 @@ both modes use `schemaVersion: "1"` and the published
 
 - Markdown is split at content-bearing H1–H3 sections. Lower headings stay
   within their parent section.
-- BM25-style ranking weighs titles, headings, paths, frontmatter, metadata, and
-  section bodies. Exact phrases, term coverage, prefixes, fuzzy matches, and
-  normalized diacritics affect the score.
+- BM25-style ranking combines section evidence with a whole-document signal.
+  Filenames, titles, headings, paths, frontmatter, metadata, and bodies affect
+  the score; the document boost is assigned to the section that covers the
+  most query terms.
+- Context mode preserves the five strongest lexical sections, brings forward
+  up to two additional sections from the strongest document, then fills
+  remaining slots with parent/child sections and evidence that covers missing
+  query terms. Structurally selected non-lexical sections use the
+  `document-context` relation.
 - Search adds one hop of authored outgoing links and backlinks unless
   `--no-expand` is set. Fragments select the chunk that owns the addressed
   heading: lower-level headings resolve to their containing H1-H3 chunk, and a
@@ -74,8 +80,11 @@ both modes use `schemaVersion: "1"` and the published
   target is also a lexical match, its score becomes the greater of its lexical
   and strongest graph-derived score. It remains one direct result with its
   lexical snippet and highlights; multiple links do not add scores together.
-- Direct evidence is packed first, followed by related sections. Only the last
-  selected section may be truncated to fit the approximate token budget.
+- Direct evidence is packed first, followed by document and link context. The
+  five strongest lexical seeds are attempted before an oversized seed is
+  truncated; a prioritized document-context section is truncated instead of
+  being skipped for lower-ranked short sections. Only the final selected
+  section may be truncated.
 - `--all` searches the current registry snapshot without refreshing remotes.
   Per-bundle ranks are combined with reciprocal-rank fusion under one global
   limit and budget. Partial failures remain visible; the command exits `1` only
@@ -92,6 +101,7 @@ The token budget is an estimate, not a model-specific tokenizer guarantee. Use
 >
 > - `packages/cli/internal/okf/search_knowledge.go`
 > - `packages/cli/internal/okf/context.go`
+> - `packages/cli/internal/okf/context_selection.go`
 > - `packages/cli/internal/okf/federated_search.go`
 > - `packages/cli/schemas/v1/search-context.schema.json`
 > - `packages/cli/schemas/v1/search-results.schema.json`

@@ -200,6 +200,201 @@ func TestResolveContextIncludesLinkedNeighborWithinBudget(t *testing.T) {
 	}
 }
 
+func TestResolveContextKeepsHierarchicalEvidenceTogether(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "events.md", strings.Join([]string{
+		"---",
+		"type: Guide",
+		"title: Application Events",
+		"---",
+		"",
+		"# Events",
+		"",
+		"Application lifecycle reference.",
+		"",
+		"## Alternative Events",
+		"",
+		"The recommended way to handle startup and shutdown is lifespan. Event handlers are no longer called when lifespan is used; choose one approach, not both.",
+		"",
+		"### Startup and shutdown together",
+		"",
+		"Configure startup and shutdown handlers together.",
+	}, "\n"))
+
+	result, err := ResolveContext(root, ContextOptions{
+		Query:  "startup shutdown recommended lifespan not both",
+		Budget: 800,
+		Limit:  4,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]ContextSource{}
+	for _, source := range result.Sources {
+		byID[source.ID] = source
+	}
+	if _, ok := byID["events#alternative-events"]; !ok {
+		t.Fatalf("expected parent explanation in context, got %#v", result.Sources)
+	}
+	if _, ok := byID["events#startup-and-shutdown-together"]; !ok {
+		t.Fatalf("expected focused child section in context, got %#v", result.Sources)
+	}
+}
+
+func TestResolveContextIncludesRelevantChildrenOfSelectedParent(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "response.md", strings.Join([]string{
+		"---",
+		"type: Guide",
+		"title: Response Model",
+		"---",
+		"",
+		"# Response Model",
+		"",
+		"Return type reference.",
+		"",
+		"## Return Type and Data Filtering",
+		"",
+		"Filter or remove private response data while keeping a return type.",
+		"",
+		"### Type Annotations and Tooling",
+		"",
+		"The input model adds a password field.",
+		"",
+		"### FastAPI Data Filtering",
+		"",
+		"The response includes only the fields declared in the type.",
+	}, "\n"))
+
+	result, err := ResolveContext(root, ContextOptions{
+		Query:  "response model filter remove password fields return type",
+		Budget: 800,
+		Limit:  5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var markdown strings.Builder
+	for _, source := range result.Sources {
+		markdown.WriteString(source.Markdown)
+		markdown.WriteByte('\n')
+	}
+	for _, expected := range []string{
+		"Filter or remove private response data",
+		"password field",
+		"only the fields declared in the type",
+	} {
+		if !strings.Contains(markdown.String(), expected) {
+			t.Fatalf("expected hierarchical evidence %q, got %#v", expected, result.Sources)
+		}
+	}
+}
+
+func TestResolveContextLabelsNonLexicalHierarchyAndNoExpandOmitsIt(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "websockets.md", strings.Join([]string{
+		"---",
+		"type: Guide",
+		"title: Socket Guide",
+		"---",
+		"",
+		"# Sockets",
+		"",
+		"Socket reference.",
+		"",
+		"## Using Depends",
+		"",
+		"Import Depends, Security, Cookie, Header, Path, and Query.",
+		"",
+		"### Try with dependencies",
+		"",
+		"Run the browser trial for dependencies.",
+	}, "\n"))
+
+	result, err := ResolveContext(root, ContextOptions{
+		Query:  "dependencies browser trial",
+		Budget: 500,
+		Limit:  4,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parentFound := false
+	for _, source := range result.Sources {
+		if source.ID == "websockets#using-depends" {
+			parentFound = true
+			if source.Relation != "document-context" {
+				t.Fatalf("expected explicit document-context relation, got %#v", source)
+			}
+		}
+	}
+	if !parentFound {
+		t.Fatalf("expected non-lexical parent context, got %#v", result.Sources)
+	}
+
+	directOnly, err := ResolveContext(root, ContextOptions{
+		Query:    "dependencies browser trial",
+		Budget:   500,
+		Limit:    4,
+		NoExpand: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range directOnly.Sources {
+		if source.Relation == "document-context" || source.ID == "websockets#using-depends" {
+			t.Fatalf("expected --no-expand to omit structural context, got %#v", directOnly.Sources)
+		}
+	}
+}
+
+func TestPrioritizeContextResultsAddsUncoveredQueryEvidence(t *testing.T) {
+	sections := []ContextSection{
+		{ID: "release#local", Path: "release.md", Title: "Release", Heading: "Test locally", HeadingPath: []string{"Release", "Test locally"}, Text: "Test the build system locally."},
+		{ID: "deep#one", Path: "deep.md", Title: "Build", Heading: "Build internals", HeadingPath: []string{"Build internals"}, Text: "Release build implementation details."},
+		{ID: "deep#two", Path: "deep.md", Title: "Build", Heading: "Package internals", HeadingPath: []string{"Package internals"}, Text: "Release package implementation details."},
+		{ID: "deep#three", Path: "deep.md", Title: "Build", Heading: "Workflow internals", HeadingPath: []string{"Workflow internals"}, Text: "Release workflow implementation details."},
+		{ID: "deep#four", Path: "deep.md", Title: "Build", Heading: "Artifact internals", HeadingPath: []string{"Artifact internals"}, Text: "Release artifact implementation details."},
+		{ID: "deep#five", Path: "deep.md", Title: "Build", Heading: "Signing internals", HeadingPath: []string{"Signing internals"}, Text: "Release signing implementation details."},
+		{ID: "release#staging", Path: "release.md", Title: "Release", Heading: "Bumping packages", HeadingPath: []string{"Release", "Bumping packages"}, Text: "Use staging while avoiding an actual release."},
+	}
+	direct := []SearchResult{
+		{ID: "release#local", Path: "release.md", Score: 100},
+		{ID: "deep#one", Path: "deep.md", Score: 90},
+		{ID: "deep#two", Path: "deep.md", Score: 80},
+		{ID: "deep#three", Path: "deep.md", Score: 70},
+		{ID: "deep#four", Path: "deep.md", Score: 60},
+		{ID: "deep#five", Path: "deep.md", Score: 50},
+		{ID: "release#staging", Path: "release.md", Score: 20},
+	}
+
+	prioritized := prioritizeContextResults(sections, direct, "test release build staging avoid actual", 6, false)
+	if len(prioritized) < 6 || prioritized[0].ID != "release#local" || prioritized[5].ID != "release#staging" {
+		t.Fatalf("expected uncovered staging evidence in the prioritized prefix, got %#v", prioritized)
+	}
+}
+
+func TestPackContextTruncatesPrioritizedSectionInsteadOfSkippingIt(t *testing.T) {
+	sections := []ContextSection{
+		{ID: "guide#summary", Path: "guide.md", Heading: "Summary", Text: "Short summary.", EstimatedTokens: 4},
+		{ID: "guide#details", Path: "guide.md", Heading: "Details", Text: "Decisive option.\n" + strings.Repeat("More detail.\n", 40), EstimatedTokens: 130},
+		{ID: "other#small", Path: "other.md", Heading: "Small", Text: "Lower ranked note.", EstimatedTokens: 5},
+	}
+	direct := []SearchResult{
+		{ID: "guide#summary", Path: "guide.md", Score: 100},
+		{ID: "guide#details", Path: "guide.md", Score: 90, contextPriority: 1},
+		{ID: "other#small", Path: "other.md", Score: 80},
+	}
+
+	sources := packContextSources(sections, direct, nil, 30, 3)
+	if len(sources) != 2 || sources[1].ID != "guide#details" {
+		t.Fatalf("expected the prioritized oversized source to be the final source, got %#v", sources)
+	}
+	if !strings.Contains(sources[1].Markdown, "Decisive option.") || sources[1].EstimatedTokens > 26 {
+		t.Fatalf("expected useful truncated evidence within the remaining budget, got %#v", sources[1])
+	}
+}
+
 func TestRetrievalRevisionAndLocatorsBindResultsToIndexedContent(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n")

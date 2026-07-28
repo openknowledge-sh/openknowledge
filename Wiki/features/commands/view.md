@@ -37,9 +37,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 
 ## Viewer features
 
-- Rendered Markdown with local-link navigation, stacked note panels, source
-  graph, validation context, syntax-highlighted assets, and native media/PDF
-  previews.
+- Rendered Markdown with local-link navigation, visual Mermaid rendering for
+  fenced `mermaid` blocks, stacked note panels, source graph, validation
+  context, syntax-highlighted assets, and native media/PDF previews.
 - AST-backed search using the same section ranking and one-hop link expansion
   as [`openknowledge search`](search.md). Results can deep-link and highlight
   the matching text.

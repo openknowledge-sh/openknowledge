@@ -29,10 +29,10 @@ subcommand-specific help; other groups may provide a group overview. The
 
 | Group | Commands |
 | --- | --- |
-| Create and maintain | `setup`, `agent`, `insights`, `jobs` |
-| Use and publish | `get`, `search`, `list`, `view`, `mcp`, `export` |
-| Run as a service | `runtime`, `deploy` |
-| Validate and connect | `validate`, `connect`, `disconnect`, `registry` |
+| Start here | `setup`, `search`, `validate` |
+| Maintain and automate | `agent`, `insights`, `jobs` |
+| Browse and publish | `get`, `list`, `view`, `mcp`, `export` |
+| Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` |
 | Advanced | `scaffold`, `prompt`, `ast`, `spec`, `version` |
 
 Unknown commands print root usage to stderr and exit with status `2`.

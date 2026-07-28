@@ -53,12 +53,13 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 		return sections[i].LineStart < sections[j].LineStart
 	})
 	return ContextIndex{
-		Root:          validation.Root,
-		Revision:      revision,
-		Sections:      sections,
-		Issues:        issues,
-		searchCorpus:  newKnowledgeSearchCorpus(sections),
-		sectionLookup: newContextSectionLookup(sections),
+		Root:                 validation.Root,
+		Revision:             revision,
+		Sections:             sections,
+		Issues:               issues,
+		searchCorpus:         newKnowledgeSearchCorpus(sections),
+		documentSearchCorpus: newKnowledgeSearchCorpus(aggregateKnowledgeSearchSections(sections)),
+		sectionLookup:        newContextSectionLookup(sections),
 	}
 }
 
@@ -124,6 +125,7 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 	if !options.NoExpand && seedCount > 0 {
 		direct, neighbors = index.knowledgeSearchGraphExpansion(direct[:seedCount], direct)
 	}
+	direct = prioritizeContextResults(index.Sections, direct, query, limit, !options.NoExpand)
 	result.Sources = packContextSources(index.Sections, direct, neighbors, budget, limit)
 	for _, source := range result.Sources {
 		result.EstimatedTokens += source.EstimatedTokens

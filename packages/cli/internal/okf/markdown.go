@@ -371,11 +371,15 @@ func RenderCodeBlock(content string, language string) string {
 	if classLanguage := codeLanguageClass(language); classLanguage != "" {
 		className += " language-" + classLanguage
 	}
+	attributes := ""
+	if language == "mermaid" {
+		attributes = " data-mermaid-source"
+	}
 	label := language
 	if label == "" {
 		label = "code"
 	}
-	return `<pre class="` + className + `" data-language="` + html.EscapeString(label) + `"><code>` + highlightCode(content, language) + "</code></pre>\n"
+	return `<pre class="` + className + `" data-language="` + html.EscapeString(label) + `"` + attributes + `><code>` + highlightCode(content, language) + "</code></pre>\n"
 }
 
 func codeLanguageClass(language string) string {

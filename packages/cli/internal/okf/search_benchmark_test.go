@@ -42,9 +42,10 @@ func BenchmarkContextIndexBuild(b *testing.B) {
 func benchmarkContextIndex(sectionCount int) ContextIndex {
 	sections := benchmarkContextSections(sectionCount)
 	return ContextIndex{
-		Root:         "/benchmark",
-		Sections:     sections,
-		searchCorpus: newKnowledgeSearchCorpus(sections),
+		Root:                 "/benchmark",
+		Sections:             sections,
+		searchCorpus:         newKnowledgeSearchCorpus(sections),
+		documentSearchCorpus: newKnowledgeSearchCorpus(aggregateKnowledgeSearchSections(sections)),
 	}
 }
 

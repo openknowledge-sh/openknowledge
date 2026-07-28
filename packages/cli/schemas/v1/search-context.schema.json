@@ -34,7 +34,7 @@
         "lineEnd": {"type": "integer", "minimum": 1},
         "score": {"type": "number"},
         "estimatedTokens": {"type": "integer", "minimum": 0},
-        "relation": {"enum": ["direct", "outgoing-link", "backlink"]},
+        "relation": {"enum": ["direct", "document-context", "outgoing-link", "backlink"]},
         "markdown": {"type": "string"}
       },
       "additionalProperties": false

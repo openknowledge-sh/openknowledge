@@ -17,6 +17,12 @@ You are helping the user create an agentic LLM wiki with Open Knowledge.
 Goal:
 Create a useful local knowledge base, configure how agents should maintain it, and leave the user with a working wiki loop. Do not stop at a generic scaffold.
 
+Keep onboarding focused on three outcomes: create the smallest useful wiki,
+validate it, and demonstrate one source-grounded search. Do not introduce the
+viewer, publishing, registry, runtime, jobs, automations, deterministic
+scaffolding, or portable prompt workflows unless the user explicitly asks for
+them or their stated use case requires them.
+
 Before asking the user:
 - Inspect the current workspace or folder you were spawned into. Prefer cheap, focused reads such as README files, AGENTS or instruction files, package manifests, docs, existing Open Knowledge bundles, and obvious source or data folders.
 - If your runtime exposes relevant user or project memories, read only the small subset that applies to this setup. Respect privacy, safety, source-boundary, and "do not edit" rules.
@@ -54,17 +60,14 @@ After creation:
 - Run openknowledge validate "<folder path>" and fix any issues.
 - Delete SETUP.MD only after setup is complete.
 
-After setup, offer to start the local viewer with:
-  openknowledge view "<folder path>"
-
 Finish by telling the user:
 - the exact path of the knowledge base
 - what folders, workflows, agent instructions or skills, and native automations or automation candidates you created
 - how future agents should use it
-- how to inspect it with openknowledge list "<folder path>"
+- that validation passed
 - how to search it with openknowledge search "<folder path>" "<query>"
-- how to read exact Markdown with openknowledge get "<folder path>" "<file>"
-- how to view it with openknowledge view "<folder path>"
+- mention openknowledge get, list, or view only when the user asks for exact
+  reading, structural inspection, or human browsing
 `
 
 func SetupPrompt() string {

@@ -19,37 +19,37 @@ type commandGroup struct {
 }
 
 var commandGroups = []commandGroup{
-	{Name: "Create and maintain"},
-	{Name: "Use and publish"},
-	{Name: "Run as a service"},
-	{Name: "Validate and connect"},
+	{Name: "Start here"},
+	{Name: "Maintain and automate"},
+	{Name: "Browse and publish"},
+	{Name: "Connect and operate"},
 	{Name: "Advanced and portable tools"},
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Create and maintain", Summary: "Launch an agent to create, validate, and integrate a knowledge base.", Run: runSetup},
-	{Name: "agent", Group: "Create and maintain", Summary: "Run, integrate, and review knowledge with an agent.", Subcommands: commandNames("exec", "integrate", "doctor"), Run: runAgent},
-	{Name: "insights", Group: "Create and maintain", Summary: "Capture and resolve knowledge-maintenance insights.", Subcommands: commandNames("create", "list", "run", "dismiss", "verify", "observe"), Run: runInsights},
-	{Name: "jobs", Group: "Create and maintain", Summary: "Run repeatable isolated maintenance jobs from Markdown specs.", Subcommands: commandNames("new", "list", "status", "runs", "start", "stop", "kill", "validate", "run", "daemon"), Run: runJobs},
+	{Name: "setup", Group: "Start here", Summary: "Launch an agent to create, validate, and integrate a knowledge base.", Run: runSetup},
+	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
+	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 
-	{Name: "get", Group: "Use and publish", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
-	{Name: "search", Group: "Use and publish", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
-	{Name: "list", Group: "Use and publish", Summary: "Inspect knowledge-base structure.", Run: runList},
-	{Name: "view", Group: "Use and publish", Summary: "Browse knowledge locally.", Run: runView},
-	{Name: "mcp", Group: "Use and publish", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
-	{Name: "export", Group: "Use and publish", Summary: "Export HTML, JSON, graph, or portable tar views.", Subcommands: commandNames("html", "json", "tar", "graph"), Run: runExport},
+	{Name: "agent", Group: "Maintain and automate", Summary: "Run, integrate, and review knowledge with an agent.", Subcommands: commandNames("exec", "integrate", "doctor"), Run: runAgent},
+	{Name: "insights", Group: "Maintain and automate", Summary: "Capture and resolve knowledge-maintenance insights.", Subcommands: commandNames("create", "list", "run", "dismiss", "verify", "observe"), Run: runInsights},
+	{Name: "jobs", Group: "Maintain and automate", Summary: "Run repeatable isolated maintenance jobs from Markdown specs.", Subcommands: commandNames("new", "list", "status", "runs", "start", "stop", "kill", "validate", "run", "daemon"), Run: runJobs},
 
-	{Name: "runtime", Group: "Run as a service", Summary: "Build, serve, and maintain an isolated knowledge runtime.", Subcommands: commandNames("plan", "build", "serve", "worker"), Run: runRuntime},
-	{Name: "deploy", Group: "Run as a service", Summary: "Provision that runtime on a supported provider.", Subcommands: commandNames("railway"), Run: runDeploy},
+	{Name: "get", Group: "Browse and publish", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
+	{Name: "list", Group: "Browse and publish", Summary: "Inspect knowledge-base structure.", Run: runList},
+	{Name: "view", Group: "Browse and publish", Summary: "Browse knowledge locally.", Run: runView},
+	{Name: "mcp", Group: "Browse and publish", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
+	{Name: "export", Group: "Browse and publish", Summary: "Export HTML, JSON, graph, or portable tar views.", Subcommands: commandNames("html", "json", "tar", "graph"), Run: runExport},
 
-	{Name: "validate", Group: "Validate and connect", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
-	{Name: "connect", Group: "Validate and connect", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
+	{Name: "connect", Group: "Connect and operate", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
 		return runConnect(args, "openknowledge connect")
 	}},
-	{Name: "disconnect", Group: "Validate and connect", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
+	{Name: "disconnect", Group: "Connect and operate", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
 		return runDisconnect(args, "openknowledge disconnect")
 	}},
-	{Name: "registry", Group: "Validate and connect", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
+	{Name: "registry", Group: "Connect and operate", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
+	{Name: "runtime", Group: "Connect and operate", Summary: "Build, serve, and maintain an isolated knowledge runtime.", Subcommands: commandNames("plan", "build", "serve", "worker"), Run: runRuntime},
+	{Name: "deploy", Group: "Connect and operate", Summary: "Provision that runtime on a supported provider.", Subcommands: commandNames("railway"), Run: runDeploy},
 
 	{Name: "scaffold", Group: "Advanced and portable tools", Summary: "Create a deterministic local OKF knowledge base.", Run: runScaffold},
 	{Name: "prompt", Group: "Advanced and portable tools", Summary: "Print or install portable agent instructions.", Subcommands: commandNames("setup", "from", "rules", "review"), Run: runPrompt},
@@ -139,16 +139,11 @@ Usage:
   -h, --help                Show this help.
   --error-format text|json  Format command failures on stderr (default text).
 
-Start with a workflow above, then run openknowledge <command> --help.
+Start with setup. Run openknowledge <command> --help when you need another
+workflow.
 
-Common flows:
-  openknowledge setup Wiki --from .
-  openknowledge insights create "Document the deployment rollback workflow"
-  openknowledge validate Wiki
-  openknowledge search Wiki "deployment model"
-  openknowledge view Wiki
-  openknowledge export html --out ./site Wiki
-  openknowledge deploy railway Wiki --dry-run
+Get started:
+  openknowledge setup
 `)
 	return output.String()
 }

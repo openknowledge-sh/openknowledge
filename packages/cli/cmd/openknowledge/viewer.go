@@ -343,6 +343,7 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 	mux := http.NewServeMux()
 	aliasName := options.AliasName
 	searchCache := &viewerSearchCache{root: root}
+	mux.HandleFunc("/"+viewerMermaidScriptAsset, renderViewerMermaidScript)
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/" {
 			if startPath := viewerStartPath(root); startPath != "/" {
@@ -444,6 +445,7 @@ func newReloadingRegistryViewerHandlerWithOptions(load func() ([]okf.RegistryEnt
 
 func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options viewerOptions) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/"+viewerMermaidScriptAsset, renderViewerMermaidScript)
 	searchCaches := make(map[string]*viewerSearchCache)
 	var searchCachesMutex sync.Mutex
 	searchCacheForEntry := func(entry okf.RegistryEntry) (*viewerSearchCache, error) {
@@ -752,6 +754,7 @@ type viewerFileData struct {
 type viewerScriptURLs struct {
 	Theme     string
 	Shortcuts string
+	Mermaid   string
 	App       string
 	Search    string
 }
@@ -960,6 +963,17 @@ func renderViewerRaw(response http.ResponseWriter, request *http.Request, root s
 	response.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	response.Header().Set("Content-Type", viewerSafeRawMediaType(filePath))
 	http.ServeContent(response, request, info.Name(), info.ModTime(), file)
+}
+
+func renderViewerMermaidScript(response http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet && request.Method != http.MethodHead {
+		response.Header().Set("Allow", "GET, HEAD")
+		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	response.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	response.Header().Set("Cache-Control", "public, max-age=3600")
+	http.ServeContent(response, request, "mermaid.min.js", time.Time{}, strings.NewReader(viewerMermaidJS))
 }
 
 func viewerRawAssetPath(root string, rel string) (string, bool) {
@@ -1666,6 +1680,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 const (
 	viewerThemeScriptAsset     = "assets/openknowledge/viewer-theme.js"
 	viewerShortcutsScriptAsset = "assets/openknowledge/viewer-shortcuts.js"
+	viewerMermaidScriptAsset   = "assets/openknowledge/mermaid.min.js"
 	viewerAppScriptAsset       = "assets/openknowledge/viewer-app.js"
 	viewerSearchScriptAsset    = "assets/openknowledge/viewer-search.js"
 )
@@ -1674,6 +1689,7 @@ func viewerStaticScriptURLs(currentPath string) viewerScriptURLs {
 	return viewerScriptURLs{
 		Theme:     viewerStaticAssetURL(currentPath, viewerThemeScriptAsset),
 		Shortcuts: viewerStaticAssetURL(currentPath, viewerShortcutsScriptAsset),
+		Mermaid:   viewerStaticAssetURL(currentPath, viewerMermaidScriptAsset),
 		App:       viewerStaticAssetURL(currentPath, viewerAppScriptAsset),
 		Search:    viewerStaticAssetURL(currentPath, viewerSearchScriptAsset),
 	}
@@ -1695,6 +1711,7 @@ func writeViewerScriptAssets(out string) ([]string, error) {
 	}{
 		{path: viewerThemeScriptAsset, content: viewerThemeBootstrapJS},
 		{path: viewerShortcutsScriptAsset, content: viewerShortcutsJS},
+		{path: viewerMermaidScriptAsset, content: viewerMermaidJS},
 		{path: viewerAppScriptAsset, content: viewerJS},
 		{path: viewerSearchScriptAsset, content: viewerSearchJS},
 	}
@@ -3182,6 +3199,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
   {{if .Scripts.Shortcuts}}<script src="{{.Scripts.Shortcuts}}"></script>{{else}}<script>` + viewerShortcutsJS + `</script>{{end}}
+  {{if .Scripts.Mermaid}}<script src="{{.Scripts.Mermaid}}"></script>{{else}}<script src="/` + viewerMermaidScriptAsset + `"></script>{{end}}
   {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script>` + viewerJS + `</script>{{end}}
   {{if .Scripts.Search}}<script src="{{.Scripts.Search}}"></script>{{else}}<script>` + viewerSearchJS + `</script>{{end}}
 </body>

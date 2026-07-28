@@ -289,6 +289,12 @@ pre code, .code-block code { display: block; min-width: max-content; padding: 0;
 .code-block { position: relative; scrollbar-color: var(--ok-color-rail-thumb) transparent; tab-size: 2; }
 .code-block[data-language] { padding-top: 34px; }
 .code-block[data-language]::before { position: absolute; top: 11px; left: 18px; color: var(--ok-color-syntax-comment); content: attr(data-language); font: 600 11px/1 var(--ok-font-body); opacity: .78; }
+.ok-mermaid { display: grid; gap: 10px; margin: 22px 0 26px; }
+.ok-mermaid .code-block { margin: 0; }
+.ok-mermaid-output { width: 100%; overflow: auto; padding: 18px; border: 1px solid var(--ok-color-border); border-radius: 10px; background: var(--ok-color-surface); box-shadow: 0 8px 24px var(--ok-color-shadow); scrollbar-color: var(--ok-color-rail-thumb) transparent; }
+.ok-mermaid-output[hidden], .ok-mermaid-error[hidden], .ok-mermaid [data-mermaid-source][hidden] { display: none; }
+.ok-mermaid-output svg { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 auto; }
+.ok-mermaid-error { margin: 0; padding: 9px 11px; border: 1px solid var(--ok-color-border); border-radius: 7px; background: var(--ok-color-accent-softer); color: var(--ok-color-danger); font-size: 12px; line-height: 1.45; }
 .asset-code .code-block, .asset-text .code-block { margin: 0; min-height: 440px; }
 .ok-table-wrap { --ok-table-inner-radius: 6px; max-width: 100%; margin: 24px 0 28px; overflow: visible; border: 1px solid var(--ok-color-border); border-radius: 7px; background: var(--ok-color-surface); }
 .ok-table-scroller { overflow-x: auto; border-radius: 0 0 var(--ok-table-inner-radius) var(--ok-table-inner-radius); }

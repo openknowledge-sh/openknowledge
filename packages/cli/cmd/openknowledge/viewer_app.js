@@ -85,6 +85,10 @@
     accent: ["--ok-color-accent", "--ok-color-accent-strong", "--ok-color-focus-ring", "--ok-color-graph-node-active-border"],
     border: ["--ok-color-border", "--ok-color-control-hover-border", "--ok-color-close-hover-border", "--ok-color-sidebar-border", "--ok-color-search-input-border", "--ok-color-search-shortcut-border", "--ok-color-search-popover-border", "--ok-color-card-border", "--ok-color-tree-badge-border", "--ok-color-note-close-hover-border", "--ok-color-editor-trigger-border", "--ok-color-editor-trigger-separator", "--ok-color-editor-menu-border", "--ok-color-editor-menu-separator"]
   };
+  let mermaidRenderQueue = Promise.resolve();
+  let mermaidRenderID = 0;
+  let mermaidRequestID = 0;
+  let mermaidThemeTimer = 0;
   const panelCloseShortcut = {
     id: "viewer.panel.close",
     code: "KeyW",
@@ -364,6 +368,7 @@
       applyCustomThemeVariables(normalized.custom);
     }
     syncThemeControls(normalized);
+    scheduleMermaidThemeRender();
   }
 
   function clearCustomThemeVariables() {
@@ -2391,6 +2396,186 @@
     }
   }
 
+  function scheduleMermaidThemeRender() {
+    window.clearTimeout(mermaidThemeTimer);
+    mermaidThemeTimer = window.setTimeout(function () {
+      enhanceMermaid(stackEl, true);
+    }, 60);
+  }
+
+  function mermaidThemeValue(styles, name, fallback) {
+    return styles.getPropertyValue(name).trim() || fallback;
+  }
+
+  function mermaidConfiguration() {
+    const styles = window.getComputedStyle(document.documentElement);
+    const page = mermaidThemeValue(styles, "--ok-color-page", "#ffffff");
+    const surface = mermaidThemeValue(styles, "--ok-color-surface", page);
+    const text = mermaidThemeValue(styles, "--ok-color-text", "#202322");
+    const muted = mermaidThemeValue(styles, "--ok-color-muted", "#707773");
+    const accent = mermaidThemeValue(styles, "--ok-color-accent", "#0b7a53");
+    const border = mermaidThemeValue(styles, "--ok-color-border", "#e3e6e4");
+    return {
+      startOnLoad: false,
+      securityLevel: "strict",
+      suppressErrorRendering: true,
+      logLevel: "fatal",
+      theme: "base",
+      themeVariables: {
+        background: page,
+        primaryColor: surface,
+        primaryTextColor: text,
+        primaryBorderColor: border,
+        lineColor: muted,
+        secondaryColor: page,
+        secondaryTextColor: text,
+        secondaryBorderColor: border,
+        tertiaryColor: surface,
+        tertiaryTextColor: text,
+        tertiaryBorderColor: border,
+        mainBkg: surface,
+        nodeBorder: accent,
+        clusterBkg: page,
+        clusterBorder: border,
+        titleColor: text,
+        edgeLabelBackground: surface,
+        textColor: text,
+        fontFamily: mermaidThemeValue(styles, "--ok-font-body", "sans-serif")
+      },
+      flowchart: {
+        htmlLabels: false
+      }
+    };
+  }
+
+  function mermaidSourceBlocks(scope) {
+    const blocks = [];
+    if (scope?.matches?.("[data-mermaid-source]")) {
+      blocks.push(scope);
+    }
+    scope?.querySelectorAll?.("[data-mermaid-source]").forEach(function (block) {
+      blocks.push(block);
+    });
+    return blocks;
+  }
+
+  function prepareMermaidBlock(sourceBlock) {
+    const existing = closestElement(sourceBlock, "[data-mermaid-diagram]");
+    if (existing) {
+      return existing;
+    }
+
+    const diagram = document.createElement("figure");
+    diagram.className = "ok-mermaid";
+    diagram.dataset.mermaidDiagram = "";
+
+    const output = document.createElement("div");
+    output.className = "ok-mermaid-output";
+    output.dataset.mermaidOutput = "";
+    output.setAttribute("role", "img");
+    output.setAttribute("aria-label", "Mermaid diagram");
+    output.hidden = true;
+
+    const error = document.createElement("p");
+    error.className = "ok-mermaid-error";
+    error.dataset.mermaidError = "";
+    error.setAttribute("role", "status");
+    error.textContent = "This Mermaid diagram could not be rendered. Its source is shown below.";
+    error.hidden = true;
+
+    sourceBlock.parentNode.insertBefore(diagram, sourceBlock);
+    diagram.append(output, error, sourceBlock);
+    diagram._openKnowledgeMermaidSource = String(sourceBlock.querySelector("code")?.textContent || sourceBlock.textContent || "");
+    return diagram;
+  }
+
+  function enhanceMermaid(scope, force) {
+    if (!window.mermaid || typeof window.mermaid.render !== "function") {
+      return;
+    }
+    const diagrams = mermaidSourceBlocks(scope).map(prepareMermaidBlock).filter(function (diagram) {
+      const state = diagram.dataset.mermaidState || "";
+      return force || (state !== "queued" && state !== "rendering" && state !== "rendered");
+    });
+    if (!diagrams.length) {
+      return;
+    }
+
+    const requestID = ++mermaidRequestID;
+    diagrams.forEach(function (diagram) {
+      diagram.dataset.mermaidState = "queued";
+      diagram._openKnowledgeMermaidRequest = requestID;
+    });
+    mermaidRenderQueue = mermaidRenderQueue.catch(function () {
+      // A malformed diagram must not prevent later diagrams from rendering.
+    }).then(function () {
+      return renderMermaidBatch(diagrams, requestID);
+    });
+  }
+
+  async function renderMermaidBatch(diagrams, requestID) {
+    try {
+      window.mermaid.initialize(mermaidConfiguration());
+    } catch {
+      diagrams.forEach(function (diagram) {
+        const sourceBlock = diagram.querySelector("[data-mermaid-source]");
+        const output = diagram.querySelector("[data-mermaid-output]");
+        const error = diagram.querySelector("[data-mermaid-error]");
+        if (diagram._openKnowledgeMermaidRequest !== requestID || !sourceBlock || !output || !error) {
+          return;
+        }
+        output.hidden = true;
+        sourceBlock.hidden = false;
+        error.hidden = false;
+        diagram.dataset.mermaidState = "error";
+      });
+      return;
+    }
+    for (const diagram of diagrams) {
+      if (diagram._openKnowledgeMermaidRequest !== requestID) {
+        continue;
+      }
+      const sourceBlock = diagram.querySelector("[data-mermaid-source]");
+      const output = diagram.querySelector("[data-mermaid-output]");
+      const error = diagram.querySelector("[data-mermaid-error]");
+      if (!sourceBlock || !output || !error) {
+        continue;
+      }
+
+      diagram.dataset.mermaidState = "rendering";
+      output.setAttribute("aria-busy", "true");
+      try {
+        const result = await window.mermaid.render("ok-mermaid-" + (++mermaidRenderID), diagram._openKnowledgeMermaidSource);
+        if (diagram._openKnowledgeMermaidRequest !== requestID) {
+          continue;
+        }
+        output.innerHTML = result.svg;
+        if (typeof result.bindFunctions === "function") {
+          result.bindFunctions(output);
+        }
+        output.hidden = false;
+        sourceBlock.hidden = true;
+        error.hidden = true;
+        diagram.dataset.mermaidState = "rendered";
+      } catch {
+        if (diagram._openKnowledgeMermaidRequest !== requestID) {
+          continue;
+        }
+        if (diagram.dataset.mermaidRendered !== "true") {
+          output.hidden = true;
+          sourceBlock.hidden = false;
+          error.hidden = false;
+        }
+        diagram.dataset.mermaidState = "error";
+      } finally {
+        output.removeAttribute("aria-busy");
+      }
+      if (diagram.dataset.mermaidState === "rendered") {
+        diagram.dataset.mermaidRendered = "true";
+      }
+    }
+  }
+
   function enhanceTables(scope) {
     scope.querySelectorAll("table").forEach(function (table) {
       if (table.dataset.okTableEnhanced === "true") {
@@ -2799,6 +2984,9 @@
     let previousSpace = true;
     let node;
     while ((node = walker.nextNode())) {
+      if (closestElement(node.parentElement, "[hidden], [aria-hidden='true']")) {
+        continue;
+      }
       const value = node.nodeValue || "";
       for (let index = 0; index < value.length; index += 1) {
         const normalized = normalizeHighlightCharacter(value[index]);
@@ -2914,6 +3102,7 @@
     ensurePanelResizeHandles(panel);
     syncPanelCloseShortcut(panel);
     panel.querySelectorAll("[data-editor-picker]").forEach(bindEditorPicker);
+    enhanceMermaid(panel, false);
     enhanceTables(panel);
 
     const closeButton = panel.querySelector("[data-close-panel]");

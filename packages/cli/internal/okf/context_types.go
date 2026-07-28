@@ -39,12 +39,13 @@ type ContextSource struct {
 }
 
 type ContextIndex struct {
-	Root          string
-	Revision      RetrievalRevision
-	Sections      []ContextSection
-	Issues        []Issue
-	searchCorpus  knowledgeSearchCorpus
-	sectionLookup contextSectionLookup
+	Root                 string
+	Revision             RetrievalRevision
+	Sections             []ContextSection
+	Issues               []Issue
+	searchCorpus         knowledgeSearchCorpus
+	documentSearchCorpus knowledgeSearchCorpus
+	sectionLookup        contextSectionLookup
 }
 
 type RetrievalRevision struct {

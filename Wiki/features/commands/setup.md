@@ -8,25 +8,24 @@ timestamp: 2026-07-28T00:00:00Z
 
 # `openknowledge setup`
 
-`openknowledge setup [wiki]` is the canonical CLI-led onboarding command. Run
-it directly in the Git repository that should own the wiki. It launches the
-setup workflow through Codex by default, or Claude Code or OpenCode via
-`--runtime`. After the agent finishes, the CLI requires the target bundle to
-exist, validates it, and installs the repository-scoped discovery skills and
-observation hooks.
+`openknowledge setup` is the canonical CLI-led onboarding command. Run it in
+the Git repository that should own the wiki. With no arguments, it uses the
+current repository as its source, writes `Wiki`, and launches Codex. After the
+agent finishes, the CLI requires the target bundle to exist, validates it, and
+installs repository-scoped discovery skills and observation hooks.
 
-With `--from <source>`, the same command executes the source-to-wiki workflow.
-The source may be a repository, local folder, or website. This replaces the
-former public `agent init`, `agent from`, and top-level `from` surfaces.
-Portable print-only variants live under [`openknowledge prompt`](prompt.md).
+An explicit `[wiki]` path without `--from` starts a guided workflow for a new
+or open-ended knowledge base. Use `--from <source>` for another repository,
+local folder, or website. Portable print-only variants live under
+[`openknowledge prompt`](prompt.md).
 
 ## Usage
 
 ```sh
-openknowledge setup Wiki --from .
+openknowledge setup
+openknowledge setup --runtime claude
 openknowledge setup Wiki
 openknowledge setup Wiki --rules docs,changelog
-openknowledge setup Wiki --runtime claude
 openknowledge setup Wiki --from https://example.com/docs
 openknowledge setup Wiki --from ./existing-repo --type custom --about "Release operations"
 openknowledge setup --help
@@ -34,9 +33,10 @@ openknowledge setup --help
 
 ## Arguments And Flags
 
-The optional positional argument selects the target wiki and defaults to
-`Wiki`. Setup must run inside a Git repository so project integration has a
-stable repository root.
+The optional positional argument selects the target wiki. With no positional
+argument, the target defaults to `Wiki` and the source defaults to the current
+repository. Setup must run inside a Git repository so project integration has
+a stable repository root.
 
 | Flag | Description |
 | --- | --- |
@@ -72,8 +72,17 @@ selected agent runtime. Do not treat `scaffold` as an equivalent onboarding
 path; it is the advanced deterministic primitive for creating bundle files
 without an agent or project integration.
 
-After setup, inspect the result with `list`, `search`, and `get`, then open it
-with `view`.
+The knowledge base is ready when setup succeeds; no second onboarding command
+is required. Search it later when useful:
+
+```sh
+openknowledge search Wiki "release workflow"
+```
+
+Setup already validates the bundle. `get`, `list`, and `view` remain optional
+follow-up tools for exact reads, structural inspection, and human browsing;
+publishing, registry, runtime, scaffold, and prompt commands are separate
+advanced workflows.
 
 
 ---

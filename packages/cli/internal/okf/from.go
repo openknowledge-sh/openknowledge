@@ -83,7 +83,7 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `openknowledge scaffold --name \"<clear wiki name>\" --no-agents --no-setup %q` before customizing it.\n", markdownCode(options.Out), options.Out))
 	builder.WriteString("- Use `--no-agents --no-setup` for generated source wikis unless the user explicitly wants starter agent rules or an interactive setup handoff document.\n")
 	builder.WriteString("- Keep raw copied material separate from synthesized wiki pages.\n")
-	builder.WriteString("- Write ordinary OKF Markdown so list, search, get, view, validate, and export work without a generation runtime.\n")
+	builder.WriteString("- Write ordinary OKF Markdown so search and validate work without a generation runtime. Keep exact reads, browsing, and exports as optional follow-up workflows.\n")
 	builder.WriteString("- Use normal concept page `type` values such as `Repository Overview`, `Architecture Overview`, `Module`, `Development Workflow`, `API Reference`, `Research Synthesis`, or `Glossary`.\n")
 	builder.WriteString("- Add or update root metadata such as `okf_wiki_type`, `okf_generation_goal`, `okf_generation_rules`, and `okf_generated_from` when useful.\n")
 	builder.WriteString("- Preserve source links, source files, line ranges, commit IDs, canonical URLs, crawl depth, and fetch timestamps where available.\n")
@@ -91,12 +91,10 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 
 	builder.WriteString("Verify and finish:\n")
 	builder.WriteString(fmt.Sprintf("- Run `openknowledge validate %q` and fix validation errors or avoidable warnings.\n", options.Out))
+	builder.WriteString(fmt.Sprintf("- Run one representative source-grounded query with `openknowledge search %q \"<query>\"`; choose a query that demonstrates the wiki's intended use and confirm the returned evidence is relevant.\n", options.Out))
 	builder.WriteString("- Record meaningful generation or refresh notes in log.md.\n")
-	builder.WriteString("- Finish by telling the user what changed and how to inspect the wiki:\n")
-	builder.WriteString(fmt.Sprintf("  - `openknowledge list %q`\n", options.Out))
-	builder.WriteString(fmt.Sprintf("  - `openknowledge search %q \"<query>\"`\n", options.Out))
-	builder.WriteString(fmt.Sprintf("  - `openknowledge get %q <file>`\n", options.Out))
-	builder.WriteString(fmt.Sprintf("  - `openknowledge view %q`\n", options.Out))
+	builder.WriteString("- Finish by telling the user what changed, that validation passed, and what the demonstrated search returned.\n")
+	builder.WriteString("- Mention `openknowledge get`, `list`, or `view` only when the user asks for exact reading, structural inspection, or human browsing.\n")
 	return builder.String(), nil
 }
 

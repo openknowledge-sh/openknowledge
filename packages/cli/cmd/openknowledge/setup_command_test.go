@@ -34,6 +34,9 @@ func TestSetupRunsAgentValidatesAndIntegrates(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("setup code=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
+	if !strings.Contains(stdout, "Ready: Knowledge") || strings.Contains(stdout, "Next:") {
+		t.Fatalf("setup should finish without prescribing another onboarding command:\n%s", stdout)
+	}
 	if !strings.Contains(prompt, "This setup guide is meant to be executed") || !strings.Contains(prompt, "Knowledge") || !strings.Contains(prompt, "Selected maintenance rules") {
 		t.Fatalf("unexpected setup prompt:\n%s", prompt)
 	}
@@ -68,6 +71,68 @@ func TestSetupFromUsesSourceWorkflowAndTarget(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "Source: `.`") || !strings.Contains(prompt, "Output wiki path: `Wiki`") || !strings.Contains(prompt, "Explain releases") {
 		t.Fatalf("unexpected source workflow prompt:\n%s", prompt)
+	}
+}
+
+func TestSetupWithoutArgumentsUsesCurrentRepositoryAndDefaultWiki(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	wiki := filepath.Join(repo, "Wiki")
+	resolvedRepo, err := filepath.EvalSymlinks(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stubCodexResolver(t, "/test/codex")
+	original := runAgentProcess
+	t.Cleanup(func() { runAgentProcess = original })
+	var prompt string
+	runAgentProcess = func(_ context.Context, _ string, arguments []string, directory string) error {
+		prompt = arguments[len(arguments)-1]
+		if directory != resolvedRepo {
+			t.Fatalf("agent directory=%q want %q", directory, resolvedRepo)
+		}
+		if err := os.MkdirAll(wiki, 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(wiki, "index.md"), []byte("---\ntype: Index\n---\n\n# Wiki\n"), 0o644)
+	}
+
+	withinDirectory(t, repo, func() {
+		_, stderr, code := captureMainOutput(t, func() int {
+			return runSetup(nil)
+		})
+		if code != 0 {
+			t.Fatalf("setup code=%d stderr=%s", code, stderr)
+		}
+	})
+	if !strings.Contains(prompt, "Source: `.`") || !strings.Contains(prompt, "Output wiki path: `Wiki`") {
+		t.Fatalf("zero-argument setup should use the current repository source workflow:\n%s", prompt)
+	}
+}
+
+func TestParseSetupArgsKeepsExplicitTargetAsGuidedSetup(t *testing.T) {
+	project, err := parseSetupArgs(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if project.wiki != "Wiki" || project.source != "." {
+		t.Fatalf("zero-argument setup=%+v, want Wiki sourced from current repository", project)
+	}
+
+	guided, err := parseSetupArgs([]string{"Knowledge"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if guided.wiki != "Knowledge" || guided.source != "" {
+		t.Fatalf("explicit-target setup=%+v, want guided setup", guided)
+	}
+
+	withRules, err := parseSetupArgs([]string{"--rules", "docs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if withRules.source != "" {
+		t.Fatalf("rule-selected setup source=%q, want guided setup", withRules.source)
 	}
 }
 
