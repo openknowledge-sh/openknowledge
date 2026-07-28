@@ -8,8 +8,8 @@ timestamp: 2026-06-18T00:00:00Z
 
 # `openknowledge spec`
 
-`openknowledge spec` prints an embedded OKF specification by version. `latest`
-resolves to the latest embedded spec version.
+Use `openknowledge spec` to print an embedded OKF specification. The `latest`
+selector resolves to the latest embedded version.
 
 ## Usage
 
@@ -19,13 +19,13 @@ openknowledge spec 0.1
 openknowledge spec --help
 ```
 
-## Arguments And Flags
+## Arguments and flags
 
 | Name | Kind | Description |
 | --- | --- | --- |
 | `latest|<version>` | argument | Spec selector. Unsupported versions fail. |
 
-## Example Output
+## Example output
 
 `openknowledge spec latest` prints the embedded spec Markdown:
 
@@ -39,7 +39,7 @@ OKF is an open, human- and agent-friendly format for representing
 data and systems.
 ```
 
-## Use Cases
+## Use cases
 
 * Inspect the pinned format rules available to the CLI.
 * Generate or compare local `SPEC.md` content.

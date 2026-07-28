@@ -8,8 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge ast`
 
-Inspect the parser model shared by validation, search, listing, rendering, and
-exporters. Use [`validate`](validate.md) for ordinary pass/fail checks.
+Inspect the parser model that validation, search, listing, rendering, and
+exporters use. Use [`validate`](validate.md) for pass or fail checks.
 
 ## Usage
 
@@ -27,15 +27,15 @@ openknowledge ast Wiki --out ast.json
 
 ## Output
 
-The v1 AST contains the resolved root, spec version, and path-sorted Markdown
-documents. Each document may include:
+The v1 AST contains the resolved root and spec version. It also contains
+Markdown documents in path order. Each document can include:
 
-- source identity and classification (`rel`, `id`, `kind`, `reserved`);
-- complete content and body;
-- typed YAML frontmatter and compatible scalar values;
-- derived title, type, description, tags, resource, and bundle metadata;
-- Markdown blocks, sections, headings, links, and code blocks;
-- read, UTF-8, frontmatter, and Markdown diagnostics.
+- Source identity and classification: `rel`, `id`, `kind`, and `reserved`.
+- Complete content and body.
+- Typed YAML frontmatter and compatible scalar values.
+- Derived title, type, description, tags, resource, and bundle metadata.
+- Markdown blocks, sections, headings, links, and code blocks.
+- Read, UTF-8, frontmatter, and Markdown diagnostics.
 
 ```json
 {
@@ -53,9 +53,9 @@ documents. Each document may include:
 }
 ```
 
-The contract is published as `ast.schema.json`. This is an intentionally
-verbose diagnostics surface; [`export json`](/features/exporters/json.md)
-provides a smaller normalized bundle model.
+The `ast.schema.json` file defines the contract. AST output is a detailed
+diagnostic format. [`export json`](/features/exporters/json.md) provides a
+smaller normalized bundle model.
 
 ---
 

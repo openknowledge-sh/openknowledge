@@ -1,53 +1,71 @@
 ---
 type: Agent Rules
 title: Wiki Agent Rules
-description: Rules for agents maintaining the Open Knowledge CLI developer wiki.
+description: Rules for agents that maintain the Open Knowledge CLI developer wiki.
 tags: [openknowledge, agents, cli, docs]
 timestamp: 2026-06-18T00:00:00Z
 ---
 
 # Agent Rules
 
-This wiki lives at `Wiki/` in the Open Knowledge CLI repository. It exists to
-keep developer-facing CLI feature documentation and changelog memory close to
-the code.
+This wiki is in the `Wiki/` directory of the Open Knowledge CLI repository.
+It keeps CLI documentation and changelog records near the code.
 
-## Read First
+## Read first
 
-Before changing CLI behavior, command flags, exporters, validation, viewer
-behavior, setup flow, README/docs that describe CLI behavior, or release-facing
-package behavior, read the relevant page under [features](features/) and the
-workflow that matches the work:
+Before you change CLI behavior, read the applicable page under
+[features](features/). Then, read the workflow that applies to the change:
 
-* [Feature docs workflow](workflows/feature-docs.md)
-* [Changelog update workflow](workflows/changelog-updates.md)
+- [Feature docs workflow](workflows/feature-docs.md)
+- [Changelog update workflow](workflows/changelog-updates.md)
 
-For command-surface work, start from the matching page under
-[features/commands](features/commands/). Agent setup and maintenance-rule
-changes should read both [setup](features/commands/setup.md) and
-[rules](features/commands/rules.md), because `openknowledge setup --rules` and
-`openknowledge prompt rules` shares the same canonical rule catalog.
+This requirement applies to these changes:
+
+- Commands and flags
+- Exporters and validation
+- The viewer and setup flow
+- CLI content in the README or other documentation
+- Package behavior that affects a release
+
+For a command change, start with its page under
+[features/commands](features/commands/).
+
+For an agent rule change, read the
+[setup](features/commands/setup.md) and [rules](features/commands/rules.md)
+pages. Both command surfaces use the same rule catalog.
 
 The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
 
-## Update Rules
+## Update rules
 
-* Update [changelog/cli.md](changelog/cli.md) when a package change affects CLI behavior, command output, flags, setup, exporters, validation, viewer behavior, release packaging, or user-facing docs.
-* Update the relevant page under [features/commands](features/commands/) or [features/exporters](features/exporters/) when behavior, arguments, examples, or use cases change.
-* Update [features/commands/rules.md](features/commands/rules.md) when agent maintenance rule IDs, descriptions, generated instructions, `--path`, `--target`, `rules apply`, or setup rule selection changes.
-* Keep release history in [changelog/cli.md](changelog/cli.md), not duplicated on
-  command pages. Command pages describe the current surface.
-* Keep shipped behavior separate from planned work. Do not place candidate
-  commands or exporters in the shipped command index.
-* Preserve source paths in prose or code spans when a page depends on specific files.
-* Write reference documentation, not product copy. Lead with the task, prefer
-  tables and copyable examples, state defaults once, and remove rationale that
-  does not change how a reader uses the feature.
-* Keep pages concise and scan-friendly. A simple command page should usually
-  fit within 80 lines; complex runtime pages should rarely exceed 200.
-* Put agent-maintenance material at the end of concept pages in a footer block
-  instead of top-level Markdown headings. Use this shape for source anchors,
-  update notes, and similar grounding metadata:
+- Update [changelog/cli.md](changelog/cli.md) when a package change affects
+  users.
+- Include changes to CLI behavior, output, flags, setup, exporters, validation,
+  the viewer, release packages, and user documentation.
+- Update the applicable page under
+  [commands](features/commands/) or [exporters](features/exporters/) when its
+  behavior changes.
+- Include changes to arguments, examples, and use cases.
+- Update [features/commands/rules.md](features/commands/rules.md) when the rule
+  catalog or rule commands change.
+- Include changes to `openknowledge setup --rules`,
+  `openknowledge prompt rules`, and `rules apply`.
+- Include changes to the `--path` and `--target` flags.
+- Keep release history in the changelog. Command pages describe only the
+  current interface.
+- Keep released behavior separate from planned work.
+- Do not put candidate commands or exporters in the released command index.
+- Preserve source paths when a page depends on specific files.
+- Write reference documentation, not product copy.
+- Start with the task. Give options and defaults one time.
+- Use tables only when they make comparison easier.
+- Give copyable examples.
+- Remove explanations that do not change how a reader uses the feature.
+- Keep each page concise and easy to scan.
+- Keep a simple command page to approximately 80 lines or fewer.
+- Keep a complex runtime page to approximately 200 lines or fewer.
+- Put agent-maintenance information in a footer block.
+- Use this form for source anchors, update notes, and related metadata:
 
   ```md
   ---
@@ -63,31 +81,67 @@ The repo-local Codex skill is `.codex/skills/openknowledge-wiki/SKILL.md`.
   > Update this page when shipped behavior changes.
   ```
 
-* When the current agent runtime supports subagents, use focused lower-reasoning
-  subagents for bounded wiki maintenance tasks such as narrow source inspection,
-  targeted docs checks, or validation-focused review.
+- When the agent runtime supports subagents, use them for bounded Wiki tasks.
+- Give each subagent a narrow inspection, documentation, or validation task.
 
-## Do Not Update
+## Writing standard
 
-Do not update the wiki for unrelated refactors, formatting-only changes,
-dependency noise, or changes that do not affect CLI behavior, docs, workflows,
-or release-facing behavior.
+Write all project-authored Wiki text with the rules in ASD-STE100 Issue 9.
+Use American English.
+
+Use the official
+[ASD-STE100 Issue 9](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf)
+for the complete rules and dictionary.
+
+Apply these rules:
+
+- Use approved words, or use established Open Knowledge technical terms.
+- Use one technical term for one item or action.
+- Use the active voice.
+- Use the simple present, simple past, or simple future tense.
+- Use an `-ing` form only in an established technical term.
+- Do not use contractions or semicolons.
+- Keep a descriptive sentence to a maximum of 25 words.
+- Keep an instruction to a maximum of 20 words.
+- Give only one instruction in each procedural sentence.
+- Start each instruction with an imperative verb.
+- Put a necessary condition before the instruction.
+- Keep each paragraph on one topic.
+- Keep each paragraph to a maximum of six sentences.
+- Use a vertical list for complex information.
+- Keep multi-word nouns to three words when an established technical term does
+  not require more words.
+- Make each pronoun reference clear.
+
+Treat product names, command names, flags, paths, schema fields, protocol names,
+and programming terms as technical terms. Do not change their spelling.
+
+`SPEC.md` is a pinned upstream document. Keep its upstream text unchanged.
+Apply this writing standard only to the local notice around that text.
+
+## Do not update
+
+Do not update the wiki for an unrelated refactor or a formatting-only change.
+Do not update it for dependency changes that do not affect users.
 
 Do not store secrets, tokens, private credentials, or unverified claims in the
-wiki. Do not claim native automations exist unless they have actually been
-created in the current agent runtime.
+wiki. Do not claim that an automation exists until the agent runtime creates
+it.
 
 ## Validation
 
-Follow the local [Open Knowledge Format spec](SPEC.md). Keep non-reserved
-Markdown concept documents OKF-valid with YAML frontmatter and a non-empty
-`type` field. Treat `index.md` as progressive-disclosure indexes and `log.md`
-as chronological logs.
+Follow the local [Open Knowledge Format specification](SPEC.md).
 
-After meaningful wiki edits, run:
+Keep each non-reserved Markdown concept valid for OKF. Each concept must have
+YAML frontmatter and a non-empty `type` field.
+
+Use `index.md` files as progressive-disclosure indexes. Use `log.md` files as
+chronological logs.
+
+After a meaningful Wiki edit, run:
 
 ```sh
 openknowledge validate "Wiki"
 ```
 
-Fix validation errors and avoidable warnings before finishing.
+Fix all errors and avoidable warnings.

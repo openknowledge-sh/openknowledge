@@ -9,7 +9,7 @@ timestamp: 2026-07-28T00:00:00Z
 # Installation
 
 Installed releases expose both `openknowledge` and the shorter `okn` alias.
-They run the same CLI; the examples below keep the descriptive command name.
+Both names run the same CLI. The examples use the descriptive command name.
 
 ## Shell installer
 
@@ -17,29 +17,32 @@ They run the same CLI; the examples below keep the descriptive command name.
 curl -fsSL https://openknowledge.sh/install | bash
 ```
 
-The installer supports macOS and Linux on `amd64` and `arm64`. It downloads the
-matching release archive, verifies its SHA-256, probes the staged binary with
-`openknowledge version`, atomically replaces the destination, and creates
-`okn` as a relative symlink. It refuses to replace an unrelated existing
-`okn` command. Existing binaries survive failed downloads, checks, or probes.
+The installer supports macOS and Linux on `amd64` and `arm64`.
+It downloads the applicable release archive and verifies its SHA-256.
+It tests the staged binary with `openknowledge version`.
+It then replaces the destination and creates `okn` as a relative symbolic link.
+It does not replace an unrelated `okn` command.
+A failed download, check, or test does not remove an existing binary.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OPENKNOWLEDGE_REPO` | `openknowledge-sh/openknowledge` | Release repository. |
-| `OPENKNOWLEDGE_VERSION` | `latest` | Release version; an optional leading `v` is normalized. |
-| `OPENKNOWLEDGE_BASE_URL` | GitHub Releases | HTTPS asset base URL; `file://` is accepted only for controlled local tests. Plain HTTP is rejected before download. |
+| `OPENKNOWLEDGE_VERSION` | `latest` | Release version. The installer accepts an optional leading `v`. |
+| `OPENKNOWLEDGE_BASE_URL` | GitHub Releases | HTTPS asset base URL. The installer accepts `file://` only for controlled local tests. It rejects plain HTTP. |
 | `OPENKNOWLEDGE_INSTALL_DIR` | `$HOME/.local/bin` | Destination directory. |
 
-For a stronger origin check, download an archive and verify its GitHub/Sigstore
-attestation:
+For an additional origin check, download an archive.
+Then, verify its GitHub or Sigstore attestation:
 
 ```sh
 gh attestation verify openknowledge_linux_amd64.tar.gz \
   -R openknowledge-sh/openknowledge
 ```
 
-If piping a remote script is outside your trust policy, download and inspect
-`install` first, then run it locally. The archive is still checksum-verified.
+If your trust policy prohibits a remote script pipe, download the `install` file.
+Inspect the file.
+Then, run it locally.
+The installer still verifies the archive checksum.
 
 ## npm
 
@@ -47,11 +50,12 @@ If piping a remote script is outside your trust policy, download and inspect
 npm install -g @openknowledge-sh/openknowledge
 ```
 
-The npm package registers both command names and downloads the binary matching
-the package version. It supports the release platforms, including Windows
-assets when available, and applies bounded HTTPS redirects, download and
-expansion limits, exact checksum lookup, strict tar member validation, and
-atomic publication.
+The npm package registers both command names.
+It downloads the binary that matches the package version.
+It supports all release platforms, including Windows assets when available.
+It limits HTTPS redirects, download size, and expanded size.
+It also requires an exact checksum and validates each tar member.
+It publishes the binary atomically.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -67,9 +71,10 @@ pnpm build:cli
 ./bin/openknowledge version
 ```
 
-The release workflow publishes npm only after matching GitHub Release assets
-exist and versions align. Shell and npm installation behavior is covered by
-offline transactional tests in the root `pnpm test` gate.
+The release workflow publishes npm only when the applicable GitHub Release
+assets exist. The package versions must also match.
+Offline transactional tests cover shell and npm installation.
+The root `pnpm test` gate runs these tests.
 
 ---
 
@@ -85,5 +90,5 @@ offline transactional tests in the root `pnpm test` gate.
 >
 > **Update notes**
 >
-> Update this page when platforms, variables, verification, or release asset
-> behavior changes.
+> Update this page after a change to a platform, variable, verification method,
+> or release asset.

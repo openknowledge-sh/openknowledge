@@ -8,8 +8,8 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge prompt review`
 
-`openknowledge prompt review` produces advisory prompts and never calls a
-model, edits files, or changes deterministic validation status.
+Use `openknowledge prompt review` to print advisory prompts. The command does
+not call a model, edit files, or change validation status.
 
 ## Usage
 
@@ -20,12 +20,15 @@ openknowledge prompt review rules --rules docs,changelog --path Wiki
 openknowledge prompt review rules --all Wiki
 ```
 
-The `rules` workflow loads the same built-in and wiki-local catalog as
-`openknowledge prompt rules`. It asks an external agent to inspect evidence for
-the selected maintenance obligations. Findings remain advisory; use
-`openknowledge validate` for deterministic OKF validity.
+The `rules` workflow loads the same catalog as `openknowledge prompt rules`.
+The catalog contains built-in rules and wiki-local rules.
 
-The old top-level `openknowledge review` form was removed before 1.0.
+The prompt asks an external agent to inspect evidence for the selected
+maintenance obligations. The findings are advisory. Use
+`openknowledge validate` to validate the OKF bundle.
+
+Open Knowledge removed the old top-level `openknowledge review` form before
+1.0.
 
 ---
 

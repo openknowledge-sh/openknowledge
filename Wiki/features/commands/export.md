@@ -8,8 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge export`
 
-Create a static site, normalized model, graph, or portable source archive from
-a local or connected knowledge base.
+Create a static site, normalized model, graph, or portable source archive.
+The source can be a local or connected knowledge base.
 
 ## Targets
 
@@ -36,16 +36,18 @@ openknowledge export tar --out ./wiki.tar.gz Wiki
 | --- | --- | --- | --- |
 | `key-or-path` | all | `.` | Registry key or bundle root. |
 | `--spec <version>` | all | `latest` | OKF version. |
-| `--out <path>` | all | stdout for JSON/graph | Required directory for HTML; required file for tar. |
+| `--out <path>` | all | stdout for JSON/graph | Required directory for HTML. Required file for tar. |
 | `--type source|search` | graph | `source` | Graph projection. |
 | `--plain` | HTML | off | Semantic HTML without viewer assets. |
 | `--head-file`, `--head-html` | HTML viewer | environment | Trusted head injection. |
-| `--script-src <src>` | HTML viewer | environment | Trusted script URL; repeatable. |
+| `--script-src <src>` | HTML viewer | environment | Trusted script URL. Repeatable. |
 
-HTML and tar require zero validation errors. HTML also requires explicit
-publication permission in `openknowledge.toml`. JSON and graph print
-`schemaVersion: "1"` documents to stdout unless `--out` is set. Machine output
-files are atomically replaced after complete serialization.
+HTML and tar require zero validation errors. HTML also requires publication
+permission in `openknowledge.toml`.
+
+JSON and graph print `schemaVersion: "1"` documents to stdout by default. Use
+`--out` to write a file. The command replaces a machine output file only after
+complete serialization.
 
 Unknown targets or unsupported flags are usage errors with exit status `2`.
 

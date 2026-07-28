@@ -8,8 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge connect`
 
-Add an existing local or remote bundle to the registry. Later commands can use
-the assigned key instead of a filesystem path or URL.
+Add a local or remote bundle to the registry. Other commands can then use the
+assigned key instead of a path or URL.
 
 ## Usage
 
@@ -24,14 +24,14 @@ openknowledge connect <git-url> --git-ref <ref> --git-subdir <path>
 | --- | --- | --- |
 | `source` | required | Local directory, registry key, manifest URL, tar URL, or Git URL. |
 | `--as <key>` | bundle/folder name | Explicit registry key. |
-| `--access read|write` | `read` | Local authoring capability; remotes are always read-only. |
+| `--access read|write` | `read` | Local authoring capability. Remotes are always read-only. |
 | `--git-ref <ref>` | remote default | Branch, tag, or commit for Git sources. |
 | `--git-subdir <path>` | repository root | Bundle root inside a Git repository. |
 | `--no-validate` | off | Omit validation status from success output. |
 
-Keys begin with an ASCII letter or digit and may contain letters, numbers,
-dots, underscores, and dashes. Implicit collisions receive a numeric suffix;
-explicit collisions fail.
+A key starts with an ASCII letter or digit. It can contain letters, numbers,
+dots, underscores, and dashes. An implicit collision adds a numeric suffix. An
+explicit collision stops the command.
 
 ## Source resolution
 
@@ -43,28 +43,31 @@ explicit collisions fail.
 | `.tar`, `.tar.gz`, `.tgz` URL | Download and safely extract the archive. |
 | Other HTTP(S) or Git URL | Perform a shallow Git materialization. |
 
-Remote materializations are staged under the Open Knowledge cache and
-published atomically after validation. Archive paths, symlinks, extraction
-sizes, Git selectors, and bundle boundaries are checked before registration.
-Managed cache provenance records final URLs, archive digest or Git commit,
-selectors, tree digest, and fetch time.
+The command stages remote materializations in the Open Knowledge cache. It
+publishes them atomically after validation.
 
-Cache identity comes from the normalized source plus Git selectors, not the
-registry key. Reconnecting the same selected source can therefore reuse its
-validated materialization. `connect` does not check a reused cache for remote
-freshness; run [`openknowledge registry refresh`](registry.md) to fetch a new
-generation.
+Before registration, the command validates archive paths, symlinks, extraction
+sizes, Git selectors, and bundle boundaries. Cache provenance records final
+URLs, selectors, tree digest, and fetch time. It also records an archive digest
+or Git commit.
+
+The normalized source and Git selectors define the cache identity. The
+registry key does not define it. A repeated connection can reuse its validated
+materialization.
+
+`connect` does not inspect a reused cache for remote updates. Run
+[`openknowledge registry refresh`](registry.md) to get a new generation.
 
 ## Access and validation
 
-Local `read` connections hide editor links and block maintenance-rule writes;
-`write` enables those CLI authoring surfaces. This capability does not change
-operating-system permissions or constrain other tools. Managed remotes cannot
-be writable.
+Local `read` connections hide editor links and block maintenance rule writes.
+`write` enables these CLI authoring functions. This setting does not change
+operating system permissions. It does not constrain other tools. A managed
+remote is always read-only.
 
-Validation is reported as `valid`, `warnings`, `invalid`, or `unknown`, but is
-not a connection gate. Root `okf_bundle_*` metadata supplies the default key,
-display title, purpose, and named entrypoints when present.
+Validation reports `valid`, `warnings`, `invalid`, or `unknown`. Validation
+does not prevent a connection. Root `okf_bundle_*` metadata can supply the
+default key, display title, purpose, and named entrypoints.
 
 ---
 

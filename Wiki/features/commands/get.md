@@ -8,8 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge get`
 
-Read deterministic, exact knowledge. Use [`search`](search.md) when you need
-ranked or budget-bounded retrieval.
+Read an exact file, entrypoint, or metadata record. Use
+[`search`](search.md) when you need ranked or budget-limited retrieval.
 
 ## Usage
 
@@ -19,9 +19,9 @@ openknowledge get <key-or-path> <entry-or-file>
 openknowledge get <key-or-path> --info
 ```
 
-`key-or-path` may be a standalone local Markdown file, registry key, or bundle
-directory. `entry-or-file` may be a named bundle entrypoint or a
-bundle-relative Markdown path. `--info` prints metadata instead of content.
+`key-or-path` can be a local Markdown file, registry key, or bundle directory.
+`entry-or-file` can be a named bundle entrypoint or bundle-relative Markdown
+path. `--info` prints metadata instead of content.
 
 ## Selection
 
@@ -31,8 +31,9 @@ bundle-relative Markdown path. `--info` prints metadata instead of content.
 3. A second argument first matches `okf_bundle_entry_<name>`, then falls back
    to a relative Markdown path.
 
-Relative selections must remain inside the bundle and cannot traverse
-symlinks. Missing files, directories, and escapes fail before output.
+Relative selections must stay inside the bundle. They cannot traverse
+symlinks. A missing file, directory selection, or path escape stops the
+command before output.
 
 Bundle metadata is optional root `index.md` frontmatter:
 
@@ -43,9 +44,9 @@ okf_bundle_entry_default: agents/accessibility-checker.md
 okf_bundle_entry_review: agents/accessibility-review.md
 ```
 
-Entrypoints are ordinary Markdown files. `--info` reports bundle title,
-purpose, tags, entrypoint paths, and selected-page metadata when present. Plain
-OKF bundles without metadata remain valid and use the root index fallback.
+Entrypoints are Markdown files. `--info` reports available bundle and page
+metadata. This metadata includes titles, purpose, tags, and entrypoint paths.
+An OKF bundle without this metadata remains valid. It uses the root index.
 
 ---
 

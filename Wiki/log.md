@@ -5,11 +5,13 @@ This log tracks documentation-structure changes. Product history belongs in
 
 ## 2026-07-28
 
-- Documented setup runtime preflight and recovery, the fail-closed publication
-  handoff, cross-platform CI, browser journeys, packed npm installation, and
-  pre-tag release artifact certification.
-- Linked the knowledge architecture reference from the feature index and
-  separated released v0.7/v0.6 history from ongoing changes.
+- Applied ASD-STE100 Issue 9 rules to the project-authored Wiki text.
+- Replaced the workflow table on the main page with task sections.
+- Documented the setup preflight, recovery, and fail-closed publication handoff.
+- Documented cross-platform CI and browser journeys.
+- Documented packed npm installation and release artifact certification.
+- Linked the knowledge architecture reference from the feature index.
+- Separated the v0.7 and v0.6 history from ongoing changes.
 
 ## 2026-07-21
 
@@ -19,9 +21,9 @@ This log tracks documentation-structure changes. Product history belongs in
 
 ## 2026-07-18
 
-- Reworked the wiki into current-state reference documentation: consolidated
-  command history, shortened core pages, corrected CLI drift, and aligned
-  navigation with the shipped workflow groups.
+- Reworked the wiki as current-state reference documentation.
+- Consolidated command history and shortened the main pages.
+- Corrected CLI drift and aligned navigation with the shipped workflows.
 
 ## 2026-07-15
 
@@ -38,5 +40,5 @@ This log tracks documentation-structure changes. Product history belongs in
 
 ## 2026-06-18
 
-- Initialized the colocated OKF wiki, maintenance rules, workflows, and pinned
-  specification.
+- Initialized the colocated OKF wiki.
+- Added maintenance rules, workflows, and the pinned specification.

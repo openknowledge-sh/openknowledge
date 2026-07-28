@@ -1,10 +1,10 @@
 # Decisions
 
-Setup and maintenance decisions for this wiki.
+This section contains setup and maintenance decisions for this wiki.
 
 ## Pages
 
-* [Wiki structure](wiki-structure.md) - why this bundle is organized around CLI docs and changelog memory.
-* [Product interface direction](product-interface.md) - organize the complete
-  knowledge-base lifecycle around four user workflows and progressive CLI
-  disclosure.
+- [Wiki structure](wiki-structure.md) - Explains the structure of the CLI
+  documentation and changelog.
+- [Product interface direction](product-interface.md) - Organizes the complete
+  lifecycle around one primary workflow and four secondary workflows.

@@ -8,10 +8,10 @@ timestamp: 2026-06-18T00:00:00Z
 
 # JSON Exporter
 
-The JSON exporter serializes a normalized model of the bundle's parsed
-Markdown documents. It includes document metadata, typed YAML frontmatter
-values, Markdown body content, links, and validation issues. Non-Markdown
-assets are not part of this projection.
+The JSON exporter serializes a normalized model of parsed Markdown documents.
+The model includes document metadata and typed YAML frontmatter values.
+It also includes Markdown body content, links, and validation issues.
+This projection does not include non-Markdown assets.
 
 ## Command
 
@@ -21,7 +21,7 @@ openknowledge export json --out <file> [key-or-path]
 openknowledge export json --spec <version> [key-or-path]
 ```
 
-## Arguments And Flags
+## Arguments and flags
 
 | Name | Kind | Description |
 | --- | --- | --- |
@@ -31,34 +31,36 @@ openknowledge export json --spec <version> [key-or-path]
 
 ## Behavior
 
-`export json` parses and validates the bundle before serialization. Validation
-errors and warnings are included in the top-level `issues` array and attached to
-matching files. When `--out` is omitted, the JSON is printed to stdout. The
-HTML-only `--plain` flag is rejected for JSON.
+`export json` parses and validates the bundle before serialization.
+The top-level `issues` array contains validation errors and warnings.
+Each applicable file also contains its validation issues.
+Without `--out`, the command prints the JSON to stdout.
+The command does not accept the HTML-only `--plain` flag.
 
 The `files` array contains parsed `.md` and `.markdown` documents only.
 Non-Markdown assets remain visible through `openknowledge list --json` and are
 preserved by `openknowledge export tar`.
 
-The top-level object declares `schemaVersion: "1"` for the normalized CLI JSON
-contract and `specVersion` for the selected Open Knowledge Format version.
-These versions are independent. The v1 JSON Schema is available at
-`packages/cli/schemas/v1/bundle.schema.json` and is protected by a golden
-contract test.
+The top-level object declares `schemaVersion: "1"` for the normalized CLI JSON contract.
+It declares `specVersion` for the selected Open Knowledge Format version.
+These versions are independent.
+The v1 JSON Schema is at `packages/cli/schemas/v1/bundle.schema.json`.
+A golden contract test protects this schema.
 
-Link entries include their kind, source line, local target path and ID, and
-whether the target exists. Directory links are marked existing when they resolve
-to an `index.md` file in that directory.
+Each link entry includes its kind and source line.
+It also includes the local target path, target ID, and target status.
+A directory link exists when it resolves to an `index.md` file in that directory.
 
-Each file's `frontmatter` preserves YAML mappings and sequences as JSON objects
-and arrays, scalar types as JSON-compatible values, and block scalar content as
-strings. Export no longer flattens nested values or substitutes YAML syntax
-markers such as `|` for decoded content.
+Each file's `frontmatter` preserves YAML mappings and sequences as JSON objects and arrays.
+It preserves scalar types as JSON-compatible values.
+It preserves block scalar content as strings.
+The exporter does not flatten nested values.
+It does not replace decoded content with YAML syntax markers such as `|`.
 
-## Use Cases
+## Use cases
 
-* Feed bundle content to tools and agents.
-* Inspect parsed frontmatter and link extraction.
+* Provide bundle content to tools and agents.
+* Examine parsed frontmatter and extracted links.
 * Validate output contracts in tests.
 
 
@@ -76,5 +78,6 @@ markers such as `|` for decoded content.
 >
 > **Update notes**
 >
-> When JSON fields, issue inclusion, link metadata, frontmatter handling, or
-> stdout versus file behavior changes, update this page and [CLI changelog](/changelog/cli.md).
+> Update this page after a change to JSON fields, issues, links, frontmatter,
+> or output destinations.
+> Also update the [CLI changelog](/changelog/cli.md).

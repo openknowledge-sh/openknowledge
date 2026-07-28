@@ -14,7 +14,7 @@ Run a self-hosted knowledge service with separate trust zones:
 - `publisher` owns GitHub access and artifact promotion.
 - one `jobs` worker per harness owns model access and scheduled worktrees.
 
-No production role receives both GitHub and model credentials.
+No production role receives both GitHub credentials and model credentials.
 
 ```mermaid
 flowchart LR
@@ -42,25 +42,25 @@ openknowledge runtime worker --role jobs --runtime codex --config runtime.toml [
 | --- | --- |
 | `plan` | Strictly parse and normalize configuration, inspect jobs, and print required runtimes. |
 | `build` | Create a filtered immutable generation and promote it unless `--no-publish` is set. |
-| `serve` | Serve active verified generations; `--check` verifies and exits without binding. |
+| `serve` | Serve active verified generations. `--check` verifies the generation and does not bind a listener. |
 | `worker --role publisher` | Reconcile production, publish generations, and process proposals. |
 | `worker --role jobs` | Run scheduled jobs for one selected harness. |
 
-`build --out <dir>` writes one selected knowledge base to an explicit directory.
-It requires `--id` only when configuration selects multiple knowledge bases.
-Without `--out`, builds go under
-`<state_dir>/builds/<id>`. Plan and build output use `schemaVersion: "1"`;
-multi-build results wrap generations in a top-level `generations` array.
-Single-plan and single-build contracts are published as
-`runtime-plan.schema.json` and `runtime-build.schema.json`.
+`build --out <dir>` writes one selected knowledge base to a specified
+directory. It requires `--id` when the configuration selects multiple knowledge
+bases. Without `--out`, builds go under `<state_dir>/builds/<id>`.
 
-`--role all` is for local development and is rejected when GitHub integration
-is enabled.
+Plan and build output use `schemaVersion: "1"`. A multiple-build result uses a
+top-level `generations` array. The `runtime-plan.schema.json` and
+`runtime-build.schema.json` files define the single-result contracts.
 
-Long-running roles write successful lifecycle events such as listening,
-synchronization, publication, and generation activation to standard output.
-Usage errors, failed reconciliation passes, and other diagnostics use standard
-error so hosting platforms preserve the intended log severity.
+Use `--role all` only for local development. The command rejects this value
+when GitHub integration is active.
+
+Long-running roles write successful lifecycle events to stdout. These events
+include listening, synchronization, publication, and generation activation.
+Usage errors and failed reconciliation passes go to stderr. Other diagnostics
+also go to stderr.
 
 ## Configuration
 
@@ -104,15 +104,18 @@ publish = true
 mcp = true
 ```
 
-Paths are relative to `runtime.toml`. Unknown fields, duplicate IDs or routes,
-unsafe routes, invalid durations, missing runtime adapters, and incomplete
-authentication fail closed. Containers may read the complete TOML document
-from `env:OPENKNOWLEDGE_RUNTIME_CONFIG`; relative paths then use
+Paths are relative to `runtime.toml`. The runtime rejects unknown fields,
+duplicate IDs, duplicate routes, unsafe routes, and invalid durations. It also
+rejects missing adapters and incomplete authentication.
+
+A container can read the complete TOML document from
+`env:OPENKNOWLEDGE_RUNTIME_CONFIG`. Relative paths then use
 `OPENKNOWLEDGE_RUNTIME_ROOT` or `/workspace`.
 
-The artifact store supports a local filesystem or an authenticated private
-HTTP read-through cache. Plain HTTP is limited to loopback, private addresses,
-and `*.railway.internal`; public transports require HTTPS. S3 is not supported.
+The artifact store supports a local filesystem. It also supports an
+authenticated private HTTP cache. Plain HTTP supports only loopback, private
+addresses, and `*.railway.internal`. A public transport requires HTTPS. S3 is
+not supported.
 
 ## Published service
 
@@ -126,50 +129,60 @@ search/   # search projection
 mcp/      # MCP projection
 ```
 
-The manifest binds the knowledge-base ID, OKF spec, source commit, and sorted
-file digests. Promotion is staged and atomic. `serve` verifies the pointer,
-manifest, and every file, then builds the search context index before switching
-snapshots. Search requests reuse that generation-scoped index. A new content
-digest replaces it atomically; invalid files or an index-build failure leave
-the last valid snapshot active.
+The manifest binds the knowledge base ID, OKF spec, source commit, and sorted
+file digests. Promotion uses staging and is atomic.
 
-For each configured route the service exposes the static viewer,
-`_search?q=<query>&limit=<1..50>`, and optional `_mcp`. Process health is at
-`/_openknowledge/healthz`; readiness for an active snapshot is at
-`/_openknowledge/readyz`.
+`serve` verifies the pointer, manifest, and each file. It then builds the
+search context index before it changes snapshots. Search requests reuse this
+generation index.
+
+A new content digest replaces the index atomically. An invalid file or index
+build failure keeps the last valid snapshot active.
+
+Each configured route exposes the static viewer and
+`_search?q=<query>&limit=<1..50>`. It can also expose `_mcp`.
+
+Use `/_openknowledge/healthz` for process health. Use
+`/_openknowledge/readyz` to identify an active snapshot.
 
 The service sends a restrictive Content Security Policy. Generated viewer code
-loads from same-origin export assets instead of executable inline scripts, so
-the default policy does not need `unsafe-inline` for JavaScript. Static viewer
-responses use `Cache-Control: no-cache`, allowing browser caches to store them
-while requiring revalidation after a deployment replaces the generation.
+loads same-origin export assets. It does not use executable inline scripts.
+Therefore, the default JavaScript policy does not require `unsafe-inline`.
+
+Static viewer responses use `Cache-Control: no-cache`. A browser can store
+these responses but must validate them after a generation change.
 
 ## Security boundary
 
-The publisher maintains the credentialed checkout and independently validates
-every worker proposal before a non-force push and draft pull request. Workers
-receive production Git bundles, run matching jobs in isolated worktrees, and
-return bounded branch bundles plus sanitized requests. Prompts, logs, diffs,
-and environment metadata stay on the worker's private state volume.
+The publisher maintains the credentialed checkout. It validates each worker
+proposal before a non-force push and draft pull request.
+
+Workers receive production Git bundles. They run matching jobs in isolated
+worktrees. They return bounded branch bundles and sanitized requests. Prompts,
+logs, diffs, and environment metadata stay on the private worker volume.
 
 The repository includes local Compose targets for `serve`, `publisher`,
 `worker-codex`, `worker-claude`, and `worker-opencode`. Railway deployments use
-the project-owned `.openknowledge/runtime/Dockerfile` and `runtime.toml`
-generated by `openknowledge deploy railway init`. The default image builds the
-knowledge generation during `docker build` and starts as a standalone `serve`
-process reading `/opt/openknowledge/artifacts`; it does not poll Git or a
-publisher.
+the project `.openknowledge/runtime/Dockerfile` and `runtime.toml`.
+`openknowledge deploy railway init` generates these files.
 
-Passing `--runtimes` to deployment explicitly adds publisher and worker roles.
-The same entrypoint selects those roles, while Railway scopes ingress, volumes,
-and credentials per service. Only `serve` has public ingress. The publisher's
-private HTTP exchange endpoint carries bounded Git bundles for workers; the
-serve artifact remains the generation baked into its source-triggered image.
+The default image builds the knowledge generation during `docker build`. It
+starts as a standalone `serve` process and reads
+`/opt/openknowledge/artifacts`. It does not poll Git or a publisher.
 
-Source bundles must explicitly set `[publish] enabled = true`. Page-level
-`okf_publish` and `okf_targets` filter public projections, but are not a secrecy
-boundary for a public repository. Keep confidential source in a private
-repository and put TLS and rate limiting at the trusted ingress.
+`--runtimes` adds publisher and worker roles to a deployment. The same
+entrypoint selects these roles. Railway assigns ingress, volumes, and
+credentials to each service. Only `serve` has public ingress.
+
+The private publisher endpoint transfers bounded Git bundles to workers. The
+serve artifact stays in its source-triggered image.
+
+A source bundle must set `[publish] enabled = true`. Page-level `okf_publish`
+and `okf_targets` filter public projections. They do not protect secrets in a
+public repository.
+
+Keep confidential source in a private repository. Apply TLS and rate limits at
+the trusted ingress.
 
 ---
 

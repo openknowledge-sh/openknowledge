@@ -8,16 +8,18 @@ timestamp: 2026-07-28T00:00:00Z
 
 # `openknowledge setup`
 
-`openknowledge setup` is the canonical CLI-led onboarding command. Run it in
-the Git repository that should own the wiki. With no arguments, it uses the
-current repository as its source, writes `Wiki`, and launches Codex. After the
-agent finishes, the CLI requires the target bundle to exist, validates it, and
-installs repository-scoped discovery skills and observation hooks.
+Use `openknowledge setup` to create and integrate a wiki. Run the command in
+the Git repository that contains the wiki.
 
-An explicit `[wiki]` path without `--from` starts a guided workflow for a new
-or open-ended knowledge base. Use `--from <source>` for another repository,
-local folder, or website. Portable print-only variants live under
-[`openknowledge prompt`](prompt.md).
+With no arguments, the command uses the current repository as the source. It
+writes `Wiki` and starts Codex. After Codex finishes, the CLI verifies that the
+target bundle exists. The CLI then validates the bundle and installs
+repository-level discovery skills and observation hooks.
+
+Specify `[wiki]` without `--from` to start a guided workflow for a new
+knowledge base. Use `--from <source>` for a different repository, local
+folder, or website. Use [`openknowledge prompt`](prompt.md) to print portable
+prompts. That command does not start an agent.
 
 ## Usage
 
@@ -31,12 +33,13 @@ openknowledge setup Wiki --from ./existing-repo --type custom --about "Release o
 openknowledge setup --help
 ```
 
-## Arguments And Flags
+## Arguments and flags
 
-The optional positional argument selects the target wiki. With no positional
-argument, the target defaults to `Wiki` and the source defaults to the current
-repository. Setup must run inside a Git repository so project integration has
-a stable repository root.
+The optional positional argument selects the target wiki. The default target
+is `Wiki`. The default source is the current repository.
+
+Run setup inside a Git repository. Project integration requires a stable
+repository root.
 
 | Flag | Description |
 | --- | --- |
@@ -52,37 +55,39 @@ a stable repository root.
 Built-in canonical rules are `project`, `docs`, `decisions`, `changelog`,
 `research`, `bugs`, `schemas`, `summary`, and `agents`.
 
-## Completion Contract
+## Completion contract
 
-Before launching an interactive process, setup resolves the selected runtime
-executable. A missing or unusable executable fails before agent work starts and
-prints an exact `openknowledge agent doctor --runtime <runtime>` recovery
-command. The resolved executable is reused for the run, avoiding a second
-discovery pass.
+Before setup starts an interactive process, it resolves the selected runtime
+executable. A missing or unusable executable stops setup before agent work
+starts. Setup then prints this recovery command:
+`openknowledge agent doctor --runtime <runtime>`.
 
-Setup succeeds only when all three execution stages succeed: the selected agent
-harness finishes, the target is a valid OKF bundle, and project integration
-installs. Agent failure prints the runtime and exit status plus an
-authentication-and-rerun hint. A missing target, validation errors, or
-integration failure also produce a nonzero exit. Existing uncommitted
-repository changes remain visible to the agent.
+Setup uses the resolved executable for the complete run.
 
-Setup is the workflow controller: it starts an interactive process for the
-selected agent runtime. Do not treat `scaffold` as an equivalent onboarding
-path; it is the advanced deterministic primitive for creating bundle files
+Setup succeeds only when all three stages succeed:
+
+1. The selected agent harness finishes.
+2. The target is a valid OKF bundle.
+3. Project integration installs.
+
+An agent failure prints the runtime, exit status, and a recovery hint. A
+missing target, validation error, or integration failure produces a nonzero
+exit status. The agent can see existing uncommitted repository changes.
+
+Setup controls the workflow and starts an interactive agent process.
+`scaffold` is not an equivalent onboarding path. It creates bundle files
 without an agent or project integration.
 
-The knowledge base is ready when setup succeeds; no second onboarding command
-is required. Search it later when useful:
+The knowledge base is ready when setup succeeds. You do not need a second
+onboarding command. Use search when you need context:
 
 ```sh
 openknowledge search Wiki "release workflow"
 ```
 
-Setup already validates the bundle. `get`, `list`, and `view` remain optional
-follow-up tools for exact reads, structural inspection, and human browsing;
-publishing, registry, runtime, scaffold, and prompt commands are separate
-advanced workflows.
+Setup validates the bundle. Use `get`, `list`, or `view` only when you need
+their output. Publishing, registry, runtime, scaffold, and prompt commands are
+separate advanced workflows.
 
 
 ---

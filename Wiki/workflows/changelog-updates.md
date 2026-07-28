@@ -10,32 +10,41 @@ timestamp: 2026-06-18T00:00:00Z
 
 ## Trigger
 
-Use this workflow when changes affect CLI behavior, command output, flags, help
-text, validation rules, export output, viewer behavior, setup prompts, registry
-semantics, release packaging, npm wrapper behavior, or user-facing docs.
+Use this workflow when a change affects users. This requirement applies to
+these changes:
+
+- CLI behavior, output, flags, or help text
+- Validation rules or export output
+- Viewer behavior or setup prompts
+- Registry behavior or release packages
+- npm wrapper behavior
+- User documentation
 
 ## Inspect
 
-* Read [CLI changelog](/changelog/cli.md).
-* Inspect changed files with `git diff --stat` and targeted diffs.
-* Check related command or exporter pages under [features](/features/).
+1. Read the [CLI changelog](/changelog/cli.md).
+2. Inspect the changed files with `git diff --stat`.
+3. Inspect the applicable file diffs.
+4. Read the related command or exporter pages under [features](/features/).
 
 ## Update
 
-Add an entry under `## Unreleased` in [CLI changelog](/changelog/cli.md) with:
+Add an entry under `## Unreleased` in the
+[CLI changelog](/changelog/cli.md). Include this information:
 
-* what changed
-* why it matters
-* source anchors
-* docs updated
+- The change
+- Its effect on users
+- Source anchors
+- Updated documentation
 
-Keep entries concise and grouped by date.
+Keep entries short. Group entries by date.
 
-## Do Not Update
+## Do not update
 
-Do not add changelog entries for formatting-only edits, internal cleanup with no
-behavioral impact, or dependency churn that does not affect CLI users or
-developers.
+Do not add an entry for a formatting-only edit.
+
+Do not add an entry for an internal cleanup that does not change behavior.
+Do not add an entry for a dependency change that does not affect users.
 
 ## Verify
 
@@ -45,4 +54,4 @@ Run:
 openknowledge validate "Wiki"
 ```
 
-Fix validation errors and avoidable warnings before finishing.
+Fix all errors and avoidable warnings.

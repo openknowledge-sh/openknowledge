@@ -8,8 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge --help`
 
-Installed releases also expose `okn` as a shorter alias. Every invocation below
-can use `okn` in place of `openknowledge`.
+Installed releases include the shorter `okn` alias. You can use `okn` instead
+of `openknowledge` in each example.
 
 ## Usage
 
@@ -21,9 +21,9 @@ openknowledge jobs <subcommand> --help
 openknowledge --error-format json <command> [args...]
 ```
 
-Command-specific help also accepts `-h` and `-help`. Nested job commands expose
-subcommand-specific help; other groups may provide a group overview. The
-[command reference](index.md) provides task-oriented behavior and examples.
+Command help also accepts `-h` and `-help`. Nested job commands provide
+subcommand help. Other groups can provide a group overview. The
+[command reference](index.md) gives task-based behavior and examples.
 
 ## Command groups
 
@@ -33,13 +33,13 @@ subcommand-specific help; other groups may provide a group overview. The
 | Maintain and automate | `agent`, `insights`, `jobs` |
 | Browse and publish | `get`, `list`, `view`, `mcp`, `export` |
 | Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` |
-| Advanced | `scaffold`, `prompt`, `ast`, `spec`, `version` |
+| Advanced and portable tools | `scaffold`, `prompt`, `ast`, `spec`, `version` |
 
-Unknown commands print root usage to stderr and exit with status `2`.
+An unknown command prints root usage to stderr and exits with status `2`.
 
-The global `--error-format text|json` option must precede the command. JSON mode
-wraps failing diagnostics on stderr without changing command stdout or
-command-specific semantic JSON. See
+Put the global `--error-format text|json` option before the command. JSON mode
+wraps error diagnostics on stderr. It does not change command stdout or
+command-specific JSON. See
 [Machine-readable contracts](/features/machine-contracts.md).
 
 ---

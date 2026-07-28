@@ -8,8 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge list`
 
-Print a bundle tree containing Markdown documents, assets, and validation
-context.
+Print a bundle tree of Markdown documents and assets. The output also contains
+validation context.
 
 ## Usage
 
@@ -23,16 +23,16 @@ openknowledge list --json Wiki
 | --- | --- | --- |
 | `key-or-path` | `.` | Registry key or bundle directory. |
 | `--spec <version>` | `latest` | OKF version. |
-| `--depth <n>` | `0` | Maximum tree depth; `0` is unlimited. |
+| `--depth <n>` | `0` | Maximum tree depth. `0` is unlimited. |
 | `--json` | off | Print the v1 inventory contract. |
 
-Text output attaches the first validation issue to each affected Markdown file
-and labels non-Markdown files as assets. Folders at the depth boundary remain
-visible when deeper entries exist.
+Text output shows the first validation issue for each affected Markdown file.
+It identifies non-Markdown files as assets. A folder stays visible at the
+depth limit when it contains deeper entries.
 
-JSON output contains `schemaVersion`, resolved `root`, and a path-sorted
-`entries` array. Each entry retains all validation issues. Its contract is
-published as `list.schema.json`.
+JSON output contains `schemaVersion`, the resolved `root`, and a path-sorted
+`entries` array. Each entry contains all validation issues. The
+`list.schema.json` file defines the contract.
 
 ```text
 project-memory/

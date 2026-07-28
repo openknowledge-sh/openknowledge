@@ -1,20 +1,21 @@
 ---
 type: Example
 title: Viewer Asset Examples
-description: Small bundled files for manually testing code highlighting and browser PDF viewing.
+description: Small bundled files that test code colors and browser PDF views.
 tags: [openknowledge, viewer, assets, examples]
 timestamp: 2026-06-19T00:00:00Z
 ---
 
 # Viewer Asset Examples
 
-Use this page with `openknowledge view Wiki` to test local asset handling in
-the viewer.
+Open this page with `openknowledge view Wiki`. Test how the viewer handles
+local assets.
 
 ## Files
 
-* [Go code example](hello-viewer.go) - should open as a syntax-highlighted code preview.
-* [PDF asset example](browser-preview.pdf) - should open through the browser PDF viewer.
+- [Go code example](hello-viewer.go) - Opens as a code preview with syntax
+  colors.
+- [PDF asset example](browser-preview.pdf) - Opens in the browser PDF viewer.
 
 ## Inline Code Fence
 

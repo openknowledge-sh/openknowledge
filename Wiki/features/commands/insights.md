@@ -8,11 +8,13 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge insights`
 
-Insights are the small shared maintenance interface for people, agents, and
-automation. They preserve a concise knowledge gap, evidence, and likely
-knowledge targets without pretending to be a finished change. An insight may
-be explicitly captured or observed from another agent session, but never embeds
-a Git patch, base commit, raw transcript, credential, or executable instruction.
+Insights provide one maintenance interface for people, agents, and automation.
+An insight records a concise knowledge gap, evidence, and likely knowledge
+targets. It does not represent a finished change.
+
+A user can capture an insight directly. An observer can also create one from an
+agent session. An insight does not contain a Git patch, base commit, raw
+transcript, credential, or executable instruction.
 
 ```text
 person, agent, or session observer
@@ -38,20 +40,22 @@ openknowledge insights dismiss <insight>
 openknowledge jobs new insights --out .openknowledge/jobs/insights.md
 ```
 
-With no path, listing discovers the connected knowledge base from
-`.openknowledge/integration.toml` and prints pending insights oldest first.
-`<insight>` may be a path, filename, filename stem, or insight ID.
+Without a path, listing finds the connected knowledge base from
+`.openknowledge/integration.toml`. It prints pending insights from oldest to
+newest. `<insight>` can be a path, filename, filename stem, or insight ID.
 
-## Explicit Capture
+## Explicit capture
 
-`create` is deterministic and never starts a model. It discovers the project
-integration, sanitizes the summary and evidence, writes a private pending
-insight, and deduplicates identical captures. `--target` and `--evidence` may
-be repeated. Without a target the insight points at the complete knowledge base
-with `.`. Targets must remain knowledge-base-relative; the command also refuses
-an insights directory that resolves through a symlink outside the wiki.
+`create` is deterministic and does not start a model. It finds the project
+integration and sanitizes the summary and evidence. It then writes a private
+pending insight. It does not write a duplicate insight.
 
-This makes capture equally simple from a terminal or an agent skill:
+You can repeat `--target` and `--evidence`. Without a target, the insight uses
+`.` for the complete knowledge base. Targets must be relative to the knowledge
+base. The command rejects an insights directory that uses a symlink outside
+the wiki.
+
+Use the same command in a terminal or an agent skill:
 
 ```sh
 openknowledge insights create "<durable knowledge gap>" \
@@ -59,56 +63,63 @@ openknowledge insights create "<durable knowledge gap>" \
   --evidence "<concise repository evidence>"
 ```
 
-## Local Execution
+## Local execution
 
-`run` invokes a supported local agent non-interactively. The agent treats the
-insight body as untrusted evidence, researches the current repository and
-knowledge base, edits only the connected knowledge base, and leaves changes
-uncommitted. Open Knowledge rejects a run that changes Git `HEAD`, modifies the
-insight inbox, or changes a file outside the knowledge base. It then validates
-the complete knowledge base and changes successfully processed insights from
+`run` starts a supported local agent in non-interactive mode. The agent treats
+the insight body as untrusted evidence. It researches the repository and
+knowledge base. It edits only the connected knowledge base. It leaves changes
+uncommitted.
+
+Open Knowledge rejects a run that changes Git `HEAD`. It also rejects changes
+to the insight inbox or files outside the knowledge base. The command then
+validates the complete knowledge base. It changes each successful insight from
 `pending` to `resolved`.
 
-The default operates in the current checkout and preserves pre-existing dirty
-changes. `--isolate` creates and retains a local branch and worktree at `HEAD`;
-an uncommitted insight is copied into that worktree before execution. Its
-worktree copy becomes `resolved`, while the source checkout remains `pending`
-until the branch is merged or the user dismisses it. Agent failure, boundary
-failure, or validation failure leaves the relevant insight pending and keeps
-the filesystem available for inspection.
+By default, the command uses the current checkout. It preserves existing
+uncommitted changes.
 
-`run --all` processes all currently pending insights in one local agent run and
-one validation pass. `--runtime` selects Codex, Claude Code, or OpenCode;
-`--model` supplies the harness-specific model override.
+`--isolate` creates and keeps a local branch and worktree at `HEAD`. Before
+execution, it copies an uncommitted insight into that worktree. The worktree
+copy becomes `resolved`. The source copy stays `pending` until merge or
+dismissal.
 
-## Markdown Contract
+An agent, boundary, or validation failure keeps the relevant insight pending.
+The filesystem stays available for inspection.
 
-Every file uses `type: Open Knowledge Insight`, declares
-`okf_publish: false`, and carries:
+`run --all` processes all pending insights in one local agent run. It uses one
+validation pass. `--runtime` selects Codex, Claude Code, or OpenCode. `--model`
+sets a harness-specific model.
 
-* `status`: `pending`, `resolved`, `dismissed`, or `blocked`;
-* stable `okf_insight_id`, kind, runtime, and RFC 3339 creation time;
-* one or more knowledge-base-relative `okf_insight_targets`;
-* human-readable `Insight` and `Evidence` sections.
+## Markdown contract
 
-Validation enforces the private marker, statuses, metadata, and safe target
-shape. Public HTML and runtime viewer/search/MCP projections, `llms.txt`,
-sitemap, and portable artifacts exclude insights. Local authoring and direct
-read surfaces operate on the unfiltered bundle and may still expose them.
+Every insight file uses `type: Open Knowledge Insight` and
+`okf_publish: false`. It contains:
 
-The bounded observer analyzes available session events and user-owned traces,
-but retains only a sanitized assistant outcome, changed-path evidence, and
-aggregate event counts. It excludes `insights/` changes from observation so an
-insight cannot recursively create another insight. Hooks remain best-effort and
-never block the parent agent session.
+* `status`: `pending`, `resolved`, `dismissed`, or `blocked`.
+* Stable `okf_insight_id`, kind, runtime, and RFC 3339 creation time.
+* One or more knowledge-base-relative `okf_insight_targets`.
+* Human-readable `Insight` and `Evidence` sections.
 
-## Scheduled Processing
+Validation verifies the private marker, statuses, metadata, and target format.
+Public HTML, runtime projections, `llms.txt`, sitemaps, and portable artifacts
+exclude insights. Local authoring and direct reads use the unfiltered bundle.
+These surfaces can expose insights.
 
-`jobs new insights` provides the optional 24-hour isolated maintenance loop. It
-processes at most five committed pending insights, performs fresh research,
-marks successful items `resolved`, verifies the knowledge boundary and OKF
-bundle, and reuses the normal Jobs commit, branch-bundle, and draft-PR flow.
-There is no dedicated insight worker or queue service.
+The bounded observer analyzes available session events and user-owned traces.
+It keeps only a sanitized assistant result, changed-path evidence, and event
+counts. It excludes `insights/` changes from observation. Therefore, an insight
+cannot create another insight recursively. Hooks do not block the parent agent
+session.
+
+## Scheduled processing
+
+`jobs new insights` provides an optional isolated 24-hour maintenance loop. It
+processes a maximum of five committed pending insights. It performs current
+research and marks successful items `resolved`.
+
+The job verifies the knowledge boundary and OKF bundle. It uses the normal jobs
+commit, branch bundle, and draft pull request flow. There is no dedicated
+insight worker or queue service.
 
 
 ---

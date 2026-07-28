@@ -15,10 +15,12 @@ page records release-level changes.
 
 ### 2026-07-28 — Mermaid diagrams in the viewer
 
-- Rendered fenced `mermaid` blocks as theme-aware visual diagrams in local and
-  static viewer pages instead of displaying them as ordinary code.
-- Kept the escaped source visible when Mermaid is unavailable or a diagram is
-  invalid, and used Mermaid's strict security mode for generated SVG.
+- The viewer rendered fenced `mermaid` blocks as theme-aware diagrams on local
+  and static pages. The viewer no longer displayed these blocks as ordinary
+  code.
+- The viewer kept the escaped source visible when Mermaid was unavailable or a
+  diagram was invalid.
+- The viewer configured Mermaid with strict security mode for generated SVG.
 - Source: `packages/cli/internal/okf/markdown.go`,
   `packages/cli/cmd/openknowledge/{viewer,viewer_assets}.go`,
   `packages/cli/cmd/openknowledge/viewer_app.{js,css}`,
@@ -28,17 +30,20 @@ page records release-level changes.
 
 ### 2026-07-28 — Focused onboarding and document-coherent retrieval
 
-- Reduced project activation to `openknowledge setup`: the zero-argument
-  command now uses the current repository as its source and writes `Wiki`.
-  Explicit targets, alternate sources, viewer, publishing, registry, runtime,
-  jobs, scaffold, and portable prompts remain separate optional workflows.
-- Made section ranking include whole-document evidence, filename relevance,
-  stronger body evidence, and query-coverage selection so overview documents
-  can compete with specialized pages.
-- Made context packing preserve the strongest lexical seeds, add same-document
-  siblings and parent/child evidence, label non-lexical hierarchy as
-  `document-context`, and truncate prioritized oversized evidence instead of
-  skipping it for lower-ranked sections.
+- The CLI reduced project activation to `openknowledge setup`. The
+  zero-argument command used the current repository as its source and wrote
+  `Wiki`.
+- Explicit targets and alternate sources remained optional workflows. The
+  viewer, publishing, registry, runtime, jobs, scaffold, and portable prompts
+  also remained optional.
+- Section ranking included whole-document evidence, filename relevance,
+  stronger body evidence, and query coverage. These changes let overview
+  documents compete with specialized pages.
+- Context packing preserved the strongest lexical seeds. It added siblings
+  from the same document and parent or child evidence.
+- Context packing labeled non-lexical hierarchy as `document-context`. It
+  truncated prioritized oversized evidence. It did not skip that evidence for
+  lower-ranked sections.
 - Source: `packages/cli/cmd/openknowledge/{command_catalog,setup_command}.go`,
   `packages/cli/internal/okf/{search_knowledge,context_selection,setup,from,new}.go`,
   `packages/cli/schemas/v1/search-context.schema.json`.
@@ -47,24 +52,30 @@ page records release-level changes.
 
 ### 2026-07-28 — Onboarding, release, and verification hardening
 
-- Made `setup` preflight the selected agent executable before starting the
-  interactive workflow and added exact doctor/authentication recovery guidance.
-- Replaced duplicated root-command dispatch/help definitions with one command
-  catalog and routed diagnostics through an explicit writer instead of
-  temporarily replacing process-global standard error.
-- Closed the manual release-input shell-injection path and replaced textual
-  permission scanning with an actual YAML parser plus regression tests.
-- Rejected plain-HTTP custom shell-installer mirrors before download while
-  retaining `file://` only for controlled local transaction tests.
-- Added pull-request security scanning; race and coverage runs; Linux, macOS,
-  and Windows CLI certification; Node 18 compatibility; packed npm
-  installation; browser setup/search/keyboard journeys; and pre-tag
-  GoReleaser snapshot verification.
-- Added parser/archive fuzz targets and 100/1,000/10,000-section search/index
-  benchmarks.
-- Clarified the canonical zero-argument `setup` path, runtime recovery,
-  fail-closed publication permission, and default validation warning policy
-  across the README, website, and command/operations references.
+- The `setup` command verified the selected agent executable before it started
+  the interactive workflow.
+- The CLI added exact recovery guidance for doctor and authentication
+  failures.
+- One command catalog replaced duplicate root command dispatch and help
+  definitions.
+- An explicit writer handled diagnostics. The CLI no longer replaced the
+  process-wide standard error stream temporarily.
+- The release workflow closed the shell injection path for manual release
+  input.
+- A YAML parser and regression tests replaced text-based permission scans.
+- The shell installer rejected custom plain-HTTP mirrors before download. It
+  retained `file://` only for controlled local transaction tests.
+- The pull-request workflow added security scans, race tests, coverage runs,
+  and CLI certification on Linux, macOS, and Windows.
+- Verification added Node 18 compatibility, packed npm installation, browser
+  setup, search, and keyboard journeys.
+- Verification also added pre-tag GoReleaser snapshot checks.
+- The verification suite added parser/archive fuzz targets.
+- It also added 100/1,000/10,000-section search/index benchmarks.
+- The README, website, and command or operations references clarified the
+  canonical zero-argument `setup` path and runtime recovery.
+- These references also clarified fail-closed publication permission and the
+  default validation warning policy.
 - Source: `packages/cli/cmd/openknowledge/{setup_command,command_catalog,cli_io}.go`,
   `packages/cli/internal/okf/{fuzz,search_benchmark}_test.go`,
   `packages/cli/internal/tools/checkworkflowpermissions/`,
@@ -75,17 +86,17 @@ page records release-level changes.
 
 ### 2026-07-21 — Anchor-aware graph retrieval
 
-- Preserved canonical Markdown fragments through machine-readable links and
-  resolved them to their owning content chunks in search graphs and one-hop
-  outgoing or backlink expansion. Lower-level headings resolve to their
-  containing retrieval chunk, while missing fragments no longer fall back to
-  an unrelated first chunk.
-- Preserved parallel source and search graph edges for repeated authored links,
-  including each occurrence's href, label, target anchor, and source line.
-- Promoted weak lexical matches with the strongest relationship-derived score
-  instead of dropping the graph evidence or returning a duplicate result.
-- Built the immutable BM25 corpus with each context index so generation-scoped
-  caches do not tokenize the complete corpus again for every query.
+- Machine-readable links preserved canonical Markdown fragments. Search graphs
+  and one-hop outgoing or backlink expansion resolved each fragment to its
+  content chunk.
+- Lower-level headings resolved to their containing retrieval chunk. Missing
+  fragments no longer resolved to an unrelated first chunk.
+- Parallel source and search graph edges preserved repeated authored links.
+  Each occurrence kept its href, label, target anchor, and source line.
+- The strongest relationship-derived score promoted weak lexical matches.
+  Search did not discard graph evidence or return a duplicate result.
+- Each context index included an immutable BM25 corpus. Generation-scoped
+  caches no longer tokenized the complete corpus for each query.
 - Source: `packages/cli/internal/okf/ast_links.go`,
   `packages/cli/internal/okf/context_sections.go`,
   `packages/cli/internal/okf/graph.go`,
@@ -97,26 +108,30 @@ page records release-level changes.
 
 ### 2026-07-19 — Generation-scoped runtime search indexes
 
-- Built each runtime search context index once before activating its immutable
-  generation, then reused it across `_search` requests instead of reparsing and
-  validating the search projection for every query.
-- Replaced the cached index atomically with a new content digest; failed index
-  builds retain the last valid generation.
+- The runtime built each search context index once before it activated the
+  immutable generation.
+- The runtime reused the index for `_search` requests. It no longer parsed and
+  validated the search projection for each query.
+- A new content digest replaced the cached index atomically. A failed index
+  build retained the last valid generation.
 - Source: `packages/cli/cmd/openknowledge/runtime_serve.go`,
   `packages/cli/cmd/openknowledge/runtime_command_test.go`.
 - Docs: `Wiki/features/commands/runtime.md`.
 
 ### 2026-07-18 — Static viewer CSP compatibility
 
-- Moved generated viewer JavaScript from executable inline `<script>` blocks
-  into same-origin export assets, so Railway and runtime deployments work with
-  the default `script-src 'self' https:` policy without `unsafe-inline`.
-- Made runtime-served viewer pages and assets revalidate through
-  `Cache-Control: no-cache`, preventing a browser from silently retaining an
-  older generation after a source-triggered deployment.
-- Kept deployment-owned head injection explicit: custom inline scripts may
-  still require a deployment-specific nonce or hash, while `--script-src`
-  remains compatible with allowed external sources.
+- The exporter moved generated viewer JavaScript from executable inline
+  `<script>` blocks to same-origin assets.
+- Railway and runtime deployments then worked with the default
+  `script-src 'self' https:` policy without `unsafe-inline`.
+- Runtime viewer pages and assets used `Cache-Control: no-cache` for
+  revalidation.
+- Browsers no longer retained an older generation after a source-triggered
+  deployment.
+- Deployment-owned head injection remained explicit. Some deployments still
+  required a deployment-specific nonce or hash for custom inline scripts.
+- The `--script-src` option remained compatible with permitted external
+  sources.
 - Source: `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`,
   `packages/cli/cmd/openknowledge/runtime_serve.go`,
@@ -126,32 +141,36 @@ page records release-level changes.
 
 ### 2026-07-18 — Private Railway endpoint reconciliation
 
-- Made `--no-public-endpoint` enumerate and delete existing Railway service and
-  custom domains instead of trusting possibly stale local endpoint state.
+- The `--no-public-endpoint` option listed and deleted existing Railway service
+  domains and custom domains.
+- The option no longer trusted possibly stale local endpoint state.
 - Source: `packages/cli/cmd/openknowledge/deploy_command.go`.
 
 ### 2026-07-18 — Railway prune removes service volumes
 
-- Made `--prune` enumerate and delete persistent volumes attached to omitted
-  services before deleting those services, preventing provider-orphaned agent
-  state during migration to the immutable one-service topology.
+- The `--prune` option listed and deleted persistent volumes for omitted
+  services before it deleted those services.
+- This sequence prevented provider-orphaned agent state during migration to the
+  immutable one-service topology.
 - Source: `packages/cli/cmd/openknowledge/deploy_command.go`.
 
 ### 2026-07-18 — Immutable Railway deployment by default
 
-- Changed the default Railway topology to one `serve` service whose
-  multi-stage Docker image builds and embeds the knowledge artifact for the
-  triggering source commit.
-- Made Git polling, the private publisher, persistent agent state, and isolated
-  workers explicit through `--runtimes`; enabled jobs are no longer inferred
-  during deployment.
-- Removed GitHub, model, artifact-sync, and exchange credentials from the
-  default deployment requirements.
-- Added a committed generated `runtime.toml`, so the generated image starts as
-  `serve` and can be tested locally without Railway-specific variables.
-- Added `--prune` as an explicit, fail-closed migration path for deleting
-  publisher and worker services omitted by the new topology. Existing
-  deployments can migrate with a reviewed dry-run followed by
+- The default Railway topology changed to one `serve` service.
+- Its multi-stage Docker image built and embedded the knowledge artifact for
+  the source commit that triggered the build.
+- The `--runtimes` option made Git polling, the private publisher, persistent
+  agent state, and isolated workers explicit.
+- Deployment no longer inferred enabled jobs.
+- Default deployment requirements no longer included GitHub, model,
+  artifact-sync, or exchange credentials.
+- The project added a committed generated `runtime.toml`.
+- The generated image started as `serve`. The image supported local tests
+  without Railway-specific variables.
+- The `--prune` option provided an explicit fail-closed migration path. It
+  deleted publisher and worker services that the new topology omitted.
+- Existing deployments required a reviewed dry run before migration. The
+  migration command was
   `openknowledge deploy railway Wiki --prune --yes`.
 - Source: `packages/cli/cmd/openknowledge/deploy_command.go`,
   `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`.
@@ -160,11 +179,12 @@ page records release-level changes.
 
 ### 2026-07-18 — Runtime log severity
 
-- Moved successful runtime lifecycle events from standard error to standard
-  output so Railway and other hosting platforms no longer classify healthy
-  listening, synchronization, publication, or activation messages as errors.
-- Kept usage diagnostics, failed passes, retained-generation warnings, and
-  archive failures on standard error.
+- The runtime moved successful lifecycle events from standard error to standard
+  output.
+- Railway and other hosting platforms no longer classified healthy listening,
+  synchronization, publication, or activation messages as errors.
+- Usage diagnostics, failed passes, retained-generation warnings, and archive
+  failures remained on standard error.
 - Source: `packages/cli/cmd/openknowledge/runtime_command.go`,
   `packages/cli/cmd/openknowledge/runtime_private_api.go`,
   `packages/cli/cmd/openknowledge/runtime_serve.go`,
@@ -179,201 +199,228 @@ and `v0.7.2` completed non-root persistent-volume startup.
 
 ### 2026-07-18 — Repository-owned Railway runtime
 
-- Added `openknowledge deploy railway init` to generate a project-owned,
-  non-root runtime Dockerfile with independent Open Knowledge and agent CLI
-  pins; existing project choices require explicit `--force` to replace.
-- Changed Railway provisioning from published GHCR role images to the target
-  GitHub repository source. Services share the committed Dockerfile while
-  retaining separate roles, ingress, volumes, and credentials.
-- Migrated version 1 deployment state to repository sources in place and
-  removed runtime-image publication from the release workflow.
-- Treated Railway source connection as the initial deployment trigger instead
-  of immediately issuing a conflicting redundant redeploy.
-- Made the generated entrypoint repair persistent-volume ownership during
-  startup and then drop to UID/GID `10001`, including for volumes created by an
-  older root-based runtime image.
+- The CLI added `openknowledge deploy railway init`. This command generated a
+  project-owned non-root runtime Dockerfile.
+- The Dockerfile used independent Open Knowledge and agent CLI pins. The
+  `--force` option was necessary to replace existing project choices.
+- Railway provisioning changed from published GHCR role images to the target
+  GitHub repository source.
+- Services shared the committed Dockerfile. They retained separate roles,
+  ingress, volumes, and credentials.
+- The migration converted version 1 deployment state to repository sources in
+  place.
+- The release workflow no longer published runtime images.
+- The Railway source connection became the initial deployment trigger. The CLI
+  no longer issued an immediate conflicting redeploy.
+- During startup, the generated entrypoint repaired persistent-volume
+  ownership. It then dropped to UID/GID `10001`.
+- The ownership repair also supported volumes that an older root-based runtime
+  image created.
 - Source: `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`,
   `packages/cli/cmd/openknowledge/deploy_command.go`,
   `.github/workflows/release.yml`.
 
 ### 2026-07-18 — Railway non-root volume startup
 
-- Kept publisher checkout, build, and lock state on ephemeral container storage;
-  published artifacts and exchange data remain on the persistent Railway
-  volume. Worker state uses a process-owned child directory below its mount.
-- Avoided redundant permission changes when the runtime state directory is
-  already private, while still tightening a permissive existing directory.
-- Authenticated private GitHub Smart HTTP clone and fetch operations with an
-  ephemeral Basic extra header instead of a rejected Bearer header; credentials
-  remain absent from repository URLs and command arguments.
+- Publisher checkout, build, and lock state remained on ephemeral container
+  storage.
+- Published artifacts and exchange data remained on the persistent Railway
+  volume.
+- Worker state used a process-owned child directory below its mount.
+- The runtime avoided redundant permission changes when its state directory was
+  already private. It still restricted a permissive existing directory.
+- An ephemeral Basic extra header authenticated private GitHub Smart HTTP clone
+  and fetch operations. It replaced a rejected Bearer header.
+- Credentials remained absent from repository URLs and command arguments.
 - Source: `packages/cli/cmd/openknowledge/deploy_command.go`,
   `packages/cli/cmd/openknowledge/runtime_worker.go`.
 
 ### 2026-07-18 — Short CLI alias
 
-- Added `okn` as an installed alias for `openknowledge` in both the shell and
-  npm installers while keeping the original command name.
-- Made the shell installer refuse to overwrite an unrelated existing `okn`
+- The shell and npm installers added `okn` as an installed alias for
+  `openknowledge`. They retained the original command name.
+- The shell installer refused to overwrite an unrelated existing `okn`
   command.
 - Source: `install`, `scripts/test-install.sh`, `packages/npm/`.
 
 ### 2026-07-18 — Railway CLI v5 deployment recovery
 
-- Separated Railway progress diagnostics from JSON stdout so successful v5
-  service creation records provider IDs instead of failing after mutation.
-- Updated v5 volume creation to place the service selector before the nested
-  subcommand and address the service by provider ID.
-- Persisted the selected existing project before service creation, ensuring an
-  interrupted first apply leaves recoverable secret-free state.
+- The CLI separated Railway progress diagnostics from JSON standard output.
+- Successful v5 service creation then recorded provider IDs. It did not fail
+  after mutation.
+- The v5 volume command placed the service selector before the nested
+  subcommand. It addressed the service by provider ID.
+- The CLI saved the selected existing project before service creation.
+- An interrupted first apply left recoverable secret-free state.
 - Source: `packages/cli/cmd/openknowledge/deploy_command.go`.
 
 ### 2026-07-18 — CLI-led onboarding
 
-- Established `openknowledge setup Wiki --from .` as the primary project-wiki
-  activation path across the CLI, README, and website.
-- Clarified that `setup` launches the selected agent, then validates the bundle
-  and installs project integration. `scaffold` remains the deterministic,
-  agent-free primitive.
-- Documented `runtime build --out <dir>`, including its single-selection
-  requirement and versioned result shape.
+- The CLI, README, and website established
+  `openknowledge setup Wiki --from .` as the primary project-wiki activation
+  path.
+- Documentation clarified that `setup` launched the selected agent. The command
+  then validated the bundle and installed project integration.
+- The `scaffold` command remained the deterministic agent-free primitive.
+- Documentation added `runtime build --out <dir>`. It included the
+  single-selection requirement and versioned result shape.
 - Source: `packages/cli/cmd/openknowledge/{main,setup_command,runtime_command}.go`.
 
 ### 2026-07-17 — Workflow-oriented command surface
 
-- Consolidated managed onboarding under `setup`; moved portable instructions
-  to `prompt setup|from|rules|review`.
-- Renamed `new` to `scaffold`, `to` to `export`, the experimental `agents`
-  group to `jobs`, and detached `spawn` to `start`.
-- Kept connection mutation at `connect` and `disconnect`; `registry` now owns
-  listing, integrity status, refresh, and path resolution.
-- Reorganized root help around create/maintain, use/publish, service, and
-  validate/connect workflows.
+- The CLI consolidated managed onboarding under `setup`.
+- Portable instructions moved to `prompt setup|from|rules|review`.
+- The CLI renamed `new` to `scaffold` and `to` to `export`.
+- It renamed the experimental `agents` group to `jobs`. It also renamed
+  detached `spawn` to `start`.
+- Connection changes remained under `connect` and `disconnect`.
+- The `registry` command owned listing, integrity status, refresh, and path
+  resolution.
+- Root help used create/maintain, use/publish, service, and validate/connect
+  workflows.
 - Source: `packages/cli/cmd/openknowledge/{main,setup_command,prompt_command}.go`.
 
 ### 2026-07-17 — Agents, insights, and jobs
 
-- Added a steered local `agent` interface for Codex, Claude Code, and OpenCode,
-  with interactive and non-interactive modes, executable discovery, `doctor`,
-  model overrides, and optional isolated worktrees.
-- Added project and global integration plus bounded observation hooks.
-- Made `insights` the shared interface for deterministic capture, review,
-  dismissal, direct execution, and scheduled processing of private knowledge
-  gaps.
-- Restricted job and service runtimes to the same three harnesses. Jobs now use
-  strict runtime/model selection, per-harness credential scoping, external
-  private state, observable detached runs, cancellation, and versioned records.
+- The CLI added a steered local `agent` interface for Codex, Claude Code, and
+  OpenCode.
+- The interface supported interactive and non-interactive modes, executable
+  discovery, `doctor`, model overrides, and optional isolated worktrees.
+- The CLI added project and global integration with bounded observation hooks.
+- The `insights` command became the shared interface for deterministic capture,
+  review, dismissal, direct execution, and scheduled processing of private
+  knowledge gaps.
+- Job and service runtimes supported the same three harnesses.
+- Jobs used strict runtime and model selection, per-harness credential scoping,
+  external private state, observable detached runs, cancellation, and versioned
+  records.
 - Source: `packages/cli/cmd/openknowledge/{agent_command,insights_command,agents_command}.go`,
   `packages/cli/internal/{agents,insights,integration}/`.
 
 ### 2026-07-17 — Isolated runtime and Railway deployment
 
-- Added immutable generation planning, building, serving, and private worker
-  reconciliation for one repository and multiple routed knowledge bases.
-- Split GitHub publication from model execution: publisher, serve, and one
-  worker per harness use distinct images, credentials, volumes, and network
-  boundaries.
-- Added `deploy railway` with secret-free dry runs, explicit mutation consent,
-  idempotent state, generated/custom/private endpoint modes, and worker
-  inference from enabled jobs.
-- Added authenticated private artifact and Git-bundle exchange for providers
-  without shared volumes. Invalid updates retain the last verified generation.
+- The runtime added immutable generation planning, building, serving, and
+  private worker reconciliation.
+- These features supported one repository and multiple routed knowledge bases.
+- The runtime separated GitHub publication from model execution.
+- The publisher, serve service, and each harness worker used distinct images,
+  credentials, volumes, and network boundaries.
+- The CLI added `deploy railway` with secret-free dry runs and explicit
+  mutation consent.
+- The command also provided idempotent state, generated, custom, or private
+  endpoint modes, and worker inference from enabled jobs.
+- The runtime added authenticated private artifact and Git-bundle exchange for
+  providers without shared volumes.
+- Invalid updates retained the last verified generation.
 - Source: `packages/cli/cmd/openknowledge/runtime_*.go`,
   `packages/cli/cmd/openknowledge/deploy_command.go`, `packages/cli/internal/runtime/`,
   `docker/runtime.Dockerfile`, `deploy/runtime/`.
 
 ### 2026-07-17 — Explicit publication contract
 
-- Made public HTML, portable public source, and runtime generation fail closed
+- Public HTML, portable public source, and runtime generation failed closed
   unless `[publish] enabled = true`.
-- Added `okf_targets.viewer|search|mcp|llms|sitemap` and separate runtime
-  projections for viewer, search, and MCP.
-- Limited public non-Markdown files to `[publish].assets`; project config,
-  `.openknowledge` state, denied Markdown, and non-allowlisted assets remain
-  absent from artifacts.
+- The project added `okf_targets.viewer|search|mcp|llms|sitemap`.
+- The runtime used separate projections for the viewer, search, and MCP.
+- Public non-Markdown files included only `[publish].assets`.
+- Artifacts excluded project configuration, `.openknowledge` state, denied
+  Markdown, and assets outside the allowlist.
 - Source: `packages/cli/internal/okf/{project_config,publish}.go`,
   `packages/cli/internal/runtime/generation.go`.
 
 ### 2026-07-15 — Machine and retrieval contracts
 
-- Added versioned JSON envelopes and published Draft 2020-12 schemas for CLI
-  errors, AST, validation, bundle/list/registry output, search/context,
-  federation, graphs, jobs, portable manifests, and storage records.
-- Added the root `--error-format text|json` diagnostic envelope.
-- Added revision-bound search provenance with content digests and
-  `okf+sha256://` locators, plus registry-wide reciprocal-rank fusion.
-- Added a public read-only Go API for parsing, validation, retrieval, graphs,
-  and registry resolution.
+- The CLI added versioned JSON envelopes and published Draft 2020-12 schemas.
+- The schemas covered CLI errors, AST, validation, bundle, list, registry,
+  search, context, federation, graphs, jobs, portable manifests, and storage
+  records.
+- The root command added the `--error-format text|json` diagnostic envelope.
+- Search added revision-bound provenance with content digests and
+  `okf+sha256://` locators.
+- Search also added registry-wide reciprocal-rank fusion.
+- The project added a public read-only Go API. The API supported parsing,
+  validation, retrieval, graphs, and registry resolution.
 - Source: `packages/cli/schemas/`, `packages/cli/internal/okf/`,
   `packages/cli/okf/`.
 
 ### 2026-07-15 — Remote registry integrity
 
-- Added strict versioned registry and provenance storage, offline integrity
-  status, and atomic refresh and deletion.
-- Added Git ref and monorepo subdirectory selection, source-addressed caches,
-  bounded non-interactive transport, archive and staging-tree limits, and
-  secret-safe URL handling.
-- Remote materialization now uses locked sibling staging and transactional
-  publication; failed refresh preserves the previous generation.
+- The registry added strict versioned registry and provenance storage.
+- It also added offline integrity status with atomic refresh and deletion.
+- The registry added Git ref and monorepo subdirectory selection.
+- It also added source-addressed caches, bounded non-interactive transport,
+  archive limits, staging-tree limits, and secret-safe URL handling.
+- Remote materialization used locked sibling staging and transactional
+  publication.
+- A failed refresh preserved the previous generation.
 - Source: `packages/cli/cmd/openknowledge/main.go`,
   `packages/cli/internal/okf/registry.go`, `packages/cli/schemas/storage/v1/`.
 
 ### 2026-07-15 — Viewer, packaging, and release hardening
 
-- Unified local viewer search with canonical heading-section retrieval and
-  content-bound cache invalidation; registry workspaces now follow live,
-  validated snapshots.
-- Hardened static serving, containers, release permissions, workflow pinning,
-  scheduled security scanning, and npm/shell binary installation.
-- Added reproducible portable archives, transactional export publication,
-  signed release provenance, and default-branch-only release dispatch.
+- The project unified local viewer search with canonical heading-section
+  retrieval and content-bound cache invalidation.
+- Registry workspaces followed live validated snapshots.
+- The project strengthened static serving, containers, release permissions,
+  workflow pins, scheduled security scans, and npm or shell binary
+  installation.
+- The release process added reproducible portable archives and transactional
+  export publication.
+- It also added signed release provenance and default-branch-only release
+  dispatch.
 - Source: `packages/cli/cmd/openknowledge/viewer*.go`, `packages/web/`,
   `install`, `packages/npm/`, `.github/workflows/`, `Dockerfile`.
 
 ## v0.6.1 — 2026-07-18
 
-- Corrected Railway persistent-volume ownership for the isolated runtime roles.
+- The runtime corrected Railway persistent-volume ownership for isolated
+  runtime roles.
 
 ## v0.6.0 — 2026-07-18
 
 ### 2026-07-09 — Retrieval and viewer polish
 
-- Made source-preserving Markdown context the default search output.
-- Added typed frontmatter inspection, tag facets, breadcrumbs, reading and
-  accessibility settings, improved search navigation, and visual polish.
-- Aligned the public website and wiki landing experience with the
-  LLM-oriented knowledge workflow.
+- Search used source-preserving Markdown context as its default output.
+- The viewer added typed frontmatter inspection, tag facets, and breadcrumbs.
+- It also added reading and accessibility settings, better search navigation,
+  and visual updates.
+- The public website and wiki landing page matched the LLM-oriented knowledge
+  workflow.
 
 ## v0.5.0 — 2026-07-08
 
-- Added source-to-wiki prompts, maintenance rules, advisory review, and the
-  first experimental local job runner.
-- Added exact `get`, structural `list`, ranked `search`, registry-backed `view`,
-  and search graph workflows.
-- Added static discovery files, analytics/head injection, and portable viewer
-  connection assets.
-- Expanded validation JSON output and configurable rule severities.
+- The CLI added source-to-wiki prompts, maintenance rules, advisory review, and
+  the first experimental local job runner.
+- It added exact `get`, structural `list`, ranked `search`,
+  registry-backed `view`, and search graph workflows.
+- The viewer added static discovery files, analytics and head injection, and
+  portable viewer connection assets.
+- Validation expanded its JSON output and added configurable rule severities.
 
 ## v0.4.0 — 2026-06-23
 
-- Added AST output, source and search graph exporters, query-oriented context,
-  and key-or-path resolution across bundle commands.
-- Improved viewer themes, search highlights, shortcuts, panel navigation,
+- The CLI added AST output, source and search graph exporters, and
+  query-oriented context.
+- Bundle commands added key-or-path resolution.
+- The viewer improved themes, search highlights, shortcuts, panel navigation,
   responsive layout, and graph presentation.
-- Added website deployment, install redirects, and static wiki publication.
+- The project added website deployment, install redirects, and static wiki
+  publication.
 
 ## v0.3.0 — 2026-06-20
 
-- Added connected bundle commands and registry-backed local viewing.
-- Added static HTML export, portable manifests, bundle metadata, theming,
-  syntax highlighting, tables, asset previews, and source links.
-- Strengthened UTF-8, frontmatter, Markdown, link, and reserved-file validation.
-- Moved CLI documentation into this colocated OKF wiki.
+- The CLI added connected bundle commands and registry-backed local viewing.
+- The exporter added static HTML, portable manifests, and bundle metadata.
+- The viewer added themes, syntax highlighting, tables, asset previews, and
+  source links.
+- Validation strengthened its UTF-8, frontmatter, Markdown, link, and
+  reserved-file checks.
+- The project moved CLI documentation into this colocated OKF wiki.
 
 ## Initial wiki maintenance — 2026-06-18
 
-- Added the repository wiki, embedded OKF specification, command references,
-  update workflows, and validation loop.
+- The project added the repository wiki, embedded OKF specification, command
+  references, update workflows, and validation loop.
 
 ---
 
@@ -381,5 +428,8 @@ and `v0.7.2` completed non-root persistent-volume startup.
 
 > **Update notes**
 >
-> Add concise release-facing changes under `Unreleased`. Group related commits
-> by user outcome; do not recreate per-command implementation logs.
+> Add concise release-facing changes under `Unreleased`.
+>
+> Group related commits by user outcome.
+>
+> Do not recreate per-command implementation logs.

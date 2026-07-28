@@ -1,10 +1,11 @@
 # Changelog
 
-This section keeps durable memory of CLI-facing package changes.
+This section contains a permanent record of package changes that affect the
+CLI.
 
 ## Pages
 
-* [CLI changelog](cli.md) - package and command-line behavior changes.
+- [CLI changelog](cli.md) - Changes to packages and CLI behavior.
 
 ---
 
@@ -12,6 +13,5 @@ This section keeps durable memory of CLI-facing package changes.
 
 > **Maintenance**
 >
-> Use [Changelog update workflow](/workflows/changelog-updates.md) after changes
-> that affect CLI behavior, command output, flags, validation, viewer behavior,
-> exporters, setup, release packaging, or user-facing documentation.
+> Use the [changelog update workflow](/workflows/changelog-updates.md) after a
+> change that affects users.

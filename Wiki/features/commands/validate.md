@@ -8,8 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge validate`
 
-Validate an OKF bundle. Errors exit with status `1`; warnings are reported but
-exit successfully.
+Validate an OKF bundle. An error causes exit status `1`. A warning does not
+cause a failure.
 
 ## Usage
 
@@ -25,7 +25,7 @@ openknowledge validate --quiet Wiki
 | --- | --- | --- |
 | `key-or-path` | `.` | Registry key or bundle directory. |
 | `--spec <version>` | `latest` | OKF spec version. |
-| `--format <format>` | `text` | `text` or `json`; `--json` is an alias. |
+| `--format <format>` | `text` | `text` or `json`. `--json` is an alias. |
 | `--out <file>` | stdout | Atomically write a JSON report. Requires JSON output. |
 | `--rule <id=severity>` | config/default | Override a rule. Repeatable. |
 | `--quiet` | off | Print only errors. |
@@ -50,9 +50,11 @@ openknowledge validate --quiet Wiki
 | `okf-version` | warning | Root `okf_version` matches the selected spec. |
 | `link-target` | warning | Local Markdown links resolve inside the bundle. |
 
-The scan includes `.md` and `.markdown`, skips `.git`, and classifies
-`index.md` and `log.md` as reserved files. Symbolic links anywhere below the
-bundle root fail the scan, including links named like non-Markdown assets.
+The scan includes `.md` and `.markdown` files. It skips `.git`. It classifies
+`index.md` and `log.md` as reserved files.
+
+A symbolic link below the bundle root fails the scan. This rule also applies
+to links that have non-Markdown asset names.
 
 ## Severity policy
 
@@ -64,20 +66,20 @@ link-target = "error"
 markdown-syntax = "off"
 ```
 
-CLI `--rule` values take precedence. Canonical severities are `off`, `warn`,
-and `error`. Unknown rules or severities are usage errors. See
+CLI `--rule` values have priority. Canonical severities are `off`, `warn`, and
+`error`. An unknown rule or severity is a usage error. See
 [`openknowledge.toml`](/features/configuration.md) for accepted compatibility
 aliases and strict configuration behavior.
 
-`publish-metadata` and `insight-contract` are hard checks and cannot be
-overridden with `--rule` or configuration.
+`publish-metadata` and `insight-contract` are mandatory checks. You cannot
+override them with `--rule` or configuration.
 
 ## JSON report
 
-JSON output uses `schemaVersion: "1"` and includes the resolved root, spec
-version, active policy, check results, counts, and issues with file, line, rule,
-severity, and message. Its contract is published as
-`validation.schema.json`.
+JSON output uses `schemaVersion: "1"`. It includes the root, spec version,
+active policy, check results, counts, and issues. Each issue can identify its
+file, line, rule, severity, and message. The `validation.schema.json` file
+defines the contract.
 
 ```json
 {
@@ -94,8 +96,8 @@ severity, and message. Its contract is published as
 }
 ```
 
-Validation is deterministic. Advisory rule review lives under
-`openknowledge prompt review rules` and does not affect validation status.
+Validation is deterministic. Use `openknowledge prompt review rules` for an
+advisory rule review. That review does not affect validation status.
 
 ---
 

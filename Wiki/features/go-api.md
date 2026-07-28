@@ -34,30 +34,30 @@ packet, err := okf.ResolveContextWithVersion(
 
 ## Surface
 
-The package exposes:
+The package exposes these functions and models:
 
-- AST and normalized bundle parsing;
-- validation policies, known rules, and the valid-bundle gate;
-- inventory and bundle metadata;
-- deterministic search, bounded context, and caller-supplied RRF federation;
-- source and retrieval graphs;
-- strict frontmatter and portable-manifest decoding;
-- supported spec discovery and the embedded spec;
-- bounded registry inventory, key/path resolution, and authoring capability.
+- AST and normalized bundle parsing
+- validation policies, known rules, and the valid-bundle gate
+- inventory and bundle metadata
+- deterministic search, bounded context, and caller-supplied RRF federation
+- source and retrieval graphs
+- strict frontmatter and portable-manifest decoding
+- supported spec discovery and the embedded spec
+- bounded registry inventory, key or path resolution, and authoring capability
 
-Returned types alias the core models, so Go results, CLI JSON, MCP structured
-content, and published schemas share field definitions. Retrieval results
-include corpus revisions and content-addressed locators for stale-evidence
-detection.
+Returned types alias the core models. Therefore, Go results, CLI JSON, MCP
+structured content, and published schemas use the same field definitions.
+Retrieval results include corpus revisions and content-addressed locators.
+Use these values to detect stale evidence.
 
-Functions without a version use `LatestSpecVersion`. Persisting integrations
-should prefer `WithVersion` functions and store `SpecVersion`, `SchemaVersion`,
-retrieval revision, and selected locators. See
-[Machine-readable contracts](machine-contracts.md).
+Functions without a version use `LatestSpecVersion`. For persistent
+integrations, prefer `WithVersion` functions. Store `SpecVersion`,
+`SchemaVersion`, the retrieval revision, and the selected locators. See
+[Machine-readable contracts](machine-contracts.md) for more information.
 
-The API is intentionally read-only. It does not connect, refresh, mutate the
-registry, extract archives, render HTML, or manage processes. Registry reads
-never migrate or rewrite local storage.
+The API is read-only. It does not connect sources, refresh sources, or change
+the registry. It does not extract archives, render HTML, or manage processes.
+Registry reads do not migrate or rewrite local storage.
 
 ---
 

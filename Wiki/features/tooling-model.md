@@ -8,11 +8,11 @@ timestamp: 2026-07-17T00:00:00Z
 
 # Tooling Model
 
-Open Knowledge is one lifecycle around a Git-native OKF knowledge base. Search,
-viewer, MCP, agents, jobs, exports, and services are projections or maintenance
-loops over that same object, not separate knowledge models.
+Open Knowledge provides one lifecycle for a Git-native OKF knowledge base.
+Search, the viewer, MCP, agents, jobs, exports, and services use the same knowledge base.
+They do not use separate knowledge models.
 
-## Workflow Surface
+## Workflow surface
 
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
@@ -21,30 +21,34 @@ loops over that same object, not separate knowledge models.
 | Browse and publish | `get`, `list`, `view`, `mcp`, `export` | Read exact knowledge, browse, integrate clients, and publish portable views. |
 | Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` | Resolve bundles, serve immutable generations, and provision hosted runtimes. |
 
-`openknowledge setup` is the primary project activation flow. Run it directly
-from the project repository: the CLI uses the current repository as its source,
-writes `Wiki`, launches the selected interactive agent, validates the result,
-and installs project integration. An explicit wiki path without `--from` starts
-a guided setup for a new or open-ended knowledge base. Use `--from` only for
-another repository, folder, or website. `scaffold` remains an advanced
-deterministic, agent-free primitive; `prompt` exposes portable print-only
-workflows.
+`openknowledge setup` is the primary project activation flow.
+Run it from the project repository.
+The CLI uses the current repository as its source and writes `Wiki`.
+It starts the selected interactive agent.
+Then, it validates the result and installs the project integration.
+An explicit wiki path without `--from` starts a guided setup.
+Use this form for a new or open-ended knowledge base.
+Use `--from` only for a different repository, folder, or website.
+`scaffold` is an advanced, deterministic operation without an agent.
+`prompt` provides portable workflows that only print output.
 
-Connection mutation has one entry point per action. `connect` materializes and
-registers local, manifest, archive, or Git sources; `disconnect` removes the
-registration. `registry` owns only `refresh`, `list`, `status`, and `where`.
+Each connection change has one command.
+`connect` materializes and registers local, manifest, archive, or Git sources.
+`disconnect` removes the registration.
+`registry` provides only `refresh`, `list`, `status`, and `where`.
 
-All key-or-path consumers share the same resolver. `get`, `search`, `view`,
-`mcp`, `validate`, `list`, and `export` therefore work the same way for direct
-folders and registered sources. `export html` publishes a portable archive and
-manifest that can be connected again.
+All key-or-path consumers use the same resolver.
+Thus, `get`, `search`, `view`, `mcp`, `validate`, `list`, and `export` use the same source rules.
+These rules apply to direct folders and registered sources.
+`export html` publishes a portable archive and manifest.
+You can connect this output again.
 
-Deterministic validation never requires a model. `openknowledge prompt review`
-is advisory and does not affect validation status. Machine-readable AST,
-bundle, graph, list, registry, search, and validation views share versioned
-Draft 2020-12 contracts.
+Deterministic validation does not require a model.
+`openknowledge prompt review` provides advice and does not affect validation status.
+Machine-readable views use versioned Draft 2020-12 contracts.
+These views include AST, bundle, graph, list, registry, search, and validation output.
 
-## Typical Local Loop
+## Typical local loop
 
 ```sh
 openknowledge setup
@@ -52,7 +56,7 @@ openknowledge search Wiki "release workflow" --budget 1200
 openknowledge validate Wiki
 ```
 
-Optional exact reads, browsing, integrations, and publishing remain separate:
+Use separate commands for exact reads, browsing, integrations, and publication:
 
 ```sh
 openknowledge list Wiki

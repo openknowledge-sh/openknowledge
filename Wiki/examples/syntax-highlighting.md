@@ -1,15 +1,15 @@
 ---
 type: Example
 title: Syntax Highlighting Examples
-description: Fenced code blocks in supported languages for checking local viewer syntax highlighting.
+description: Fenced code blocks that test local viewer syntax colors in supported languages.
 tags: [openknowledge, viewer, syntax, examples]
 timestamp: 2026-06-20T00:00:00Z
 ---
 
 # Syntax Highlighting Examples
 
-Use this page with `openknowledge view Wiki` to compare fenced code blocks
-across languages supported by the built-in highlighter.
+Open this page with `openknowledge view Wiki`. Compare fenced code blocks in
+the languages that the built-in highlighter supports.
 
 ## Shell
 

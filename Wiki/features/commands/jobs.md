@@ -8,11 +8,11 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge jobs`
 
-Run repeatable agent tasks in isolated Git worktrees. Jobs are Markdown files:
-YAML frontmatter defines execution, scheduling, and verification; the body is
-the prompt.
+Run repeatable agent tasks in isolated Git worktrees. A job is a Markdown file.
+YAML frontmatter defines execution, scheduling, and verification. The body
+contains the prompt.
 
-> `jobs` is experimental. Its schema and local runtime contracts may change
+> `jobs` is experimental. Its schema and local runtime contracts can change
 > before Open Knowledge 1.0.
 
 ## Quick start
@@ -24,16 +24,16 @@ openknowledge jobs run .openknowledge/jobs/my-job.md --dry-run
 openknowledge jobs run .openknowledge/jobs/my-job.md
 ```
 
-The default job directory is `.openknowledge/jobs`. Install and authenticate
-the selected Codex, Claude Code, or OpenCode CLI before running a job.
+The default job directory is `.openknowledge/jobs`. Install the selected Codex,
+Claude Code, or OpenCode CLI. Authenticate the CLI before you run a job.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `new [template]` | List templates or print a template; add `--out <file>` to write it. |
+| `new [template]` | List templates or print a template. Add `--out <file>` to write it. |
 | `list [path]` | List job definitions. |
-| `validate <job-or-dir>` | Validate frontmatter without executing anything. |
+| `validate <job-or-dir>` | Validate frontmatter. The command does not execute job content. |
 | `run <job>` | Run once in the foreground. |
 | `start <job>` | Start a detached local run. |
 | `status [jobs-dir]` | Show schedules and active or latest runs. |
@@ -55,9 +55,9 @@ openknowledge jobs daemon --once
 openknowledge jobs daemon --tick 5m --runtime codex
 ```
 
-Run `openknowledge jobs <command> --help` for command-specific options.
-`new --force` permits replacing an existing output file. `stop` and `kill`
-accept `--repo`, `--wait`, and `--json`.
+Run `openknowledge jobs <command> --help` for command options. `new --force`
+permits replacement of an existing output file. `stop` and `kill` accept
+`--repo`, `--wait`, and `--json`.
 
 ## Job file
 
@@ -94,7 +94,7 @@ concurrency:
 Audit the CLI documentation against shipped behavior. End with COMPLETE.
 ```
 
-Unknown fields, duplicate YAML keys, and incorrect value types fail
+An unknown field, duplicate YAML key, or incorrect value type fails
 validation.
 
 ### Reference
@@ -102,9 +102,9 @@ validation.
 | Field | Default | Description |
 | --- | --- | --- |
 | `id` | required | Stable ID using letters, numbers, `.`, `_`, or `-`. |
-| `enabled` | `true` | Whether the daemon may run the job. |
+| `enabled` | `true` | Allow the daemon to run the job. |
 | `schedule.cron` | none | Five-field cron subset or `@hourly`, `@daily`, `@weekly`. |
-| `schedule.every` | none | Positive Go duration such as `24h`; exclusive with `cron`. |
+| `schedule.every` | none | Positive Go duration such as `24h`. Exclusive with `cron`. |
 | `schedule.timezone` | local | IANA time zone used by the schedule. |
 | `agent.runtime` | required | `codex`, `claude`, or `opencode`. |
 | `agent.model` | runtime default | Harness-specific model override. |
@@ -112,7 +112,7 @@ validation.
 | `agent.completion_signal` | none | Text required in agent output. |
 | `workspace.repo` | `.` | Repository path, resolved from the job file. |
 | `workspace.base` | `HEAD` | Git ref used for the worktree. |
-| `workspace.strategy` | `branch` | Worktree strategy; `branch` is the only supported value. |
+| `workspace.strategy` | `branch` | Worktree strategy. `branch` is the only supported value. |
 | `workspace.branch` | generated | Template supporting `{{id}}`, `{{date}}`, `{{scheduled_at}}`, and `{{run_id}}`. |
 | `workspace.dirty_policy` | `fail` | Use `allow` to accept a dirty source checkout. |
 | `sandbox.type` | `host` | `host` or `docker`. |
@@ -123,7 +123,7 @@ validation.
 | `verify.timeout` | `15m` | Timeout applied to each verification command. |
 | `output.commit` | `false` | Commit verified changes in the job worktree. |
 | `output.commit_message` | generated | Commit message when `output.commit` is true. |
-| `output.pr` | `false` | Request draft-PR reconciliation; requires `output.commit: true`. |
+| `output.pr` | `false` | Request draft pull request reconciliation. Requires `output.commit: true`. |
 | `concurrency.key` | none | Global lock key for jobs sharing the same state root. |
 | `concurrency.policy` | `skip` | Skip a due run while the key is held. |
 
@@ -137,31 +137,34 @@ validation.
 | `insights` | Resolve pending private insights through the job lifecycle. |
 | `custom` | Minimal starting point. |
 
-Use `openknowledge jobs new --reference` for the embedded schema and artifact
-reference.
+Run `openknowledge jobs new --reference` to read the embedded schema and
+artifact reference.
 
 ## Runtime behavior
 
-- Real runs create a new Git worktree. The default `dirty_policy: fail`
-  requires the source checkout to be clean.
-- State lives outside the repository under the user configuration directory,
-  or under `OPENKNOWLEDGE_JOBS_STATE_DIR` when set. Run records, prompts, logs,
-  patches, and control files are private and should be treated as sensitive.
-- Host jobs receive an isolated home and temporary directory. Only the runtime
-  baseline, declared `sandbox.env` names, and recognized harness credentials
-  are passed through. Verification commands do not receive model credentials.
-- Docker jobs mount the worktree at `/workspace`, drop capabilities, disable
-  privilege escalation, limit process count, and have no network unless
-  `sandbox.network: bridge` is explicit.
-- `--dry-run` prints the resolved versioned plan without creating a worktree.
+- A real run creates a new Git worktree. The default `dirty_policy: fail`
+  requires a clean source checkout.
+- State stays outside the repository in the user configuration directory.
+  `OPENKNOWLEDGE_JOBS_STATE_DIR` can select a different location.
+- Run records, prompts, logs, patches, and control files are private. Treat
+  these files as sensitive.
+- A host job receives an isolated home and temporary directory. It receives
+  only the runtime baseline and declared `sandbox.env` names.
+- A host job also receives recognized harness credentials. Verification
+  commands do not receive model credentials.
+- A Docker job mounts the worktree at `/workspace`. It removes capabilities,
+  prevents privilege escalation, and limits the process count.
+- A Docker job has no network by default. Set `sandbox.network: bridge` to
+  enable the network.
+- `--dry-run` prints the resolved versioned plan. It does not create a
+  worktree.
 - `start` uses a detached local supervisor. `stop` and `kill` require a live
-  supervisor; abandoned records appear as `orphaned`.
-- `daemon --once` performs one scheduling pass. Without `--once`, polling
-  defaults to one minute and continues after individual job failures.
+  supervisor. An abandoned record has the `orphaned` status.
+- `daemon --once` performs one scheduling pass. Without `--once`, the daemon
+  polls every minute by default. It continues after an individual job failure.
 
-JSON output for validation, discovery, status, runs, start, control, plans, and
-run records uses `schemaVersion: "1"`. Published schemas live under
-`https://openknowledge.sh/schemas/cli/v1/`; see
+JSON output uses `schemaVersion: "1"` for all job operations. Published schemas
+are available under `https://openknowledge.sh/schemas/cli/v1/`. See
 [Machine-readable contracts](/features/machine-contracts.md).
 
 ---

@@ -8,12 +8,12 @@ timestamp: 2026-07-15T00:00:00Z
 
 # `openknowledge.toml`
 
-`openknowledge.toml` is the optional bundle-local configuration file shared by
-validation, maintenance rules, the local viewer, and static HTML publication.
-The CLI decodes the whole file with one TOML v1-compatible typed parser; each
-consumer sees the same syntax and the same errors.
+`openknowledge.toml` is an optional configuration file in the bundle.
+Validation, maintenance rules, the local viewer, and static HTML publication use this file.
+One TOML v1-compatible typed parser decodes the complete file.
+Therefore, each consumer uses the same syntax and reports the same errors.
 
-## Supported Configuration
+## Supported configuration
 
 ```toml
 [rules]
@@ -42,57 +42,60 @@ assets = ["assets/public/**", "whitepapers/*.pdf"]
 
 | Field | Type | Behavior |
 | --- | --- | --- |
-| `rules.paths` | string or string array | Relative custom-rule directories; defaults to `rules`. |
+| `rules.paths` | string or string array | Relative custom-rule directories. The default is `rules`. |
 | `rules.enabled` | string or string array | Default canonical rule IDs for rules and review commands. |
-| `validation.rules.<rule-id>` | string | Canonical severity `off`, `warn`, or `error` for a known validation rule; compatibility aliases are accepted as described below. |
-| `html.theme.name` | string | Viewer/export theme contract name; defaults to `default`. |
+| `validation.rules.<rule-id>` | string | Canonical severity for a known validation rule. Use `off`, `warn`, or `error`. The CLI accepts the compatibility aliases below. |
+| `html.theme.name` | string | Viewer or export theme contract name. The default is `default`. |
 | `html.theme.stylesheet` | string | Relative bundle CSS path or absolute HTTP(S) URL. |
 | `html.source.github_base` | string | Absolute HTTP(S) repository source base URL. |
 | `html.source.entry` | string | Optional relative repository path prefix. |
 | `html.site.base_url` | string | Absolute HTTP(S) deployed root without query or fragment. |
-| `publish.enabled` | boolean | Explicit permission to create public artifacts. Defaults to `false`; public HTML and runtime generation fail closed until set to `true`. |
-| `publish.assets` | string or string array | Bundle-relative glob allowlist for non-Markdown files copied into public HTML and portable public source artifacts. `**` matches path segments recursively. |
+| `publish.enabled` | boolean | Permission to create public artifacts. The default is `false`. Public HTML and runtime generation require `true`. |
+| `publish.assets` | string or string array | Bundle-relative glob list for public non-Markdown files. `**` matches path segments recursively. |
 
-`rules.paths` and `rules.enabled` retain the existing single-string shorthand.
-All other fields use the exact types above. Standard TOML features such as
-single-quoted strings, escaped basic strings, comments, multiline arrays, and
-dotted tables are parsed by the shared TOML implementation instead of
-line-oriented approximations.
+`rules.paths` and `rules.enabled` accept the existing single-string shorthand.
+All other fields use the exact types in the table.
+The shared TOML parser supports standard TOML features.
+These features include quoted strings, escaped basic strings, comments,
+multiline arrays, and dotted tables.
 
 Validation severity values normalize `ignore`, `ignored`, and `none` to
-`off`; `warning` and `warnings` to `warn`; and `err` and `errors` to `error`.
-New configuration should use the canonical spellings.
+`off`.
+The values `warning` and `warnings` normalize to `warn`.
+The values `err` and `errors` normalize to `error`.
+Use the canonical values in new configuration.
 
-## Strictness And Safety
+## Strictness and safety
 
-Unknown top-level sections, unknown nested fields, duplicate keys, malformed
-TOML, wrong value types, unknown validation rule IDs, and invalid severity
-values are errors. A typo in one section is never silently ignored by a command
-that consumes another section. This fail-closed behavior prevents a bundle from
-appearing valid in one surface while publishing different configuration in
-another.
+The parser reports an error for an unknown top-level section or nested field.
+It also reports duplicate keys, malformed TOML, and incorrect value types.
+Unknown validation rule IDs and invalid severity values are errors.
+A command does not ignore a typographical error in an unused section.
+This behavior keeps the configuration consistent between all CLI surfaces.
 
-HTML aliases accepted by older ad-hoc readers, such as `css`, `githubBase`, or
-`site_url`, are not part of the contract. Use the canonical snake-case fields
-shown above.
+HTML aliases from old readers are not part of the contract.
+Examples are `css`, `githubBase`, and `site_url`.
+Use the canonical snake-case fields in the table.
 
-The config file is private viewer metadata: it is not listed or served through
-asset/raw viewer routes. Bundle-root loading also applies the real filesystem
-boundary and rejects a symbolic-link `openknowledge.toml` rather than following
-it outside the bundle.
+The configuration file is private viewer metadata.
+Asset and raw viewer routes do not list or serve it.
+Bundle-root loading applies the real file system boundary.
+It rejects a symbolic-link `openknowledge.toml` and does not follow the link outside the bundle.
 
-Public artifacts are allowlist-based. `[publish] enabled = true` is the
-required bundle-level permission and is absent/false by default. After that
-gate, Markdown is selected by `okf_publish` and optional `okf_targets`; every
-non-Markdown file is excluded unless it matches `publish.assets`. Asset
-patterns cannot re-include unpublished Markdown, and
-`.git`, `.openknowledge`, and `openknowledge.toml` remain excluded even under a
-broad pattern. A source repository that is itself public still exposes its Git
-contents: `okf_publish: false` is an artifact filter, not repository secrecy.
+Public artifacts use an explicit list of permitted content.
+`[publish] enabled = true` gives the required bundle-level permission.
+The default is `false`.
+After this gate, `okf_publish` and optional `okf_targets` select Markdown.
+A non-Markdown file must match `publish.assets`.
+Asset patterns cannot include unpublished Markdown again.
+The output always excludes `.git`, `.openknowledge`, and `openknowledge.toml`.
+A public source repository still exposes its Git content.
+Thus, `okf_publish: false` is an artifact filter and not a confidentiality control.
 
-Per-page `okf_publish` defaults to allowed only after the bundle gate succeeds;
-literal `false` is an absolute deny for every public projection. Optional
-target booleans default to `true`:
+Per-page `okf_publish` permits publication only after the bundle gate succeeds.
+The default value permits publication after that gate.
+The literal value `false` prevents all public projections.
+Optional target Boolean values default to `true`:
 
 ```yaml
 okf_publish: true
@@ -104,23 +107,25 @@ okf_targets:
   sitemap: true
 ```
 
-Unknown targets, non-boolean target values, and non-boolean `okf_publish`
-values fail validation and publication. Targets route already-public content;
-they are not confidentiality boundaries. Use `okf_publish: false` when content
-must be physically absent from every public generation.
+An unknown target causes validation and publication to fail.
+A non-Boolean target or `okf_publish` value also causes failure.
+Targets route content that is already public.
+They are not confidentiality boundaries.
+Use `okf_publish: false` to exclude content from each public generation.
 
-## Consumer Behavior
+## Consumer behavior
 
-* `openknowledge validate` applies `[validation.rules]` and uses `[rules]` for
-  deterministic rule-catalog checks.
-* `openknowledge prompt rules` and `openknowledge prompt review rules` use `[rules]` for
-  custom catalog paths and default selection.
+* `openknowledge validate` applies `[validation.rules]`.
+  It uses `[rules]` for deterministic rule-catalog checks.
+* `openknowledge prompt rules` uses `[rules]` for custom catalog paths and default selection.
+* `openknowledge prompt review rules` also uses `[rules]`.
 * `openknowledge view` uses `[html.theme]`.
-* Default `openknowledge export html` uses `[html.theme]`, `[html.source]`, and
-  `[html.site]` together through the same strict parser used during validation,
-  and uses `[publish]` for the bundle gate and public asset allowlist.
-* Plain HTML also requires `publish.enabled`. JSON and graph ignore publication
-  filters; standalone tar preserves the complete source, including this config.
+* Default `openknowledge export html` uses `[html.theme]`, `[html.source]`, and `[html.site]`.
+  It uses the same strict parser as validation.
+  It uses `[publish]` for the bundle gate and public asset list.
+* Plain HTML also requires `publish.enabled`.
+* JSON and graph exports ignore publication filters.
+* A standalone tar export preserves the complete source, including this configuration.
 
 ---
 
@@ -137,6 +142,6 @@ must be physically absent from every public generation.
 >
 > **Update notes**
 >
-> Update this page whenever a supported section, field, type, alias, default,
-> or configuration consumer changes. CLI behavior changes also require a
-> [CLI changelog](/changelog/cli.md) update.
+> Update this page after a change to a supported section, field, type, alias,
+> default, or configuration consumer.
+> Also update the [CLI changelog](/changelog/cli.md) after a CLI behavior change.

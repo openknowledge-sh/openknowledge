@@ -8,7 +8,8 @@ timestamp: 2026-06-18T00:00:00Z
 
 # `openknowledge version`
 
-`openknowledge version` prints the CLI version string and accepts no arguments.
+Use `openknowledge version` to print the CLI version. The command accepts no
+arguments.
 
 ## Usage
 
@@ -17,18 +18,18 @@ openknowledge version
 openknowledge version --help
 ```
 
-## Example Output
+## Example output
 
 ```text
 0.6.0
 ```
 
-The root `package.json` is the repository release-version source of truth.
-`pnpm check:versions` verifies that this command's source fallback, the npm
-wrapper, and the web workspace all declare the same value. GoReleaser still
-injects the normalized Git tag version into published binaries.
+The root `package.json` defines the repository release version.
+`pnpm check:versions` compares this value with the command fallback, npm
+wrapper, and web workspace. GoReleaser injects the normalized Git tag into
+published binaries.
 
-## Use Cases
+## Use cases
 
 * Confirm the installed CLI version in support or release workflows.
 * Compare npm wrapper and binary release expectations.

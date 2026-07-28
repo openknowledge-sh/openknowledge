@@ -7,10 +7,13 @@ tags: [openknowledge, okf, specification]
 timestamp: 2026-06-12T05:02:31Z
 ---
 
-> This is a pinned upstream copy of the Open Knowledge Format specification
-> from the GoogleCloudPlatform Knowledge Catalog repository. The upstream
-> repository is licensed under Apache-2.0. Open Knowledge CLI is unofficial
-> tooling for this specification and is not an official Google product.
+> This file contains a pinned upstream copy of the Open Knowledge Format
+> specification. The copy comes from the GoogleCloudPlatform Knowledge Catalog
+> repository.
+>
+> The upstream repository uses the Apache-2.0 license. Open Knowledge CLI
+> provides unofficial tools for this specification. It is not an official
+> Google product.
 
 # Open Knowledge Format (OKF)
 

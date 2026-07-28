@@ -8,10 +8,12 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge prompt rules`
 
-This advanced command exposes the canonical maintenance-rule catalog. Its
-default mode prints Markdown instructions; `--list` inventories built-in and
-wiki-local rules. The explicit `apply` subcommand inserts or replaces a marked,
-idempotent block in an agent instruction file.
+This advanced command gives access to the maintenance rule catalog. The
+default mode prints Markdown instructions. `--list` shows built-in and
+wiki-local rules.
+
+The `apply` subcommand inserts or replaces a marked block in an agent
+instruction file. Repeated application produces the same block.
 
 ## Usage
 
@@ -30,20 +32,23 @@ openknowledge prompt rules apply docs --path Wiki --dry-run
 | `--list` | off | List the resolved rule catalog. |
 | `apply --file <file>` | discovered/prompted | Instruction file to update. |
 | `apply --yes` | off | Auto-select or create `AGENTS.md` and skip confirmation. |
-| `apply --dry-run` | off | Print the proposed file without writing it. |
+| `apply --dry-run` | off | Print the proposed file. Do not write the file. |
 
 Built-in IDs are `project`, `docs`, `decisions`, `changelog`, `research`,
-`bugs`, `schemas`, `summary`, and `agents`. A wiki may define additional rules
-under `rules/`; explicit command-line selections override configured defaults.
-Target inference selects the known instruction format from the destination
-when possible and otherwise uses `generic`. Warnings follow rendered output in
-a terminal and move to stderr when stdout is piped or redirected.
+`bugs`, `schemas`, `summary`, and `agents`. A wiki can define additional rules
+under `rules/`. Command-line selections override configured defaults.
 
-Rule review is separate and advisory:
-`openknowledge prompt review rules Wiki`. Deterministic validation continues to
-check structure and configured validation policies, not subjective compliance.
+When possible, target inference selects the instruction format from the
+destination. Otherwise, it uses `generic`. In a terminal, warnings follow the
+rendered output. When a caller redirects stdout, warnings go to stderr.
 
-The old top-level `openknowledge rules` form was removed before 1.0.
+Rule review is separate and advisory. Use
+`openknowledge prompt review rules Wiki`. Deterministic validation verifies
+structure and configured validation policies. It does not evaluate subjective
+compliance.
+
+Open Knowledge removed the old top-level `openknowledge rules` form before
+1.0.
 
 ---
 

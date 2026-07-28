@@ -4,10 +4,10 @@ Exporters convert an OKF bundle to another representation.
 
 ## Shipped
 
-* [HTML exporter](html.md) - static HTML files for each Markdown document.
-* [JSON exporter](json.md) - normalized bundle model for tools and agents.
-* [Tar exporter](tar.md) - portable source bundle archive for remote connect.
-* [Graph exporter](graph.md) - source and search graph views of an OKF bundle.
+* [HTML exporter](html.md) creates static HTML files for each Markdown document.
+* [JSON exporter](json.md) creates a normalized bundle model for tools and agents.
+* [Tar exporter](tar.md) creates a portable source archive for remote connections.
+* [Graph exporter](graph.md) creates source and search graph views.
 
 ---
 
@@ -15,5 +15,5 @@ Exporters convert an OKF bundle to another representation.
 
 > **Maintenance**
 >
-> Exporter behavior also affects [openknowledge export](/features/commands/export.md)
-> and usually belongs in [CLI changelog](/changelog/cli.md).
+> Exporter behavior also affects [openknowledge export](/features/commands/export.md).
+> Record most behavior changes in the [CLI changelog](/changelog/cli.md).

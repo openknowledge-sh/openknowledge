@@ -8,7 +8,8 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge disconnect`
 
-Unregister one connected bundle. Files are kept by default.
+Remove one connected bundle from the registry. The command keeps files by
+default.
 
 ## Usage
 
@@ -20,18 +21,20 @@ openknowledge disconnect <key-or-path> --delete-files
 
 `--keep-files` and `--delete-files` are mutually exclusive.
 
-`--delete-files` is available only for CLI-managed manifest, archive, or Git
-caches. It refuses ordinary local folders. The command verifies that the
-recorded managed root belongs directly to the Open Knowledge cache and that the
-registered bundle is inside it.
+Use `--delete-files` only for a CLI-managed manifest, archive, or Git cache.
+The command rejects an ordinary local folder. It verifies the location of the
+managed root. The root must belong directly to the Open Knowledge cache. The
+registered bundle must be inside the root.
 
-Managed deletion is transactional: the complete cache is renamed to a sibling
-tombstone, the registry is updated, and a failed registry write restores the
-cache. If final tombstone removal fails, the connection remains removed and
-the command exits `1` with a cleanup warning.
+For managed deletion, the command renames the complete cache to a sibling
+tombstone. It then updates the registry. If the registry write fails, the
+command restores the cache.
 
-Targets may be connection keys or registered paths. Unknown targets fail and
-list available keys when possible.
+If final tombstone removal fails, the connection stays removed. The command
+exits with status `1` and prints a cleanup warning.
+
+A target can be a connection key or registered path. An unknown target stops
+the command. When possible, the error lists available keys.
 
 ---
 

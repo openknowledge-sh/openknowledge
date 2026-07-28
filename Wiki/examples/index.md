@@ -1,7 +1,8 @@
 # Examples
 
-Small files in this section exist to smoke-test local viewer behavior.
+This section contains small files that test local viewer behavior.
 
-* [Syntax highlighting examples](syntax-highlighting.md) - fenced blocks in
-  several languages for checking token colors.
-* [Viewer asset examples](viewer-assets.md) - links to a code file and PDF asset.
+- [Syntax highlighting examples](syntax-highlighting.md) - Shows fenced blocks
+  in different languages.
+- [Viewer asset examples](viewer-assets.md) - Links to a code file and a PDF
+  asset.

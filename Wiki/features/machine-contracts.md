@@ -8,8 +8,8 @@ timestamp: 2026-07-28T00:00:00Z
 
 # Machine-Readable Contracts
 
-Stable CLI JSON objects declare `schemaVersion: "1"`. `specVersion`, when
-present, identifies the independently versioned OKF document format.
+Stable CLI JSON objects declare `schemaVersion: "1"`.
+When present, `specVersion` identifies the independently versioned OKF document format.
 
 ## CLI output schemas
 
@@ -43,13 +43,13 @@ present, identifies the independently versioned OKF document format.
 | `deploy-result.schema.json` | successful `deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
 
-Shared issue, link, retrieval, and typed-frontmatter definitions live in
-`common.schema.json`. Job contracts remain experimental and may change in place
-before 1.0.
+`common.schema.json` contains shared issue, link, retrieval, and typed-frontmatter definitions.
+Job contracts are experimental.
+They can change without a new version before version 1.0.
 
-Diagnostic, runtime, and Railway deployment outputs are covered by the same
-published v1 schema distribution. Golden tests marshal the current Go result
-types, and the shared schema suite compiles and validates those fixtures.
+The published v1 schema distribution includes diagnostic, runtime, and Railway deployment outputs.
+Golden tests marshal the current Go result types.
+The shared schema suite compiles and validates these fixtures.
 
 ## Error envelope
 
@@ -59,8 +59,8 @@ Place the global option before the command:
 openknowledge --error-format json search
 ```
 
-Failures produce one JSON document on stderr while preserving the original
-exit status:
+A failure produces one JSON document on stderr.
+The command preserves the original exit status:
 
 ```json
 {
@@ -75,14 +75,16 @@ exit status:
 }
 ```
 
-`kind` is `usage` for exit status `2` and `runtime` otherwise. Diagnostics are
-capped at 256 KiB. Command-specific semantic JSON remains on stdout: an invalid
-validation report, for example, is not wrapped as a CLI error.
+`kind` is `usage` for exit status `2`.
+For all other exit status values, `kind` is `runtime`.
+The maximum diagnostic size is 256 KiB.
+Command-specific semantic JSON remains on stdout.
+For example, the CLI does not wrap an invalid validation report as a CLI error.
 
 ## Schema locations
 
-Draft 2020-12 CLI schemas live in `packages/cli/schemas/v1/` and are published
-at:
+Draft 2020-12 CLI schemas are in `packages/cli/schemas/v1/`.
+The project publishes them at:
 
 ```text
 https://openknowledge.sh/schemas/cli/v1/<schema>.json
@@ -96,26 +98,28 @@ Two other version domains are independent:
 | Registry and cache persistence | `schemas/storage/v1/` | `/schemas/cli/storage/v1/` |
 | Runtime generation manifest | `schemas/runtime/v1/` | not a CLI output contract |
 
-Portable manifests use numeric `version` plus concrete `spec`; local storage
-and runtime manifests use their own `schemaVersion` values. These domains do
-not imply one another.
+Portable manifests use a numeric `version` and a concrete `spec`.
+Local storage and runtime manifests use their own `schemaVersion` values.
+These domains are independent.
 
 ## Compatibility
 
-Version 1 may add fields while preserving existing field meanings and types;
-the closed v1 schema is then updated in place. Consumers that validate against
-a downloaded schema must refresh it before accepting such output. Removing a
-field, changing its type or meaning, or rejecting previously valid output
-normally requires a new schema version.
+Version 1 can add fields when existing field meanings and types do not change.
+The project then updates the closed v1 schema.
+A consumer that uses a downloaded schema must refresh it before it accepts this output.
+A new schema version is usually necessary when the project removes a field.
+It is also usually necessary when a field type or meaning changes.
+The project also uses a new version when new output rules reject previously valid output.
 
-Schemas use `additionalProperties: false` at defined object boundaries to catch
-encoder drift. Retrieval results bind evidence to a concrete corpus revision,
-section digest, and `okf+sha256://` locator. Federated search wraps the existing
-single-bundle objects with registry identity, local rank, and RRF score.
+Schemas use `additionalProperties: false` at defined object boundaries.
+This rule detects encoder drift.
+Retrieval results bind evidence to a corpus revision, section digest, and `okf+sha256://` locator.
+Federated search adds registry identity, local rank, and RRF score to single-bundle objects.
 
-Repository tests compile every schema offline, validate golden and runtime
-objects, and verify that undeclared top-level and nested fields fail. The web
-build checks each `$id` against its public route before copying schemas.
+Repository tests compile each schema offline.
+They validate golden objects and runtime objects.
+They verify that undeclared top-level and nested fields fail.
+The web build verifies each `$id` against its public route before it copies schemas.
 
 ---
 
@@ -130,5 +134,5 @@ build checks each `$id` against its public route before copying schemas.
 >
 > **Update notes**
 >
-> Update this page when a schema, version domain, machine-readable surface, or
-> distribution route changes.
+> Update this page after a change to a schema, version domain, machine-readable
+> surface, or distribution route.

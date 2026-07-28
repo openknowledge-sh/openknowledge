@@ -8,52 +8,51 @@ timestamp: 2026-06-20T00:00:00Z
 
 # OKF, Skills, and Plugins
 
-Many agent systems use the same basic materials: folders, Markdown files,
-config files, and optional scripts. The difference is not the file format. The
-difference is what those files are for.
+Many agent systems use folders, Markdown files, configuration files, and optional scripts.
+Each system uses these files for a different purpose.
 
-## OKF: Knowledge
+## OKF: knowledge
 
-**OKF v0.1** is a simple format for storing knowledge.
+**OKF v0.1** is a simple format that stores knowledge.
 
-An OKF bundle is a folder of Markdown files with YAML frontmatter. Each concept
-file can describe an API, dataset, metric, workflow, decision, system, process,
-or other useful piece of knowledge.
+An OKF bundle is a folder of Markdown files with YAML frontmatter.
+Each concept file describes one useful item of knowledge.
+For example, a concept can describe an API, dataset, metric, workflow, decision, system, or process.
 
-Use OKF when you want knowledge to be easy for both humans and agents to read,
-update, search, and move between tools. It is best for durable context:
-documentation, project memory, domain knowledge, decisions, and relationships
-between concepts.
+Use OKF to make knowledge easy for people and agents to read.
+You can also update, search, and move the knowledge between tools.
+Use OKF for durable context, such as documentation, project memory, domain
+knowledge, decisions, and relationships.
 
-## Skills: Workflows
+## Skills: workflows
 
 A **skill** teaches an agent how to do a specific kind of task.
 
-A skill usually has a `SKILL.md` file with instructions, plus optional
-references, templates, or scripts. The agent loads the skill when the task
-matches, or when the user invokes it directly.
+A skill usually has a `SKILL.md` file with instructions.
+It can also contain references, templates, or scripts.
+The agent loads the skill when the task matches.
+The agent also loads the skill when a user directly invokes it.
 
-Use a skill when you want the agent to follow a repeatable procedure. It is best
-for checklists, task recipes, review flows, generation patterns, or any workflow
-you do not want to explain from scratch every time.
+Use a skill when an agent must follow a repeatable procedure.
+For example, use a skill for a checklist, task recipe, review flow, or generation pattern.
 
 In this repository, the wiki content is the OKF bundle and
 `.codex/skills/openknowledge-wiki/SKILL.md` is the maintenance workflow for
-agents editing it.
+agents that edit it.
 
-## Plugins: Packaged Capabilities
+## Plugins: packaged capabilities
 
 A **plugin** is a package that installs capabilities into an agent runtime.
 
-A plugin may include one or more skills, but it can also include tools, MCP
-servers, app integrations, hooks, agents, settings, binaries, or marketplace
-metadata.
+A plugin can include one or more skills.
+It can also include tools, MCP servers, app integrations, hooks, agents,
+settings, binaries, or marketplace metadata.
 
-Use a plugin when a skill or workflow needs to be shared, installed, versioned,
-or bundled with extra capabilities. It is best for distributing reusable agent
-functionality across projects, teams, or marketplaces.
+Use a plugin to share, install, or version a skill or workflow.
+You can also use a plugin to package additional capabilities.
+Plugins distribute reusable agent functions across projects, teams, or marketplaces.
 
-## Simple Comparison
+## Simple comparison
 
 | Concept | Main Purpose | Best For |
 | --- | --- | --- |
@@ -61,8 +60,9 @@ functionality across projects, teams, or marketplaces.
 | **Skill** | Guide behavior | Repeatable agent workflows |
 | **Plugin** | Package capabilities | Sharing tools, skills, integrations, and runtime extensions |
 
-## How They Fit Together
+## How they fit together
 
-These concepts can work together: an OKF bundle holds the knowledge, a skill
-tells the agent how to use it, and a plugin packages the skill or tools for
-distribution.
+These concepts can work together.
+An OKF bundle contains the knowledge.
+A skill tells the agent how to use the knowledge.
+A plugin packages the skill or tools for distribution.

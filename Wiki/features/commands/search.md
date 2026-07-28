@@ -8,8 +8,8 @@ timestamp: 2026-07-21T00:00:00Z
 
 # `openknowledge search`
 
-Search one knowledge base—or every connected knowledge base—and return
-source-grounded Markdown context. Search is local, lexical, deterministic, and
+Search one knowledge base or all connected knowledge bases. The command returns
+source-based Markdown context. Search is local, lexical, and deterministic. It
 does not call an LLM.
 
 ## Usage
@@ -25,7 +25,7 @@ openknowledge search --all <query>
 | Option | Default | Description |
 | --- | --- | --- |
 | `--all` | off | Search the current local registry instead of one target. |
-| `--budget <tokens>` | `2400` | Approximate context budget; incompatible with `--matches`. |
+| `--budget <tokens>` | `2400` | Approximate context budget. Incompatible with `--matches`. |
 | `--limit <count>` | `12` | Maximum selected sources or displayed matches. |
 | `--no-expand` | off | Exclude document, linked, and backlink context expansion. |
 | `--matches` | off | Show ranked snippets instead of a context packet. |
@@ -34,10 +34,10 @@ openknowledge search --all <query>
 
 ## Output modes
 
-The default context packet contains the query, resolved root, content revision,
-estimated token use, validation issues, and selected Markdown sections. Each
-source includes its file, heading, line range, score, relationship, content
-hash, and content-addressed `okf+sha256://` locator.
+The default context packet contains the query, root, content revision, token
+estimate, validation issues, and selected Markdown sections. Each source
+contains its file, heading, line range, score, relationship, and content hash.
+It also contains an `okf+sha256://` locator.
 
 ```text
 # Open Knowledge Context
@@ -52,45 +52,44 @@ Source: `guides/validation.md:7-10`
 Relation: `direct`
 ```
 
-Use `--matches` to inspect ranked snippets and matched fields. JSON versions of
-both modes use `schemaVersion: "1"` and the published
-`search-context.schema.json` and `search-results.schema.json` contracts.
+Use `--matches` to inspect ranked snippets and matched fields. JSON output uses
+`schemaVersion: "1"`. The `search-context.schema.json` and
+`search-results.schema.json` files define the contracts.
 
 ## How selection works
 
-- Markdown is split at content-bearing H1–H3 sections. Lower headings stay
-  within their parent section.
-- BM25-style ranking combines section evidence with a whole-document signal.
+- Search divides Markdown into content sections at H1 through H3 headings.
+  Lower headings stay in their parent section.
+- BM25-style ranking combines section evidence with a document signal.
   Filenames, titles, headings, paths, frontmatter, metadata, and bodies affect
-  the score; the document boost is assigned to the section that covers the
-  most query terms.
-- Context mode preserves the five strongest lexical sections, brings forward
-  up to two additional sections from the strongest document, then fills
-  remaining slots with parent/child sections and evidence that covers missing
-  query terms. Structurally selected non-lexical sections use the
-  `document-context` relation.
-- Search adds one hop of authored outgoing links and backlinks unless
-  `--no-expand` is set. Fragments select the chunk that owns the addressed
-  heading: lower-level headings resolve to their containing H1-H3 chunk, and a
-  heading-only H1-H3 target resolves to its first content-bearing descendant.
-  Links without fragments select the first content-bearing chunk. Missing
-  fragments do not expand; search never follows external, missing, or
-  transitive links.
-- Outgoing targets receive 55% and backlinks 45% of the seed score. When a
-  target is also a lexical match, its score becomes the greater of its lexical
-  and strongest graph-derived score. It remains one direct result with its
-  lexical snippet and highlights; multiple links do not add scores together.
-- Direct evidence is packed first, followed by document and link context. The
-  five strongest lexical seeds are attempted before an oversized seed is
-  truncated; a prioritized document-context section is truncated instead of
-  being skipped for lower-ranked short sections. Only the final selected
-  section may be truncated.
-- `--all` searches the current registry snapshot without refreshing remotes.
-  Per-bundle ranks are combined with reciprocal-rank fusion under one global
-  limit and budget. Partial failures remain visible; the command exits `1` only
-  when every entry in a non-empty registry fails.
+  the score. The section with the most query terms receives the document
+  boost.
+- Context mode keeps the five strongest lexical sections. It adds up to two
+  sections from the strongest document. It then adds related parent or child
+  sections. It also adds evidence for missing query terms. A selected
+  nonlexical section uses the `document-context` relation.
+- Search adds one level of authored links and backlinks. Use `--no-expand` to
+  prevent this expansion. A fragment selects the section that contains its
+  heading. A lower heading resolves to its H1 through H3 parent section. A
+  heading-only target resolves to its first content section. A link without a
+  fragment selects the first content section. Search does not expand a missing
+  fragment. It does not follow external, missing, or transitive links.
+- An outgoing target receives 55 percent of the seed score. A backlink
+  receives 45 percent. A lexical target keeps the higher lexical or graph
+  score. It stays one direct result with its lexical snippet and highlights.
+  Multiple links do not add their scores.
+- The command packs direct evidence first. Document and link context follow.
+  It tries the five strongest lexical seeds before it truncates a large seed.
+  It truncates a prioritized document context section before it selects a
+  lower-ranked short section. Only the final selected section can be
+  incomplete.
+- `--all` searches the current registry snapshot. It does not refresh remotes.
+  Reciprocal-rank fusion combines ranks under one global limit and budget.
+  Partial failures stay visible. The command exits with status `1` only when
+  all entries in a non-empty registry fail.
 
-The token budget is an estimate, not a model-specific tokenizer guarantee. Use
+The token budget is an estimate. It is not a model-specific tokenizer
+guarantee. Use
 [`openknowledge get`](get.md) when you already know the exact file to read.
 
 ---

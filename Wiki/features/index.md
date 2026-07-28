@@ -1,19 +1,26 @@
 # Feature Documentation
 
-- [Tooling model](tooling-model.md) — how commands fit into one knowledge-base lifecycle.
-- [Knowledge architecture](knowledge-architecture.md) — canonical OKF source, shipped projections, and candidate retrieval layers.
-- [Installation](installation.md) — supported installation paths and verification.
-- [Configuration](configuration.md) — strict `openknowledge.toml` reference.
-- [Commands](commands/) — current CLI reference.
-- [Exporters](exporters/) — HTML, JSON, graph, and tar output contracts.
-- [Machine-readable contracts](machine-contracts.md) — JSON schemas and compatibility.
-- [Go API](go-api.md) — embed the read-only core.
-- [Specification compliance](spec-compliance.md) — OKF v0.1 implementation status.
-- [CLI operations](operations.md) — local development, CI, website, and releases.
+- [Tooling model](tooling-model.md) — Explains how commands support one
+  knowledge-base lifecycle.
+- [Knowledge architecture](knowledge-architecture.md) — Explains the canonical
+  OKF source and its projections.
+- [Installation](installation.md) — Gives CLI installation and verification
+  steps.
+- [Configuration](configuration.md) — Describes the
+  `openknowledge.toml` configuration.
+- [Commands](commands/) — Lists the current CLI commands.
+- [Exporters](exporters/) — Documents HTML, JSON, graph, and tar output.
+- [Machine-readable contracts](machine-contracts.md) — Documents JSON schemas
+  and compatibility rules.
+- [Go API](go-api.md) — Documents the read-only core.
+- [Specification compliance](spec-compliance.md) — Reports the OKF v0.1
+  implementation status.
+- [CLI operations](operations.md) — Gives development, test, publication, and
+  release tasks.
 
 ---
 
 <!-- okf-footer: agent-maintenance -->
 
-> Use [Feature docs workflow](/workflows/feature-docs.md) when shipped behavior
-> changes.
+> Use the [Feature docs workflow](/workflows/feature-docs.md) after a change to
+> shipped behavior.

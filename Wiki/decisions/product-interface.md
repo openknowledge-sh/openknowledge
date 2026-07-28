@@ -11,9 +11,11 @@ status: accepted
 
 ## Decision
 
-Open Knowledge is one lifecycle around an OKF knowledge base. Search, viewer,
-MCP, agents, jobs, exports, and runtime generations are views or maintenance
-loops over the same Git-native Markdown object.
+Open Knowledge gives one lifecycle for an OKF knowledge base. All product
+interfaces use the same Git-native Markdown object.
+
+These interfaces include search, the viewer, MCP, agents, jobs, exports, and
+runtime generations.
 
 The CLI exposes one primary path and four secondary workflow groups:
 
@@ -24,17 +26,19 @@ The CLI exposes one primary path and four secondary workflow groups:
 | Browse and publish | `get`, `list`, `view`, `mcp`, `export` |
 | Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` |
 
-Low-level deterministic tools—`scaffold`, `prompt`, `ast`, and `spec`—remain
-available under an advanced section.
+The advanced section contains the deterministic `scaffold`, `prompt`, `ast`,
+and `spec` tools.
 
-## Interface rules
+## Interface Rules
 
-1. Root help starts with user outcomes; command references own details.
-2. Each capability has one canonical command home.
-3. Deterministic OKF operations do not require a model, network, or service.
-4. Service roles reuse validation, publication, retrieval, and export contracts.
-5. Provider provisioning stays under `deploy`; runtime mechanics stay under
-   `runtime`.
+1. Root help starts with user outcomes.
+2. Command pages contain the command details.
+3. Each capability has one canonical command.
+4. Deterministic OKF operations do not require a model, network, or service.
+5. Service roles use the same validation, publication, retrieval, and export
+   contracts.
+6. Provider configuration stays under `deploy`.
+7. Runtime operations stay under `runtime`.
 
 The primary activation flow is:
 
@@ -42,19 +46,25 @@ The primary activation flow is:
 openknowledge setup
 ```
 
-The CLI launches the selected agent, validates the resulting wiki, and installs
-project integration. The agent also demonstrates one source-grounded search,
-so activation does not require a second command. `search` and `validate` remain
-independent commands for later use. `scaffold` remains an explicit agent-free
-primitive, not a second onboarding path.
+The CLI launches the selected agent. It then validates the wiki and installs
+the project integration.
 
-Portable instructions live under `prompt setup|from|rules|review`. Publishing
-lives under `export html|json|graph|tar`. Connection mutation lives at
-top-level `connect` and `disconnect`.
+The agent also demonstrates one search that uses source evidence. Thus,
+activation does not require another command.
 
-Commands with materially different process or security boundaries remain
-separate even when they present the same knowledge. In particular, local
-`view`, stdio `mcp`, and hosted runtime serving are distinct surfaces.
+Use `search` independently after activation. Use `validate` independently
+after activation. `scaffold` remains an agent-free primitive, not a second
+activation path.
+
+Use `prompt setup|from|rules|review` for portable instructions. Use
+`export html|json|graph|tar` for publication.
+
+Use the top-level `connect` command to add a connection. Use the top-level
+`disconnect` command to remove a connection.
+
+Commands remain separate when they have different process or security
+boundaries. The local `view`, stdio `mcp`, and hosted runtime are separate
+interfaces.
 
 ---
 
@@ -62,4 +72,4 @@ separate even when they present the same knowledge. In particular, local
 
 > **Update notes**
 >
-> Extend these workflows instead of introducing parallel aliases.
+> Extend these workflows. Do not add parallel aliases.

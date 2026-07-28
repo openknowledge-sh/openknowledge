@@ -5,8 +5,8 @@ okf_bundle_title: "Open Knowledge CLI Documentation"
 
 # Open Knowledge CLI
 
-Open Knowledge creates, searches, publishes, and maintains Git-native knowledge
-bases in Open Knowledge Format (OKF).
+Open Knowledge creates and maintains Git-native knowledge bases in Open
+Knowledge Format (OKF). It also searches and publishes these knowledge bases.
 
 ## Get started
 
@@ -22,16 +22,41 @@ openknowledge setup
 
 ## Workflows
 
-| Goal | Start here |
-| --- | --- |
-| Create, retrieve, and verify | [`setup`](features/commands/setup.md), [`search`](features/commands/search.md), [`validate`](features/commands/validate.md) |
-| Maintain and automate | [`agent`](features/commands/agent.md), [`insights`](features/commands/insights.md), [`jobs`](features/commands/jobs.md) |
-| Browse and publish | [`get`](features/commands/get.md), [`list`](features/commands/list.md), [`view`](features/commands/view.md), [`mcp`](features/commands/mcp.md), [`export`](features/commands/export.md) |
-| Connect and operate | [`connect`](features/commands/connect.md), [`disconnect`](features/commands/disconnect.md), [`registry`](features/commands/registry.md), [`runtime`](features/commands/runtime.md), [`deploy`](features/commands/deploy.md) |
+### Create, retrieve, and verify
 
-Advanced tools include [`scaffold`](features/commands/scaffold.md),
-[`prompt`](features/commands/prompt.md), [`ast`](features/commands/ast.md), and
-[`spec`](features/commands/spec.md).
+Use [`setup`](features/commands/setup.md) to create a wiki. Use
+[`search`](features/commands/search.md) to retrieve knowledge. Use
+[`validate`](features/commands/validate.md) to verify the wiki.
+
+### Maintain and automate
+
+Use [`agent`](features/commands/agent.md) to run an agent task. Use
+[`insights`](features/commands/insights.md) to manage insight reviews. Use
+[`jobs`](features/commands/jobs.md) to schedule maintenance jobs.
+
+### Browse and publish
+
+Use [`get`](features/commands/get.md) to read one document. Use
+[`list`](features/commands/list.md) to inspect the content tree. Use
+[`view`](features/commands/view.md) to browse the wiki.
+
+Use [`mcp`](features/commands/mcp.md) to serve MCP tools. Use
+[`export`](features/commands/export.md) to publish portable output.
+
+### Connect and operate
+
+Use [`connect`](features/commands/connect.md) to add a source. Use
+[`disconnect`](features/commands/disconnect.md) to remove a source. Use
+[`registry`](features/commands/registry.md) to inspect the registry.
+
+Use [`runtime`](features/commands/runtime.md) to run services. Use
+[`deploy`](features/commands/deploy.md) to deploy them.
+
+### Use advanced tools
+
+Use [`scaffold`](features/commands/scaffold.md) for deterministic bundle
+creation. Other advanced tools are [`prompt`](features/commands/prompt.md),
+[`ast`](features/commands/ast.md), and [`spec`](features/commands/spec.md).
 
 ## Reference
 

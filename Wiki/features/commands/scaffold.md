@@ -8,7 +8,7 @@ timestamp: 2026-07-18T00:00:00Z
 
 # `openknowledge scaffold`
 
-Create bundle files without launching an agent or installing project
+Create bundle files. The command does not start an agent or install project
 integration. For managed onboarding, use [`openknowledge setup`](setup.md).
 
 ## Usage
@@ -21,13 +21,13 @@ openknowledge scaffold --no-agents --no-setup ./source-wiki
 
 | Option | Description |
 | --- | --- |
-| `folder` | Destination; defaults to a slug derived from the name. |
-| `--name <name>` | Display name; prompts when omitted. |
+| `folder` | Destination. Defaults to a slug derived from the name. |
+| `--name <name>` | Display name. Prompts when omitted. |
 | `--bundle-name <id>` | Stable `okf_bundle_name`. |
 | `--bundle-title <title>` | Display `okf_bundle_title`. |
 | `--bundle-purpose <text>` | `okf_bundle_purpose`. |
-| `--bundle-tag <tag>` | Add a bundle tag; repeatable. |
-| `--bundle-entry <name=path>` | Declare an entrypoint; repeatable. |
+| `--bundle-tag <tag>` | Add a bundle tag. Repeatable. |
+| `--bundle-entry <name=path>` | Declare an entrypoint. Repeatable. |
 | `--no-agents` | Omit starter `AGENTS.md`. |
 | `--no-setup` | Omit `SETUP.MD` and its terminal handoff. |
 
@@ -41,12 +41,12 @@ AGENTS.md
 SETUP.MD
 ```
 
-With both omission flags it contains only `index.md`, `log.md`, and `SPEC.md`.
-The command creates a missing destination but refuses an existing non-empty
-directory.
+With both omission flags, the scaffold contains only `index.md`, `log.md`, and
+`SPEC.md`. The command creates a missing destination. It rejects an existing
+non-empty directory.
 
-Bundle metadata is optional and not required by OKF. `--bundle-entry` records
-the mapping only; later authoring must create its target page.
+OKF does not require bundle metadata. `--bundle-entry` records only the
+mapping. Create the target page separately.
 
 ---
 

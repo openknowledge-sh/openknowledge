@@ -8,11 +8,13 @@ timestamp: 2026-07-28T00:00:00Z
 
 # `openknowledge deploy`
 
-`openknowledge deploy railway init` creates a project-owned runtime image
-definition. `openknowledge deploy railway` then validates a public knowledge
-base and provisions one `serve` service whose image contains the artifact built
-from the source commit. Git synchronization and agents are an explicit optional
-topology.
+`openknowledge deploy railway init` creates a runtime image definition in the
+project. `openknowledge deploy railway` validates a public knowledge base. It
+then creates one `serve` service.
+
+The service image contains the artifact from the source commit. Git
+synchronization and agents are optional. You must request this topology
+explicitly.
 
 ## Usage
 
@@ -31,14 +33,15 @@ openknowledge deploy railway init Wiki --runtimes claude,opencode --force
 openknowledge deploy railway Wiki --runtimes claude,opencode --yes
 ```
 
-Provider mutation requires `--yes`. `--dry-run` validates the working bundle
-and an isolated archive of the local production-branch commit, then prints a
-secret-free plan without requiring Railway authentication.
+Provider changes require `--yes`. `--dry-run` validates the working bundle. It
+also validates an isolated archive of the local production branch commit. It
+then prints a plan without secrets. This action does not require Railway
+authentication.
 
 ## Initialize the runtime
 
-`init` writes the files at the Git repository root, even when `[path]` points
-to a nested knowledge base.
+`init` writes files at the Git repository root. This behavior also applies when
+`[path]` selects a nested knowledge base.
 
 | Option | Default | Description |
 | --- | --- | --- |
@@ -50,25 +53,32 @@ to a nested knowledge base.
 | `--opencode-version` | `1.18.3` | OpenCode npm package version. |
 | `--force` | off | Replace an existing generated scaffold. |
 
-The runtime selection used by deployment must be installed by `init`. Use the
-same explicit `--runtimes` value for both commands. Deployment fails before
-provider mutation when a planned worker is absent from the committed
-Dockerfile. Omitting `--runtimes` never infers or starts agents.
+`init` must install each runtime that the deployment selects. Use the same
+explicit `--runtimes` value for both commands.
 
-The generated multi-stage Dockerfile copies the repository, runs
-`openknowledge runtime build` with Railway's triggering commit SHA, and copies
-`/opt/openknowledge/artifacts` into the final image. Its committed
-`runtime.toml` also lets the same image run locally without Railway variables;
-the default entrypoint role is `serve`.
+Deployment validates the committed Dockerfile before it changes the provider. It
+stops if a planned worker is absent. If you omit `--runtimes`, deployment does
+not infer or start agents.
 
-The generated container starts with only enough privilege to make an attached
-Railway volume writable by UID/GID `10001`, then immediately runs the selected
-serve, publisher, or worker role as the unprivileged `openknowledge` user. This
-also makes redeploys safe when a volume was originally created by a root-based
-runtime image.
+The generated multi-stage Dockerfile copies the repository. It runs
+`openknowledge runtime build` with the Railway trigger commit SHA. It then
+copies `/opt/openknowledge/artifacts` into the final image.
 
-To update pins, rerun `init` with the desired versions and `--force`, review
-the diff, commit, push, and redeploy:
+The committed `runtime.toml` lets the same image run locally without Railway
+variables. The default entrypoint role is `serve`.
+
+The generated container starts with limited privileges. It makes an attached
+Railway volume writable by UID/GID `10001`. It then immediately starts the
+selected role as the unprivileged `openknowledge` user.
+
+This process also supports a volume that a root-based runtime image created.
+
+To update pins, run `init` with the required versions and `--force`.
+
+1. Review the diff.
+2. Commit the files.
+3. Push the commit.
+4. Deploy again.
 
 ```sh
 openknowledge deploy railway init Wiki --runtimes codex \
@@ -83,14 +93,14 @@ openknowledge deploy railway init Wiki --runtimes codex \
 | `--name` | repository-derived | Project and service prefix. |
 | `--project` | new project | Existing Railway project ID. |
 | `--workspace` | Railway default | Workspace for a new project. |
-| `--production-branch` | `main` | Railway source branch; also the agent publisher branch when enabled. |
+| `--production-branch` | `main` | Railway source branch. Also the agent publisher branch when active. |
 | `--repository` | Git `origin` | GitHub repository URL. |
-| `--without-worker` | compatibility no-op | Agents are already omitted by default; incompatible with `--runtimes`. |
+| `--without-worker` | compatibility no-op | The default omits agents. Incompatible with `--runtimes`. |
 | `--runtimes` | none | Enable the private publisher and one worker per listed harness. |
 | `--mcp` | `public` | `public`, `token`, or `off`. |
 | `--domain` | none | Attach a hostname you already own. |
-| `--no-public-endpoint` | off | Disable public ingress; incompatible with `--domain`. |
-| `--github-token-env` | `GITHUB_TOKEN` | GitHub token source; authenticated `gh` is the fallback. |
+| `--no-public-endpoint` | off | Disable public ingress. Incompatible with `--domain`. |
+| `--github-token-env` | `GITHUB_TOKEN` | GitHub token source. Authenticated `gh` is the fallback. |
 | `--codex-key-env` | `CODEX_API_KEY` | Codex credential source. |
 | `--claude-key-env` | `ANTHROPIC_API_KEY` | Claude Code credential source. |
 | `--opencode-key-env` | `OPENCODE_API_KEY` | OpenCode provider credential source. |
@@ -100,11 +110,12 @@ openknowledge deploy railway init Wiki --runtimes codex \
 | `--prune` | off | Delete provider services omitted by the desired topology. |
 | `--yes` | off | Confirm provider resource changes. |
 
-Railway CLI v5+ and authentication are required only for mutation.
+Provider changes require Railway CLI version 5 or later. They also require
+authentication.
 
-The files belong to the project after creation and are never replaced unless
-`--force` is explicit. Commit and push them on the production branch before
-dry-run or deployment.
+The files belong to the project after creation. The command replaces them only
+when you specify `--force`. Commit and push them to the production branch
+before a dry run or deployment.
 
 ## What it provisions
 
@@ -115,70 +126,85 @@ flowchart LR
   Internet["optional public endpoint"] --> Serve
 ```
 
-The default has no publisher, polling loop, GitHub token, artifact-sync token,
-exchange token, or persistent volume. A new source commit triggers a new image
-build; process startup serves the artifact already present in that image.
+The default topology has no publisher, polling loop, GitHub token, artifact
+sync token, exchange token, or persistent volume. A new source commit starts a
+new image build. Process startup serves the artifact in that image.
 
-Passing `--runtimes` adds the agent control plane: a private publisher polls the
-production branch and distributes bounded source bundles, and each private
-worker receives only its harness credential. The public `serve` service still
-uses its baked artifact and does not synchronize it from the publisher.
+`--runtimes` adds the agent control plane. A private publisher polls the
+production branch and distributes bounded source bundles. Each private worker
+receives only its harness credential.
 
-Endpoint modes are:
+The public `serve` service uses its built-in artifact. It does not synchronize
+the artifact from the publisher.
 
-- default: generated `*.up.railway.app` hostname;
-- `--domain`: attach an existing hostname and return required DNS records;
-- `--no-public-endpoint`: remove any existing serve-domain bindings and keep
+Select one endpoint mode:
+
+- default: Generate a `*.up.railway.app` hostname.
+- `--domain`: Attach an existing hostname and return required DNS records.
+- `--no-public-endpoint`: Remove any existing serve-domain bindings and keep
   the service without public ingress.
 
 Open Knowledge never searches for, purchases, or registers a domain.
 
 ## Reconciliation and recovery
 
-The state file records provider IDs, resources, endpoint metadata, and status,
-but never credentials. It is written with owner-only permissions. Interrupted
-deployment leaves `complete: false`; rerunning reuses recorded resources.
-Completed reruns reconcile variables and redeploy without recreating the
-topology. On the first mutating apply, version 1 image state upgrades to version
-2, clears legacy image metadata, and reconnects the existing service IDs to the
-repository without recreating services or volumes. Narrowing a deployed
-topology fails closed unless `--prune` is explicit. To migrate the former
-publisher+serve topology, review the default dry-run and then run:
+The state file records provider IDs, resources, endpoint metadata, and status.
+It does not record credentials. The command writes it with owner-only
+permissions.
+
+An interrupted deployment leaves `complete: false`. A repeated command reuses
+recorded resources. A completed rerun reconciles variables and deploys again.
+It does not recreate the topology.
+
+The first provider change upgrades version 1 image state to version 2. It
+clears old image metadata and reconnects existing service IDs. It does not
+recreate services or volumes.
+
+A smaller topology requires explicit `--prune`. To migrate the former
+publisher and serve topology, review the default dry run. Then run:
 
 ```sh
 openknowledge deploy railway Wiki --prune --yes
 ```
 
-This deletes publisher and worker services omitted from the new plan, including
-their provider-attached volumes, while retaining the existing `serve` service.
-Changing repository source still requires explicit provider cleanup. The state
-version is separate from the command-output `schemaVersion: "1"`.
+This command deletes publisher and worker services that are absent from the new
+plan. It also deletes their provider volumes. It keeps the existing `serve`
+service.
 
-Each planned service is connected to the same GitHub repository and production
-branch. Railway builds `.openknowledge/runtime/Dockerfile`; role variables only
-override the image's default `serve` role for explicit agent services. Updating
-an Open Knowledge or harness pin therefore requires a project commit and
-redeploy, not a new Open Knowledge runtime-image release.
+A repository source change still requires provider cleanup. The state version
+is separate from the command output `schemaVersion: "1"`.
+
+Each planned service uses the same GitHub repository and production branch.
+Railway builds `.openknowledge/runtime/Dockerfile`. Role variables override the
+default `serve` role only for explicit agent services.
+
+An Open Knowledge or harness pin update requires a project commit and a new
+deployment. It does not require a new runtime image release.
 
 Generated publisher configuration keeps replaceable checkout, build, and lock
-state on ephemeral storage. Published artifacts and exchange data remain on
-the persistent volume. Workers keep state in a process-owned child directory
-below their volume root. Neither role changes provider-owned mount permissions.
+state on temporary storage. Published artifacts and exchange data stay on the
+persistent volume.
 
-Railway progress diagnostics are read separately from JSON command output, so
-interactive status text cannot hide resource IDs or break recovery state.
+Workers keep state in a process-owned child directory below their volume root.
+Neither role changes provider mount permissions.
 
-Secret values are sent through stdin and never appear in arguments, plans,
-result JSON, or state. Default immutable deployment reads no GitHub or model
-credential. In agent mode, the publisher authenticates private GitHub clone and
-fetch operations through an ephemeral Git extra header, not a credentialed
-repository URL. A successful result means Railway accepted the deploy; it does
-not wait for image startup or DNS propagation. Check
-`/_openknowledge/healthz` and `/_openknowledge/readyz` after deployment.
+The command reads Railway progress diagnostics separately from JSON output.
+Interactive status text cannot hide resource IDs or damage recovery state.
 
-Dry-run, successful deployment, and runtime-scaffold results declare
-`schemaVersion: "1"` and are covered by `deploy-plan.schema.json`,
-`deploy-result.schema.json`, and `deploy-runtime-scaffold.schema.json`.
+The command sends secret values through stdin. Secrets do not appear in
+arguments, plans, result JSON, or state. The default immutable deployment reads
+no GitHub or model credential.
+
+In agent mode, the publisher uses a temporary Git extra header for private
+GitHub operations. It does not use a credentialed repository URL.
+
+A successful result means that Railway accepted the deployment. It does not
+wait for image startup or DNS propagation. After deployment, verify
+`/_openknowledge/healthz` and `/_openknowledge/readyz`.
+
+Dry-run, deployment, and runtime scaffold results use `schemaVersion: "1"`.
+The `deploy-plan.schema.json`, `deploy-result.schema.json`, and
+`deploy-runtime-scaffold.schema.json` files define these contracts.
 
 Railway is currently the only full-runtime provider.
 

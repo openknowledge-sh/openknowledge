@@ -10,27 +10,32 @@ timestamp: 2026-07-21T00:00:00Z
 
 ## Decision
 
-The knowledge base is named `Wiki` and lives inside the repository at `Wiki/`.
-It focuses on two maintenance loops:
+The knowledge base uses the name `Wiki` and lives inside the repository at
+`Wiki/`.
+It supports two maintenance tasks:
 
-* CLI package changelog memory.
-* Developer-focused feature documentation, especially command and exporter pages.
+- Maintain the CLI changelog.
+- Maintain developer documentation, especially command and exporter pages.
 
 ## Rationale
 
-The wiki should be close to the code so agents can update it in the same change
-that touches CLI behavior. Command pages are split by command so long Markdown
-docs do not become a single hard-to-maintain file.
+The wiki stays near the code. Thus, agents can update the wiki with a related
+CLI change.
+
+Each command has a separate page. This structure prevents one large command
+document.
 
 ## Agent Integration
 
-The repository root has `AGENTS.md` pointing agents to this wiki and to the
-repo-local skill at `.codex/skills/openknowledge-wiki/SKILL.md`.
+The repository root contains `AGENTS.md`. It directs agents to this wiki and
+to `.codex/skills/openknowledge-wiki/SKILL.md`.
 
 ## Boundaries
 
-The wiki should not store raw copied source material by default. Source and
-tests are the behavioral authority; this wiki is the canonical CLI reference;
-the README is the product overview. Within any Open Knowledge bundle, its OKF
-Markdown is the canonical corpus and generated search indexes, graphs, exports,
-and runtime artifacts are rebuildable projections.
+Do not store copied source material in the wiki by default.
+
+The source code and tests define product behavior. This wiki is the canonical
+CLI reference. The README is the product overview.
+
+In an Open Knowledge bundle, the OKF Markdown is the canonical corpus. You can
+rebuild search indexes, graphs, exports, and runtime artifacts from this corpus.

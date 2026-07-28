@@ -8,8 +8,9 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge agent integrate`
 
-`openknowledge agent integrate` connects existing Codex, Claude Code, and OpenCode
-sessions to Open Knowledge without replacing their native agent interfaces.
+Use `openknowledge agent integrate` to connect existing agent sessions to Open
+Knowledge. The command supports Codex, Claude Code, and OpenCode. It does not
+replace their native interfaces.
 
 ## Usage
 
@@ -18,18 +19,19 @@ openknowledge agent integrate --global
 openknowledge agent integrate Wiki
 ```
 
-## Global Discovery
+## Global discovery
 
-`--global` installs the same small discovery skill into the user-level skill
-directories for Codex, Claude Code, and OpenCode. It teaches an agent to look
-for `.openknowledge/integration.toml`, inspect connected resources, and use the
-read-only Open Knowledge commands. It never installs hooks, observes sessions,
-or writes to a knowledge base.
+`--global` installs a discovery skill in each user-level skill directory. The
+skill supports Codex, Claude Code, and OpenCode.
 
-## Project Integration
+The skill finds `.openknowledge/integration.toml` and inspects connected
+resources. It also uses read-only Open Knowledge commands. This mode does not
+install hooks, observe sessions, or write to a knowledge base.
 
-The project form requires a knowledge-base directory inside a Git repository.
-For `openknowledge agent integrate Wiki`, it atomically writes:
+## Project integration
+
+The project form requires a knowledge base inside a Git repository. For
+`openknowledge agent integrate Wiki`, the command atomically writes:
 
 ```text
 .openknowledge/integration.toml
@@ -40,39 +42,47 @@ For `openknowledge agent integrate Wiki`, it atomically writes:
 .opencode/plugins/openknowledge-observer.js
 ```
 
-The shared `.agents/skills` copy is discovered by Codex and OpenCode; Claude
-uses its native `.claude/skills` copy. Existing Codex and Claude hook arrays
-are merged, not replaced, and repeated
-integration is idempotent. The config stores repository-relative
-`knowledge_base` and `insights` paths. Project skills explain the knowledge
-boundary and insight protocol.
+Codex and OpenCode use the shared `.agents/skills` copy. Claude uses its native
+`.claude/skills` copy. The command merges existing Codex and Claude hook
+arrays. It does not replace them. Repeated integration produces the same
+result.
 
-Codex runs the project `Stop` command hook after a turn and requires the user
-to review and trust a changed project hook through `/hooks`. Claude Code runs
-the equivalent command asynchronously. OpenCode invokes the observer from its
-project plugin on `session.idle` and reads that session's messages through the
-local OpenCode client. Codex and Claude hook payloads may instead point at their
-user-owned JSON/JSONL transcript. All three feed the same bounded internal
-observer, so direct harness sessions and `openknowledge agent` produce the same
-insight format.
+The configuration stores repository-relative `knowledge_base` and `insights`
+paths. Project skills explain the knowledge boundary and insight protocol.
 
-The hook is advisory and non-blocking: malformed input, a missing integration,
-or an observer failure never blocks the parent agent session. Insights are
-ordinary uncommitted files in the active checkout; no hook creates a branch,
-commit, push, or pull request.
+Codex runs the project `Stop` command hook after a turn. Review and trust a
+changed project hook through `/hooks`. Claude Code runs the equivalent command
+asynchronously.
 
-## Security Boundary
+OpenCode starts the observer from its project plugin on `session.idle`. It
+reads the session messages through the local OpenCode client. Codex and Claude
+hook payloads can point to a user-owned JSON or JSONL transcript.
 
-Project integration is explicit and repository-scoped. The observer bounds its
-input, accepts transcript references only below the current user's home,
-reduces the available trace to a sanitized final assistant outcome and event
-counts, strips the raw session from its output, redacts common credential forms,
-ignores changes below the insights directory, and writes only an
-`okf_publish: false` Markdown insight. Agents and Jobs must continue to treat
-that file as untrusted repository-controlled input.
+All three harnesses use the same bounded internal observer. Direct sessions and
+`openknowledge agent` sessions produce the same insight format.
 
-The observer records changed repository paths as evidence but never copies file
-contents, a unified diff, or a base commit into the insight.
+The hook is advisory and does not block the parent agent session. Malformed
+input, a missing integration, or an observer failure does not block the
+session.
+
+Insights are uncommitted files in the active checkout. A hook does not create a
+branch, commit, push, or pull request.
+
+## Security boundary
+
+Project integration is explicit and applies only to the repository. The
+observer limits its input. It accepts transcript references only below the
+current user home directory.
+
+The observer keeps only a sanitized assistant result and event counts. It
+removes the raw session and common credential forms from its output. It ignores
+changes below the insights directory. It writes only a Markdown insight with
+`okf_publish: false`.
+
+Agents and jobs must treat the insight as untrusted repository input.
+
+The observer records changed repository paths as evidence. It does not copy
+file contents, a unified diff, or a base commit into the insight.
 
 
 ---

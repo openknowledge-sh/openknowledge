@@ -8,11 +8,12 @@ timestamp: 2026-07-17T00:00:00Z
 
 # `openknowledge prompt`
 
-`openknowledge prompt` groups portable workflows that print agent instructions
-instead of starting a harness. Normal onboarding uses
-[`openknowledge setup`](setup.md); this namespace is for copying prompts into an
-external agent, inspecting the canonical rule catalog, or updating a managed
-instruction block.
+`openknowledge prompt` groups portable workflows that print agent
+instructions. These workflows do not start an agent harness.
+
+Use [`openknowledge setup`](setup.md) for normal onboarding. Use this command
+to copy a prompt, inspect the rule catalog, or update a managed instruction
+block.
 
 ## Usage
 
@@ -31,12 +32,12 @@ openknowledge prompt review rules Wiki
 | --- | --- |
 | `setup` | Print the canonical setup interview prompt. |
 | [`from`](from.md) | Print a source-to-wiki prompt. |
-| [`rules`](rules.md) | List or render maintenance rules; `rules apply` updates one managed instruction block. |
+| [`rules`](rules.md) | List or render maintenance rules. `rules apply` updates one managed instruction block. |
 | [`review`](review.md) | Print advisory AI review prompts. |
 
-The former top-level `from`, `rules`, and `review` commands were removed before
-1.0. They are not retained as aliases, so scripts fail loudly instead of
-silently depending on a transitional interface.
+Open Knowledge removed the former top-level `from`, `rules`, and `review`
+commands before 1.0. They are not aliases. Scripts that use them return an
+error.
 
 
 ---

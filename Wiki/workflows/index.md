@@ -1,15 +1,17 @@
 # Workflows
 
-These pages define repeatable wiki maintenance loops for future agents.
+These pages define repeatable Wiki maintenance tasks for agents.
 
 ## Agent Workflows
 
-* [Feature docs workflow](feature-docs.md) - update command and exporter docs.
-* [Changelog update workflow](changelog-updates.md) - update CLI changelog memory.
+- [Feature docs workflow](feature-docs.md) - Updates command and exporter
+  documentation.
+- [Changelog update workflow](changelog-updates.md) - Updates the CLI
+  changelog.
 
 ## Validation
 
-Every meaningful wiki edit should end with:
+After each meaningful Wiki edit, run:
 
 ```sh
 openknowledge validate "Wiki"
