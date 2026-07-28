@@ -80,7 +80,7 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteByte('\n')
 
 	builder.WriteString("Write the wiki:\n")
-	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `openknowledge scaffold --name \"<clear wiki name>\" --no-agents --no-setup %q` before customizing it.\n", markdownCode(options.Out), options.Out))
+	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `okn scaffold --name \"<clear wiki name>\" --no-agents --no-setup %q` before customizing it.\n", markdownCode(options.Out), options.Out))
 	builder.WriteString("- Use `--no-agents --no-setup` for generated source wikis unless the user explicitly wants starter agent rules or an interactive setup handoff document.\n")
 	builder.WriteString("- Keep raw copied material separate from synthesized wiki pages.\n")
 	builder.WriteString("- Write ordinary OKF Markdown so search and validate work without a generation runtime. Keep exact reads, browsing, and exports as optional follow-up workflows.\n")
@@ -90,11 +90,11 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteString("- For refreshes, compare existing provenance with the current source and update only affected pages where practical. Preserve human edits when possible.\n\n")
 
 	builder.WriteString("Verify and finish:\n")
-	builder.WriteString(fmt.Sprintf("- Run `openknowledge validate %q` and fix validation errors or avoidable warnings.\n", options.Out))
-	builder.WriteString(fmt.Sprintf("- Run one representative source-grounded query with `openknowledge search %q \"<query>\"`; choose a query that demonstrates the wiki's intended use and confirm the returned evidence is relevant.\n", options.Out))
+	builder.WriteString(fmt.Sprintf("- Run `okn validate %q` and fix validation errors or avoidable warnings.\n", options.Out))
+	builder.WriteString(fmt.Sprintf("- Run one representative source-grounded query with `okn search %q \"<query>\"`; choose a query that demonstrates the wiki's intended use and confirm the returned evidence is relevant.\n", options.Out))
 	builder.WriteString("- Record meaningful generation or refresh notes in log.md.\n")
 	builder.WriteString("- Finish by telling the user what changed, that validation passed, and what the demonstrated search returned.\n")
-	builder.WriteString("- Mention `openknowledge get`, `list`, or `view` only when the user asks for exact reading, structural inspection, or human browsing.\n")
+	builder.WriteString("- Mention `okn get`, `list`, or `view` only when the user asks for exact reading, structural inspection, or human browsing.\n")
 	return builder.String(), nil
 }
 

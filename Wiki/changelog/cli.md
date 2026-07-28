@@ -13,6 +13,17 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-28 — Portable setup by default
+
+- `okn setup` printed portable instructions by default.
+- The new `--agent` flag ran the instructions, validated the result, and
+  installed project integration.
+- If `--runtime` was absent, interactive agent mode detected installed
+  runtimes and asked the user to select one.
+- Non-interactive agent mode required `--runtime`.
+- Source: `packages/cli/cmd/openknowledge/{command_catalog,setup_command}.go`.
+- Docs: `Wiki/features/commands/{index,setup}.md`, `Wiki/index.md`.
+
 ### 2026-07-28 — Mermaid diagrams in the viewer
 
 - The viewer rendered fenced `mermaid` blocks as theme-aware diagrams on local

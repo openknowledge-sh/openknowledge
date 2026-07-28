@@ -25,15 +25,15 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 		"copy this entire prompt and paste it into Codex",
 		"Avoid shell command substitution or piping",
 		"DeepWiki-style understanding wiki",
-		"openknowledge scaffold --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
+		"okn scaffold --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
 		"unless the user explicitly wants starter agent rules or an interactive setup handoff document",
 		"okf_generated_from",
 		"search and validate work without a generation runtime",
-		"openknowledge validate \"Wiki\"",
-		"openknowledge search \"Wiki\" \"<query>\"",
+		"okn validate \"Wiki\"",
+		"okn search \"Wiki\" \"<query>\"",
 		"confirm the returned evidence is relevant",
 		"what the demonstrated search returned",
-		"Mention `openknowledge get`, `list`, or `view` only when the user asks",
+		"Mention `okn get`, `list`, or `view` only when the user asks",
 	}
 	for _, expected := range required {
 		if !strings.Contains(prompt, expected) {

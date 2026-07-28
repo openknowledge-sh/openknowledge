@@ -34,7 +34,7 @@ Use these seed questions only when context cannot answer them:
 2. Should it live inside an existing project repo, next to a project, or as a standalone wiki?
 3. Which use case is closest: code/project memory, personal knowledge, team/work memory, research/data dump, recurring automation output, or something else?
 4. Which maintenance rules should future agents follow, if any?
-   Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents. Run openknowledge prompt rules --list for descriptions.
+   Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents. Run okn prompt rules --list for descriptions.
 5. Are there privacy, safety, source-boundary, or "do not edit" rules?
 
 After the user answers:
@@ -42,7 +42,7 @@ After the user answers:
 - If the user chose a colocated project wiki, prefer a folder such as .openknowledge or knowledge inside that project unless they ask otherwise.
 - If the user chose a standalone wiki, prefer a clear standalone folder name.
 - Run:
-  openknowledge scaffold --name "<knowledge base name>" "<folder path>"
+  okn scaffold --name "<knowledge base name>" "<folder path>"
 
 After creation:
 - Read SETUP.MD, AGENTS.md, SPEC.md, index.md, and log.md from the new bundle.
@@ -57,7 +57,7 @@ After creation:
 - If the user wants recurring or external jobs, treat automations as orchestrator-native. Check whether the current agent runtime can create native automations, such as Codex app automations, Cowork automations, or another explicitly available scheduler. If it can and the user approves, configure the native automation with a prompt that references the wiki path, relevant workflows, validation command, outputs, and safety boundaries. If it cannot, or if the user does not approve installing it, do not claim an automation exists; optionally document an automation candidate or manual workflow in the wiki.
 - Keep raw imported material separate from synthesized wiki pages.
 - Record setup decisions in log.md.
-- Run openknowledge validate "<folder path>" and fix any issues.
+- Run okn validate "<folder path>" and fix any issues.
 - Delete SETUP.MD only after setup is complete.
 
 Finish by telling the user:
@@ -65,8 +65,8 @@ Finish by telling the user:
 - what folders, workflows, agent instructions or skills, and native automations or automation candidates you created
 - how future agents should use it
 - that validation passed
-- how to search it with openknowledge search "<folder path>" "<query>"
-- mention openknowledge get, list, or view only when the user asks for exact
+- how to search it with okn search "<folder path>" "<query>"
+- mention okn get, list, or view only when the user asks for exact
   reading, structural inspection, or human browsing
 `
 

@@ -69,7 +69,7 @@ to inspect, diff, validate, and maintain.
 
 | | Capability | What it gives you |
 | --- | --- | --- |
-| :robot: | Agent setup | `okn setup` creates a source-grounded `Wiki` from the current project through Codex; alternate runtimes and sources remain optional. |
+| :robot: | Agent setup | `okn setup` prints a source-grounded task; add `--agent` to run it with an installed agent runtime. |
 | :memo: | Plain Markdown | Knowledge stays in Git-friendly files that humans can read and agents can patch. |
 | :mag: | Retrieval | `search` builds budget-bounded Markdown context by default, while `get`, `list`, and `view` support exact reads, structure, and browsing. |
 | :electric_plug: | MCP integration | `mcp` serves exact resources, source-grounded search, and validation to compatible LLM hosts over read-only stdio. |
@@ -81,7 +81,8 @@ to inspect, diff, validate, and maintain.
 ```mermaid
 flowchart LR
   Source["Repository, docs, website, or local folder"] --> Setup["okn setup"]
-  Setup --> Agent["Local coding agent"]
+  Setup --> Prompt["Portable setup task"]
+  Prompt --> Agent["okn setup --agent"]
   Agent --> Wiki["OKF Markdown wiki"]
   Wiki --> Use["get / search / list / view / mcp"]
   Wiki --> Check["validate / ast"]
@@ -93,29 +94,39 @@ flowchart LR
 
 ### Create a wiki from your project
 
-From the project repository that should own the wiki, install the CLI and run
-the canonical setup command:
+From the project repository that should own the wiki, install the CLI and print
+the setup task:
 
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
 okn setup
 ```
 
-`setup` is the controller: it launches Codex by default, asks the agent to
-inspect the current repository, creates a source-grounded `Wiki`, validates
-the result, and installs project integration. When it finishes, the wiki is
-ready; no second onboarding command is required.
+Pass the printed task to an agent, or let the CLI run it:
 
-Before starting the interactive process, `setup` verifies that the selected
-agent CLI is installed. If preflight fails, run
+```sh
+okn setup --agent
+```
+
+In agent mode, `setup` detects the installed agent runtimes and asks you to
+select one. It then creates `Wiki`, validates the result, and installs project
+integration.
+
+For a non-interactive run, select the runtime explicitly:
+
+```sh
+okn setup --agent --runtime codex
+```
+
+Before starting the agent, `setup` verifies the selected CLI. If preflight fails, run
 `okn agent doctor --runtime <runtime>`, repair that runtime, and
 rerun the same setup command. Authentication remains owned by the selected
 agent CLI; an authenticated runtime failure is reported with a rerun hint.
 
 ### Start a guided wiki without a source
 
-Pass an explicit target path without `--from` when you want the launched agent
-to interview you about a new or more open-ended knowledge base:
+Pass an explicit target path without `--from` to print a guided task for a new
+or more open-ended knowledge base:
 
 ```sh
 okn setup Wiki
@@ -127,6 +138,8 @@ Preselect maintenance rules when you already know the wiki shape:
 okn setup Wiki --rules docs,changelog
 ```
 
+Add `--agent` to either command to run the task directly.
+
 ### Use another source or agent runtime
 
 Pass another repository, folder, or website to `--from` when the current
@@ -134,14 +147,13 @@ project is not the source:
 
 ```sh
 okn setup Wiki --from https://github.com/openknowledge-sh/openknowledge --type understanding
-okn setup --runtime claude
+okn setup --agent --runtime claude
 ```
 
-The command launches a local agent to inspect the source, create or update an OKF
-bundle, preserve source provenance, validate the result, and install the
-repository integration. Select Claude Code or OpenCode with `--runtime claude`
-or `--runtime opencode`. For print-only instructions, use the advanced `prompt`
-namespace.
+By default, the command prints a portable source task. Add `--agent` to run the
+task, validate the result, and install repository integration. Use
+`--runtime claude` or `--runtime opencode` to bypass the interactive runtime
+selection.
 
 ### Install manually
 
@@ -169,7 +181,7 @@ the recorded workflow and commit.
 
 | Layer | Commands | Use them for |
 | --- | --- | --- |
-| Start here | `setup`, `search`, `validate` | Create and integrate a wiki, retrieve useful context, and verify the source. |
+| Start here | `setup`, `search`, `validate` | Print or run wiki setup, retrieve useful context, and verify the source. |
 | Maintenance automation | `agent`, `insights`, `jobs` | Maintain a wiki through local agents, captured gaps, and repeatable jobs. |
 | Browse and publish | `get`, `list`, `view`, `mcp`, `export` | Optionally read exact files, browse locally, integrate LLM hosts, and publish the same knowledge. |
 | Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` | Connect knowledge bases or run them as a self-hosted service. |
@@ -302,10 +314,12 @@ the obsolete publisher and worker services and their attached state.
 
 ### Agent setup
 
-`okn setup` runs the complete project onboarding workflow through a
-supported local agent harness, using the current repository as the source and
-`Wiki` as the target. An explicit target path without `--from` starts the
-guided workflow for a new or open-ended knowledge base. The CLI validates the
+`okn setup` prints a portable project onboarding task. It uses the current
+repository as the source and `Wiki` as the target. An explicit target path
+without `--from` prints a guided task for a new or open-ended knowledge base.
+
+`okn setup --agent` runs the same task. If `--runtime` is absent, the CLI
+detects installed runtimes and asks you to select one. The CLI validates the
 result and installs project integration after the agent finishes.
 
 `okn prompt rules` prints Markdown instructions for agents that maintain an
@@ -443,8 +457,8 @@ unknown sections/fields and wrong value types fail closed. See the
 supports Claude Code or OpenCode with `--runtime`. It accepts an optional
 initial prompt or runs a non-interactive task with `agent exec`. A versioned
 Open Knowledge steering contract is prepended by default. Managed onboarding
-and source generation use `okn setup`; `agent doctor` probes installed
-harnesses without starting a model.
+and source generation use `okn setup --agent`; `agent doctor` probes
+installed harnesses without starting a model.
 Direct filesystem editing is the default, so local sessions do not create a
 branch, commit, or pull request.
 Add `--isolate` to create and retain a dedicated branch and Git worktree at the
@@ -520,9 +534,10 @@ Nested job commands also support
 | --- | --- |
 | `okn --help` | Print command usage, summaries, and examples. |
 | `okn --error-format json <command> ...` | Emit operational and usage failures as a versioned JSON envelope on stderr. |
-| `okn setup` | Create `Wiki` from the current project, validate it, and install project integration. |
-| `okn setup [wiki]` | Run guided setup for a new or open-ended knowledge base. |
-| `okn setup [wiki] --from <source>` | Create or refresh a wiki from a source URL or path. |
+| `okn setup` | Print a task that creates `Wiki` from the current project. |
+| `okn setup --agent` | Run the setup task, validate the result, and install project integration. |
+| `okn setup [wiki]` | Print a guided task for a new or open-ended knowledge base. |
+| `okn setup [wiki] --from <source>` | Print a source-to-wiki task for a URL or path. |
 | `okn prompt setup [--rules <rules>]` | Print the portable setup prompt without running an agent. |
 | `okn prompt from <source> --out <folder>` | Print the portable source-to-wiki prompt. |
 | `okn prompt rules --list` | List available built-in and wiki-local maintenance rules. |

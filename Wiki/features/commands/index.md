@@ -5,7 +5,7 @@ Use this index to select a command for your task. Run
 
 ## Start here
 
-- [setup](setup.md): Create, validate, and integrate a wiki with an agent.
+- [setup](setup.md): Print portable setup instructions or run them with an agent.
 - [search](search.md): Build source-grounded context.
 - [validate](validate.md): Validate OKF conformance.
 

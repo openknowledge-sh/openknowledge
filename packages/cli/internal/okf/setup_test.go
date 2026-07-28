@@ -15,16 +15,16 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"Do not ask a fixed questionnaire",
 		"Use these seed questions only when context cannot answer them",
 		"Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents.",
-		"openknowledge prompt rules --list",
-		"openknowledge scaffold --name \"<knowledge base name>\" \"<folder path>\"",
+		"okn prompt rules --list",
+		"okn scaffold --name \"<knowledge base name>\" \"<folder path>\"",
 		"copy this entire prompt and paste it into Codex",
 		"Avoid shell command substitution or piping",
 		"context-specific questions",
 		"spawn focused subagents with lower reasoning effort",
 		"Keep onboarding focused on three outcomes",
-		"Run openknowledge validate \"<folder path>\"",
-		"openknowledge search \"<folder path>\" \"<query>\"",
-		"mention openknowledge get, list, or view only when the user asks",
+		"Run okn validate \"<folder path>\"",
+		"okn search \"<folder path>\" \"<query>\"",
+		"mention okn get, list, or view only when the user asks",
 	}
 
 	for _, expected := range required {
@@ -65,11 +65,11 @@ func TestGeneratedSetupHandoffRequiresContextFirstInterview(t *testing.T) {
 		"Do not ask a\nfixed generic questionnaire",
 		"context-specific questions only for missing or ambiguous details",
 		"which maintenance rules apply",
-		"openknowledge prompt rules --list",
+		"okn prompt rules --list",
 		"spawn focused subagents with lower reasoning effort",
-		"confirm openknowledge validate passed",
-		"demonstrate one budget-bounded source query with openknowledge search",
-		"mention openknowledge get, list, or view only when the user asks",
+		"confirm okn validate passed",
+		"demonstrate one budget-bounded source query with okn search",
+		"mention okn get, list, or view only when the user asks",
 	}
 
 	for _, expected := range required {

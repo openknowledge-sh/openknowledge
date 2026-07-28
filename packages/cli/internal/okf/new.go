@@ -208,7 +208,7 @@ You are working inside a local Open Knowledge wiki.
 * Do not treat wiki automation pages as running jobs; real automations belong in the agent runtime or orchestrator that executes them.
 * Prefer concise, structured Markdown that future humans and agents can scan.
 * Preserve citations or source paths when a page depends on external material.
-* After meaningful wiki edits, run openknowledge validate and fix issues before finishing.
+* After meaningful wiki edits, run okn validate and fix issues before finishing.
 
 ## Setup
 
@@ -264,7 +264,7 @@ context-specific questions only for missing or ambiguous details such as:
 * what should be captured as raw source, synthesized wiki pages, references, decisions, or logs
 * privacy or safety boundaries
 * update cadence and rules for future agents
-* which maintenance rules apply: project, docs, decisions, changelog, research, bugs, schemas, summary, or agents; run openknowledge prompt rules --list for descriptions when available
+* which maintenance rules apply: project, docs, decisions, changelog, research, bugs, schemas, summary, or agents; run okn prompt rules --list for descriptions when available
 
 ## Output
 
@@ -284,9 +284,9 @@ After the interview:
 * keep every non-reserved Markdown document OKF-valid with a non-empty type field
 * keep raw source snapshots separate from maintained synthesis
 * record setup decisions in log.md
-* run openknowledge validate against the selected spec version and fix any issues
-* keep the onboarding handoff focused: confirm openknowledge validate passed and demonstrate one budget-bounded source query with openknowledge search
-* mention openknowledge get, list, or view only when the user asks for exact reading, structural inspection, or human browsing
+* run okn validate against the selected spec version and fix any issues
+* keep the onboarding handoff focused: confirm okn validate passed and demonstrate one budget-bounded source query with okn search
+* mention okn get, list, or view only when the user asks for exact reading, structural inspection, or human browsing
 * double-check that the scaffold no longer contains placeholder rules or structure that conflict with the interview
 * delete SETUP.MD after successful setup
 `, title, date, title, agentInstruction, agentOutput)

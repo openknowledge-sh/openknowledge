@@ -1,27 +1,39 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
+	"golang.org/x/term"
 )
 
+var setupRuntimeInput io.Reader = os.Stdin
+var setupRuntimeInputIsTerminal = func() bool {
+	file, ok := setupRuntimeInput.(*os.File)
+	return ok && term.IsTerminal(int(file.Fd()))
+}
+
 type setupCLIOptions struct {
-	wiki           string
-	source         string
-	runtime        string
-	model          string
-	rules          string
-	wikiType       string
-	about          string
-	depth          int
-	targetExplicit bool
+	wiki            string
+	source          string
+	runtime         string
+	model           string
+	rules           string
+	wikiType        string
+	about           string
+	depth           int
+	agent           bool
+	runtimeExplicit bool
+	targetExplicit  bool
 }
 
 func runSetup(args []string) int {
@@ -33,6 +45,15 @@ func runSetup(args []string) int {
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
+	}
+	if !options.agent {
+		task, _, _, err := agentTask(setupAgentOptions(options, options.wiki))
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 2
+		}
+		fmt.Print(task)
+		return 0
 	}
 	wikiAbs, err := filepath.Abs(options.wiki)
 	if err != nil {
@@ -51,32 +72,25 @@ func runSetup(args []string) int {
 	}
 	relWiki = filepath.ToSlash(relWiki)
 
-	agentOptions := agentCLIOptions{
-		path:    repository,
-		runtime: options.runtime,
-		model:   options.model,
-	}
-	executable, err := resolveAgentExecutable(context.Background(), options.runtime)
-	if err != nil {
-		fmt.Fprintf(stderrOutput(), "setup cannot start the %s runtime: %v\n", options.runtime, err)
-		fmt.Fprintf(stderrOutput(), "Run \"openknowledge agent doctor --runtime %s\" to diagnose the installation, then install or repair the runtime and rerun setup.\n", options.runtime)
-		return 1
-	}
-	agentOptions.executable = executable
-	if options.source == "" {
-		agentOptions.operation = "init"
-		agentOptions.rules = options.rules
-		agentOptions.setupTarget = relWiki
-	} else {
-		agentOptions.operation = "from"
-		agentOptions.from = fromOptions{
-			source:   options.source,
-			out:      relWiki,
-			wikiType: options.wikiType,
-			about:    options.about,
-			depth:    options.depth,
+	var executable string
+	if options.runtime == "" {
+		options.runtime, executable, err = selectSetupRuntime(context.Background())
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
 		}
 	}
+	agentOptions := setupAgentOptions(options, relWiki)
+	agentOptions.path = repository
+	if executable == "" {
+		executable, err = resolveAgentExecutable(context.Background(), options.runtime)
+		if err != nil {
+			fmt.Fprintf(stderrOutput(), "setup cannot start the %s runtime: %v\n", options.runtime, err)
+			fmt.Fprintf(stderrOutput(), "Run \"openknowledge agent doctor --runtime %s\" to diagnose the installation, then install or repair the runtime and rerun setup.\n", options.runtime)
+			return 1
+		}
+	}
+	agentOptions.executable = executable
 	if code := runAgentWithOptions(agentOptions); code != 0 {
 		fmt.Fprintf(stderrOutput(), "setup agent runtime %s exited with status %d; verify its authentication and rerun the same setup command.\n", options.runtime, code)
 		return code
@@ -95,12 +109,85 @@ func runSetup(args []string) int {
 	return 0
 }
 
+type setupRuntimeOption struct {
+	name       string
+	executable string
+}
+
+func selectSetupRuntime(ctx context.Context) (string, string, error) {
+	var available []setupRuntimeOption
+	for _, runtimeName := range agents.SupportedAgentRuntimes() {
+		executable, err := resolveAgentExecutable(ctx, runtimeName)
+		if err == nil {
+			available = append(available, setupRuntimeOption{name: runtimeName, executable: executable})
+		}
+	}
+	if len(available) == 0 {
+		return "", "", fmt.Errorf("setup found no installed agent runtime; install codex, claude, or opencode")
+	}
+	names := make([]string, 0, len(available))
+	for _, option := range available {
+		names = append(names, option.name)
+	}
+	if !setupRuntimeInputIsTerminal() {
+		return "", "", fmt.Errorf("setup --agent requires --runtime when input is not interactive; available runtimes: %s", strings.Join(names, ", "))
+	}
+
+	fmt.Fprintln(os.Stdout, "Available agent runtimes:")
+	for index, option := range available {
+		fmt.Fprintf(os.Stdout, "  %d. %s\n", index+1, option.name)
+	}
+	reader := bufio.NewReader(setupRuntimeInput)
+	for {
+		fmt.Fprint(os.Stdout, "Select a runtime: ")
+		answer, err := reader.ReadString('\n')
+		if err != nil && strings.TrimSpace(answer) == "" {
+			return "", "", fmt.Errorf("read setup runtime selection: %w", err)
+		}
+		answer = strings.ToLower(strings.TrimSpace(answer))
+		if index, err := strconv.Atoi(answer); err == nil && index >= 1 && index <= len(available) {
+			selected := available[index-1]
+			return selected.name, selected.executable, nil
+		}
+		for _, option := range available {
+			if answer == option.name {
+				return option.name, option.executable, nil
+			}
+		}
+		fmt.Fprintf(os.Stdout, "Enter a number from 1 to %d or a runtime name.\n", len(available))
+	}
+}
+
+func setupAgentOptions(options setupCLIOptions, target string) agentCLIOptions {
+	agentOptions := agentCLIOptions{
+		runtime: options.runtime,
+		model:   options.model,
+	}
+	if options.source == "" {
+		agentOptions.operation = "init"
+		agentOptions.rules = options.rules
+		agentOptions.setupTarget = target
+		return agentOptions
+	}
+	agentOptions.operation = "from"
+	agentOptions.from = fromOptions{
+		source:   options.source,
+		out:      target,
+		wikiType: options.wikiType,
+		about:    options.about,
+		depth:    options.depth,
+	}
+	return agentOptions
+}
+
 func parseSetupArgs(args []string) (setupCLIOptions, error) {
-	options := setupCLIOptions{wiki: "Wiki", runtime: agents.RuntimeCodex, wikiType: okf.DefaultFromType}
+	options := setupCLIOptions{wiki: "Wiki", wikiType: okf.DefaultFromType}
 	var positionals []string
 	for index := 0; index < len(args); index++ {
 		argument := args[index]
 		switch {
+		case argument == "--agent":
+			options.agent = true
 		case argument == "--from" || argument == "--runtime" || argument == "--model" || argument == "--rules" || argument == "--type" || argument == "--about" || argument == "--depth":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
@@ -154,12 +241,20 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 	if strings.TrimSpace(options.wiki) == "" {
 		return options, fmt.Errorf("setup knowledge base path must not be empty")
 	}
-	if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
-		return options, err
+	if options.runtime != "" {
+		if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
+			return options, err
+		}
 	}
-	// The zero-argument path is the primary project onboarding flow: inspect the
-	// current repository and write its knowledge base to Wiki. An explicit
-	// target without --from keeps the guided, open-ended setup workflow.
+	if !options.agent && options.runtimeExplicit {
+		return options, fmt.Errorf("--runtime requires --agent")
+	}
+	if !options.agent && strings.TrimSpace(options.model) != "" {
+		return options, fmt.Errorf("--model requires --agent")
+	}
+	// The zero-argument path prints the primary project onboarding task for the
+	// current directory and Wiki. An explicit target without --from keeps the
+	// guided, open-ended setup workflow.
 	if options.source == "" &&
 		!options.targetExplicit &&
 		strings.TrimSpace(options.rules) == "" &&
@@ -190,6 +285,7 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 		options.source = value
 	case "--runtime":
 		options.runtime = strings.ToLower(value)
+		options.runtimeExplicit = true
 	case "--model":
 		options.model = value
 	case "--rules":
@@ -211,43 +307,46 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 func setupHelpText() string {
 	return `openknowledge setup
 
-Launch a supported agent runtime to create or update, validate, and integrate
-an OKF knowledge base.
+Print portable instructions to create or update an OKF knowledge base.
+Use --agent to run the instructions, validate the result, and integrate it.
 
 Usage:
   openknowledge setup
-  openknowledge setup --runtime <codex|claude|opencode>
+  openknowledge setup --agent
   openknowledge setup [wiki]
   openknowledge setup [wiki] --rules <rules>
   openknowledge setup [wiki] --from <source>
+  openknowledge setup --agent --runtime <codex|claude|opencode>
 
 Arguments:
-  wiki        Target knowledge-base directory. Defaults to Wiki and must be
-              inside the current Git repository.
+  wiki        Target knowledge-base directory. Defaults to Wiki. Agent mode
+              requires the target to be inside the current Git repository.
 
 Core flags:
   --from      Repository, local folder, or website source.
-  --runtime   Agent runtime: codex, claude, or opencode. Defaults to codex.
+  --agent     Run the setup instructions with an agent. By default, print them.
   --rules     Comma-separated maintenance rules for guided setup. Cannot be
               combined with --from.
 
 Advanced flags:
-  --model     Harness-specific model override.
+  --runtime   Agent runtime: codex, claude, or opencode. Requires --agent.
+  --model     Harness-specific model override. Requires --agent.
   --type      Source workflow: understanding or custom. Requires --from.
   --about     Custom source-to-wiki goal. Requires --from.
   --depth     Non-negative source traversal hint. Requires --from; 0 lets the
               agent choose the minimum depth.
 
-Run setup directly from a terminal in the Git repository that should own the
-knowledge base. With no arguments, setup inspects the current repository,
-writes its knowledge base to Wiki, and uses Codex. An explicit wiki path
-without --from starts the guided workflow for a new or open-ended knowledge
-base. Use --from only for another repository, local folder, or website. A
-successful run must leave a valid knowledge base; setup then installs project
-discovery skills and observation hooks.
+With no arguments, setup prints instructions that use the current directory as
+the source and Wiki as the target. An explicit wiki path without --from prints
+the guided workflow for a new or open-ended knowledge base. Use --from only for
+another repository, local folder, or website.
 
-Before launching the agent, setup verifies that the selected runtime executable
-is available. Run openknowledge agent doctor --runtime <runtime> to diagnose the
+Use --agent in the Git repository that should own the knowledge base. If you do
+not specify --runtime, setup detects installed runtimes and asks you to select
+one. Non-interactive use requires --runtime. Setup then launches the selected
+runtime, validates the result, and installs project discovery skills and
+observation hooks. Before launch, setup verifies that the runtime executable is
+available. Run openknowledge agent doctor --runtime <runtime> to diagnose the
 installation. Runtime authentication remains owned by the selected agent CLI.
 
 After setup, the knowledge base is ready. Use search or validate directly when

@@ -16,21 +16,21 @@ They do not use separate knowledge models.
 
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
-| Start here | `setup`, `search`, `validate` | Create and integrate a wiki, retrieve useful context, and verify its source. |
+| Start here | `setup`, `search`, `validate` | Print or run wiki setup, retrieve useful context, and verify its source. |
 | Maintain and automate | `agent`, `insights`, `jobs` | Maintain knowledge interactively, capture gaps, and schedule repeatable work. |
 | Browse and publish | `get`, `list`, `view`, `mcp`, `export` | Read exact knowledge, browse, integrate clients, and publish portable views. |
 | Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` | Resolve bundles, serve immutable generations, and provision hosted runtimes. |
 
-`okn setup` is the primary project activation flow.
-Run it from the project repository.
-The CLI uses the current repository as its source and writes `Wiki`.
-It starts the selected interactive agent.
+`okn setup` prints the primary project activation task.
+The task uses the current directory as its source and writes `Wiki`.
+Run `okn setup --agent` from the project repository to execute the task.
+The CLI detects installed runtimes and asks you to select one.
 Then, it validates the result and installs the project integration.
-An explicit wiki path without `--from` starts a guided setup.
+An explicit wiki path without `--from` prints a guided setup.
 Use this form for a new or open-ended knowledge base.
 Use `--from` only for a different repository, folder, or website.
 `scaffold` is an advanced, deterministic operation without an agent.
-`prompt` provides portable workflows that only print output.
+`prompt` provides additional portable workflows that only print output.
 
 Each connection change has one command.
 `connect` materializes and registers local, manifest, archive, or Git sources.
@@ -52,6 +52,7 @@ These views include AST, bundle, graph, list, registry, search, and validation o
 
 ```sh
 okn setup
+okn setup --agent
 okn search Wiki "release workflow" --budget 1200
 okn validate Wiki
 ```

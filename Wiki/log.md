@@ -5,6 +5,7 @@ This log tracks documentation-structure changes. Product history belongs in
 
 ## 2026-07-28
 
+- Documented portable setup output and the explicit `--agent` workflow.
 - Made `okn` the preferred command in user-facing documentation.
 - Added ASD-STE100 as an enabled wiki-local maintenance rule.
 - Applied ASD-STE100 Issue 9 rules to the project-authored Wiki text.

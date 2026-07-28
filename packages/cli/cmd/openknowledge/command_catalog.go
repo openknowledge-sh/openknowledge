@@ -27,7 +27,7 @@ var commandGroups = []commandGroup{
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Start here", Summary: "Launch an agent to create, validate, and integrate a knowledge base.", Run: runSetup},
+	{Name: "setup", Group: "Start here", Summary: "Print setup instructions, or run them with --agent.", Run: runSetup},
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 
@@ -139,8 +139,8 @@ Usage:
   -h, --help                Show this help.
   --error-format text|json  Format command failures on stderr (default text).
 
-Start with setup. Run openknowledge <command> --help when you need another
-workflow.
+Start with setup. Add --agent to run the printed instructions. Run
+openknowledge <command> --help when you need another workflow.
 
 Get started:
   openknowledge setup

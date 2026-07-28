@@ -9,7 +9,8 @@ timestamp: 2026-07-18T00:00:00Z
 # `openknowledge scaffold`
 
 Create bundle files. The command does not start an agent or install project
-integration. For managed onboarding, use [`okn setup`](setup.md).
+integration. For managed onboarding, use
+[`okn setup --agent`](setup.md).
 
 ## Usage
 

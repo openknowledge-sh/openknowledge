@@ -37,8 +37,8 @@ Usage:
   openknowledge prompt rules apply [<rules>] [--path <wiki>]
   openknowledge prompt review rules [wiki]
 
-Use openknowledge setup for the managed create, validate, and integrate
-workflow. The prompt namespace is the advanced portable surface for users who
-want to pass instructions to another agent host themselves.
+Use openknowledge setup for the preferred portable setup surface. Add --agent
+to that command to run, validate, and integrate the result. The prompt
+namespace keeps advanced prompt and maintenance tools.
 `
 }

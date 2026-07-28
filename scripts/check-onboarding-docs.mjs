@@ -15,12 +15,16 @@ const documents = new Map([
 ]);
 const failures = [];
 const canonicalSetup = "okn setup";
+const agentSetup = "okn setup --agent";
 const legacyProjectSetup = /^(?:okn|openknowledge) setup Wiki --from \.$/m;
 const fullCommandExample = /^[ \t]*openknowledge[ \t]+[a-z]/m;
 
 for (const [name, content] of documents) {
   if (!content.includes(canonicalSetup)) {
     failures.push(`${name} is missing the canonical setup command: ${canonicalSetup}`);
+  }
+  if (!content.includes(agentSetup)) {
+    failures.push(`${name} is missing the explicit agent setup command: ${agentSetup}`);
   }
   if (legacyProjectSetup.test(content)) {
     failures.push(`${name} still prescribes the legacy project setup command: okn setup Wiki --from .`);
@@ -45,8 +49,8 @@ if (website.includes("./project-memory")) {
 if (!website.includes("[publish] enabled = true")) {
   failures.push("packages/web/index.html must explain the explicit public-export permission");
 }
-if (!website.includes('<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span></code>')) {
-  failures.push("packages/web/index.html must present zero-argument setup as the project activation command");
+if (!website.includes("okn setup --agent</code>")) {
+  failures.push("packages/web/index.html must present --agent as the managed project activation command");
 }
 if (website.includes('<span class="tok-command">openknowledge</span>')) {
   failures.push("packages/web/index.html must use okn for shell command examples");
@@ -67,7 +71,7 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("README, website, and wiki prefer okn and share the zero-argument setup path");
+  console.log("README, website, and wiki prefer okn and separate printed setup from --agent execution");
 }
 
 function collectMarkdown(directory) {

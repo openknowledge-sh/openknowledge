@@ -1,31 +1,31 @@
 ---
 type: Command Documentation
 title: openknowledge setup
-description: Runs the managed agent onboarding workflow for a knowledge base.
+description: Prints portable setup instructions or runs them with an agent.
 tags: [openknowledge, cli, command, setup]
 timestamp: 2026-07-28T00:00:00Z
 ---
 
 # `openknowledge setup`
 
-Use `okn setup` to create and integrate a wiki. Run the command in
-the Git repository that contains the wiki.
+Use `okn setup` to print portable instructions for a wiki.
 
-With no arguments, the command uses the current repository as the source. It
-writes `Wiki` and starts Codex. After Codex finishes, the CLI verifies that the
-target bundle exists. The CLI then validates the bundle and installs
-repository-level discovery skills and observation hooks.
+With no arguments, the command uses the current directory as the source. The
+default target is `Wiki`. The command prints the instructions to standard
+output. It does not start an agent.
 
-Specify `[wiki]` without `--from` to start a guided workflow for a new
-knowledge base. Use `--from <source>` for a different repository, local
-folder, or website. Use [`okn prompt`](prompt.md) to print portable
-prompts. That command does not start an agent.
+Add `--agent` to run the instructions with an installed agent runtime. Run
+agent mode in the Git repository that contains the wiki.
+
+Specify `[wiki]` without `--from` for a new knowledge base. Use
+`--from <source>` for a different repository, local folder, or website.
 
 ## Usage
 
 ```sh
 okn setup
-okn setup --runtime claude
+okn setup --agent
+okn setup --agent --runtime claude
 okn setup Wiki
 okn setup Wiki --rules docs,changelog
 okn setup Wiki --from https://example.com/docs
@@ -36,16 +36,17 @@ okn setup --help
 ## Arguments and flags
 
 The optional positional argument selects the target wiki. The default target
-is `Wiki`. The default source is the current repository.
+is `Wiki`. The default source is the current directory.
 
-Run setup inside a Git repository. Project integration requires a stable
+Run agent mode inside a Git repository. Project integration requires a stable
 repository root.
 
 | Flag | Description |
 | --- | --- |
 | `--from <source>` | Run the source-to-wiki workflow instead of a new setup interview. |
-| `--runtime <runtime>` | Select `codex`, `claude`, or `opencode`. |
-| `--model <model>` | Override the harness model. |
+| `--agent` | Run the instructions with an agent. By default, setup prints the instructions. |
+| `--runtime <runtime>` | Select `codex`, `claude`, or `opencode`. Requires `--agent`. |
+| `--model <model>` | Override the harness model. Requires `--agent`. |
 | `--rules <rules>` | Preselect comma-separated maintenance rules for a new setup. Incompatible with `--from`. |
 | `--type <type>` | Select `understanding` or `custom` for `--from`. |
 | `--about <goal>` | Supply the custom source-to-wiki goal. Requires `--from`. |
@@ -55,14 +56,23 @@ repository root.
 Built-in canonical rules are `project`, `docs`, `decisions`, `changelog`,
 `research`, `bugs`, `schemas`, `summary`, and `agents`.
 
-## Completion contract
+## Agent mode
 
-Before setup starts an interactive process, it resolves the selected runtime
-executable. A missing or unusable executable stops setup before agent work
-starts. Setup then prints this recovery command:
-`okn agent doctor --runtime <runtime>`.
+If you omit `--runtime`, setup detects the installed supported runtimes. It
+asks you to select one before it starts the agent.
 
-Setup uses the resolved executable for the complete run.
+For non-interactive input, specify `--runtime`. Without this flag, setup lists
+the available runtimes and stops.
+
+If setup finds no supported runtime, it stops. Install `codex`, `claude`, or
+`opencode`. Then, run the command again.
+
+Before agent work starts, setup resolves the selected runtime executable. A
+missing executable stops setup. Use this command to diagnose the installation:
+
+```sh
+okn agent doctor --runtime <runtime>
+```
 
 Setup succeeds only when all three stages succeed:
 
@@ -78,8 +88,8 @@ Setup controls the workflow and starts an interactive agent process.
 `scaffold` is not an equivalent onboarding path. It creates bundle files
 without an agent or project integration.
 
-The knowledge base is ready when setup succeeds. You do not need a second
-onboarding command. Use search when you need context:
+The knowledge base is ready when agent mode succeeds. Use search when you need
+context:
 
 ```sh
 okn search Wiki "release workflow"

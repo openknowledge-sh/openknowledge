@@ -29,7 +29,7 @@ func TestSetupRunsAgentValidatesAndIntegrates(t *testing.T) {
 	}
 
 	stdout, stderr, code := captureMainOutput(t, func() int {
-		return runSetup([]string{wiki, "--rules", "docs"})
+		return runSetup([]string{wiki, "--rules", "docs", "--agent", "--runtime", "codex"})
 	})
 	if code != 0 {
 		t.Fatalf("setup code=%d stdout=%s stderr=%s", code, stdout, stderr)
@@ -64,7 +64,7 @@ func TestSetupFromUsesSourceWorkflowAndTarget(t *testing.T) {
 	}
 
 	_, stderr, code := captureMainOutput(t, func() int {
-		return runSetup([]string{wiki, "--from", ".", "--type", "custom", "--about", "Explain releases"})
+		return runSetup([]string{wiki, "--from", ".", "--type", "custom", "--about", "Explain releases", "--agent", "--runtime", "codex"})
 	})
 	if code != 0 {
 		t.Fatalf("setup --from code=%d stderr=%s", code, stderr)
@@ -74,39 +74,31 @@ func TestSetupFromUsesSourceWorkflowAndTarget(t *testing.T) {
 	}
 }
 
-func TestSetupWithoutArgumentsUsesCurrentRepositoryAndDefaultWiki(t *testing.T) {
+func TestSetupWithoutArgumentsPrintsCurrentRepositoryPrompt(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
-	wiki := filepath.Join(repo, "Wiki")
-	resolvedRepo, err := filepath.EvalSymlinks(repo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	stubCodexResolver(t, "/test/codex")
 	original := runAgentProcess
 	t.Cleanup(func() { runAgentProcess = original })
-	var prompt string
-	runAgentProcess = func(_ context.Context, _ string, arguments []string, directory string) error {
-		prompt = arguments[len(arguments)-1]
-		if directory != resolvedRepo {
-			t.Fatalf("agent directory=%q want %q", directory, resolvedRepo)
-		}
-		if err := os.MkdirAll(wiki, 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(filepath.Join(wiki, "index.md"), []byte("---\ntype: Index\n---\n\n# Wiki\n"), 0o644)
+	runAgentProcess = func(_ context.Context, _ string, _ []string, _ string) error {
+		t.Fatal("print-only setup must not launch an agent")
+		return nil
 	}
 
+	var stdout, stderr string
+	var code int
 	withinDirectory(t, repo, func() {
-		_, stderr, code := captureMainOutput(t, func() int {
+		stdout, stderr, code = captureMainOutput(t, func() int {
 			return runSetup(nil)
 		})
 		if code != 0 {
 			t.Fatalf("setup code=%d stderr=%s", code, stderr)
 		}
 	})
-	if !strings.Contains(prompt, "Source: `.`") || !strings.Contains(prompt, "Output wiki path: `Wiki`") {
-		t.Fatalf("zero-argument setup should use the current repository source workflow:\n%s", prompt)
+	if !strings.Contains(stdout, "Source: `.`") || !strings.Contains(stdout, "Output wiki path: `Wiki`") {
+		t.Fatalf("zero-argument setup should print the current repository source workflow:\n%s", stdout)
+	}
+	if _, err := os.Stat(filepath.Join(repo, "Wiki")); !os.IsNotExist(err) {
+		t.Fatalf("print-only setup must not create Wiki: %v", err)
 	}
 }
 
@@ -117,6 +109,9 @@ func TestParseSetupArgsKeepsExplicitTargetAsGuidedSetup(t *testing.T) {
 	}
 	if project.wiki != "Wiki" || project.source != "." {
 		t.Fatalf("zero-argument setup=%+v, want Wiki sourced from current repository", project)
+	}
+	if project.agent {
+		t.Fatalf("zero-argument setup=%+v, want print-only mode", project)
 	}
 
 	guided, err := parseSetupArgs([]string{"Knowledge"})
@@ -133,6 +128,69 @@ func TestParseSetupArgsKeepsExplicitTargetAsGuidedSetup(t *testing.T) {
 	}
 	if withRules.source != "" {
 		t.Fatalf("rule-selected setup source=%q, want guided setup", withRules.source)
+	}
+}
+
+func TestSelectSetupRuntimeOffersInstalledRuntimes(t *testing.T) {
+	t.Setenv("OPENKNOWLEDGE_CODEX", "/test/codex")
+	t.Setenv("OPENKNOWLEDGE_CLAUDE", "/test/claude")
+	t.Setenv("OPENKNOWLEDGE_OPENCODE", "/test/opencode")
+	originalProbe := probeCodexExecutable
+	originalInput := setupRuntimeInput
+	originalIsTerminal := setupRuntimeInputIsTerminal
+	t.Cleanup(func() {
+		probeCodexExecutable = originalProbe
+		setupRuntimeInput = originalInput
+		setupRuntimeInputIsTerminal = originalIsTerminal
+	})
+	probeCodexExecutable = func(_ context.Context, _ string) error { return nil }
+	setupRuntimeInput = strings.NewReader("2\n")
+	setupRuntimeInputIsTerminal = func() bool { return true }
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		runtime, executable, err := selectSetupRuntime(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if runtime != "codex" || executable != "/test/codex" {
+			t.Fatalf("selected %s at %s, want codex at /test/codex", runtime, executable)
+		}
+		return 0
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("runtime selection code=%d stderr=%q", code, stderr)
+	}
+	for _, expected := range []string{"1. claude", "2. codex", "3. opencode", "Select a runtime:"} {
+		if !strings.Contains(stdout, expected) {
+			t.Fatalf("runtime selection is missing %q:\n%s", expected, stdout)
+		}
+	}
+}
+
+func TestSelectSetupRuntimeRequiresFlagForNonInteractiveInput(t *testing.T) {
+	t.Setenv("OPENKNOWLEDGE_CODEX", "/test/codex")
+	t.Setenv("OPENKNOWLEDGE_CLAUDE", "")
+	t.Setenv("OPENKNOWLEDGE_OPENCODE", "")
+	originalProbe := probeCodexExecutable
+	originalInput := setupRuntimeInput
+	originalIsTerminal := setupRuntimeInputIsTerminal
+	t.Cleanup(func() {
+		probeCodexExecutable = originalProbe
+		setupRuntimeInput = originalInput
+		setupRuntimeInputIsTerminal = originalIsTerminal
+	})
+	probeCodexExecutable = func(_ context.Context, candidate string) error {
+		if candidate == "/test/codex" {
+			return nil
+		}
+		return errors.New("not installed")
+	}
+	setupRuntimeInput = strings.NewReader("")
+	setupRuntimeInputIsTerminal = func() bool { return false }
+
+	_, _, err := selectSetupRuntime(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "requires --runtime when input is not interactive") {
+		t.Fatalf("unexpected non-interactive selection error: %v", err)
 	}
 }
 
@@ -154,7 +212,7 @@ func TestSetupDoesNotIntegrateInvalidAgentOutput(t *testing.T) {
 	}
 
 	_, _, code := captureMainOutput(t, func() int {
-		return runSetup([]string{wiki})
+		return runSetup([]string{wiki, "--agent", "--runtime", "codex"})
 	})
 	if code == 0 {
 		t.Fatal("expected invalid setup output to fail")
@@ -187,7 +245,7 @@ func TestSetupPreflightReportsRuntimeRecovery(t *testing.T) {
 	}
 
 	_, stderr, code := captureMainOutput(t, func() int {
-		return runSetup([]string{filepath.Join(repo, "Wiki")})
+		return runSetup([]string{filepath.Join(repo, "Wiki"), "--agent", "--runtime", "codex"})
 	})
 	if code != 1 {
 		t.Fatalf("setup code=%d stderr=%s", code, stderr)
@@ -217,7 +275,7 @@ func TestSetupReportsAuthenticationRecoveryAfterAgentFailure(t *testing.T) {
 	}
 
 	_, stderr, code := captureMainOutput(t, func() int {
-		return runSetup([]string{filepath.Join(repo, "Wiki")})
+		return runSetup([]string{filepath.Join(repo, "Wiki"), "--agent", "--runtime", "codex"})
 	})
 	if code != 1 {
 		t.Fatalf("setup code=%d stderr=%s", code, stderr)
@@ -233,6 +291,8 @@ func TestParseSetupArgsRejectsAmbiguousModes(t *testing.T) {
 		{"Wiki", "--rules", "docs", "--from", "."},
 		{"Wiki", "--about", "goal"},
 		{"Wiki", "--runtime", "unknown"},
+		{"--runtime", "codex"},
+		{"--model", "gpt-test"},
 	} {
 		if _, err := parseSetupArgs(args); err == nil {
 			t.Fatalf("expected setup args to fail: %#v", args)

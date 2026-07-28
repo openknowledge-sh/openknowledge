@@ -12,8 +12,8 @@ This advanced command prints instructions that convert a repository, folder,
 or website into an OKF bundle. It does not call a model or write the wiki.
 
 For a managed workflow, use
-`okn setup Wiki --from <source>`. That command also validates and
-integrates the result.
+`okn setup Wiki --from <source> --agent`. That command also validates
+and integrates the result.
 
 ## Usage
 

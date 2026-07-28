@@ -102,7 +102,7 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   await assertSemanticPage(page, "LLM Wiki, built around your work.");
   await page.getByRole("button", { name: "Copy setup commands" }).click();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(clipboard, /okn setup(?:\n|$)/);
+  assert.match(clipboard, /okn setup --agent(?:\n|$)/);
   assert.doesNotMatch(clipboard, /(?:okn|openknowledge) setup Wiki|--from \./);
   assert.equal(errors.length, 0, `landing page browser errors:\n${errors.join("\n")}`);
   await context.close();

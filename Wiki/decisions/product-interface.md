@@ -44,10 +44,12 @@ The primary activation flow is:
 
 ```sh
 okn setup
+okn setup --agent
 ```
 
-The CLI launches the selected agent. It then validates the wiki and installs
-the project integration.
+The first command prints portable setup instructions. The second command
+detects installed runtimes and asks the user to select one. The CLI then
+launches the agent, validates the wiki, and installs project integration.
 
 The agent also demonstrates one search that uses source evidence. Thus,
 activation does not require another command.
@@ -56,8 +58,8 @@ Use `search` independently after activation. Use `validate` independently
 after activation. `scaffold` remains an agent-free primitive, not a second
 activation path.
 
-Use `prompt setup|from|rules|review` for portable instructions. Use
-`export html|json|graph|tar` for publication.
+Use `prompt setup|from|rules|review` for additional portable instructions.
+Use `export html|json|graph|tar` for publication.
 
 Use the top-level `connect` command to add a connection. Use the top-level
 `disconnect` command to remove a connection.

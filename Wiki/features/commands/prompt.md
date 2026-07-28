@@ -11,9 +11,9 @@ timestamp: 2026-07-17T00:00:00Z
 `okn prompt` groups portable workflows that print agent
 instructions. These workflows do not start an agent harness.
 
-Use [`okn setup`](setup.md) for normal onboarding. Use this command
-to copy a prompt, inspect the rule catalog, or update a managed instruction
-block.
+Use [`okn setup`](setup.md) for setup tasks. It prints a source-grounded task
+by default. Use this command for the interview-only setup prompt, the rule
+catalog, or a managed instruction block.
 
 ## Usage
 

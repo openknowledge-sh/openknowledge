@@ -27,7 +27,8 @@ This documentation uses `okn` as the preferred command. The full
 
 ### Create, retrieve, and verify
 
-Use [`setup`](features/commands/setup.md) to create a wiki. Use
+Use [`setup`](features/commands/setup.md) to print portable wiki instructions.
+Run `okn setup --agent` to run the instructions. Use
 [`search`](features/commands/search.md) to retrieve knowledge. Use
 [`validate`](features/commands/validate.md) to verify the wiki.
 
