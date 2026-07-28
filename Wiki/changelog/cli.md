@@ -13,6 +13,15 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-28 — Focused README
+
+- The README became a short product entrypoint.
+- It now gives one setup path, one local usage path, and one publication path.
+- Detailed command, runtime, deployment, validation, and release information
+  now stays in the current-state wiki.
+- The product summary now matches the workflow groups in CLI help and the wiki.
+- Docs: `README.md`, `Wiki/features/`.
+
 ### 2026-07-28 — Portable setup by default
 
 - `okn setup` printed portable instructions by default.
