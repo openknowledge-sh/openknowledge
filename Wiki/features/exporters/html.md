@@ -47,7 +47,13 @@ Viewer mode includes:
 - allowed public assets at their bundle-relative paths
 
 Viewer mode writes its executable JavaScript below `assets/openknowledge/`.
-These same-origin files include the pinned Mermaid runtime.
+Every page references one shared `viewer.js`, `viewer.css`,
+`viewer-theme.js`, and `viewer-data.js`. The data file contains the rendered
+note collection, graph, and deterministic editor catalog. Individual HTML
+pages do not embed a copy of the complete collection.
+
+The shared JavaScript includes the pinned Mermaid runtime. Vite builds the
+viewer from the TypeScript and JavaScript sources in `packages/web/src/viewer`.
 Generated pages do not require `unsafe-inline` in `script-src`.
 The deployment owns trusted inline scripts from `--head-file` or `--head-html`.
 These scripts can require a CSP nonce or hash.
@@ -98,6 +104,11 @@ It replaces the destination only when all pages, assets, manifests, and archives
 A failed build preserves the previous site.
 A successful build removes stale output.
 
+An identical source produces identical viewer files. The static editor catalog
+does not inspect installed applications or copy machine-local icons. Relative
+asset paths support a hosted site and direct `file://` use, including nested
+pages.
+
 The output can be in the source bundle.
 In this case, the portable archive excludes the output.
 The output must not equal or contain the source root.
@@ -121,10 +132,13 @@ Then, it registers the materialized source.
 >
 > - `packages/cli/internal/okf/html.go`
 > - `packages/cli/internal/okf/atomic_output.go`
-> - `packages/cli/cmd/openknowledge/viewer.go`
+> - `packages/cli/cmd/openknowledge/viewer_export.go`
+> - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/cmd/openknowledge/viewer_discovery.go`
 > - `packages/cli/cmd/openknowledge/viewer_theme.go`
+> - `packages/web/src/viewer/`
+> - `packages/web/vite.viewer.config.ts`
 > - `packages/cli/internal/okf/export_test.go`
 >
 > **Update notes**

@@ -13,6 +13,20 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-28 — Shared Vite viewer build
+
+- Vite built the landing page and the shared viewer assets.
+- The web workspace added TypeScript checks and Oxlint.
+- Local and static viewers used the same generated JavaScript and CSS bundle.
+- Static HTML pages referenced one shared data file instead of embedding the
+  complete note collection in every page.
+- Static exports became independent of installed editor applications and
+  supported nested pages through direct `file://` URLs.
+- Browser tests covered Mermaid errors and direct file viewing.
+- Source: `packages/web/src/`, `packages/web/vite*.config.ts`,
+  `packages/cli/cmd/openknowledge/{viewer_export,viewer_assets}.go`.
+- Docs: `Wiki/features/{exporters/html,commands/view,operations}.md`.
+
 ### 2026-07-28 — Explicit automation namespace
 
 - `okn automation` became the canonical namespace for `jobs`, `insights`,
@@ -74,8 +88,7 @@ page records release-level changes.
 - The viewer configured Mermaid with strict security mode for generated SVG.
 - Source: `packages/cli/internal/okf/markdown.go`,
   `packages/cli/cmd/openknowledge/{viewer,viewer_assets}.go`,
-  `packages/cli/cmd/openknowledge/viewer_app.{js,css}`,
-  `packages/cli/cmd/openknowledge/viewer_mermaid.min.js`.
+  `packages/web/src/viewer/`.
 - Docs: `Wiki/features/commands/view.md`,
   `Wiki/features/exporters/html.md`.
 

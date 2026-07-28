@@ -17,14 +17,14 @@ interfaces use the same Git-native Markdown object.
 These interfaces include search, the viewer, MCP, agents, jobs, exports, and
 runtime generations.
 
-The CLI exposes one primary path and four secondary workflow groups:
+The CLI exposes one primary path and three secondary workflow groups:
 
 | Workflow | Commands |
 | --- | --- |
 | Start here | `setup`, `search`, `validate` |
-| Maintain and automate | `agent`, `insights`, `jobs` |
-| Browse and publish | `get`, `list`, `view`, `mcp`, `export` |
-| Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` |
+| Work locally | `agent`, `integration`, `get`, `list`, `view` |
+| Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
+| Automate and operate | `automation` |
 
 The advanced section contains the deterministic `scaffold`, `prompt`, `ast`,
 and `spec` tools.
@@ -37,19 +37,18 @@ and `spec` tools.
 4. Deterministic OKF operations do not require a model, network, or service.
 5. Service roles use the same validation, publication, retrieval, and export
    contracts.
-6. Provider configuration stays under `deploy`.
-7. Runtime operations stay under `runtime`.
+6. Provider configuration stays under `automation deploy`.
+7. Runtime operations stay under `automation runtime`.
 
 The primary activation flow is:
 
 ```sh
 okn setup
-okn setup --agent
 ```
 
-The first command prints portable setup instructions. The second command
-detects installed runtimes and asks the user to select one. The CLI then
-launches the agent, validates the wiki, and installs project integration.
+The command prints portable setup instructions. A person runs it from the
+project and copies the complete output into an existing agent. The optional
+`--agent` mode can launch a runtime, but it is not the primary flow.
 
 The agent also demonstrates one search that uses source evidence. Thus,
 activation does not require another command.
@@ -60,6 +59,7 @@ activation path.
 
 Use `prompt setup|from|rules|review` for additional portable instructions.
 Use `export html|json|graph|tar` for publication.
+Use `automation jobs|insights|runtime|deploy` for unattended and hosted work.
 
 Use the top-level `connect` command to add a connection. Use the top-level
 `disconnect` command to remove a connection.
@@ -74,4 +74,4 @@ interfaces.
 
 > **Update notes**
 >
-> Extend these workflows. Do not add parallel aliases.
+> Extend these workflows. Keep compatibility aliases hidden from root help.

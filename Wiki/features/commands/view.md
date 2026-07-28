@@ -49,6 +49,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   motion, and link settings. These preferences do not change source Markdown.
 - Direct paths and writable local connections provide local editor links.
   Static exports use configured repository source links.
+- The local viewer serves the same Vite-built JavaScript and CSS bundle as
+  static exports. Local routes supply live API data. Static pages load one
+  shared generated data file.
 
 | Shortcut | Action |
 | --- | --- |
@@ -92,8 +95,9 @@ Theme and source-link configuration comes from
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/viewer.go`
-> - `packages/cli/cmd/openknowledge/viewer_app.js`
-> - `packages/cli/cmd/openknowledge/viewer_search.js`
+> - `packages/cli/cmd/openknowledge/viewer_templates.go`
+> - `packages/cli/cmd/openknowledge/viewer_assets/`
+> - `packages/web/src/viewer/`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/internal/okf/search.go`
 >

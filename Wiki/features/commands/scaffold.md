@@ -10,7 +10,7 @@ timestamp: 2026-07-18T00:00:00Z
 
 Create bundle files. The command does not start an agent or install project
 integration. For managed onboarding, use
-[`okn setup --agent`](setup.md).
+the agent-guided [`okn setup`](setup.md) task.
 
 ## Usage
 

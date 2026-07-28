@@ -33,8 +33,8 @@ pnpm build
 | `pnpm test:install` | Test the shell installer transactionally. |
 | `pnpm test:npm-install` | Test the npm downloader and archive parser offline. |
 | `pnpm test:packed-npm` | Pack and install the exact npm publication artifact on the active Node version. |
-| `pnpm test:web` | Test the static server. The test does not bind a socket. |
-| `pnpm test:browser` | Exercise landing-page setup and exported-viewer search/keyboard journeys in Chromium. |
+| `pnpm test:web` | Run TypeScript checks, Oxlint, and static server tests. |
+| `pnpm test:browser` | Exercise the production landing build and exported viewer over HTTP and `file://` in Chromium. |
 | `pnpm test:race` | Run all Go tests with the race detector. |
 | `pnpm test:coverage` | Produce `coverage.out` for the Go packages. |
 | `pnpm check:format` | Fail when committed Go files are not formatted. |
@@ -84,6 +84,10 @@ Results can change when vulnerability databases change.
 ## Website
 
 `pnpm build:web` builds `packages/web/dist`.
+Vite compiles the landing page from `packages/web/src/main.ts`.
+It also builds the shared viewer bundle from `packages/web/src/viewer`.
+The build synchronizes generated viewer assets into the Go embed directory
+before it builds the wiki export.
 It exports `Wiki/` to `dist/wiki`.
 It publishes JSON schemas under `dist/schemas/cli/`.
 By default, the exporter uses the current Go source.
@@ -152,6 +156,8 @@ A tag ruleset must limit `v*` creation to the release workflow.
 > - `Dockerfile`
 > - `.goreleaser.yaml`
 > - `packages/web/scripts/`
+> - `packages/web/vite*.config.ts`
+> - `packages/web/src/`
 > - `scripts/check-*.mjs`
 >
 > **Update notes**
