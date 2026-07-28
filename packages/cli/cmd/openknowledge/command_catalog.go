@@ -20,37 +20,34 @@ type commandGroup struct {
 
 var commandGroups = []commandGroup{
 	{Name: "Start here"},
-	{Name: "Maintain and automate"},
-	{Name: "Browse and publish"},
-	{Name: "Connect and operate"},
+	{Name: "Work locally"},
+	{Name: "Share and connect"},
+	{Name: "Automate and operate"},
 	{Name: "Advanced and portable tools"},
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Start here", Summary: "Print setup instructions, or run them with --agent.", Run: runSetup},
+	{Name: "setup", Group: "Start here", Summary: "Print a portable project-wiki task.", Run: runSetup},
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 
-	{Name: "agent", Group: "Maintain and automate", Summary: "Run, integrate, and review knowledge with an agent.", Subcommands: commandNames("exec", "integrate", "doctor"), Run: runAgent},
-	{Name: "integration", Group: "Maintain and automate", Summary: "Install and manage one local agent-runtime integration.", Subcommands: commandNames("install", "status", "remove"), Run: runIntegration},
-	{Name: "insights", Group: "Maintain and automate", Summary: "Capture and resolve knowledge-maintenance insights.", Subcommands: commandNames("create", "list", "run", "dismiss", "verify", "observe"), Run: runInsights},
-	{Name: "jobs", Group: "Maintain and automate", Summary: "Run repeatable isolated maintenance jobs from Markdown specs.", Subcommands: commandNames("new", "list", "status", "runs", "start", "stop", "kill", "validate", "run", "daemon"), Run: runJobs},
+	{Name: "agent", Group: "Work locally", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "integrate", "doctor"), Run: runAgent},
+	{Name: "integration", Group: "Work locally", Summary: "Install and manage one local agent-runtime integration.", Subcommands: commandNames("install", "status", "remove"), Run: runIntegration},
+	{Name: "get", Group: "Work locally", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
+	{Name: "list", Group: "Work locally", Summary: "Inspect knowledge-base structure.", Run: runList},
+	{Name: "view", Group: "Work locally", Summary: "Browse knowledge locally.", Run: runView},
 
-	{Name: "get", Group: "Browse and publish", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
-	{Name: "list", Group: "Browse and publish", Summary: "Inspect knowledge-base structure.", Run: runList},
-	{Name: "view", Group: "Browse and publish", Summary: "Browse knowledge locally.", Run: runView},
-	{Name: "mcp", Group: "Browse and publish", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
-	{Name: "export", Group: "Browse and publish", Summary: "Export HTML, JSON, graph, or portable tar views.", Subcommands: commandNames("html", "json", "tar", "graph"), Run: runExport},
-
-	{Name: "connect", Group: "Connect and operate", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
+	{Name: "export", Group: "Share and connect", Summary: "Export HTML, JSON, graph, or portable tar views.", Subcommands: commandNames("html", "json", "tar", "graph"), Run: runExport},
+	{Name: "mcp", Group: "Share and connect", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
+	{Name: "connect", Group: "Share and connect", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
 		return runConnect(args, "openknowledge connect")
 	}},
-	{Name: "disconnect", Group: "Connect and operate", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
+	{Name: "disconnect", Group: "Share and connect", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
 		return runDisconnect(args, "openknowledge disconnect")
 	}},
-	{Name: "registry", Group: "Connect and operate", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
-	{Name: "runtime", Group: "Connect and operate", Summary: "Build, serve, and maintain an isolated knowledge runtime.", Subcommands: commandNames("plan", "build", "serve", "worker"), Run: runRuntime},
-	{Name: "deploy", Group: "Connect and operate", Summary: "Provision that runtime on a supported provider.", Subcommands: commandNames("railway"), Run: runDeploy},
+	{Name: "registry", Group: "Share and connect", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
+
+	{Name: "automation", Group: "Automate and operate", Summary: "Run jobs, insights, runtimes, and deployments.", Subcommands: commandNames("jobs", "insights", "runtime", "deploy"), Run: runAutomation},
 
 	{Name: "scaffold", Group: "Advanced and portable tools", Summary: "Create a deterministic local OKF knowledge base.", Run: runScaffold},
 	{Name: "prompt", Group: "Advanced and portable tools", Summary: "Print or install portable agent instructions.", Subcommands: commandNames("setup", "from", "rules", "review"), Run: runPrompt},
@@ -70,8 +67,18 @@ var rootCommandsByName = func() map[string]rootCommand {
 		}
 		commands[command.Name] = command
 	}
+	for _, alias := range legacyAutomationCommands {
+		commands[alias.Name] = alias
+	}
 	return commands
 }()
+
+var legacyAutomationCommands = []rootCommand{
+	{Name: "jobs", Subcommands: commandNames("new", "list", "status", "runs", "start", "stop", "kill", "validate", "run", "daemon"), Run: runJobs},
+	{Name: "insights", Subcommands: commandNames("create", "list", "run", "dismiss", "verify", "observe"), Run: runInsights},
+	{Name: "runtime", Subcommands: commandNames("plan", "build", "serve", "worker"), Run: runRuntime},
+	{Name: "deploy", Subcommands: commandNames("railway"), Run: runDeploy},
+}
 
 func commandNames(names ...string) map[string]struct{} {
 	result := make(map[string]struct{}, len(names))
@@ -85,9 +92,19 @@ func cliErrorCommand(args []string) string {
 	if len(args) == 0 {
 		return "openknowledge"
 	}
+	for _, alias := range legacyAutomationCommands {
+		if args[0] == alias.Name {
+			return cliErrorCommand(append([]string{"automation"}, args...))
+		}
+	}
 	command, ok := rootCommandsByName[args[0]]
 	if !ok {
 		return "openknowledge"
+	}
+	if command.Name == "automation" && len(args) > 1 {
+		if _, ok := command.Subcommands[args[1]]; ok {
+			return "automation " + args[1]
+		}
 	}
 	if len(args) > 1 {
 		if _, ok := command.Subcommands[args[1]]; ok {
@@ -140,7 +157,7 @@ Usage:
   -h, --help                Show this help.
   --error-format text|json  Format command failures on stderr (default text).
 
-Start with setup. Add --agent to run the printed instructions. Run
+Start with setup and paste its printed task into your project agent. Run
 openknowledge <command> --help when you need another workflow.
 
 Get started:

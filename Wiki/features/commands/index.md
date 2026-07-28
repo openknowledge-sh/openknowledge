@@ -9,28 +9,25 @@ Use this index to select a command for your task. Run
 - [search](search.md): Build source-grounded context.
 - [validate](validate.md): Validate OKF conformance.
 
-## Maintain and automate
+## Work locally
 
 - [agent](agent.md): Run a steered Codex, Claude Code, or OpenCode session.
 - [integration](integration.md): Install and manage one local agent-runtime integration.
-- [insights](insights.md): Capture and resolve knowledge gaps.
-- [jobs](jobs.md): Run repeatable isolated maintenance jobs.
-
-## Browse and publish
-
 - [get](get.md): Read an exact page or entrypoint.
 - [list](list.md): Inspect the bundle structure.
 - [view](view.md): Browse the bundle in the local viewer.
+
+## Share and connect
+
 - [mcp](mcp.md): Serve read-only MCP resources and tools.
 - [export](export.md): Create HTML, JSON, graph, or tar output.
-
-## Connect and operate
-
 - [connect](connect.md): Register a local or remote bundle.
 - [disconnect](disconnect.md): Remove a connection.
 - [registry](registry.md): List, inspect, refresh, and resolve connections.
-- [runtime](runtime.md): Serve immutable generations and run private workers.
-- [deploy](deploy.md): Provision the runtime on Railway.
+
+## Automate and operate
+
+- [automation](automation.md): Run jobs, insights, runtimes, and deployments.
 
 ## Advanced and portable tools
 

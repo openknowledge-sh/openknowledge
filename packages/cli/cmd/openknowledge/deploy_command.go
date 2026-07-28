@@ -544,14 +544,14 @@ func validateDeployRuntimeScaffold(repoRoot string, branch string, runtimes []st
 	}
 	for _, path := range []string{deployRuntimeDockerfile, deployRuntimeEntrypoint, deployRuntimeConfig} {
 		if _, err := runtimeGitOutput(repoRoot, "cat-file", "-e", reference+":"+path); err != nil {
-			return fmt.Errorf("runtime scaffold preflight: %s is not committed on %s; run openknowledge deploy railway init first", path, branch)
+			return fmt.Errorf("runtime scaffold preflight: %s is not committed on %s; run openknowledge automation deploy railway init first", path, branch)
 		}
 	}
 	dockerfile, err := runtimeGitOutput(repoRoot, "show", reference+":"+deployRuntimeDockerfile)
 	if err != nil {
 		return fmt.Errorf("runtime scaffold preflight: read %s: %w", deployRuntimeDockerfile, err)
 	}
-	for _, marker := range []string{"openknowledge runtime build", "COPY --from=build /opt/openknowledge/artifacts"} {
+	for _, marker := range []string{"openknowledge automation runtime build", "COPY --from=build /opt/openknowledge/artifacts"} {
 		if !strings.Contains(dockerfile, marker) {
 			return fmt.Errorf("runtime scaffold preflight: %s does not build an immutable knowledge artifact; rerun deploy railway init --force", deployRuntimeDockerfile)
 		}
@@ -1258,7 +1258,7 @@ func saveRailwayDeployState(path string, state railwayDeployState) error {
 }
 
 func deployHelpText() string {
-	return `openknowledge deploy <provider>
+	return `openknowledge automation deploy <provider>
 
 Create a self-hosted Open Knowledge runtime from an explicitly publishable
 knowledge base. Open Knowledge provisions services and a provider endpoint; it
@@ -1267,12 +1267,12 @@ never purchases or registers a custom domain.
 Providers:
   railway    Deploy an immutable serve service, with optional agent services.
 
-Run "openknowledge deploy railway --help" for provider options.
+Run "openknowledge automation deploy railway --help" for provider options.
 `
 }
 
 func deployRailwayHelpText() string {
-	return `openknowledge deploy railway [path] [options]
+	return `openknowledge automation deploy railway [path] [options]
 
 Validate a public knowledge artifact, then deploy an immutable runtime to
 Railway. The default topology is one serve service whose image contains the

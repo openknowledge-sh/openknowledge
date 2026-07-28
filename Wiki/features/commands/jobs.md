@@ -1,12 +1,12 @@
 ---
 type: Command Documentation
-title: openknowledge jobs
+title: openknowledge automation jobs
 description: Run experimental local maintenance jobs from Markdown specifications.
 tags: [openknowledge, cli, command, agents, automation]
 timestamp: 2026-07-18T00:00:00Z
 ---
 
-# `openknowledge jobs`
+# `openknowledge automation jobs`
 
 Run repeatable agent tasks in isolated Git worktrees. A job is a Markdown file.
 YAML frontmatter defines execution, scheduling, and verification. The body
@@ -18,10 +18,10 @@ contains the prompt.
 ## Quick start
 
 ```sh
-okn jobs new custom --out .openknowledge/jobs/my-job.md
-okn jobs validate .openknowledge/jobs/my-job.md
-okn jobs run .openknowledge/jobs/my-job.md --dry-run
-okn jobs run .openknowledge/jobs/my-job.md
+okn automation jobs new custom --out .openknowledge/jobs/my-job.md
+okn automation jobs validate .openknowledge/jobs/my-job.md
+okn automation jobs run .openknowledge/jobs/my-job.md --dry-run
+okn automation jobs run .openknowledge/jobs/my-job.md
 ```
 
 The default job directory is `.openknowledge/jobs`. Install the selected Codex,
@@ -45,17 +45,17 @@ Claude Code, or OpenCode CLI. Authenticate the CLI before you run a job.
 Common flags:
 
 ```sh
-okn jobs list --json
-okn jobs validate <job> --json
-okn jobs run <job> --executor host|docker
-okn jobs run <job> --at 2026-07-18T09:00:00Z
-okn jobs start <job> --json
-okn jobs runs . --job <id> --status failed --json
-okn jobs daemon --once
-okn jobs daemon --tick 5m --runtime codex
+okn automation jobs list --json
+okn automation jobs validate <job> --json
+okn automation jobs run <job> --executor host|docker
+okn automation jobs run <job> --at 2026-07-18T09:00:00Z
+okn automation jobs start <job> --json
+okn automation jobs runs . --job <id> --status failed --json
+okn automation jobs daemon --once
+okn automation jobs daemon --tick 5m --runtime codex
 ```
 
-Run `okn jobs <command> --help` for command options. `new --force`
+Run `okn automation jobs <command> --help` for command options. `new --force`
 permits replacement of an existing output file. `stop` and `kill` accept
 `--repo`, `--wait`, and `--json`.
 
@@ -137,7 +137,7 @@ validation.
 | `insights` | Resolve pending private insights through the job lifecycle. |
 | `custom` | Minimal starting point. |
 
-Run `okn jobs new --reference` to read the embedded schema and
+Run `okn automation jobs new --reference` to read the embedded schema and
 artifact reference.
 
 ## Runtime behavior

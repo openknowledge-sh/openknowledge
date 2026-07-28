@@ -1,12 +1,12 @@
 ---
 type: Command Documentation
-title: openknowledge runtime
+title: openknowledge automation runtime
 description: Serve immutable knowledge generations and run isolated private maintenance roles.
 tags: [openknowledge, cli, runtime, docker, security, mcp, github]
 timestamp: 2026-07-28T00:00:00Z
 ---
 
-# `openknowledge runtime`
+# `openknowledge automation runtime`
 
 Run a self-hosted knowledge service with separate trust zones:
 
@@ -29,13 +29,13 @@ flowchart LR
 ## Commands
 
 ```sh
-okn runtime plan --config runtime.toml
-okn runtime build --config runtime.toml [--id <id>] [--commit <sha>]
-okn runtime build --config runtime.toml --id wiki --out ./generation
-okn runtime build --config runtime.toml --no-publish
-okn runtime serve --config runtime.toml [--check]
-okn runtime worker --role publisher --config runtime.toml [--once]
-okn runtime worker --role jobs --runtime codex --config runtime.toml [--once]
+okn automation runtime plan --config runtime.toml
+okn automation runtime build --config runtime.toml [--id <id>] [--commit <sha>]
+okn automation runtime build --config runtime.toml --id wiki --out ./generation
+okn automation runtime build --config runtime.toml --no-publish
+okn automation runtime serve --config runtime.toml [--check]
+okn automation runtime worker --role publisher --config runtime.toml [--once]
+okn automation runtime worker --role jobs --runtime codex --config runtime.toml [--once]
 ```
 
 | Command | Behavior |
@@ -164,7 +164,7 @@ logs, diffs, and environment metadata stay on the private worker volume.
 The repository includes local Compose targets for `serve`, `publisher`,
 `worker-codex`, `worker-claude`, and `worker-opencode`. Railway deployments use
 the project `.openknowledge/runtime/Dockerfile` and `runtime.toml`.
-`okn deploy railway init` generates these files.
+`okn automation deploy railway init` generates these files.
 
 The default image builds the knowledge generation during `docker build`. It
 starts as a standalone `serve` process and reads

@@ -828,7 +828,7 @@ func writePrivateRuntimeJSON(target string, value any) error {
 }
 
 func runtimeWorkerHelpText() string {
-	return `openknowledge runtime worker --config runtime.toml [--once] [--role publisher|jobs|all]
+	return `openknowledge automation runtime worker --config runtime.toml [--once] [--role publisher|jobs|all]
 
 Run the private, ingress-free reconciliation loop. Production Docker deployment
 uses separate publisher and jobs processes with isolated state volumes and an

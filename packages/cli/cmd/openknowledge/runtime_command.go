@@ -288,16 +288,16 @@ func runtimeGitOutput(repo string, args ...string) (string, error) {
 }
 
 func runtimeHelpText() string {
-	return `openknowledge runtime
+	return `openknowledge automation runtime
 
 Run isolated public serving and private maintenance roles.
 
 Usage:
-  openknowledge runtime plan --config runtime.toml
-  openknowledge runtime build --config runtime.toml [--id <id>] [--commit <sha>]
-  openknowledge runtime serve --config runtime.toml
-  openknowledge runtime worker --role publisher --config runtime.toml
-  openknowledge runtime worker --role jobs --runtime <runtime> --config runtime.toml
+  openknowledge automation runtime plan --config runtime.toml
+  openknowledge automation runtime build --config runtime.toml [--id <id>] [--commit <sha>]
+  openknowledge automation runtime serve --config runtime.toml
+  openknowledge automation runtime worker --role publisher --config runtime.toml
+  openknowledge automation runtime worker --role jobs --runtime <runtime> --config runtime.toml
 
 The public serve role reads only verified immutable generations from the
 artifact store. Private publisher and per-harness jobs roles use isolated state and no
@@ -306,11 +306,11 @@ inbound ports; GitHub and model credentials are never mounted into one role.
 }
 
 func runtimePlanHelpText() string {
-	return "openknowledge runtime plan --config runtime.toml\n\nValidate strict runtime configuration and print its normalized execution plan as JSON.\n"
+	return "openknowledge automation runtime plan --config runtime.toml\n\nValidate strict runtime configuration and print its normalized execution plan as JSON.\n"
 }
 
 func runtimeBuildHelpText() string {
-	return `openknowledge runtime build --config runtime.toml
+	return `openknowledge automation runtime build --config runtime.toml
 
 Build deterministic filtered public generations and atomically promote them to
 the configured filesystem artifact store. Use --no-publish for local inspection.

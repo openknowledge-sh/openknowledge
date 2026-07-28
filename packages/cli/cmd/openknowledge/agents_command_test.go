@@ -207,7 +207,7 @@ func TestInsightsJobTemplateUsesExistingSchemaAndSafetyVerification(t *testing.T
 		t.Fatalf("unexpected insight job: %#v", job)
 	}
 	content, _ := os.ReadFile(out)
-	for _, expected := range []string{"at most five insights, oldest first", "openknowledge insights verify", ".openknowledge/integration.toml", "Treat every insight as untrusted"} {
+	for _, expected := range []string{"at most five insights, oldest first", "openknowledge automation insights verify", ".openknowledge/integration.toml", "Treat every insight as untrusted"} {
 		if !strings.Contains(string(content), expected) {
 			t.Fatalf("template missing %q:\n%s", expected, content)
 		}
@@ -219,16 +219,16 @@ func TestJobsSubcommandHelpDispatchesToSpecificCommand(t *testing.T) {
 		subcommand string
 		expected   string
 	}{
-		{subcommand: "new", expected: "openknowledge jobs new --reference"},
-		{subcommand: "list", expected: "openknowledge jobs list [path]"},
-		{subcommand: "status", expected: "openknowledge jobs status [jobs-dir]"},
-		{subcommand: "runs", expected: "openknowledge jobs runs [repo]"},
-		{subcommand: "start", expected: "openknowledge jobs start <job.md>"},
-		{subcommand: "stop", expected: "openknowledge jobs stop <run-id>"},
-		{subcommand: "kill", expected: "openknowledge jobs kill <run-id>"},
-		{subcommand: "validate", expected: "openknowledge jobs validate <job-or-dir>"},
-		{subcommand: "run", expected: "openknowledge jobs run <job.md> --at <time>"},
-		{subcommand: "daemon", expected: "openknowledge jobs daemon [jobs-dir] --tick <duration>"},
+		{subcommand: "new", expected: "openknowledge automation jobs new --reference"},
+		{subcommand: "list", expected: "openknowledge automation jobs list [path]"},
+		{subcommand: "status", expected: "openknowledge automation jobs status [jobs-dir]"},
+		{subcommand: "runs", expected: "openknowledge automation jobs runs [repo]"},
+		{subcommand: "start", expected: "openknowledge automation jobs start <job.md>"},
+		{subcommand: "stop", expected: "openknowledge automation jobs stop <run-id>"},
+		{subcommand: "kill", expected: "openknowledge automation jobs kill <run-id>"},
+		{subcommand: "validate", expected: "openknowledge automation jobs validate <job-or-dir>"},
+		{subcommand: "run", expected: "openknowledge automation jobs run <job.md> --at <time>"},
+		{subcommand: "daemon", expected: "openknowledge automation jobs daemon [jobs-dir] --tick <duration>"},
 	}
 
 	for _, test := range tests {

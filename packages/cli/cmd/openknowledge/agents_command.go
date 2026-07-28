@@ -372,8 +372,8 @@ func runJobsNew(args []string) int {
 		return 1
 	}
 	fmt.Fprintf(os.Stdout, "created job: %s\n", options.out)
-	fmt.Fprintf(os.Stdout, "validate: openknowledge jobs validate %s\n", options.out)
-	fmt.Fprintf(os.Stdout, "dry run: openknowledge jobs run %s --dry-run\n", options.out)
+	fmt.Fprintf(os.Stdout, "validate: openknowledge automation jobs validate %s\n", options.out)
+	fmt.Fprintf(os.Stdout, "dry run: openknowledge automation jobs run %s --dry-run\n", options.out)
 	return 0
 }
 
@@ -1150,30 +1150,30 @@ func printJSON(value any) error {
 }
 
 func jobsHelpText() string {
-	return `openknowledge jobs
+	return `openknowledge automation jobs
 
 Experimental command group for deterministic local jobs from Markdown
 specs with nested frontmatter. Job schema and scheduler behavior may still
 change before this surface is treated as stable.
 
 Usage:
-  openknowledge jobs new
-  openknowledge jobs new --list
-  openknowledge jobs new --reference
-  openknowledge jobs new <template>
-  openknowledge jobs new <template> --out <file>
-  openknowledge jobs list [path]
-  openknowledge jobs status [jobs-dir]
-  openknowledge jobs runs [repo]
-  openknowledge jobs start <job.md>
-  openknowledge jobs stop <run-id>
-  openknowledge jobs kill <run-id>
-  openknowledge jobs validate <job-or-dir>
-  openknowledge jobs run <job.md>
-  openknowledge jobs run <job.md> --dry-run
-  openknowledge jobs daemon [jobs-dir]
-  openknowledge jobs daemon [jobs-dir] --once
-  openknowledge jobs --help
+  openknowledge automation jobs new
+  openknowledge automation jobs new --list
+  openknowledge automation jobs new --reference
+  openknowledge automation jobs new <template>
+  openknowledge automation jobs new <template> --out <file>
+  openknowledge automation jobs list [path]
+  openknowledge automation jobs status [jobs-dir]
+  openknowledge automation jobs runs [repo]
+  openknowledge automation jobs start <job.md>
+  openknowledge automation jobs stop <run-id>
+  openknowledge automation jobs kill <run-id>
+  openknowledge automation jobs validate <job-or-dir>
+  openknowledge automation jobs run <job.md>
+  openknowledge automation jobs run <job.md> --dry-run
+  openknowledge automation jobs daemon [jobs-dir]
+  openknowledge automation jobs daemon [jobs-dir] --once
+  openknowledge automation jobs --help
 
 Subcommands:
   new        List, print, or write built-in job templates.
@@ -1193,13 +1193,13 @@ Default jobs directory:
 }
 
 func jobsStatusHelpText() string {
-	return `openknowledge jobs status
+	return `openknowledge automation jobs status
 
 Show schedules, next eligible slots, and active/latest runs for jobs.
 
 Usage:
-  openknowledge jobs status [jobs-dir]
-  openknowledge jobs status [jobs-dir] --json
+  openknowledge automation jobs status [jobs-dir]
+  openknowledge automation jobs status [jobs-dir] --json
 
 The next eligible time is a scheduling slot, not a guarantee that a run will
 start. Scheduled jobs run only while a jobs daemon is active.
@@ -1207,15 +1207,15 @@ start. Scheduled jobs run only while a jobs daemon is active.
 }
 
 func jobsRunsHelpText() string {
-	return `openknowledge jobs runs
+	return `openknowledge automation jobs runs
 
 List current and historical job runs for a Git repository.
 
 Usage:
-  openknowledge jobs runs [repo]
-  openknowledge jobs runs [repo] --job <id>
-  openknowledge jobs runs [repo] --status <status>
-  openknowledge jobs runs [repo] --json
+  openknowledge automation jobs runs [repo]
+  openknowledge automation jobs runs [repo] --job <id>
+  openknowledge automation jobs runs [repo] --status <status>
+  openknowledge automation jobs runs [repo] --json
 
 Runs are ordered newest first. A persisted running record without a live
 supervisor is reported as orphaned.
@@ -1223,15 +1223,15 @@ supervisor is reported as orphaned.
 }
 
 func jobsStartHelpText() string {
-	return `openknowledge jobs start
+	return `openknowledge automation jobs start
 
 Start one job in a detached supervisor and return after it is observable.
 
 Usage:
-  openknowledge jobs start <job.md>
-  openknowledge jobs start <job.md> --at <time>
-  openknowledge jobs start <job.md> --executor host|docker
-  openknowledge jobs start <job.md> --json
+  openknowledge automation jobs start <job.md>
+  openknowledge automation jobs start <job.md> --at <time>
+  openknowledge automation jobs start <job.md> --executor host|docker
+  openknowledge automation jobs start <job.md> --json
 
 Flags:
   --at         Scheduled time used for the deterministic run ID.
@@ -1247,15 +1247,15 @@ func jobsControlHelpText(action string) string {
 		description = "Force cancellation of the live run's current command process tree."
 		defaultWait = "5s"
 	}
-	return fmt.Sprintf(`openknowledge jobs %s
+	return fmt.Sprintf(`openknowledge automation jobs %s
 
 %s
 
 Usage:
-  openknowledge jobs %s <run-id>
-  openknowledge jobs %s <run-id> --repo <path>
-  openknowledge jobs %s <run-id> --wait <duration>
-  openknowledge jobs %s <run-id> --json
+  openknowledge automation jobs %s <run-id>
+  openknowledge automation jobs %s <run-id> --repo <path>
+  openknowledge automation jobs %s <run-id> --wait <duration>
+  openknowledge automation jobs %s <run-id> --json
 
 Flags:
   --repo       Git repository that owns the run. Defaults to the current repo.
@@ -1266,18 +1266,18 @@ Flags:
 }
 
 func jobsNewHelpText() string {
-	return `openknowledge jobs new
+	return `openknowledge automation jobs new
 
 List, print, or write built-in job templates.
 
 Usage:
-  openknowledge jobs new
-  openknowledge jobs new --list
-  openknowledge jobs new --reference
-  openknowledge jobs new <template>
-  openknowledge jobs new <template> --out <file>
-  openknowledge jobs new <template> --out <file> --force
-  openknowledge jobs new --help
+  openknowledge automation jobs new
+  openknowledge automation jobs new --list
+  openknowledge automation jobs new --reference
+  openknowledge automation jobs new <template>
+  openknowledge automation jobs new <template> --out <file>
+  openknowledge automation jobs new <template> --out <file> --force
+  openknowledge automation jobs new --help
 
 Arguments:
   template     Built-in template id. Use --list to see available ids.
@@ -1289,22 +1289,22 @@ Flags:
   --force      Overwrite --out when the file already exists.
 
 Examples:
-  openknowledge jobs new docs-audit
-  openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md
-  openknowledge jobs new custom --out .openknowledge/jobs/custom.md
-  openknowledge jobs new --reference
+  openknowledge automation jobs new docs-audit
+  openknowledge automation jobs new docs-audit --out .openknowledge/jobs/docs-audit.md
+  openknowledge automation jobs new custom --out .openknowledge/jobs/custom.md
+  openknowledge automation jobs new --reference
 `
 }
 
 func jobsListHelpText() string {
-	return `openknowledge jobs list
+	return `openknowledge automation jobs list
 
 List job specs.
 
 Usage:
-  openknowledge jobs list [path]
-  openknowledge jobs list [path] --json
-  openknowledge jobs list --help
+  openknowledge automation jobs list [path]
+  openknowledge automation jobs list [path] --json
+  openknowledge automation jobs list --help
 
 Arguments:
   path       Job file or directory. Defaults to .openknowledge/jobs.
@@ -1315,14 +1315,14 @@ Flags:
 }
 
 func jobsValidateHelpText() string {
-	return `openknowledge jobs validate
+	return `openknowledge automation jobs validate
 
 Parse and schema-check job specs without running an agent.
 
 Usage:
-  openknowledge jobs validate <job-or-dir>
-  openknowledge jobs validate <job-or-dir> --json
-  openknowledge jobs validate --help
+  openknowledge automation jobs validate <job-or-dir>
+  openknowledge automation jobs validate <job-or-dir> --json
+  openknowledge automation jobs validate --help
 
 Flags:
   --json     Print the schemaVersion 1 validation report, including failures.
@@ -1330,16 +1330,16 @@ Flags:
 }
 
 func jobsRunHelpText() string {
-	return `openknowledge jobs run
+	return `openknowledge automation jobs run
 
 Create an isolated Git worktree and run one job.
 
 Usage:
-  openknowledge jobs run <job.md>
-  openknowledge jobs run <job.md> --dry-run
-  openknowledge jobs run <job.md> --at <time>
-  openknowledge jobs run <job.md> --executor host|docker
-  openknowledge jobs run --help
+  openknowledge automation jobs run <job.md>
+  openknowledge automation jobs run <job.md> --dry-run
+  openknowledge automation jobs run <job.md> --at <time>
+  openknowledge automation jobs run <job.md> --executor host|docker
+  openknowledge automation jobs run --help
 
 Flags:
   --dry-run    Print the schemaVersion 1 run plan without creating a worktree.
@@ -1354,17 +1354,17 @@ Contracts:
 }
 
 func jobsDaemonHelpText() string {
-	return `openknowledge jobs daemon
+	return `openknowledge automation jobs daemon
 
 Poll scheduled jobs and run due jobs.
 
 Usage:
-  openknowledge jobs daemon [jobs-dir]
-  openknowledge jobs daemon [jobs-dir] --once
-  openknowledge jobs daemon [jobs-dir] --tick <duration>
-  openknowledge jobs daemon [jobs-dir] --dry-run
-  openknowledge jobs daemon [jobs-dir] --runtime <runtime>
-  openknowledge jobs daemon --help
+  openknowledge automation jobs daemon [jobs-dir]
+  openknowledge automation jobs daemon [jobs-dir] --once
+  openknowledge automation jobs daemon [jobs-dir] --tick <duration>
+  openknowledge automation jobs daemon [jobs-dir] --dry-run
+  openknowledge automation jobs daemon [jobs-dir] --runtime <runtime>
+  openknowledge automation jobs daemon --help
 
 Flags:
   --once       Check due jobs once and exit.

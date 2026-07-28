@@ -547,7 +547,7 @@ func TestRailwayDeployRequiresCommittedProjectRuntimeScaffold(t *testing.T) {
 
 func TestRailwayDeployRejectsWorkerMissingFromCommittedRuntime(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
-	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\n")
+	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge automation runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\n")
 	runtimeGitTest(t, repository, "add", deployRuntimeDockerfile)
 	runtimeGitTest(t, repository, "commit", "-m", "remove codex runtime")
 	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "state.json"))
@@ -572,7 +572,7 @@ func newDeployTestRepository(t *testing.T) (string, string) {
 	wiki := filepath.Join(repository, "Wiki")
 	enablePublicArtifactTest(t, wiki)
 	writeViewerFile(t, repository, "Wiki/index.md", "# Deployable knowledge\n")
-	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\nRUN npm install --global \"@openai/codex@${CODEX_VERSION}\" \"@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}\" \"opencode-ai@${OPENCODE_VERSION}\"\n")
+	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge automation runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\nRUN npm install --global \"@openai/codex@${CODEX_VERSION}\" \"@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}\" \"opencode-ai@${OPENCODE_VERSION}\"\n")
 	writeViewerFile(t, repository, deployRuntimeEntrypoint, "#!/bin/sh\n")
 	writeViewerFile(t, repository, deployRuntimeConfig, renderDeployRuntimeConfig("wiki", "/workspace/Wiki"))
 	runtimeGitTest(t, repository, "init", "-b", "main")

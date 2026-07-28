@@ -13,6 +13,19 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-28 — Explicit automation namespace
+
+- `okn automation` became the canonical namespace for `jobs`, `insights`,
+  `runtime`, and `deploy`.
+- Root help separated local work, sharing, and automation.
+- The old top-level forms remained functional as hidden compatibility aliases.
+- JSON error envelopes reported the canonical automation command identity for
+  both forms.
+- Generated job and deployment commands used the automation namespace.
+- Source: `packages/cli/cmd/openknowledge/{automation_command,command_catalog}.go`.
+- Docs: `Wiki/features/commands/{automation,index,help}.md`,
+  `Wiki/features/tooling-model.md`.
+
 ### 2026-07-28 — Runtime-specific project integration
 
 - `okn integration install` installed only the selected runtime skill.

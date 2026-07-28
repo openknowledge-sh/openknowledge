@@ -541,7 +541,7 @@ func newRuntimeSessionID() (string, error) {
 }
 
 func runtimeServeHelpText() string {
-	return `openknowledge runtime serve --config runtime.toml
+	return `openknowledge automation runtime serve --config runtime.toml
 
 Serve verified immutable generations from a read-only artifact store. Exposes
 the static viewer, GET <route>/_search, optional Streamable HTTP MCP at

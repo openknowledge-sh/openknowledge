@@ -19,7 +19,7 @@ func TestAgentIntegrationAndRootInsightsNamespaces(t *testing.T) {
 		t.Fatalf("agent integrate help code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	stdout, stderr, code = captureMainOutput(t, func() int { return dispatchCLI([]string{"insights", "--help"}) })
-	if code != 0 || stderr != "" || !strings.Contains(stdout, "openknowledge insights") {
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "openknowledge automation insights") {
 		t.Fatalf("root insights help code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }

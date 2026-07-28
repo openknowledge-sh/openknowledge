@@ -103,7 +103,7 @@ Open Knowledge keeps the worktree after the harness exits. It does not create a
 commit or pull request for this mode.
 
 Knowledge maintenance observations use
-[`okn insights`](insights.md). This interface does not depend on a
+[`okn automation insights`](insights.md). This interface does not depend on a
 harness. `insights create` records a durable gap and does not start a model.
 `insights run` sends pending items to the selected local agent runtime.
 

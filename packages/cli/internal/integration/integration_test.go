@@ -87,7 +87,7 @@ func TestInstallProjectMergesSelectedObservationHookIdempotently(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(content)
-	if strings.Count(text, "openknowledge insights observe --runtime codex") != 1 || !strings.Contains(text, "existing") {
+	if strings.Count(text, "openknowledge automation insights observe --runtime codex") != 1 || !strings.Contains(text, "existing") {
 		t.Fatalf("unexpected hooks:\n%s", text)
 	}
 	for _, path := range []string{".claude", ".opencode"} {

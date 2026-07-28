@@ -22,4 +22,4 @@ case "${OPENKNOWLEDGE_AGENT_RUNTIME:-}" in
     ;;
 esac
 
-exec openknowledge runtime worker "$@"
+exec openknowledge automation runtime worker "$@"

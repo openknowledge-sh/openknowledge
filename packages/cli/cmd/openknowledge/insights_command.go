@@ -481,20 +481,20 @@ func runInsightObservation(args []string) int {
 }
 
 func insightsHelpText() string {
-	return `openknowledge insights
+	return `openknowledge automation insights
 
 Capture, review, or execute project-scoped Open Knowledge insights locally.
 
 Usage:
-  openknowledge insights
-  openknowledge insights list [wiki]
-  openknowledge insights create "<insight>"
-  openknowledge insights create "<insight>" --target <path> [--evidence <text>]
-  openknowledge insights run <insight>
-  openknowledge insights run --all
-  openknowledge insights run <insight> --runtime <runtime> [--model <model>]
-  openknowledge insights run <insight> --isolate
-  openknowledge insights dismiss <insight>
+  openknowledge automation insights
+  openknowledge automation insights list [wiki]
+  openknowledge automation insights create "<insight>"
+  openknowledge automation insights create "<insight>" --target <path> [--evidence <text>]
+  openknowledge automation insights run <insight>
+  openknowledge automation insights run --all
+  openknowledge automation insights run <insight> --runtime <runtime> [--model <model>]
+  openknowledge automation insights run <insight> --isolate
+  openknowledge automation insights dismiss <insight>
 
 With no subcommand, list discovers the connected knowledge base and prints
 pending insights oldest first. Create records a private evidence-only insight

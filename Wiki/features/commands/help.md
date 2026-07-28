@@ -17,7 +17,7 @@ this alias in shell examples.
 okn --help
 okn -h
 okn <command> --help
-okn jobs <subcommand> --help
+okn automation jobs <subcommand> --help
 okn --error-format json <command> [args...]
 ```
 
@@ -30,9 +30,9 @@ subcommand help. Other groups can provide a group overview. The
 | Group | Commands |
 | --- | --- |
 | Start here | `setup`, `search`, `validate` |
-| Maintain and automate | `agent`, `insights`, `jobs` |
-| Browse and publish | `get`, `list`, `view`, `mcp`, `export` |
-| Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` |
+| Work locally | `agent`, `integration`, `get`, `list`, `view` |
+| Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
+| Automate and operate | `automation` |
 | Advanced and portable tools | `scaffold`, `prompt`, `ast`, `spec`, `version` |
 
 An unknown command prints root usage to stderr and exits with status `2`.

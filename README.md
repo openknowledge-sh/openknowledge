@@ -84,39 +84,9 @@ okn view Wiki
 
 Use `okn <command> --help` for exact command syntax.
 
-## What Open Knowledge does
-
-### Create and maintain
-
-- [`setup`](Wiki/features/commands/setup.md) prints or runs wiki setup
-  instructions.
-- [`agent`](Wiki/features/commands/agent.md) runs a supported agent harness.
-- [`insights`](Wiki/features/commands/insights.md) captures and resolves
-  knowledge gaps.
-- [`jobs`](Wiki/features/commands/jobs.md) runs experimental maintenance jobs.
-
-### Retrieve and verify
-
-- [`search`](Wiki/features/commands/search.md) builds source-grounded context.
-- [`get`](Wiki/features/commands/get.md) reads an exact document.
-- [`list`](Wiki/features/commands/list.md) inspects the content tree.
-- [`validate`](Wiki/features/commands/validate.md) checks OKF conformance.
-
-### Browse and publish
-
-- [`view`](Wiki/features/commands/view.md) starts the local viewer.
-- [`mcp`](Wiki/features/commands/mcp.md) serves read-only MCP tools.
-- [`export`](Wiki/features/commands/export.md) creates HTML, JSON, graph, or tar
-  output.
-
-### Connect and operate
-
-- [`connect`](Wiki/features/commands/connect.md) adds a local or remote source.
-- [`registry`](Wiki/features/commands/registry.md) inspects connected sources.
-- [`runtime`](Wiki/features/commands/runtime.md) runs isolated services.
-- [`deploy`](Wiki/features/commands/deploy.md) provisions a runtime on Railway.
-
-See the [command index](Wiki/features/commands/index.md) for all commands.
+The [command index](Wiki/features/commands/index.md) separates local work from
+sharing and automation. Use `okn automation` for jobs, insights, hosted
+runtimes, and deployments.
 
 ## Publish a wiki
 
@@ -143,19 +113,6 @@ portable source archive. A deployed runtime can also expose filtered search
 and HTTP MCP projections. See [HTML export](Wiki/features/exporters/html.md)
 and [`openknowledge.toml`](Wiki/features/configuration.md) for publication
 filters and asset options.
-
-## Documentation
-
-- [Tooling model](Wiki/features/tooling-model.md)
-- [Command reference](Wiki/features/commands/index.md)
-- [Export formats](Wiki/features/exporters/index.md)
-- [Machine-readable contracts](Wiki/features/machine-contracts.md)
-- [Go API](Wiki/features/go-api.md)
-- [Runtime operations](Wiki/features/commands/runtime.md)
-- [Railway deployment](Wiki/features/commands/deploy.md)
-- [CLI changelog](Wiki/changelog/cli.md)
-
-The wiki describes current behavior. The changelog records release history.
 
 ## Development
 

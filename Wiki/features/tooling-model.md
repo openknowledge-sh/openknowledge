@@ -17,15 +17,13 @@ They do not use separate knowledge models.
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
 | Start here | `setup`, `search`, `validate` | Print or run wiki setup, retrieve useful context, and verify its source. |
-| Maintain and automate | `agent`, `insights`, `jobs` | Maintain knowledge interactively, capture gaps, and schedule repeatable work. |
-| Browse and publish | `get`, `list`, `view`, `mcp`, `export` | Read exact knowledge, browse, integrate clients, and publish portable views. |
-| Connect and operate | `connect`, `disconnect`, `registry`, `runtime`, `deploy` | Resolve bundles, serve immutable generations, and provision hosted runtimes. |
+| Work locally | `agent`, `integration`, `get`, `list`, `view` | Maintain, connect, read, and browse knowledge on the current machine. |
+| Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` | Publish portable views and resolve local or remote bundles. |
+| Automate and operate | `automation` | Run jobs, insights, hosted runtimes, and deployments. |
 
 `okn setup` prints the primary project activation task.
 The task uses the current directory as its source and writes `Wiki`.
-Run `okn setup --agent` from the project repository to execute the task.
-The CLI detects installed runtimes and asks you to select one.
-Then, it validates the result and installs the project integration.
+Copy the printed task into an agent that already works in the project.
 An explicit wiki path without `--from` prints a guided setup.
 Use this form for a new or open-ended knowledge base.
 Use `--from` only for a different repository, folder, or website.
@@ -52,7 +50,6 @@ These views include AST, bundle, graph, list, registry, search, and validation o
 
 ```sh
 okn setup
-okn setup --agent
 okn search Wiki "release workflow" --budget 1200
 okn validate Wiki
 ```

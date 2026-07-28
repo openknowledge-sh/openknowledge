@@ -83,7 +83,7 @@ stops normally.
 
 ## Deployed HTTP MCP
 
-[`okn runtime serve`](runtime.md) exposes the same read-only surface
+[`okn automation runtime serve`](runtime.md) exposes the same read-only surface
 at `<route>/_mcp`. It uses MCP sessions over HTTP. It reads only the filtered
 `mcp/` projection.
 

@@ -39,7 +39,7 @@ func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 		`"@openai/codex@${CODEX_VERSION}"`,
 		"ca-certificates curl git gosu tini",
 		"ARG RAILWAY_GIT_COMMIT_SHA=local",
-		"openknowledge runtime build",
+		"openknowledge automation runtime build",
 		"COPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts",
 		"COPY .openknowledge/runtime/entrypoint.sh",
 		"USER root:root",

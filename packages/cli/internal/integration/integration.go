@@ -160,7 +160,7 @@ The connected knowledge base is %s.
 - Validate knowledge edits with openknowledge validate %s.
 - Treat the repository and knowledge base as source evidence; do not invent facts.
 - Respect publication boundaries. Insights must always set okf_publish: false.
-- Capture durable knowledge gaps with openknowledge insights create "<summary>"
+- Capture durable knowledge gaps with openknowledge automation insights create "<summary>"
   --target <knowledge-path> --evidence "<source-grounded evidence>". The command
   writes a private pending insight under %s/insights/. Do not handcraft insight
   files unless the CLI is unavailable. Do not embed patches, raw transcripts,
@@ -187,7 +187,7 @@ export const OpenKnowledgeObserver = async ({ client, directory }) => ({
         // Observation is best-effort and must never disrupt the parent session.
       }
     }
-    const child = spawn("openknowledge", ["insights", "observe", "--runtime", "opencode"], {
+    const child = spawn("openknowledge", ["automation", "insights", "observe", "--runtime", "opencode"], {
       cwd: directory,
       detached: true,
       stdio: ["pipe", "ignore", "ignore"],

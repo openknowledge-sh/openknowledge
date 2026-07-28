@@ -240,7 +240,7 @@ func Remove(start string) (RemoveResult, error) {
 		absolute := filepath.Join(root, filepath.FromSlash(managed.Path))
 		switch managed.Kind {
 		case managedFileKindCodexHook, managedFileKindClaudeHook:
-			command := "openknowledge insights observe --runtime " + config.Runtime
+			command := "openknowledge automation insights observe --runtime " + config.Runtime
 			removedFile, removeErr := removeCommandHook(absolute, command, managed.Owned)
 			if removeErr != nil {
 				result.Preserved = append(result.Preserved, managed.Path)
@@ -281,12 +281,12 @@ func filesForRuntime(runtime string) (runtimeFiles, error) {
 	case "codex":
 		return runtimeFiles{
 			SkillPath: ".agents/skills/openknowledge/SKILL.md",
-			HookKind:  managedFileKindCodexHook, HookCommand: "openknowledge insights observe --runtime codex",
+			HookKind:  managedFileKindCodexHook, HookCommand: "openknowledge automation insights observe --runtime codex",
 		}, nil
 	case "claude":
 		return runtimeFiles{
 			SkillPath: ".claude/skills/openknowledge/SKILL.md",
-			HookKind:  managedFileKindClaudeHook, HookCommand: "openknowledge insights observe --runtime claude", HookAsync: true,
+			HookKind:  managedFileKindClaudeHook, HookCommand: "openknowledge automation insights observe --runtime claude", HookAsync: true,
 		}, nil
 	case "opencode":
 		return runtimeFiles{

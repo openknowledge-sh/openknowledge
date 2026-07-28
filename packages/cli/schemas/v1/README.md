@@ -12,19 +12,19 @@ the source tree and from the public URL.
 | Schema | CLI output |
 | --- | --- |
 | `agent-doctor.schema.json` | `openknowledge agent doctor --json` |
-| `runtime-plan.schema.json` | `openknowledge runtime plan` |
-| `runtime-build.schema.json` | `openknowledge runtime build` |
-| `deploy-plan.schema.json` | `openknowledge deploy railway --dry-run` |
-| `deploy-result.schema.json` | Successful `openknowledge deploy railway` result |
-| `deploy-runtime-scaffold.schema.json` | `openknowledge deploy railway init` |
-| `job-list.schema.json` | `openknowledge jobs list --json` |
-| `job-status.schema.json` | `openknowledge jobs status --json` |
-| `job-runs.schema.json` | `openknowledge jobs runs --json` |
-| `job-start.schema.json` | `openknowledge jobs start --json` |
-| `job-control.schema.json` | `openknowledge jobs stop|kill --json` |
+| `runtime-plan.schema.json` | `openknowledge automation runtime plan` |
+| `runtime-build.schema.json` | `openknowledge automation runtime build` |
+| `deploy-plan.schema.json` | `openknowledge automation deploy railway --dry-run` |
+| `deploy-result.schema.json` | Successful `openknowledge automation deploy railway` result |
+| `deploy-runtime-scaffold.schema.json` | `openknowledge automation deploy railway init` |
+| `job-list.schema.json` | `openknowledge automation jobs list --json` |
+| `job-status.schema.json` | `openknowledge automation jobs status --json` |
+| `job-runs.schema.json` | `openknowledge automation jobs runs --json` |
+| `job-start.schema.json` | `openknowledge automation jobs start --json` |
+| `job-control.schema.json` | `openknowledge automation jobs stop|kill --json` |
 | `job-run-summary.schema.json` | Shared run summary used by agent management outputs |
-| `job-validation.schema.json` | `openknowledge jobs validate --json` |
-| `job-run-plan.schema.json` | `openknowledge jobs run --dry-run` and persisted `plan.json` |
+| `job-validation.schema.json` | `openknowledge automation jobs validate --json` |
+| `job-run-plan.schema.json` | `openknowledge automation jobs run --dry-run` and persisted `plan.json` |
 | `job-run-record.schema.json` | Persisted agent `run.json`, including cancellation and kill outcomes |
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge export json` |

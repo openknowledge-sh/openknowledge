@@ -32,30 +32,26 @@ Copy the complete output into an agent that already works in the project. Use
 [`search`](features/commands/search.md) to retrieve knowledge. Use
 [`validate`](features/commands/validate.md) to verify the wiki.
 
-### Maintain and automate
+### Work locally
 
 Use [`agent`](features/commands/agent.md) to run an agent task. Use
 [`integration`](features/commands/integration.md) to install one runtime skill. Use
-[`insights`](features/commands/insights.md) to manage insight reviews. Use
-[`jobs`](features/commands/jobs.md) to schedule maintenance jobs.
-
-### Browse and publish
-
 Use [`get`](features/commands/get.md) to read one document. Use
 [`list`](features/commands/list.md) to inspect the content tree. Use
 [`view`](features/commands/view.md) to browse the wiki.
 
+### Share and connect
+
 Use [`mcp`](features/commands/mcp.md) to serve MCP tools. Use
 [`export`](features/commands/export.md) to publish portable output.
-
-### Connect and operate
-
 Use [`connect`](features/commands/connect.md) to add a source. Use
 [`disconnect`](features/commands/disconnect.md) to remove a source. Use
 [`registry`](features/commands/registry.md) to inspect the registry.
 
-Use [`runtime`](features/commands/runtime.md) to run services. Use
-[`deploy`](features/commands/deploy.md) to deploy them.
+### Automate and operate
+
+Use [`automation`](features/commands/automation.md) for jobs, insights,
+runtime services, and deployments.
 
 ### Use advanced tools
 

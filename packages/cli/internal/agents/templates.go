@@ -152,7 +152,7 @@ sandbox:
   type: host
 verify:
   commands:
-    - openknowledge insights verify
+    - openknowledge automation insights verify
 output:
   commit: true
   pr: true
@@ -240,17 +240,17 @@ func FindBuiltinTemplate(id string) (Template, bool) {
 func RenderTemplateCatalog() string {
 	var builder strings.Builder
 	builder.WriteString("Open Knowledge Job Templates\n\n")
-	builder.WriteString("Use `openknowledge jobs new <template>` to print a template, or add `--out <file>` to write it.\n\n")
+	builder.WriteString("Use `openknowledge automation jobs new <template>` to print a template, or add `--out <file>` to write it.\n\n")
 	builder.WriteString("Templates:\n")
 	for _, template := range BuiltinTemplates() {
 		builder.WriteString(fmt.Sprintf("- %s: %s\n", template.ID, template.Description))
 	}
 	builder.WriteString("\nExamples:\n")
-	builder.WriteString("  openknowledge jobs new docs-audit\n")
-	builder.WriteString("  openknowledge jobs new docs-audit --out .openknowledge/jobs/docs-audit.md\n")
-	builder.WriteString("  openknowledge jobs new custom --out .openknowledge/jobs/custom.md\n")
-	builder.WriteString("  openknowledge jobs new insights --out .openknowledge/jobs/insights.md\n")
-	builder.WriteString("  openknowledge jobs new --reference\n")
+	builder.WriteString("  openknowledge automation jobs new docs-audit\n")
+	builder.WriteString("  openknowledge automation jobs new docs-audit --out .openknowledge/jobs/docs-audit.md\n")
+	builder.WriteString("  openknowledge automation jobs new custom --out .openknowledge/jobs/custom.md\n")
+	builder.WriteString("  openknowledge automation jobs new insights --out .openknowledge/jobs/insights.md\n")
+	builder.WriteString("  openknowledge automation jobs new --reference\n")
 	return builder.String()
 }
 
@@ -322,9 +322,9 @@ Field reference:
 
 Run lifecycle:
 
-1. openknowledge jobs validate parses and schema-checks the job.
-2. openknowledge jobs run --dry-run prints the resolved RunPlan.
-3. openknowledge jobs run creates a Git worktree and branch.
+1. openknowledge automation jobs validate parses and schema-checks the job.
+2. openknowledge automation jobs run --dry-run prints the resolved RunPlan.
+3. openknowledge automation jobs run creates a Git worktree and branch.
 4. The selected runtime adapter launches the harness with the steered Markdown prompt.
 5. Verification commands run in the same worktree.
 6. Logs, prompt, plan, run.json, and diff.patch are written outside the Git

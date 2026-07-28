@@ -1,12 +1,12 @@
 ---
 type: Command Documentation
-title: openknowledge insights
+title: openknowledge automation insights
 description: Capture, review, and execute private evidence-backed knowledge insights.
 tags: [openknowledge, cli, command, insights, observation, agent]
 timestamp: 2026-07-17T00:00:00Z
 ---
 
-# `openknowledge insights`
+# `openknowledge automation insights`
 
 Insights provide one maintenance interface for people, agents, and automation.
 An insight records a concise knowledge gap, evidence, and likely knowledge
@@ -28,16 +28,16 @@ person, agent, or session observer
 ## Usage
 
 ```sh
-okn insights
-okn insights list Wiki
-okn insights create "Document the deployment rollback workflow"
-okn insights create "Document rollback" --target operations/deploy.md --evidence "deploy.sh exposes rollback"
-okn insights run <insight>
-okn insights run --all
-okn insights run <insight> --runtime claude
-okn insights run <insight> --isolate
-okn insights dismiss <insight>
-okn jobs new insights --out .openknowledge/jobs/insights.md
+okn automation insights
+okn automation insights list Wiki
+okn automation insights create "Document the deployment rollback workflow"
+okn automation insights create "Document rollback" --target operations/deploy.md --evidence "deploy.sh exposes rollback"
+okn automation insights run <insight>
+okn automation insights run --all
+okn automation insights run <insight> --runtime claude
+okn automation insights run <insight> --isolate
+okn automation insights dismiss <insight>
+okn automation jobs new insights --out .openknowledge/jobs/insights.md
 ```
 
 Without a path, listing finds the connected knowledge base from
@@ -58,7 +58,7 @@ the wiki.
 Use the same command in a terminal or an agent skill:
 
 ```sh
-okn insights create "<durable knowledge gap>" \
+okn automation insights create "<durable knowledge gap>" \
   --target "<likely wiki path>" \
   --evidence "<concise repository evidence>"
 ```

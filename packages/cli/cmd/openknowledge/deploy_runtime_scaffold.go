@@ -244,7 +244,7 @@ FROM runtime AS build
 WORKDIR /workspace
 COPY . /workspace
 ARG RAILWAY_GIT_COMMIT_SHA=local
-RUN openknowledge runtime build \
+RUN openknowledge automation runtime build \
     --config /workspace/.openknowledge/runtime/runtime.toml \
     --commit "${RAILWAY_GIT_COMMIT_SHA:-local}"
 
@@ -321,14 +321,14 @@ run_as_openknowledge() {
 
 case "${OPENKNOWLEDGE_ROLE:-serve}" in
   serve)
-    run_as_openknowledge openknowledge runtime serve --config "$config"
+    run_as_openknowledge openknowledge automation runtime serve --config "$config"
     ;;
   publisher)
-    run_as_openknowledge openknowledge runtime worker --role publisher --config "$config"
+    run_as_openknowledge openknowledge automation runtime worker --role publisher --config "$config"
     ;;
   worker)
     runtime="${OPENKNOWLEDGE_AGENT_RUNTIME:?OPENKNOWLEDGE_AGENT_RUNTIME is required for the worker role}"
-    run_as_openknowledge openknowledge runtime worker --role jobs --runtime "$runtime" --config "$config"
+    run_as_openknowledge openknowledge automation runtime worker --role jobs --runtime "$runtime" --config "$config"
     ;;
   *)
     echo "OPENKNOWLEDGE_ROLE must be serve, publisher, or worker" >&2
@@ -339,7 +339,7 @@ esac
 }
 
 func deployRailwayInitHelpText() string {
-	return `openknowledge deploy railway init [path] [options]
+	return `openknowledge automation deploy railway init [path] [options]
 
 Create a repository-owned Railway runtime Dockerfile, immutable build config,
 and entrypoint. The image builds the knowledge artifact from the source commit
