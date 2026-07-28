@@ -16,10 +16,9 @@ defines workspace files as the source of truth. It also requires provenance,
 publication controls, and validation. The surrounding runtime controls Git
 publication.
 
-When you run [`okn agent integrate`](integrate.md), native project
-hooks also observe sessions from this command. The command has no separate
-insight implementation. Direct harness sessions and proxy sessions use the
-same project observer.
+Use [`okn integration`](integration.md) to install a project skill for one
+runtime. Add `--observe` only when you want the selected runtime to observe
+sessions.
 
 Local sessions do not require a Markdown job, schedule, run record, or commit
 policy. [`jobs`](jobs.md) uses these declarative controls. A local session
@@ -34,7 +33,6 @@ okn agent --runtime claude
 okn agent --runtime opencode --model provider/model
 okn agent exec "Update the whitepaper"
 okn agent exec --runtime claude "Repair citations"
-okn agent integrate Wiki
 okn agent doctor
 okn agent doctor --runtime opencode --json
 okn agent exec --isolate "Update the wiki"
@@ -47,7 +45,6 @@ okn agent exec --isolate "Update the wiki"
 | initial prompt | none | Starts an interactive harness session with the steered task. With no task, the contract asks the agent to wait for one. |
 | `exec <prompt>` | required | Runs one non-interactive task and returns the harness exit status. |
 | `doctor` | all runtimes | Probes harness executables. It does not start a model session. Accepts only `--runtime` and `--json`. |
-| `integrate <wiki>` | - | Installs project-scoped discovery skills and observation hooks. `--global` installs discovery-only user skills. |
 | `--runtime` | `codex` | Selects `codex`, `claude`, or `opencode`. |
 | `--model` | harness default | Passes a harness-specific model override. |
 | `--path` | current directory | Selects the editable workspace. |

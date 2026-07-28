@@ -309,8 +309,6 @@ Usage:
   openknowledge agent ["<initial prompt>"]
   openknowledge agent --runtime <codex|claude|opencode>
   openknowledge agent exec "<prompt>"
-  openknowledge agent integrate <wiki>
-  openknowledge agent integrate --global
   openknowledge agent doctor [--runtime <runtime>] [--json]
 
 Flags:
@@ -323,8 +321,7 @@ Flags:
 Executable overrides:
   OPENKNOWLEDGE_CODEX, OPENKNOWLEDGE_CLAUDE, OPENKNOWLEDGE_OPENCODE
 
-Integration installs native harness discovery and project observation. Use
-openknowledge insights to capture and resolve knowledge-maintenance insights.
+Use openknowledge integration to install a runtime-specific project skill.
 
 Run openknowledge agent exec --help for non-interactive usage.
 `

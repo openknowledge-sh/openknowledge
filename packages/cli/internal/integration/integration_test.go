@@ -9,38 +9,63 @@ import (
 	"testing"
 )
 
-func TestInstallGlobalCreatesOnlyDiscoverySkills(t *testing.T) {
+func TestInstallGlobalCreatesOnlySelectedDiscoverySkill(t *testing.T) {
 	home := t.TempDir()
-	result, err := InstallGlobal(home)
+	result, err := InstallGlobalForRuntime(home, "claude")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Files) != 2 {
+	if len(result.Files) != 1 || !strings.Contains(filepath.ToSlash(result.Files[0]), ".claude/skills/openknowledge/SKILL.md") {
 		t.Fatalf("files = %#v", result.Files)
 	}
-	for _, path := range result.Files {
-		content, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(string(content), "discovery-only") {
-			t.Fatalf("not a discovery skill: %s", path)
-		}
+	content, err := os.ReadFile(result.Files[0])
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, path := range []string{filepath.Join(home, ".codex", "hooks.json"), filepath.Join(home, ".claude", "settings.json")} {
+	if !strings.Contains(string(content), "discovery-only") {
+		t.Fatalf("not a discovery skill: %s", result.Files[0])
+	}
+	for _, path := range []string{
+		filepath.Join(home, ".agents"),
+		filepath.Join(home, ".codex", "hooks.json"),
+		filepath.Join(home, ".opencode"),
+	} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Fatalf("global integration created hook file %s", path)
+			t.Fatalf("global integration created unrelated path %s", path)
 		}
 	}
 }
 
-func TestInstallProjectWritesConfigSkillsAndMergesHooksIdempotently(t *testing.T) {
-	repo := t.TempDir()
-	runGit(t, repo, "init")
-	wiki := filepath.Join(repo, "Wiki")
-	if err := os.MkdirAll(wiki, 0o755); err != nil {
+func TestInstallProjectCreatesOnlySelectedRuntimeWithoutObservation(t *testing.T) {
+	repo, wiki := integrationFixture(t)
+	result, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "opencode"})
+	if err != nil {
 		t.Fatal(err)
 	}
+	if strings.Join(result.Files, "\n") != ConfigPath+"\n.opencode/skills/openknowledge/SKILL.md" {
+		t.Fatalf("files = %#v", result.Files)
+	}
+	config, err := LoadFromRepository(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Runtime != "opencode" || config.Observe || len(config.ManagedFiles) != 1 {
+		t.Fatalf("config = %#v", config)
+	}
+	for _, path := range []string{
+		".agents",
+		".claude",
+		".codex",
+		".opencode/plugins/openknowledge-observer.js",
+	} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); !os.IsNotExist(err) {
+			t.Fatalf("non-observing OpenCode integration created %s", path)
+		}
+	}
+}
+
+func TestInstallProjectMergesSelectedObservationHookIdempotently(t *testing.T) {
+	repo, wiki := integrationFixture(t)
 	existing := []byte("{\n  \"hooks\": {\n    \"Stop\": [{\"hooks\": [{\"type\": \"command\", \"command\": \"existing\"}]}]\n  }\n}\n")
 	if err := os.MkdirAll(filepath.Join(repo, ".codex"), 0o755); err != nil {
 		t.Fatal(err)
@@ -49,28 +74,9 @@ func TestInstallProjectWritesConfigSkillsAndMergesHooksIdempotently(t *testing.T
 		t.Fatal(err)
 	}
 	for range 2 {
-		if _, err := InstallProject(wiki); err != nil {
+		if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "codex", Observe: true}); err != nil {
 			t.Fatal(err)
 		}
-	}
-	config, err := LoadFromRepository(repo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if config.KnowledgeBase != "Wiki" || config.Insights != "Wiki/insights" {
-		t.Fatalf("config = %#v", config)
-	}
-	for _, path := range []string{".agents/skills/openknowledge/SKILL.md", ".claude/skills/openknowledge/SKILL.md", ".opencode/plugins/openknowledge-observer.js"} {
-		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); err != nil {
-			t.Fatalf("%s: %v", path, err)
-		}
-	}
-	plugin, err := os.ReadFile(filepath.Join(repo, ".opencode", "plugins", "openknowledge-observer.js"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(plugin), "client.session.messages") || !strings.Contains(string(plugin), "JSON.stringify({ event, trace })") {
-		t.Fatalf("OpenCode plugin does not forward the session trace:\n%s", plugin)
 	}
 	content, err := os.ReadFile(filepath.Join(repo, ".codex", "hooks.json"))
 	if err != nil {
@@ -84,13 +90,104 @@ func TestInstallProjectWritesConfigSkillsAndMergesHooksIdempotently(t *testing.T
 	if strings.Count(text, "openknowledge insights observe --runtime codex") != 1 || !strings.Contains(text, "existing") {
 		t.Fatalf("unexpected hooks:\n%s", text)
 	}
-	claudeSettings, err := os.ReadFile(filepath.Join(repo, ".claude", "settings.json"))
+	for _, path := range []string{".claude", ".opencode"} {
+		if _, err := os.Stat(filepath.Join(repo, path)); !os.IsNotExist(err) {
+			t.Fatalf("Codex integration created unrelated path %s", path)
+		}
+	}
+}
+
+func TestStatusAndRemovePreserveUserChanges(t *testing.T) {
+	repo, wiki := integrationFixture(t)
+	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "codex", Observe: true}); err != nil {
+		t.Fatal(err)
+	}
+	skillPath := filepath.Join(repo, ".agents", "skills", "openknowledge", "SKILL.md")
+	if err := os.WriteFile(skillPath, []byte("user-maintained\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	status, err := Status(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(string(claudeSettings), "openknowledge insights observe --runtime claude") != 1 || !strings.Contains(string(claudeSettings), `"async": true`) {
-		t.Fatalf("unexpected Claude hooks:\n%s", claudeSettings)
+	states := map[string]string{}
+	for _, file := range status.Files {
+		states[file.Path] = file.State
 	}
+	if states[".agents/skills/openknowledge/SKILL.md"] != "modified" ||
+		states[".codex/hooks.json"] != "managed" {
+		t.Fatalf("status = %#v", status.Files)
+	}
+
+	result, err := Remove(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(result.Preserved, "\n") != ".agents/skills/openknowledge/SKILL.md" {
+		t.Fatalf("preserved = %#v", result.Preserved)
+	}
+	content, err := os.ReadFile(skillPath)
+	if err != nil || string(content) != "user-maintained\n" {
+		t.Fatalf("modified skill was not preserved: %q, %v", content, err)
+	}
+	for _, path := range []string{ConfigPath, ".codex/hooks.json"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); !os.IsNotExist(err) {
+			t.Fatalf("remove left managed path %s", path)
+		}
+	}
+}
+
+func TestInstallProjectRejectsRuntimeSwitchAndModifiedManagedFile(t *testing.T) {
+	repo, wiki := integrationFixture(t)
+	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "claude"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "codex"}); err == nil || !strings.Contains(err.Error(), "remove that integration") {
+		t.Fatalf("runtime switch error = %v", err)
+	}
+	skillPath := filepath.Join(repo, ".claude", "skills", "openknowledge", "SKILL.md")
+	if err := os.WriteFile(skillPath, []byte("changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "claude"}); err == nil || !strings.Contains(err.Error(), "modified managed file") {
+		t.Fatalf("modified file error = %v", err)
+	}
+}
+
+func TestLoadRejectsManagedPathsOutsideRuntimeSurface(t *testing.T) {
+	repo, _ := integrationFixture(t)
+	configPath := filepath.Join(repo, filepath.FromSlash(ConfigPath))
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := `version = 2
+knowledge_base = "Wiki"
+insights = "Wiki/insights"
+runtime = "codex"
+
+[[managed_file]]
+path = "../outside"
+sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+kind = "file"
+owned = true
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadFromRepository(repo); err == nil || !strings.Contains(err.Error(), "invalid managed file") {
+		t.Fatalf("unsafe managed path error = %v", err)
+	}
+}
+
+func integrationFixture(t *testing.T) (string, string) {
+	t.Helper()
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	wiki := filepath.Join(repo, "Wiki")
+	if err := os.MkdirAll(wiki, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return repo, wiki
 }
 
 func runGit(t *testing.T, directory string, args ...string) string {

@@ -13,6 +13,22 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-28 — Runtime-specific project integration
+
+- `okn integration install` installed only the selected runtime skill.
+- Session observation became opt-in through `--observe`.
+- The new `status` command reported missing and modified managed files without
+  changing them.
+- The new `remove` command deleted unchanged owned files. It preserved user
+  changes and unrelated hook settings.
+- The integration manifest restricted managed paths to the selected runtime.
+- `okn agent integrate` remained as a deprecated alias.
+- Automated `okn setup --agent` installed the selected skill without an
+  observation hook.
+- Source: `packages/cli/cmd/openknowledge/{integrate_command,setup_command}.go`,
+  `packages/cli/internal/integration/{integration,manage}.go`.
+- Docs: `Wiki/features/commands/{integration,integrate,setup}.md`.
+
 ### 2026-07-28 — Focused README
 
 - The README became a short product entrypoint.

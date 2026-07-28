@@ -102,7 +102,7 @@ func runSetup(args []string) int {
 	if code := runValidate([]string{wikiAbs}); code != 0 {
 		return code
 	}
-	if code := runIntegrate([]string{wikiAbs}); code != 0 {
+	if code := runIntegration([]string{"install", wikiAbs, "--runtime", options.runtime}); code != 0 {
 		return code
 	}
 	fmt.Printf("\nReady: %s\n", relWiki)
@@ -307,15 +307,14 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 func setupHelpText() string {
 	return `openknowledge setup
 
-Print portable instructions to create or update an OKF knowledge base.
-Use --agent to run the instructions, validate the result, and integrate it.
+Print a portable task to create or update an OKF knowledge base.
 
 Usage:
   openknowledge setup
-  openknowledge setup --agent
   openknowledge setup [wiki]
   openknowledge setup [wiki] --rules <rules>
   openknowledge setup [wiki] --from <source>
+  openknowledge setup --agent
   openknowledge setup --agent --runtime <codex|claude|opencode>
 
 Arguments:
@@ -324,11 +323,11 @@ Arguments:
 
 Core flags:
   --from      Repository, local folder, or website source.
-  --agent     Run the setup instructions with an agent. By default, print them.
   --rules     Comma-separated maintenance rules for guided setup. Cannot be
               combined with --from.
 
 Advanced flags:
+  --agent     Run the task in a detected agent runtime instead of printing it.
   --runtime   Agent runtime: codex, claude, or opencode. Requires --agent.
   --model     Harness-specific model override. Requires --agent.
   --type      Source workflow: understanding or custom. Requires --from.
@@ -337,21 +336,22 @@ Advanced flags:
               agent choose the minimum depth.
 
 With no arguments, setup prints instructions that use the current directory as
-the source and Wiki as the target. An explicit wiki path without --from prints
-the guided workflow for a new or open-ended knowledge base. Use --from only for
-another repository, local folder, or website.
+the source and Wiki as the target. Run this command yourself, then copy the
+complete printed task into an agent that already has access to the project.
+An explicit wiki path without --from prints the guided workflow for a new or
+open-ended knowledge base. Use --from only for another repository, local folder,
+or website.
 
-Use --agent in the Git repository that should own the knowledge base. If you do
-not specify --runtime, setup detects installed runtimes and asks you to select
-one. Non-interactive use requires --runtime. Setup then launches the selected
-runtime, validates the result, and installs project discovery skills and
-observation hooks. Before launch, setup verifies that the runtime executable is
-available. Run openknowledge agent doctor --runtime <runtime> to diagnose the
-installation. Runtime authentication remains owned by the selected agent CLI.
+The advanced --agent mode launches a runtime from the Git repository that owns
+the knowledge base. If --runtime is absent, setup asks you to select an installed
+runtime. Non-interactive use requires --runtime. It validates the result and
+installs only that runtime's project skill. It does not enable session
+observation. Run openknowledge agent doctor --runtime <runtime> to diagnose a
+runtime installation.
 
 After setup, the knowledge base is ready. Use search or validate directly when
 you need retrieval or an independent check. The viewer, publishing, registry,
-runtime, deterministic scaffold, and portable prompt commands are optional
-workflows; discover them from the grouped root help.
+automation, deterministic scaffold, and portable prompt commands are optional
+workflows.
 `
 }

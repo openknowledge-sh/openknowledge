@@ -12,6 +12,7 @@ Use this index to select a command for your task. Run
 ## Maintain and automate
 
 - [agent](agent.md): Run a steered Codex, Claude Code, or OpenCode session.
+- [integration](integration.md): Install and manage one local agent-runtime integration.
 - [insights](insights.md): Capture and resolve knowledge gaps.
 - [jobs](jobs.md): Run repeatable isolated maintenance jobs.
 

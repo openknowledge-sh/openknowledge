@@ -40,10 +40,13 @@ func TestSetupRunsAgentValidatesAndIntegrates(t *testing.T) {
 	if !strings.Contains(prompt, "This setup guide is meant to be executed") || !strings.Contains(prompt, "Knowledge") || !strings.Contains(prompt, "Selected maintenance rules") {
 		t.Fatalf("unexpected setup prompt:\n%s", prompt)
 	}
-	for _, path := range []string{".openknowledge/integration.toml", ".agents/skills/openknowledge/SKILL.md", ".codex/hooks.json"} {
+	for _, path := range []string{".openknowledge/integration.toml", ".agents/skills/openknowledge/SKILL.md"} {
 		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); err != nil {
 			t.Fatalf("missing integration file %s: %v", path, err)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(repo, ".codex", "hooks.json")); !os.IsNotExist(err) {
+		t.Fatalf("setup must not enable session observation by default: %v", err)
 	}
 }
 

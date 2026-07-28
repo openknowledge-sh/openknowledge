@@ -32,6 +32,7 @@ var rootCommandCatalog = []rootCommand{
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 
 	{Name: "agent", Group: "Maintain and automate", Summary: "Run, integrate, and review knowledge with an agent.", Subcommands: commandNames("exec", "integrate", "doctor"), Run: runAgent},
+	{Name: "integration", Group: "Maintain and automate", Summary: "Install and manage one local agent-runtime integration.", Subcommands: commandNames("install", "status", "remove"), Run: runIntegration},
 	{Name: "insights", Group: "Maintain and automate", Summary: "Capture and resolve knowledge-maintenance insights.", Subcommands: commandNames("create", "list", "run", "dismiss", "verify", "observe"), Run: runInsights},
 	{Name: "jobs", Group: "Maintain and automate", Summary: "Run repeatable isolated maintenance jobs from Markdown specs.", Subcommands: commandNames("new", "list", "status", "runs", "start", "stop", "kill", "validate", "run", "daemon"), Run: runJobs},
 

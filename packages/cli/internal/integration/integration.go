@@ -12,93 +12,12 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const ConfigPath = ".openknowledge/integration.toml"
-
-type Config struct {
-	Version       int    `toml:"version"`
-	KnowledgeBase string `toml:"knowledge_base"`
-	Insights      string `toml:"insights"`
-}
-
-type InstallResult struct {
-	Root  string
-	Files []string
-}
-
 func RepositoryRoot(path string) (string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
 	return repositoryRoot(abs)
-}
-
-func InstallProject(wiki string) (InstallResult, error) {
-	wikiAbs, err := filepath.Abs(wiki)
-	if err != nil {
-		return InstallResult{}, err
-	}
-	info, err := os.Stat(wikiAbs)
-	if err != nil {
-		return InstallResult{}, fmt.Errorf("knowledge base: %w", err)
-	}
-	if !info.IsDir() {
-		return InstallResult{}, fmt.Errorf("knowledge base is not a directory: %s", wikiAbs)
-	}
-	root, err := repositoryRoot(wikiAbs)
-	if err != nil {
-		return InstallResult{}, err
-	}
-	relWiki, err := filepath.Rel(root, wikiAbs)
-	if err != nil || relWiki == "." || escapes(relWiki) {
-		return InstallResult{}, fmt.Errorf("knowledge base must be a directory inside its Git repository")
-	}
-	relWiki = filepath.ToSlash(relWiki)
-	config := Config{Version: 1, KnowledgeBase: relWiki, Insights: relWiki + "/insights"}
-	configBytes, err := toml.Marshal(config)
-	if err != nil {
-		return InstallResult{}, err
-	}
-
-	assets := map[string][]byte{
-		ConfigPath:                                    configBytes,
-		".agents/skills/openknowledge/SKILL.md":       []byte(projectSkill(relWiki)),
-		".claude/skills/openknowledge/SKILL.md":       []byte(projectSkill(relWiki)),
-		".opencode/plugins/openknowledge-observer.js": []byte(openCodePlugin()),
-	}
-	for path, content := range assets {
-		if err := writeManagedFile(filepath.Join(root, filepath.FromSlash(path)), content); err != nil {
-			return InstallResult{}, err
-		}
-	}
-	if err := mergeCommandHook(filepath.Join(root, ".codex", "hooks.json"), "openknowledge insights observe --runtime codex", false); err != nil {
-		return InstallResult{}, err
-	}
-	if err := mergeCommandHook(filepath.Join(root, ".claude", "settings.json"), "openknowledge insights observe --runtime claude", true); err != nil {
-		return InstallResult{}, err
-	}
-	files := []string{ConfigPath, ".agents/skills/openknowledge/SKILL.md", ".codex/hooks.json", ".claude/skills/openknowledge/SKILL.md", ".claude/settings.json", ".opencode/plugins/openknowledge-observer.js"}
-	return InstallResult{Root: root, Files: files}, nil
-}
-
-func InstallGlobal(home string) (InstallResult, error) {
-	if strings.TrimSpace(home) == "" {
-		var err error
-		home, err = os.UserHomeDir()
-		if err != nil {
-			return InstallResult{}, err
-		}
-	}
-	files := []string{
-		filepath.Join(home, ".agents", "skills", "openknowledge", "SKILL.md"),
-		filepath.Join(home, ".claude", "skills", "openknowledge", "SKILL.md"),
-	}
-	for _, path := range files {
-		if err := writeManagedFile(path, []byte(discoverySkill())); err != nil {
-			return InstallResult{}, err
-		}
-	}
-	return InstallResult{Root: home, Files: files}, nil
 }
 
 func LoadFromRepository(root string) (Config, error) {
@@ -111,7 +30,7 @@ func LoadFromRepository(root string) (Config, error) {
 		return Config{}, err
 	}
 	cleanWiki := filepath.ToSlash(filepath.Clean(config.KnowledgeBase))
-	if config.Version != 1 || strings.TrimSpace(config.KnowledgeBase) == "" || cleanWiki == "." || escapes(config.KnowledgeBase) {
+	if (config.Version != 1 && config.Version != 2) || strings.TrimSpace(config.KnowledgeBase) == "" || cleanWiki == "." || escapes(config.KnowledgeBase) {
 		return Config{}, fmt.Errorf("invalid %s", ConfigPath)
 	}
 	if config.Insights == "" {
@@ -120,6 +39,9 @@ func LoadFromRepository(root string) (Config, error) {
 	expectedInsights := strings.TrimSuffix(cleanWiki, "/") + "/insights"
 	if escapes(config.Insights) || filepath.ToSlash(filepath.Clean(config.Insights)) != expectedInsights {
 		return Config{}, fmt.Errorf("invalid insights path in %s", ConfigPath)
+	}
+	if err := validateConfigManagedFiles(config); err != nil {
+		return Config{}, err
 	}
 	return config, nil
 }
@@ -143,7 +65,7 @@ func FindRepository(start string) (string, Config, error) {
 			break
 		}
 	}
-	return "", Config{}, fmt.Errorf("no project integration found; run openknowledge agent integrate <wiki>")
+	return "", Config{}, fmt.Errorf("no project integration found; run openknowledge integration install <wiki> --runtime <name>")
 }
 
 func repositoryRoot(path string) (string, error) {

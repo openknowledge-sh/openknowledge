@@ -34,29 +34,23 @@ okn setup
 ```
 
 `okn setup` uses the current project as its source. It uses `Wiki` as the
-default target. It prints instructions and does not start an agent.
+default target. Run it yourself, then copy the complete printed task into the
+agent that already works in your project.
 
-Run the instructions with an installed agent runtime:
-
-```sh
-okn setup --agent
-```
-
-The command detects Codex, Claude Code, and OpenCode. It asks you to select an
-available runtime. For non-interactive use, select the runtime:
+When the agent finishes, validate the wiki:
 
 ```sh
-okn setup --agent --runtime codex
+okn validate Wiki
 ```
 
-If setup cannot start a runtime, inspect the installation:
+Optionally install a project skill for that agent runtime:
 
 ```sh
-okn agent doctor --runtime <runtime>
+okn integration install Wiki --runtime codex
 ```
 
-The setup workflow creates the wiki, validates it, and installs project
-integration.
+This installs only the selected runtime. Session observation remains off unless
+you explicitly add `--observe`.
 
 You can also install the CLI from npm:
 

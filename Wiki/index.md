@@ -28,13 +28,14 @@ This documentation uses `okn` as the preferred command. The full
 ### Create, retrieve, and verify
 
 Use [`setup`](features/commands/setup.md) to print portable wiki instructions.
-Run `okn setup --agent` to run the instructions. Use
+Copy the complete output into an agent that already works in the project. Use
 [`search`](features/commands/search.md) to retrieve knowledge. Use
 [`validate`](features/commands/validate.md) to verify the wiki.
 
 ### Maintain and automate
 
 Use [`agent`](features/commands/agent.md) to run an agent task. Use
+[`integration`](features/commands/integration.md) to install one runtime skill. Use
 [`insights`](features/commands/insights.md) to manage insight reviews. Use
 [`jobs`](features/commands/jobs.md) to schedule maintenance jobs.
 

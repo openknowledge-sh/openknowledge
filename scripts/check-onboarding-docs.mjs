@@ -15,16 +15,12 @@ const documents = new Map([
 ]);
 const failures = [];
 const canonicalSetup = "okn setup";
-const agentSetup = "okn setup --agent";
 const legacyProjectSetup = /^(?:okn|openknowledge) setup Wiki --from \.$/m;
 const fullCommandExample = /^[ \t]*openknowledge[ \t]+[a-z]/m;
 
 for (const [name, content] of documents) {
   if (!content.includes(canonicalSetup)) {
     failures.push(`${name} is missing the canonical setup command: ${canonicalSetup}`);
-  }
-  if (!content.includes(agentSetup)) {
-    failures.push(`${name} is missing the explicit agent setup command: ${agentSetup}`);
   }
   if (legacyProjectSetup.test(content)) {
     failures.push(`${name} still prescribes the legacy project setup command: okn setup Wiki --from .`);
@@ -49,8 +45,8 @@ if (website.includes("./project-memory")) {
 if (!website.includes("[publish] enabled = true")) {
   failures.push("packages/web/index.html must explain the explicit public-export permission");
 }
-if (!website.includes("okn setup --agent</code>")) {
-  failures.push("packages/web/index.html must present --agent as the managed project activation command");
+if (!website.includes("okn setup</code>") || website.includes("okn setup --agent</code>")) {
+  failures.push("packages/web/index.html must present printed setup as the primary project activation command");
 }
 if (website.includes('<span class="tok-command">openknowledge</span>')) {
   failures.push("packages/web/index.html must use okn for shell command examples");
@@ -60,10 +56,6 @@ const readme = documents.get("README.md");
 if (!readme.includes("[publish]\nenabled = true")) {
   failures.push("README.md must include the fail-closed publication handoff");
 }
-if (!readme.includes("okn agent doctor --runtime <runtime>")) {
-  failures.push("README.md must retain setup runtime recovery guidance");
-}
-
 if (failures.length > 0) {
   console.error("onboarding documentation check failed:");
   for (const failure of failures) {
@@ -71,7 +63,7 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("README, website, and wiki prefer okn and separate printed setup from --agent execution");
+  console.log("README, website, and wiki prefer okn and printed setup as the primary flow");
 }
 
 function collectMarkdown(directory) {

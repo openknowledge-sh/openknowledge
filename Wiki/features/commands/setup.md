@@ -14,8 +14,11 @@ With no arguments, the command uses the current directory as the source. The
 default target is `Wiki`. The command prints the instructions to standard
 output. It does not start an agent.
 
-Add `--agent` to run the instructions with an installed agent runtime. Run
-agent mode in the Git repository that contains the wiki.
+Run `okn setup` yourself. Copy its complete output into an agent that already
+has access to the project. This is the primary setup flow.
+
+`--agent` is an advanced option. It starts an installed agent runtime from the
+CLI. Run agent mode in the Git repository that contains the wiki.
 
 Specify `[wiki]` without `--from` for a new knowledge base. Use
 `--from <source>` for a different repository, local folder, or website.
@@ -78,13 +81,16 @@ Setup succeeds only when all three stages succeed:
 
 1. The selected agent harness finishes.
 2. The target is a valid OKF bundle.
-3. Project integration installs.
+3. The selected runtime project skill installs.
 
 An agent failure prints the runtime, exit status, and a recovery hint. A
 missing target, validation error, or integration failure produces a nonzero
 exit status. The agent can see existing uncommitted repository changes.
 
-Setup controls the workflow and starts an interactive agent process.
+Agent mode controls the workflow and starts an interactive agent process. It
+does not install observation hooks. Use `okn integration install` with
+`--observe` if you explicitly want session observation.
+
 `scaffold` is not an equivalent onboarding path. It creates bundle files
 without an agent or project integration.
 
