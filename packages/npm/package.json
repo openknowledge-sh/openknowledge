@@ -1,7 +1,7 @@
 {
   "name": "@openknowledge-sh/openknowledge",
   "version": "0.8.4",
-  "description": "CLI for managing Open Knowledge Format bundles.",
+  "description": "Flexible knowledge bases in Markdown that your agents can create, retrieve, validate, and publish.",
   "license": "Apache-2.0",
   "bin": {
     "openknowledge": "bin/openknowledge.js",

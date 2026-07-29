@@ -117,12 +117,21 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   }));
 
   await page.goto(landingURL, { waitUntil: "networkidle" });
-  await assertSemanticPage(page, "LLM Wiki, built around your work.");
-  await page.getByRole("button", { name: "Copy setup commands" }).click();
+  await assertSemanticPage(page, "Knowledge that works with your agents.");
+  const setupPrompt = page.getByRole("button", { name: "Get setup prompt" });
+  await setupPrompt.click();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   assert.match(clipboard, /okn setup(?:\n|$)/);
   assert.doesNotMatch(clipboard, /--agent/);
   assert.doesNotMatch(clipboard, /(?:okn|openknowledge) setup Wiki|--from \./);
+  const githubStar = page.getByRole("link", { name: "Star us on GitHub" });
+  assert.equal(await githubStar.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
+  const compatibility = page.getByLabel("Works with Codex, Claude, and Cursor");
+  assert.equal(await compatibility.count(), 1);
+  assert.match(await compatibility.innerText(), /Codex/);
+  assert.match(await compatibility.innerText(), /Claude/);
+  assert.match(await compatibility.innerText(), /Cursor/);
+  assert.equal(await page.locator("details").count(), 0);
   assert.equal(errors.length, 0, `landing page browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
@@ -145,6 +154,75 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await search.press("Escape");
   assert.equal(await search.inputValue(), "");
   assert.equal(errors.length, 0, `viewer browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("exported viewer keeps note navigation, explorer context, and settings discoverable", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  const navigationMode = page.locator("[data-navigation-mode-toggle]");
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
+  assert.equal(await navigationMode.getAttribute("aria-pressed"), "false");
+  const rollbackLink = page.getByRole("link", { name: "rollback guide" });
+  await rollbackLink.click();
+  await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
+  assert.equal(await page.locator("[data-note-path]").count(), 1, "a normal note link should replace the active panel");
+
+  await page.goBack();
+  await page.locator('[data-note-path="index.md"]').waitFor({ state: "visible" });
+  await navigationMode.click();
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
+  assert.equal(await navigationMode.getAttribute("aria-pressed"), "true");
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
+  await page.getByRole("link", { name: "rollback guide" }).click();
+  await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
+  assert.equal(await page.locator("[data-note-path]").count(), 2, "beside mode should open a normal note link beside the active panel");
+  await page.locator("[data-note-navigator]").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".workspace-note-tab").count(), 2);
+
+  await page.locator(".workspace-note-tab").first().click();
+  assert.equal(await page.locator('[data-note-path="index.md"][data-active-panel="true"]').count(), 1);
+  await page.getByRole("link", { name: "rollback guide" }).click({ modifiers: ["Shift"] });
+  await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 1);
+  assert.equal(await page.locator("[data-note-path]").count(), 1, "Shift-click should invert beside mode and replace the active panel");
+  await page.goBack();
+  await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 2);
+  await page.locator(".workspace-note-tab").first().click();
+
+  await page.getByRole("button", { name: "Open file explorer" }).click();
+  const currentFile = page.locator('.file-sidebar [data-tree-path="index.md"]');
+  assert.equal(await currentFile.getAttribute("aria-current"), "page");
+  await page.getByRole("button", { name: "Collapse all" }).click();
+  assert.equal(await page.locator('.file-sidebar [data-tree-path="guides/rollback.md"]').isVisible(), false);
+  await page.locator('.file-sidebar [data-tree-directory-path="guides"]').click();
+  assert.equal(await page.locator('.file-sidebar [data-tree-path="guides/rollback.md"]').isVisible(), true);
+
+  await page.getByRole("button", { name: "Viewer settings" }).click();
+  await page.locator('[data-theme-option="default"]').click();
+  await page.locator("[data-accessibility-size]").selectOption("large");
+  await page.getByRole("button", { name: "Reset to defaults" }).click();
+  assert.equal(await page.locator("html").getAttribute("data-viewer-theme"), "night");
+  assert.equal(await page.locator("html").getAttribute("data-viewer-font-size"), "default");
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
+  assert.equal(await navigationMode.getAttribute("aria-pressed"), "false");
+  await page.getByRole("button", { name: "Viewer settings" }).click();
+
+  await page.getByRole("button", { name: "Close all" }).click();
+  await page.locator("[data-empty-state]").waitFor({ state: "visible" });
+  assert.equal(await page.locator("[data-note-path]").count(), 0);
+  assert.equal(await page.locator("[data-empty-state] .knowledge-tree").count(), 0, "the graph view should not duplicate the file explorer");
+  const graphSidebar = page.locator("[data-knowledge-graph-sidebar]");
+  const graphCanvas = page.locator("[data-knowledge-graph-view] canvas");
+  await graphSidebar.waitFor({ state: "visible" });
+  await graphCanvas.waitFor({ state: "visible" });
+  const graphSidebarBox = await graphSidebar.boundingBox();
+  const graphCanvasBox = await graphCanvas.boundingBox();
+  assert.ok(graphSidebarBox && graphCanvasBox && graphSidebarBox.x + graphSidebarBox.width <= graphCanvasBox.x, "graph details should stay beside the canvas");
+  assert.equal(errors.length, 0, `viewer navigation browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 

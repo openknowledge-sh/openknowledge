@@ -27,7 +27,7 @@ var commandGroups = []commandGroup{
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Start here", Summary: "Print a portable project-wiki task.", Run: runSetup},
+	{Name: "setup", Group: "Start here", Summary: "Print a portable knowledge-base setup prompt.", Run: runSetup},
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 
@@ -134,7 +134,7 @@ func dispatchCLI(args []string) int {
 
 func helpText() string {
 	var output strings.Builder
-	output.WriteString(`openknowledge builds, uses, and runs self-maintaining OKF knowledge bases.
+	output.WriteString(`Flexible knowledge bases in Markdown that your agents can create, retrieve, validate, and publish.
 
 Usage:
   openknowledge --help
@@ -157,7 +157,7 @@ Usage:
   -h, --help                Show this help.
   --error-format text|json  Format command failures on stderr (default text).
 
-Start with setup and paste its printed task into your project agent. Run
+Start with setup and paste its printed prompt into your agent. Run
 openknowledge <command> --help when you need another workflow.
 
 Get started:

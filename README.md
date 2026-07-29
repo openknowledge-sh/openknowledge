@@ -4,8 +4,8 @@
 
 # Open Knowledge
 
-Open Knowledge creates and maintains Git-native knowledge bases in plain
-Markdown. It can search, validate, connect, and publish the same knowledge.
+Flexible knowledge bases in Markdown that your agents can create, retrieve,
+validate, and publish.
 
 [Website](https://openknowledge.sh) |
 [Documentation](Wiki/index.md) |
@@ -27,14 +27,14 @@ Install the CLI:
 curl -fsSL https://openknowledge.sh/install | bash
 ```
 
-Print portable instructions for a project wiki:
+Print a portable setup prompt:
 
 ```sh
 okn setup
 ```
 
 `okn setup` uses the current project as its source. It uses `Wiki` as the
-default target. Run it yourself, then copy the complete printed task into the
+default target. Run it yourself, then copy the complete printed prompt into the
 agent that already works in your project.
 
 When the agent finishes, validate the wiki:

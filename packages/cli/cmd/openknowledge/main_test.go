@@ -27,13 +27,13 @@ import (
 func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 	help := helpText()
 	required := []string{
-		"openknowledge builds, uses, and runs self-maintaining OKF knowledge bases.",
+		"Flexible knowledge bases in Markdown that your agents can create, retrieve, validate, and publish.",
 		"Start here:",
 		"Work locally:",
 		"Share and connect:",
 		"Automate and operate:",
 		"Advanced and portable tools:",
-		"setup        Print a portable project-wiki task.",
+		"setup        Print a portable knowledge-base setup prompt.",
 		"search       Build source-grounded context from one or more knowledge bases.",
 		"agent        Run a local knowledge task with an agent.",
 		"integration  Install and manage one local agent-runtime integration.",
@@ -232,8 +232,8 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge setup [wiki] --from <source>",
 				"openknowledge setup --agent",
 				"openknowledge setup --agent --runtime <codex|claude|opencode>",
-				"Print a portable task to create or update",
-				"complete printed task into an agent",
+				"Print a portable prompt to create or update",
+				"complete printed prompt into an agent",
 				"--rules",
 				"--model",
 				"--about",

@@ -46,7 +46,7 @@ The primary activation flow is:
 okn setup
 ```
 
-The command prints portable setup instructions. A person runs it from the
+The command prints a portable setup prompt. A person runs it from the
 project and copies the complete output into an existing agent. The optional
 `--agent` mode can launch a runtime, but it is not the primary flow.
 

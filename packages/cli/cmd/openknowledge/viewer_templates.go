@@ -36,7 +36,7 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
     {{if .Error}}
       <p class="error">{{.Error}}</p>
     {{else}}
-      <p class="lede">Local agentic wiki rendered from Markdown files.</p>
+      <p class="lede">Flexible knowledge bases in Markdown for agents and humans.</p>
       <section class="search" role="search" aria-label="Search" data-search-url="{{.SearchURL}}">
         <label class="search-label" for="viewer-search">Search</label>
         <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false">
@@ -139,6 +139,19 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       <div class="search-status" aria-live="polite"></div>
       <div class="search-results" hidden></div>
     </section>
+    <button class="navigation-mode-toggle" type="button" data-navigation-mode-toggle data-mode="replace" aria-label="Link behavior: Open in current panel" aria-pressed="false" title="Links open in the current panel">
+      <svg class="navigation-mode-icon navigation-mode-icon-single control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="5" y="4" width="14" height="16" rx="2"></rect>
+        <path d="M8.5 8h7"></path>
+        <path d="M8.5 11h7"></path>
+      </svg>
+      <svg class="navigation-mode-icon navigation-mode-icon-split control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+        <path d="M12 4v16"></path>
+        <path d="M6.5 8h2.5"></path>
+        <path d="M15 8h2.5"></path>
+      </svg>
+    </button>
     <div class="viewer-settings" data-viewer-settings>
       <button class="viewer-settings-trigger" type="button" data-viewer-settings-trigger aria-haspopup="dialog" aria-expanded="false" aria-label="Viewer settings" title="Settings">
         <svg class="viewer-settings-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -295,24 +308,9 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     </div>
   </aside>
   <main id="note-workspace" class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
-    <section class="knowledge-empty" data-empty-state aria-label="Knowledge base files" hidden>
+    <section class="knowledge-empty" data-empty-state aria-label="Knowledge graph" hidden>
       <div class="knowledge-empty-inner">
-        <div class="knowledge-empty-pane knowledge-empty-tree">
-          <div class="knowledge-tree" role="tree" aria-label="Knowledge base files">
-            {{range .Tree}}
-              {{if .Directory}}
-                <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
-              {{else}}
-                <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" style="--indent: {{.Indent}}px">
-                  <span class="tree-file-name">{{.Name}}</span>
-                  {{if .System}}<span class="tree-file-system">system</span>{{end}}
-                </a>
-              {{end}}
-            {{else}}
-              <p class="empty">No Markdown files found.</p>
-            {{end}}
-          </div>
-        </div>
+        <aside class="knowledge-empty-pane knowledge-graph-sidebar" data-knowledge-graph-sidebar aria-label="Knowledge graph details"></aside>
         <div class="knowledge-empty-pane knowledge-empty-graph" data-knowledge-graph-view aria-label="Knowledge graph"></div>
       </div>
     </section>

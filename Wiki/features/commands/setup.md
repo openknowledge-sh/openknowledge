@@ -1,14 +1,14 @@
 ---
 type: Command Documentation
 title: openknowledge setup
-description: Prints portable setup instructions or runs them with an agent.
+description: Prints a portable setup prompt or runs it with an agent.
 tags: [openknowledge, cli, command, setup]
 timestamp: 2026-07-28T00:00:00Z
 ---
 
 # `openknowledge setup`
 
-Use `okn setup` to print portable instructions for a wiki.
+Use `okn setup` to print a portable setup prompt for a wiki.
 
 With no arguments, the command uses the current directory as the source. The
 default target is `Wiki`. The command prints the instructions to standard

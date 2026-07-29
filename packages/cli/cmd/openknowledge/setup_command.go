@@ -307,7 +307,7 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 func setupHelpText() string {
 	return `openknowledge setup
 
-Print a portable task to create or update an OKF knowledge base.
+Print a portable prompt to create or update an OKF knowledge base.
 
 Usage:
   openknowledge setup
@@ -327,7 +327,7 @@ Core flags:
               combined with --from.
 
 Advanced flags:
-  --agent     Run the task in a detected agent runtime instead of printing it.
+  --agent     Run the prompt in a detected agent runtime instead of printing it.
   --runtime   Agent runtime: codex, claude, or opencode. Requires --agent.
   --model     Harness-specific model override. Requires --agent.
   --type      Source workflow: understanding or custom. Requires --from.
@@ -335,9 +335,9 @@ Advanced flags:
   --depth     Non-negative source traversal hint. Requires --from; 0 lets the
               agent choose the minimum depth.
 
-With no arguments, setup prints instructions that use the current directory as
+With no arguments, setup prints a prompt that uses the current directory as
 the source and Wiki as the target. Run this command yourself, then copy the
-complete printed task into an agent that already has access to the project.
+complete printed prompt into an agent that already has access to the project.
 An explicit wiki path without --from prints the guided workflow for a new or
 open-ended knowledge base. Use --from only for another repository, local folder,
 or website.

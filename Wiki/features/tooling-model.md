@@ -21,9 +21,9 @@ They do not use separate knowledge models.
 | Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` | Publish portable views and resolve local or remote bundles. |
 | Automate and operate | `automation` | Run jobs, insights, hosted runtimes, and deployments. |
 
-`okn setup` prints the primary project activation task.
-The task uses the current directory as its source and writes `Wiki`.
-Copy the printed task into an agent that already works in the project.
+`okn setup` prints the primary setup prompt.
+The prompt uses the current directory as its source and writes `Wiki`.
+Copy the printed prompt into an agent that already works in the project.
 An explicit wiki path without `--from` prints a guided setup.
 Use this form for a new or open-ended knowledge base.
 Use `--from` only for a different repository, folder, or website.

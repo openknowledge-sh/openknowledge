@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Open Knowledge - LLM Wiki Tooling for Agents</title>
-    <meta name="description" content="LLM Wiki, built around your work. Local agents maintain flexible knowledge bases in portable Markdown, ready to search or publish as static HTML.">
+    <title>Open Knowledge - Knowledge That Works With Your Agents</title>
+    <meta name="description" content="Flexible knowledge bases in Markdown that your agents can create, retrieve, validate, and publish.">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Open Knowledge CLI - LLM Wiki Tooling">
-    <meta property="og:description" content="LLM Wiki, built around your work. Local agents maintain flexible knowledge bases in portable Markdown, ready to search or publish as static HTML.">
+    <meta property="og:title" content="Open Knowledge - Knowledge That Works With Your Agents">
+    <meta property="og:description" content="Flexible knowledge bases in Markdown that your agents can create, retrieve, validate, and publish.">
     <meta property="og:image" content="https://openknowledge.sh/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Open Knowledge CLI - LLM Wiki Tooling">
-    <meta name="twitter:description" content="LLM Wiki, built around your work. Local agents maintain flexible knowledge bases in portable Markdown, ready to search or publish as static HTML.">
+    <meta name="twitter:title" content="Open Knowledge - Knowledge That Works With Your Agents">
+    <meta name="twitter:description" content="Flexible knowledge bases in Markdown that your agents can create, retrieve, validate, and publish.">
     <meta name="twitter:image" content="https://openknowledge.sh/og.png">
     <link rel="icon" href="favicon.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
@@ -56,14 +56,14 @@
               </a>
               <span class="okf-note">Built on Google's Open Knowledge Format v0.1.</span>
             </div>
-            <h1 id="hero-title">LLM Wiki, built around your work.</h1>
+            <h1 id="hero-title">Knowledge that works with your agents.</h1>
             <p class="lede">
-              Local agents create and maintain flexible knowledge bases in portable
-              Markdown, ready to search or publish as static HTML.
+              Create, retrieve, validate, and publish flexible knowledge bases in
+              Markdown with the agents you already use.
             </p>
             <nav class="hero-actions" aria-label="Primary actions">
-              <button class="primary-action copy-command" type="button" data-copy-target="#setup-commands" aria-label="Copy setup commands" title="Copy setup commands">
-                <span>Copy setup commands</span>
+              <button class="primary-action copy-command" type="button" data-copy-text="curl -fsSL https://openknowledge.sh/install | bash&#10;okn setup" aria-label="Get setup prompt" title="Copy the commands that print the setup prompt">
+                <span>Get setup prompt</span>
                 <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                   <path d="M12 3v2"></path>
                   <path d="M9 3h6"></path>
@@ -73,7 +73,13 @@
                   <path d="M3 10v4M21 10v4"></path>
                 </svg>
               </button>
-              <a class="secondary-action" href="wiki/">
+              <a class="secondary-action github-star-action" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">
+                <span>Star us on GitHub</span>
+                <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                  <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2-4.5-4.4 6.2-.9z"></path>
+                </svg>
+              </a>
+              <a class="tertiary-action" href="wiki/">
                 <span>Explore the docs</span>
                 <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                   <path d="M6.5 3.75h7l4 4v12.5h-11z"></path>
@@ -82,26 +88,30 @@
                 </svg>
               </a>
             </nav>
-            <details class="hero-setup-details">
-              <summary>
-                <span class="hero-setup-toggle">See the setup commands <span class="setup-toggle-glyph" aria-hidden="true"></span></span>
-                <span class="hero-meta-divider" aria-hidden="true">·</span>
-                <span>Open source</span>
-                <span class="hero-meta-divider" aria-hidden="true">·</span>
-                <span>Apache-2.0</span>
-              </summary>
-              <div class="hero-prompt-panel">
-                <pre class="prompt-inline" id="setup-commands"><code>curl -fsSL https://openknowledge.sh/install | bash
-okn setup</code></pre>
-                <p class="setup-note">
-                  Run these commands yourself from the project repository. Setup prints a small,
-                  portable task. Copy that task into your existing agent, then follow the
-                  validation and integration steps that it returns. The
-                  <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
-                  explains the optional automated flow.
-                </p>
-              </div>
-            </details>
+            <div class="agent-compatibility" aria-label="Works with Codex, Claude, and Cursor">
+              <span class="compatibility-label">Works with</span>
+              <!-- Brand marks from Simple Icons (CC0-1.0). Trademarks belong to their owners. -->
+              <ul class="compatibility-list" role="list">
+                <li class="compatibility-item">
+                  <svg class="compatibility-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                    <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"></path>
+                  </svg>
+                  <span>Codex</span>
+                </li>
+                <li class="compatibility-item compatibility-item-claude">
+                  <svg class="compatibility-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                    <path d="M21 10.5h3v3h-3v3h-1.5v3H18v-3h-1.5v3H15v-3H9v3H7.5v-3H6v3H4.5v-3H3v-3H0v-3h3v-6h18Zm-15 0h1.5v-3H6Zm10.5 0H18v-3h-1.5z"></path>
+                  </svg>
+                  <span>Claude</span>
+                </li>
+                <li class="compatibility-item">
+                  <svg class="compatibility-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                    <path d="M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23"></path>
+                  </svg>
+                  <span>Cursor</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -121,8 +131,8 @@ okn setup</code></pre>
               </svg>
             </span>
             <span class="sr-only">Setup</span>
-            <h3>Create with an agent</h3>
-            <p>Run <code>okn setup</code> yourself, then paste its portable task into the agent that already works in your project.</p>
+            <h3>Create with your agent</h3>
+            <p>Run <code>okn setup</code> in any workspace, then paste its portable prompt into the agent you already use.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -135,7 +145,7 @@ okn setup</code></pre>
             </span>
             <span class="sr-only">Local machine context</span>
             <h3>Keep context local</h3>
-            <p>Work with project knowledge as local Markdown and YAML files on your machine.</p>
+            <p>Work with knowledge as local Markdown and YAML files on your machine.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -206,7 +216,7 @@ okn setup</code></pre>
               <tr>
                 <td>Start here</td>
                 <td><code>setup</code>, <code>search</code>, <code>validate</code></td>
-                <td>Create and integrate a wiki, retrieve useful context, and verify its source.</td>
+                <td>Print a knowledge-base setup prompt, retrieve useful context, and verify its source.</td>
               </tr>
               <tr>
                 <td>Work locally</td>
@@ -240,15 +250,15 @@ okn setup</code></pre>
         <div class="workflow-list">
           <article class="workflow-step">
             <div class="workflow-copy">
-              <h3>Create your project wiki</h3>
-              <p>Print a source-grounded task, paste it into your agent, then follow the returned validation and integration steps.</p>
+              <h3>Create a knowledge base</h3>
+              <p>Print a source-grounded prompt, paste it into your agent, then follow the returned validation and integration steps.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
               <h3>Build from another source</h3>
-              <p>Print a task grounded in a repository, folder, or website, then give it to your agent.</p>
+              <p>Print a prompt grounded in a repository, folder, or website, then give it to your agent.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://github.com/openknowledge-sh/openknowledge</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span>
 <span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://openknowledge.sh/wiki/</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span></code></pre>
@@ -289,7 +299,7 @@ okn setup</code></pre>
             <img src="logo-mark.png" alt="" aria-hidden="true">
             <span>Open Knowledge CLI</span>
           </a>
-          <p>Git-native project knowledge for agents and humans.</p>
+          <p>Flexible knowledge bases in Markdown for agents and humans.</p>
         </div>
         <nav class="footer-links" aria-label="Footer links">
           <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>

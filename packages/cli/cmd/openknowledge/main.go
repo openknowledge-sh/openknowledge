@@ -906,7 +906,7 @@ func runScaffold(args []string) int {
 		terminal.section("Agent handoff")
 		fmt.Println("  Paste this into your agent:")
 		fmt.Println()
-		fmt.Printf("  Set up an Open Knowledge agentic wiki for this workspace. Read %s,\n", terminal.path(result.SetupPath))
+		fmt.Printf("  Set up a flexible knowledge base in Markdown for this workspace. Read %s,\n", terminal.path(result.SetupPath))
 		fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
 		fmt.Println("  run openknowledge validate, and demonstrate one useful openknowledge search query.")
 	}

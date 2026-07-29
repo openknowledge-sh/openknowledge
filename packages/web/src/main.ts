@@ -28,10 +28,8 @@ async function copyText(text: string) {
 
 for (const copy of copyButtons) {
   copy.addEventListener("click", async () => {
-    const selector = copy.dataset.copyTarget;
-    if (!selector) return;
-    const target = document.querySelector<HTMLElement>(selector);
-    if (!target) return;
+    const text = copy.dataset.copyText;
+    if (!text) return;
 
     const label = copy.querySelector<HTMLSpanElement>("span");
     if (!label) return;
@@ -40,7 +38,7 @@ for (const copy of copyButtons) {
     copy.classList.add("copied");
     label.textContent = "Copied";
     clearTimeout(copiedTimers.get(copy));
-    await copyText(target.textContent || "");
+    await copyText(text);
     copiedTimers.set(
       copy,
       setTimeout(() => {

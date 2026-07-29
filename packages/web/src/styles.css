@@ -327,7 +327,8 @@ h1 {
 }
 
 .primary-action,
-.secondary-action {
+.secondary-action,
+.tertiary-action {
   display: inline-flex;
   min-height: 46px;
   align-items: center;
@@ -365,13 +366,20 @@ h1 {
 }
 
 .secondary-action {
-  border-color: rgba(var(--secondary-rgb), 0.17);
-  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(var(--accent-rgb), 0.34);
+  background: rgba(var(--accent-rgb), 0.08);
   color: var(--ink);
 }
 
+.tertiary-action {
+  border-color: transparent;
+  background: transparent;
+  color: rgba(var(--secondary-rgb), 0.76);
+}
+
 .primary-action:hover,
-.secondary-action:hover {
+.secondary-action:hover,
+.tertiary-action:hover {
   transform: translateY(-1px);
 }
 
@@ -381,8 +389,13 @@ h1 {
 }
 
 .secondary-action:hover {
-  border-color: rgba(var(--secondary-rgb), 0.28);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(var(--accent-rgb), 0.55);
+  background: rgba(var(--accent-rgb), 0.15);
+}
+
+.tertiary-action:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--ink);
 }
 
 .section {
@@ -417,59 +430,48 @@ h1 {
   color: #07090d;
 }
 
-.hero-setup-details {
-  max-width: 760px;
-  margin-top: 18px;
-}
-
-.hero-setup-details summary {
+.agent-compatibility {
   display: flex;
   flex-wrap: wrap;
   width: fit-content;
-  min-height: 0;
   align-items: center;
-  gap: 5px;
-  padding: 4px 0;
+  gap: 10px;
+  margin-top: 20px;
   color: var(--faint);
-  cursor: pointer;
   font: 520 11px/1.45 var(--mono-font);
   letter-spacing: 0.005em;
+}
+
+.compatibility-label {
+  color: var(--faint);
+}
+
+.compatibility-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 13px;
+  margin: 0;
+  padding: 0;
   list-style: none;
-  transition: color 160ms ease;
 }
 
-.hero-setup-details summary::-webkit-details-marker {
-  display: none;
+.compatibility-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(var(--secondary-rgb), 0.67);
 }
 
-.hero-setup-details summary:hover,
-.hero-setup-details summary:focus-visible,
-.hero-setup-details[open] summary {
-  color: var(--muted);
+.compatibility-item-claude .compatibility-icon {
+  color: #d97757;
 }
 
-.hero-setup-details summary:focus-visible {
-  border-radius: 3px;
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-}
-
-.setup-toggle-glyph::before {
-  color: var(--muted);
-  content: "+";
-}
-
-.hero-setup-details[open] .setup-toggle-glyph::before {
-  content: "−";
-}
-
-.hero-meta-divider {
-  color: rgba(var(--secondary-rgb), 0.28);
-}
-
-.hero-prompt-panel {
-  margin-top: 14px;
-  padding-bottom: 8px;
+.compatibility-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  fill: currentColor;
 }
 
 code {
@@ -496,45 +498,6 @@ li code {
   white-space: nowrap;
 }
 
-.prompt-inline {
-  max-height: none;
-  margin: 0;
-  padding: 22px 24px 24px;
-  overflow: auto;
-  border: 0;
-  border-left: 1px solid rgba(var(--accent-rgb), 0.24);
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.018);
-  color: #9ba7ba;
-  font-family: var(--mono-font);
-  font-size: 13px;
-  letter-spacing: -0.018em;
-  line-height: 1.85;
-  overflow-wrap: anywhere;
-  scrollbar-color: rgba(var(--accent-rgb), 0.34) transparent;
-  scrollbar-width: thin;
-}
-
-.prompt-inline code {
-  border-color: rgba(var(--accent-rgb), 0.13);
-  background: rgba(var(--accent-rgb), 0.1);
-  color: #e7efff;
-  font-size: 0.94em;
-  font-weight: 600;
-  white-space: normal;
-}
-
-pre.prompt-inline code {
-  white-space: pre-wrap;
-}
-
-.setup-note {
-  margin: 14px 0 0;
-  color: var(--faint);
-  font-size: 12px;
-}
-
-.setup-note a,
 .capability a,
 .site-footer a {
   color: var(--secondary);
@@ -935,11 +898,6 @@ pre.prompt-inline code {
     font-size: clamp(34px, 8vw, 44px);
   }
 
-  .prompt-inline {
-    max-height: none;
-    padding: 24px 22px 28px;
-  }
-
   .capability,
   .capability:nth-child(1),
   .capability:nth-child(2) {
@@ -1105,14 +1063,19 @@ pre.prompt-inline code {
   }
 
   .primary-action,
-  .secondary-action {
+  .secondary-action,
+  .tertiary-action {
     flex: 1 1 100%;
     min-height: 44px;
   }
 
-  .prompt-inline {
-    padding: 22px 18px 26px;
-    font-size: 12px;
+  .agent-compatibility {
+    align-items: flex-start;
+    gap: 7px;
+  }
+
+  .compatibility-label {
+    width: 100%;
   }
 
   .footer-links {

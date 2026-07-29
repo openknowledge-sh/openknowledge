@@ -107,6 +107,7 @@
           return;
         }
         event.preventDefault();
+        link.dataset.openBeside = event.shiftKey ? "true" : "false";
         link.click();
         closeSearch(true);
         return;
@@ -325,8 +326,9 @@
 
   function renderResults(results, status, items, query, setResultsOpen, setActiveResult, options) {
     const config = options || {};
+    const groupedItems = groupSearchResults(items);
     results.replaceChildren();
-    if (items.length === 0) {
+    if (groupedItems.length === 0) {
       const emptyText = config.emptyStatus ?? "No results for \"" + query + "\".";
       status.textContent = emptyText;
       if (emptyText) {
@@ -340,36 +342,111 @@
       return;
     }
 
-    status.textContent = config.statusText || (items.length + " result" + (items.length === 1 ? "" : "s"));
+    status.textContent = config.statusText || (groupedItems.length + " document" + (groupedItems.length === 1 ? "" : "s"));
     setResultsOpen(true);
-    items.forEach((item, index) => {
+    groupedItems.forEach((item, index) => {
       const link = document.createElement("a");
       link.className = "search-result";
       link.href = item.highlightURL || item.url || staticRelativeURL(item.path);
       link.id = results.id + "-option-" + index;
       link.setAttribute("role", "option");
       link.setAttribute("aria-selected", "false");
+      link.title = navigationModeTitle();
 
+      const titleRow = document.createElement("span");
+      titleRow.className = "search-result-title-row";
       const title = document.createElement("span");
       title.className = "search-result-title";
-      title.textContent = item.title || item.path;
-      link.append(title);
+      appendHighlightedText(title, item.title || item.path, query);
+      titleRow.append(title);
+      if (item.matchCount > 1) {
+        const count = document.createElement("span");
+        count.className = "search-result-count";
+        count.textContent = item.matchCount + " matches";
+        titleRow.append(count);
+      }
+      link.append(titleRow);
 
       const meta = document.createElement("span");
       meta.className = "search-result-meta";
-      meta.textContent = [item.path, item.type, item.heading].filter(Boolean).join(" - ");
+      meta.textContent = [item.path, item.type, item.matchCount === 1 ? item.heading : ""].filter(Boolean).join(" - ");
       link.append(meta);
 
       if (item.snippet) {
         const snippet = document.createElement("span");
         snippet.className = "search-result-snippet";
-        snippet.textContent = item.snippet;
+        appendHighlightedText(snippet, item.snippet, query);
         link.append(snippet);
+      }
+
+      if (item.headings.length > 1) {
+        const headings = document.createElement("span");
+        headings.className = "search-result-headings";
+        headings.textContent = item.headings.slice(0, 3).join(" · ");
+        link.append(headings);
       }
 
       results.append(link);
     });
     setActiveResult(0, false);
+  }
+
+  function groupSearchResults(items) {
+    const groups = [];
+    const byPath = new Map();
+    items.forEach((item, index) => {
+      const path = item.path || "__result-" + index;
+      let group = byPath.get(path);
+      if (!group) {
+        group = Object.assign({}, item, {
+          matchCount: 0,
+          headings: [],
+        });
+        byPath.set(path, group);
+        groups.push(group);
+      }
+      group.matchCount += 1;
+      if (item.heading && !group.headings.includes(item.heading)) {
+        group.headings.push(item.heading);
+      }
+      if (!group.snippet && item.snippet) {
+        group.snippet = item.snippet;
+      }
+    });
+    return groups;
+  }
+
+  function navigationModeTitle() {
+    return document.documentElement.dataset.viewerNavigationMode === "beside"
+      ? "Links open beside. Hold Shift to replace the current panel."
+      : "Links open in the current panel. Hold Shift to open beside.";
+  }
+
+  function appendHighlightedText(container, value, query) {
+    const text = String(value || "");
+    const needle = String(query || "").trim();
+    if (!needle) {
+      container.textContent = text;
+      return;
+    }
+    const lowerText = text.toLocaleLowerCase();
+    const lowerNeedle = needle.toLocaleLowerCase();
+    let offset = 0;
+    let match = lowerText.indexOf(lowerNeedle);
+    while (match >= 0) {
+      if (match > offset) {
+        container.append(document.createTextNode(text.slice(offset, match)));
+      }
+      const mark = document.createElement("mark");
+      mark.className = "search-result-highlight";
+      mark.textContent = text.slice(match, match + needle.length);
+      container.append(mark);
+      offset = match + needle.length;
+      match = lowerText.indexOf(lowerNeedle, offset);
+    }
+    if (offset < text.length) {
+      container.append(document.createTextNode(text.slice(offset)));
+    }
   }
 
   function defaultSearchResults() {

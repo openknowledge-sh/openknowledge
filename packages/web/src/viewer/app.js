@@ -9,6 +9,7 @@
   const settings = document.querySelector("[data-viewer-settings]");
   const settingsTrigger = document.querySelector("[data-viewer-settings-trigger]");
   const settingsMenu = document.querySelector("[data-viewer-settings-menu]");
+  const navigationModeToggle = document.querySelector("[data-navigation-mode-toggle]");
   const customThemeFields = document.querySelector("[data-theme-custom-fields]");
   const frontmatterVisibility = document.querySelector("[data-frontmatter-visibility]");
   const accessibilityFont = document.querySelector("[data-accessibility-font]");
@@ -21,6 +22,10 @@
   const scrollRail = document.querySelector("[data-workspace-rail]");
   const scrollTrack = document.querySelector("[data-workspace-scroll-track]");
   const scrollThumb = document.querySelector("[data-workspace-scroll-thumb]");
+  let noteNavigator = null;
+  let noteNavigatorList = null;
+  let noteNavigatorCount = null;
+  let noteNavigatorCloseAll = null;
 
   if (!workspace || !stackEl) {
     return;
@@ -32,6 +37,9 @@
   const themeStorageKey = "openknowledge.viewer.theme";
   const frontmatterStorageKey = "openknowledge.viewer.frontmatter";
   const accessibilityStorageKey = "openknowledge.viewer.accessibility";
+  const navigationModeStorageKey = "openknowledge.viewer.navigationMode";
+  const defaultNavigationMode = "replace";
+  let navigationMode = defaultNavigationMode;
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
   const editorOptions = readEditorOptions();
@@ -187,6 +195,60 @@
     } catch {
       // Cookies are best-effort; localStorage still covers same-origin exports.
     }
+  }
+
+  function normalizeNavigationMode(value) {
+    return value === "beside" ? "beside" : defaultNavigationMode;
+  }
+
+  function readNavigationModePreference() {
+    return normalizeNavigationMode(readStoredJSON(navigationModeStorageKey));
+  }
+
+  function saveNavigationModePreference(value) {
+    const serialized = JSON.stringify(normalizeNavigationMode(value));
+    try {
+      window.localStorage.setItem(navigationModeStorageKey, serialized);
+    } catch {
+      // Browser storage can be disabled in private or file-export contexts.
+    }
+    writeCookie(navigationModeStorageKey, serialized);
+  }
+
+  function navigationModeTitle() {
+    return navigationMode === "beside"
+      ? "Links open beside. Hold Shift to replace the current panel."
+      : "Links open in the current panel. Hold Shift to open beside.";
+  }
+
+  function applyNavigationMode(value) {
+    navigationMode = normalizeNavigationMode(value);
+    document.documentElement.dataset.viewerNavigationMode = navigationMode;
+    if (navigationModeToggle) {
+      navigationModeToggle.dataset.mode = navigationMode;
+      navigationModeToggle.setAttribute("aria-pressed", navigationMode === "beside" ? "true" : "false");
+      navigationModeToggle.setAttribute("aria-label", "Link behavior: " + (navigationMode === "beside" ? "Open beside" : "Open in current panel"));
+      navigationModeToggle.title = navigationModeTitle();
+    }
+    updateLinkBehaviorHints();
+  }
+
+  function shouldOpenBeside(shiftKey) {
+    const besideByDefault = navigationMode === "beside";
+    return shiftKey ? !besideByDefault : besideByDefault;
+  }
+
+  function bindNavigationMode() {
+    applyNavigationMode(readNavigationModePreference());
+    if (!navigationModeToggle || navigationModeToggle.dataset.modeBound === "true") {
+      return;
+    }
+    navigationModeToggle.dataset.modeBound = "true";
+    navigationModeToggle.addEventListener("click", function () {
+      const next = navigationMode === "beside" ? "replace" : "beside";
+      saveNavigationModePreference(next);
+      applyNavigationMode(next);
+    });
   }
 
   function readThemePreference() {
@@ -512,6 +574,9 @@
     if (sidebarToggle) {
       sidebarToggle.setAttribute("aria-expanded", open ? "true" : "false");
     }
+    if (open) {
+      syncKnowledgeTrees(activePanel()?.dataset.notePath || currentStack()[0] || "", true);
+    }
   }
 
   function toggleSidebar() {
@@ -613,6 +678,160 @@
     return paths;
   }
 
+  function prepareKnowledgeTrees() {
+    document.querySelectorAll(".knowledge-tree").forEach(function (tree) {
+      if (tree.dataset.treePrepared === "true") {
+        return;
+      }
+      tree.dataset.treePrepared = "true";
+      const directoryStack = [];
+      Array.from(tree.querySelectorAll(".tree-row")).forEach(function (row) {
+        const indent = treeRowIndent(row);
+        while (directoryStack.length && directoryStack[directoryStack.length - 1].indent >= indent) {
+          directoryStack.pop();
+        }
+        row.dataset.treeParentPath = directoryStack[directoryStack.length - 1]?.path || "";
+        if (!row.classList.contains("tree-directory")) {
+          return;
+        }
+        const name = String(row.textContent || "").trim();
+        const path = directoryStack.concat([{ name: name }]).map(function (item) {
+          return item.name;
+        }).join("/");
+        row.dataset.treeDirectoryPath = path;
+        row.setAttribute("aria-expanded", "false");
+        row.tabIndex = 0;
+        row.title = "Expand " + path;
+        const icon = controlIcon("chevron-down", "tree-directory-icon");
+        icon.setAttribute("aria-hidden", "true");
+        row.prepend(icon);
+        row.addEventListener("click", function () {
+          setTreeDirectoryExpanded(row, row.getAttribute("aria-expanded") !== "true");
+        });
+        row.addEventListener("keydown", function (event) {
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            setTreeDirectoryExpanded(row, true);
+            return;
+          }
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            setTreeDirectoryExpanded(row, false);
+            return;
+          }
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setTreeDirectoryExpanded(row, row.getAttribute("aria-expanded") !== "true");
+          }
+        });
+        directoryStack.push({ indent: indent, name: name, path: path });
+      });
+      syncTreeVisibility(tree);
+    });
+    ensureSidebarCollapseControl();
+  }
+
+  function treeRowIndent(row) {
+    const inline = row.style.getPropertyValue("--indent");
+    const value = parseFloat(inline);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function setTreeDirectoryExpanded(directory, expanded) {
+    directory.setAttribute("aria-expanded", expanded ? "true" : "false");
+    directory.title = (expanded ? "Collapse " : "Expand ") + directory.dataset.treeDirectoryPath;
+    const tree = directory.closest(".knowledge-tree");
+    if (tree) {
+      syncTreeVisibility(tree);
+    }
+  }
+
+  function syncTreeVisibility(tree) {
+    const directories = Object.create(null);
+    tree.querySelectorAll("[data-tree-directory-path]").forEach(function (directory) {
+      directories[directory.dataset.treeDirectoryPath] = directory;
+    });
+    tree.querySelectorAll(".tree-row").forEach(function (row) {
+      const parentPath = row.dataset.treeParentPath || "";
+      const parentParts = parentPath.split("/").filter(Boolean);
+      let current = "";
+      let hidden = false;
+      parentParts.forEach(function (part) {
+        current = current ? current + "/" + part : part;
+        const parent = directories[current];
+        if (parent && parent.getAttribute("aria-expanded") !== "true") {
+          hidden = true;
+        }
+      });
+      row.hidden = hidden;
+    });
+  }
+
+  function collapseKnowledgeTrees() {
+    document.querySelectorAll("[data-tree-directory-path]").forEach(function (directory) {
+      directory.setAttribute("aria-expanded", "false");
+      directory.title = "Expand " + directory.dataset.treeDirectoryPath;
+    });
+    document.querySelectorAll(".knowledge-tree").forEach(syncTreeVisibility);
+  }
+
+  function syncKnowledgeTrees(path, scrollCurrent) {
+    const normalizedPath = String(path || "");
+    const directoryParts = normalizedPath.split("/").slice(0, -1);
+    const ancestors = new Set();
+    directoryParts.forEach(function (_part, index) {
+      ancestors.add(directoryParts.slice(0, index + 1).join("/"));
+    });
+    document.querySelectorAll(".knowledge-tree").forEach(function (tree) {
+      tree.querySelectorAll("[data-tree-directory-path]").forEach(function (directory) {
+        if (ancestors.has(directory.dataset.treeDirectoryPath)) {
+          directory.setAttribute("aria-expanded", "true");
+          directory.title = "Collapse " + directory.dataset.treeDirectoryPath;
+        }
+      });
+      tree.querySelectorAll("[data-tree-path]").forEach(function (link) {
+        const current = link.dataset.treePath === normalizedPath;
+        link.classList.toggle("is-current-file", current);
+        if (current) {
+          link.setAttribute("aria-current", "page");
+          link.title = link.dataset.treePath;
+        } else {
+          link.removeAttribute("aria-current");
+          link.title = navigationModeTitle();
+        }
+      });
+      syncTreeVisibility(tree);
+    });
+    if (scrollCurrent && fileSidebar) {
+      const current = Array.from(fileSidebar.querySelectorAll("[data-tree-path]")).find(function (link) {
+        return link.dataset.treePath === normalizedPath;
+      });
+      if (current) {
+        window.requestAnimationFrame(function () {
+          current.scrollIntoView({ block: "center", behavior: motionIsReduced() ? "auto" : "smooth" });
+        });
+      }
+    }
+  }
+
+  function ensureSidebarCollapseControl() {
+    const head = fileSidebar?.querySelector(".file-sidebar-head");
+    const close = head?.querySelector("[data-sidebar-close]");
+    if (!head || !close || head.querySelector("[data-sidebar-collapse]")) {
+      return;
+    }
+    const actions = document.createElement("div");
+    actions.className = "file-sidebar-actions";
+    const collapse = document.createElement("button");
+    collapse.type = "button";
+    collapse.className = "file-sidebar-collapse";
+    collapse.dataset.sidebarCollapse = "";
+    collapse.textContent = "Collapse all";
+    collapse.addEventListener("click", collapseKnowledgeTrees);
+    close.before(actions);
+    actions.append(collapse, close);
+  }
+
   function noteIndexPath(parts) {
     const base = parts.join("/");
     return [base + "/index.md", base + "/index.markdown"].find(function (candidate) {
@@ -707,10 +926,27 @@
 
   function renderKnowledgeGraph() {
     const graphView = document.querySelector("[data-knowledge-graph-view]");
+    const graphSidebar = document.querySelector("[data-knowledge-graph-sidebar]");
     if (!graphView) {
       return;
     }
     graphView.replaceChildren();
+    graphSidebar?.replaceChildren();
+    const info = document.createElement("div");
+    info.className = "knowledge-graph-info";
+    const title = document.createElement("h2");
+    title.textContent = "Knowledge graph";
+    const help = document.createElement("p");
+    help.textContent = "Select a node to inspect its connections. Use arrow keys to move and Enter to open.";
+    const status = document.createElement("p");
+    status.className = "knowledge-graph-status";
+    status.dataset.knowledgeGraphStatus = "";
+    status.setAttribute("aria-live", "polite");
+    status.textContent = knowledgeGraph.nodes.length
+      ? knowledgeGraph.nodes.length + (knowledgeGraph.nodes.length === 1 ? " note" : " notes")
+      : "No notes";
+    info.append(title, help, status);
+    (graphSidebar || graphView).append(info);
     if (!knowledgeGraph.nodes.length) {
       const empty = document.createElement("p");
       empty.className = "empty";
@@ -730,12 +966,12 @@
     canvas.height = height;
     canvas.tabIndex = 0;
     canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", "Animated graph of Markdown files. Hover a node to separate nearby notes and highlight direct connections.");
+    canvas.setAttribute("aria-label", "Interactive graph of Markdown files. Use arrow keys to select a note and Enter to open it.");
     graphView.append(canvas);
-    createKnowledgeGraphCanvas(canvas, knowledgeGraph, positions, labelsByPath, width, height).start();
+    createKnowledgeGraphCanvas(canvas, knowledgeGraph, positions, labelsByPath, width, height, status).start();
   }
 
-  function createKnowledgeGraphCanvas(canvas, graph, positions, labelsByPath, width, height) {
+  function createKnowledgeGraphCanvas(canvas, graph, positions, labelsByPath, width, height, status) {
     const context = canvas.getContext("2d");
     const nodeSet = Object.create(null);
     graph.nodes.forEach(function (node) {
@@ -793,6 +1029,20 @@
         if (activeIndex >= 0) {
           keyboardIndex = activeIndex;
         }
+        const selected = stateByPath[activePath];
+        const connectionCount = links.filter(function (edge) {
+          return edge.source === activePath || edge.target === activePath;
+        }).length;
+        const connectionLabel = connectionCount + (connectionCount === 1 ? " connection" : " connections");
+        if (status) {
+          status.textContent = selected.fullLabel + " · " + connectionLabel + " · Enter to open";
+        }
+        canvas.setAttribute("aria-label", "Selected " + selected.fullLabel + " with " + connectionLabel + ". Use arrow keys to move and Enter to open.");
+      } else {
+        if (status) {
+          status.textContent = graph.nodes.length + (graph.nodes.length === 1 ? " note" : " notes");
+        }
+        canvas.setAttribute("aria-label", "Interactive graph of Markdown files. Use arrow keys to select a note and Enter to open it.");
       }
     };
 
@@ -832,7 +1082,7 @@
     canvas.addEventListener("click", function (event) {
       const hit = graphCanvasHitTest(states, canvasPoint(event));
       if (hit) {
-        window.location.href = fileURL(hit.path);
+        openTarget(hit.path, true, shouldOpenBeside(false));
       }
     });
     canvas.addEventListener("focus", function () {
@@ -850,7 +1100,7 @@
       if (event.key === "Enter" || event.key === " ") {
         if (activePath) {
           event.preventDefault();
-          window.location.href = fileURL(activePath);
+          openTarget(activePath, true, shouldOpenBeside(false));
         }
         return;
       }
@@ -1047,16 +1297,17 @@
   }
 
   function graphCanvasTheme() {
+    const highContrastMode = document.documentElement.dataset.viewerContrast === "high";
     return {
       fontBody: themeValue("--ok-font-body", "Inter, ui-sans-serif, system-ui, sans-serif"),
-      edge: themeValue("--ok-color-graph-edge", "rgba(128, 138, 133, .25)"),
-      edgeMuted: themeValue("--ok-color-graph-edge-muted", "rgba(128, 138, 133, .11)"),
+      edge: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-edge", "rgba(128, 138, 133, .25)"),
+      edgeMuted: highContrastMode ? themeValue("--ok-color-muted", "#707773") : themeValue("--ok-color-graph-edge-muted", "rgba(128, 138, 133, .11)"),
       edgeActive: themeValue("--ok-color-graph-edge-active", "rgba(15, 122, 77, .78)"),
       nodeBg: themeValue("--ok-color-graph-node-bg", "#f8f8f8"),
-      nodeBorder: themeValue("--ok-color-graph-node-border", "#aeb8b2"),
+      nodeBorder: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-node-border", "#aeb8b2"),
       nodeActiveBorder: themeValue("--ok-color-graph-node-active-border", "#0f7a4d"),
-      label: themeValue("--ok-color-graph-label", "#5f6b66"),
-      labelActive: themeValue("--ok-color-graph-label-active", "#26302c"),
+      label: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-label", "#5f6b66"),
+      labelActive: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-label-active", "#26302c"),
     };
   }
 
@@ -1987,6 +2238,26 @@
     settingsTrigger.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
+  function ensureSettingsResetButton() {
+    if (!settingsMenu) {
+      return null;
+    }
+    const existing = settingsMenu.querySelector("[data-settings-reset]");
+    if (existing) {
+      return existing;
+    }
+    const footer = document.createElement("div");
+    footer.className = "viewer-settings-footer";
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "viewer-settings-reset";
+    reset.dataset.settingsReset = "";
+    reset.textContent = "Reset to defaults";
+    footer.append(reset);
+    settingsMenu.append(footer);
+    return reset;
+  }
+
   function bindViewerSettings() {
     if (!settings || !settingsTrigger || !settingsMenu || settings.dataset.settingsBound === "true") {
       return;
@@ -1998,6 +2269,23 @@
     applyThemePreference(preference);
     applyFrontmatterPreference(frontmatterVisible);
     applyAccessibilityPreference(accessibilityPreference);
+    const resetButton = ensureSettingsResetButton();
+    if (resetButton) {
+      resetButton.addEventListener("click", function () {
+        preference = normalizeThemePreference({ preset: defaultThemePreset, custom: customThemeDefaults });
+        frontmatterVisible = true;
+        accessibilityPreference = normalizeAccessibilityPreference(defaultAccessibilityPreference);
+        navigationMode = defaultNavigationMode;
+        saveThemePreference(preference);
+        saveFrontmatterPreference(frontmatterVisible);
+        saveAccessibilityPreference(accessibilityPreference);
+        saveNavigationModePreference(navigationMode);
+        applyThemePreference(preference);
+        applyFrontmatterPreference(frontmatterVisible);
+        applyAccessibilityPreference(accessibilityPreference);
+        applyNavigationMode(navigationMode);
+      });
+    }
 
     settingsTrigger.addEventListener("click", function (event) {
       event.preventDefault();
@@ -2122,6 +2410,96 @@
     return focusedPanel() || activePanel();
   }
 
+  function ensureNoteNavigator() {
+    if (noteNavigator) {
+      return noteNavigator;
+    }
+    noteNavigator = document.createElement("nav");
+    noteNavigator.className = "workspace-note-nav";
+    noteNavigator.dataset.noteNavigator = "";
+    noteNavigator.setAttribute("aria-label", "Open notes");
+    noteNavigator.hidden = true;
+
+    noteNavigatorCount = document.createElement("span");
+    noteNavigatorCount.className = "workspace-note-count";
+
+    noteNavigatorList = document.createElement("div");
+    noteNavigatorList.className = "workspace-note-list";
+
+    noteNavigatorCloseAll = document.createElement("button");
+    noteNavigatorCloseAll.type = "button";
+    noteNavigatorCloseAll.className = "workspace-note-close-all";
+    noteNavigatorCloseAll.textContent = "Close all";
+    noteNavigatorCloseAll.addEventListener("click", function () {
+      closeAllPanels(true);
+    });
+
+    noteNavigator.append(noteNavigatorCount, noteNavigatorList, noteNavigatorCloseAll);
+    if (scrollRail) {
+      scrollRail.before(noteNavigator);
+    } else {
+      document.body.append(noteNavigator);
+    }
+    return noteNavigator;
+  }
+
+  function updateNoteNavigator() {
+    const navigator = ensureNoteNavigator();
+    const all = panels();
+    const show = all.length > 1;
+    navigator.hidden = !show;
+    document.body.classList.toggle("has-note-navigator", show);
+    if (!show) {
+      noteNavigatorList.replaceChildren();
+      return;
+    }
+
+    noteNavigatorCount.textContent = all.length + " open notes";
+    noteNavigatorList.replaceChildren();
+    all.forEach(function (panel, index) {
+      const item = document.createElement("div");
+      item.className = "workspace-note-item";
+      const select = document.createElement("button");
+      select.type = "button";
+      select.className = "workspace-note-tab";
+      select.textContent = panel.dataset.noteTitle || panel.dataset.notePath;
+      select.title = panel.dataset.notePath;
+      select.setAttribute("aria-label", "Show " + (panel.dataset.noteTitle || panel.dataset.notePath));
+      if (panel === activePanel()) {
+        select.classList.add("is-active");
+        select.setAttribute("aria-current", "page");
+      }
+      select.addEventListener("click", function () {
+        scrollToPanel(panel);
+      });
+
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "workspace-note-tab-close";
+      close.setAttribute("aria-label", "Close " + panel.dataset.notePath);
+      close.title = "Close note";
+      close.append(controlIcon("x", "workspace-note-tab-close-icon"));
+      close.addEventListener("click", function () {
+        closePanel(panel, true);
+      });
+
+      item.dataset.noteIndex = String(index);
+      item.append(select, close);
+      noteNavigatorList.append(item);
+    });
+  }
+
+  async function closeAllPanels(pushHistory) {
+    await runStackTransition(function () {
+      clearStack();
+      updateHistory([], pushHistory);
+    });
+    const primarySearch = document.querySelector("[data-primary-search] .search-input");
+    if (primarySearch) {
+      primarySearch.focus();
+    }
+  }
+
   function setActivePanel(panel) {
     if (!panel || !stackEl.contains(panel)) {
       return;
@@ -2138,6 +2516,8 @@
       }
     });
     updateTitle();
+    updateNoteNavigator();
+    syncKnowledgeTrees(panel.dataset.notePath, false);
   }
 
   function ensureActivePanel() {
@@ -2303,6 +2683,7 @@
     ensureActivePanel();
     updateCloseLinks();
     updateSpacePanState();
+    updateNoteNavigator();
     queueWorkspaceRailUpdate();
   }
 
@@ -2898,6 +3279,7 @@
         }
       });
     });
+    syncKnowledgeTrees((activePanel() || all[all.length - 1])?.dataset.notePath || "", false);
   }
 
   function scrollToPanel(panel) {
@@ -3098,6 +3480,19 @@
     return panel;
   }
 
+  function updateLinkBehaviorHints(scope) {
+    const root = scope || document;
+    root.querySelectorAll("[data-tree-path], .search-result[href]").forEach(function (link) {
+      link.title = navigationModeTitle();
+    });
+    root.querySelectorAll(".note-body a[href]").forEach(function (link) {
+      const panel = link.closest("[data-note-path]");
+      if (panel && notePathFromHref(link.getAttribute("href") || link.href, panel.dataset.notePath)) {
+        link.title = navigationModeTitle();
+      }
+    });
+  }
+
   function bindPanel(panel) {
     renderPanelBreadcrumbs(panel);
     applyPanelWidth(panel);
@@ -3106,6 +3501,7 @@
     panel.querySelectorAll("[data-editor-picker]").forEach(bindEditorPicker);
     enhanceMermaid(panel, false);
     enhanceTables(panel);
+    updateLinkBehaviorHints(panel);
 
     const closeButton = panel.querySelector("[data-close-panel]");
     if (!closeButton || closeButton.dataset.closeBound === "true") {
@@ -3229,6 +3625,44 @@
     applySearchHighlight(panel, highlightText);
   }
 
+  async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel) {
+    const source = sourcePanel || activePanel();
+    if (!source) {
+      await openInitialNote(targetPath, pushHistory, highlightText);
+      return;
+    }
+    if (!openBeside && source.dataset.notePath === targetPath) {
+      setActivePanel(source);
+      scrollToPanel(source);
+      updateHistory(currentStack(), pushHistory, highlightText);
+      applySearchHighlight(source, highlightText);
+      return;
+    }
+    if (openBeside) {
+      await openFromPanel(source, targetPath, pushHistory, highlightText);
+      return;
+    }
+    await replaceFromPanel(source, targetPath, pushHistory, highlightText);
+  }
+
+  async function replaceFromPanel(sourcePanel, targetPath, pushHistory, highlightText) {
+    const panel = await panelForPath(targetPath, true);
+    clearSearchHighlights(stackEl);
+    await runStackTransition(function () {
+      const all = panels();
+      let sourceIndex = all.indexOf(sourcePanel);
+      if (sourceIndex < 0) {
+        sourceIndex = Math.max(0, all.length - 1);
+      }
+      all.slice(sourceIndex).forEach(function (item) {
+        item.remove();
+      });
+      appendPanel(panel);
+      updateHistory(currentStack(), pushHistory, highlightText);
+    });
+    applySearchHighlight(panel, highlightText);
+  }
+
   async function closePanel(panel, pushHistory) {
     const before = panels();
     const index = before.indexOf(panel);
@@ -3257,7 +3691,7 @@
     scrollToPanel(nextPanel);
   }
 
-  async function openFromPanel(sourcePanel, targetPath, pushHistory) {
+  async function openFromPanel(sourcePanel, targetPath, pushHistory, highlightText) {
     const panel = await panelForPath(targetPath, true);
     clearSearchHighlights(stackEl);
     await runStackTransition(function () {
@@ -3270,8 +3704,9 @@
       trimAfter(sourceIndex);
       appendPanel(panel);
 
-      updateHistory(currentStack(), pushHistory);
+      updateHistory(currentStack(), pushHistory, highlightText);
     });
+    applySearchHighlight(panel, highlightText);
   }
 
   async function restoreStack(paths, highlightText) {
@@ -3718,11 +4153,11 @@
     const treeLink = closestElement(event.target, "[data-tree-path]");
     const graphLink = closestElement(event.target, "[data-graph-path]");
     if (treeLink || graphLink) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
       event.preventDefault();
-      openInitialNote(treeLink?.dataset.treePath || graphLink.dataset.graphPath, true);
+      openTarget(treeLink?.dataset.treePath || graphLink.dataset.graphPath, true, shouldOpenBeside(event.shiftKey), "", activePanel());
       return;
     }
 
@@ -3730,7 +4165,7 @@
     if (!link || link.dataset.directLink === "true") {
       return;
     }
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) {
       return;
     }
 
@@ -3745,7 +4180,24 @@
     }
 
     event.preventDefault();
-    openFromPanel(sourcePanel, targetPath, true);
+    openTarget(targetPath, true, shouldOpenBeside(event.shiftKey), "", sourcePanel);
+  });
+
+  workspace.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter" || !event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+    const link = closestElement(event.target, ".note-body a[href]");
+    const sourcePanel = link?.closest("[data-note-path]");
+    if (!link || !sourcePanel) {
+      return;
+    }
+    const targetPath = notePathFromHref(link.getAttribute("href") || link.href, sourcePanel.dataset.notePath);
+    if (!targetPath) {
+      return;
+    }
+    event.preventDefault();
+    openTarget(targetPath, true, shouldOpenBeside(true), "", sourcePanel);
   });
 
   workspace.addEventListener("focusin", function (event) {
@@ -3786,7 +4238,7 @@
       if (!link) {
         return;
       }
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
       const targetPath = treeLink?.dataset.treePath || notePathFromHref(link.getAttribute("href") || link.href);
@@ -3795,7 +4247,7 @@
       }
       event.preventDefault();
       closeSearchResults(link);
-      openInitialNote(targetPath, true);
+      openTarget(targetPath, true, shouldOpenBeside(event.shiftKey), "", activePanel());
       if (mobileSidebar.matches) {
         setSidebarOpen(false);
       }
@@ -3830,14 +4282,17 @@
   document.addEventListener("click", function (event) {
     const searchResult = closestElement(event.target, ".search-result[href]");
     if (searchResult) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
       const targetPath = notePathFromHref(searchResult.getAttribute("href") || searchResult.href);
       if (targetPath) {
         event.preventDefault();
+        const shiftOverride = event.shiftKey || searchResult.dataset.openBeside === "true";
+        const openBeside = shouldOpenBeside(shiftOverride);
+        delete searchResult.dataset.openBeside;
         closeSearchResults(searchResult);
-        openInitialNote(targetPath, true, highlightFromHref(searchResult.getAttribute("href") || searchResult.href));
+        openTarget(targetPath, true, openBeside, highlightFromHref(searchResult.getAttribute("href") || searchResult.href), activePanel());
         return;
       }
     }
@@ -3859,7 +4314,9 @@
 
   const requestedStack = stackFromLocation();
   const requestedHighlight = highlightFromLocation();
+  bindNavigationMode();
   bindViewerSettings();
+  prepareKnowledgeTrees();
   renderKnowledgeGraph();
   panels().forEach(bindPanel);
   ensureActivePanel();

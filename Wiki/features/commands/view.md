@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-29T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -40,13 +40,25 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The viewer renders Markdown and follows local links. It renders fenced
   `mermaid` blocks as diagrams. It also shows note panels, source graphs,
   validation context, highlighted assets, and media or PDF previews.
+- The link behavior control is next to viewer settings. It selects the current
+  panel mode or the open-beside mode. The browser stores this selection.
+  Hold Shift during activation to use the other mode one time.
+  A bottom navigator lists open notes when more than one panel is visible.
+  It can focus or close one note, or close all notes.
 - AST-based search uses the same section ranking as
   [`okn search`](search.md). It also uses the same one-level link
-  expansion. Results can link to and highlight the matching text.
+  expansion. Results group section matches by document. They can link to and
+  highlight the matching text.
 - The viewer shows typed YAML frontmatter, tag filters, sortable tables, and
-  directory breadcrumbs.
+  directory breadcrumbs. The file explorer expands the active file branch.
+  Directory rows can collapse, and the explorer has a **Collapse all** action.
+- The knowledge graph reports the selected note and its connection count.
+  A left detail panel keeps this information outside the graph canvas.
+  The file tree stays in the file explorer. Arrow keys move the selection.
+  Enter opens the selected note.
 - You can change browser-local themes, typography, line length, contrast,
-  motion, and link settings. These preferences do not change source Markdown.
+  motion, and link settings. **Reset to defaults** restores the viewer
+  defaults. These preferences do not change source Markdown.
 - Direct paths and writable local connections provide local editor links.
   Static exports use configured repository source links.
 - The local viewer serves the same Vite-built JavaScript and CSS bundle as

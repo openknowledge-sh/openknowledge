@@ -25,7 +25,7 @@ func newTerminal(output *os.File) terminalUI {
 }
 
 func (t terminalUI) banner() {
-	t.title("Open Knowledge", "CLI for managing open knowledge format v0.1 bundles")
+	t.title("Open Knowledge", "Flexible knowledge bases in Markdown")
 }
 
 func (t terminalUI) title(title string, subtitle string) {

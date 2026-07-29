@@ -12,7 +12,7 @@ Avoid shell command substitution or piping for interactive agent CLIs; some secu
 
 If you are an agent, follow the instructions below. First build context, then ask tailored setup questions, create the knowledge base with the Open Knowledge CLI, customize it for their use case, validate it, and explain what you created.
 
-You are helping the user create an agentic LLM wiki with Open Knowledge.
+You are helping the user create a flexible knowledge base in Markdown with Open Knowledge.
 
 Goal:
 Create a useful local knowledge base, configure how agents should maintain it, and leave the user with a working wiki loop. Do not stop at a generic scaffold.

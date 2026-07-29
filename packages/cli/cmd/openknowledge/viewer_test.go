@@ -68,8 +68,14 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }`) {
 		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
 	}
-	if !strings.Contains(page, `.search.header-search { width: min(44vw, 280px); min-width: 0; margin-right: 44px; }`) {
-		t.Fatalf("viewer mobile header search should reserve a separate settings-control slot:\n%s", page)
+	if !strings.Contains(page, `.search.header-search { width: min(34vw, 280px); min-width: 0; margin-right: 84px; }`) {
+		t.Fatalf("viewer mobile header search should reserve navigation and settings control slots:\n%s", page)
+	}
+	if !strings.Contains(page, `data-navigation-mode-toggle`) ||
+		!strings.Contains(page, `navigation-mode-icon-single`) ||
+		!strings.Contains(page, `navigation-mode-icon-split`) ||
+		!strings.Contains(page, `aria-label="Link behavior: Open in current panel"`) {
+		t.Fatalf("viewer should render a link behavior toggle beside settings:\n%s", page)
 	}
 	if !strings.Contains(page, `data-viewer-settings-trigger`) ||
 		!strings.Contains(page, `data-theme-option="default"`) ||
@@ -113,6 +119,19 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `html[data-viewer-underlines="off"] .note-body a`) ||
 		!strings.Contains(page, `html[data-viewer-contrast="high"]`) {
 		t.Fatalf("viewer should persist and apply reading and accessibility preferences:\n%s", page)
+	}
+	if !strings.Contains(page, `data-settings-reset`) ||
+		!strings.Contains(page, `Reset to defaults`) ||
+		!strings.Contains(page, `preference = normalizeThemePreference({ preset: defaultThemePreset, custom: customThemeDefaults })`) ||
+		!strings.Contains(page, `accessibilityPreference = normalizeAccessibilityPreference(defaultAccessibilityPreference)`) ||
+		!strings.Contains(page, `saveNavigationModePreference(navigationMode)`) {
+		t.Fatalf("viewer settings should expose a persistent reset-to-defaults action:\n%s", page)
+	}
+	if !strings.Contains(page, `openknowledge.viewer.navigationMode`) ||
+		!strings.Contains(page, `function shouldOpenBeside(shiftKey)`) ||
+		!strings.Contains(page, `return shiftKey ? !besideByDefault : besideByDefault`) ||
+		!strings.Contains(page, `navigationModeToggle.dataset.mode = navigationMode`) {
+		t.Fatalf("viewer should persist and apply replace or open-beside link behavior:\n%s", page)
 	}
 	if !strings.Contains(page, `href="/file/workflows/docs.md"`) {
 		t.Fatalf("viewer did not rewrite relative markdown link:\n%s", page)
@@ -204,10 +223,16 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-workspace-rail`) || !strings.Contains(page, `data-workspace-scroll-track`) || !strings.Contains(page, `data-workspace-scroll-thumb`) {
 		t.Fatalf("viewer should include a custom bottom rail for horizontal panel browsing:\n%s", page)
 	}
+	if !strings.Contains(page, `noteNavigator.dataset.noteNavigator = ""`) ||
+		!strings.Contains(page, `function updateNoteNavigator()`) ||
+		!strings.Contains(page, `noteNavigatorCount.textContent = all.length + " open notes"`) ||
+		!strings.Contains(page, `noteNavigatorCloseAll.textContent = "Close all"`) {
+		t.Fatalf("viewer should expose a visible navigator when several notes are open:\n%s", page)
+	}
 	if !strings.Contains(page, `.workspace-scroll-rail`) || !strings.Contains(page, `.workspace-scroll-thumb`) || !strings.Contains(page, `.note-workspace.is-single-panel, .note-workspace.is-multi-panel { scrollbar-width: none; }`) {
 		t.Fatalf("viewer should style a custom rail and hide native workspace scrollbars around note panels:\n%s", page)
 	}
-	if !strings.Contains(page, `@media (max-width: 680px), (hover: none) and (pointer: coarse)`) || !strings.Contains(page, `.workspace-scroll-rail, .powered-by-openknowledge { display: none; }`) {
+	if !strings.Contains(page, `@media (max-width: 680px), (hover: none) and (pointer: coarse)`) || !strings.Contains(page, `.workspace-note-nav, .workspace-scroll-rail, .powered-by-openknowledge { display: none; }`) {
 		t.Fatalf("viewer mobile and touch layouts should hide fixed bottom chrome instead of letting it conflict with Safari chrome:\n%s", page)
 	}
 	if !strings.Contains(page, `updateWorkspaceRail`) || !strings.Contains(page, `scrollWorkspaceFromRail`) || !strings.Contains(page, `aria-valuenow`) {
@@ -285,8 +310,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
 		t.Fatalf("viewer file page did not include top bar search:\n%s", page)
 	}
-	if !strings.Contains(page, `[item.path, item.type, item.heading].filter(Boolean).join(" - ")`) {
-		t.Fatalf("viewer search results should expose canonical section headings in their metadata:\n%s", page)
+	if !strings.Contains(page, `function groupSearchResults(items)`) ||
+		!strings.Contains(page, `group.matchCount += 1`) ||
+		!strings.Contains(page, `search-result-count`) ||
+		!strings.Contains(page, `item.headings.slice(0, 3).join(" · ")`) {
+		t.Fatalf("viewer search should group section matches into one result per document:\n%s", page)
 	}
 	if strings.Contains(page, `id="viewer-sidebar-search"`) || strings.Contains(page, `file-sidebar-search`) {
 		t.Fatalf("viewer file sidebar should not include search:\n%s", page)
@@ -312,6 +340,10 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `initializeSearchAccessibility`) || !strings.Contains(page, `event.key === "ArrowDown"`) || !strings.Contains(page, `selectedSearchResult(results, activeIndex)`) || !strings.Contains(page, `aria-activedescendant`) {
 		t.Fatalf("viewer search should expose combobox keyboard navigation:\n%s", page)
+	}
+	if !strings.Contains(page, `link.dataset.openBeside = event.shiftKey ? "true" : "false"`) ||
+		!strings.Contains(page, `Links open beside. Hold Shift to replace the current panel.`) {
+		t.Fatalf("viewer search should follow the selected link behavior and its Shift override:\n%s", page)
 	}
 	if !strings.Contains(page, `results.addEventListener("click"`) || !strings.Contains(page, `closeSearch(true)`) || !strings.Contains(page, `.search-result.is-active`) {
 		t.Fatalf("viewer search dropdown should close on result activation and style keyboard selection:\n%s", page)
@@ -371,13 +403,24 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `clearEnteringPanels();`) || !strings.Contains(page, `document.body.classList.remove("is-view-transitioning")`) || !strings.Contains(page, `transition.updateCallbackDone`) {
 		t.Fatalf("viewer stack transitions should clear fallback panel animations before showing the live DOM:\n%s", page)
 	}
-	if !strings.Contains(page, `data-empty-state`) || !strings.Contains(page, `data-tree-path="workflows/docs.md"`) || !strings.Contains(page, `tree-directory`) {
-		t.Fatalf("viewer file page did not include knowledge tree empty state:\n%s", page)
+	if !strings.Contains(page, `data-empty-state aria-label="Knowledge graph"`) ||
+		!strings.Contains(page, `data-knowledge-graph-sidebar`) ||
+		!strings.Contains(page, `data-tree-path="workflows/docs.md"`) ||
+		!strings.Contains(page, `tree-directory`) ||
+		strings.Contains(page, `knowledge-empty-tree`) {
+		t.Fatalf("viewer should keep the file tree in the explorer and graph details in the empty state:\n%s", page)
 	}
-	if !strings.Contains(page, `.tree-directory { margin: 7px 0 1px; background: transparent;`) ||
+	if !strings.Contains(page, `.tree-directory { margin: 7px 0 1px; background: transparent; color: var(--ok-color-tree-directory-text); cursor: pointer;`) ||
 		!strings.Contains(page, `.file-sidebar .tree-directory { background: transparent;`) ||
 		!strings.Contains(page, `.tree-directory::before { content: none; }`) {
 		t.Fatalf("viewer file tree should render directories as lightweight text rows:\n%s", page)
+	}
+	if !strings.Contains(page, `function prepareKnowledgeTrees()`) ||
+		!strings.Contains(page, `function collapseKnowledgeTrees()`) ||
+		!strings.Contains(page, `dataset.treeDirectoryPath`) ||
+		!strings.Contains(page, `link.setAttribute("aria-current", "page")`) ||
+		!strings.Contains(page, `collapse.textContent = "Collapse all"`) {
+		t.Fatalf("viewer file tree should collapse directories and reveal the active file context:\n%s", page)
 	}
 	if strings.Contains(page, `tree-file-path`) || strings.Contains(page, `tree-file::before`) {
 		t.Fatalf("viewer file tree should show file names without duplicate path text or md pseudo badges:\n%s", page)
@@ -402,8 +445,16 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `createKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasPhysicsStep`) || !strings.Contains(page, `drawKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasHitTest`) || !strings.Contains(page, `requestAnimationFrame(tick)`) || !strings.Contains(page, `dataset.knowledgeGraphCanvas`) || !strings.Contains(page, `.knowledge-graph-canvas`) {
 		t.Fatalf("viewer knowledge graph should render as an animated canvas graph:\n%s", page)
 	}
-	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `const connected = active && (edge.source === active.path || edge.target === active.path)`) || !strings.Contains(page, `window.location.href = fileURL(activePath)`) {
+	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `const connected = active && (edge.source === active.path || edge.target === active.path)`) || !strings.Contains(page, `openTarget(activePath, true, shouldOpenBeside(false))`) {
 		t.Fatalf("viewer canvas graph should separate hovered nodes and highlight connected edges:\n%s", page)
+	}
+	if !strings.Contains(page, `knowledge-graph-status`) ||
+		!strings.Contains(page, `status.setAttribute("aria-live", "polite")`) ||
+		!strings.Contains(page, `status.textContent = selected.fullLabel + " · " + connectionLabel + " · Enter to open"`) ||
+		!strings.Contains(page, `function graphCanvasTheme()`) ||
+		!strings.Contains(page, `.knowledge-graph-sidebar { position: sticky;`) ||
+		strings.Contains(page, `.knowledge-graph-header { position: absolute;`) {
+		t.Fatalf("viewer graph should expose selected-node context and accessible contrast:\n%s", page)
 	}
 	if !strings.Contains(page, `graphEaseInOut`) || !strings.Contains(page, `graphLimitVelocity`) || !strings.Contains(page, `context.globalAlpha = 1`) {
 		t.Fatalf("viewer canvas graph should damp hover physics without dimming inactive nodes:\n%s", page)
@@ -414,8 +465,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `graphUniqueNodeLabels`) || !strings.Contains(page, `graphShortestUniquePathSuffix`) || !strings.Contains(page, `parts.slice(-2).join("/")`) {
 		t.Fatalf("viewer knowledge graph should disambiguate generic node labels with path suffixes:\n%s", page)
 	}
-	if !strings.Contains(page, `.knowledge-empty-inner { display: grid`) || !strings.Contains(page, `grid-template-columns: minmax(260px, 30%) minmax(0, 1fr)`) || !strings.Contains(page, `renderKnowledgeGraph()`) {
-		t.Fatalf("viewer empty state should render a narrow tree and wide graph layout:\n%s", page)
+	if !strings.Contains(page, `.knowledge-empty-inner { display: grid`) || !strings.Contains(page, `grid-template-columns: minmax(210px, 260px) minmax(0, 1fr)`) || !strings.Contains(page, `renderKnowledgeGraph()`) {
+		t.Fatalf("viewer empty state should render graph details beside a wide graph canvas:\n%s", page)
 	}
 	if !strings.Contains(page, `context.font = (activeNode ? "600 13px" : "400 12px") + " " + theme.fontBody`) || !strings.Contains(page, `fontBody: themeValue("--ok-font-body"`) || !strings.Contains(page, `String(label || "").length * 7.2`) {
 		t.Fatalf("viewer knowledge graph labels should use smaller sans-serif typography:\n%s", page)

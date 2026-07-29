@@ -5,8 +5,8 @@ okf_bundle_title: "Open Knowledge CLI Documentation"
 
 # Open Knowledge CLI
 
-Open Knowledge creates and maintains Git-native knowledge bases in Open
-Knowledge Format (OKF). It also searches and publishes these knowledge bases.
+Flexible knowledge bases in Markdown that your agents can create, retrieve,
+validate, and publish.
 
 ## Get started
 
@@ -27,7 +27,7 @@ This documentation uses `okn` as the preferred command. The full
 
 ### Create, retrieve, and verify
 
-Use [`setup`](features/commands/setup.md) to print portable wiki instructions.
+Use [`setup`](features/commands/setup.md) to print a portable setup prompt.
 Copy the complete output into an agent that already works in the project. Use
 [`search`](features/commands/search.md) to retrieve knowledge. Use
 [`validate`](features/commands/validate.md) to verify the wiki.

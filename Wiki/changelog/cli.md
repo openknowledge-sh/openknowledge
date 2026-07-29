@@ -13,6 +13,32 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-29 — Focused viewer navigation
+
+- A persistent header control now selects the current panel mode or the
+  open-beside mode. Shift temporarily uses the other mode.
+- A visible navigator now lists open panels and can close one panel or all
+  panels.
+- Search results now group section matches by document. The file explorer now
+  reveals the active branch and can collapse directories.
+- The knowledge graph now reports its selected note and connection count.
+  A left detail panel now keeps graph instructions outside the canvas.
+  High-contrast mode also applies to graph colors.
+- Viewer settings now provide a reset-to-defaults action.
+- Source: `packages/web/src/viewer/`,
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `Wiki/features/commands/view.md`.
+
+### 2026-07-29 — Unified product story
+
+- The website, README, npm package, wiki, setup prompt, and root help now use one
+  product description.
+- The description presents flexible Markdown knowledge bases that agents can
+  create, retrieve, validate, and publish for different use cases.
+- Source: `packages/web/`, `packages/npm/README.md`,
+  `packages/cli/{cmd/openknowledge,internal/okf/setup.go}`.
+- Docs: `README.md`, `Wiki/index.md`.
+
 ### 2026-07-28 — Shared Vite viewer build
 
 - Vite built the landing page and the shared viewer assets.
