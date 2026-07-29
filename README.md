@@ -7,52 +7,64 @@
 Flexible knowledge bases in Markdown that your agents can create, retrieve,
 validate, and publish.
 
-[Website](https://openknowledge.sh) |
-[Documentation](Wiki/index.md) |
-[Commands](Wiki/features/commands/index.md) |
-[Changelog](Wiki/changelog/cli.md) |
-[OKF specification][okf-spec] |
-[License](LICENSE)
+[🌐 Website](https://openknowledge.sh) |
+[📖 Documentation](Wiki/index.md) |
+[🧭 Commands](Wiki/features/commands/index.md) |
+[📝 Changelog](Wiki/changelog/cli.md) |
+[📐 OKF specification][okf-spec] |
+[⚖️ License](LICENSE)
 
 <p align="left">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
   <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"><img alt="OKF v0.1" src="https://img.shields.io/badge/OKF-v0.1-2f6feb"></a>
+  <a href="https://openknowledge.sh"><img alt="Git-native Markdown wiki" src="https://img.shields.io/badge/wiki-git--native-0f766e"></a>
+  <a href="Wiki/index.md"><img alt="Agent-ready docs" src="https://img.shields.io/badge/docs-agent--ready-6f42c1"></a>
 </p>
 
-## Get started
+## From project to knowledge base
 
-Install the CLI:
+```text
+Your project
+    │
+    ▼
+ okn setup ──► your agent creates Wiki/
+                         │
+                         ▼
+                  okn validate Wiki
+                         │
+             ┌───────────┼───────────┐
+             ▼           ▼           ▼
+          search        view      export html
+```
+
+## Quick start
+
+### 1. Install
 
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
 ```
 
-Print a portable setup prompt:
+### 2. Create
 
 ```sh
 okn setup
 ```
 
-`okn setup` uses the current project as its source. It uses `Wiki` as the
-default target. Run it yourself, then copy the complete printed prompt into the
-agent that already works in your project.
+`okn setup` uses the current project as its source and `Wiki` as the default
+target. Run it, then copy the complete printed prompt into the agent that
+already works in your project.
 
-When the agent finishes, validate the wiki:
+### 3. Validate
+
+When the agent finishes:
 
 ```sh
 okn validate Wiki
 ```
 
-Optionally install a project skill for that agent runtime:
-
-```sh
-okn integration install Wiki --runtime codex
-```
-
-This installs only the selected runtime. Session observation remains off unless
-you explicitly add `--observe`.
-
-You can also install the CLI from npm:
+<details>
+<summary>Alternative npm installation</summary>
 
 ```sh
 npm install -g @openknowledge-sh/openknowledge
@@ -62,25 +74,27 @@ Both installers provide `okn` and `openknowledge`. This documentation uses
 `okn`. See [Installation](Wiki/features/installation.md) for supported
 platforms and verification details.
 
-## Use the knowledge base
+</details>
 
-Search for source-grounded context:
-
-```sh
-okn search Wiki "release workflow"
-```
-
-Validate the knowledge base:
+<details>
+<summary>Optional agent integration</summary>
 
 ```sh
-okn validate Wiki
+okn integration install Wiki --runtime codex
 ```
 
-Browse it locally:
+This optional command installs only the selected runtime. Session observation
+remains off unless you explicitly add `--observe`.
 
-```sh
-okn view Wiki
-```
+</details>
+
+## Work with a knowledge base
+
+| Task | Command | Result |
+| --- | --- | --- |
+| Search | `okn search Wiki "release workflow"` | Build source-grounded context |
+| Validate | `okn validate Wiki` | Check the knowledge base |
+| Browse | `okn view Wiki` | Start the local viewer |
 
 Use `okn <command> --help` for exact command syntax.
 
