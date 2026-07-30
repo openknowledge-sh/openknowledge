@@ -164,6 +164,9 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
 
   await page.goto(viewerURL, { waitUntil: "networkidle" });
   const navigationMode = page.locator("[data-navigation-mode-toggle]");
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
+  assert.equal(await navigationMode.getAttribute("aria-pressed"), "true");
+  await navigationMode.click();
   assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
   assert.equal(await navigationMode.getAttribute("aria-pressed"), "false");
   const rollbackLink = page.getByRole("link", { name: "rollback guide" });
@@ -173,6 +176,8 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
 
   await page.goBack();
   await page.locator('[data-note-path="index.md"]').waitFor({ state: "visible" });
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
   await navigationMode.click();
   assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
   assert.equal(await navigationMode.getAttribute("aria-pressed"), "true");
@@ -181,17 +186,15 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.getByRole("link", { name: "rollback guide" }).click();
   await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
   assert.equal(await page.locator("[data-note-path]").count(), 2, "beside mode should open a normal note link beside the active panel");
-  await page.locator("[data-note-navigator]").waitFor({ state: "visible" });
-  assert.equal(await page.locator(".workspace-note-tab").count(), 2);
-
-  await page.locator(".workspace-note-tab").first().click();
+  assert.equal(await page.locator("[data-note-navigator]").count(), 0, "multi-panel mode should not add a fixed bottom navigator");
+  await page.locator('[data-note-path="index.md"]').click();
   assert.equal(await page.locator('[data-note-path="index.md"][data-active-panel="true"]').count(), 1);
   await page.getByRole("link", { name: "rollback guide" }).click({ modifiers: ["Shift"] });
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 1);
   assert.equal(await page.locator("[data-note-path]").count(), 1, "Shift-click should invert beside mode and replace the active panel");
   await page.goBack();
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 2);
-  await page.locator(".workspace-note-tab").first().click();
+  await page.locator('[data-note-path="index.md"]').click();
 
   await page.getByRole("button", { name: "Open file explorer" }).click();
   const currentFile = page.locator('.file-sidebar [data-tree-path="index.md"]');
@@ -207,11 +210,13 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.getByRole("button", { name: "Reset to defaults" }).click();
   assert.equal(await page.locator("html").getAttribute("data-viewer-theme"), "night");
   assert.equal(await page.locator("html").getAttribute("data-viewer-font-size"), "default");
-  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
-  assert.equal(await navigationMode.getAttribute("aria-pressed"), "false");
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
+  assert.equal(await navigationMode.getAttribute("aria-pressed"), "true");
   await page.getByRole("button", { name: "Viewer settings" }).click();
 
-  await page.getByRole("button", { name: "Close all" }).click();
+  await page.locator("[data-note-path]").first().locator("[data-close-panel]").click();
+  await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 1);
+  await page.locator("[data-note-path]").first().locator("[data-close-panel]").click();
   await page.locator("[data-empty-state]").waitFor({ state: "visible" });
   assert.equal(await page.locator("[data-note-path]").count(), 0);
   assert.equal(await page.locator("[data-empty-state] .knowledge-tree").count(), 0, "the graph view should not duplicate the file explorer");

@@ -74,7 +74,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-navigation-mode-toggle`) ||
 		!strings.Contains(page, `navigation-mode-icon-single`) ||
 		!strings.Contains(page, `navigation-mode-icon-split`) ||
-		!strings.Contains(page, `aria-label="Link behavior: Open in current panel"`) {
+		!strings.Contains(page, `data-mode="beside"`) ||
+		!strings.Contains(page, `aria-label="Link behavior: Open beside"`) ||
+		!strings.Contains(page, `aria-pressed="true"`) {
 		t.Fatalf("viewer should render a link behavior toggle beside settings:\n%s", page)
 	}
 	if !strings.Contains(page, `data-viewer-settings-trigger`) ||
@@ -223,16 +225,15 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-workspace-rail`) || !strings.Contains(page, `data-workspace-scroll-track`) || !strings.Contains(page, `data-workspace-scroll-thumb`) {
 		t.Fatalf("viewer should include a custom bottom rail for horizontal panel browsing:\n%s", page)
 	}
-	if !strings.Contains(page, `noteNavigator.dataset.noteNavigator = ""`) ||
-		!strings.Contains(page, `function updateNoteNavigator()`) ||
-		!strings.Contains(page, `noteNavigatorCount.textContent = all.length + " open notes"`) ||
-		!strings.Contains(page, `noteNavigatorCloseAll.textContent = "Close all"`) {
-		t.Fatalf("viewer should expose a visible navigator when several notes are open:\n%s", page)
+	if strings.Contains(page, `data-note-navigator`) ||
+		strings.Contains(page, `function updateNoteNavigator()`) ||
+		strings.Contains(page, `.workspace-note-nav`) {
+		t.Fatalf("viewer should not duplicate open panels in a fixed bottom navigator:\n%s", page)
 	}
 	if !strings.Contains(page, `.workspace-scroll-rail`) || !strings.Contains(page, `.workspace-scroll-thumb`) || !strings.Contains(page, `.note-workspace.is-single-panel, .note-workspace.is-multi-panel { scrollbar-width: none; }`) {
 		t.Fatalf("viewer should style a custom rail and hide native workspace scrollbars around note panels:\n%s", page)
 	}
-	if !strings.Contains(page, `@media (max-width: 680px), (hover: none) and (pointer: coarse)`) || !strings.Contains(page, `.workspace-note-nav, .workspace-scroll-rail, .powered-by-openknowledge { display: none; }`) {
+	if !strings.Contains(page, `@media (max-width: 680px), (hover: none) and (pointer: coarse)`) || !strings.Contains(page, `.workspace-scroll-rail, .powered-by-openknowledge { display: none; }`) {
 		t.Fatalf("viewer mobile and touch layouts should hide fixed bottom chrome instead of letting it conflict with Safari chrome:\n%s", page)
 	}
 	if !strings.Contains(page, `updateWorkspaceRail`) || !strings.Contains(page, `scrollWorkspaceFromRail`) || !strings.Contains(page, `aria-valuenow`) {

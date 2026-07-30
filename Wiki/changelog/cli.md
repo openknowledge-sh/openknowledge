@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-07-30T00:00:00Z
 ---
 
 # CLI Changelog
@@ -12,6 +12,17 @@ Current behavior belongs in the [command reference](/features/commands/). This
 page records release-level changes.
 
 ## Unreleased
+
+### 2026-07-30 — Streamlined multi-panel viewer
+
+- The viewer no longer duplicates open panels in a fixed bottom navigator.
+- Links open beside the active panel by default. The current panel mode remains
+  available through the header control.
+- Each panel keeps its close control. The horizontal scroll rail remains
+  available for multi-panel navigation.
+- Source: `packages/web/src/viewer/`,
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `Wiki/features/commands/view.md`.
 
 ### 2026-07-29 — Focused viewer navigation
 

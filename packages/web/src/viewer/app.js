@@ -22,10 +22,6 @@
   const scrollRail = document.querySelector("[data-workspace-rail]");
   const scrollTrack = document.querySelector("[data-workspace-scroll-track]");
   const scrollThumb = document.querySelector("[data-workspace-scroll-thumb]");
-  let noteNavigator = null;
-  let noteNavigatorList = null;
-  let noteNavigatorCount = null;
-  let noteNavigatorCloseAll = null;
 
   if (!workspace || !stackEl) {
     return;
@@ -38,7 +34,7 @@
   const frontmatterStorageKey = "openknowledge.viewer.frontmatter";
   const accessibilityStorageKey = "openknowledge.viewer.accessibility";
   const navigationModeStorageKey = "openknowledge.viewer.navigationMode";
-  const defaultNavigationMode = "replace";
+  const defaultNavigationMode = "beside";
   let navigationMode = defaultNavigationMode;
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
@@ -198,7 +194,7 @@
   }
 
   function normalizeNavigationMode(value) {
-    return value === "beside" ? "beside" : defaultNavigationMode;
+    return value === "beside" || value === "replace" ? value : defaultNavigationMode;
   }
 
   function readNavigationModePreference() {
@@ -2410,96 +2406,6 @@
     return focusedPanel() || activePanel();
   }
 
-  function ensureNoteNavigator() {
-    if (noteNavigator) {
-      return noteNavigator;
-    }
-    noteNavigator = document.createElement("nav");
-    noteNavigator.className = "workspace-note-nav";
-    noteNavigator.dataset.noteNavigator = "";
-    noteNavigator.setAttribute("aria-label", "Open notes");
-    noteNavigator.hidden = true;
-
-    noteNavigatorCount = document.createElement("span");
-    noteNavigatorCount.className = "workspace-note-count";
-
-    noteNavigatorList = document.createElement("div");
-    noteNavigatorList.className = "workspace-note-list";
-
-    noteNavigatorCloseAll = document.createElement("button");
-    noteNavigatorCloseAll.type = "button";
-    noteNavigatorCloseAll.className = "workspace-note-close-all";
-    noteNavigatorCloseAll.textContent = "Close all";
-    noteNavigatorCloseAll.addEventListener("click", function () {
-      closeAllPanels(true);
-    });
-
-    noteNavigator.append(noteNavigatorCount, noteNavigatorList, noteNavigatorCloseAll);
-    if (scrollRail) {
-      scrollRail.before(noteNavigator);
-    } else {
-      document.body.append(noteNavigator);
-    }
-    return noteNavigator;
-  }
-
-  function updateNoteNavigator() {
-    const navigator = ensureNoteNavigator();
-    const all = panels();
-    const show = all.length > 1;
-    navigator.hidden = !show;
-    document.body.classList.toggle("has-note-navigator", show);
-    if (!show) {
-      noteNavigatorList.replaceChildren();
-      return;
-    }
-
-    noteNavigatorCount.textContent = all.length + " open notes";
-    noteNavigatorList.replaceChildren();
-    all.forEach(function (panel, index) {
-      const item = document.createElement("div");
-      item.className = "workspace-note-item";
-      const select = document.createElement("button");
-      select.type = "button";
-      select.className = "workspace-note-tab";
-      select.textContent = panel.dataset.noteTitle || panel.dataset.notePath;
-      select.title = panel.dataset.notePath;
-      select.setAttribute("aria-label", "Show " + (panel.dataset.noteTitle || panel.dataset.notePath));
-      if (panel === activePanel()) {
-        select.classList.add("is-active");
-        select.setAttribute("aria-current", "page");
-      }
-      select.addEventListener("click", function () {
-        scrollToPanel(panel);
-      });
-
-      const close = document.createElement("button");
-      close.type = "button";
-      close.className = "workspace-note-tab-close";
-      close.setAttribute("aria-label", "Close " + panel.dataset.notePath);
-      close.title = "Close note";
-      close.append(controlIcon("x", "workspace-note-tab-close-icon"));
-      close.addEventListener("click", function () {
-        closePanel(panel, true);
-      });
-
-      item.dataset.noteIndex = String(index);
-      item.append(select, close);
-      noteNavigatorList.append(item);
-    });
-  }
-
-  async function closeAllPanels(pushHistory) {
-    await runStackTransition(function () {
-      clearStack();
-      updateHistory([], pushHistory);
-    });
-    const primarySearch = document.querySelector("[data-primary-search] .search-input");
-    if (primarySearch) {
-      primarySearch.focus();
-    }
-  }
-
   function setActivePanel(panel) {
     if (!panel || !stackEl.contains(panel)) {
       return;
@@ -2516,7 +2422,6 @@
       }
     });
     updateTitle();
-    updateNoteNavigator();
     syncKnowledgeTrees(panel.dataset.notePath, false);
   }
 
@@ -2683,7 +2588,6 @@
     ensureActivePanel();
     updateCloseLinks();
     updateSpacePanState();
-    updateNoteNavigator();
     queueWorkspaceRailUpdate();
   }
 

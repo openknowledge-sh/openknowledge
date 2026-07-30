@@ -139,7 +139,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       <div class="search-status" aria-live="polite"></div>
       <div class="search-results" hidden></div>
     </section>
-    <button class="navigation-mode-toggle" type="button" data-navigation-mode-toggle data-mode="replace" aria-label="Link behavior: Open in current panel" aria-pressed="false" title="Links open in the current panel">
+    <button class="navigation-mode-toggle" type="button" data-navigation-mode-toggle data-mode="beside" aria-label="Link behavior: Open beside" aria-pressed="true" title="Links open beside">
       <svg class="navigation-mode-icon navigation-mode-icon-single control-icon" viewBox="0 0 24 24" aria-hidden="true">
         <rect x="5" y="4" width="14" height="16" rx="2"></rect>
         <path d="M8.5 8h7"></path>

@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-07-29T00:00:00Z
+timestamp: 2026-07-30T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -40,11 +40,11 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The viewer renders Markdown and follows local links. It renders fenced
   `mermaid` blocks as diagrams. It also shows note panels, source graphs,
   validation context, highlighted assets, and media or PDF previews.
-- The link behavior control is next to viewer settings. It selects the current
-  panel mode or the open-beside mode. The browser stores this selection.
-  Hold Shift during activation to use the other mode one time.
-  A bottom navigator lists open notes when more than one panel is visible.
-  It can focus or close one note, or close all notes.
+- The link behavior control is next to viewer settings. Open-beside mode is the
+  default. The control can select the current panel mode.
+  The browser stores this selection. Hold Shift during activation to use the
+  other mode one time.
+  Each panel keeps its own focus and close controls.
 - AST-based search uses the same section ranking as
   [`okn search`](search.md). It also uses the same one-level link
   expansion. Results group section matches by document. They can link to and
