@@ -116,17 +116,20 @@ The final image runs as the unprivileged Node user.
 
 ## Release
 
-The release version must match the root, npm, web, and Go fallback versions.
 Run the manual workflow from the current default-branch tip:
 
 ```text
-Actions → Release → Run workflow → version: 0.8.4
+Actions → Release → Run workflow → version: 0.9.0
 ```
 
-The workflow completes the quality gate before it creates a tag.
+The workflow updates the root, npm, web, and Go fallback versions.
+It completes the quality gate before it creates and pushes the version commit.
+The workflow creates the release tag from this verified commit.
 The gate includes browser journeys, race tests, and a real packed npm installation.
 It also includes a GoReleaser snapshot with all six supported OS and architecture archives.
-Only the publication job receives release write, OIDC, and attestation permissions.
+Only the commit and publication jobs receive write permissions.
+The npm and publication jobs receive their required OIDC permissions.
+Only the publication job receives attestation permissions.
 GoReleaser publishes checksums, archives, licenses, the installer, and signed provenance.
 npm publishes the matching wrapper with provenance.
 Deployable projects build a pinned runtime from the committed `.openknowledge/runtime/Dockerfile`.

@@ -88,6 +88,11 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
+      - name: Set release versions
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -155,8 +160,44 @@ jobs:
           fi
           npm whoami --registry=https://registry.npmjs.org
 
-  publish_release:
+  commit_release:
     needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_sha: ${{ steps.release_commit.outputs.release_sha }}
+    steps:
+      - name: Checkout verified source commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set release versions
+        env:
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
+
+      - name: Commit release versions
+        id: release_commit
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json packages/npm/package.json packages/web/package.json packages/cli/cmd/openknowledge/main.go
+            git commit -m "chore(release): bump version to $VERSION"
+            git push origin "HEAD:refs/heads/$DEFAULT_BRANCH"
+          fi
+
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  publish_release:
+    needs: [verify, commit_release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -166,7 +207,7 @@ jobs:
       - name: Checkout verified release commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.commit_release.outputs.release_sha }}
           fetch-depth: 0
 
       - name: Prepare release tag

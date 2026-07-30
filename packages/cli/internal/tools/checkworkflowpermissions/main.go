@@ -11,6 +11,7 @@ import (
 )
 
 var expectedWriteCapabilities = map[string]struct{}{
+	".github/workflows/release.yml:commit_release:contents":      {},
 	".github/workflows/release.yml:publish_release:attestations": {},
 	".github/workflows/release.yml:publish_release:contents":     {},
 	".github/workflows/release.yml:publish_release:id-token":     {},
@@ -23,6 +24,12 @@ var expectedPublishSteps = []string{
 	"Prepare release tag",
 	"Run GoReleaser",
 	"Attest release archives",
+}
+
+var expectedCommitSteps = []string{
+	"Checkout verified source commit",
+	"Set release versions",
+	"Commit release versions",
 }
 
 var expectedVerifyPrefix = []string{
@@ -181,6 +188,9 @@ func inspectReleaseJob(relativePath, jobName string, job *yaml.Node, failures *[
 		if attestationChecksums != expectedAttestationChecksums {
 			*failures = append(*failures, fmt.Sprintf("%s: release attestation checksums changed: expected %s; got %s", relativePath, expectedAttestationChecksums, emptyAsNone(attestationChecksums)))
 		}
+	}
+	if jobName == "commit_release" && !equalStrings(names, expectedCommitSteps) {
+		*failures = append(*failures, fmt.Sprintf("%s: release commit job steps changed: expected %s; got %s", relativePath, strings.Join(expectedCommitSteps, ", "), strings.Join(names, ", ")))
 	}
 	if jobName == "verify" {
 		prefix := names

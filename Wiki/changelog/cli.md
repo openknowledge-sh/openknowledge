@@ -13,6 +13,16 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-30 — Automatic release version update
+
+- The manual release workflow now updates all package and CLI versions from
+  the requested release version.
+- The workflow runs the release checks before it creates and pushes the version
+  commit. Release tags and npm packages use that verified commit.
+- Source: `.github/workflows/release.yml`,
+  `scripts/set-release-version.mjs`.
+- Docs: `Wiki/features/operations.md`.
+
 ### 2026-07-30 — Streamlined multi-panel viewer
 
 - The viewer no longer duplicates open panels in a fixed bottom navigator.
