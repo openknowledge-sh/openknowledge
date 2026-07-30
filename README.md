@@ -88,19 +88,46 @@ remains off unless you explicitly add `--observe`.
 
 </details>
 
-## Work with a knowledge base
+## Workflows
 
-| Task | Command | Result |
-| --- | --- | --- |
-| Search | `okn search Wiki "release workflow"` | Build source-grounded context |
-| Validate | `okn validate Wiki` | Check the knowledge base |
-| Browse | `okn view Wiki` | Start the local viewer |
+### Create, retrieve, and verify
 
-Use `okn <command> --help` for exact command syntax.
+Use [`setup`](Wiki/features/commands/setup.md) to print a portable setup prompt.
+Copy the complete output into an agent that already works in the project. Use
+[`search`](Wiki/features/commands/search.md) to retrieve knowledge. Use
+[`validate`](Wiki/features/commands/validate.md) to verify the wiki.
 
-The [command index](Wiki/features/commands/index.md) separates local work from
-sharing and automation. Use `okn automation` for jobs, insights, hosted
-runtimes, and deployments.
+### Work locally
+
+Use [`agent`](Wiki/features/commands/agent.md) to run an agent task. Use
+[`integration`](Wiki/features/commands/integration.md) to install one runtime
+skill. Use [`get`](Wiki/features/commands/get.md) to read one document. Use
+[`list`](Wiki/features/commands/list.md) to inspect the content tree. Use
+[`view`](Wiki/features/commands/view.md) to browse the wiki.
+
+### Share and connect
+
+Use [`mcp`](Wiki/features/commands/mcp.md) to serve MCP tools. Use
+[`export`](Wiki/features/commands/export.md) to publish portable output. Use
+[`connect`](Wiki/features/commands/connect.md) to add a source. Use
+[`disconnect`](Wiki/features/commands/disconnect.md) to remove a source. Use
+[`registry`](Wiki/features/commands/registry.md) to inspect the registry.
+
+### Automate and operate
+
+Use [`automation`](Wiki/features/commands/automation.md) for jobs, insights,
+runtime services, and deployments.
+
+### Use advanced tools
+
+Use [`scaffold`](Wiki/features/commands/scaffold.md) for deterministic bundle
+creation. Other advanced tools are
+[`prompt`](Wiki/features/commands/prompt.md),
+[`ast`](Wiki/features/commands/ast.md), and
+[`spec`](Wiki/features/commands/spec.md).
+
+See the [command index](Wiki/features/commands/index.md) for all commands. Use
+`okn <command> --help` for exact command syntax.
 
 ## Publish a wiki
 
