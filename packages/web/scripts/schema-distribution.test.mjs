@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import { test } from "vitest";
 import { publishCLISchemas, validatePublishedSchemaIDs } from "./schema-distribution.mjs";
 
 test("publishes every CLI schema at its declared public URL path", async () => {

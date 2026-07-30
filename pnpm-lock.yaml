@@ -32,6 +32,9 @@ importers:
       vite:
         specifier: 6.4.3
         version: 6.4.3(@types/node@20.19.43)
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@20.19.43)
 
 packages:
 

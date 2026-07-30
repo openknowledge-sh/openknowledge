@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { after, before, test } from "node:test";
 import { Writable } from "node:stream";
+import { afterAll, beforeAll, test } from "vitest";
 import { createWebHandler, createWebServer } from "./server.mjs";
 
 let handler;
@@ -11,7 +11,7 @@ let root;
 let server;
 let temporary;
 
-before(async () => {
+beforeAll(async () => {
   temporary = await mkdtemp(path.join(os.tmpdir(), "openknowledge-web-test-"));
   root = path.join(temporary, "public");
   const fallback = path.join(temporary, "fallback");
@@ -29,7 +29,7 @@ before(async () => {
   server = createWebServer({ root, fallbackRoot: fallback });
 });
 
-after(async () => {
+afterAll(async () => {
   server?.close();
   if (temporary) {
     await rm(temporary, { recursive: true, force: true });
