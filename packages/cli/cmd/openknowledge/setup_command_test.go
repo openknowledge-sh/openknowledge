@@ -77,7 +77,7 @@ func TestSetupFromUsesSourceWorkflowAndTarget(t *testing.T) {
 	}
 }
 
-func TestSetupWithoutArgumentsPrintsCurrentRepositoryPrompt(t *testing.T) {
+func TestSetupWithoutArgumentsPrintsOpenEndedPrompt(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
 	original := runAgentProcess
@@ -97,8 +97,10 @@ func TestSetupWithoutArgumentsPrintsCurrentRepositoryPrompt(t *testing.T) {
 			t.Fatalf("setup code=%d stderr=%s", code, stderr)
 		}
 	})
-	if !strings.Contains(stdout, "Source: `.`") || !strings.Contains(stdout, "Output wiki path: `Wiki`") {
-		t.Fatalf("zero-argument setup should print the current repository source workflow:\n%s", stdout)
+	if !strings.Contains(stdout, "Use these seed questions only when context cannot answer them") ||
+		!strings.Contains(stdout, "create or update the knowledge base at Wiki") ||
+		strings.Contains(stdout, "Wiki type:") {
+		t.Fatalf("zero-argument setup should print the open-ended setup interview:\n%s", stdout)
 	}
 	if _, err := os.Stat(filepath.Join(repo, "Wiki")); !os.IsNotExist(err) {
 		t.Fatalf("print-only setup must not create Wiki: %v", err)
@@ -110,8 +112,8 @@ func TestParseSetupArgsKeepsExplicitTargetAsGuidedSetup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if project.wiki != "Wiki" || project.source != "." {
-		t.Fatalf("zero-argument setup=%+v, want Wiki sourced from current repository", project)
+	if project.wiki != "Wiki" || project.source != "" {
+		t.Fatalf("zero-argument setup=%+v, want guided setup for Wiki", project)
 	}
 	if project.agent {
 		t.Fatalf("zero-argument setup=%+v, want print-only mode", project)

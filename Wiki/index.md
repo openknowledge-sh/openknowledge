@@ -31,8 +31,9 @@ version of this OKF wiki.
 
 ### Create, retrieve, and verify
 
-Use [`setup`](features/commands/setup.md) to print a portable setup prompt.
-Copy the complete output into an agent that already works in the project. Use
+Use [`setup`](features/commands/setup.md) to print an open-ended setup prompt.
+Copy the output into an agent that already works in the project. Alternatively,
+use `okn setup --agent --runtime <runtime>` to launch one. Use
 [`search`](features/commands/search.md) to retrieve knowledge. Use
 [`validate`](features/commands/validate.md) to verify the wiki.
 

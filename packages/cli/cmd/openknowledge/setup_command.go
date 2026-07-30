@@ -252,17 +252,6 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 	if !options.agent && strings.TrimSpace(options.model) != "" {
 		return options, fmt.Errorf("--model requires --agent")
 	}
-	// The zero-argument path prints the primary project onboarding task for the
-	// current directory and Wiki. An explicit target without --from keeps the
-	// guided, open-ended setup workflow.
-	if options.source == "" &&
-		!options.targetExplicit &&
-		strings.TrimSpace(options.rules) == "" &&
-		options.wikiType == okf.DefaultFromType &&
-		options.about == "" &&
-		options.depth == 0 {
-		options.source = "."
-	}
 	if options.source == "" {
 		if options.wikiType != okf.DefaultFromType || options.about != "" || options.depth != 0 {
 			return options, fmt.Errorf("--type, --about, and --depth require --from")
@@ -335,12 +324,12 @@ Advanced flags:
   --depth     Non-negative source traversal hint. Requires --from; 0 lets the
               agent choose the minimum depth.
 
-With no arguments, setup prints a prompt that uses the current directory as
-the source and Wiki as the target. Run this command yourself, then copy the
-complete printed prompt into an agent that already has access to the project.
-An explicit wiki path without --from prints the guided workflow for a new or
-open-ended knowledge base. Use --from only for another repository, local folder,
-or website.
+With no arguments, setup prints an open-ended setup interview for Wiki. Run
+this command yourself, then copy the complete printed prompt into an agent that
+already has access to the project. The agent inspects the workspace and asks
+only the questions needed to understand the wiki's purpose, audience, sources,
+structure, and maintenance needs. Use --from only for a repository, local
+folder, or website that you want to turn directly into a source-grounded wiki.
 
 The advanced --agent mode launches a runtime from the Git repository that owns
 the knowledge base. If --runtime is absent, setup asks you to select an installed

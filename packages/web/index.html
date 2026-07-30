@@ -62,8 +62,8 @@
               bases in Markdown with the agents you already use.
             </p>
             <nav class="hero-actions" aria-label="Primary actions">
-              <button class="primary-action copy-command" type="button" data-copy-text="curl -fsSL https://openknowledge.sh/install | bash&#10;okn setup" aria-label="Get setup prompt" title="Copy the commands that print the setup prompt">
-                <span>Get setup prompt</span>
+              <button class="primary-action copy-command" type="button" data-copy-text="Set up an Open Knowledge wiki for this workspace. If the Open Knowledge CLI is not installed, install it with: curl -fsSL https://openknowledge.sh/install | bash&#10;&#10;Verify the installation with: okn version&#10;&#10;Then run okn setup and follow the complete prompt it prints. Inspect this workspace first. Ask me focused questions about the wiki's purpose, audience, sources, structure, and maintenance needs before you create it. Keep the setup open-ended instead of choosing a predefined wiki type. Create the wiki, run its validation steps, and explain what you configured." aria-label="Copy agent setup prompt" title="Copy a setup prompt for your agent">
+                <span>Copy agent setup prompt</span>
                 <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                   <path d="M12 3v2"></path>
                   <path d="M9 3h6"></path>
@@ -132,7 +132,7 @@
             </span>
             <span class="sr-only">Setup</span>
             <h3>Create with your agent</h3>
-            <p>Run <code>okn setup</code> in any workspace, then paste its portable prompt into the agent you already use.</p>
+            <p>Copy the setup prompt into an agent already working in the folder, or let <code>okn setup --agent --runtime &lt;runtime&gt;</code> launch one.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -251,17 +251,18 @@
           <article class="workflow-step">
             <div class="workflow-copy">
               <h3>Create a knowledge base</h3>
-              <p>Print a source-grounded prompt, paste it into your agent, then follow the returned validation and integration steps.</p>
+              <p>Run the open-ended setup interview with your current agent, or let the CLI launch a selected runtime.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span>
+<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-flag">--agent</span> <span class="tok-flag">--runtime</span> <span class="tok-value">codex</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">
               <h3>Build from another source</h3>
               <p>Print a prompt grounded in a repository, folder, or website, then give it to your agent.</p>
             </div>
-            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://github.com/openknowledge-sh/openknowledge</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span>
-<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://openknowledge.sh/wiki/</span> <span class="tok-flag">--type</span> <span class="tok-value">understanding</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span></code></pre>
+            <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://github.com/openknowledge-sh/openknowledge</span>
+<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-path">Wiki</span> <span class="tok-flag">--from</span> <span class="tok-url">https://openknowledge.sh/wiki/</span> <span class="tok-flag">--depth</span> <span class="tok-number">2</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">

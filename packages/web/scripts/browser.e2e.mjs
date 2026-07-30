@@ -118,12 +118,13 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
 
   await page.goto(landingURL, { waitUntil: "networkidle" });
   await assertSemanticPage(page, "Knowledge that works with your agents.");
-  const setupPrompt = page.getByRole("button", { name: "Get setup prompt" });
+  const setupPrompt = page.getByRole("button", { name: "Copy agent setup prompt" });
   await setupPrompt.click();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(clipboard, /okn setup(?:\n|$)/);
-  assert.doesNotMatch(clipboard, /--agent/);
-  assert.doesNotMatch(clipboard, /(?:okn|openknowledge) setup Wiki|--from \./);
+  assert.match(clipboard, /curl -fsSL https:\/\/openknowledge\.sh\/install \| bash/);
+  assert.match(clipboard, /okn version/);
+  assert.match(clipboard, /run okn setup and follow the complete prompt/);
+  assert.match(clipboard, /purpose, audience, sources, structure, and maintenance needs/);
   const githubStar = page.getByRole("link", { name: "Star us on GitHub" });
   assert.equal(await githubStar.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
   const compatibility = page.getByLabel("Works with Codex, Claude, and Cursor");

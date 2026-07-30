@@ -238,7 +238,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"--model",
 				"--about",
 				"--depth",
-				"source and Wiki as the target",
+				"open-ended setup interview for Wiki",
 				"openknowledge agent doctor --runtime <runtime>",
 				"Advanced flags:",
 				"commands are optional",

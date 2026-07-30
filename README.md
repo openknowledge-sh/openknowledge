@@ -32,9 +32,9 @@ Your project
                          ▼
                   okn validate Wiki
                          │
-             ┌───────────┼───────────┐
-             ▼           ▼           ▼
-          search        view      export html
+          ┌──────────┬──────────┬──────────┐
+          ▼          ▼          ▼          ▼
+       search       view        MCP     export html
 ```
 
 ## Quick start
@@ -47,13 +47,35 @@ curl -fsSL https://openknowledge.sh/install | bash
 
 ### 2. Create
 
-```sh
-okn setup
+Choose either setup path.
+
+To use an agent that already works inside the project, copy this prompt:
+
+```text
+Set up an Open Knowledge wiki for this workspace. If the Open Knowledge CLI is
+not installed, install it with:
+curl -fsSL https://openknowledge.sh/install | bash
+
+Verify the installation with: okn version
+
+Then run okn setup and follow the complete prompt it prints. Inspect this
+workspace first. Ask me focused questions about the wiki's purpose, audience,
+sources, structure, and maintenance needs before you create it. Keep the setup
+open-ended instead of choosing a predefined wiki type. Create the wiki, run its
+validation steps, and explain what you configured.
 ```
 
-`okn setup` uses the current project as its source and `Wiki` as the default
-target. Run it, then copy the complete printed prompt into the agent that
-already works in your project.
+The agent installs the CLI when necessary. It then runs `okn setup` and follows
+the complete generated interview. The default target is `Wiki`.
+
+To let the CLI launch an installed agent runtime, run:
+
+```sh
+okn setup --agent --runtime <codex|claude|opencode>
+```
+
+Agent mode runs the same setup interview, validates the wiki, and installs the
+selected runtime's project integration.
 
 ### 3. Validate
 
@@ -92,8 +114,9 @@ remains off unless you explicitly add `--observe`.
 
 ### Create, retrieve, and verify
 
-Use [`setup`](Wiki/features/commands/setup.md) to print a portable setup prompt.
-Copy the complete output into an agent that already works in the project. Use
+Use [`setup`](Wiki/features/commands/setup.md) to print an open-ended setup
+prompt for an agent that already works in the project. Alternatively, use
+`okn setup --agent --runtime <runtime>` to launch one. Use
 [`search`](Wiki/features/commands/search.md) to retrieve knowledge. Use
 [`validate`](Wiki/features/commands/validate.md) to verify the wiki.
 

@@ -13,7 +13,17 @@ page records release-level changes.
 
 ## Unreleased
 
-No changes.
+### 2026-07-31 — Open-ended agent setup
+
+- Bare `okn setup` now prints the open-ended setup interview for `Wiki`.
+- The README and website now show setup with an existing agent or a selected
+  CLI runtime.
+- The website copy action now gives an agent installation, verification, and
+  setup instructions.
+- The README workflow diagram now includes MCP.
+- Source: `packages/cli/cmd/openknowledge/setup_command.go`,
+  `packages/web/index.html`.
+- Docs: `README.md`, `Wiki/features/commands/setup.md`.
 
 ## v0.9.0 — 2026-07-30
 

@@ -10,14 +10,14 @@ timestamp: 2026-07-28T00:00:00Z
 
 Use `okn setup` to print a portable setup prompt for a wiki.
 
-With no arguments, the command uses the current directory as the source. The
+With no arguments, the command prints an open-ended setup interview. The
 default target is `Wiki`. The command prints the instructions to standard
 output. It does not start an agent.
 
 Run `okn setup` yourself. Copy its complete output into an agent that already
 has access to the project. This is the primary setup flow.
 
-`--agent` is an advanced option. It starts an installed agent runtime from the
+Use `--agent --runtime <runtime>` to start an installed agent runtime from the
 CLI. Run agent mode in the Git repository that contains the wiki.
 
 Specify `[wiki]` without `--from` for a new knowledge base. Use
@@ -39,7 +39,11 @@ okn setup --help
 ## Arguments and flags
 
 The optional positional argument selects the target wiki. The default target
-is `Wiki`. The default source is the current directory.
+is `Wiki`.
+
+The default prompt asks the agent to inspect the workspace first. The agent
+then asks only necessary questions about purpose, audience, sources, structure,
+and maintenance. The default prompt does not select a predefined wiki type.
 
 Run agent mode inside a Git repository. Project integration requires a stable
 repository root.
