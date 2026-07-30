@@ -5,12 +5,12 @@
 # Open Knowledge
 
 Flexible knowledge bases in Markdown that your agents can create, retrieve,
-validate, and publish.
+maintain, validate, and publish.
 
 [🌐 Website](https://openknowledge.sh) |
-[📖 Documentation](Wiki/index.md) |
+[📖 Documentation](https://openknowledge.sh/wiki/) |
 [🧭 Commands](Wiki/features/commands/index.md) |
-[📝 Changelog](Wiki/changelog/cli.md) |
+[📝 Changelog](https://openknowledge.sh/wiki/changelog/cli.html) |
 [📐 OKF specification][okf-spec] |
 [⚖️ License](LICENSE)
 

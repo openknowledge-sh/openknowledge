@@ -6,7 +6,7 @@ okf_bundle_title: "Open Knowledge CLI Documentation"
 # Open Knowledge CLI
 
 Flexible knowledge bases in Markdown that your agents can create, retrieve,
-validate, and publish.
+maintain, validate, and publish.
 
 ## Get started
 
@@ -17,6 +17,10 @@ okn setup
 
 This documentation uses `okn` as the preferred command. The full
 `openknowledge` command remains available.
+
+The published documentation is at
+[openknowledge.sh/wiki](https://openknowledge.sh/wiki/). It is the exported
+version of this OKF wiki.
 
 - [Installation](features/installation.md)
 - [Command reference](features/commands/)
@@ -35,7 +39,7 @@ Copy the complete output into an agent that already works in the project. Use
 ### Work locally
 
 Use [`agent`](features/commands/agent.md) to run an agent task. Use
-[`integration`](features/commands/integration.md) to install one runtime skill. Use
+[`integration`](features/commands/integration.md) to install one runtime skill.
 Use [`get`](features/commands/get.md) to read one document. Use
 [`list`](features/commands/list.md) to inspect the content tree. Use
 [`view`](features/commands/view.md) to browse the wiki.
