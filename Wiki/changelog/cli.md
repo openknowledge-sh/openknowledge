@@ -13,6 +13,10 @@ page records release-level changes.
 
 ## Unreleased
 
+No changes.
+
+## v0.9.0 — 2026-07-30
+
 ### 2026-07-30 — Automatic release version update
 
 - The manual release workflow now updates all package and CLI versions from
@@ -55,7 +59,7 @@ page records release-level changes.
 - The website, README, npm package, wiki, setup prompt, and root help now use one
   product description.
 - The description presents flexible Markdown knowledge bases that agents can
-  create, retrieve, validate, and publish for different use cases.
+  create, retrieve, maintain, validate, and publish for different use cases.
 - Source: `packages/web/`, `packages/npm/README.md`,
   `packages/cli/{cmd/openknowledge,internal/okf/setup.go}`.
 - Docs: `README.md`, `Wiki/index.md`.
