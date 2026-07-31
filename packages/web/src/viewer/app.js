@@ -1,3 +1,4 @@
+import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js";
 
 (function () {
   const workspace = document.querySelector("[data-note-workspace]");
@@ -2684,6 +2685,7 @@
   }
 
   function scheduleMermaidThemeRender() {
+    closeMermaidViewport();
     window.clearTimeout(mermaidThemeTimer);
     mermaidThemeTimer = window.setTimeout(function () {
       enhanceMermaid(stackEl, true);
@@ -2776,6 +2778,13 @@
     return diagram;
   }
 
+  function mermaidDiagramLabel(diagram) {
+    const panel = closestElement(diagram, "[data-note-path]");
+    const title = panel?.querySelector(".note-body h1")?.textContent?.trim() || panel?.dataset.noteTitle || "document";
+    const diagrams = Array.from(panel?.querySelectorAll("[data-mermaid-diagram]") || [diagram]);
+    return "Mermaid diagram " + (Math.max(0, diagrams.indexOf(diagram)) + 1) + " in " + title;
+  }
+
   function enhanceMermaid(scope, force) {
     if (!window.mermaid || typeof window.mermaid.render !== "function") {
       return;
@@ -2843,6 +2852,7 @@
         output.hidden = false;
         sourceBlock.hidden = true;
         error.hidden = true;
+        bindMermaidViewport(output, mermaidDiagramLabel(diagram));
         diagram.dataset.mermaidState = "rendered";
       } catch {
         if (diagram._openKnowledgeMermaidRequest !== requestID) {

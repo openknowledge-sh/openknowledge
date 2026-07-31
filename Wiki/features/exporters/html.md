@@ -3,7 +3,7 @@ type: Exporter Documentation
 title: HTML Exporter
 description: Publish an Open Knowledge bundle as a static site.
 tags: [openknowledge, cli, exporter, html]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-31T00:00:00Z
 ---
 
 # HTML Exporter
@@ -58,6 +58,10 @@ Generated pages do not require `unsafe-inline` in `script-src`.
 The deployment owns trusted inline scripts from `--head-file` or `--head-html`.
 These scripts can require a CSP nonce or hash.
 Use `--script-src` for trusted external scripts.
+
+The local viewer and interactive HTML exports use the same diagram controls.
+Both viewer modes provide zoom, pan, **Fit**, and **100%** controls in a
+viewport-filling dialog.
 
 Plain mode writes only semantic HTML pages.
 It omits viewer assets, discovery files, search data, source controls, and frontmatter chrome.
@@ -138,6 +142,7 @@ Then, it registers the materialized source.
 > - `packages/cli/cmd/openknowledge/viewer_discovery.go`
 > - `packages/cli/cmd/openknowledge/viewer_theme.go`
 > - `packages/web/src/viewer/`
+> - `packages/web/scripts/browser.e2e.mjs`
 > - `packages/web/vite.viewer.config.ts`
 > - `packages/cli/internal/okf/export_test.go`
 >
