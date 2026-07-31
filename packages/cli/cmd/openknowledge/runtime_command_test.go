@@ -14,7 +14,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
@@ -627,6 +629,78 @@ func TestRuntimePlanReportsNoRequiredRuntimeWithoutJobDefinitions(t *testing.T) 
 	required, err := runtimeRequiredRuntimes(config)
 	if err != nil || len(required) != 0 {
 		t.Fatalf("required=%#v err=%v", required, err)
+	}
+}
+
+func TestRuntimeAgentCleanupUsesRuntimeStateAndRetainsAuditRecord(t *testing.T) {
+	root := t.TempDir()
+	repository := filepath.Join(root, "repository")
+	if err := os.Mkdir(repository, 0755); err != nil {
+		t.Fatal(err)
+	}
+	runtimeGitTest(t, repository, "init", "-b", "main")
+	runtimeGitTest(t, repository, "config", "user.name", "Runtime Test")
+	runtimeGitTest(t, repository, "config", "user.email", "runtime@example.test")
+	writeViewerFile(t, repository, "README.md", "runtime cleanup\n")
+	runtimeGitTest(t, repository, "add", "README.md")
+	runtimeGitTest(t, repository, "commit", "-m", "initial")
+
+	stateDir := filepath.Join(root, "state")
+	jobsState := filepath.Join(stateDir, "jobs-codex")
+	t.Setenv(agents.JobsStateDirEnv, jobsState)
+	runsDir, err := agents.RepositoryRunDirectory(repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "aaaaaaaaaaaaaaaaaaaaaaaa"
+	runDir := filepath.Join(runsDir, runID)
+	worktree := filepath.Join(filepath.Dir(runsDir), "worktrees", runID)
+	if err := os.MkdirAll(filepath.Dir(worktree), 0700); err != nil {
+		t.Fatal(err)
+	}
+	runtimeGitTest(t, repository, "worktree", "add", "-b", "agent/cleanup-test", worktree)
+	for _, artifact := range []string{"home/cache.bin", "tmp/download.bin", "diff.patch"} {
+		writeViewerFile(t, runDir, artifact, strings.Repeat("x", 1024))
+	}
+	now := time.Date(2026, 7, 31, 5, 0, 0, 0, time.UTC)
+	record := agents.RunRecord{
+		SchemaVersion: "1",
+		RunID:         runID,
+		JobID:         "cleanup-test",
+		Status:        "failed",
+		ScheduledAt:   now,
+		StartedAt:     now,
+		FinishedAt:    now.Add(time.Minute),
+		Plan: agents.RunPlan{
+			RunID:    runID,
+			JobID:    "cleanup-test",
+			RepoRoot: repository,
+			Worktree: worktree,
+			RunDir:   runDir,
+		},
+	}
+	content, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "run.json"), content, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	config := okruntime.Config{Runtime: okruntime.RuntimeConfig{StateDir: stateDir}}
+	if err := cleanupRuntimeAgentRuns(t.Context(), config, repository, "codex"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(worktree); !os.IsNotExist(err) {
+		t.Fatalf("terminal worktree still exists: %v", err)
+	}
+	for _, artifact := range []string{"home", "tmp", "diff.patch"} {
+		if _, err := os.Stat(filepath.Join(runDir, artifact)); !os.IsNotExist(err) {
+			t.Fatalf("terminal artifact %s still exists: %v", artifact, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(runDir, "run.json")); err != nil {
+		t.Fatalf("audit record was removed: %v", err)
 	}
 }
 

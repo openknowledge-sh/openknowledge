@@ -250,10 +250,10 @@ func runtimeAgentWorkerPass(ctx context.Context, config okruntime.Config, runtim
 	if err != nil {
 		return err
 	}
-	if err := runRuntimeAgentPass(ctx, config, checkout, runtimeName); err != nil {
-		return err
-	}
-	return exportRuntimeAgentPullRequests(ctx, config, checkout)
+	runErr := runRuntimeAgentPass(ctx, config, checkout, runtimeName)
+	exportErr := exportRuntimeAgentPullRequests(ctx, config, checkout, runtimeName)
+	cleanupErr := cleanupRuntimeAgentRuns(ctx, config, checkout, runtimeName)
+	return errors.Join(runErr, exportErr, cleanupErr)
 }
 
 func syncRuntimeRepository(ctx context.Context, config okruntime.Config, token string) (string, string, error) {
@@ -463,8 +463,8 @@ func syncRuntimeAgentRepository(ctx context.Context, config okruntime.Config, ru
 	return checkout, nil
 }
 
-func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config, checkout string) error {
-	runs, issues, err := listRuntimeAgentRuns(config, checkout)
+func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config, checkout string, runtimeName string) error {
+	runs, issues, err := listRuntimeAgentRuns(config, checkout, runtimeName)
 	if err != nil {
 		return err
 	}
@@ -519,8 +519,14 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 					failures = append(failures, err)
 					continue
 				}
+				if err := os.RemoveAll(target); err != nil {
+					failures = append(failures, fmt.Errorf("remove uploaded agent exchange %s: %w", record.RunID, err))
+					continue
+				}
 			}
-			_ = writePrivateRuntimeJSON(marker, map[string]any{"run_id": record.RunID, "exported": true})
+			if err := writePrivateRuntimeJSON(marker, map[string]any{"run_id": record.RunID, "exported": true}); err != nil {
+				failures = append(failures, err)
+			}
 			continue
 		}
 		staging, err := os.MkdirTemp(runsDir, ".incoming-*")
@@ -562,8 +568,15 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 				failures = append(failures, err)
 				continue
 			}
+			if err := os.RemoveAll(target); err != nil {
+				failures = append(failures, fmt.Errorf("remove uploaded agent exchange %s: %w", record.RunID, err))
+				continue
+			}
 		}
-		_ = writePrivateRuntimeJSON(marker, map[string]any{"run_id": record.RunID, "exported": true})
+		if err := writePrivateRuntimeJSON(marker, map[string]any{"run_id": record.RunID, "exported": true}); err != nil {
+			failures = append(failures, err)
+			continue
+		}
 		runtimeInfof("runtime agent worker exported run %s for private publication\n", record.RunID)
 	}
 	return errors.Join(failures...)
@@ -659,13 +672,16 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			failures = append(failures, err)
 			continue
 		}
+		if err := os.Remove(bundlePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			failures = append(failures, fmt.Errorf("remove published agent exchange bundle %s: %w", request.RunID, err))
+		}
 		runtimeInfof("runtime publisher published agent run %s as draft PR #%d\n", request.RunID, publication.PR)
 	}
 	return errors.Join(failures...)
 }
 
-func listRuntimeAgentRuns(config okruntime.Config, checkout string) ([]agents.RunSummary, []agents.RunIssue, error) {
-	state := filepath.Join(config.Runtime.StateDir, "jobs")
+func listRuntimeAgentRuns(config okruntime.Config, checkout string, runtimeName string) ([]agents.RunSummary, []agents.RunIssue, error) {
+	state := filepath.Join(config.Runtime.StateDir, "jobs-"+runtimeName)
 	previous, present := os.LookupEnv(agents.JobsStateDirEnv)
 	if err := os.Setenv(agents.JobsStateDirEnv, state); err != nil {
 		return nil, nil, err
@@ -679,6 +695,79 @@ func listRuntimeAgentRuns(config okruntime.Config, checkout string) ([]agents.Ru
 	}()
 	runs, issues, _, err := agents.ListRuns(checkout)
 	return runs, issues, err
+}
+
+func cleanupRuntimeAgentRuns(ctx context.Context, config okruntime.Config, checkout string, runtimeName string) error {
+	runs, issues, err := listRuntimeAgentRuns(config, checkout, runtimeName)
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for _, issue := range issues {
+		failures = append(failures, fmt.Errorf("agent run %s: %s", issue.Path, issue.Error))
+	}
+	removedWorktree := false
+	for _, summary := range runs {
+		switch summary.Status {
+		case "running", "stopping", "killing":
+			continue
+		}
+		content, err := os.ReadFile(summary.RunRecord)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		var record agents.RunRecord
+		if err := json.Unmarshal(content, &record); err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		if summary.Status == "succeeded" && record.Plan.Output.PR {
+			if _, err := os.Stat(filepath.Join(filepath.Dir(summary.RunRecord), "exchange.json")); errors.Is(err, os.ErrNotExist) {
+				continue
+			} else if err != nil {
+				failures = append(failures, err)
+				continue
+			}
+		}
+		if record.Plan.Worktree != "" {
+			runRoot := filepath.Dir(summary.RunRecord)
+			repositoryStateRoot := filepath.Dir(filepath.Dir(runRoot))
+			worktreesRoot := filepath.Join(repositoryStateRoot, "worktrees")
+			if !runtimeWorkerPathInside(worktreesRoot, record.Plan.Worktree) {
+				failures = append(failures, fmt.Errorf("agent run %s worktree is outside runtime state: %s", record.RunID, record.Plan.Worktree))
+				continue
+			}
+			if _, err := os.Stat(record.Plan.Worktree); err == nil {
+				if output, removeErr := runtimeWorkerGit(ctx, config, "", checkout, "worktree", "remove", "--force", record.Plan.Worktree); removeErr != nil {
+					if fallbackErr := os.RemoveAll(record.Plan.Worktree); fallbackErr != nil {
+						failures = append(failures, fmt.Errorf("remove agent run %s worktree: %w: %s; fallback: %v", record.RunID, removeErr, output, fallbackErr))
+						continue
+					}
+				}
+				removedWorktree = true
+			} else if !errors.Is(err, os.ErrNotExist) {
+				failures = append(failures, err)
+				continue
+			}
+		}
+		for _, artifact := range []string{"home", "tmp", "diff.patch"} {
+			if err := os.RemoveAll(filepath.Join(filepath.Dir(summary.RunRecord), artifact)); err != nil {
+				failures = append(failures, fmt.Errorf("remove agent run %s artifact %s: %w", record.RunID, artifact, err))
+			}
+		}
+	}
+	if removedWorktree {
+		if output, err := runtimeWorkerGit(ctx, config, "", checkout, "worktree", "prune"); err != nil {
+			failures = append(failures, fmt.Errorf("prune agent worktrees: %w: %s", err, output))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func runtimeWorkerPathInside(root string, candidate string) bool {
+	relative, err := filepath.Rel(filepath.Clean(root), filepath.Clean(candidate))
+	return err == nil && (relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))))
 }
 
 func runtimeEnvironmentWith(environment []string, name string, value string) []string {

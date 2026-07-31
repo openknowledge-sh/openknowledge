@@ -196,6 +196,56 @@ Maintain the wiki.
 	}
 }
 
+func TestBuildRunPlanKeepsScheduledRunIDAcrossRepositoryChanges(t *testing.T) {
+	repo := t.TempDir()
+	runTestGit(t, repo, "init")
+	jobPath := filepath.Join(repo, "job.md")
+	writeJob := func(prompt string) {
+		t.Helper()
+		content := "---\nid: stable-schedule\nagent: {runtime: codex}\nworkspace: {repo: \".\", base: HEAD}\n---\n" + prompt + "\n"
+		if err := os.WriteFile(jobPath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		runTestGit(t, repo, "add", "job.md")
+		runTestGit(t, repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", prompt)
+	}
+	writeJob("First prompt.")
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "jobs-state"))
+	scheduledAt := time.Date(2026, 7, 15, 5, 0, 0, 0, time.UTC)
+
+	firstJob, err := ParseJobFile(jobPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := BuildRunPlan(firstJob, scheduledAt, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeJob("Updated prompt.")
+	secondJob, err := ParseJobFile(jobPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := BuildRunPlan(secondJob, scheduledAt, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first.RunID != second.RunID {
+		t.Fatalf("the same scheduled slot must keep its run ID: %s != %s", first.RunID, second.RunID)
+	}
+	if first.BaseSHA == second.BaseSHA || first.Prompt == second.Prompt {
+		t.Fatalf("expected plans to reflect repository changes: first=%#v second=%#v", first, second)
+	}
+	later, err := BuildRunPlan(secondJob, scheduledAt.Add(24*time.Hour), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if later.RunID == second.RunID {
+		t.Fatalf("different scheduled slots must have different run IDs: %s", later.RunID)
+	}
+}
+
 func runTestGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	command := exec.Command("git", args...)

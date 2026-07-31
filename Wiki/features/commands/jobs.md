@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge automation jobs
 description: Run experimental local maintenance jobs from Markdown specifications.
 tags: [openknowledge, cli, command, agents, automation]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-07-31T00:00:00Z
 ---
 
 # `openknowledge automation jobs`
@@ -162,6 +162,8 @@ artifact reference.
   supervisor. An abandoned record has the `orphaned` status.
 - `daemon --once` performs one scheduling pass. Without `--once`, the daemon
   polls every minute by default. It continues after an individual job failure.
+- A scheduled run ID contains the job ID and the scheduled time. A source
+  update or a job-file update does not run the same schedule slot again.
 
 JSON output uses `schemaVersion: "1"` for all job operations. Published schemas
 are available under `https://openknowledge.sh/schemas/cli/v1/`. See

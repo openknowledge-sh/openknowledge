@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge automation runtime
 description: Serve immutable knowledge generations and run isolated private maintenance roles.
 tags: [openknowledge, cli, runtime, docker, security, mcp, github]
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-07-31T00:00:00Z
 ---
 
 # `openknowledge automation runtime`
@@ -160,6 +160,12 @@ proposal before a non-force push and draft pull request.
 Workers receive production Git bundles. They run matching jobs in isolated
 worktrees. They return bounded branch bundles and sanitized requests. Prompts,
 logs, diffs, and environment metadata stay on the private worker volume.
+
+Each jobs runtime uses a separate state directory. The worker keeps the run
+record and logs after a run ends. It removes the worktree, isolated home,
+temporary files, and patch after it exports the proposal. It also removes
+these large files after a terminal run that has no proposal. The publisher
+removes a branch bundle after it publishes the proposal.
 
 The repository includes local Compose targets for `serve`, `publisher`,
 `worker-codex`, `worker-claude`, and `worker-opencode`. Railway deployments use

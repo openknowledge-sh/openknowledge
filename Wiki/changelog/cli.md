@@ -13,6 +13,18 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-07-31 — Bounded scheduled-job storage
+
+- A scheduled job now runs at most once for each job ID and schedule slot.
+  Repository or job-file changes do not replay the same slot.
+- Each private jobs worker now reads its runtime-specific state directory.
+- Private workers now remove terminal worktrees and large temporary artifacts
+  after proposal export. Publishers remove branch bundles after publication.
+- Source: `packages/cli/internal/agents/plan.go`,
+  `packages/cli/cmd/openknowledge/runtime_worker.go`.
+- Docs: `Wiki/features/commands/jobs.md`,
+  `Wiki/features/commands/runtime.md`.
+
 ### 2026-07-31 — Open-ended agent setup
 
 - Bare `okn setup` now prints the open-ended setup interview for `Wiki`.

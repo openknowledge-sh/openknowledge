@@ -86,11 +86,7 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 		return RunPlan{}, fmt.Errorf("resolve workspace base %q: %w", base, err)
 	}
 
-	jobHash, err := fileSHA256(job.Path)
-	if err != nil {
-		return RunPlan{}, err
-	}
-	runID := stableRunID(job.ID, scheduledAt, jobHash, baseSHA)
+	runID := stableRunID(job.ID, scheduledAt)
 	branch := renderTemplate(job.Workspace.Branch, templateValues(job, scheduledAt, runID, ""))
 	if branch == "" {
 		branch = renderTemplate("jobs/{{id}}/{{date}}-{{run_id}}", templateValues(job, scheduledAt, runID, ""))
@@ -261,23 +257,12 @@ func (plan RunPlan) JSON() ([]byte, error) {
 	return json.MarshalIndent(plan, "", "  ")
 }
 
-func stableRunID(jobID string, scheduledAt time.Time, jobHash string, baseSHA string) string {
+func stableRunID(jobID string, scheduledAt time.Time) string {
 	hash := sha256.Sum256([]byte(strings.Join([]string{
 		jobID,
 		scheduledAt.UTC().Format(time.RFC3339),
-		jobHash,
-		baseSHA,
 	}, "\n")))
 	return hex.EncodeToString(hash[:])[:24]
-}
-
-func fileSHA256(path string) (string, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	hash := sha256.Sum256(content)
-	return hex.EncodeToString(hash[:]), nil
 }
 
 func gitOutput(dir string, args ...string) (string, error) {
