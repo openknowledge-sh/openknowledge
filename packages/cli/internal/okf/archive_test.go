@@ -121,7 +121,8 @@ func TestWritePublishedBundleTarGzipUsesExplicitPublicAllowlist(t *testing.T) {
 	writeFile(t, root, "assets/private/diagram.svg", "<svg>private</svg>\n")
 	writeFile(t, root, "secret.txt", "do not publish\n")
 	writeFile(t, root, ".openknowledge/runtime.json", "{\"secret\":true}\n")
-	writeFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
+	writeFile(t, root, ValidationConfigFile, "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\", \"openknowledge.toml\"]\n")
+	writeFile(t, root, legacyValidationConfigFile, "legacy configuration\n")
 
 	out := filepath.Join(t.TempDir(), "published.tar.gz")
 	if _, err := WritePublishedBundleTarGzipWithVersion(root, out, "0.1", nil); err != nil {
@@ -136,7 +137,7 @@ func TestWritePublishedBundleTarGzipUsesExplicitPublicAllowlist(t *testing.T) {
 			t.Fatalf("expected %s in public archive: %v", included, err)
 		}
 	}
-	for _, excluded := range []string{"draft.md", "assets/private/diagram.svg", "secret.txt", ".openknowledge/runtime.json", "openknowledge.toml"} {
+	for _, excluded := range []string{"draft.md", "assets/private/diagram.svg", "secret.txt", ".openknowledge/runtime.json", ValidationConfigFile, legacyValidationConfigFile} {
 		if _, err := os.Stat(filepath.Join(extracted, filepath.FromSlash(excluded))); !os.IsNotExist(err) {
 			t.Fatalf("expected %s to be excluded from public archive, got %v", excluded, err)
 		}

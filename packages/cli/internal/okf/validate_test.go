@@ -405,6 +405,7 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 	}
 
 	expectedCreated := []string{
+		ValidationConfigFile,
 		"index.md",
 		"log.md",
 		"AGENTS.md",
@@ -416,6 +417,7 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 	}
 
 	for _, name := range []string{
+		ValidationConfigFile,
 		"index.md",
 		"log.md",
 		"AGENTS.md",
@@ -472,6 +474,7 @@ func TestNewProjectCanSkipAgentAndSetupDocs(t *testing.T) {
 	}
 
 	expectedCreated := []string{
+		ValidationConfigFile,
 		"index.md",
 		"log.md",
 		"SPEC.md",

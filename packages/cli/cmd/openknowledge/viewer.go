@@ -1005,7 +1005,7 @@ func viewerRawAssetPath(root string, rel string) (string, bool) {
 
 func viewerRawPathIsPrivate(rel string) bool {
 	for _, segment := range strings.Split(filepath.ToSlash(rel), "/") {
-		if strings.HasPrefix(segment, ".") || strings.EqualFold(segment, okf.ValidationConfigFile) {
+		if strings.HasPrefix(segment, ".") || strings.EqualFold(segment, okf.ValidationConfigFile) || strings.EqualFold(segment, "openknowledge.toml") {
 			return true
 		}
 	}

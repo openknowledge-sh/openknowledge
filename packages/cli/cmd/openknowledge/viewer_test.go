@@ -1032,7 +1032,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	writeViewerFile(t, root, "assets/public/logo.svg", "<svg/>\n")
 	writeViewerFile(t, root, "assets/private/diagram.svg", "<svg>private</svg>\n")
 	writeViewerFile(t, root, "secret.txt", "do not publish\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
 	if err != nil {
@@ -1044,7 +1044,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if content := readViewerExportFile(t, out, "assets/public/logo.svg"); content != "<svg/>\n" {
 		t.Fatalf("unexpected published asset content: %q", content)
 	}
-	for _, hidden := range []string{"assets/private/diagram.svg", "secret.txt", "openknowledge.toml"} {
+	for _, hidden := range []string{"assets/private/diagram.svg", "secret.txt", ".openknowledge.toml"} {
 		if _, err := os.Stat(filepath.Join(out, filepath.FromSlash(hidden))); !os.IsNotExist(err) {
 			t.Fatalf("expected %s to be absent from public site, got err=%v", hidden, err)
 		}
@@ -1073,7 +1073,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(extracted, "public.md")); err != nil {
 		t.Fatalf("expected published page in portable archive: %v", err)
 	}
-	for _, hidden := range []string{"draft.md", "examples/index.md", "assets/private/diagram.svg", "secret.txt", "openknowledge.toml"} {
+	for _, hidden := range []string{"draft.md", "examples/index.md", "assets/private/diagram.svg", "secret.txt", ".openknowledge.toml"} {
 		if _, err := os.Stat(filepath.Join(extracted, filepath.FromSlash(hidden))); !os.IsNotExist(err) {
 			t.Fatalf("expected unpublished page %s to be absent from portable archive, got err=%v", hidden, err)
 		}
@@ -1086,7 +1086,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 func TestViewerHTMLExportHonorsPublicationTargets(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://example.test/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://example.test/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "no-search.md", "---\ntype: Guide\ntitle: No Search\nokf_targets:\n  search: false\n---\n\n# Unique Search Needle\n")
 	writeViewerFile(t, root, "no-llms.md", "---\ntype: Guide\ntitle: No LLMS\nokf_targets:\n  llms: false\n---\n\n# No LLMS\n")
@@ -1141,7 +1141,7 @@ func TestViewerHTMLExportRejectsUnknownProjectConfigBeforeWriting(t *testing.T) 
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
 	writeViewerFile(t, root, "index.md", "# Home\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\ncss = \"assets/theme.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\ncss = \"assets/theme.css\"\n")
 	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err == nil || !strings.Contains(err.Error(), "fields in the document are missing in the target struct") {
 		t.Fatalf("expected strict project config refusal, got %v", err)
 	}
@@ -1354,7 +1354,7 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
 	writeViewerFile(t, root, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
@@ -1377,7 +1377,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	}
 
 	listRoot := t.TempDir()
-	writeViewerFile(t, listRoot, "openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
+	writeViewerFile(t, listRoot, ".openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
 	writeViewerFile(t, listRoot, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, listRoot, "notes/readme.md", "---\ntype: Note\n---\n\n# Readme\n")
 	listing := getViewerBody(t, newViewerHandler(listRoot), "/")
@@ -1427,7 +1427,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n")
 
@@ -1456,7 +1456,7 @@ func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "---\nokf_bundle_title: \"Team Handbook\"\nokf_bundle_purpose: \"Knowledge for shipping product changes.\"\n---\n\n# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: \"Setup Guide\"\n---\n\n# Setup\n")
 
@@ -1488,7 +1488,7 @@ func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 
 func TestViewerSiteConfigRejectsInvalidBaseURL(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	_, err := writeViewerHTMLWithVersion(root, filepath.Join(t.TempDir(), "site"), "0.1")
@@ -1499,7 +1499,7 @@ func TestViewerSiteConfigRejectsInvalidBaseURL(t *testing.T) {
 
 func TestViewerThemeConfigReportsMissingStylesheetInOpen(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/missing.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/missing.css\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	handler := newViewerHandler(root)
@@ -1521,7 +1521,7 @@ func TestViewerThemeConfigReportsMissingStylesheetInOpen(t *testing.T) {
 
 func TestViewerThemeConfigRejectsStylesheetOutsideBundle(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nstylesheet = \"../landing.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nstylesheet = \"../landing.css\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	if _, err := writeViewerHTMLWithVersion(root, filepath.Join(t.TempDir(), "site"), "0.1"); err == nil || !strings.Contains(err.Error(), "must stay inside the bundle") {
@@ -1532,7 +1532,7 @@ func TestViewerThemeConfigRejectsStylesheetOutsideBundle(t *testing.T) {
 func TestViewerThemeConfigRejectsSymbolicLink(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "bundle")
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nstylesheet = \"assets/theme.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\nstylesheet = \"assets/theme.css\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	outside := filepath.Join(base, "outside.css")
 	if err := os.WriteFile(outside, []byte("body { display: none; }\n"), 0600); err != nil {
@@ -1787,7 +1787,8 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "notes.txt", "not markdown\n")
 	writeViewerFile(t, root, ".env", "TOKEN=secret\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nname = \"night\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\nname = \"night\"\n")
+	writeViewerFile(t, root, "openknowledge.toml", "legacy configuration\n")
 	writeViewerFile(t, root, ".git/config", "[remote \"origin\"]\nurl = secret\n")
 	outside := filepath.Join(t.TempDir(), "outside.md")
 	if err := os.WriteFile(outside, []byte("# Outside\n"), 0644); err != nil {
@@ -1817,14 +1818,14 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 		t.Fatalf("expected non-markdown file API to return 404, got %d", recorder.Code)
 	}
 
-	for _, rawPath := range []string{"index.md", ".env", ".git/config", "openknowledge.toml", "missing.txt"} {
+	for _, rawPath := range []string{"index.md", ".env", ".git/config", ".openknowledge.toml", "openknowledge.toml", "missing.txt"} {
 		recorder = httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/raw/"+rawPath, nil))
 		if recorder.Code != http.StatusNotFound {
 			t.Fatalf("expected private or non-asset raw path %s to return 404, got %d", rawPath, recorder.Code)
 		}
 	}
-	for _, assetPath := range []string{".env", ".git/config", "openknowledge.toml"} {
+	for _, assetPath := range []string{".env", ".git/config", ".openknowledge.toml", "openknowledge.toml"} {
 		recorder = httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/file/"+assetPath, nil))
 		if recorder.Code != http.StatusNotFound {
@@ -1833,7 +1834,7 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	}
 	indexRecorder := httptest.NewRecorder()
 	handler.ServeHTTP(indexRecorder, httptest.NewRequest(http.MethodGet, "/file/index.md", nil))
-	for _, privateName := range []string{".env", "openknowledge.toml", ".git"} {
+	for _, privateName := range []string{".env", ".openknowledge.toml", "openknowledge.toml", ".git"} {
 		if strings.Contains(indexRecorder.Body.String(), privateName) {
 			t.Fatalf("expected private asset %s to be absent from viewer tree", privateName)
 		}

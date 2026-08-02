@@ -277,7 +277,7 @@ func setupRepository(t *testing.T) (string, string) {
 	if err := os.WriteFile(filepath.Join(wiki, "guide.md"), []byte("---\ntype: Guide\nokf_publish: true\n---\n\n# Guide\n\nBefore.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(wiki, "openknowledge.toml"), []byte("[publish]\nenabled = true\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wiki, ".openknowledge.toml"), []byte("[publish]\nenabled = true\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := integration.InstallProject(wiki); err != nil {

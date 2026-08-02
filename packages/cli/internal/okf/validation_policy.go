@@ -6,7 +6,11 @@ import (
 	"strings"
 )
 
-const ValidationConfigFile = "openknowledge.toml"
+const ValidationConfigFile = ".openknowledge.toml"
+
+// legacyValidationConfigFile is intentionally never loaded. Keep it private so
+// an old configuration cannot be exposed as a public asset during migration.
+const legacyValidationConfigFile = "openknowledge.toml"
 
 const (
 	ValidationSeverityOff     = "off"

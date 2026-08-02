@@ -518,12 +518,12 @@ func TestRailwayDeployRejectsDomainCreationAmbiguity(t *testing.T) {
 
 func TestRailwayDeployPreflightsCommittedProductionSnapshot(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
-	writeViewerFile(t, repository, "Wiki/openknowledge.toml", "[publish]\nenabled = false\n")
-	runtimeGitTest(t, repository, "add", "Wiki/openknowledge.toml")
+	writeViewerFile(t, repository, "Wiki/.openknowledge.toml", "[publish]\nenabled = false\n")
+	runtimeGitTest(t, repository, "add", "Wiki/.openknowledge.toml")
 	runtimeGitTest(t, repository, "commit", "-m", "disable production publication")
 	// A valid uncommitted working copy must not conceal that the deployed branch
 	// still refuses publication.
-	writeViewerFile(t, repository, "Wiki/openknowledge.toml", "[publish]\nenabled = true\n")
+	writeViewerFile(t, repository, "Wiki/.openknowledge.toml", "[publish]\nenabled = true\n")
 	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "state.json"))
 	_, err := buildRailwayDeployPlan(options, wiki)
 	if err == nil || !strings.Contains(err.Error(), "production branch preflight") {

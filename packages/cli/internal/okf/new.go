@@ -93,6 +93,10 @@ func newProjectFiles(name string, metadata BundleMetadata, options NewProjectOpt
 
 	files := []projectFile{
 		{
+			name:    ValidationConfigFile,
+			content: "# Open Knowledge bundle configuration.\n",
+		},
+		{
 			name:    "index.md",
 			content: newIndexContent(title, metadata, options),
 		},
