@@ -18,7 +18,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "mermaid": "11.15.0"
+    "mermaid": "11.15.0",
+    "posthog-js": "^1.409.5"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

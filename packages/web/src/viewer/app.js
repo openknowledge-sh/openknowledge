@@ -1,4 +1,6 @@
 
+import { posthog } from "../posthog";
+
 (function () {
   const workspace = document.querySelector("[data-note-workspace]");
   const stackEl = document.querySelector("[data-note-stack]");
@@ -3531,6 +3533,9 @@
 
   async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel) {
     const source = sourcePanel || activePanel();
+    posthog.capture("note_opened", {
+      open_mode: openBeside ? "beside" : "replace",
+    });
     if (!source) {
       await openInitialNote(targetPath, pushHistory, highlightText);
       return;
@@ -3568,6 +3573,7 @@
   }
 
   async function closePanel(panel, pushHistory) {
+    posthog.capture("note_closed");
     const before = panels();
     const index = before.indexOf(panel);
     let nextPanel;
@@ -4195,6 +4201,7 @@
         const shiftOverride = event.shiftKey || searchResult.dataset.openBeside === "true";
         const openBeside = shouldOpenBeside(shiftOverride);
         delete searchResult.dataset.openBeside;
+        posthog.capture("search_result_opened");
         closeSearchResults(searchResult);
         openTarget(targetPath, true, openBeside, highlightFromHref(searchResult.getAttribute("href") || searchResult.href), activePanel());
         return;
