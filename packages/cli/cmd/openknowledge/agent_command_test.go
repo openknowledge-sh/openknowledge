@@ -13,12 +13,12 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 )
 
-func TestAgentIntegrationAndRootInsightsNamespaces(t *testing.T) {
-	stdout, stderr, code := captureMainOutput(t, func() int { return runAgent([]string{"integrate", "--help"}) })
-	if code != 0 || stderr != "" || !strings.Contains(stdout, "openknowledge agent integrate") {
-		t.Fatalf("agent integrate help code=%d stdout=%q stderr=%q", code, stdout, stderr)
+func TestAgentIntegrateIsRemovedAndRootInsightsRemains(t *testing.T) {
+	_, _, code := captureMainOutput(t, func() int { return dispatchCLI([]string{"agent", "integrate", "--help"}) })
+	if code != 2 {
+		t.Fatalf("removed agent integrate exited %d", code)
 	}
-	stdout, stderr, code = captureMainOutput(t, func() int { return dispatchCLI([]string{"insights", "--help"}) })
+	stdout, stderr, code := captureMainOutput(t, func() int { return dispatchCLI([]string{"insights", "--help"}) })
 	if code != 0 || stderr != "" || !strings.Contains(stdout, "openknowledge automation insights") {
 		t.Fatalf("root insights help code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}

@@ -32,6 +32,13 @@ type agentCLIOptions struct {
 	modeOverride string
 }
 
+type fromOptions struct {
+	source string
+	out    string
+	about  string
+	depth  int
+}
+
 type agentDoctorEntry struct {
 	Runtime    string `json:"runtime"`
 	Available  bool   `json:"available"`
@@ -50,11 +57,9 @@ var runAgentProcess = func(ctx context.Context, executable string, arguments []s
 }
 
 func runAgent(args []string) int {
-	if len(args) > 0 {
-		switch args[0] {
-		case "integrate":
-			return runIntegrate(args[1:])
-		}
+	if len(args) > 0 && args[0] == "integrate" {
+		fmt.Fprintln(stderrOutput(), "unknown agent command: integrate")
+		return 2
 	}
 	if hasHelpFlag(args) {
 		if len(args) > 0 && args[0] == "exec" {
@@ -178,7 +183,6 @@ func agentTask(options agentCLIOptions) (task string, mode string, interactive b
 		prompt, err := okf.FromPrompt(okf.FromPromptOptions{
 			Source: options.from.source,
 			Out:    options.from.out,
-			Type:   options.from.wikiType,
 			About:  options.from.about,
 			Depth:  options.from.depth,
 		})
@@ -321,7 +325,7 @@ Flags:
 Executable overrides:
   OPENKNOWLEDGE_CODEX, OPENKNOWLEDGE_CLAUDE, OPENKNOWLEDGE_OPENCODE
 
-Use openknowledge integration to install a runtime-specific project skill.
+Use openknowledge setup to install runtime-specific agent instructions.
 
 Run openknowledge agent exec --help for non-interactive usage.
 `

@@ -23,6 +23,13 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		"spawn focused subagents with lower reasoning effort",
 		"Keep onboarding focused on three outcomes",
 		"Run okn validate \"<folder path>\"",
+		"Remove SETUP.MD after all setup decisions are reflected",
+		"global skill is reusable across knowledge bases",
+		"project skill can contain repository-specific guidance",
+		"Observation is opt-in",
+		"okn setup complete \"<folder path>\" --skill <global|project|both|none> [--harness <codex|claude|opencode>] --observe <on|off>",
+		"Omit --harness only when the skill scope is none and observation is off",
+		"If okn setup complete fails, fix the reported problem and run it again.",
 		"okn search \"<folder path>\" \"<query>\"",
 		"mention okn get, list, or view only when the user asks",
 	}
@@ -33,8 +40,8 @@ func TestSetupPromptAsksAgentToBuildContextBeforeQuestions(t *testing.T) {
 		}
 	}
 	forbidden := []string{
-		"codex \"$(" + "openknowledge prompt setup)\"",
-		"openknowledge prompt setup " + "| codex",
+		"codex \"$(" + "openknowledge setup --prompt)\"",
+		"openknowledge setup --prompt " + "| codex",
 		"After setup, offer to start the local viewer",
 		"how to view it with openknowledge view",
 	}

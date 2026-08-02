@@ -33,13 +33,12 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"Share and connect:",
 		"Automate and operate:",
 		"Advanced and portable tools:",
-		"setup        Print a portable knowledge-base setup prompt.",
+		"setup        Set up a knowledge base and its agent instructions.",
 		"search       Build source-grounded context from one or more knowledge bases.",
 		"agent        Run a local knowledge task with an agent.",
-		"integration  Install and manage one local agent-runtime integration.",
 		"automation   Run jobs, insights, runtimes, and deployments.",
 		"export       Export HTML, JSON, graph, or portable tar views.",
-		"prompt       Print or install portable agent instructions.",
+		"prompt       Print or install maintenance instructions.",
 		"scaffold     Create a deterministic local OKF knowledge base.",
 		"validate     Validate a bundle against an OKF spec.",
 		"Get started:",
@@ -144,7 +143,7 @@ func TestRunMainPrintsVersionedJSONRuntimeErrors(t *testing.T) {
 func TestRunMainPreservesMachineValidationResultOnSemanticFailure(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\n[Missing](missing.md)\n")
-	writeMainTestFile(t, root, "openknowledge.toml", "[validation.rules]\nlink-target = \"error\"\n")
+	writeMainTestFile(t, root, okf.ValidationConfigFile, "[validation.rules]\nlink-target = \"error\"\n")
 
 	stdout, stderr, code := captureMainOutput(t, func() int {
 		return runMain([]string{"--error-format", "json", "validate", "--format", "json", root})
@@ -230,18 +229,16 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge setup\n",
 				"openknowledge setup [wiki] --from <source>",
-				"openknowledge setup --agent",
-				"openknowledge setup --agent --runtime <codex|claude|opencode>",
-				"Print a portable prompt to create or update",
-				"complete printed prompt into an agent",
+				"openknowledge setup [wiki] --prompt",
+				"openknowledge setup [wiki] --interactive",
+				"openknowledge setup [wiki] --agent <codex|claude|opencode>",
+				"openknowledge setup complete <wiki>",
+				"Without terminal",
 				"--rules",
 				"--model",
 				"--about",
 				"--depth",
-				"open-ended setup interview for Wiki",
-				"openknowledge agent doctor --runtime <runtime>",
-				"Advanced flags:",
-				"commands are optional",
+				"not use predefined knowledge-base types",
 			},
 		},
 		"insights": {
@@ -252,21 +249,6 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge automation insights run --all",
 				"private evidence-only insight",
 				"--target and --evidence may be repeated",
-			},
-		},
-		"prompt from": {
-			help: promptFromHelpText(),
-			required: []string{
-				"openknowledge prompt from <source> --out <folder>",
-				"openknowledge prompt from <source> --out <folder> --type custom --about <goal>",
-				"Print an agent task prompt",
-				"The command does not fetch, crawl, call an LLM, or write the wiki itself",
-				"--type",
-				"understanding or custom",
-				"--about",
-				"--depth",
-				"Copy the printed prompt",
-				"avoid shell command substitution or piping",
 			},
 		},
 		"prompt rules": {
@@ -516,7 +498,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.",
 				"openknowledge.json",
 				"assets/openknowledge-bundle.tar.gz",
-				"Default viewer exports read [html.theme] from openknowledge.toml",
+				"Default viewer exports read [html.theme] from .openknowledge.toml",
 				"Built-in variables are defined in viewer_theme.css",
 			},
 		},
@@ -689,7 +671,7 @@ func TestRulesCommandUsesConfiguredEnabledRules(t *testing.T) {
 	root := t.TempDir()
 	wiki := filepath.Join(root, "Wiki")
 	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
-	writeMainTestFile(t, wiki, "openknowledge.toml", "[rules]\nenabled = [\"docs\", \"changelog\"]\n")
+	writeMainTestFile(t, wiki, okf.ValidationConfigFile, "[rules]\nenabled = [\"docs\", \"changelog\"]\n")
 
 	output, stderr, code := captureMainOutput(t, func() int {
 		return runRules([]string{"--path", wiki})
@@ -967,7 +949,7 @@ func TestRulesApplyConfirmationMessagesDescribeWriteType(t *testing.T) {
 
 func TestSetupCommandAcceptsRules(t *testing.T) {
 	output, code := captureMainStdout(t, func() int {
-		return runPromptSetup([]string{"--rules", "docs,changelog"})
+		return runSetup([]string{"--prompt", "--rules", "docs,changelog"})
 	})
 	if code != 0 {
 		t.Fatalf("expected setup command with rules to succeed, got exit code %d\n%s", code, output)
@@ -986,10 +968,11 @@ func TestSetupCommandAcceptsRules(t *testing.T) {
 
 func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 	output, code := captureMainStdout(t, func() int {
-		return runPromptFrom([]string{
+		return runSetup([]string{
+			"Wiki",
+			"--prompt",
+			"--from",
 			"https://github.com/openknowledge-sh/openknowledge",
-			"--out", "Wiki",
-			"--type", "custom",
 			"--about", "Help contributors understand releases",
 			"--depth", "2",
 		})
@@ -1001,12 +984,12 @@ func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 		"source URL or path -> local agent task -> OKF Markdown bundle",
 		"Source: `https://github.com/openknowledge-sh/openknowledge`",
 		"Output wiki path: `Wiki`",
-		"Wiki type: `custom`",
-		"Custom goal: `Help contributors understand releases`",
+		"Requested outcome: `Help contributors understand releases`",
 		"Depth: 2",
-		"okn scaffold --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
+		"okn scaffold --name \"<clear wiki name>\" --no-agents \"Wiki\"",
 		"okf_generated_from",
 		"okn validate \"Wiki\"",
+		"okn setup complete",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected from output to include %q:\n%s", expected, output)
@@ -1030,6 +1013,7 @@ func TestScaffoldCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"Created knowledge base",
+		"+ .openknowledge.toml",
 		"+ index.md",
 		"+ log.md",
 		"+ SPEC.md",
@@ -1051,22 +1035,6 @@ func TestScaffoldCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(target, name)); !os.IsNotExist(err) {
 			t.Fatalf("expected %s not to exist, got err=%v", name, err)
 		}
-	}
-}
-
-func TestParseFromOptionsDefaultsToUnderstanding(t *testing.T) {
-	options, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/", "--out=Wiki", "--depth=0"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if options.source != "https://openknowledge.sh/wiki/" || options.out != "Wiki" || options.wikiType != okf.DefaultFromType || options.depth != 0 {
-		t.Fatalf("unexpected from options: %#v", options)
-	}
-	if _, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/", "--out", "Wiki", "--depth", "-1"}); err == nil {
-		t.Fatal("expected negative depth to fail")
-	}
-	if _, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/"}); err == nil {
-		t.Fatal("expected missing --out to fail")
 	}
 }
 
@@ -1289,7 +1257,7 @@ func TestRunDisconnectAcceptsFlagsBeforeAndAfterDocumentedTargetArgument(t *test
 func TestRunValidatePrintsJSONReportWithConfiguredRules(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\n[Missing](missing.md)\n")
-	writeMainTestFile(t, root, "openknowledge.toml", "[validation.rules]\nlink-target = \"error\"\n")
+	writeMainTestFile(t, root, okf.ValidationConfigFile, "[validation.rules]\nlink-target = \"error\"\n")
 
 	output, code := captureMainStdout(t, func() int {
 		return runValidate([]string{"--json", root})
@@ -1310,7 +1278,7 @@ func TestRunValidatePrintsJSONReportWithConfiguredRules(t *testing.T) {
 	if len(report.Errors) != 1 || report.Errors[0].Rule != "link-target" || report.Errors[0].Severity != okf.ValidationSeverityError {
 		t.Fatalf("expected escalated link-target error, got %#v", report.Errors)
 	}
-	if report.Policy.Overrides["link-target"] != okf.ValidationSeverityError || !strings.HasSuffix(report.Policy.ConfigPath, "openknowledge.toml") {
+	if report.Policy.Overrides["link-target"] != okf.ValidationSeverityError || !strings.HasSuffix(report.Policy.ConfigPath, okf.ValidationConfigFile) {
 		t.Fatalf("expected policy metadata in report, got %#v", report.Policy)
 	}
 }

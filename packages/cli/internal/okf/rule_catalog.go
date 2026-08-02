@@ -527,7 +527,7 @@ func renderRulesList(ruleSets []RuleSet) string {
 	builder.WriteString("Usage:\n")
 	builder.WriteString("  openknowledge prompt rules docs,changelog --path Wiki\n")
 	builder.WriteString("  openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md\n")
-	builder.WriteString("  openknowledge prompt setup --rules docs,changelog\n\n")
+	builder.WriteString("  openknowledge setup --prompt --rules docs,changelog\n\n")
 	builder.WriteString("Available rules:\n\n")
 	for _, ruleSet := range ruleSets {
 		builder.WriteString(fmt.Sprintf("  %-14s %s\n", ruleSet.ID, ruleSet.Summary))

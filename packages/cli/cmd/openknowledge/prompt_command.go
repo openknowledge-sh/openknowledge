@@ -11,10 +11,6 @@ func runPrompt(args []string) int {
 		return 0
 	}
 	switch args[0] {
-	case "setup":
-		return runPromptSetup(args[1:])
-	case "from":
-		return runPromptFrom(args[1:])
 	case "rules":
 		return runRules(args[1:])
 	case "review":
@@ -31,14 +27,11 @@ func promptHelpText() string {
 Print or install portable agent instructions without starting a model runtime.
 
 Usage:
-  openknowledge prompt setup [--rules <rules>]
-  openknowledge prompt from <source> --out <folder>
   openknowledge prompt rules [<rules>] [--path <wiki>]
   openknowledge prompt rules apply [<rules>] [--path <wiki>]
   openknowledge prompt review rules [wiki]
 
-Use openknowledge setup for the preferred portable setup surface. Add --agent
-to that command to run, validate, and integrate the result. The prompt
-namespace keeps advanced prompt and maintenance tools.
+Use openknowledge setup --prompt for a portable setup task. The prompt
+namespace contains maintenance and review tools.
 `
 }

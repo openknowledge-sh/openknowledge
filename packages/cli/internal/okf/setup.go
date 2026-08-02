@@ -32,7 +32,7 @@ Before asking the user:
 Use these seed questions only when context cannot answer them:
 1. What should this knowledge base help with?
 2. Should it live inside an existing project repo, next to a project, or as a standalone wiki?
-3. Which use case is closest: code/project memory, personal knowledge, team/work memory, research/data dump, recurring automation output, or something else?
+3. Which existing sources or context should the knowledge base use?
 4. Which maintenance rules should future agents follow, if any?
    Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents. Run okn prompt rules --list for descriptions.
 5. Are there privacy, safety, source-boundary, or "do not edit" rules?
@@ -57,14 +57,22 @@ After creation:
 - If the user wants recurring or external jobs, treat automations as orchestrator-native. Check whether the current agent runtime can create native automations, such as Codex app automations, Cowork automations, or another explicitly available scheduler. If it can and the user approves, configure the native automation with a prompt that references the wiki path, relevant workflows, validation command, outputs, and safety boundaries. If it cannot, or if the user does not approve installing it, do not claim an automation exists; optionally document an automation candidate or manual workflow in the wiki.
 - Keep raw imported material separate from synthesized wiki pages.
 - Record setup decisions in log.md.
-- Run okn validate "<folder path>" and fix any issues.
-- Delete SETUP.MD only after setup is complete.
+- Remove SETUP.MD after all setup decisions are reflected in the bundle.
+- Run okn validate "<folder path>" and fix all errors and avoidable warnings.
+- If the setup task does not include a preselected activation plan, ask the user which installed agent harnesses need Open Knowledge instructions. Also ask for the skill scope: global, project, both, or none. Explain that the global skill is reusable across knowledge bases. Explain that the project skill can contain repository-specific guidance. Ask separately whether to enable knowledge-gap observation. Observation is opt-in.
+- Run:
+  okn setup complete "<folder path>" --skill <global|project|both|none> [--harness <codex|claude|opencode>] --observe <on|off>
+- Use the user's selected skill scope, harnesses, and observation choice.
+- Repeat --harness for each selected harness. Omit --harness only when the skill scope is none and observation is off.
+- If okn setup complete fails, fix the reported problem and run it again.
+- Run one representative query with okn search "<folder path>" "<query>" and confirm the returned evidence is relevant.
 
 Finish by telling the user:
 - the exact path of the knowledge base
 - what folders, workflows, agent instructions or skills, and native automations or automation candidates you created
 - how future agents should use it
 - that validation passed
+- which connections and skills were installed
 - how to search it with okn search "<folder path>" "<query>"
 - mention okn get, list, or view only when the user asks for exact
   reading, structural inspection, or human browsing

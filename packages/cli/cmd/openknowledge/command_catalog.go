@@ -27,12 +27,11 @@ var commandGroups = []commandGroup{
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Start here", Summary: "Print a portable knowledge-base setup prompt.", Run: runSetup},
+	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("complete", "status", "repair", "observe"), Run: runSetup},
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 
-	{Name: "agent", Group: "Work locally", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "integrate", "doctor"), Run: runAgent},
-	{Name: "integration", Group: "Work locally", Summary: "Install and manage one local agent-runtime integration.", Subcommands: commandNames("install", "status", "remove"), Run: runIntegration},
+	{Name: "agent", Group: "Work locally", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "doctor"), Run: runAgent},
 	{Name: "get", Group: "Work locally", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
 	{Name: "list", Group: "Work locally", Summary: "Inspect knowledge-base structure.", Run: runList},
 	{Name: "view", Group: "Work locally", Summary: "Browse knowledge locally.", Run: runView},
@@ -50,7 +49,7 @@ var rootCommandCatalog = []rootCommand{
 	{Name: "automation", Group: "Automate and operate", Summary: "Run jobs, insights, runtimes, and deployments.", Subcommands: commandNames("jobs", "insights", "runtime", "deploy"), Run: runAutomation},
 
 	{Name: "scaffold", Group: "Advanced and portable tools", Summary: "Create a deterministic local OKF knowledge base.", Run: runScaffold},
-	{Name: "prompt", Group: "Advanced and portable tools", Summary: "Print or install portable agent instructions.", Subcommands: commandNames("setup", "from", "rules", "review"), Run: runPrompt},
+	{Name: "prompt", Group: "Advanced and portable tools", Summary: "Print or install maintenance instructions.", Subcommands: commandNames("rules", "review"), Run: runPrompt},
 	{Name: "ast", Group: "Advanced and portable tools", Summary: "Print parsed OKF AST JSON.", Run: runAST},
 	{Name: "spec", Group: "Advanced and portable tools", Summary: "Print an embedded OKF spec.", Run: runSpec},
 	{Name: "version", Group: "Advanced and portable tools", Summary: "Print the CLI version.", Run: runVersion},
@@ -157,8 +156,9 @@ Usage:
   -h, --help                Show this help.
   --error-format text|json  Format command failures on stderr (default text).
 
-Start with setup and paste its printed prompt into your agent. Run
-openknowledge <command> --help when you need another workflow.
+Start with setup for an interactive onboarding. Use setup --prompt when an
+existing agent should run the onboarding task. Run openknowledge <command>
+--help when you need another workflow.
 
 Get started:
   openknowledge setup
