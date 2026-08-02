@@ -1,3 +1,5 @@
+import { posthog } from "./posthog";
+
 const copyButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".copy-command"));
 const copiedTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
 const releaseBadge = document.querySelector<HTMLElement>("[data-release-badge]");
@@ -39,6 +41,7 @@ for (const copy of copyButtons) {
     label.textContent = "Copied";
     clearTimeout(copiedTimers.get(copy));
     await copyText(text);
+    posthog.capture("command_copied");
     copiedTimers.set(
       copy,
       setTimeout(() => {
