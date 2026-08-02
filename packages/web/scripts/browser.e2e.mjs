@@ -25,7 +25,7 @@ before(async () => {
   const wiki = path.join(temporary, "Wiki");
   const viewer = path.join(temporary, "viewer");
   await mkdir(path.join(wiki, "guides"), { recursive: true });
-  await writeFile(path.join(wiki, "openknowledge.toml"), "[publish]\nenabled = true\n");
+  await writeFile(path.join(wiki, ".openknowledge.toml"), "[publish]\nenabled = true\n");
   await writeFile(path.join(wiki, "index.md"), [
     "---",
     "okf_bundle_title: Browser Test Handbook",
@@ -123,7 +123,8 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   assert.match(clipboard, /curl -fsSL https:\/\/openknowledge\.sh\/install \| bash/);
   assert.match(clipboard, /okn version/);
-  assert.match(clipboard, /run okn setup and follow the complete prompt/);
+  assert.match(clipboard, /run: okn setup --prompt/);
+  assert.match(clipboard, /okn validate and okn setup complete/);
   assert.match(clipboard, /purpose, audience, sources, structure, and maintenance needs/);
   const githubStar = page.getByRole("link", { name: "Star us on GitHub" });
   assert.equal(await githubStar.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");

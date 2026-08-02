@@ -1,28 +1,24 @@
 ---
 type: Command Documentation
 title: openknowledge prompt
-description: Advanced portable prompt and maintenance-rule tools.
+description: Print maintenance rules and advisory review tasks.
 tags: [openknowledge, cli, command, prompt, advanced]
-timestamp: 2026-07-17T00:00:00Z
+timestamp: 2026-08-02T00:00:00Z
 ---
 
 # `openknowledge prompt`
 
-`okn prompt` groups portable workflows that print agent
-instructions. These workflows do not start an agent harness.
+Use `okn prompt` for maintenance rules and advisory review tasks.
 
-Use [`okn setup`](setup.md) for setup tasks. It prints a source-grounded setup
-prompt by default. Use this command for the interview-only setup prompt, the rule
-catalog, or a managed instruction block.
+Use [`okn setup`](setup.md) for all knowledge-base setup tasks. Setup owns the
+current agent task and source-to-wiki workflow.
 
 ## Usage
 
 ```sh
-okn prompt setup --rules docs,changelog
-okn prompt from <source> --out Wiki
 okn prompt rules --list
 okn prompt rules docs,changelog --path Wiki
-okn prompt rules apply docs --path Wiki --file AGENTS.md
+okn prompt rules apply docs,changelog --path Wiki --file AGENTS.md
 okn prompt review rules Wiki
 ```
 
@@ -30,15 +26,11 @@ okn prompt review rules Wiki
 
 | Subcommand | Effect |
 | --- | --- |
-| `setup` | Print the canonical setup interview prompt. |
-| [`from`](from.md) | Print a source-to-wiki prompt. |
 | [`rules`](rules.md) | List or render maintenance rules. `rules apply` updates one managed instruction block. |
-| [`review`](review.md) | Print advisory AI review prompts. |
+| [`review`](review.md) | Print advisory AI review tasks. |
 
-Open Knowledge removed the former top-level `from`, `rules`, and `review`
-commands before 1.0. They are not aliases. Scripts that use them return an
-error.
-
+`prompt setup` and `prompt from` are not supported. Use `okn setup --prompt`
+or `okn setup --from <source>` instead.
 
 ---
 
@@ -47,6 +39,4 @@ error.
 > **Source anchors**
 >
 > * `packages/cli/cmd/openknowledge/prompt_command.go`
-> * `packages/cli/internal/okf/setup.go`
 > * `packages/cli/internal/okf/rules.go`
-> * `packages/cli/internal/okf/from.go`

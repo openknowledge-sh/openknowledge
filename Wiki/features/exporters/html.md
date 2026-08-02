@@ -92,7 +92,7 @@ entry = "Wiki"
 - Without `html.site.base_url`, `llms.txt` uses relative links.
 - Without `html.site.base_url`, the exporter does not build a sitemap.
 
-See [`openknowledge.toml`](/features/configuration.md) for the strict field
+See [`.openknowledge.toml`](/features/configuration.md) for the strict field
 contract.
 
 ## Build behavior

@@ -17,7 +17,7 @@ They do not use separate knowledge models.
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
 | Start here | `setup`, `search`, `validate` | Print or run wiki setup, retrieve useful context, and verify its source. |
-| Work locally | `agent`, `integration`, `get`, `list`, `view` | Maintain, connect, read, and browse knowledge on the current machine. |
+| Work locally | `agent`, `get`, `list`, `view` | Maintain, connect, read, and browse knowledge on the current machine. |
 | Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` | Publish portable views and resolve local or remote bundles. |
 | Automate and operate | `automation` | Run jobs, insights, hosted runtimes, and deployments. |
 

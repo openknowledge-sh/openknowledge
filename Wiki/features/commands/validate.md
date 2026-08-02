@@ -58,7 +58,7 @@ to links that have non-Markdown asset names.
 
 ## Severity policy
 
-Configure persistent overrides in `openknowledge.toml`:
+Configure persistent overrides in `.openknowledge.toml`:
 
 ```toml
 [validation.rules]
@@ -68,7 +68,7 @@ markdown-syntax = "off"
 
 CLI `--rule` values have priority. Canonical severities are `off`, `warn`, and
 `error`. An unknown rule or severity is a usage error. See
-[`openknowledge.toml`](/features/configuration.md) for accepted compatibility
+[`.openknowledge.toml`](/features/configuration.md) for accepted compatibility
 aliases and strict configuration behavior.
 
 `publish-metadata` and `insight-contract` are mandatory checks. You cannot

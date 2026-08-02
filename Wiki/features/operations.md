@@ -103,7 +103,7 @@ OPENKNOWLEDGE_HEAD_HTML='<meta name="..." content="...">' pnpm build:web
 OPENKNOWLEDGE_SCRIPT_SRC=/analytics.js pnpm build:web
 ```
 
-`Wiki/openknowledge.toml` defines the deployed theme, source links, and site URL.
+`Wiki/.openknowledge.toml` defines the deployed theme, source links, and site URL.
 It also defines the publication asset list.
 Keep `Wiki/assets/openknowledge-site.css` consistent with the landing-page visual system.
 

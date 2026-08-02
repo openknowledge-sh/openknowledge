@@ -1,114 +1,93 @@
 ---
 type: Command Documentation
 title: openknowledge setup
-description: Prints a portable setup prompt or runs it with an agent.
+description: Set up, complete, inspect, and repair an Open Knowledge bundle.
 tags: [openknowledge, cli, command, setup]
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-08-02T00:00:00Z
 ---
 
 # `openknowledge setup`
 
-Use `okn setup` to print a portable setup prompt for a wiki.
-
-With no arguments, the command prints an open-ended setup interview. The
-default target is `Wiki`. The command prints the instructions to standard
-output. It does not start an agent.
-
-Run `okn setup` yourself. Copy its complete output into an agent that already
-has access to the project. This is the primary setup flow.
-
-Use `--agent --runtime <runtime>` to start an installed agent runtime from the
-CLI. Run agent mode in the Git repository that contains the wiki.
-
-Specify `[wiki]` without `--from` for a new knowledge base. Use
-`--from <source>` for a different repository, local folder, or website.
+Use `okn setup` to create or complete a knowledge base with an agent.
 
 ## Usage
 
 ```sh
 okn setup
-okn setup --agent
-okn setup --agent --runtime claude
-okn setup Wiki
-okn setup Wiki --rules docs,changelog
-okn setup Wiki --from https://example.com/docs
-okn setup Wiki --from ./existing-repo --type custom --about "Release operations"
-okn setup --help
+okn setup Wiki --prompt
+okn setup Wiki --interactive
+okn setup Wiki --agent codex
+okn setup Wiki --from ./repository
+okn setup Wiki --from ./repository --about "Explain release workflows"
+okn setup Wiki --from https://example.com/docs --depth 2
+okn setup complete Wiki --skill project --harness codex --observe off
+okn setup status
+okn setup repair
+okn setup observe on
 ```
 
-## Arguments and flags
+## Setup modes
 
-The optional positional argument selects the target wiki. The default target
-is `Wiki`.
+On a terminal, `okn setup` starts the setup wizard. The wizard detects the
+project context and asks only for missing setup decisions.
 
-The default prompt asks the agent to inspect the workspace first. The agent
-then asks only necessary questions about purpose, audience, sources, structure,
-and maintenance. The default prompt does not select a predefined wiki type.
+Without a terminal, `okn setup` prints the agent task. Use `--prompt` to print
+the task in any environment. Use `--interactive` to start the wizard.
 
-Run agent mode inside a Git repository. Project integration requires a stable
-repository root.
+Use `--agent <codex|claude|opencode>` to start one installed agent harness.
+The agent works from the repository that contains the target bundle.
 
-| Flag | Description |
-| --- | --- |
-| `--from <source>` | Run the source-to-wiki workflow instead of a new setup interview. |
-| `--agent` | Run the instructions with an agent. By default, setup prints the instructions. |
-| `--runtime <runtime>` | Select `codex`, `claude`, or `opencode`. Requires `--agent`. |
-| `--model <model>` | Override the harness model. Requires `--agent`. |
-| `--rules <rules>` | Preselect comma-separated maintenance rules for a new setup. Incompatible with `--from`. |
-| `--type <type>` | Select `understanding` or `custom` for `--from`. |
-| `--about <goal>` | Supply the custom source-to-wiki goal. Requires `--from`. |
-| `--depth <n>` | Supply a non-negative traversal hint. `0` lets the agent choose the minimum depth. Requires `--from`. |
-| `--help` | Print setup-specific help. |
+The optional `wiki` argument selects the bundle path. The default is `Wiki`.
 
-Built-in canonical rules are `project`, `docs`, `decisions`, `changelog`,
-`research`, `bugs`, `schemas`, `summary`, and `agents`.
+Use `--from <source>` to build a bundle from a repository, local folder, or
+website. Use `--about <goal>` to give the intended result. Without `--about`,
+the agent inspects the source and asks for the missing intent. Use `--depth <n>`
+to limit source traversal. A value of `0` lets the agent choose the minimum
+depth.
 
-## Agent mode
+Setup has no knowledge-base type option. Maintenance rules are independent
+choices in the setup flow.
 
-If you omit `--runtime`, setup detects the installed supported runtimes. It
-asks you to select one before it starts the agent.
+## Completion
 
-For non-interactive input, specify `--runtime`. Without this flag, setup lists
-the available runtimes and stops.
+The generated agent task creates or updates the bundle. It then removes
+`SETUP.MD`, runs `okn validate`, and fixes errors and avoidable warnings.
 
-If setup finds no supported runtime, it stops. Install `codex`, `claude`, or
-`opencode`. Then, run the command again.
-
-Before agent work starts, setup resolves the selected runtime executable. A
-missing executable stops setup. Use this command to diagnose the installation:
+The task finishes technical installation with:
 
 ```sh
-okn agent doctor --runtime <runtime>
+okn setup complete Wiki \
+  --skill <global|project|both|none> \
+  --harness <codex|claude|opencode> \
+  --observe <on|off>
 ```
 
-Setup succeeds only when all three stages succeed:
+`--skill` selects instruction scope. `global` installs instructions for the
+current user. `project` installs repository instructions. `both` installs both
+scopes. `none` installs no instructions.
 
-1. The selected agent harness finishes.
-2. The target is a valid OKF bundle.
-3. The selected runtime project skill installs.
+Repeat `--harness` to select more than one supported harness. With the `none`
+skill scope, use `--harness` only when observation is on. Observation is disabled
+unless `--observe on` is explicit.
 
-An agent failure prints the runtime, exit status, and a recovery hint. A
-missing target, validation error, or integration failure produces a nonzero
-exit status. The agent can see existing uncommitted repository changes.
+`complete` validates the finished bundle, creates a missing connection, updates
+selected managed instructions, applies the observation choice, and reports
+health. It does not create wiki content, commit changes, or publish content.
+The command is idempotent. If it fails, fix the reported issue and run it again.
 
-Agent mode controls the workflow and starts an interactive agent process. It
-does not install observation hooks. Use `okn integration install` with
-`--observe` if you explicitly want session observation.
+The agent then runs a representative `okn search` query and reports the result.
 
-`scaffold` is not an equivalent onboarding path. It creates bundle files
-without an agent or project integration.
+## Status and repair
 
-The knowledge base is ready when agent mode succeeds. Use search when you need
-context:
+Use `okn setup status` to inspect bundle validation, connections, installed
+skills, and observation state.
 
-```sh
-okn search Wiki "release workflow"
-```
+Use `okn setup repair` to repair managed skill blocks, harness adapters, and
+local observation configuration. The command does not change wiki content or
+user-managed project guidance.
 
-Setup validates the bundle. Use `get`, `list`, or `view` only when you need
-their output. Publishing, registry, runtime, scaffold, and prompt commands are
-separate advanced workflows.
-
+Use `okn setup observe on` only after you approve local capture of possible
+knowledge gaps. Use `okn setup observe off` to disable capture.
 
 ---
 
@@ -117,17 +96,13 @@ separate advanced workflows.
 > **Source anchors**
 >
 > * `packages/cli/cmd/openknowledge/setup_command.go`
+> * `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`
+> * `packages/cli/internal/integration/manage.go`
 > * `packages/cli/internal/okf/setup.go`
-> * `packages/cli/internal/okf/new.go`
+> * `packages/cli/internal/okf/from.go`
 > * `packages/cli/internal/okf/rules.go`
-> * `packages/cli/cmd/openknowledge/main.go`
-> * `packages/cli/internal/okf/setup_test.go`
-> * `packages/cli/internal/okf/rules_test.go`
-> * `README.md`
-> * `packages/web/index.html`
 >
 > **Update notes**
 >
-> The setup prompt is a product workflow, not only help text. Update
-> [Feature docs workflow](/workflows/feature-docs.md) and [CLI changelog](/changelog/cli.md)
-> when the interview, expected outputs, or validation loop changes.
+> Update this page when the setup workflow, task, skill installation, or
+> observation behavior changes.

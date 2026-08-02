@@ -62,7 +62,7 @@
               bases in Markdown with the agents you already use.
             </p>
             <nav class="hero-actions" aria-label="Primary actions">
-              <button class="primary-action copy-command" type="button" data-copy-text="Set up an Open Knowledge wiki for this workspace. If the Open Knowledge CLI is not installed, install it with: curl -fsSL https://openknowledge.sh/install | bash&#10;&#10;Verify the installation with: okn version&#10;&#10;Then run okn setup and follow the complete prompt it prints. Inspect this workspace first. Ask me focused questions about the wiki's purpose, audience, sources, structure, and maintenance needs before you create it. Keep the setup open-ended instead of choosing a predefined wiki type. Create the wiki, run its validation steps, and explain what you configured." aria-label="Copy agent setup prompt" title="Copy a setup prompt for your agent">
+              <button class="primary-action copy-command" type="button" data-copy-text="Set up Open Knowledge for this workspace. Check whether the Open Knowledge CLI is installed with: okn version&#10;&#10;If it is missing, install it with: curl -fsSL https://openknowledge.sh/install | bash&#10;&#10;Verify the installation with okn version. Then run: okn setup --prompt&#10;&#10;Follow the complete setup task printed by the command. Ask me focused questions about the knowledge base purpose, audience, sources, structure, and maintenance needs before making product-level decisions. Finish the task with the printed okn validate and okn setup complete commands." aria-label="Copy agent setup prompt" title="Copy a setup prompt for your agent">
                 <span>Copy agent setup prompt</span>
                 <svg class="action-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
                   <path d="M12 3v2"></path>
@@ -132,7 +132,7 @@
             </span>
             <span class="sr-only">Setup</span>
             <h3>Create with your agent</h3>
-            <p>Copy the setup prompt into an agent already working in the folder, or let <code>okn setup --agent --runtime &lt;runtime&gt;</code> launch one.</p>
+            <p>Copy the setup prompt into an agent already working in the folder, run the interactive <code>okn setup</code> wizard, or launch one with <code>okn setup --agent &lt;runtime&gt;</code>.</p>
           </article>
           <article class="capability">
             <span class="capability-icon" aria-hidden="true">
@@ -220,7 +220,7 @@
               </tr>
               <tr>
                 <td>Work locally</td>
-                <td><code>agent</code>, <code>integration</code>, <code>get</code>, <code>list</code>, <code>view</code></td>
+                <td><code>agent</code>, <code>get</code>, <code>list</code>, <code>view</code></td>
                 <td>Maintain, connect, read, and browse knowledge on this machine.</td>
               </tr>
               <tr>
@@ -254,7 +254,7 @@
               <p>Run the open-ended setup interview with your current agent, or let the CLI launch a selected runtime.</p>
             </div>
             <pre><code class="shell-code"><span class="tok-command">okn</span> <span class="tok-subcommand">setup</span>
-<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-flag">--agent</span> <span class="tok-flag">--runtime</span> <span class="tok-value">codex</span></code></pre>
+<span class="tok-command">okn</span> <span class="tok-subcommand">setup</span> <span class="tok-flag">--agent</span> <span class="tok-value">codex</span></code></pre>
           </article>
           <article class="workflow-step">
             <div class="workflow-copy">

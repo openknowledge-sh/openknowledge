@@ -7,7 +7,7 @@
 - [Installation](installation.md) — Gives CLI installation and verification
   steps.
 - [Configuration](configuration.md) — Describes the
-  `openknowledge.toml` configuration.
+  `.openknowledge.toml` configuration.
 - [Commands](commands/) — Lists the current CLI commands.
 - [Exporters](exporters/) — Documents HTML, JSON, graph, and tar output.
 - [Machine-readable contracts](machine-contracts.md) — Documents JSON schemas

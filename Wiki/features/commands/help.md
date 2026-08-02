@@ -30,7 +30,7 @@ subcommand help. Other groups can provide a group overview. The
 | Group | Commands |
 | --- | --- |
 | Start here | `setup`, `search`, `validate` |
-| Work locally | `agent`, `integration`, `get`, `list`, `view` |
+| Work locally | `agent`, `get`, `list`, `view` |
 | Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
 | Automate and operate | `automation` |
 | Advanced and portable tools | `scaffold`, `prompt`, `ast`, `spec`, `version` |

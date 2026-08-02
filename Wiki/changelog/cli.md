@@ -13,6 +13,22 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-08-02 — Unified interactive setup
+
+- `okn setup` now starts a terminal wizard. Without terminal input, it prints
+  a complete agent task. Explicit flags select either mode or launch an agent.
+- `setup complete` validates, connects, installs selected skills, and configures
+  optional observation. Setup also provides status, repair, and observation commands.
+- The CLI removed `integration`, `agent integrate`, `prompt setup`, and
+  `prompt from`. Source setup no longer uses predefined wiki types.
+- Bundle configuration now uses `.openknowledge.toml`. The legacy name is not
+  loaded and remains private in viewer and publication output.
+- Source: `packages/cli/cmd/openknowledge/setup_command.go`,
+  `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`,
+  `packages/cli/internal/integration/`, `packages/cli/internal/okf/`.
+- Docs: `README.md`, `Wiki/features/commands/setup.md`,
+  `Wiki/features/configuration.md`.
+
 ### 2026-07-31 — Bounded scheduled-job storage
 
 - A scheduled job now runs at most once for each job ID and schedule slot.

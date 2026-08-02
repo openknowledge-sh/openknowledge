@@ -85,7 +85,7 @@ redirects to a clean URL. A remote client can also send
 `Authorization: Bearer <token>`.
 
 Raw routes serve only regular non-Markdown bundle assets. They exclude
-dotfiles, `.git`, `openknowledge.toml`, and symlinks. Markdown and asset
+dotfiles, `.git`, `.openknowledge.toml`, legacy `openknowledge.toml`, and symlinks. Markdown and asset
 resolution cannot leave the bundle root.
 
 The viewer inserts trusted head fragments in their original form. Use only
@@ -97,7 +97,7 @@ edits. A registry or fingerprint failure returns an error. The viewer does not
 serve stale or partly trusted state.
 
 Theme and source-link configuration comes from
-[`openknowledge.toml`](/features/configuration.md). For deployment, use the
+[`.openknowledge.toml`](/features/configuration.md). For deployment, use the
 [HTML exporter](/features/exporters/html.md).
 
 ---
