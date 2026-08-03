@@ -77,9 +77,16 @@ type (
 	FederatedContextResult = core.FederatedContextResult
 	FederatedContextSource = core.FederatedContextSource
 
-	Graph     = core.Graph
-	GraphEdge = core.GraphEdge
-	GraphNode = core.GraphNode
+	Graph                  = core.Graph
+	GraphEdge              = core.GraphEdge
+	GraphNode              = core.GraphNode
+	OKFV02ActorEvent       = core.OKFV02ActorEvent
+	OKFV02Computation      = core.OKFV02Computation
+	OKFV02Parameter        = core.OKFV02Parameter
+	OKFV02ResourceContract = core.OKFV02ResourceContract
+	OKFV02Signals          = core.OKFV02Signals
+	OKFV02Source           = core.OKFV02Source
+	OKFV02UsageWindow      = core.OKFV02UsageWindow
 
 	ListEntry  = core.ListEntry
 	ListResult = core.ListResult

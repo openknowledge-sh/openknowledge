@@ -2719,6 +2719,16 @@ func formatListNode(node *listTreeNode) string {
 		}
 		meta += entry.Title
 	}
+	if entry.OKF02 != nil {
+		signals := []string{entry.OKF02.TrustTier, entry.OKF02.Status}
+		if entry.OKF02.Stale {
+			signals = append(signals, "stale")
+		}
+		if meta != "" {
+			meta += "  "
+		}
+		meta += "[" + strings.Join(signals, ", ") + "]"
+	}
 	if meta == "" {
 		return node.name
 	}

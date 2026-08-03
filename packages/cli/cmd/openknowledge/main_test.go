@@ -1438,6 +1438,32 @@ func TestRunListJSONUsesVersionedEnvelope(t *testing.T) {
 	}
 }
 
+func TestRunListOKFV02SurfacesDerivedTrustStatus(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n")
+	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\nverified: { by: process:validator, at: 2026-08-03T10:00:00Z }\nstatus: stable\n---\n\n# Guide\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runList([]string{"--spec", "0.2", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected OKF 0.2 list to succeed, got %d\n%s", code, output)
+	}
+	if !strings.Contains(output, "[machine-confirmed, stable]") {
+		t.Fatalf("expected derived trust and status in text list output:\n%s", output)
+	}
+
+	jsonOutput, code := captureMainStdout(t, func() int {
+		return runList([]string{"--spec", "0.2", "--json", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected OKF 0.2 JSON list to succeed, got %d\n%s", code, jsonOutput)
+	}
+	if !strings.Contains(jsonOutput, `"okf02"`) || !strings.Contains(jsonOutput, `"trustTier": "machine-confirmed"`) {
+		t.Fatalf("expected dedicated OKF 0.2 JSON signals:\n%s", jsonOutput)
+	}
+}
+
 func TestRunGetPrintsDirectFile(t *testing.T) {
 	root := t.TempDir()
 	file := filepath.Join(root, "note.md")
