@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 func TestParseConfigIsStrictAndAppliesSafeDefaults(t *testing.T) {
@@ -30,7 +32,7 @@ mcp = true
 	if config.Serve.Address != "127.0.0.1:8080" || config.Serve.MCPAccess != "public" {
 		t.Fatalf("unexpected serve defaults: %#v", config.Serve)
 	}
-	if config.KnowledgeBases[0].Route != "/docs/" || config.KnowledgeBases[0].Spec != "0.1" {
+	if config.KnowledgeBases[0].Route != "/docs/" || config.KnowledgeBases[0].Spec != okf.LatestSpecVersion {
 		t.Fatalf("unexpected normalized knowledge base: %#v", config.KnowledgeBases[0])
 	}
 	if _, err := ParseConfig([]byte("[runtime]\nstate_dir='state'\nunknown=true\n")); err == nil || !strings.Contains(err.Error(), "missing in the target struct") {

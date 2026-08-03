@@ -15,6 +15,11 @@ func NewProject(options NewProjectOptions) (NewProjectResult, error) {
 	if name == "" {
 		return NewProjectResult{}, fmt.Errorf("knowledge base name is required")
 	}
+	resolvedSpecVersion, ok := ResolveSpecVersion(options.SpecVersion)
+	if !ok {
+		return NewProjectResult{}, fmt.Errorf("unsupported OKF spec version: %s", strings.TrimSpace(options.SpecVersion))
+	}
+	options.SpecVersion = resolvedSpecVersion
 
 	root := strings.TrimSpace(options.Path)
 	if root == "" {
@@ -53,10 +58,11 @@ func NewProject(options NewProjectOptions) (NewProjectResult, error) {
 	}
 
 	return NewProjectResult{
-		Name:      name,
-		Root:      absolute,
-		SetupPath: setupPath,
-		Created:   created,
+		Name:        name,
+		Root:        absolute,
+		SpecVersion: resolvedSpecVersion,
+		SetupPath:   setupPath,
+		Created:     created,
 	}, nil
 }
 
@@ -119,7 +125,7 @@ func newProjectFiles(name string, metadata BundleMetadata, options NewProjectOpt
 	}
 	files = append(files, projectFile{
 		name:    "SPEC.md",
-		content: specDocument(),
+		content: specDocumentForVersion(options.SpecVersion),
 	})
 	return files
 }
@@ -155,7 +161,7 @@ This scaffold is intentionally small. Create only the folders and pages that
 fit the user's source, interview, and maintenance expectations. Common optional
 sections include workflows, references, decisions, raw sources, and
 domain-specific concept folders.
-`, bundleRootFrontmatter(metadata), title, strings.Join(startHere, "\n"))
+`, bundleRootFrontmatter(metadata, options.SpecVersion), title, strings.Join(startHere, "\n"))
 }
 
 func newLogContent(date string, options NewProjectOptions) string {
@@ -191,7 +197,7 @@ type: Agent Rules
 title: %s Agent Rules
 description: Lightweight starter rules for agents working in this Open Knowledge wiki.
 tags: [openknowledge, agents]
-timestamp: %sT00:00:00Z
+%s
 ---
 
 # Agent Rules
@@ -212,12 +218,12 @@ You are working inside a local Open Knowledge wiki.
 * Do not treat wiki automation pages as running jobs; real automations belong in the agent runtime or orchestrator that executes them.
 * Prefer concise, structured Markdown that future humans and agents can scan.
 * Preserve citations or source paths when a page depends on external material.
-* After meaningful wiki edits, run okn validate and fix issues before finishing.
+* After meaningful wiki edits, run okn validate --spec %s and fix issues before finishing.
 
 ## Setup
 
 %s
-`, title, date, setupGuidance)
+`, title, generationMetadata(options.SpecVersion, "openknowledge-scaffold", date+"T00:00:00Z"), options.SpecVersion, setupGuidance)
 }
 
 func newSetupContent(title, date string, options NewProjectOptions) string {
@@ -233,7 +239,7 @@ type: Setup
 title: %s Setup
 description: Agent handoff for creating the initial local Open Knowledge wiki.
 tags: [openknowledge, setup]
-timestamp: %sT00:00:00Z
+%s
 ---
 
 # Setup
@@ -246,8 +252,8 @@ domain-specific knowledge base.
 This file is temporary. After setup is complete and the resulting rules,
 indexes, and seed pages are written into the bundle, delete SETUP.MD.
 
-The local pinned Open Knowledge Format spec is [SPEC.md](SPEC.md). It was
-generated from openknowledge spec latest, currently version 0.1.
+The local pinned Open Knowledge Format spec is [SPEC.md](SPEC.md). The scaffold
+uses openknowledge spec %s.
 
 ## Agent Task
 
@@ -288,12 +294,12 @@ After the interview:
 * keep every non-reserved Markdown document OKF-valid with a non-empty type field
 * keep raw source snapshots separate from maintained synthesis
 * record setup decisions in log.md
-* run okn validate against the selected spec version and fix any issues
+* run okn validate --spec %s and fix any issues
 * keep the onboarding handoff focused: confirm okn validate passed and demonstrate one budget-bounded source query with okn search
 * mention okn get, list, or view only when the user asks for exact reading, structural inspection, or human browsing
 * double-check that the scaffold no longer contains placeholder rules or structure that conflict with the interview
 * delete SETUP.MD after successful setup
-`, title, date, title, agentInstruction, agentOutput)
+`, title, generationMetadata(options.SpecVersion, "openknowledge-scaffold", date+"T00:00:00Z"), options.SpecVersion, title, agentInstruction, agentOutput, options.SpecVersion)
 }
 
 func normalizeBundleMetadata(metadata BundleMetadata) (BundleMetadata, error) {
@@ -353,8 +359,8 @@ func compactStrings(values []string) []string {
 	return compacted
 }
 
-func bundleRootFrontmatter(metadata BundleMetadata) string {
-	lines := []string{`okf_version: "0.1"`}
+func bundleRootFrontmatter(metadata BundleMetadata, specVersion string) string {
+	lines := []string{`okf_version: "` + specVersion + `"`}
 	if metadata.Name != "" {
 		lines = append(lines, "okf_bundle_name: "+yamlQuotedScalar(metadata.Name))
 	}

@@ -2,7 +2,6 @@ package okf
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
@@ -21,22 +20,6 @@ const (
 type ValidationOptions struct {
 	ConfigPath string
 	Rules      map[string]string
-}
-
-var knownValidationRules = map[string]struct{}{
-	"bundle-read":         {},
-	"concept-frontmatter": {},
-	"concept-type":        {},
-	"frontmatter":         {},
-	"frontmatter-format":  {},
-	"index-frontmatter":   {},
-	"link-target":         {},
-	"log-date":            {},
-	"log-frontmatter":     {},
-	"markdown-syntax":     {},
-	"okf-version":         {},
-	"rule-catalog":        {},
-	"utf-8":               {},
 }
 
 func LoadValidationOptions(root string) (ValidationOptions, error) {
@@ -75,9 +58,38 @@ func MergeValidationOptions(base ValidationOptions, override ValidationOptions) 
 }
 
 func SetValidationRuleSeverity(options *ValidationOptions, rule string, severity string) error {
+	return SetValidationRuleSeverityForVersion(options, LatestSpecVersion, rule, severity)
+}
+
+func setConfiguredValidationRuleSeverity(options *ValidationOptions, rule string, severity string) error {
 	rule = strings.TrimSpace(rule)
-	if !IsKnownValidationRule(rule) {
+	defined, overrideable := validationRuleAcrossProfiles(rule)
+	if !defined {
 		return fmt.Errorf("unknown validation rule %q", rule)
+	}
+	if !overrideable {
+		return fmt.Errorf("validation rule %q has fixed severity", rule)
+	}
+	normalized, err := NormalizeValidationSeverity(severity)
+	if err != nil {
+		return err
+	}
+	*options = withValidationRuleSeverity(*options, rule, normalized)
+	return nil
+}
+
+func SetValidationRuleSeverityForVersion(options *ValidationOptions, version string, rule string, severity string) error {
+	rule = strings.TrimSpace(rule)
+	profile, err := validationProfileForVersion(version)
+	if err != nil {
+		return err
+	}
+	definition, ok := profile.Rules[rule]
+	if !ok {
+		return fmt.Errorf("validation rule %q is not defined for OKF %s", rule, profile.Version)
+	}
+	if !definition.Overrideable {
+		return fmt.Errorf("validation rule %q has fixed severity for OKF %s", rule, profile.Version)
 	}
 	normalized, err := NormalizeValidationSeverity(severity)
 	if err != nil {
@@ -88,6 +100,10 @@ func SetValidationRuleSeverity(options *ValidationOptions, rule string, severity
 }
 
 func ParseValidationRuleOverride(value string) (string, string, error) {
+	return ParseValidationRuleOverrideForVersion(LatestSpecVersion, value)
+}
+
+func ParseValidationRuleOverrideForVersion(version string, value string) (string, string, error) {
 	rule, severity, ok := strings.Cut(value, "=")
 	if !ok {
 		return "", "", fmt.Errorf("validation rule override must use rule=off|warn|error: %s", value)
@@ -97,8 +113,16 @@ func ParseValidationRuleOverride(value string) (string, string, error) {
 		return "", "", err
 	}
 	rule = strings.TrimSpace(rule)
-	if !IsKnownValidationRule(rule) {
-		return "", "", fmt.Errorf("unknown validation rule %q", rule)
+	profile, err := validationProfileForVersion(version)
+	if err != nil {
+		return "", "", err
+	}
+	definition, ok := profile.Rules[rule]
+	if !ok {
+		return "", "", fmt.Errorf("validation rule %q is not defined for OKF %s", rule, profile.Version)
+	}
+	if !definition.Overrideable {
+		return "", "", fmt.Errorf("validation rule %q has fixed severity for OKF %s", rule, profile.Version)
 	}
 	return rule, normalized, nil
 }
@@ -125,28 +149,48 @@ func NormalizeValidationSeverity(value string) (string, error) {
 }
 
 func KnownValidationRules() []string {
-	rules := make([]string, 0, len(knownValidationRules))
-	for rule := range knownValidationRules {
-		rules = append(rules, rule)
-	}
-	sort.Strings(rules)
+	rules, _ := KnownValidationRulesForVersion(LatestSpecVersion)
 	return rules
 }
 
+func KnownValidationRulesForVersion(version string) ([]string, error) {
+	profile, err := validationProfileForVersion(version)
+	if err != nil {
+		return nil, err
+	}
+	return validationRules(profile), nil
+}
+
 func IsKnownValidationRule(rule string) bool {
-	_, ok := knownValidationRules[rule]
+	return IsKnownValidationRuleForVersion(LatestSpecVersion, rule)
+}
+
+func IsKnownValidationRuleForVersion(version string, rule string) bool {
+	_, ok := validationRuleForVersion(version, rule)
 	return ok
 }
 
+func IsValidationRuleOverrideableForVersion(version string, rule string) bool {
+	definition, ok := validationRuleForVersion(version, rule)
+	return ok && definition.Overrideable
+}
+
 func applyValidationOptions(result *Result, options ValidationOptions) error {
-	overrides, err := normalizedValidationRules(options)
+	profile, err := validationProfileForVersion(result.SpecVersion)
+	if err != nil {
+		return err
+	}
+	overrides, err := normalizedValidationRulesForVersion(profile, options)
 	if err != nil {
 		return err
 	}
 	var errors []Issue
 	var warnings []Issue
 	for _, issue := range result.Errors {
-		severity := validationSeverityForIssue(issue, ValidationSeverityError, overrides)
+		severity, err := validationSeverityForIssue(profile, issue, overrides)
+		if err != nil {
+			return err
+		}
 		switch severity {
 		case ValidationSeverityError:
 			errors = append(errors, issueWithSeverity(issue, ValidationSeverityError))
@@ -158,7 +202,10 @@ func applyValidationOptions(result *Result, options ValidationOptions) error {
 		}
 	}
 	for _, issue := range result.Warnings {
-		severity := validationSeverityForIssue(issue, ValidationSeverityWarning, overrides)
+		severity, err := validationSeverityForIssue(profile, issue, overrides)
+		if err != nil {
+			return err
+		}
 		switch severity {
 		case ValidationSeverityError:
 			errors = append(errors, issueWithSeverity(issue, ValidationSeverityError))
@@ -195,14 +242,21 @@ func buildValidationSummary(result Result) ValidationSummary {
 	}
 }
 
-func normalizedValidationRules(options ValidationOptions) (map[string]string, error) {
+func normalizedValidationRulesForVersion(profile validationSpecProfile, options ValidationOptions) (map[string]string, error) {
 	if len(options.Rules) == 0 {
 		return nil, nil
 	}
 	rules := make(map[string]string, len(options.Rules))
 	for rule, severity := range options.Rules {
-		if !IsKnownValidationRule(rule) {
+		definition, ok := profile.Rules[rule]
+		if !ok {
+			if defined, _ := validationRuleAcrossProfiles(rule); defined {
+				continue
+			}
 			return nil, fmt.Errorf("unknown validation rule %q", rule)
+		}
+		if !definition.Overrideable {
+			return nil, fmt.Errorf("validation rule %q has fixed severity for OKF %s", rule, profile.Version)
 		}
 		normalized, err := NormalizeValidationSeverity(severity)
 		if err != nil {
@@ -213,14 +267,17 @@ func normalizedValidationRules(options ValidationOptions) (map[string]string, er
 	return rules, nil
 }
 
-func validationSeverityForIssue(issue Issue, fallback string, overrides map[string]string) string {
-	if overrides == nil {
-		return fallback
+func validationSeverityForIssue(profile validationSpecProfile, issue Issue, overrides map[string]string) (string, error) {
+	definition, ok := profile.Rules[issue.Rule]
+	if !ok {
+		return "", fmt.Errorf("validation rule %q is not defined for OKF %s", issue.Rule, profile.Version)
 	}
-	if severity, ok := overrides[issue.Rule]; ok {
-		return severity
+	if definition.Overrideable && overrides != nil {
+		if severity, ok := overrides[issue.Rule]; ok {
+			return severity, nil
+		}
 	}
-	return fallback
+	return definition.DefaultSeverity, nil
 }
 
 func issueWithSeverity(issue Issue, severity string) Issue {

@@ -329,10 +329,12 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: scaffoldHelpText(),
 			required: []string{
 				"openknowledge scaffold --name <name> [folder]",
+				"openknowledge scaffold --spec <version> [folder]",
 				"openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]",
 				"openknowledge scaffold --no-agents --no-setup [folder]",
 				"Arguments:",
 				"--name",
+				"--spec",
 				"--bundle-entry",
 				"--no-agents",
 				"--no-setup",
@@ -469,7 +471,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge spec latest|<version>",
 				"Versions:",
-				"latest, 0.1",
+				"latest, 0.1, 0.2",
 			},
 		},
 		"export": {
@@ -571,7 +573,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 func TestRulesCommandPrintsSelectedRules(t *testing.T) {
 	root := t.TempDir()
 	wiki := filepath.Join(root, "Wiki")
-	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Wiki\n")
 
 	output, stderr, code := captureMainOutput(t, func() int {
 		return runRules([]string{"docs,changelog", "--path", wiki, "--target", "codex"})
@@ -1013,6 +1015,7 @@ func TestScaffoldCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"Created knowledge base",
+		"spec OKF 0.2",
 		"+ .openknowledge.toml",
 		"+ index.md",
 		"+ log.md",
@@ -1035,6 +1038,48 @@ func TestScaffoldCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(target, name)); !os.IsNotExist(err) {
 			t.Fatalf("expected %s not to exist, got err=%v", name, err)
 		}
+	}
+}
+
+func TestScaffoldCommandSupportsExplicitSpecVersion(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "legacy-wiki")
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runScaffold([]string{"--name", "Legacy Wiki", "--spec", "0.1", target})
+	})
+	if code != 0 {
+		t.Fatalf("expected 0.1 scaffold to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+	}
+	if !strings.Contains(output, "spec OKF 0.1") {
+		t.Fatalf("expected selected spec in scaffold output:\n%s", output)
+	}
+	index, err := os.ReadFile(filepath.Join(target, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(index), `okf_version: "0.1"`) {
+		t.Fatalf("expected OKF 0.1 root metadata:\n%s", index)
+	}
+	spec, err := os.ReadFile(filepath.Join(target, "SPEC.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(spec), "Version 0.1") || strings.Contains(string(spec), "Version 0.2") {
+		t.Fatalf("expected the pinned OKF 0.1 document:\n%s", spec)
+	}
+	if result, err := okf.ValidateWithVersion(target, "0.1"); err != nil || len(result.Errors) != 0 {
+		t.Fatalf("expected scaffold to validate against OKF 0.1, result=%#v err=%v", result, err)
+	}
+
+	unsupported := filepath.Join(t.TempDir(), "unsupported")
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runScaffold([]string{"--name", "Unsupported", "--spec", "9.9", unsupported})
+	})
+	if code != 2 || !strings.Contains(stderr, "unsupported OKF spec version: 9.9") {
+		t.Fatalf("expected unsupported scaffold spec error, got code=%d stderr=%q", code, stderr)
+	}
+	if _, err := os.Stat(unsupported); !os.IsNotExist(err) {
+		t.Fatalf("unsupported spec must not create a scaffold, got %v", err)
 	}
 }
 
@@ -1130,6 +1175,26 @@ func TestRunValidateAcceptsRegistryKey(t *testing.T) {
 	})
 	if code != 0 {
 		t.Fatalf("expected validate registry key to succeed, got exit code %d", code)
+	}
+}
+
+func TestRunValidateBindsRuleOverridesToSelectedSpec(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n")
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runValidate([]string{"--spec", "0.1", "--rule", "okf-0.2-metadata=error", root})
+	})
+	if code != 2 || !strings.Contains(stderr, "not defined for OKF 0.1") {
+		t.Fatalf("expected version-bound CLI rule error, got code=%d stderr=%q", code, stderr)
+	}
+
+	writeMainTestFile(t, root, okf.ValidationConfigFile, "[validation.rules]\n\"okf-0.2-metadata\" = \"error\"\n")
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runValidate([]string{"--spec", "0.1", root})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected 0.1 to ignore the known inactive config rule, got code=%d stderr=%q", code, stderr)
 	}
 }
 
@@ -1812,7 +1877,7 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 	runGit(t, base, "init", remote)
 	runGit(t, remote, "config", "user.email", "test@example.com")
 	runGit(t, remote, "config", "user.name", "Test User")
-	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Remote\n")
+	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: remote\n---\n\n# Remote\n")
 	runGit(t, remote, "add", "index.md")
 	runGit(t, remote, "commit", "-m", "init")
 
@@ -1861,7 +1926,7 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 		t.Fatalf("unexpected clean Git status report: %#v", report)
 	}
 
-	writeMainTestFile(t, entry.Path, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Locally changed\n")
+	writeMainTestFile(t, entry.Path, "index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: remote\n---\n\n# Locally changed\n")
 	output, stderr, code = captureMainOutput(t, func() int {
 		return runRegistry([]string{"status", "--json", "remote"})
 	})
@@ -2002,7 +2067,7 @@ func TestRunRegistryRefreshRejectsLocalConnection(t *testing.T) {
 func TestRegistryStatusReportsHealthyAndMissingLocalBundles(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "local")
-	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: local\n---\n\n# Local\n")
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: local\n---\n\n# Local\n")
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
 	if _, _, err := okf.ConnectRegistryEntry("local", root, "read", true); err != nil {
 		t.Fatal(err)
@@ -2460,7 +2525,7 @@ func TestRunConnectAndRefreshPreserveGitRefAndSubdir(t *testing.T) {
 	runGit(t, remote, "add", "README.md")
 	runGit(t, remote, "commit", "-m", "root")
 	runGit(t, remote, "checkout", "-b", "release-docs")
-	writeMainTestFile(t, remote, "knowledge/index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: monorepo-docs\n---\n\n# Monorepo Docs\n")
+	writeMainTestFile(t, remote, "knowledge/index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: monorepo-docs\n---\n\n# Monorepo Docs\n")
 	writeMainTestFile(t, remote, "knowledge/guide.md", "---\ntype: Guide\ntitle: First Guide\n---\n\n# First Guide\n")
 	runGit(t, remote, "add", "knowledge")
 	runGit(t, remote, "commit", "-m", "docs v1")
@@ -2742,7 +2807,7 @@ func TestDisconnectDeleteFilesRemovesEntireNestedManagedCache(t *testing.T) {
 	archivePath := filepath.Join(base, "nested.tar.gz")
 	writeMainTestTarGzip(t, archivePath, map[string]string{
 		"LICENSE":         "fixture license\n",
-		"bundle/index.md": "---\nokf_version: \"0.1\"\nokf_bundle_name: nested\n---\n\n# Nested\n",
+		"bundle/index.md": "---\nokf_version: \"0.2\"\nokf_bundle_name: nested\n---\n\n# Nested\n",
 	})
 	registryFile := filepath.Join(base, "registry.json")
 	t.Setenv(okf.RegistryFileEnv, registryFile)

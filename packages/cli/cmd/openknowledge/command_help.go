@@ -588,13 +588,14 @@ Examples:
 }
 
 func scaffoldHelpText() string {
-	return `openknowledge scaffold
+	return fmt.Sprintf(`openknowledge scaffold
 
 Scaffold a local Open Knowledge bundle.
 
 Usage:
   openknowledge scaffold [folder]
   openknowledge scaffold --name <name> [folder]
+  openknowledge scaffold --spec <version> [folder]
   openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]
   openknowledge scaffold --no-agents --no-setup [folder]
   openknowledge scaffold --help
@@ -604,6 +605,7 @@ Arguments:
 
 Flags:
   --name       Knowledge base name. If omitted, the CLI prompts for one.
+  --spec       OKF spec version. Defaults to latest.
   --bundle-name
                Optional stable bundle id written as okf_bundle_name.
   --bundle-title
@@ -622,10 +624,14 @@ Flags:
 
 Examples:
   openknowledge scaffold ./project-memory
+  openknowledge scaffold --spec 0.1 ./legacy-wiki
   openknowledge scaffold --no-agents --no-setup ./source-wiki
   openknowledge scaffold --name "Project Memory" ./project-memory
   openknowledge scaffold --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility
-`
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
 }
 
 func viewHelpText() string {
@@ -722,6 +728,7 @@ Flags:
   --out        Write a JSON validation report to a file. Requires JSON output.
   --rule       Override one validation rule severity as rule=off|warn|error.
                May be repeated and overrides [validation.rules] config.
+               The rule must belong to the selected OKF spec version.
   --quiet      Print only validation errors.
 
 Config:

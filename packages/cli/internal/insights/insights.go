@@ -27,10 +27,14 @@ const (
 )
 
 var (
-	statusPattern    = regexp.MustCompile(`(?m)^status:[\t ]*([^\r\n#]+)[\t ]*$`)
-	unsafeSecret     = regexp.MustCompile(`(?i)(api[_-]?key|token|authorization|password|secret)["' ]*[:=]["' ]*(?:bearer[ ]+)?[^,\s"']+`)
-	credentialToken  = regexp.MustCompile(`\b(?:sk|ghp|github_pat)-[A-Za-z0-9_-]{10,}\b`)
-	knownSecretToken = regexp.MustCompile(`(?i)\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|\bAIza[A-Za-z0-9_-]{20,}\b|\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b`)
+	statusPattern              = regexp.MustCompile(`(?m)^status:[\t ]*([^\r\n#]+)[\t ]*$`)
+	insightStatusLinePattern   = regexp.MustCompile(`(?m)^okf_insight_status:[^\r\n]*\r?\n?`)
+	legacyRuntimeLinePattern   = regexp.MustCompile(`(?m)^okf_insight_runtime:[^\r\n]*\r?\n?`)
+	legacyCreatedAtLinePattern = regexp.MustCompile(`(?m)^okf_insight_created_at:[^\r\n]*\r?\n?`)
+	generatedPattern           = regexp.MustCompile(`(?m)^generated:[\t ]*`)
+	unsafeSecret               = regexp.MustCompile(`(?i)(api[_-]?key|token|authorization|password|secret)["' ]*[:=]["' ]*(?:bearer[ ]+)?[^,\s"']+`)
+	credentialToken            = regexp.MustCompile(`\b(?:sk|ghp|github_pat)-[A-Za-z0-9_-]{10,}\b`)
+	knownSecretToken           = regexp.MustCompile(`(?i)\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|\bAIza[A-Za-z0-9_-]{20,}\b|\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b`)
 )
 
 type Insight struct {
@@ -41,6 +45,7 @@ type Insight struct {
 	ID          string
 	Kind        string
 	Runtime     string
+	GeneratedBy string
 	CreatedAt   time.Time
 	Targets     []string
 	Body        string
@@ -90,29 +95,45 @@ func ParseContent(path string, content []byte) (Insight, error) {
 		return Insight{}, fmt.Errorf("insight is missing frontmatter")
 	}
 	get := func(key string) string { return strings.TrimSpace(document.Values[key]) }
-	insight := Insight{
-		Path: path, Title: get("title"), Description: get("description"), Status: strings.ToLower(get("status")),
-		ID: get("okf_insight_id"), Kind: get("okf_insight_kind"), Runtime: get("okf_insight_runtime"), Body: document.Body,
-	}
+	insight := Insight{Path: path, Title: get("title"), Description: get("description"), ID: get("okf_insight_id"), Kind: get("okf_insight_kind"), Body: document.Body}
 	if get("type") != "Open Knowledge Insight" {
 		return Insight{}, fmt.Errorf("type must be Open Knowledge Insight")
 	}
 	if published, ok := document.Data["okf_publish"].(bool); !ok || published {
 		return Insight{}, fmt.Errorf("okf_publish must be false")
 	}
-	if insight.Title == "" || insight.ID == "" || insight.Kind == "" || insight.Runtime == "" {
-		return Insight{}, fmt.Errorf("title, okf_insight_id, okf_insight_kind, and okf_insight_runtime are required")
+	insight.Status, err = parseInsightStatus(get("status"), get("okf_insight_status"))
+	if err != nil {
+		return Insight{}, err
 	}
-	if !validStatus(insight.Status) {
-		return Insight{}, fmt.Errorf("unsupported insight status %q", insight.Status)
+	if insight.Title == "" || insight.ID == "" || insight.Kind == "" {
+		return Insight{}, fmt.Errorf("title, okf_insight_id, and okf_insight_kind are required")
 	}
-	created := get("okf_insight_created_at")
-	if created == "" {
-		return Insight{}, fmt.Errorf("okf_insight_created_at is required")
+	created := ""
+	if generatedValue, exists := document.Data["generated"]; exists {
+		generated, ok := generatedValue.(map[string]any)
+		if !ok {
+			return Insight{}, fmt.Errorf("generated must be a mapping")
+		}
+		insight.GeneratedBy, _ = generated["by"].(string)
+		insight.GeneratedBy = strings.TrimSpace(insight.GeneratedBy)
+		created, _ = generated["at"].(string)
+		created = strings.TrimSpace(created)
+		if insight.GeneratedBy == "" || created == "" {
+			return Insight{}, fmt.Errorf("generated.by and generated.at are required")
+		}
+		insight.Runtime = runtimeFromInsightActor(insight.GeneratedBy)
+	} else {
+		insight.Runtime = get("okf_insight_runtime")
+		created = get("okf_insight_created_at")
+		if insight.Runtime == "" || created == "" {
+			return Insight{}, fmt.Errorf("generated metadata or legacy okf_insight_runtime and okf_insight_created_at are required")
+		}
+		insight.GeneratedBy = insightActor(insight.Kind, insight.Runtime)
 	}
 	insight.CreatedAt, err = time.Parse(time.RFC3339, created)
 	if err != nil {
-		return Insight{}, fmt.Errorf("invalid okf_insight_created_at: %w", err)
+		return Insight{}, fmt.Errorf("invalid insight generation time: %w", err)
 	}
 	insight.Targets, err = stringList(document.Data["okf_insight_targets"])
 	if err != nil || len(insight.Targets) == 0 {
@@ -627,7 +648,7 @@ func render(observation Observation, id string, targets []string, summary string
 	var builder strings.Builder
 	created := observation.Now.UTC().Format(time.RFC3339)
 	title := "Knowledge insight from " + observation.Runtime + " session"
-	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: A project-scoped agent session produced a knowledge maintenance insight.\nstatus: pending\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: session-observation\nokf_insight_runtime: %s\nokf_insight_created_at: %s\nokf_insight_targets:\n", title, id, observation.Runtime, created)
+	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: A project-scoped agent session produced a knowledge maintenance insight.\nstatus: draft\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: session-observation\ngenerated:\n  by: %s\n  at: %s\nokf_insight_targets:\n", title, id, insightActor("session-observation", observation.Runtime), created)
 	for _, target := range targets {
 		fmt.Fprintf(&builder, "  - %s\n", strconv.Quote(target))
 	}
@@ -647,7 +668,7 @@ func render(observation Observation, id string, targets []string, summary string
 func renderCreatedInsight(now time.Time, id string, targets []string, summary string, evidence []string) string {
 	title := truncateRunes(summary, 96)
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: Explicitly captured knowledge maintenance insight.\nstatus: pending\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: explicit\nokf_insight_runtime: cli\nokf_insight_created_at: %s\nokf_insight_targets:\n", strconv.Quote(title), id, now.UTC().Format(time.RFC3339))
+	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: Explicitly captured knowledge maintenance insight.\nstatus: draft\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: explicit\ngenerated:\n  by: %s\n  at: %s\nokf_insight_targets:\n", strconv.Quote(title), id, insightActor("explicit", "cli"), now.UTC().Format(time.RFC3339))
 	for _, target := range targets {
 		fmt.Fprintf(&builder, "  - %s\n", strconv.Quote(target))
 	}
@@ -712,8 +733,68 @@ func updateStatus(path, status string) error {
 	if !statusPattern.Match(content) {
 		return fmt.Errorf("status field is missing")
 	}
-	updated := statusPattern.ReplaceAll(content, []byte("status: "+status))
+	if !validStatus(status) {
+		return fmt.Errorf("unsupported insight status %q", status)
+	}
+	insight, err := ParseContent(path, content)
+	if err != nil {
+		return err
+	}
+	updated, err := rewriteFrontmatter(content, func(frontmatter []byte) []byte {
+		frontmatter = migrateLegacyGeneration(frontmatter, insight)
+		frontmatter = insightStatusLinePattern.ReplaceAll(frontmatter, nil)
+		lifecycle := lifecycleStatus(status)
+		replacement := "status: " + lifecycle
+		if status == "blocked" {
+			replacement += "\nokf_insight_status: blocked"
+		}
+		return statusPattern.ReplaceAll(frontmatter, []byte(replacement))
+	})
+	if err != nil {
+		return err
+	}
 	return replaceFileAtomic(path, updated)
+}
+
+func rewriteFrontmatter(content []byte, rewrite func([]byte) []byte) ([]byte, error) {
+	openingEnd := bytes.IndexByte(content, '\n')
+	if openingEnd < 0 || strings.TrimSpace(string(content[:openingEnd])) != "---" {
+		return nil, fmt.Errorf("insight is missing frontmatter")
+	}
+	openingEnd++
+	for lineStart := openingEnd; lineStart < len(content); {
+		lineEnd := bytes.IndexByte(content[lineStart:], '\n')
+		if lineEnd < 0 {
+			lineEnd = len(content)
+		} else {
+			lineEnd += lineStart
+		}
+		if strings.TrimSpace(string(content[lineStart:lineEnd])) == "---" {
+			updated := make([]byte, 0, len(content))
+			updated = append(updated, content[:openingEnd]...)
+			updated = append(updated, rewrite(content[openingEnd:lineStart])...)
+			updated = append(updated, content[lineStart:]...)
+			return updated, nil
+		}
+		if lineEnd == len(content) {
+			break
+		}
+		lineStart = lineEnd + 1
+	}
+	return nil, fmt.Errorf("insight frontmatter block is not closed")
+}
+
+func migrateLegacyGeneration(content []byte, insight Insight) []byte {
+	if generatedPattern.Match(content) {
+		content = legacyRuntimeLinePattern.ReplaceAll(content, nil)
+		return legacyCreatedAtLinePattern.ReplaceAll(content, nil)
+	}
+	if !legacyRuntimeLinePattern.Match(content) {
+		return content
+	}
+	generated := fmt.Sprintf("generated:\n  by: %s\n  at: %s\n", insight.GeneratedBy, insight.CreatedAt.UTC().Format(time.RFC3339))
+	content = legacyRuntimeLinePattern.ReplaceAll(content, []byte(generated))
+	return legacyCreatedAtLinePattern.ReplaceAll(content, nil)
 }
 
 func replaceFileAtomic(path string, content []byte) error {
@@ -1015,6 +1096,58 @@ func validStatus(status string) bool {
 		return true
 	}
 	return false
+}
+
+func parseInsightStatus(lifecycle, workflow string) (string, error) {
+	lifecycle = strings.ToLower(strings.TrimSpace(lifecycle))
+	workflow = strings.ToLower(strings.TrimSpace(workflow))
+	if workflow != "" {
+		if workflow != "blocked" || lifecycle != "draft" {
+			return "", fmt.Errorf("okf_insight_status may only be blocked when status is draft")
+		}
+		return "blocked", nil
+	}
+	switch lifecycle {
+	case "draft":
+		return "pending", nil
+	case "stable":
+		return "resolved", nil
+	case "deprecated":
+		return "dismissed", nil
+	case "pending", "resolved", "dismissed", "blocked":
+		return lifecycle, nil
+	default:
+		return "", fmt.Errorf("unsupported insight lifecycle status %q", lifecycle)
+	}
+}
+
+func lifecycleStatus(status string) string {
+	switch status {
+	case "resolved":
+		return "stable"
+	case "dismissed":
+		return "deprecated"
+	default:
+		return "draft"
+	}
+}
+
+func insightActor(kind, runtime string) string {
+	if kind == "explicit" && runtime == "cli" {
+		return "process:openknowledge-cli"
+	}
+	return "process:openknowledge-insight/" + runtime
+}
+
+func runtimeFromInsightActor(actor string) string {
+	if actor == "process:openknowledge-cli" {
+		return "cli"
+	}
+	const prefix = "process:openknowledge-insight/"
+	if strings.HasPrefix(actor, prefix) && len(actor) > len(prefix) {
+		return strings.TrimPrefix(actor, prefix)
+	}
+	return actor
 }
 
 func ReadHookInput(reader io.Reader) ([]byte, error) {

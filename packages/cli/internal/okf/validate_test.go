@@ -273,16 +273,19 @@ func TestValidateOptionsEscalateAndDisableRules(t *testing.T) {
 }
 
 func TestParseValidationOptionsConfig(t *testing.T) {
-	options, err := ParseValidationOptionsConfig("[validation.rules]\nlink-target = \"error\"\nmarkdown-syntax = 'off'\n")
+	options, err := ParseValidationOptionsConfig("[validation.rules]\nlink-target = \"error\"\nmarkdown-syntax = 'off'\n\"okf-0.2-metadata\" = \"warn\"\n")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.Rules["link-target"] != ValidationSeverityError || options.Rules["markdown-syntax"] != ValidationSeverityOff {
+	if options.Rules["link-target"] != ValidationSeverityError || options.Rules["markdown-syntax"] != ValidationSeverityOff || options.Rules["okf-0.2-metadata"] != ValidationSeverityWarning {
 		t.Fatalf("unexpected validation options: %#v", options.Rules)
 	}
 
 	if _, err := ParseValidationOptionsConfig("[validation.rules]\nmissing-rule = \"warn\"\n"); err == nil {
 		t.Fatal("expected unknown validation rule to fail")
+	}
+	if _, err := ParseValidationOptionsConfig("[validation.rules]\npublish-metadata = \"off\"\n"); err == nil || !strings.Contains(err.Error(), "fixed severity") {
+		t.Fatalf("expected fixed validation rule override to fail, got %v", err)
 	}
 }
 
@@ -400,6 +403,9 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 	if result.Name != "My Knowledge Base" {
 		t.Fatalf("unexpected name: %s", result.Name)
 	}
+	if result.SpecVersion != LatestSpecVersion {
+		t.Fatalf("expected latest scaffold version %s, got %s", LatestSpecVersion, result.SpecVersion)
+	}
 	if result.SetupPath != filepath.Join(target, "SETUP.MD") {
 		t.Fatalf("unexpected setup path: %s", result.SetupPath)
 	}
@@ -443,13 +449,29 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 			t.Fatalf("expected optional scaffold path %s not to exist, got err=%v", name, err)
 		}
 	}
+	indexContent, err := os.ReadFile(filepath.Join(target, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(indexContent), `okf_version: "0.2"`) {
+		t.Fatalf("expected scaffold to declare latest OKF version:\n%s", indexContent)
+	}
+	for _, name := range []string{"AGENTS.md", "SETUP.MD", "SPEC.md"} {
+		content, err := os.ReadFile(filepath.Join(target, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(content), "generated: { by: process:") {
+			t.Fatalf("expected %s to use OKF 0.2 generated metadata:\n%s", name, content)
+		}
+	}
 
 	validation, err := Validate(target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(validation.Errors) != 0 {
-		t.Fatalf("expected generated project to validate, got %#v", validation.Errors)
+	if len(validation.Errors) != 0 || len(validation.Warnings) != 0 {
+		t.Fatalf("expected generated project to validate cleanly, got errors=%#v warnings=%#v", validation.Errors, validation.Warnings)
 	}
 	if validation.Concepts != 3 {
 		t.Fatalf("expected AGENTS.md, SETUP.MD and SPEC.md to count as concepts, got %#v", validation)
@@ -573,7 +595,7 @@ func TestNewProjectRefusesNonEmptyDirectory(t *testing.T) {
 }
 
 func TestLatestSpecIsEmbedded(t *testing.T) {
-	if LatestSpecVersion != "0.1" {
+	if LatestSpecVersion != "0.2" {
 		t.Fatalf("unexpected latest spec version: %s", LatestSpecVersion)
 	}
 	if !strings.Contains(LatestSpec(), "Open Knowledge Format") {

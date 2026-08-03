@@ -294,14 +294,14 @@ func TestRenderMarkdownEmbeddedSpecDoesNotLeakCommonMarkdownSyntax(t *testing.T)
 	assertContainsAll(t, html, []string{
 		"<blockquote>",
 		"<h1>Open Knowledge Format (OKF)</h1>",
-		"<p><strong>Version 0.1 — Draft</strong></p>",
+		"<p><strong>Version 0.2</strong></p>",
 		"representing <em>knowledge</em>",
 		"<code>cat</code>",
 		"<code>git clone</code>",
 		"<hr>",
 		"<li><strong>Readable</strong> by humans without tooling.</li>",
 		"<ol>",
-		"<li>Define a universal format that <strong>enrichment agents</strong> can write into.</li>",
+		"<li>Define a universal format that <strong>producers</strong> (people, agents, export pipelines) can write into.</li>",
 		`<table class="ok-table" data-ok-table>`,
 		`<th scope="col">Filename</th>`,
 		"<td><code>index.md</code></td>",
@@ -310,7 +310,7 @@ func TestRenderMarkdownEmbeddedSpecDoesNotLeakCommonMarkdownSyntax(t *testing.T)
 	})
 	assertContainsNone(t, html, []string{
 		"&gt; This is a pinned upstream copy",
-		"**Version 0.1",
+		"**Version 0.2",
 		"*knowledge*",
 		"<p>---</p>",
 		"| Filename",

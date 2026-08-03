@@ -692,6 +692,7 @@ func runScaffold(args []string) int {
 	fs := flag.NewFlagSet("scaffold", flag.ContinueOnError)
 	fs.SetOutput(stderrOutput())
 	nameFlag := fs.String("name", "", "knowledge base name")
+	specVersionFlag := fs.String("spec", "latest", "OKF spec version")
 	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
 	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
 	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for root okf_bundle_purpose metadata")
@@ -706,6 +707,11 @@ func runScaffold(args []string) int {
 	}
 	if fs.NArg() > 1 {
 		fmt.Fprintln(stderrOutput(), "scaffold accepts at most one folder path")
+		return 2
+	}
+	resolvedSpecVersion, ok := okf.ResolveSpecVersion(*specVersionFlag)
+	if !ok {
+		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", strings.TrimSpace(*specVersionFlag))
 		return 2
 	}
 
@@ -739,6 +745,7 @@ func runScaffold(args []string) int {
 	result, err := okf.NewProject(okf.NewProjectOptions{
 		Name:           name,
 		Path:           path,
+		SpecVersion:    resolvedSpecVersion,
 		SkipAgentRules: *noAgentsFlag,
 		SkipSetup:      *noSetupFlag,
 		BundleMetadata: okf.BundleMetadata{
@@ -756,6 +763,7 @@ func runScaffold(args []string) int {
 
 	terminal.success("Created knowledge base")
 	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
+	fmt.Printf("%s OKF %s\n", terminal.muted("spec"), result.SpecVersion)
 	fmt.Println()
 	terminal.section("Scaffold")
 	for _, path := range result.Created {
@@ -2033,6 +2041,11 @@ func runValidate(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
+	resolvedSpecVersion, ok := okf.ResolveSpecVersion(*specVersion)
+	if !ok {
+		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", strings.TrimSpace(*specVersion))
+		return 2
+	}
 
 	validationOptions, err := okf.LoadValidationOptions(root)
 	if err != nil {
@@ -2041,19 +2054,19 @@ func runValidate(args []string) int {
 	}
 	cliOptions := okf.ValidationOptions{}
 	for _, override := range ruleOverrides {
-		rule, severity, err := okf.ParseValidationRuleOverride(override)
+		rule, severity, err := okf.ParseValidationRuleOverrideForVersion(resolvedSpecVersion, override)
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
-		if err := okf.SetValidationRuleSeverity(&cliOptions, rule, severity); err != nil {
+		if err := okf.SetValidationRuleSeverityForVersion(&cliOptions, resolvedSpecVersion, rule, severity); err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 	}
 	validationOptions = okf.MergeValidationOptions(validationOptions, cliOptions)
 
-	result, err := okf.ValidateWithVersionAndOptions(root, *specVersion, validationOptions)
+	result, err := okf.ValidateWithVersionAndOptions(root, resolvedSpecVersion, validationOptions)
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2

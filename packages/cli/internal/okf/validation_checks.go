@@ -2,9 +2,9 @@ package okf
 
 import "fmt"
 
-func buildChecks(result Result) []Check {
+func buildChecks(result Result, profile validationSpecProfile) []Check {
 	specLabel := "OKF " + result.SpecVersion
-	return []Check{
+	checks := []Check{
 		{
 			Name:    "Bundle scan",
 			Status:  "pass",
@@ -18,17 +18,17 @@ func buildChecks(result Result) []Check {
 		{
 			Name:    "Concept documents",
 			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"utf-8", "frontmatter", "concept-frontmatter", "concept-type"}, []string{"utf-8", "frontmatter", "concept-frontmatter", "concept-type"}),
-			Message: fmt.Sprintf("%s sections 4 and 9; %d concepts require YAML frontmatter with non-empty type", specLabel, result.Concepts),
+			Message: fmt.Sprintf("%s %s; %d concepts require YAML frontmatter with non-empty type", specLabel, profile.ConceptSections, result.Concepts),
 		},
 		{
 			Name:    "Reserved files",
 			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"index-frontmatter", "log-frontmatter"}, []string{"index-frontmatter", "log-frontmatter"}),
-			Message: fmt.Sprintf("%s sections 3.1, 6, and 7; %d indexes and %d logs follow reserved-file rules", specLabel, result.Indexes, result.Logs),
+			Message: fmt.Sprintf("%s %s; %d indexes and %d logs follow reserved-file rules", specLabel, profile.ReservedSections, result.Indexes, result.Logs),
 		},
 		{
 			Name:    "Log dates",
 			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"log-date"}, []string{"log-date"}),
-			Message: specLabel + " section 7; log.md ## headings must use YYYY-MM-DD",
+			Message: specLabel + " " + profile.LogSection + "; log.md ## headings must use YYYY-MM-DD",
 		},
 		{
 			Name:    "Frontmatter formatting",
@@ -43,7 +43,7 @@ func buildChecks(result Result) []Check {
 		{
 			Name:    "Spec version",
 			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"okf-version"}, []string{"okf-version"}),
-			Message: fmt.Sprintf("%s section 11; root index.md may declare okf_version: %q", specLabel, result.SpecVersion),
+			Message: fmt.Sprintf("%s %s; root index.md may declare okf_version: %q", specLabel, profile.VersionSection, result.SpecVersion),
 		},
 		{
 			Name:    "Link targets",
@@ -56,6 +56,14 @@ func buildChecks(result Result) []Check {
 			Message: "Custom rule documents under configured rule paths should define canonical IDs, summaries, and instruction bullets",
 		},
 	}
+	if _, ok := profile.Rules["okf-0.2-metadata"]; ok {
+		checks = append(checks, Check{
+			Name:    "OKF 0.2 metadata",
+			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"okf-0.2-metadata"}, []string{"okf-0.2-metadata"}),
+			Message: "Optional provenance, trust, lifecycle, and attested-computation metadata should follow OKF 0.2",
+		})
+	}
+	return checks
 }
 
 func statusForErrorWarningRules(errors []Issue, warnings []Issue, errorRules []string, warningRules []string) string {
