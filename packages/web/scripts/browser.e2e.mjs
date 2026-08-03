@@ -46,11 +46,21 @@ before(async () => {
     "type: Guide",
     "title: Rollback Guide",
     "tags: [deployment, recovery]",
+    "generated: { by: process:browser-e2e, at: 2026-08-03T08:00:00Z }",
+    "verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }",
+    "status: stable",
+    "stale_after: 2027-08-03",
+    "sources:",
+    "  - id: rollback-policy",
+    "    resource: https://example.test/rollback-policy",
+    "    title: Rollback policy",
     "---",
     "",
     "# Rollback Guide",
     "",
-    "Validate the deployment, capture evidence, and execute the rollback checklist.",
+    "Validate the deployment, capture evidence, and execute the rollback checklist.[^rollback-policy]",
+    "",
+    "[^rollback-policy]: Rollback policy source.",
     "",
     "```mermaid",
     "sequenceDiagram",
@@ -159,6 +169,27 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await search.press("Escape");
   assert.equal(await search.inputValue(), "");
   assert.equal(errors.length, 0, `viewer browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("exported viewer resolves OKF 0.2 source references", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(new URL("guides/rollback.html", viewerURL).href, { waitUntil: "networkidle" });
+  const signals = page.locator("[data-okf02-signals]");
+  assert.equal(await signals.count(), 1);
+  assert.match(await signals.innerText(), /Human reviewed/);
+  assert.match(await signals.innerText(), /Current until 2027-08-03/);
+  const ledger = signals.locator("[data-source-ledger]");
+  assert.equal(await ledger.getAttribute("open"), null);
+  const reference = page.getByRole("link", { name: "Source rollback-policy" });
+  assert.equal(await reference.count(), 1);
+  await reference.click();
+  assert.equal(await ledger.getAttribute("open"), "");
+  assert.equal(await ledger.locator("#ok-source-rollback-policy").count(), 1);
+  assert.equal(errors.length, 0, `viewer OKF 0.2 browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 

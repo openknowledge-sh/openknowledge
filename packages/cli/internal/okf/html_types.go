@@ -9,7 +9,8 @@ type HTMLResult struct {
 }
 
 type htmlPageData struct {
-	Title string
-	Path  string
-	Body  template.HTML
+	Title       string
+	Path        string
+	Frontmatter template.HTML
+	Body        template.HTML
 }

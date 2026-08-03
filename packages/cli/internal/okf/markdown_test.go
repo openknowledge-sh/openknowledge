@@ -236,6 +236,23 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdownWithFootnotesLinksKnownSourcesAndRemovesDefinitions(t *testing.T) {
+	body := "Supported by policy.[^policy]\n\n`literal [^policy]` and unknown [^missing].\n\n[^policy]: Policy details\n  continued details\n"
+	rendered := RenderMarkdownWithFootnotes(body, "concept.md", StaticHTMLLink, map[string]string{"policy": "#ok-source-policy"})
+	for _, expected := range []string{
+		`<sup class="ok-source-ref"><a href="#ok-source-policy" aria-label="Source policy">policy</a></sup>`,
+		`<code>literal [^policy]</code>`,
+		`[^missing]`,
+	} {
+		if !strings.Contains(rendered, expected) {
+			t.Fatalf("expected %q in rendered footnotes:\n%s", expected, rendered)
+		}
+	}
+	if strings.Contains(rendered, "Policy details") || strings.Contains(rendered, "continued details") {
+		t.Fatalf("known source definition should be omitted from rendered body:\n%s", rendered)
+	}
+}
+
 func TestRenderMarkdownHandlesCommonSpecSyntax(t *testing.T) {
 	input := strings.Join([]string{
 		"> This is a **pinned** upstream copy",

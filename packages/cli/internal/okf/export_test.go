@@ -226,6 +226,82 @@ func TestBuildGraphUsesASTBackedLocalLinks(t *testing.T) {
 	}
 }
 
+func TestOKFV02ListAndGraphSurfaceTrustAndProvenance(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Bundle\n")
+	writeFile(t, root, "revenue.md", `---
+type: Attested Computation
+title: Revenue
+runtime: python3
+parameters:
+  - { name: year, type: integer, required: true }
+computation: https://example.test/revenue.py
+executor: { resource: https://example.test/executor, receipt: [stdout, sha256] }
+attester: { resource: https://example.test/attester }
+verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }
+status: stable
+stale_after: 2026-08-04
+sources:
+  - id: policy
+    resource: https://example.test/policy
+    title: Revenue policy
+---
+
+# Revenue
+
+Supported by policy.[^policy]
+
+[^policy]: Revenue policy
+`)
+
+	listing, err := ListWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var revenue ListEntry
+	for _, entry := range listing.Entries {
+		if entry.Path == "revenue.md" {
+			revenue = entry
+			break
+		}
+	}
+	if revenue.OKF02 == nil || revenue.OKF02.TrustTier != OKFV02TrustHumanReviewed || !revenue.OKF02.Stale || revenue.OKF02.Computation == nil {
+		t.Fatalf("expected dedicated OKF 0.2 list signals, got %#v", revenue)
+	}
+
+	graph, err := BuildGraphWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var conceptSignals *OKFV02Signals
+	kinds := map[string]bool{}
+	resourceNodes := 0
+	for _, node := range graph.Nodes {
+		if node.Path == "revenue.md" {
+			conceptSignals = node.OKF02
+		}
+		if node.Kind == "resource" {
+			resourceNodes++
+		}
+	}
+	for _, edge := range graph.Edges {
+		if edge.Source == "revenue.md" {
+			kinds[edge.Kind] = true
+		}
+	}
+	if conceptSignals == nil || conceptSignals.TrustTier != OKFV02TrustHumanReviewed {
+		t.Fatalf("expected graph concept signals, got %#v", conceptSignals)
+	}
+	for _, kind := range []string{"source", "computation", "executor", "attester"} {
+		if !kinds[kind] {
+			t.Fatalf("expected %s provenance edge, got %#v", kind, graph.Edges)
+		}
+	}
+	if resourceNodes != 4 {
+		t.Fatalf("expected four external resource nodes, got %d in %#v", resourceNodes, graph.Nodes)
+	}
+}
+
 func TestBuildSourceGraphPreservesParallelLinkOccurrences(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n\nRead [Setup](guide.md#setup).\n\nRead [Recovery](guide.md#recovery).\n")
@@ -422,6 +498,64 @@ func TestWritePlainHTMLRendersUnstyledPages(t *testing.T) {
 	setup := readExportFile(t, out, "guides/setup.html")
 	if !strings.Contains(setup, "<title>Setup</title>") || !strings.Contains(setup, `href="../index.html"`) {
 		t.Fatalf("expected nested plain export to keep title and relative links:\n%s", setup)
+	}
+}
+
+func TestWritePlainHTMLOKFV02RendersMetadataAndSourceReferences(t *testing.T) {
+	root := t.TempDir()
+	enablePublicArtifactTest(t, root)
+	out := filepath.Join(t.TempDir(), "plain-site")
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n")
+	writeFile(t, root, "policy.md", `---
+type: Policy
+title: Policy
+sources:
+  - id: statute
+    resource: https://example.test/statute
+    title: Statute
+---
+
+# Policy
+
+Follow the statute.[^statute]
+
+[^statute]: Statute source
+`)
+
+	if _, err := WritePlainHTMLWithVersion(root, out, "0.2"); err != nil {
+		t.Fatal(err)
+	}
+	page := readExportFile(t, out, "policy.html")
+	for _, expected := range []string{
+		"<summary>Metadata</summary>",
+		`id="ok-source-statute"`,
+		`href="https://example.test/statute"`,
+		`href="#ok-source-statute"`,
+	} {
+		if !strings.Contains(page, expected) {
+			t.Fatalf("expected %q in OKF 0.2 plain HTML:\n%s", expected, page)
+		}
+	}
+	if strings.Contains(page, "Statute source") {
+		t.Fatalf("source footnote definition should resolve to structured metadata:\n%s", page)
+	}
+}
+
+func TestPlainFrontmatterLinksOnlyLocalAndHTTPResources(t *testing.T) {
+	rendered := renderPlainFrontmatter(map[string]any{
+		"resource":    "javascript:alert(1)",
+		"computation": "scripts/compute.py",
+		"sources": []any{map[string]any{
+			"resource": "https://example.test/source",
+		}},
+	}, "concepts/result.md")
+	if strings.Contains(rendered, `href="javascript:`) {
+		t.Fatalf("plain frontmatter must not link unsafe URI schemes:\n%s", rendered)
+	}
+	for _, expected := range []string{`href="scripts/compute.py"`, `href="https://example.test/source"`} {
+		if !strings.Contains(rendered, expected) {
+			t.Fatalf("expected safe metadata link %q:\n%s", expected, rendered)
+		}
 	}
 }
 

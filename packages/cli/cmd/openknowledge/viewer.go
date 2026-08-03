@@ -803,6 +803,7 @@ type viewerGraphNode struct {
 }
 
 type viewerGraphEdge struct {
+	Kind   string `json:"kind,omitempty"`
 	Source string `json:"source"`
 	Target string `json:"target"`
 	Label  string `json:"label,omitempty"`
@@ -1047,12 +1048,12 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	if !ok {
 		return viewerFileData{}, false, nil
 	}
-	frontmatter, err := viewerFrontmatterHTMLForFile(root, file)
+	frontmatter, err := viewerFrontmatterHTMLForFile(root, file, bundle.SpecVersion, viewerLinkWithPrefix(linkPrefix))
 	if err != nil {
 		return viewerFileData{}, true, err
 	}
 	entries := viewerEntriesFromBundleFiles(bundle.Files)
-	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, func(path string) string {
+	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(path string) string {
 		return fileURLWithPrefix(linkPrefix, path)
 	})
 	theme, err := viewerThemeForServer(root, linkPrefix)
@@ -1073,7 +1074,7 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		SearchURL:   searchURLWithPrefix(linkPrefix),
 		Theme:       theme,
 		Frontmatter: frontmatter,
-		Body:        template.HTML(okf.RenderMarkdown(file.Body, cleanRel, viewerLinkWithPrefix(linkPrefix))),
+		Body:        template.HTML(viewerRenderedBody(file, bundle.SpecVersion, viewerLinkWithPrefix(linkPrefix))),
 		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
 		GraphJSON:   graphJSON,

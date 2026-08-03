@@ -645,6 +645,69 @@ func TestViewerFrontmatterRendersFlowMappingsWithoutHidingMarkdown(t *testing.T)
 	}
 }
 
+func TestViewerRendersOKFV02KnowledgeSignalsAndContracts(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n")
+	writeViewerFile(t, root, "revenue.md", `---
+type: Attested Computation
+title: Revenue
+runtime: python3
+parameters:
+  - { name: year, type: integer, required: true }
+computation: https://example.test/revenue.py
+executor: { resource: https://example.test/executor, receipt: [stdout, sha256] }
+attester: { resource: https://example.test/attester }
+generated: { by: process:nightly, at: 2026-08-01T09:00:00Z }
+verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }
+status: deprecated
+stale_after: 2026-08-04
+sources:
+  - id: revenue-policy
+    resource: https://example.test/policy
+    title: Revenue policy
+    author: team:finance
+    usage_count: 7
+---
+
+# Revenue
+
+Supported by policy.[^revenue-policy]
+
+[^revenue-policy]: Revenue policy
+`)
+
+	handler := newViewerHandler(root)
+	page := getViewerBody(t, handler, "/file/revenue.md")
+	for _, expected := range []string{
+		`data-okf02-signals`,
+		`data-signal-kind="trust" data-signal-value="human-reviewed"`,
+		`Human reviewed`,
+		`data-signal-value="deprecated"`,
+		`data-signal-value="stale"`,
+		`data-source-ledger`,
+		`id="ok-source-revenue-policy"`,
+		`href="https://example.test/policy"`,
+		`href="#ok-source-revenue-policy"`,
+		`data-computation-contract`,
+		`python3`,
+		`https://example.test/executor`,
+		`https://example.test/attester`,
+		`Execution is never automatic.`,
+	} {
+		if !strings.Contains(page, expected) {
+			t.Fatalf("viewer OKF 0.2 surface missing %q:\n%s", expected, page)
+		}
+	}
+	if strings.Contains(page, "Revenue policy</p>") {
+		t.Fatalf("viewer should resolve the source footnote through structured metadata:\n%s", page)
+	}
+
+	api := getViewerJSON(t, handler, "/api/file/revenue.md")
+	if !strings.Contains(api.Frontmatter, `data-okf02-signals`) || !strings.Contains(api.Body, `href="#ok-source-revenue-policy"`) {
+		t.Fatalf("dynamic viewer panels should retain OKF 0.2 signals and source references: %#v", api)
+	}
+}
+
 func TestViewerRendersMarkdownExtensionFilesFromAST(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n\nSee [Guide](guide.markdown).\n")

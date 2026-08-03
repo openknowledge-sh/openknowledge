@@ -4220,6 +4220,26 @@
       return;
     }
 
+    const sourceReference = closestElement(event.target, ".ok-source-ref a[href^=\"#\"]");
+    if (sourceReference) {
+      const panel = sourceReference.closest("[data-note-path]");
+      const anchor = decodeURIComponent((sourceReference.getAttribute("href") || "").slice(1));
+      const target = panel
+        ? Array.prototype.find.call(panel.querySelectorAll("[id]"), function (candidate) {
+            return candidate.id === anchor;
+          })
+        : null;
+      if (target) {
+        const sourceLedger = target.closest("[data-source-ledger]");
+        if (sourceLedger) {
+          sourceLedger.open = true;
+        }
+        event.preventDefault();
+        target.scrollIntoView({ block: "nearest" });
+        return;
+      }
+    }
+
     const treeLink = closestElement(event.target, "[data-tree-path]");
     const graphLink = closestElement(event.target, "[data-graph-path]");
     if (treeLink || graphLink) {

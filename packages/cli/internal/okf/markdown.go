@@ -11,6 +11,8 @@ import (
 )
 
 var inlineLink = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+var inlineFootnote = regexp.MustCompile(`\[\^([^\]]+)\]`)
+var footnoteDefinition = regexp.MustCompile(`^\[\^([^\]]+)\]:`)
 var orderedListItem = regexp.MustCompile(`^\d+[\.)]\s+`)
 
 const agentMaintenanceFooterMarker = "<!-- okf-footer: agent-maintenance -->"
@@ -21,11 +23,19 @@ func RenderMarkdown(body string, currentRel string, resolve LinkResolver) string
 	return RenderASTMarkdown(ParseASTMarkdown(body, 1), currentRel, resolve)
 }
 
-func RenderASTMarkdown(markdown ASTMarkdown, currentRel string, resolve LinkResolver) string {
-	return renderASTMarkdownBlocks(markdown.Blocks, currentRel, resolve)
+func RenderMarkdownWithFootnotes(body string, currentRel string, resolve LinkResolver, footnotes map[string]string) string {
+	if len(footnotes) == 0 {
+		return RenderMarkdown(body, currentRel, resolve)
+	}
+	body = stripRenderedFootnoteDefinitions(body, footnotes)
+	return renderASTMarkdownBlocks(ParseASTMarkdown(body, 1).Blocks, currentRel, resolve, footnotes)
 }
 
-func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resolve LinkResolver) string {
+func RenderASTMarkdown(markdown ASTMarkdown, currentRel string, resolve LinkResolver) string {
+	return renderASTMarkdownBlocks(markdown.Blocks, currentRel, resolve, nil)
+}
+
+func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resolve LinkResolver, footnotes map[string]string) string {
 	var builder strings.Builder
 	inAgentFooter := false
 
@@ -50,10 +60,10 @@ func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resol
 				level = block.Heading.Level
 				content = block.Heading.Text
 			}
-			fmt.Fprintf(&builder, "<h%d>%s</h%d>\n", level, renderInline(content, currentRel, resolve), level)
+			fmt.Fprintf(&builder, "<h%d>%s</h%d>\n", level, renderInline(content, currentRel, resolve, footnotes), level)
 		case "paragraph":
 			builder.WriteString("<p>")
-			builder.WriteString(renderInline(astMarkdownParagraphText(block.Text), currentRel, resolve))
+			builder.WriteString(renderInline(astMarkdownParagraphText(block.Text), currentRel, resolve, footnotes))
 			builder.WriteString("</p>\n")
 		case "code":
 			language := ""
@@ -65,16 +75,16 @@ func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resol
 			builder.WriteString(RenderCodeBlock(text, language))
 		case "blockquote":
 			builder.WriteString("<blockquote>\n")
-			builder.WriteString(renderASTMarkdownBlocks(block.Children, currentRel, resolve))
+			builder.WriteString(renderASTMarkdownBlocks(block.Children, currentRel, resolve, footnotes))
 			builder.WriteString("</blockquote>\n")
 		case "list":
-			builder.WriteString(renderASTMarkdownList(block, currentRel, resolve))
+			builder.WriteString(renderASTMarkdownList(block, currentRel, resolve, footnotes))
 		case "table":
-			builder.WriteString(renderASTMarkdownTable(block, currentRel, resolve))
+			builder.WriteString(renderASTMarkdownTable(block, currentRel, resolve, footnotes))
 		default:
 			if strings.TrimSpace(block.Text) != "" {
 				builder.WriteString("<p>")
-				builder.WriteString(renderInline(astMarkdownParagraphText(block.Text), currentRel, resolve))
+				builder.WriteString(renderInline(astMarkdownParagraphText(block.Text), currentRel, resolve, footnotes))
 				builder.WriteString("</p>\n")
 			}
 		}
@@ -84,6 +94,33 @@ func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resol
 		builder.WriteString("</div>\n")
 	}
 	return builder.String()
+}
+
+func stripRenderedFootnoteDefinitions(body string, footnotes map[string]string) string {
+	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
+	kept := make([]string, 0, len(lines))
+	skippingContinuation := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if match := footnoteDefinition.FindStringSubmatch(trimmed); len(match) == 2 {
+			if _, ok := footnotes[strings.TrimSpace(match[1])]; ok {
+				skippingContinuation = true
+				continue
+			}
+		}
+		if skippingContinuation {
+			if trimmed == "" {
+				skippingContinuation = false
+				continue
+			}
+			if strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t") {
+				continue
+			}
+			skippingContinuation = false
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n")
 }
 
 func astMarkdownParagraphText(text string) string {
@@ -104,7 +141,7 @@ func nextASTMarkdownBlockIsAgentFooter(blocks []ASTMarkdownBlock, start int) boo
 	return false
 }
 
-func renderASTMarkdownList(block ASTMarkdownBlock, currentRel string, resolve LinkResolver) string {
+func renderASTMarkdownList(block ASTMarkdownBlock, currentRel string, resolve LinkResolver, footnotes map[string]string) string {
 	if block.List == nil {
 		return ""
 	}
@@ -116,14 +153,14 @@ func renderASTMarkdownList(block ASTMarkdownBlock, currentRel string, resolve Li
 	fmt.Fprintf(&builder, "<%s>\n", tag)
 	for _, item := range block.List.Items {
 		builder.WriteString("<li>")
-		builder.WriteString(renderInline(item.Text, currentRel, resolve))
+		builder.WriteString(renderInline(item.Text, currentRel, resolve, footnotes))
 		builder.WriteString("</li>\n")
 	}
 	fmt.Fprintf(&builder, "</%s>\n", tag)
 	return builder.String()
 }
 
-func renderASTMarkdownTable(block ASTMarkdownBlock, currentRel string, resolve LinkResolver) string {
+func renderASTMarkdownTable(block ASTMarkdownBlock, currentRel string, resolve LinkResolver, footnotes map[string]string) string {
 	if block.Table == nil || len(block.Table.Header) == 0 {
 		return ""
 	}
@@ -133,7 +170,7 @@ func renderASTMarkdownTable(block ASTMarkdownBlock, currentRel string, resolve L
 	builder.WriteString("\n<div class=\"ok-table-scroller\">\n<table class=\"ok-table\" data-ok-table>\n<thead>\n<tr>")
 	for column, cell := range table.Header {
 		writeTableCellStart(&builder, "th", astMarkdownTableAlignment(table.Alignments, column), ` scope="col"`)
-		builder.WriteString(renderInline(cell, currentRel, resolve))
+		builder.WriteString(renderInline(cell, currentRel, resolve, footnotes))
 		builder.WriteString("</th>")
 	}
 	builder.WriteString("</tr>\n</thead>\n<tbody>\n")
@@ -145,7 +182,7 @@ func renderASTMarkdownTable(block ASTMarkdownBlock, currentRel string, resolve L
 				cell = row.Cells[column]
 			}
 			writeTableCellStart(&builder, "td", astMarkdownTableAlignment(table.Alignments, column), "")
-			builder.WriteString(renderInline(cell, currentRel, resolve))
+			builder.WriteString(renderInline(cell, currentRel, resolve, footnotes))
 			builder.WriteString("</td>")
 		}
 		builder.WriteString("</tr>\n")
@@ -185,7 +222,7 @@ func HeadingLevel(line string) int {
 	return level
 }
 
-func renderInline(text string, currentRel string, resolve LinkResolver) string {
+func renderInline(text string, currentRel string, resolve LinkResolver, footnotes map[string]string) string {
 	if resolve == nil {
 		resolve = func(_ string, href string) string { return href }
 	}
@@ -196,21 +233,21 @@ func renderInline(text string, currentRel string, resolve LinkResolver) string {
 		if insideInlineCodeSpan(text, match[0]) {
 			continue
 		}
-		builder.WriteString(renderInlineText(text[last:match[0]]))
+		builder.WriteString(renderInlineText(text[last:match[0]], footnotes))
 		label := text[match[2]:match[3]]
 		href := text[match[4]:match[5]]
 		builder.WriteString(`<a href="`)
 		builder.WriteString(html.EscapeString(resolve(currentRel, href)))
 		builder.WriteString(`">`)
-		builder.WriteString(renderInlineText(label))
+		builder.WriteString(renderInlineText(label, footnotes))
 		builder.WriteString("</a>")
 		last = match[1]
 	}
-	builder.WriteString(renderInlineText(text[last:]))
+	builder.WriteString(renderInlineText(text[last:], footnotes))
 	return builder.String()
 }
 
-func renderInlineText(text string) string {
+func renderInlineText(text string, footnotes map[string]string) string {
 	parts := strings.Split(text, "`")
 	var builder strings.Builder
 	for index, part := range parts {
@@ -220,8 +257,34 @@ func renderInlineText(text string) string {
 			builder.WriteString("</code>")
 			continue
 		}
-		builder.WriteString(renderEmphasis(part))
+		builder.WriteString(renderEmphasisWithFootnotes(part, footnotes))
 	}
+	return builder.String()
+}
+
+func renderEmphasisWithFootnotes(text string, footnotes map[string]string) string {
+	if len(footnotes) == 0 {
+		return renderEmphasis(text)
+	}
+	var builder strings.Builder
+	last := 0
+	for _, match := range inlineFootnote.FindAllStringSubmatchIndex(text, -1) {
+		label := strings.TrimSpace(text[match[2]:match[3]])
+		href, ok := footnotes[label]
+		if !ok || strings.TrimSpace(href) == "" {
+			continue
+		}
+		builder.WriteString(renderEmphasis(text[last:match[0]]))
+		builder.WriteString(`<sup class="ok-source-ref"><a href="`)
+		builder.WriteString(html.EscapeString(href))
+		builder.WriteString(`" aria-label="Source `)
+		builder.WriteString(html.EscapeString(label))
+		builder.WriteString(`">`)
+		builder.WriteString(html.EscapeString(label))
+		builder.WriteString(`</a></sup>`)
+		last = match[1]
+	}
+	builder.WriteString(renderEmphasis(text[last:]))
 	return builder.String()
 }
 
