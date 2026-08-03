@@ -27,6 +27,6 @@
     "build": "pnpm build:web && pnpm build:cli"
   },
   "devDependencies": {
-    "playwright": "1.61.1"
+    "playwright": "1.62.1"
   }
 }
