@@ -7,7 +7,8 @@ specification for offline validation and scaffold generation.
 
 - Upstream repository: https://github.com/GoogleCloudPlatform/knowledge-catalog
 - Upstream spec: https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
-- Local copy: `packages/cli/internal/okf/assets/specs/0.1.md`
+- Local copies: `packages/cli/internal/okf/assets/specs/0.1.md` and
+  `packages/cli/internal/okf/assets/specs/0.2.md`
 - License: Apache License 2.0
 - License copy: `third_party/licenses/GoogleCloudPlatform-knowledge-catalog-Apache-2.0.txt`
 

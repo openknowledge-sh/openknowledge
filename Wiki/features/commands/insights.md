@@ -95,12 +95,19 @@ sets a harness-specific model.
 Every insight file uses `type: Open Knowledge Insight` and
 `okf_publish: false`. It contains:
 
-* `status`: `pending`, `resolved`, `dismissed`, or `blocked`.
-* Stable `okf_insight_id`, kind, runtime, and RFC 3339 creation time.
+* `status: draft` for a pending insight.
+* `status: stable` for a resolved insight.
+* `status: deprecated` for a dismissed insight.
+* `okf_insight_status: blocked` with `status: draft` for a blocked insight.
+* `generated.by` with the CLI or observer process actor.
+* `generated.at` with the RFC 3339 creation time.
+* Stable `okf_insight_id` and kind values.
 * One or more knowledge-base-relative `okf_insight_targets`.
 * Human-readable `Insight` and `Evidence` sections.
 
 Validation verifies the private marker, statuses, metadata, and target format.
+The reader accepts legacy insight status, runtime, and creation fields. A
+status change converts those legacy fields to the OKF 0.2 contract.
 Public HTML, runtime projections, `llms.txt`, sitemaps, and portable artifacts
 exclude insights. Local authoring and direct reads use the unfiltered bundle.
 These surfaces can expose insights.

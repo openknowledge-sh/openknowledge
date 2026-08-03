@@ -70,6 +70,20 @@ Use the canonical values in new configuration.
 The parser reports an error for an unknown top-level section or nested field.
 It also reports duplicate keys, malformed TOML, and incorrect value types.
 Unknown validation rule IDs and invalid severity values are errors.
+The configuration can contain configurable rules from each supported spec
+profile. A command applies only rules from its selected profile. The command
+ignores a known rule from another profile. Quote rule IDs that contain a dot
+when using them as TOML keys:
+
+```toml
+[validation.rules]
+"okf-0.2-metadata" = "error"
+```
+
+Validation with `--spec 0.1` ignores this known 0.2-only rule. An unknown or
+fixed rule still causes an error. An explicit CLI `--rule` must belong to the
+selected profile.
+
 A command does not ignore a typographical error in an unused section.
 This behavior keeps the configuration consistent between all CLI surfaces.
 
@@ -119,7 +133,7 @@ Use `okf_publish: false` to exclude content from each public generation.
 
 ## Consumer behavior
 
-* `okn validate` applies `[validation.rules]`.
+* `okn validate` applies `[validation.rules]` against the selected OKF version.
   It uses `[rules]` for deterministic rule-catalog checks.
 * `okn prompt rules` uses `[rules]` for custom catalog paths and default selection.
 * `okn prompt review rules` also uses `[rules]`.

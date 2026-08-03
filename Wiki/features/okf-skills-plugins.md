@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: OKF, Skills, and Plugins
-description: A simple user-facing comparison of raw OKF v0.1, agent skills, and plugins.
+description: A simple user-facing comparison of raw OKF v0.2, agent skills, and plugins.
 tags: [openknowledge, okf, agents, skills, plugins]
 timestamp: 2026-06-20T00:00:00Z
 ---
@@ -13,7 +13,7 @@ Each system uses these files for a different purpose.
 
 ## OKF: knowledge
 
-**OKF v0.1** is a simple format that stores knowledge.
+**OKF v0.2** is a simple format that stores knowledge and optional trust data.
 
 An OKF bundle is a folder of Markdown files with YAML frontmatter.
 Each concept file describes one useful item of knowledge.

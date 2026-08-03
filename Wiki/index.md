@@ -1,5 +1,5 @@
 ---
-okf_version: "0.1"
+okf_version: "0.2"
 okf_bundle_title: "Open Knowledge CLI Documentation"
 ---
 
@@ -71,4 +71,4 @@ creation. Other advanced tools are [`prompt`](features/commands/prompt.md),
 - [Machine-readable contracts](features/machine-contracts.md)
 - [Go API](features/go-api.md)
 - [Maintenance rules](rules/)
-- [OKF v0.1 specification](SPEC.md)
+- [OKF v0.2 specification](SPEC.md)

@@ -4,7 +4,7 @@ title: Graph Exporter
 description: JSON graph export target for Open Knowledge source and search graph structure.
 tags: [openknowledge, cli, exporter, graph]
 timestamp: 2026-07-21T00:00:00Z
-status: shipped
+feature_status: shipped
 ---
 
 # Graph Exporter

@@ -15,7 +15,7 @@ exporters use. Use [`validate`](validate.md) for pass or fail checks.
 
 ```sh
 okn ast [key-or-path]
-okn ast Wiki --spec 0.1
+okn ast Wiki --spec 0.2
 okn ast Wiki --out ast.json
 ```
 
@@ -41,7 +41,7 @@ Markdown documents in path order. Each document can include:
 {
   "schemaVersion": "1",
   "root": "/work/project-memory",
-  "specVersion": "0.1",
+  "specVersion": "0.2",
   "documents": [
     {
       "rel": "AGENTS.md",

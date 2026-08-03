@@ -32,23 +32,24 @@ okn validate --quiet Wiki
 
 ## Checks
 
-| Rule | Default | Checks |
-| --- | --- | --- |
-| `bundle-read` | error | The target is a readable directory with no symlink escape. |
-| `utf-8` | error | Markdown files contain valid UTF-8. |
-| `frontmatter` | error | YAML frontmatter parses as one mapping. |
-| `concept-frontmatter` | error | Concept pages include frontmatter. |
-| `concept-type` | error | Concept pages define a non-empty `type`. |
-| `index-frontmatter` | error | Non-root indexes use only allowed publication metadata. |
-| `log-frontmatter` | error | `log.md` has no concept frontmatter. |
-| `log-date` | error | Level-two log headings use `YYYY-MM-DD`. |
-| `publish-metadata` | fixed error | Publication flags and targets use supported boolean values. |
-| `insight-contract` | fixed error | Private insight metadata, targets, and status are valid. |
-| `rule-catalog` | error | Custom maintenance rules and enabled IDs are valid. |
-| `frontmatter-format` | warning | Parseable frontmatter follows clean formatting. |
-| `markdown-syntax` | warning | Links, code spans, tables, and fences look complete. |
-| `okf-version` | warning | Root `okf_version` matches the selected spec. |
-| `link-target` | warning | Local Markdown links resolve inside the bundle. |
+| Rule | Versions | Default | Checks |
+| --- | --- | --- | --- |
+| `bundle-read` | 0.1, 0.2 | error | The target is a readable directory with no symlink escape. |
+| `utf-8` | 0.1, 0.2 | error | Markdown files contain valid UTF-8. |
+| `frontmatter` | 0.1, 0.2 | error | YAML frontmatter parses as one mapping. |
+| `concept-frontmatter` | 0.1, 0.2 | error | Concept pages include frontmatter. |
+| `concept-type` | 0.1, 0.2 | error | Concept pages define a non-empty `type`. |
+| `index-frontmatter` | 0.1, 0.2 | error | Non-root indexes use only allowed publication metadata. |
+| `log-frontmatter` | 0.1, 0.2 | error | `log.md` has no concept frontmatter. |
+| `log-date` | 0.1, 0.2 | error | Level-two log headings use `YYYY-MM-DD`. |
+| `publish-metadata` | 0.1, 0.2 | fixed error | Publication flags and targets use supported boolean values. |
+| `insight-contract` | 0.1, 0.2 | fixed error | Private insight metadata, targets, provenance, and lifecycle are valid for the selected version. |
+| `rule-catalog` | 0.1, 0.2 | error | Custom maintenance rules and enabled IDs are valid. |
+| `frontmatter-format` | 0.1, 0.2 | warning | Parseable frontmatter follows clean formatting. |
+| `markdown-syntax` | 0.1, 0.2 | warning | Links, code spans, tables, and fences look complete. |
+| `okf-version` | 0.1, 0.2 | warning | Root `okf_version` matches the selected spec. |
+| `okf-0.2-metadata` | 0.2 | warning | Optional 0.2 metadata follows its defined shapes. |
+| `link-target` | 0.1, 0.2 | warning | Local Markdown links resolve inside the bundle. |
 
 The scan includes `.md` and `.markdown` files. It skips `.git`. It classifies
 `index.md` and `log.md` as reserved files.
@@ -67,7 +68,10 @@ markdown-syntax = "off"
 ```
 
 CLI `--rule` values have priority. Canonical severities are `off`, `warn`, and
-`error`. An unknown rule or severity is a usage error. See
+`error`. Every checker rule belongs to an explicit spec-version profile.
+Configuration can contain a configurable rule from any supported profile.
+Validation applies only rules from the selected profile and ignores known inactive rules.
+An explicit CLI override must belong to the selected profile. See
 [`.openknowledge.toml`](/features/configuration.md) for accepted compatibility
 aliases and strict configuration behavior.
 
@@ -85,7 +89,7 @@ defines the contract.
 {
   "schemaVersion": "1",
   "root": "/work/project-memory",
-  "specVersion": "0.1",
+  "specVersion": "0.2",
   "summary": {
     "status": "pass",
     "errorCount": 0,

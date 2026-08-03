@@ -13,6 +13,36 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-08-03 — Stable viewer sidebar layering
+
+- The file explorer now remains opaque and above note panels while
+  open-beside navigation adds a panel.
+- Source: `packages/web/src/viewer/`,
+  `packages/web/scripts/browser.e2e.mjs`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+- Docs: `Wiki/features/commands/view.md`.
+
+### 2026-08-03 — OKF 0.2 compatibility
+
+- `latest` now selects OKF 0.2. The CLI still supports explicit OKF 0.1 reads.
+- The parser normalizes a bare `verified` mapping for OKF 0.2 consumers.
+- Validation now warns about malformed optional provenance, trust, lifecycle,
+  source attribution, and attested-computation metadata.
+- Every checker rule, including fixed-severity rules, now belongs to an
+  explicit OKF version profile. Shared configuration can contain rules from
+  multiple profiles. Each validation applies only its active profile.
+- New scaffolds use OKF 0.2 by default. `okn scaffold --spec 0.1` creates a
+  version-matched 0.1 bundle, local spec, metadata, and setup instructions.
+- New automation insights use OKF 0.2 lifecycle and `generated` metadata.
+  Insight status changes convert legacy insight provenance to OKF 0.2.
+- Source: `packages/cli/internal/okf/`,
+  `packages/cli/internal/okf/assets/specs/0.2.md`,
+  `packages/cli/internal/insights/`.
+- Docs: `README.md`, `Wiki/SPEC.md`,
+  `Wiki/features/spec-compliance.md`,
+  `Wiki/features/commands/scaffold.md`,
+  `Wiki/features/commands/insights.md`.
+
 ### 2026-08-02 — Unified interactive setup
 
 - `okn setup` now starts a terminal wizard. Without terminal input, it prints

@@ -16,7 +16,7 @@ validate the bundle.
 
 ```sh
 okn mcp [key-or-path]
-okn mcp Wiki --spec 0.1
+okn mcp Wiki --spec 0.2
 ```
 
 Example command-based client configuration:

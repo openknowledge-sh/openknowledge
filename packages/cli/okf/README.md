@@ -6,7 +6,7 @@ by the `openknowledge` CLI.
 ```go
 import "github.com/openknowledge-sh/openknowledge/packages/cli/okf"
 
-report, err := okf.ValidateWithVersion("./Wiki", "0.1")
+report, err := okf.ValidateWithVersion("./Wiki", "0.2")
 if err != nil {
     return err
 }
@@ -14,7 +14,7 @@ if err := okf.RequireValidBundle(report); err != nil {
     return err
 }
 
-context, err := okf.ResolveContextWithVersion("./Wiki", "0.1", okf.ContextOptions{
+context, err := okf.ResolveContextWithVersion("./Wiki", "0.2", okf.ContextOptions{
     Query:  "release workflow",
     Budget: 1200,
     Limit:  8,
@@ -22,7 +22,7 @@ context, err := okf.ResolveContextWithVersion("./Wiki", "0.1", okf.ContextOption
 
 federated, err := okf.ResolveFederatedContextWithVersion(
     []okf.FederatedTarget{{Name: "team", Root: "./TeamWiki"}},
-    "0.1",
+    "0.2",
     okf.ContextOptions{Query: "release workflow", Budget: 1200, Limit: 8},
 )
 
@@ -45,3 +45,9 @@ persist `RetrievalRevision` and each result locator to detect stale evidence
 after edits or refreshes. The module is still pre-v1, so
 Go source compatibility follows module semantic versioning; serialized output
 compatibility follows the separately documented machine-schema policy.
+
+Validation rules are also version-bound. Use
+`KnownValidationRulesForVersion`, `ParseValidationRuleOverrideForVersion`,
+and `SetValidationRuleSeverityForVersion` with an explicit spec selection.
+The known-rule list includes mandatory rules;
+`IsValidationRuleOverrideableForVersion` distinguishes fixed severities.

@@ -4,7 +4,7 @@ title: Product Interface Direction
 description: Organize the CLI around one primary path and optional workflows over one OKF knowledge base.
 tags: [openknowledge, product, cli, interface, runtime]
 timestamp: 2026-07-18T00:00:00Z
-status: accepted
+decision_status: accepted
 ---
 
 # Product Interface Direction

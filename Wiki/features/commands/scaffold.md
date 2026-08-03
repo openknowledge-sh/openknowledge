@@ -17,6 +17,7 @@ the agent-guided [`okn setup`](setup.md) task.
 ```sh
 okn scaffold [folder]
 okn scaffold --name "Project Memory" ./project-memory
+okn scaffold --spec 0.1 ./legacy-wiki
 okn scaffold --no-agents --no-setup ./source-wiki
 ```
 
@@ -24,6 +25,7 @@ okn scaffold --no-agents --no-setup ./source-wiki
 | --- | --- |
 | `folder` | Destination. Defaults to a slug derived from the name. |
 | `--name <name>` | Display name. Prompts when omitted. |
+| `--spec <version>` | OKF spec version. Defaults to `latest`, which is 0.2. |
 | `--bundle-name <id>` | Stable `okf_bundle_name`. |
 | `--bundle-title <title>` | Display `okf_bundle_title`. |
 | `--bundle-purpose <text>` | `okf_bundle_purpose`. |
@@ -45,6 +47,13 @@ SETUP.MD
 With both omission flags, the scaffold contains only `index.md`, `log.md`, and
 `SPEC.md`. The command creates a missing destination. It rejects an existing
 non-empty directory.
+
+The default scaffold declares `okf_version: "0.2"`. Use `--spec 0.1` to
+create an OKF 0.1 scaffold. The command writes the selected spec to `SPEC.md`.
+It also writes the selected version to setup instructions.
+
+OKF 0.2 scaffolds use `generated.by` and `generated.at`. OKF 0.1 scaffolds use
+`timestamp`.
 
 OKF does not require bundle metadata. `--bundle-entry` records only the
 mapping. Create the target page separately.
