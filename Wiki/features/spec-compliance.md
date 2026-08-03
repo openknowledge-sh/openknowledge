@@ -55,7 +55,8 @@ See [§11 Conformance](../SPEC.md#11-conformance).
 
 The `okf-0.2-metadata` rule checks optional 0.2 families. Its default
 severity is `warning`. It is not part of the OKF 0.1 validation profile, so an
-0.1 validation rejects attempts to configure or override it.
+0.1 validation ignores it in shared `.openknowledge.toml` configuration. An
+explicit CLI `--rule` must belong to the selected profile.
 
 | Family | Checks |
 | --- | --- |
@@ -78,15 +79,21 @@ worked examples use indented blocks even though §10.3 specifies a fenced block.
 | --- | --- | --- |
 | AST and JSON bundle | ✅ | Preserve all nested 0.2 frontmatter and unknown keys. |
 | Search and context | ✅ | Index nested frontmatter as searchable metadata. |
-| List output | 🟡 | Reports base metadata only. It does not expose trust or lifecycle fields as dedicated columns. |
-| Source graph | 🟡 | Uses Markdown links. It does not infer provenance edges from `sources[].resource`. |
-| Local and default static viewer | 🟡 | Shows typed nested frontmatter. It does not derive trust tiers or staleness badges. |
-| Plain HTML export | 🟡 | Renders the Markdown body but omits frontmatter presentation. |
+| List output | ✅ | Text output shows derived trust, status, and staleness. JSON entries expose the complete derived `okf02` contract. |
+| Source graph | ✅ | Nodes expose `okf02`. Source, computation, executor, and attester resources create typed provenance edges. External or unresolved resources use `resource` nodes. |
+| Local and default static viewer | ✅ | Shows trust, status, freshness, provenance, structured sources, resolved source footnotes, and Attested Computation contracts. |
+| Plain HTML export | ✅ | Renders semantic frontmatter. OKF 0.2 source footnotes link to matching structured source entries. |
 | Tar export and registry | ✅ | Preserve source Markdown and the selected spec version. |
 | Scaffold | ✅ | Uses 0.2 by default. An explicit 0.1 scaffold uses `timestamp` and embeds the 0.1 spec. |
 
-The viewer and search tolerate `Attested Computation` as a normal concept
-type. They preserve its contract without executing it.
+Trust derivation follows OKF 0.2: no verification is `unverified`, only
+non-human verification is `machine-confirmed`, and any `human:` verification
+is `human-reviewed`. Missing `status` is `stable`. A concept is stale on or
+after its `stale_after` date in the local calendar.
+
+The viewer and exported contracts preserve Attested Computation runtime,
+parameters, computation, executor, receipt, and attester metadata. They do not
+execute any declared resource.
 
 ## Migration behavior
 
@@ -99,22 +106,13 @@ The CLI accepts legacy `timestamp` as an unknown field. Default scaffolds use
 `generated`. Explicit 0.1 scaffolds use `timestamp`. The CLI does not convert
 a legacy `# Citations` list to `sources`. OKF 0.2 makes that fallback optional.
 
-## Remaining capability gaps
+## Deferred runtime behavior
 
-These gaps do not make a bundle nonconformant:
-
-- The viewer does not derive `unverified`, `machine-confirmed`, or
-  `human-reviewed` labels.
-- The viewer does not calculate staleness from `stale_after`.
-- Footnotes do not open structured source detail from `sources[].id`.
-- Graph output does not create optional provenance edges from resolvable source
-  resources.
-- List and graph contracts do not expose dedicated 0.2 trust fields.
-- Plain HTML does not show 0.2 frontmatter.
-
-The CLI does not execute an `executor` or `attester`. OKF 0.2 defers receipt
-and verdict formats, the attester ABI, sandboxing, and caching. A portable
-runtime must wait for those contracts or use a separate extension.
+The CLI does not execute an `executor` or `attester`. OKF 0.2 records the
+computation and its means, but it does not define a portable invocation ABI,
+sandbox policy, receipt or verdict format, or cache contract. The viewer makes
+this boundary explicit. Execution requires a separately approved runtime and
+deterministic attester.
 
 ---
 
@@ -125,6 +123,9 @@ runtime must wait for those contracts or use a separate extension.
 > - `packages/cli/internal/okf/spec.go`
 > - `packages/cli/internal/okf/spec_0_2.go`
 > - `packages/cli/internal/okf/validation_0_2.go`
+> - `packages/cli/internal/okf/okf_0_2_signals.go`
+> - `packages/cli/internal/okf/graph.go`
+> - `packages/cli/internal/okf/html_frontmatter.go`
 > - `packages/cli/internal/okf/validate_versions_test.go`
 > - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
 >

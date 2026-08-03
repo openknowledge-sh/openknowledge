@@ -41,6 +41,7 @@ The package exposes these functions and models:
 - inventory and bundle metadata
 - deterministic search, bounded context, and caller-supplied RRF federation
 - source and retrieval graphs
+- OKF 0.2 derived trust, lifecycle, source, and Attested Computation signals
 - strict frontmatter and portable-manifest decoding
 - supported spec discovery and the embedded spec
 - bounded registry inventory, key or path resolution, and authoring capability
@@ -67,6 +68,10 @@ The unversioned helpers use `LatestSpecVersion`.
 
 The supported spec versions are `0.1` and `0.2`. `LatestSpecVersion` is
 `0.2`. The 0.2 AST normalizes a bare `verified` mapping to a one-item list.
+Use `DeriveOKFV02Signals` to derive the same `okf02` contract used by list and
+graph output. `OKFV02SourceFootnotes` maps source IDs to stable HTML anchors.
+Signal derivation does not execute computation, executor, or attester
+resources.
 
 The API is read-only. It does not connect sources, refresh sources, or change
 the registry. It does not extract archives, render HTML, or manage processes.

@@ -24,6 +24,30 @@ page records release-level changes.
   `packages/cli/cmd/openknowledge/viewer_test.go`.
 - Docs: `Wiki/features/commands/view.md`.
 
+### 2026-08-04 — OKF 0.2 consumer surfaces
+
+- List and graph JSON now expose a dedicated derived `okf02` contract. Text
+  list output shows trust, lifecycle status, and staleness. Graph output adds
+  typed source, computation, executor, and attester provenance edges.
+- Viewer pages now show OKF 0.2 trust, freshness, source details, linked source
+  footnotes, and Attested Computation contracts. Plain HTML now includes
+  semantic frontmatter and linked structured sources.
+- The CLI preserves executor and attester declarations but never executes
+  them automatically. OKF 0.2 does not define a portable runtime ABI or
+  receipt and verdict formats.
+- Source: `packages/cli/internal/okf/okf_0_2_signals.go`,
+  `packages/cli/internal/okf/graph.go`,
+  `packages/cli/internal/okf/html_frontmatter.go`,
+  `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
+  `packages/web/src/viewer/`.
+- Docs: `Wiki/features/spec-compliance.md`,
+  `Wiki/features/commands/list.md`,
+  `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/graph.md`,
+  `Wiki/features/exporters/html.md`,
+  `Wiki/features/go-api.md`,
+  `Wiki/features/machine-contracts.md`.
+
 ### 2026-08-03 — OKF 0.2 compatibility
 
 - `latest` now selects OKF 0.2. The CLI still supports explicit OKF 0.1 reads.

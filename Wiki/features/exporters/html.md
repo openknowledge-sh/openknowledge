@@ -40,6 +40,8 @@ Viewer mode includes:
 
 - static Markdown pages with file navigation, Mermaid diagrams, search, graph
   data, stacked panels, metadata inspectors, table controls, themes, and mobile layout
+- OKF 0.2 trust, status, freshness, provenance, structured source, and
+  Attested Computation contract views
 - `llms.txt` for pages enabled for both `viewer` and `llms`
 - `sitemap.xml` when the configuration contains `[html.site].base_url`
 - `openknowledge.json` and `assets/openknowledge-bundle.tar.gz` for remote
@@ -59,8 +61,13 @@ The deployment owns trusted inline scripts from `--head-file` or `--head-html`.
 These scripts can require a CSP nonce or hash.
 Use `--script-src` for trusted external scripts.
 
-Plain mode writes only semantic HTML pages.
-It omits viewer assets, discovery files, search data, source controls, and frontmatter chrome.
+Viewer mode displays executor and attester declarations. It does not execute
+either resource.
+
+Plain mode writes only semantic HTML pages. It includes frontmatter in native
+`details`, `dl`, and list elements. OKF 0.2 source footnotes link to matching
+source metadata entries. Plain mode omits viewer assets, discovery files,
+search data, and interactive viewer controls.
 
 ## Publication rules
 
@@ -131,8 +138,10 @@ Then, it registers the materialized source.
 > **Source anchors**
 >
 > - `packages/cli/internal/okf/html.go`
+> - `packages/cli/internal/okf/html_frontmatter.go`
 > - `packages/cli/internal/okf/atomic_output.go`
 > - `packages/cli/cmd/openknowledge/viewer_export.go`
+> - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/cmd/openknowledge/viewer_discovery.go`
