@@ -37,6 +37,7 @@ okn scaffold --no-agents --no-setup ./source-wiki
 The default scaffold contains:
 
 ```text
+.openknowledge.toml
 index.md
 log.md
 SPEC.md
@@ -44,13 +45,14 @@ AGENTS.md
 SETUP.MD
 ```
 
-With both omission flags, the scaffold contains only `index.md`, `log.md`, and
-`SPEC.md`. The command creates a missing destination. It rejects an existing
-non-empty directory.
+With both omission flags, the scaffold contains only `.openknowledge.toml`,
+`index.md`, `log.md`, and `SPEC.md`. The command creates a missing destination.
+It rejects an existing non-empty directory.
 
 The default scaffold declares `okf_version: "0.2"`. Use `--spec 0.1` to
 create an OKF 0.1 scaffold. The command writes the selected spec to `SPEC.md`.
-It also writes the selected version to setup instructions.
+It also writes the selected version to setup instructions and the terminal
+handoff validation command.
 
 OKF 0.2 scaffolds use `generated.by` and `generated.at`. OKF 0.1 scaffolds use
 `timestamp`.

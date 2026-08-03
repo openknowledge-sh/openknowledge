@@ -33,11 +33,14 @@ page records release-level changes.
   multiple profiles. Each validation applies only its active profile.
 - New scaffolds use OKF 0.2 by default. `okn scaffold --spec 0.1` creates a
   version-matched 0.1 bundle, local spec, metadata, and setup instructions.
+  The terminal handoff now validates against the selected scaffold version.
 - New automation insights use OKF 0.2 lifecycle and `generated` metadata.
   Insight status changes convert legacy insight provenance to OKF 0.2.
 - Source: `packages/cli/internal/okf/`,
   `packages/cli/internal/okf/assets/specs/0.2.md`,
-  `packages/cli/internal/insights/`.
+  `packages/cli/internal/insights/`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`.
 - Docs: `README.md`, `Wiki/SPEC.md`,
   `Wiki/features/spec-compliance.md`,
   `Wiki/features/commands/scaffold.md`,

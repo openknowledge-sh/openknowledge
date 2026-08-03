@@ -1053,6 +1053,9 @@ func TestScaffoldCommandSupportsExplicitSpecVersion(t *testing.T) {
 	if !strings.Contains(output, "spec OKF 0.1") {
 		t.Fatalf("expected selected spec in scaffold output:\n%s", output)
 	}
+	if !strings.Contains(output, "run openknowledge validate --spec 0.1") {
+		t.Fatalf("expected version-matched validation in scaffold handoff:\n%s", output)
+	}
 	index, err := os.ReadFile(filepath.Join(target, "index.md"))
 	if err != nil {
 		t.Fatal(err)
