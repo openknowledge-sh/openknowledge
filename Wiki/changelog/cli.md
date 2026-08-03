@@ -13,10 +13,12 @@ page records release-level changes.
 
 ## Unreleased
 
-### 2026-08-03 — Stable viewer sidebar layering
+### 2026-08-04 — Resizable viewer grid
 
-- The file explorer now remains opaque and above note panels while
-  open-beside navigation adds a panel.
+- The open file explorer now remains opaque during open-beside navigation and
+  uses a resizable first grid column. It defaults to `25vw` with minimum and
+  maximum limits. The viewer header and note workspace remain in the second
+  grid column.
 - Source: `packages/web/src/viewer/`,
   `packages/web/scripts/browser.e2e.mjs`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.

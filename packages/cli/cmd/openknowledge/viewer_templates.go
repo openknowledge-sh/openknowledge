@@ -306,6 +306,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         <p class="empty">No Markdown files found.</p>
       {{end}}
     </div>
+    <button class="file-sidebar-resize" type="button" data-sidebar-resize-handle role="separator" aria-label="Resize file explorer" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="560" aria-valuenow="280" title="Resize file explorer"></button>
   </aside>
   <main id="note-workspace" class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
     <section class="knowledge-empty" data-empty-state aria-label="Knowledge graph" hidden>

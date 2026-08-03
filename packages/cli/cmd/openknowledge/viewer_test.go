@@ -57,8 +57,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-default-width)", 650)`) {
 		t.Fatalf("viewer default panel width should follow a 65ch reading measure with matching resize fallback:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; height: var(--ok-header-height); min-height: 0; z-index: 6; justify-content: center; padding: 0 22px;`) &&
-		!strings.Contains(page, `body.viewer-document > header { position: relative; height: var(--ok-header-height); min-height: 0; z-index: 6; justify-content: center; padding: 0 22px;`) {
+	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; grid-column: 2; grid-row: 1; width: 100%; height: var(--ok-header-height); min-width: 0; min-height: 0; z-index: 6;`) &&
+		!strings.Contains(page, `body.viewer-document > header { position: relative; grid-column: 2; grid-row: 1; width: 100%; height: var(--ok-header-height); min-width: 0; min-height: 0; z-index: 6;`) {
 		t.Fatalf("viewer document header should use a slim fixed height with centered contents:\n%s", page)
 	}
 	if !strings.Contains(page, `border-bottom: 0; background: var(--ok-color-viewer-header-bg);`) ||
@@ -183,7 +183,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }`) {
 		t.Fatalf("single-panel mobile stack should keep symmetric mobile gutters around the centered panel:\n%s", page)
 	}
-	if !strings.Contains(page, `display: flex; width: 100%; height: calc(var(--ok-viewport-height) - var(--ok-header-height))`) || !strings.Contains(page, `overflow: auto hidden`) {
+	if !strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) || !strings.Contains(page, `overflow: auto hidden`) {
 		t.Fatalf("viewer workspace should use an Andy-style flex horizontal scroll container:\n%s", page)
 	}
 	if !strings.Contains(page, `display: flex; flex: 0 0 auto; align-self: stretch`) || strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%`) {
@@ -369,8 +369,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `id: "viewer.search.focus"`) {
 		t.Fatalf("viewer file page did not include the shared shortcut registry:\n%s", page)
 	}
-	if !strings.Contains(page, `.file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 7; display: flex; width: var(--ok-sidebar-width); flex-direction: column; border-right: 1px solid var(--ok-color-sidebar-border); background: var(--ok-color-sidebar);`) {
-		t.Fatalf("viewer file sidebar should use a subtle divider against the document canvas:\n%s", page)
+	if !strings.Contains(page, `.file-sidebar { position: relative; grid-column: 1; grid-row: 1 / -1; z-index: 7; display: flex; width: 100%; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; border-right: 1px solid var(--ok-color-sidebar-border); background: var(--ok-color-sidebar);`) {
+		t.Fatalf("viewer file sidebar should occupy the first grid column with a subtle divider:\n%s", page)
 	}
 	if !strings.Contains(page, `--ok-color-viewer-canvas: #f4f5f4`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #f7f8f7`) || !strings.Contains(page, `--ok-color-sidebar-header: rgba(247, 248, 247, .94)`) {
 		t.Fatalf("viewer sidebar should use the polished neutral shell palette:\n%s", page)
@@ -379,11 +379,20 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
 		t.Fatalf("viewer file sidebar should close after opening a tree item only on mobile widths:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; header`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > header`) {
-		t.Fatalf("viewer file sidebar should push the page header instead of overlaying it:\n%s", page)
+	if !strings.Contains(page, `body.viewer-document { --ok-sidebar-layout-width: 0px; display: grid; grid-template-columns: var(--ok-sidebar-layout-width) minmax(0, 1fr);`) ||
+		!strings.Contains(page, `body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: var(--ok-sidebar-user-width, var(--ok-sidebar-width)); }`) ||
+		!strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) {
+		t.Fatalf("viewer file sidebar, header, and workspace should share a two-column grid shell:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .note-workspace`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > .note-workspace`) {
-		t.Fatalf("viewer file sidebar should push the workspace instead of overlaying it:\n%s", page)
+	if !strings.Contains(page, `--ok-sidebar-min-width: 280px;`) ||
+		!strings.Contains(page, `--ok-sidebar-default-width: 25vw;`) ||
+		!strings.Contains(page, `--ok-sidebar-max-width: 560px;`) ||
+		!strings.Contains(page, `data-sidebar-resize-handle`) ||
+		!strings.Contains(page, `role="separator"`) ||
+		!strings.Contains(page, `openknowledge.viewer.sidebarWidth.`) ||
+		!strings.Contains(page, `fileSidebar.inert = !open;`) ||
+		!strings.Contains(page, `resizeSidebarWithKeyboard`) {
+		t.Fatalf("viewer file sidebar should be resizable, persistent, bounded, and inert while closed:\n%s", page)
 	}
 	if !strings.Contains(page, `id: "viewer.sidebar.toggle"`) ||
 		!strings.Contains(page, `code: "KeyS"`) ||
@@ -400,6 +409,14 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
+	}
+	if !strings.Contains(page, `body.viewer-document > header { view-transition-name: viewer-header; }`) ||
+		!strings.Contains(page, `.file-sidebar { view-transition-name: file-sidebar; }`) ||
+		!strings.Contains(page, `::view-transition-group(viewer-header) { z-index: 1; }`) ||
+		!strings.Contains(page, `::view-transition-group(file-sidebar) { z-index: 2; }`) ||
+		!strings.Contains(page, `::view-transition-old(viewer-header), ::view-transition-new(viewer-header),`) ||
+		!strings.Contains(page, `::view-transition-old(file-sidebar), ::view-transition-new(file-sidebar) { animation: none; mix-blend-mode: normal; }`) {
+		t.Fatalf("viewer View Transitions should keep the header and file sidebar above note panels:\n%s", page)
 	}
 	if !strings.Contains(page, `clearEnteringPanels();`) || !strings.Contains(page, `document.body.classList.remove("is-view-transitioning")`) || !strings.Contains(page, `transition.updateCallbackDone`) {
 		t.Fatalf("viewer stack transitions should clear fallback panel animations before showing the live DOM:\n%s", page)
@@ -1236,6 +1253,9 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 		"--ok-font-mono",
 		"--ok-header-height",
 		"--ok-mobile-header-height",
+		"--ok-sidebar-min-width",
+		"--ok-sidebar-default-width",
+		"--ok-sidebar-max-width",
 		"--ok-sidebar-width",
 		"--ok-note-panel-default-width",
 		"--ok-note-panel-min-width",

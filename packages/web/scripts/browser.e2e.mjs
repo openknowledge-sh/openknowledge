@@ -117,7 +117,10 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   }));
 
   await page.goto(landingURL, { waitUntil: "networkidle" });
-  await assertSemanticPage(page, "Knowledge that works with your agents.");
+  await assertSemanticPage(page, "Build a knowledge base your AI agents can trust.");
+  assert.equal(await page.title(), "Open Knowledge - Markdown Knowledge Bases for AI Agents");
+  assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://openknowledge.sh/");
+  assert.match(await page.locator('meta[name="description"]').getAttribute("content"), /AI-ready knowledge bases in Markdown/);
   const setupPrompt = page.getByRole("button", { name: "Copy agent setup prompt" });
   await setupPrompt.click();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
@@ -199,6 +202,79 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.locator('[data-note-path="index.md"]').click();
 
   await page.getByRole("button", { name: "Open file explorer" }).click();
+  const viewport = page.viewportSize();
+  await page.waitForFunction(() => {
+    const header = document.querySelector("body.viewer-document > header")?.getBoundingClientRect();
+    const sidebar = document.querySelector(".file-sidebar")?.getBoundingClientRect();
+    const workspace = document.querySelector(".note-workspace")?.getBoundingClientRect();
+    const expectedSidebarWidth = Math.max(280, Math.min(560, Math.round(window.innerWidth * 0.25)));
+    return Boolean(header && sidebar && workspace
+      && Math.abs(sidebar.width - expectedSidebarWidth) < 1
+      && Math.abs(header.left - sidebar.right) < 1
+      && Math.abs(workspace.left - sidebar.right) < 1
+      && Math.abs(header.right - window.innerWidth) < 1);
+  });
+  const transitionLayers = await page.evaluate(async () => {
+    if (typeof document.startViewTransition !== "function") return null;
+    const transition = document.startViewTransition(() => {});
+    await transition.ready;
+    const headerGroup = getComputedStyle(document.documentElement, "::view-transition-group(viewer-header)");
+    const headerNew = getComputedStyle(document.documentElement, "::view-transition-new(viewer-header)");
+    const sidebarGroup = getComputedStyle(document.documentElement, "::view-transition-group(file-sidebar)");
+    const sidebarNew = getComputedStyle(document.documentElement, "::view-transition-new(file-sidebar)");
+    const result = {
+      header: {
+        zIndex: headerGroup.zIndex,
+        animationName: headerNew.animationName,
+        mixBlendMode: headerNew.mixBlendMode,
+      },
+      sidebar: {
+        zIndex: sidebarGroup.zIndex,
+        animationName: sidebarNew.animationName,
+        mixBlendMode: sidebarNew.mixBlendMode,
+      },
+    };
+    transition.skipTransition();
+    await transition.finished;
+    return result;
+  });
+  if (transitionLayers) {
+    assert.deepEqual(transitionLayers, {
+      header: {
+        zIndex: "1",
+        animationName: "none",
+        mixBlendMode: "normal",
+      },
+      sidebar: {
+        zIndex: "2",
+        animationName: "none",
+        mixBlendMode: "normal",
+      },
+    });
+  }
+  const headerBox = await page.locator("body.viewer-document > header").boundingBox();
+  const sidebarBox = await page.locator(".file-sidebar").boundingBox();
+  const workspaceBox = await page.locator(".note-workspace").boundingBox();
+  const navigationBox = await navigationMode.boundingBox();
+  const settingsBox = await page.locator("[data-viewer-settings-trigger]").boundingBox();
+  assert.ok(headerBox && sidebarBox && workspaceBox && navigationBox && settingsBox && viewport);
+  assert.equal(Math.round(sidebarBox.width), Math.max(280, Math.min(560, Math.round(viewport.width * 0.25))), "the sidebar should default to a bounded quarter of the viewport");
+  assert.equal(Math.round(headerBox.x), Math.round(sidebarBox.x + sidebarBox.width), "the header should occupy the second grid column");
+  assert.equal(Math.round(workspaceBox.x), Math.round(sidebarBox.x + sidebarBox.width), "the workspace should occupy the second grid column");
+  assert.equal(Math.round(headerBox.x + headerBox.width), viewport.width, "the header should end at the viewport edge");
+  assert.ok(navigationBox.x >= headerBox.x && navigationBox.x + navigationBox.width <= viewport.width, "link behavior should remain visible");
+  assert.ok(settingsBox.x >= headerBox.x && settingsBox.x + settingsBox.width <= viewport.width, "viewer settings should remain visible");
+  const sidebarResize = page.getByRole("separator", { name: "Resize file explorer" });
+  await sidebarResize.focus();
+  await sidebarResize.press("End");
+  await page.waitForFunction(() => Math.abs(document.querySelector(".file-sidebar").getBoundingClientRect().width - 560) < 1);
+  assert.equal(await sidebarResize.getAttribute("aria-valuenow"), "560");
+  await sidebarResize.press("Home");
+  await page.waitForFunction(() => Math.abs(document.querySelector(".file-sidebar").getBoundingClientRect().width - 280) < 1);
+  await sidebarResize.press("ArrowRight");
+  await page.waitForFunction(() => Math.abs(document.querySelector(".file-sidebar").getBoundingClientRect().width - 304) < 1);
+  assert.equal(await sidebarResize.getAttribute("aria-valuenow"), "304");
+  assert.equal(await page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith("openknowledge.viewer.sidebarWidth.") && localStorage.getItem(key) === "304")), true, "the resized sidebar width should persist per knowledge graph");
   const currentFile = page.locator('.file-sidebar [data-tree-path="index.md"]');
   assert.equal(await currentFile.getAttribute("aria-current"), "page");
   await page.getByRole("button", { name: "Collapse all" }).click();

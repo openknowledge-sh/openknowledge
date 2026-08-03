@@ -6,6 +6,7 @@
   const fileSidebar = document.querySelector("[data-file-sidebar]");
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
   const sidebarClose = document.querySelector("[data-sidebar-close]");
+  const sidebarResizeHandle = document.querySelector("[data-sidebar-resize-handle]");
   const settings = document.querySelector("[data-viewer-settings]");
   const settingsTrigger = document.querySelector("[data-viewer-settings-trigger]");
   const settingsMenu = document.querySelector("[data-viewer-settings-menu]");
@@ -37,9 +38,12 @@
   const defaultNavigationMode = "beside";
   let navigationMode = defaultNavigationMode;
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
-  const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
+  const viewerStorageScope = graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
+  const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + viewerStorageScope;
+  const sidebarWidthStorageKey = "openknowledge.viewer.sidebarWidth." + viewerStorageScope;
   const editorOptions = readEditorOptions();
   const panelWidths = readPanelWidths();
+  let sidebarWidth = readSidebarWidth();
   const staticNotes = readStaticNotes();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
@@ -145,6 +149,25 @@
       // Browser storage can be disabled in private or file-export contexts.
     }
     writeCookie(panelWidthStorageKey, serialized);
+  }
+
+  function readSidebarWidth() {
+    const stored = readStoredJSON(sidebarWidthStorageKey);
+    const value = stored && typeof stored === "object" ? stored.width : stored;
+    return normalizeSidebarWidth(value);
+  }
+
+  function saveSidebarWidth() {
+    if (!sidebarWidth) {
+      return;
+    }
+    const serialized = JSON.stringify(sidebarWidth);
+    try {
+      window.localStorage.setItem(sidebarWidthStorageKey, serialized);
+    } catch {
+      // Browser storage can be disabled in private or file-export contexts.
+    }
+    writeCookie(sidebarWidthStorageKey, serialized);
   }
 
   function readStoredJSON(key) {
@@ -547,6 +570,48 @@
     return Math.round(clamp(numeric, minPanelWidth(), maxPanelWidth(panel)));
   }
 
+  function minSidebarWidth() {
+    return cssLengthPixels("var(--ok-sidebar-min-width)", 280);
+  }
+
+  function maxSidebarWidth() {
+    const configuredMaximum = cssLengthPixels("var(--ok-sidebar-max-width)", 560);
+    return Math.max(minSidebarWidth(), Math.min(configuredMaximum, window.innerWidth - 320));
+  }
+
+  function defaultSidebarWidth() {
+    return cssLengthPixels("var(--ok-sidebar-width)", window.innerWidth * 0.25);
+  }
+
+  function normalizeSidebarWidth(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      return null;
+    }
+    return Math.round(clamp(numeric, minSidebarWidth(), maxSidebarWidth()));
+  }
+
+  function appliedSidebarWidth(value) {
+    return normalizeSidebarWidth(value) || normalizeSidebarWidth(defaultSidebarWidth()) || minSidebarWidth();
+  }
+
+  function applySidebarWidth(value) {
+    const width = appliedSidebarWidth(value);
+    document.body.style.setProperty("--ok-sidebar-user-width", width + "px");
+    if (sidebarResizeHandle) {
+      sidebarResizeHandle.setAttribute("aria-valuemin", String(Math.round(minSidebarWidth())));
+      sidebarResizeHandle.setAttribute("aria-valuemax", String(Math.round(maxSidebarWidth())));
+      sidebarResizeHandle.setAttribute("aria-valuenow", String(width));
+    }
+    queueWorkspaceRailUpdate();
+    return width;
+  }
+
+  function setSidebarWidth(value) {
+    sidebarWidth = appliedSidebarWidth(value);
+    return applySidebarWidth(sidebarWidth);
+  }
+
   function savedPanelWidth(panel) {
     return normalizePanelWidth(panelWidths[panel.dataset.notePath], panel);
   }
@@ -566,6 +631,7 @@
     document.body.classList.toggle("is-sidebar-open", open);
     if (fileSidebar) {
       fileSidebar.setAttribute("aria-hidden", open ? "false" : "true");
+      fileSidebar.inert = !open;
     }
     if (sidebarToggle) {
       sidebarToggle.setAttribute("aria-expanded", open ? "true" : "false");
@@ -3640,8 +3706,102 @@
   let workspaceDrag = null;
   let railDrag = null;
   let panelResize = null;
+  let sidebarResize = null;
   let spacePanPressed = false;
   let suppressWorkspaceClickUntil = 0;
+
+  function currentSidebarWidth() {
+    const renderedWidth = fileSidebar?.getBoundingClientRect().width || 0;
+    return renderedWidth > 0 ? renderedWidth : appliedSidebarWidth(sidebarWidth);
+  }
+
+  function startSidebarResize(event) {
+    if (!sidebarResizeHandle || mobileSidebar.matches || event.button !== 0) {
+      return;
+    }
+    sidebarResize = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: currentSidebarWidth(),
+      moved: false
+    };
+    document.body.classList.add("is-sidebar-resizing");
+    window.addEventListener("pointermove", updateSidebarResize);
+    window.addEventListener("pointerup", stopSidebarResize);
+    window.addEventListener("pointercancel", stopSidebarResize);
+    window.addEventListener("blur", cancelSidebarResize);
+    event.preventDefault();
+    try {
+      sidebarResizeHandle.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can fail if the pointer is already released.
+    }
+  }
+
+  function updateSidebarResize(event) {
+    if (!sidebarResize || event.pointerId !== sidebarResize.pointerId) {
+      return;
+    }
+    const deltaX = event.clientX - sidebarResize.startX;
+    sidebarResize.moved = sidebarResize.moved || Math.abs(deltaX) > 2;
+    setSidebarWidth(sidebarResize.startWidth + deltaX);
+    event.preventDefault();
+  }
+
+  function finishSidebarResize(pointerId) {
+    if (!sidebarResize) {
+      return;
+    }
+    const resized = sidebarResize.moved;
+    try {
+      if (pointerId !== undefined) {
+        sidebarResizeHandle?.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Pointer capture can already be released by the browser.
+    }
+    sidebarResize = null;
+    document.body.classList.remove("is-sidebar-resizing");
+    window.removeEventListener("pointermove", updateSidebarResize);
+    window.removeEventListener("pointerup", stopSidebarResize);
+    window.removeEventListener("pointercancel", stopSidebarResize);
+    window.removeEventListener("blur", cancelSidebarResize);
+    if (resized) {
+      saveSidebarWidth();
+    }
+  }
+
+  function stopSidebarResize(event) {
+    if (!sidebarResize || event.pointerId !== sidebarResize.pointerId) {
+      return;
+    }
+    finishSidebarResize(event.pointerId);
+  }
+
+  function cancelSidebarResize() {
+    finishSidebarResize();
+  }
+
+  function resizeSidebarWithKeyboard(event) {
+    const key = (event.key || "").toLowerCase();
+    const step = event.shiftKey ? 64 : 24;
+    let nextWidth = appliedSidebarWidth(sidebarWidth);
+    if (key === "arrowleft") {
+      nextWidth -= step;
+    } else if (key === "arrowright") {
+      nextWidth += step;
+    } else if (key === "home") {
+      nextWidth = minSidebarWidth();
+    } else if (key === "end") {
+      nextWidth = maxSidebarWidth();
+    } else {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    setSidebarWidth(nextWidth);
+    saveSidebarWidth();
+  }
 
   function isSpacePanKey(event) {
     return event.code === "Space" || event.key === " " || event.key === "Spacebar";
@@ -4014,6 +4174,9 @@
     workspace.scrollLeft = clamp(nextScroll, 0, maxWorkspaceScroll());
   }
 
+  applySidebarWidth(sidebarWidth);
+  setSidebarOpen(document.body.classList.contains("is-sidebar-open"));
+
   workspace.addEventListener("pointerdown", startWorkspaceDrag);
   workspace.addEventListener("pointermove", updateWorkspaceDrag);
   workspace.addEventListener("pointerup", stopWorkspaceDrag);
@@ -4022,7 +4185,10 @@
   window.addEventListener("keydown", startSpacePan, true);
   window.addEventListener("keyup", stopSpacePan, true);
   window.addEventListener("blur", cancelSpacePan);
-  window.addEventListener("resize", queueWorkspaceRailUpdate);
+  window.addEventListener("resize", function () {
+    applySidebarWidth(sidebarWidth);
+    queueWorkspaceRailUpdate();
+  });
 
   if (scrollTrack && scrollThumb) {
     scrollTrack.addEventListener("pointerdown", startRailTrackJump);
@@ -4134,6 +4300,10 @@
       setSidebarOpen(false);
       sidebarToggle?.focus();
     });
+  }
+  if (sidebarResizeHandle) {
+    sidebarResizeHandle.addEventListener("pointerdown", startSidebarResize);
+    sidebarResizeHandle.addEventListener("keydown", resizeSidebarWithKeyboard);
   }
   if (fileSidebar) {
     fileSidebar.addEventListener("click", function (event) {
