@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=1200, initial-scale=1">
-    <title>Open Knowledge Agent-Compatible Knowledge OG Image</title>
+    <title>Open Knowledge Landing Page OG Image</title>
     <link rel="stylesheet" href="/src/styles.css">
     <style>
       html,
@@ -15,74 +15,71 @@
 
       body {
         min-height: 630px;
+        background: #05070b;
       }
 
-      .og-shell.shell {
+      .og-shell {
+        position: relative;
         width: 1200px;
-        max-width: none;
         height: 630px;
-        margin: 0;
-        padding: 72px 0 0 78px;
         overflow: hidden;
+        padding: 54px 72px;
+        background:
+          linear-gradient(180deg, rgba(5, 7, 11, 0.04) 0%, rgba(5, 7, 11, 0.16) 60%, rgba(5, 7, 11, 0.82) 100%),
+          linear-gradient(90deg, rgba(5, 7, 11, 0.9) 0%, rgba(5, 7, 11, 0.68) 52%, rgba(5, 7, 11, 0.08) 100%),
+          url("/calm-rings-hero.png") 50% 50% / cover no-repeat;
       }
 
-      .og-shell .site-topbar {
-        position: static;
-        justify-content: flex-start;
-        width: 900px;
-        margin-bottom: 38px;
+      .og-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 13px;
+        color: var(--ink);
+        font-size: 18px;
+        font-weight: 620;
       }
 
-      .og-shell .site-logo {
-        gap: 14px;
+      .og-brand img {
+        width: 34px;
+        height: 34px;
       }
 
-      .og-shell .site-logo img {
-        width: 30px;
-        height: 30px;
+      .og-copy {
+        position: absolute;
+        left: 72px;
+        bottom: 72px;
+        width: 790px;
       }
 
-      .og-shell .intro {
-        max-width: 900px;
+      .og-copy h1 {
+        max-width: none;
+        margin: 0;
+        font-size: 68px;
+        font-weight: 540;
+        letter-spacing: -0.04em;
+        line-height: 0.93;
+        text-wrap: balance;
       }
 
-      .og-shell h1 {
-        max-width: 900px;
-        margin-bottom: 24px;
-        font-size: 66px;
-      }
-
-      .og-shell .lede {
-        max-width: 900px;
-        margin-bottom: 22px;
-        font-size: 23px;
-      }
-
-      .og-shell .spec-note {
-        max-width: 900px;
-        font-size: 17px;
+      .og-copy p {
+        max-width: 620px;
+        margin: 30px 0 0;
+        color: var(--muted);
+        font-size: 22px;
+        line-height: 1.52;
       }
     </style>
   </head>
   <body>
-    <main class="shell og-shell">
-      <header class="site-topbar" aria-label="Site navigation">
-        <div class="site-logo" aria-label="Open Knowledge CLI">
-          <img src="favicon.png" alt="" aria-hidden="true">
-          <span>Open Knowledge CLI</span>
-        </div>
-      </header>
+    <main class="og-shell">
+      <div class="og-brand">
+        <img src="/logo-mark.png" alt="">
+        <span>Open Knowledge CLI</span>
+      </div>
 
-      <section class="intro">
-        <h1>Knowledge that works with your agents</h1>
-        <p class="lede">
-          Flexible knowledge bases in Markdown that your agents can create, retrieve, maintain, validate, and publish.
-        </p>
-        <p class="spec-note">
-          Implements the
-          <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noreferrer">Open Knowledge Format v0.2</a>
-          specification for Markdown and YAML-frontmatter knowledge bases.
-        </p>
+      <section class="og-copy">
+        <h1>Build a knowledge base<br>for people and AI agents.</h1>
+        <p>Keep your knowledge in Markdown. Open Knowledge makes it easy to validate, search, and share.</p>
       </section>
     </main>
   </body>

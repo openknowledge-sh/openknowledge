@@ -1,17 +1,17 @@
-const copyButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".copy-command"));
-const copiedTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
+const copyButton = document.querySelector<HTMLButtonElement>("[data-copy-setup]");
+const copyStatus = document.querySelector<HTMLElement>("[data-copy-status]");
+const promptTemplate = document.querySelector<HTMLTemplateElement>("#setup-prompt");
 const releaseBadge = document.querySelector<HTMLElement>("[data-release-badge]");
-const releaseFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-});
+const releaseFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+let copyResetTimer: number | undefined;
 
 async function copyText(text: string) {
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
-      return;
+      return true;
     } catch {
-      // Fall back below when Clipboard API is blocked by browser permissions.
+      // Fall back when browser permissions block the Clipboard API.
     }
   }
 
@@ -20,33 +20,16 @@ async function copyText(text: string) {
   field.setAttribute("readonly", "");
   field.style.position = "fixed";
   field.style.opacity = "0";
-  document.body.append(field);
-  field.select();
-  document.execCommand("copy");
-  field.remove();
-}
 
-for (const copy of copyButtons) {
-  copy.addEventListener("click", async () => {
-    const text = copy.dataset.copyText;
-    if (!text) return;
-
-    const label = copy.querySelector<HTMLSpanElement>("span");
-    if (!label) return;
-    const defaultLabel = label.textContent;
-
-    copy.classList.add("copied");
-    label.textContent = "Copied";
-    clearTimeout(copiedTimers.get(copy));
-    await copyText(text);
-    copiedTimers.set(
-      copy,
-      setTimeout(() => {
-        copy.classList.remove("copied");
-        label.textContent = defaultLabel;
-      }, 1600),
-    );
-  });
+  try {
+    document.body.append(field);
+    field.select();
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    field.remove();
+  }
 }
 
 function relativeReleaseAge(date: Date, now = new Date()) {
@@ -61,18 +44,15 @@ function relativeReleaseAge(date: Date, now = new Date()) {
 
   for (const [unit, seconds] of units) {
     const value = Math.floor(elapsedSeconds / seconds);
-    if (value >= 1) {
-      return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
-    }
+    if (value >= 1) return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
   }
 
   return "just now";
 }
 
 async function hydrateReleaseBadge() {
-  if (!releaseBadge) return;
-  const releaseAPI = releaseBadge.dataset.releaseApi;
-  if (!releaseAPI) return;
+  const releaseAPI = releaseBadge?.dataset.releaseApi;
+  if (!releaseBadge || !releaseAPI) return;
 
   try {
     const response = await fetch(releaseAPI, {
@@ -98,10 +78,40 @@ async function hydrateReleaseBadge() {
     age.dateTime = publishedAt.toISOString();
     age.title = releaseFormatter.format(publishedAt);
     age.hidden = false;
-    releaseBadge.setAttribute("aria-label", `Latest Open Knowledge release ${tag}, published ${age.textContent}`);
+    releaseBadge.setAttribute(
+      "aria-label",
+      `Latest Open Knowledge release ${tag}, published ${age.textContent}`,
+    );
   } catch {
     // Keep the static releases link when GitHub is unavailable or rate-limited.
   }
 }
 
-hydrateReleaseBadge();
+void hydrateReleaseBadge();
+
+if (copyButton && copyStatus && promptTemplate) {
+  copyButton.addEventListener("click", async () => {
+    const prompt = promptTemplate.content.textContent?.trim() ?? "";
+    if (!prompt) return;
+
+    window.clearTimeout(copyResetTimer);
+    copyButton.disabled = true;
+    copyButton.setAttribute("aria-busy", "true");
+    const copied = await copyText(prompt);
+    copyButton.disabled = false;
+    copyButton.removeAttribute("aria-busy");
+
+    if (copied) {
+      copyButton.textContent = "Copied";
+      copyButton.dataset.state = "copied";
+      copyStatus.textContent = "Paste the prompt into your agent to begin.";
+      copyResetTimer = window.setTimeout(() => {
+        copyButton.textContent = "Copy setup prompt";
+        delete copyButton.dataset.state;
+      }, 2400);
+      return;
+    }
+
+    copyStatus.textContent = "Copy failed. Open the documentation for the setup steps.";
+  });
+}
