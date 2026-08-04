@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-07-31T00:00:00Z
+timestamp: 2026-08-04T00:00:00Z
 ---
 
 # CLI Changelog
@@ -13,39 +13,48 @@ page records release-level changes.
 
 ## Unreleased
 
-### 2026-08-04 — Windows CLI portability
+No changes yet.
 
-- `connect` now reads canonical Windows `file://` URLs for manifests and
-  archives. Windows drive URLs use the `file:///C:/path` form.
-- Insight creation now reports a stable, slash-separated project path on all
+## v0.10.0 — 2026-08-04
+
+Version 0.10 makes OKF 0.2 the default, unifies setup, expands provenance
+views, and improves viewer navigation and local automation.
+
+### 2026-08-04 — Use local knowledge consistently on Windows
+
+- `okn connect` reads canonical Windows `file://` URLs for manifests and
+  archives. Windows drive URLs use `file:///C:/path`.
+- Insight creation reports stable slash-separated project paths on all
   operating systems.
 - Source: `packages/cli/cmd/openknowledge/registry_command.go`,
   `packages/cli/cmd/openknowledge/insights_command.go`.
 - Docs: `Wiki/features/commands/connect.md`,
   `Wiki/features/commands/insights.md`.
 
-### 2026-08-04 — Resizable viewer grid
+### 2026-08-04 — Adapt the viewer to your workspace
 
-- The open file explorer now remains opaque during open-beside navigation and
-  uses a resizable first grid column. It defaults to `25vw` with minimum and
-  maximum limits. The viewer header, note workspace, and horizontal scroll
-  rail remain in the second grid column.
+- The file explorer stays visible and opaque during open-beside navigation.
+- Resize the explorer from its `25vw` default within its minimum and maximum
+  limits.
+- The viewer keeps the header, note workspace, and horizontal scroll rail in
+  the main content column.
 - Source: `packages/web/src/viewer/`,
   `packages/web/scripts/browser.e2e.mjs`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.
 - Docs: `Wiki/features/commands/view.md`.
 
-### 2026-08-04 — OKF 0.2 consumer surfaces
+### 2026-08-04 — Use OKF 0.2 across CLI and viewer surfaces
 
-- List and graph JSON now expose a dedicated derived `okf02` contract. Text
-  list output shows trust, lifecycle status, and staleness. Graph output adds
-  typed source, computation, executor, and attester provenance edges.
-- Viewer pages now show OKF 0.2 trust, freshness, source details, linked source
-  footnotes, and Attested Computation contracts. Plain HTML now includes
-  semantic frontmatter and linked structured sources.
-- The CLI preserves executor and attester declarations but never executes
-  them automatically. OKF 0.2 does not define a portable runtime ABI or
-  receipt and verdict formats.
+- `okn list` shows trust, lifecycle status, and stale content. List and graph
+  JSON also expose a derived `okf02` contract.
+- Graph output connects sources, computations, executors, and attesters with
+  typed provenance edges.
+- Viewer pages show freshness, provenance, linked sources, and Attested
+  Computation contracts.
+- Plain HTML includes semantic frontmatter and links source footnotes to
+  structured source records.
+- The CLI preserves executor and attester declarations. It never runs these
+  resources automatically.
 - Source: `packages/cli/internal/okf/okf_0_2_signals.go`,
   `packages/cli/internal/okf/graph.go`,
   `packages/cli/internal/okf/html_frontmatter.go`,
@@ -59,20 +68,20 @@ page records release-level changes.
   `Wiki/features/go-api.md`,
   `Wiki/features/machine-contracts.md`.
 
-### 2026-08-03 — OKF 0.2 compatibility
+### 2026-08-03 — Create and validate OKF 0.2 knowledge bases by default
 
-- `latest` now selects OKF 0.2. The CLI still supports explicit OKF 0.1 reads.
-- The parser normalizes a bare `verified` mapping for OKF 0.2 consumers.
-- Validation now warns about malformed optional provenance, trust, lifecycle,
-  source attribution, and attested-computation metadata.
-- Every checker rule, including fixed-severity rules, now belongs to an
-  explicit OKF version profile. Shared configuration can contain rules from
-  multiple profiles. Each validation applies only its active profile.
-- New scaffolds use OKF 0.2 by default. `okn scaffold --spec 0.1` creates a
-  version-matched 0.1 bundle, local spec, metadata, and setup instructions.
-  The terminal handoff now validates against the selected scaffold version.
-- New automation insights use OKF 0.2 lifecycle and `generated` metadata.
-  Insight status changes convert legacy insight provenance to OKF 0.2.
+- The `latest` selector now uses OKF 0.2. Explicit OKF 0.1 reads remain
+  available.
+- The parser normalizes a single `verified` mapping for OKF 0.2 consumers.
+- Validation reports malformed optional provenance, trust, lifecycle, source,
+  and Attested Computation metadata as warnings.
+- Each validation uses the rule profile for its selected OKF version. Shared
+  configuration can contain rules from multiple profiles.
+- New scaffolds use OKF 0.2. Use `okn scaffold --spec 0.1` to create a complete
+  version-matched OKF 0.1 scaffold.
+- The scaffold handoff validates the selected OKF version.
+- New insights use OKF 0.2 lifecycle and `generated` metadata. Status changes
+  convert legacy insight provenance to OKF 0.2.
 - Source: `packages/cli/internal/okf/`,
   `packages/cli/internal/okf/assets/specs/0.2.md`,
   `packages/cli/internal/insights/`,
@@ -83,55 +92,62 @@ page records release-level changes.
   `Wiki/features/commands/scaffold.md`,
   `Wiki/features/commands/insights.md`.
 
-### 2026-08-02 — Unified interactive setup
+### 2026-08-02 — Complete setup in one workflow
 
-- `okn setup` now starts a terminal wizard. Without terminal input, it prints
-  a complete agent task. Explicit flags select either mode or launch an agent.
-- `setup complete` validates, connects, installs selected skills, and configures
-  optional observation. Setup also provides status, repair, and observation commands.
+- `okn setup` starts a terminal wizard. Without terminal input, it prints a
+  complete task for an agent.
+- Explicit flags print the task, start the wizard, or launch a supported agent
+  harness.
+- `okn setup complete` validates and connects the bundle. It also installs
+  selected skills and configures optional observation.
+- Setup commands now report status, repair managed files, and control
+  observation.
 - The CLI removed `integration`, `agent integrate`, `prompt setup`, and
-  `prompt from`. Source setup no longer uses predefined wiki types.
-- Bundle configuration now uses `.openknowledge.toml`. The legacy name is not
-  loaded and remains private in viewer and publication output.
+  `prompt from`.
+- Source-based setup no longer requires a predefined knowledge-base type.
+- Bundle configuration now uses `.openknowledge.toml`. The CLI does not load
+  the legacy name.
+- Both configuration names remain private in viewer and publication output.
 - Source: `packages/cli/cmd/openknowledge/setup_command.go`,
   `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`,
   `packages/cli/internal/integration/`, `packages/cli/internal/okf/`.
 - Docs: `README.md`, `Wiki/features/commands/setup.md`,
   `Wiki/features/configuration.md`.
 
-### 2026-07-31 — Mermaid diagram viewport
+### 2026-07-31 — Explore Mermaid diagrams in detail
 
-- A click, Enter, or Space now opens a rendered Mermaid diagram in a
-  viewport-filling dialog.
-- Toolbar, wheel, pinch, drag, and arrow-key controls provide zoom and pan.
-- **Fit** fits the complete diagram in the viewport.
-  **100%** centers the diagram at its original scale.
+- Open a rendered Mermaid diagram with a click, Enter, or Space.
+- A viewport dialog provides toolbar, wheel, pinch, drag, and arrow-key
+  controls for zoom and pan.
+- **Fit** shows the complete diagram. **100%** centers it at the original
+  scale.
 - The local viewer and interactive HTML exports use the same controls.
 - Source: `packages/web/src/viewer/`,
   `packages/web/scripts/browser.e2e.mjs`.
 - Docs: `Wiki/features/commands/view.md`,
   `Wiki/features/exporters/html.md`.
 
-### 2026-07-31 — Bounded scheduled-job storage
+### 2026-07-31 — Run each scheduled job once
 
-- A scheduled job now runs at most once for each job ID and schedule slot.
-  Repository or job-file changes do not replay the same slot.
-- Each private jobs worker now reads its runtime-specific state directory.
-- Private workers now remove terminal worktrees and large temporary artifacts
-  after proposal export. Publishers remove branch bundles after publication.
+- A scheduled job runs once for each job ID and schedule slot. Repository or
+  job-file changes do not replay that slot.
+- Each private jobs worker uses its runtime-specific state directory.
+- Workers remove terminal worktrees and large temporary artifacts after
+  proposal export.
+- Publishers remove branch bundles after publication.
 - Source: `packages/cli/internal/agents/plan.go`,
   `packages/cli/cmd/openknowledge/runtime_worker.go`.
 - Docs: `Wiki/features/commands/jobs.md`,
   `Wiki/features/commands/runtime.md`.
 
-### 2026-07-31 — Open-ended agent setup
+### 2026-07-31 — Start setup with an existing agent
 
-- Bare `okn setup` now prints the open-ended setup interview for `Wiki`.
-- The README and website now show setup with an existing agent or a selected
-  CLI runtime.
-- The website copy action now gives an agent installation, verification, and
-  setup instructions.
-- The README workflow diagram now includes MCP.
+- The generated task starts with an open-ended setup interview for `Wiki`.
+- The README and website show setup with an existing agent or a selected CLI
+  runtime.
+- The website copy action includes agent installation, verification, and setup
+  instructions.
+- The README workflow diagram includes MCP.
 - Source: `packages/cli/cmd/openknowledge/setup_command.go`,
   `packages/web/index.html`.
 - Docs: `README.md`, `Wiki/features/commands/setup.md`.
