@@ -13,6 +13,25 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-08-03 — Separate link-escape rule from link-target
+
+- `okn validate` now reports a link that resolves outside the bundle root
+  under a separate `link-escape` rule instead of `link-target`. The
+  unconfigured default is unchanged: the warning still appears by default.
+  The split lets a bundle silence escape warnings alone via
+  `link-escape = "off"` in `.openknowledge.toml` (or `--rule link-escape=off`)
+  without losing `link-target` detection for in-bundle links that do not
+  exist. Integrated knowledge bases that link to surrounding repository source
+  files can keep missing-link detection while suppressing the escape noise.
+- **Migration:** an existing `link-target = "off"|"error"` config now affects
+  only missing-target; add a matching `link-escape` entry to preserve the
+  prior behavior. JSON consumers keying on `rule: "link-target"` for escape
+  issues must update to `link-escape`.
+- Source: `packages/cli/internal/okf/validation_rules.go`,
+  `packages/cli/internal/okf/validation_policy.go`,
+  `packages/cli/internal/okf/validation_checks.go`.
+- Docs: `Wiki/features/commands/validate.md`.
+
 ### 2026-08-02 — Unified interactive setup
 
 - `okn setup` now starts a terminal wizard. Without terminal input, it prints

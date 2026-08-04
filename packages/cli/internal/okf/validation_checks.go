@@ -47,7 +47,7 @@ func buildChecks(result Result) []Check {
 		},
 		{
 			Name:    "Link targets",
-			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"link-target"}, []string{"link-target"}),
+			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"link-target", "link-escape"}, []string{"link-target", "link-escape"}),
 			Message: "Local Markdown links should resolve inside the bundle",
 		},
 		{

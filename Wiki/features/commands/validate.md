@@ -48,7 +48,8 @@ okn validate --quiet Wiki
 | `frontmatter-format` | warning | Parseable frontmatter follows clean formatting. |
 | `markdown-syntax` | warning | Links, code spans, tables, and fences look complete. |
 | `okf-version` | warning | Root `okf_version` matches the selected spec. |
-| `link-target` | warning | Local Markdown links resolve inside the bundle. |
+| `link-target` | warning | Local Markdown link targets inside the bundle exist. |
+| `link-escape` | warning | Local Markdown links resolve inside the bundle root. Disable to allow links to repository files outside the bundle. |
 
 The scan includes `.md` and `.markdown` files. It skips `.git`. It classifies
 `index.md` and `log.md` as reserved files.
