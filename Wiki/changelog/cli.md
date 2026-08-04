@@ -13,7 +13,23 @@ page records release-level changes.
 
 ## Unreleased
 
-No changes yet.
+### 2026-08-04 — End timed-out Windows job processes
+
+- Windows job runs now stop the complete child process tree after a command
+  timeout.
+- The CLI releases private run logs before it returns.
+- Source: `packages/cli/internal/agents/process_group_windows.go`,
+  `packages/cli/internal/agents/runner.go`.
+- Docs: `Wiki/features/commands/jobs.md`.
+
+### 2026-08-04 — Keep Git refresh staging stable
+
+- Git resource validation now tolerates temporary Git-internal files that
+  disappear during a scan.
+- Missing bundle files and missing staging roots still stop the refresh.
+- Source: `packages/cli/cmd/openknowledge/registry_command.go`.
+- Docs: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/registry.md`.
 
 ## v0.10.0 — 2026-08-04
 

@@ -344,7 +344,8 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 	defer stderrFile.Close()
 
 	execCommand := commandForPlan(ctx, plan, command, stdin)
-	configureCommandCancellation(execCommand)
+	cancellation := configureCommandCancellation(execCommand)
+	defer cancellation.close()
 	if command.PromptMode == PromptStdin || command.PromptMode == "" {
 		execCommand.Stdin = strings.NewReader(stdin)
 	}
@@ -352,6 +353,7 @@ func runPlanCommand(ctx context.Context, plan RunPlan, command Command, logPrefi
 	execCommand.Stderr = stderrFile
 	err = execCommand.Start()
 	if err == nil {
+		cancellation.attach(execCommand)
 		if controller != nil {
 			if controlErr := controller.setCommand(execCommand, logPrefix); controlErr != nil {
 				_ = forceCommandCancellation(execCommand)

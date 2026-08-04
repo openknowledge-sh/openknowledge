@@ -10,7 +10,9 @@ import (
 	"time"
 )
 
-func configureCommandCancellation(command *exec.Cmd) {
+type commandCancellation struct{}
+
+func configureCommandCancellation(command *exec.Cmd) commandCancellation {
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.Cancel = func() error {
 		if command.Process == nil {
@@ -23,6 +25,12 @@ func configureCommandCancellation(command *exec.Cmd) {
 		return err
 	}
 	command.WaitDelay = 5 * time.Second
+	return commandCancellation{}
+}
+
+func (commandCancellation) attach(*exec.Cmd) {}
+
+func (commandCancellation) close() {
 }
 
 func forceCommandCancellation(command *exec.Cmd) error {

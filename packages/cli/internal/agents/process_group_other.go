@@ -8,8 +8,16 @@ import (
 	"time"
 )
 
-func configureCommandCancellation(command *exec.Cmd) {
+type commandCancellation struct{}
+
+func configureCommandCancellation(command *exec.Cmd) commandCancellation {
 	command.WaitDelay = 5 * time.Second
+	return commandCancellation{}
+}
+
+func (commandCancellation) attach(*exec.Cmd) {}
+
+func (commandCancellation) close() {
 }
 
 func forceCommandCancellation(command *exec.Cmd) error {

@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -3267,6 +3268,17 @@ func TestGitMaterializationLimitsBoundEntriesAndBytes(t *testing.T) {
 		err := validateGitMaterializationLimits(root, gitMaterializationLimits{MaxEntries: 1, MaxFile: 1, MaxBytes: 1})
 		if err == nil || !strings.Contains(err.Error(), "staging directory is missing") {
 			t.Fatalf("expected missing staging root to fail, got %v", err)
+		}
+	})
+	t.Run("transient Git entry", func(t *testing.T) {
+		root := t.TempDir()
+		gitEntry := filepath.Join(root, ".git", "objects", "temporary")
+		if err := gitMaterializationWalkError(root, gitEntry, os.ErrNotExist); err != nil {
+			t.Fatalf("expected a vanished Git-internal entry to be ignored, got %v", err)
+		}
+		bundleEntry := filepath.Join(root, "guide.md")
+		if err := gitMaterializationWalkError(root, bundleEntry, os.ErrNotExist); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected a vanished bundle entry to fail, got %v", err)
 		}
 	})
 }

@@ -1240,7 +1240,7 @@ func validateGitMaterializationLimits(root string, limits gitMaterializationLimi
 	var total int64
 	err := filepath.WalkDir(root, func(current string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			return walkErr
+			return gitMaterializationWalkError(root, current, walkErr)
 		}
 		if current == root {
 			return nil
@@ -1251,7 +1251,7 @@ func validateGitMaterializationLimits(root string, limits gitMaterializationLimi
 		}
 		info, err := entry.Info()
 		if err != nil {
-			return err
+			return gitMaterializationWalkError(root, current, err)
 		}
 		if info.IsDir() {
 			return nil
@@ -1269,8 +1269,19 @@ func validateGitMaterializationLimits(root string, limits gitMaterializationLimi
 		total += info.Size()
 		return nil
 	})
-	if os.IsNotExist(err) {
+	return err
+}
+
+func gitMaterializationWalkError(root string, current string, err error) error {
+	if !os.IsNotExist(err) {
+		return err
+	}
+	if current == root {
 		return fmt.Errorf("Git staging directory is missing")
+	}
+	relative, relativeErr := filepath.Rel(root, current)
+	if relativeErr == nil && strings.HasPrefix(relative, ".git"+string(filepath.Separator)) {
+		return nil
 	}
 	return err
 }
