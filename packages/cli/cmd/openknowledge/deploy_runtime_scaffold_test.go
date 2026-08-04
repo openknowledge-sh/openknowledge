@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -76,7 +77,7 @@ func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o755 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o755 {
 		t.Fatalf("entrypoint mode = %o, want 755", info.Mode().Perm())
 	}
 	runtimeConfig, err := os.ReadFile(result.RuntimeConfig)

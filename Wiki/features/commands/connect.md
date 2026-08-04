@@ -38,6 +38,7 @@ explicit collision stops the command.
 | Source | Behavior |
 | --- | --- |
 | Local directory | Register the resolved directory directly. |
+| `file://` URL | Read a local manifest or archive, or clone a local Git source. Use `file:///C:/path` for a Windows drive. |
 | Website URL | Try `openknowledge.json` at the path, then `/.well-known/`. |
 | Manifest | Verify its strict v1 contract, archive digest, and declared OKF spec. |
 | `.tar`, `.tar.gz`, `.tgz` URL | Download and safely extract the archive. |

@@ -13,6 +13,17 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-08-04 — Windows CLI portability
+
+- `connect` now reads canonical Windows `file://` URLs for manifests and
+  archives. Windows drive URLs use the `file:///C:/path` form.
+- Insight creation now reports a stable, slash-separated project path on all
+  operating systems.
+- Source: `packages/cli/cmd/openknowledge/registry_command.go`,
+  `packages/cli/cmd/openknowledge/insights_command.go`.
+- Docs: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/insights.md`.
+
 ### 2026-08-04 — Resizable viewer grid
 
 - The open file explorer now remains opaque during open-beside navigation and

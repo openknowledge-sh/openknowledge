@@ -60,12 +60,12 @@ func TestSetupAgentUsesRuntimeValue(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
 	wiki := filepath.Join(repo, "Knowledge")
-	stubCodexResolver(t, "/test/codex")
+	expectedExecutable := stubCodexResolver(t, "/test/codex")
 	originalRun := runAgentProcess
 	t.Cleanup(func() { runAgentProcess = originalRun })
 	var prompt string
 	runAgentProcess = func(_ context.Context, executable string, arguments []string, directory string) error {
-		if executable != "/test/codex" || directory != repo {
+		if executable != expectedExecutable || directory != repo {
 			t.Fatalf("agent executable=%q directory=%q", executable, directory)
 		}
 		prompt = arguments[len(arguments)-1]
@@ -86,9 +86,10 @@ func TestSetupAgentUsesRuntimeValue(t *testing.T) {
 func TestSetupInteractivePrintsSelectedActivationPlan(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
-	t.Setenv("OPENKNOWLEDGE_CODEX", "/test/codex")
-	t.Setenv("OPENKNOWLEDGE_CLAUDE", "/missing/claude")
-	t.Setenv("OPENKNOWLEDGE_OPENCODE", "/missing/opencode")
+	codexExecutable := absoluteTestPath(t, "/test/codex")
+	t.Setenv("OPENKNOWLEDGE_CODEX", codexExecutable)
+	t.Setenv("OPENKNOWLEDGE_CLAUDE", filepath.FromSlash("/missing/claude"))
+	t.Setenv("OPENKNOWLEDGE_OPENCODE", filepath.FromSlash("/missing/opencode"))
 	originalProbe := probeCodexExecutable
 	originalInput := setupInput
 	originalTerminal := setupInputIsTerminal
@@ -98,7 +99,7 @@ func TestSetupInteractivePrintsSelectedActivationPlan(t *testing.T) {
 		setupInputIsTerminal = originalTerminal
 	})
 	probeCodexExecutable = func(_ context.Context, candidate string) error {
-		if candidate == "/test/codex" {
+		if candidate == codexExecutable {
 			return nil
 		}
 		return errors.New("not installed")

@@ -112,13 +112,11 @@ func runInsightsCreate(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
-	display := path
-	if repo, _, err := integration.FindRepository("."); err == nil {
-		if relative, relErr := filepath.Rel(repo, path); relErr == nil {
-			display = relative
-		}
+	display := filepath.ToSlash(path)
+	if _, config, err := integration.FindRepository("."); err == nil {
+		display = strings.TrimSuffix(filepath.ToSlash(config.Insights), "/") + "/" + filepath.Base(path)
 	} else if relative, err := filepath.Rel(".", path); err == nil {
-		display = relative
+		display = filepath.ToSlash(relative)
 	}
 	if created {
 		fmt.Fprintf(os.Stdout, "Created insight %s.\n", display)

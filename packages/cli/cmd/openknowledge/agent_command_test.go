@@ -51,13 +51,13 @@ func TestRootInsightsDiscoversIntegratedKnowledgeBase(t *testing.T) {
 
 func TestAgentExecUsesCurrentFilesystemByDefault(t *testing.T) {
 	directory := t.TempDir()
-	stubCodexResolver(t, "/test/codex")
+	expectedExecutable := stubCodexResolver(t, "/test/codex")
 	original := runAgentProcess
 	defer func() { runAgentProcess = original }()
 	var gotArguments []string
 	var gotDirectory string
 	runAgentProcess = func(_ context.Context, executable string, arguments []string, workingDirectory string) error {
-		if executable != "/test/codex" {
+		if executable != expectedExecutable {
 			t.Fatalf("resolved executable = %q", executable)
 		}
 		gotArguments = append([]string(nil), arguments...)
@@ -115,8 +115,8 @@ func TestAgentSupportsClaudeAndOpenCodeAdapters(t *testing.T) {
 		path    string
 		prefix  []string
 	}{
-		{runtime: "claude", env: "OPENKNOWLEDGE_CLAUDE", path: "/test/claude", prefix: []string{"--print", "--no-session-persistence", "--permission-mode", "acceptEdits"}},
-		{runtime: "opencode", env: "OPENKNOWLEDGE_OPENCODE", path: "/test/opencode", prefix: []string{"run", "--auto"}},
+		{runtime: "claude", env: "OPENKNOWLEDGE_CLAUDE", path: absoluteTestPath(t, "/test/claude"), prefix: []string{"--print", "--no-session-persistence", "--permission-mode", "acceptEdits"}},
+		{runtime: "opencode", env: "OPENKNOWLEDGE_OPENCODE", path: absoluteTestPath(t, "/test/opencode"), prefix: []string{"run", "--auto"}},
 	} {
 		t.Run(test.runtime, func(t *testing.T) {
 			t.Setenv(test.env, test.path)
@@ -138,10 +138,11 @@ func TestAgentSupportsClaudeAndOpenCodeAdapters(t *testing.T) {
 }
 
 func TestAgentDoctorReportsExplicitRuntime(t *testing.T) {
-	t.Setenv("OPENKNOWLEDGE_CLAUDE", "/test/claude")
+	expectedExecutable := absoluteTestPath(t, "/test/claude")
+	t.Setenv("OPENKNOWLEDGE_CLAUDE", expectedExecutable)
 	originalProbe := probeCodexExecutable
 	probeCodexExecutable = func(_ context.Context, executable string) error {
-		if executable != "/test/claude" {
+		if executable != expectedExecutable {
 			return fmt.Errorf("unexpected executable %s", executable)
 		}
 		return nil
@@ -227,14 +228,15 @@ func TestResolveCodexExecutableSkipsBrokenPATHCandidate(t *testing.T) {
 }
 
 func TestResolveCodexExecutableFailsClosedForBrokenExplicitOverride(t *testing.T) {
-	t.Setenv(codexExecutableEnv, "/configured/codex")
+	expectedExecutable := absoluteTestPath(t, "/configured/codex")
+	t.Setenv(codexExecutableEnv, expectedExecutable)
 	originalProbe := probeCodexExecutable
 	t.Cleanup(func() { probeCodexExecutable = originalProbe })
 	probeCodexExecutable = func(_ context.Context, executable string) error {
 		return fmt.Errorf("%s is broken", executable)
 	}
 	_, err := resolveCodexExecutable(context.Background())
-	if err == nil || !strings.Contains(err.Error(), codexExecutableEnv) || !strings.Contains(err.Error(), "/configured/codex") {
+	if err == nil || !strings.Contains(err.Error(), codexExecutableEnv) || !strings.Contains(err.Error(), expectedExecutable) {
 		t.Fatalf("unexpected explicit override error: %v", err)
 	}
 }
@@ -248,8 +250,9 @@ func TestRemovedAgentAutomationCommandsHaveNoAliases(t *testing.T) {
 	}
 }
 
-func stubCodexResolver(t *testing.T, executable string) {
+func stubCodexResolver(t *testing.T, executable string) string {
 	t.Helper()
+	executable = absoluteTestPath(t, executable)
 	t.Setenv(codexExecutableEnv, executable)
 	original := probeCodexExecutable
 	probeCodexExecutable = func(_ context.Context, candidate string) error {
@@ -259,4 +262,14 @@ func stubCodexResolver(t *testing.T, executable string) {
 		return nil
 	}
 	t.Cleanup(func() { probeCodexExecutable = original })
+	return executable
+}
+
+func absoluteTestPath(t *testing.T, slashPath string) string {
+	t.Helper()
+	absolute, err := filepath.Abs(filepath.FromSlash(slashPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return absolute
 }

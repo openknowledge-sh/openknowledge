@@ -587,7 +587,7 @@ func TestRulesCommandPrintsSelectedRules(t *testing.T) {
 		"- docs: Keep docs in sync",
 		"Docs rules:",
 		"Changelog rules:",
-		"openknowledge validate \"" + wiki + "\"",
+		fmt.Sprintf("openknowledge validate %q", wiki),
 	}
 	for _, expected := range required {
 		if !strings.Contains(output, expected) {
@@ -1914,7 +1914,8 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 	t.Setenv(okf.RegistryFileEnv, registryFile)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(base, "config"))
 
-	code := runConnect([]string{"--as", "remote", "--no-validate", "file://" + remote}, "openknowledge connect")
+	source := mainTestFileURL(remote)
+	code := runConnect([]string{"--as", "remote", "--no-validate", source}, "openknowledge connect")
 	if code != 0 {
 		t.Fatalf("expected remote connect to succeed, got exit code %d", code)
 	}
@@ -1925,7 +1926,7 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 	if !ok {
 		t.Fatal("expected remote registry entry")
 	}
-	if !entry.Managed || entry.Source.Type != "git" || entry.Source.URL != "file://"+remote {
+	if !entry.Managed || entry.Source.Type != "git" || entry.Source.URL != source {
 		t.Fatalf("unexpected remote registry entry: %#v", entry)
 	}
 	if entry.Source.GitCommit == "" || entry.Source.ManagedRoot != entry.Path || entry.Source.Spec != okf.LatestSpecVersion {
@@ -1986,7 +1987,7 @@ func TestRunRegistryRefreshAtomicallyReplacesManagedGitCache(t *testing.T) {
 
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
 	_, stderr, code := captureMainOutput(t, func() int {
-		return runConnect([]string{"--as", "remote", "--no-validate", "file://" + remote}, "openknowledge connect")
+		return runConnect([]string{"--as", "remote", "--no-validate", mainTestFileURL(remote)}, "openknowledge connect")
 	})
 	if code != 0 {
 		t.Fatalf("expected remote connect to succeed, code=%d stderr=%s", code, stderr)
@@ -2431,7 +2432,7 @@ func TestRemoteCacheIdentityDoesNotDependOnRegistryAlias(t *testing.T) {
 
 	registryFile := filepath.Join(base, "registry.json")
 	t.Setenv(okf.RegistryFileEnv, registryFile)
-	source := "file://" + remote
+	source := mainTestFileURL(remote)
 	if code := runConnect([]string{"--as", "first", "--no-validate", source}, "openknowledge connect"); code != 0 {
 		t.Fatalf("expected first connect, got %d", code)
 	}
@@ -2564,7 +2565,7 @@ func TestRunConnectAndRefreshPreserveGitRefAndSubdir(t *testing.T) {
 	}
 
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
-	source := "file://" + remote
+	source := mainTestFileURL(remote)
 	if code := runConnect([]string{source, "--as", "mono", "--no-validate", "--git-ref", "release-docs", "--git-subdir", "knowledge"}, "openknowledge connect"); code != 0 {
 		t.Fatalf("expected Git ref/subdir connect, got %d", code)
 	}
@@ -2684,7 +2685,7 @@ func TestConcurrentRemoteMaterializationPublishesOneCompleteCache(t *testing.T) 
 	}
 
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
-	source := "file://" + manifestPath
+	source := mainTestFileURL(manifestPath)
 	const workers = 12
 	start := make(chan struct{})
 	errors := make(chan error, workers)
@@ -2762,7 +2763,7 @@ func TestRunConnectRejectsInvalidGitBundleWithoutPublishingCache(t *testing.T) {
 
 	registryFile := filepath.Join(base, "registry.json")
 	t.Setenv(okf.RegistryFileEnv, registryFile)
-	source := "file://" + remote
+	source := mainTestFileURL(remote)
 	_, stderr, code := captureMainOutput(t, func() int {
 		return runConnect([]string{"--as", "invalid", "--no-validate", source}, "openknowledge connect")
 	})
@@ -2781,7 +2782,7 @@ func TestRunConnectRejectsInvalidGitBundleWithoutPublishingCache(t *testing.T) {
 func TestFailedRemoteReplacementPreservesPreviousCache(t *testing.T) {
 	base := t.TempDir()
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
-	source := "file://" + filepath.Join(base, "missing.git")
+	source := mainTestFileURL(filepath.Join(base, "missing.git"))
 	target := filepath.Join(base, "bundles", registryCacheName(source))
 	if err := os.MkdirAll(target, 0700); err != nil {
 		t.Fatal(err)
@@ -2840,7 +2841,7 @@ func TestDisconnectDeleteFilesRemovesEntireNestedManagedCache(t *testing.T) {
 	})
 	registryFile := filepath.Join(base, "registry.json")
 	t.Setenv(okf.RegistryFileEnv, registryFile)
-	if code := runConnect([]string{"--as", "nested", "--no-validate", "file://" + archivePath}, "openknowledge connect"); code != 0 {
+	if code := runConnect([]string{"--as", "nested", "--no-validate", mainTestFileURL(archivePath)}, "openknowledge connect"); code != 0 {
 		t.Fatalf("expected nested archive connect, got %d", code)
 	}
 	entry, ok, err := okf.ResolveRegistryEntry("nested")
@@ -2964,7 +2965,7 @@ func TestRunConnectRejectsManifestAndArchiveSpecMismatch(t *testing.T) {
 
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
 	_, stderr, code := captureMainOutput(t, func() int {
-		return runConnect([]string{"--as", "mismatch", "--no-validate", "file://" + manifestPath}, "openknowledge connect")
+		return runConnect([]string{"--as", "mismatch", "--no-validate", mainTestFileURL(manifestPath)}, "openknowledge connect")
 	})
 	if code != 1 || !strings.Contains(stderr, `archive bundle declares okf_version "9.9" but manifest requires "0.1"`) {
 		t.Fatalf("expected manifest/archive spec mismatch, code=%d stderr=%s", code, stderr)
@@ -3014,6 +3015,15 @@ func TestConnectRejectsCredentialBearingRemoteURLsBeforeIO(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestFileURLPathForOSPreservesWindowsDriveAndUnixRoot(t *testing.T) {
+	if got := fileURLPathForOS("/C:/Users/test/bundle.tar.gz", "windows"); got != "C:/Users/test/bundle.tar.gz" {
+		t.Fatalf("Windows file URL path = %q", got)
+	}
+	if got := fileURLPathForOS("/tmp/bundle.tar.gz", "linux"); got != "/tmp/bundle.tar.gz" {
+		t.Fatalf("Unix file URL path = %q", got)
 	}
 }
 
@@ -3353,6 +3363,14 @@ func captureMainOutput(t *testing.T, run func() int) (string, string, int) {
 		t.Fatal(stderr.err)
 	}
 	return string(stdout.content), string(stderr.content), code
+}
+
+func mainTestFileURL(file string) string {
+	slashPath := filepath.ToSlash(file)
+	if !strings.HasPrefix(slashPath, "/") {
+		slashPath = "/" + slashPath
+	}
+	return (&url.URL{Scheme: "file", Path: slashPath}).String()
 }
 
 func writeMainTestFile(t *testing.T, root string, name string, content string) {

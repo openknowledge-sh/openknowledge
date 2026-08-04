@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -233,6 +234,9 @@ func TestWriteBundleTarGzipUsesCanonicalHeaders(t *testing.T) {
 
 	tarReader := tar.NewReader(gzipReader)
 	wantModes := map[string]int64{"index.md": 0644, "tool.sh": 0755}
+	if runtime.GOOS == "windows" {
+		wantModes["tool.sh"] = 0644
+	}
 	seen := make(map[string]bool)
 	for {
 		header, err := tarReader.Next()

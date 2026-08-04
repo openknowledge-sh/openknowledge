@@ -145,6 +145,7 @@ func TestObserveAnalyzesTranscriptWithoutPersistingRawSession(t *testing.T) {
 	repo, _ := setupRepository(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	transcript := filepath.Join(home, ".codex", "sessions", "trace.jsonl")
 	if err := os.MkdirAll(filepath.Dir(transcript), 0o755); err != nil {
 		t.Fatal(err)

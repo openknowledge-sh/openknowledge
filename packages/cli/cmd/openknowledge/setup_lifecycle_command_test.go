@@ -10,10 +10,16 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
+func setSetupTestHome(t *testing.T, home string) {
+	t.Helper()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+}
+
 func TestSetupCompleteConnectsAndInstallsBothSkillScopes(t *testing.T) {
 	repo, wiki := setupLifecycleRepository(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setSetupTestHome(t, home)
 
 	stdout, stderr, code := captureMainOutput(t, func() int {
 		return runSetupComplete([]string{wiki, "--skill", "both", "--harness", "codex", "--observe", "off"})
@@ -80,7 +86,7 @@ func TestSetupCompleteSupportsObservationWithoutSkills(t *testing.T) {
 func TestSetupCompleteSupportsStandaloneGlobalScope(t *testing.T) {
 	wiki := setupLifecycleStandaloneBundle(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setSetupTestHome(t, home)
 
 	_, stderr, code := captureMainOutput(t, func() int {
 		return runSetupComplete([]string{wiki, "--skill", "global", "--harness", "codex"})
@@ -99,7 +105,7 @@ func TestSetupCompleteSupportsStandaloneGlobalScope(t *testing.T) {
 func TestSetupCompleteRejectsProjectScopeOutsideRepositoryBeforeMutation(t *testing.T) {
 	wiki := setupLifecycleStandaloneBundle(t)
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setSetupTestHome(t, home)
 
 	_, stderr, code := captureMainOutput(t, func() int {
 		return runSetupComplete([]string{wiki, "--skill", "both", "--harness", "codex"})
@@ -183,7 +189,7 @@ func setupLifecycleRepository(t *testing.T) (string, string) {
 		t.Fatal(err)
 	}
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(t.TempDir(), "registry.json"))
-	t.Setenv("HOME", t.TempDir())
+	setSetupTestHome(t, t.TempDir())
 	return repo, wiki
 }
 

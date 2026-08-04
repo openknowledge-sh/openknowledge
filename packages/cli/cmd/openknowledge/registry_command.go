@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -710,6 +711,8 @@ func downloadRemoteFile(source string, target string, maxBytes int64) (remoteDow
 		if err != nil {
 			return remoteDownload{}, err
 		}
+		inputPath = fileURLPathForOS(inputPath, runtime.GOOS)
+		inputPath = filepath.FromSlash(inputPath)
 		input, err := os.Open(inputPath)
 		if err != nil {
 			return remoteDownload{}, err
@@ -745,6 +748,13 @@ func downloadRemoteFile(source string, target string, maxBytes int64) (remoteDow
 		ContentType: response.Header.Get("Content-Type"),
 		FinalURL:    response.Request.URL.String(),
 	}, nil
+}
+
+func fileURLPathForOS(inputPath string, goos string) string {
+	if goos == "windows" && len(inputPath) >= 3 && inputPath[0] == '/' && inputPath[2] == ':' {
+		return inputPath[1:]
+	}
+	return inputPath
 }
 
 func validateRemoteSourceURL(source string) error {

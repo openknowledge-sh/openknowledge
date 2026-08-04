@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -48,6 +49,9 @@ func TestRuntimeInfoUsesStdout(t *testing.T) {
 }
 
 func TestEnsureRuntimeStateDirectorySkipsRedundantChmod(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose POSIX directory modes")
+	}
 	state := filepath.Join(t.TempDir(), "state")
 	if err := os.Mkdir(state, 0700); err != nil {
 		t.Fatal(err)
@@ -66,6 +70,9 @@ func TestEnsureRuntimeStateDirectorySkipsRedundantChmod(t *testing.T) {
 }
 
 func TestEnsureRuntimeStateDirectoryTightensExistingPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose POSIX directory modes")
+	}
 	state := filepath.Join(t.TempDir(), "state")
 	if err := os.Mkdir(state, 0755); err != nil {
 		t.Fatal(err)

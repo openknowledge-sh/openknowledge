@@ -3,6 +3,7 @@ package runtime
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -27,11 +28,11 @@ func TestGenerationManifestAndFilesystemPromotionAreContentBound(t *testing.T) {
 	if _, activeTarget, err := store.Active("wiki"); err != nil || activeTarget != target {
 		t.Fatalf("expected valid active generation, target=%q err=%v", activeTarget, err)
 	}
-	if info, err := os.Stat(target); err != nil || info.Mode().Perm() != 0755 {
+	if info, err := os.Stat(target); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0755) {
 		t.Fatalf("expected public generation directory mode 0755, info=%v err=%v", info, err)
 	}
 	activePath := filepath.Join(store.Root, "wiki", ActivePointerFile)
-	if info, err := os.Stat(activePath); err != nil || info.Mode().Perm() != 0644 {
+	if info, err := os.Stat(activePath); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0644) {
 		t.Fatalf("expected public active pointer mode 0644, info=%v err=%v", info, err)
 	}
 	if err := os.WriteFile(filepath.Join(target, "public", "index.html"), []byte("tampered"), 0644); err != nil {

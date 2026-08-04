@@ -48,7 +48,8 @@ newest. `<insight>` can be a path, filename, filename stem, or insight ID.
 
 `create` is deterministic and does not start a model. It finds the project
 integration and sanitizes the summary and evidence. It then writes a private
-pending insight. It does not write a duplicate insight.
+pending insight. It reports the new file with a slash-separated project path.
+It does not write a duplicate insight.
 
 You can repeat `--target` and `--evidence`. Without a target, the insight uses
 `.` for the complete knowledge base. Targets must be relative to the knowledge

@@ -572,7 +572,12 @@ func newAgentTestRepo(t *testing.T) string {
 
 func installFakeCodex(t *testing.T, content string) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "codex")
+	name := "codex"
+	if runtime.GOOS == "windows" {
+		name = "codex.cmd"
+		content = "@echo off\r\nmore >nul\r\nexit /b 0\r\n"
+	}
+	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, []byte(content), 0755); err != nil {
 		t.Fatal(err)
 	}
