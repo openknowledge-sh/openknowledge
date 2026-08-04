@@ -28,11 +28,14 @@ okn list --json Wiki
 
 Text output shows the first validation issue for each affected Markdown file.
 It identifies non-Markdown files as assets. A folder stays visible at the
-depth limit when it contains deeper entries.
+depth limit when it contains deeper entries. For OKF 0.2 concepts, it also
+shows derived trust, status, and `stale` when applicable.
 
 JSON output contains `schemaVersion`, the resolved `root`, and a path-sorted
 `entries` array. Each entry contains all validation issues. The
-`list.schema.json` file defines the contract.
+`list.schema.json` file defines the contract. OKF 0.2 concept entries include
+an `okf02` object with derived trust, lifecycle, provenance, sources, and an
+optional Attested Computation contract.
 
 ```text
 project-memory/

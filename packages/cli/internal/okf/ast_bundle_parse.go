@@ -45,6 +45,7 @@ func parseASTBundle(root string, version string) (ASTBundle, error) {
 	if err != nil {
 		return ASTBundle{}, err
 	}
+	normalizeASTDocumentsForSpec(documents, resolved)
 	return ASTBundle{
 		SchemaVersion: MachineSchemaVersion,
 		Root:          absolute,

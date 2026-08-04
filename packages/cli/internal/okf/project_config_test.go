@@ -124,3 +124,16 @@ func TestLoadProjectConfigRejectsSymbolicLink(t *testing.T) {
 		t.Fatalf("expected linked project config to be rejected, got %v", err)
 	}
 }
+
+func TestLoadProjectConfigDoesNotLoadLegacyConfigFile(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, legacyValidationConfigFile, "[publish]\nenabled = true\n")
+
+	config, err := LoadProjectConfig(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Path != "" || config.Publish.Enabled {
+		t.Fatalf("legacy config must be ignored, got %#v", config)
+	}
+}

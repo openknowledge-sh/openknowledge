@@ -19,10 +19,14 @@ func ValidateAST(bundle ASTBundle) Result {
 }
 
 func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result, error) {
+	profile, err := validationProfileForVersion(bundle.SpecVersion)
+	if err != nil {
+		return Result{}, err
+	}
 	result := Result{SchemaVersion: MachineSchemaVersion, Root: bundle.Root, SpecVersion: bundle.SpecVersion}
 	for _, document := range bundle.Documents {
 		result.Files++
-		validateDocument(bundle.Root, document, &result)
+		validateDocument(bundle.Root, document, profile, &result)
 	}
 	result.Errors = append(result.Errors, ValidateRuleCatalog(bundle)...)
 
@@ -31,7 +35,7 @@ func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result
 	if err := applyValidationOptions(&result, options); err != nil {
 		return Result{}, err
 	}
-	result.Checks = buildChecks(result)
+	result.Checks = buildChecks(result, profile)
 	result.Summary = buildValidationSummary(result)
 	result.Errors = nonNilIssues(result.Errors)
 	result.Warnings = nonNilIssues(result.Warnings)
@@ -39,7 +43,7 @@ func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result
 	return result, nil
 }
 
-func validateDocument(root string, document ASTDocument, result *Result) {
+func validateDocument(root string, document ASTDocument, profile validationSpecProfile, result *Result) {
 	rel := document.Rel
 
 	switch document.Kind {
@@ -73,6 +77,9 @@ func validateDocument(root string, document ASTDocument, result *Result) {
 			validateLog(rel, document.Frontmatter, document.Content, result)
 		default:
 			validateConcept(rel, document.Frontmatter, result)
+			if profile.ValidateConceptExtras != nil {
+				profile.ValidateConceptExtras(document, result)
+			}
 		}
 		validateMarkdownDiagnostics(rel, document.Markdown, result)
 	}

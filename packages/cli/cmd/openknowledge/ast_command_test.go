@@ -12,7 +12,7 @@ import (
 
 func TestRunASTPrintsParsedASTJSON(t *testing.T) {
 	root := t.TempDir()
-	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: docs\n---\n\n# Docs\n")
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: docs\n---\n\n# Docs\n")
 	writeMainTestFile(t, root, "guides/parser.md", "---\ntype: Guide\ntitle: Parser\n---\n\n# Parser\n\nInspect the AST.\n")
 
 	output, code := captureMainStdout(t, func() int {
@@ -26,7 +26,7 @@ func TestRunASTPrintsParsedASTJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &ast); err != nil {
 		t.Fatalf("expected AST JSON output: %v\n%s", err, output)
 	}
-	if ast.Root != root || ast.SpecVersion != "0.1" {
+	if ast.Root != root || ast.SpecVersion != okf.LatestSpecVersion {
 		t.Fatalf("unexpected AST root/spec: %#v", ast)
 	}
 	if ast.SchemaVersion != okf.MachineSchemaVersion {

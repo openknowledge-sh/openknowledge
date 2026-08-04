@@ -16,9 +16,8 @@ defines workspace files as the source of truth. It also requires provenance,
 publication controls, and validation. The surrounding runtime controls Git
 publication.
 
-Use [`okn integration`](integration.md) to install a project skill for one
-runtime. Add `--observe` only when you want the selected runtime to observe
-sessions.
+Use `okn setup complete <wiki>` to install project skills and selected harness
+adapters. Use `okn setup observe on` only when you want session observation.
 
 Local sessions do not require a Markdown job, schedule, run record, or commit
 policy. [`jobs`](jobs.md) uses these declarative controls. A local session

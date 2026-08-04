@@ -41,12 +41,14 @@ func TestObserveWritesPrivateInsightWithoutPatchOrBaseAndIgnoresRecursion(t *tes
 	}
 	content, _ := os.ReadFile(first)
 	text := string(content)
-	for _, forbidden := range []string{"secret-value", "private-code.txt\n+++", "```diff", "okf_insight_base", "okf_suggestion"} {
+	for _, forbidden := range []string{"secret-value", "private-code.txt\n+++", "```diff", "okf_insight_base", "okf_suggestion", "okf_insight_runtime", "okf_insight_created_at"} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("insight persisted forbidden %q:\n%s", forbidden, text)
 		}
 	}
-	if !strings.Contains(text, "[redacted]") || !strings.Contains(text, "Session changed `private-code.txt`") {
+	if !strings.Contains(text, "status: draft") || !strings.Contains(text, "by: process:openknowledge-insight/codex") ||
+		!strings.Contains(text, "at: 2026-07-17T14:32:00Z") || !strings.Contains(text, "[redacted]") ||
+		!strings.Contains(text, "Session changed `private-code.txt`") {
 		t.Fatalf("sanitized evidence missing:\n%s", text)
 	}
 	result, err := okf.Validate(wiki)
@@ -107,7 +109,10 @@ func TestCreateWritesPrivateEvidenceOnlyInsightAndDeduplicates(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(content)
-	if strings.Contains(text, "very-secret-token") || strings.Contains(text, "another-secret") || !strings.Contains(text, "[redacted]") {
+	if strings.Contains(text, "very-secret-token") || strings.Contains(text, "another-secret") ||
+		strings.Contains(text, "okf_insight_runtime") || strings.Contains(text, "okf_insight_created_at") ||
+		!strings.Contains(text, "status: draft") || !strings.Contains(text, "by: process:openknowledge-cli") ||
+		!strings.Contains(text, "[redacted]") {
 		t.Fatalf("secret sanitization failed:\n%s", text)
 	}
 	result, err := okf.Validate(wiki)
@@ -197,8 +202,57 @@ func TestResolveAndDismissRequirePendingInsight(t *testing.T) {
 	if first.Status != "resolved" || second.Status != "dismissed" {
 		t.Fatalf("statuses: %s %s", first.Status, second.Status)
 	}
+	resolvedContent, _ := os.ReadFile(resolved)
+	dismissedContent, _ := os.ReadFile(dismissed)
+	if !strings.Contains(string(resolvedContent), "status: stable") || !strings.Contains(string(dismissedContent), "status: deprecated") {
+		t.Fatalf("expected OKF lifecycle statuses:\n%s\n%s", resolvedContent, dismissedContent)
+	}
+	for _, content := range [][]byte{resolvedContent, dismissedContent} {
+		if !strings.Contains(string(content), "generated:") || strings.Contains(string(content), "okf_insight_runtime") || strings.Contains(string(content), "okf_insight_created_at") {
+			t.Fatalf("expected legacy provenance migration:\n%s", content)
+		}
+	}
 	if err := Resolve(resolved); err == nil {
 		t.Fatal("expected non-pending resolve to fail")
+	}
+}
+
+func TestParseMapsOKFV02LifecycleAndBlockedStateToAutomationStatuses(t *testing.T) {
+	stable := strings.Replace(testV02Insight("stable"), "status: draft", "status: stable", 1)
+	item, err := ParseContent("stable.md", []byte(stable))
+	if err != nil || item.Status != "resolved" || item.Runtime != "codex" || item.GeneratedBy != "process:openknowledge-insight/codex" {
+		t.Fatalf("stable insight = %#v err=%v", item, err)
+	}
+	blocked := strings.Replace(testV02Insight("blocked"), "status: draft", "status: draft\nokf_insight_status: blocked", 1)
+	item, err = ParseContent("blocked.md", []byte(blocked))
+	if err != nil || item.Status != "blocked" {
+		t.Fatalf("blocked insight = %#v err=%v", item, err)
+	}
+	invalid := strings.Replace(blocked, "status: draft", "status: stable", 1)
+	if _, err := ParseContent("invalid.md", []byte(invalid)); err == nil || !strings.Contains(err.Error(), "may only be blocked") {
+		t.Fatalf("invalid blocked lifecycle accepted: %v", err)
+	}
+}
+
+func TestStatusUpdateOnlyRewritesInsightFrontmatter(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.md")
+	content := testInsight("body-fields") + "\nstatus: pending\ngenerated:\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Resolve(path); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(updated)
+	if !strings.Contains(text, "status: stable") || !strings.Contains(text, "\nstatus: pending\ngenerated:\n") {
+		t.Fatalf("status update changed body metadata examples:\n%s", text)
+	}
+	if strings.Count(text, "generated:") != 2 {
+		t.Fatalf("expected one frontmatter field and one body example:\n%s", text)
 	}
 }
 
@@ -271,13 +325,13 @@ func setupRepository(t *testing.T) (string, string) {
 	if err := os.MkdirAll(wiki, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(wiki, "index.md"), []byte("---\nokf_version: \"0.1\"\nokf_publish: true\n---\n\n# Wiki\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wiki, "index.md"), []byte("---\nokf_version: \"0.2\"\nokf_publish: true\n---\n\n# Wiki\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(wiki, "guide.md"), []byte("---\ntype: Guide\nokf_publish: true\n---\n\n# Guide\n\nBefore.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(wiki, "openknowledge.toml"), []byte("[publish]\nenabled = true\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wiki, ".openknowledge.toml"), []byte("[publish]\nenabled = true\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := integration.InstallProject(wiki); err != nil {
@@ -313,6 +367,27 @@ Update the guide after checking current repository evidence.
 ## Evidence
 
 - Test observation.
+`, id)
+}
+
+func testV02Insight(id string) string {
+	return fmt.Sprintf(`---
+type: Open Knowledge Insight
+title: Update guide
+description: Test insight.
+status: draft
+okf_publish: false
+okf_insight_id: %s
+okf_insight_kind: docs
+generated:
+  by: process:openknowledge-insight/codex
+  at: 2026-07-17T14:32:00Z
+okf_insight_targets:
+  - guide.md
+tags: [insight]
+---
+
+# Update guide
 `, id)
 }
 

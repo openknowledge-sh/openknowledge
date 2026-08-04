@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -16,27 +17,50 @@ import (
 	"golang.org/x/term"
 )
 
-var setupRuntimeInput io.Reader = os.Stdin
-var setupRuntimeInputIsTerminal = func() bool {
-	file, ok := setupRuntimeInput.(*os.File)
+var setupInput io.Reader = os.Stdin
+var setupInputIsTerminal = func() bool {
+	file, ok := setupInput.(*os.File)
 	return ok && term.IsTerminal(int(file.Fd()))
 }
 
 type setupCLIOptions struct {
-	wiki            string
-	source          string
-	runtime         string
-	model           string
-	rules           string
-	wikiType        string
-	about           string
-	depth           int
-	agent           bool
-	runtimeExplicit bool
-	targetExplicit  bool
+	wiki        string
+	source      string
+	agent       string
+	model       string
+	rules       string
+	about       string
+	depth       int
+	prompt      bool
+	interactive bool
+}
+
+type setupActivationPlan struct {
+	skill     string
+	harnesses []string
+	observe   bool
+}
+
+type setupWizardPlan struct {
+	options    setupCLIOptions
+	action     string
+	agent      string
+	activation setupActivationPlan
 }
 
 func runSetup(args []string) int {
+	if len(args) > 0 {
+		switch args[0] {
+		case "complete":
+			return runSetupComplete(args[1:])
+		case "status":
+			return runSetupStatus(args[1:])
+		case "repair":
+			return runSetupRepair(args[1:])
+		case "observe":
+			return runSetupObserve(args[1:])
+		}
+	}
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, setupHelpText())
 		return 0
@@ -46,15 +70,99 @@ func runSetup(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
-	if !options.agent {
-		task, _, _, err := agentTask(setupAgentOptions(options, options.wiki))
+
+	if options.interactive || (!options.prompt && options.agent == "" && setupInputIsTerminal()) {
+		plan, err := runSetupWizard(options)
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		options = plan.options
+		task, err := buildSetupTask(options, &plan.activation)
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
+		if plan.action == "print" {
+			fmt.Print(task)
+			return 0
+		}
+		return runSetupAgent(options, plan.agent, task)
+	}
+
+	task, err := buildSetupTask(options, nil)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 2
+	}
+	if options.agent == "" {
 		fmt.Print(task)
 		return 0
 	}
+	return runSetupAgent(options, options.agent, task)
+}
+
+func buildSetupTask(options setupCLIOptions, activation *setupActivationPlan) (string, error) {
+	ruleIDs, err := parseRuleIDs(options.rules)
+	if err != nil {
+		return "", err
+	}
+	var task string
+	if options.source == "" {
+		task, err = okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs})
+	} else {
+		task, err = okf.FromPrompt(okf.FromPromptOptions{
+			Source: options.source,
+			Out:    options.wiki,
+			About:  options.about,
+			Depth:  options.depth,
+		})
+	}
+	if err != nil {
+		return "", err
+	}
+	if options.source == "" {
+		task += fmt.Sprintf("\nFor this setup, create or update the knowledge base at %s.\n", options.wiki)
+	}
+	if activation != nil {
+		task += renderSetupActivationInstructions(options.wiki, *activation)
+	}
+	return task, nil
+}
+
+func renderSetupActivationInstructions(wiki string, plan setupActivationPlan) string {
+	var command strings.Builder
+	fmt.Fprintf(&command, "okn setup complete %q --skill %s", wiki, plan.skill)
+	for _, harness := range plan.harnesses {
+		fmt.Fprintf(&command, " --harness %s", harness)
+	}
+	if plan.observe {
+		command.WriteString(" --observe on")
+	} else {
+		command.WriteString(" --observe off")
+	}
+	return fmt.Sprintf(`
+
+The user already selected this activation plan:
+- Skill scope: %s
+- Harnesses: %s
+- Observation: %s
+
+Do not ask for these choices again. After the bundle is complete and
+validation passes, run this exact finalizer:
+
+  %s
+`, plan.skill, setupHarnessLabel(plan.harnesses), enabledLabel(plan.observe), command.String())
+}
+
+func setupHarnessLabel(harnesses []string) string {
+	if len(harnesses) == 0 {
+		return "none"
+	}
+	return strings.Join(harnesses, ", ")
+}
+
+func runSetupAgent(options setupCLIOptions, runtime string, task string) int {
 	wikiAbs, err := filepath.Abs(options.wiki)
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
@@ -65,130 +173,37 @@ func runSetup(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
-	relWiki, err := filepath.Rel(repository, wikiAbs)
-	if err != nil || relWiki == "." || relWiki == ".." || strings.HasPrefix(relWiki, ".."+string(filepath.Separator)) {
-		fmt.Fprintln(stderrOutput(), "setup target must be a directory inside its Git repository")
-		return 2
-	}
-	relWiki = filepath.ToSlash(relWiki)
-
-	var executable string
-	if options.runtime == "" {
-		options.runtime, executable, err = selectSetupRuntime(context.Background())
-		if err != nil {
-			fmt.Fprintln(stderrOutput(), err)
-			return 1
-		}
-	}
-	agentOptions := setupAgentOptions(options, relWiki)
-	agentOptions.path = repository
-	if executable == "" {
-		executable, err = resolveAgentExecutable(context.Background(), options.runtime)
-		if err != nil {
-			fmt.Fprintf(stderrOutput(), "setup cannot start the %s runtime: %v\n", options.runtime, err)
-			fmt.Fprintf(stderrOutput(), "Run \"openknowledge agent doctor --runtime %s\" to diagnose the installation, then install or repair the runtime and rerun setup.\n", options.runtime)
-			return 1
-		}
-	}
-	agentOptions.executable = executable
-	if code := runAgentWithOptions(agentOptions); code != 0 {
-		fmt.Fprintf(stderrOutput(), "setup agent runtime %s exited with status %d; verify its authentication and rerun the same setup command.\n", options.runtime, code)
-		return code
-	}
-	if info, err := os.Stat(wikiAbs); err != nil || !info.IsDir() {
-		fmt.Fprintf(stderrOutput(), "setup agent did not create the knowledge base at %s\n", relWiki)
+	executable, err := resolveAgentExecutable(context.Background(), runtime)
+	if err != nil {
+		fmt.Fprintf(stderrOutput(), "setup cannot start the %s runtime: %v\n", runtime, err)
+		fmt.Fprintf(stderrOutput(), "Run \"openknowledge agent doctor --runtime %s\" to diagnose the installation, then install or repair the runtime and rerun setup.\n", runtime)
 		return 1
 	}
-	if code := runValidate([]string{wikiAbs}); code != 0 {
-		return code
+	code := runAgentWithOptions(agentCLIOptions{
+		path:         repository,
+		executable:   executable,
+		model:        options.model,
+		prompt:       task,
+		runtime:      runtime,
+		modeOverride: "init",
+	})
+	if code != 0 {
+		fmt.Fprintf(stderrOutput(), "setup agent runtime %s exited with status %d; verify its authentication and rerun the same setup command.\n", runtime, code)
 	}
-	if code := runIntegration([]string{"install", wikiAbs, "--runtime", options.runtime}); code != 0 {
-		return code
-	}
-	fmt.Printf("\nReady: %s\n", relWiki)
-	return 0
-}
-
-type setupRuntimeOption struct {
-	name       string
-	executable string
-}
-
-func selectSetupRuntime(ctx context.Context) (string, string, error) {
-	var available []setupRuntimeOption
-	for _, runtimeName := range agents.SupportedAgentRuntimes() {
-		executable, err := resolveAgentExecutable(ctx, runtimeName)
-		if err == nil {
-			available = append(available, setupRuntimeOption{name: runtimeName, executable: executable})
-		}
-	}
-	if len(available) == 0 {
-		return "", "", fmt.Errorf("setup found no installed agent runtime; install codex, claude, or opencode")
-	}
-	names := make([]string, 0, len(available))
-	for _, option := range available {
-		names = append(names, option.name)
-	}
-	if !setupRuntimeInputIsTerminal() {
-		return "", "", fmt.Errorf("setup --agent requires --runtime when input is not interactive; available runtimes: %s", strings.Join(names, ", "))
-	}
-
-	fmt.Fprintln(os.Stdout, "Available agent runtimes:")
-	for index, option := range available {
-		fmt.Fprintf(os.Stdout, "  %d. %s\n", index+1, option.name)
-	}
-	reader := bufio.NewReader(setupRuntimeInput)
-	for {
-		fmt.Fprint(os.Stdout, "Select a runtime: ")
-		answer, err := reader.ReadString('\n')
-		if err != nil && strings.TrimSpace(answer) == "" {
-			return "", "", fmt.Errorf("read setup runtime selection: %w", err)
-		}
-		answer = strings.ToLower(strings.TrimSpace(answer))
-		if index, err := strconv.Atoi(answer); err == nil && index >= 1 && index <= len(available) {
-			selected := available[index-1]
-			return selected.name, selected.executable, nil
-		}
-		for _, option := range available {
-			if answer == option.name {
-				return option.name, option.executable, nil
-			}
-		}
-		fmt.Fprintf(os.Stdout, "Enter a number from 1 to %d or a runtime name.\n", len(available))
-	}
-}
-
-func setupAgentOptions(options setupCLIOptions, target string) agentCLIOptions {
-	agentOptions := agentCLIOptions{
-		runtime: options.runtime,
-		model:   options.model,
-	}
-	if options.source == "" {
-		agentOptions.operation = "init"
-		agentOptions.rules = options.rules
-		agentOptions.setupTarget = target
-		return agentOptions
-	}
-	agentOptions.operation = "from"
-	agentOptions.from = fromOptions{
-		source:   options.source,
-		out:      target,
-		wikiType: options.wikiType,
-		about:    options.about,
-		depth:    options.depth,
-	}
-	return agentOptions
+	return code
 }
 
 func parseSetupArgs(args []string) (setupCLIOptions, error) {
-	options := setupCLIOptions{wiki: "Wiki", wikiType: okf.DefaultFromType}
+	options := setupCLIOptions{wiki: "Wiki"}
 	var positionals []string
 	for index := 0; index < len(args); index++ {
 		argument := args[index]
 		switch {
-		case argument == "--agent":
-			options.agent = true
-		case argument == "--from" || argument == "--runtime" || argument == "--model" || argument == "--rules" || argument == "--type" || argument == "--about" || argument == "--depth":
+		case argument == "--prompt":
+			options.prompt = true
+		case argument == "--interactive":
+			options.interactive = true
+		case argument == "--from" || argument == "--agent" || argument == "--model" || argument == "--rules" || argument == "--about" || argument == "--depth":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
 				return options, err
@@ -201,8 +216,8 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 			if err := setSetupOption(&options, "--from", strings.TrimPrefix(argument, "--from=")); err != nil {
 				return options, err
 			}
-		case strings.HasPrefix(argument, "--runtime="):
-			if err := setSetupOption(&options, "--runtime", strings.TrimPrefix(argument, "--runtime=")); err != nil {
+		case strings.HasPrefix(argument, "--agent="):
+			if err := setSetupOption(&options, "--agent", strings.TrimPrefix(argument, "--agent=")); err != nil {
 				return options, err
 			}
 		case strings.HasPrefix(argument, "--model="):
@@ -211,10 +226,6 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 			}
 		case strings.HasPrefix(argument, "--rules="):
 			if err := setSetupOption(&options, "--rules", strings.TrimPrefix(argument, "--rules=")); err != nil {
-				return options, err
-			}
-		case strings.HasPrefix(argument, "--type="):
-			if err := setSetupOption(&options, "--type", strings.TrimPrefix(argument, "--type=")); err != nil {
 				return options, err
 			}
 		case strings.HasPrefix(argument, "--about="):
@@ -236,25 +247,26 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 	}
 	if len(positionals) == 1 {
 		options.wiki = positionals[0]
-		options.targetExplicit = true
 	}
 	if strings.TrimSpace(options.wiki) == "" {
 		return options, fmt.Errorf("setup knowledge base path must not be empty")
 	}
-	if options.runtime != "" {
-		if _, err := agents.HarnessForRuntime(options.runtime); err != nil {
+	if options.prompt && options.interactive {
+		return options, fmt.Errorf("--prompt and --interactive cannot be combined")
+	}
+	if options.agent != "" && (options.prompt || options.interactive) {
+		return options, fmt.Errorf("--agent cannot be combined with --prompt or --interactive")
+	}
+	if options.agent != "" {
+		if _, err := agents.HarnessForRuntime(options.agent); err != nil {
 			return options, err
 		}
-	}
-	if !options.agent && options.runtimeExplicit {
-		return options, fmt.Errorf("--runtime requires --agent")
-	}
-	if !options.agent && strings.TrimSpace(options.model) != "" {
+	} else if options.model != "" {
 		return options, fmt.Errorf("--model requires --agent")
 	}
 	if options.source == "" {
-		if options.wikiType != okf.DefaultFromType || options.about != "" || options.depth != 0 {
-			return options, fmt.Errorf("--type, --about, and --depth require --from")
+		if options.about != "" || options.depth != 0 {
+			return options, fmt.Errorf("--about and --depth require --from")
 		}
 	} else if strings.TrimSpace(options.rules) != "" {
 		return options, fmt.Errorf("--rules cannot be combined with --from")
@@ -272,15 +284,12 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 	switch flagName {
 	case "--from":
 		options.source = value
-	case "--runtime":
-		options.runtime = strings.ToLower(value)
-		options.runtimeExplicit = true
+	case "--agent":
+		options.agent = strings.ToLower(value)
 	case "--model":
 		options.model = value
 	case "--rules":
 		options.rules = value
-	case "--type":
-		options.wikiType = value
 	case "--about":
 		options.about = value
 	case "--depth":
@@ -293,54 +302,334 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 	return nil
 }
 
+func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
+	reader := bufio.NewReader(setupInput)
+	plan := setupWizardPlan{options: options, action: "print"}
+
+	if options.source == "" {
+		choice, err := setupChoice(reader, "What do you want to set up?", []string{
+			"A knowledge base for this project",
+			"A knowledge base generated from another source",
+			"An existing Open Knowledge bundle",
+		}, 0)
+		if err != nil {
+			return plan, err
+		}
+		switch choice {
+		case 1:
+			source, err := setupLine(reader, "Source path or URL", "")
+			if err != nil {
+				return plan, err
+			}
+			plan.options.source = source
+			about, err := setupLine(reader, "What should this knowledge base help with?", "let the agent infer it")
+			if err != nil {
+				return plan, err
+			}
+			if about != "let the agent infer it" {
+				plan.options.about = about
+			}
+		case 2:
+			wiki, err := setupLine(reader, "Knowledge base path", options.wiki)
+			if err != nil {
+				return plan, err
+			}
+			plan.options.wiki = wiki
+		}
+	}
+	if plan.options.source == "" && strings.TrimSpace(plan.options.rules) == "" {
+		rules, err := setupMaintenanceRules(reader)
+		if err != nil {
+			return plan, err
+		}
+		plan.options.rules = strings.Join(rules, ",")
+	}
+
+	available := detectSetupRuntimes(context.Background())
+	actionLabels := make([]string, 0, len(available)+1)
+	for _, runtime := range available {
+		actionLabels = append(actionLabels, "Launch "+displayRuntime(runtime))
+	}
+	actionLabels = append(actionLabels, "Print a task for an existing agent")
+	action, err := setupChoice(reader, "How should setup run?", actionLabels, 0)
+	if err != nil {
+		return plan, err
+	}
+	if action < len(available) {
+		plan.action = "agent"
+		plan.agent = available[action]
+	}
+
+	skillChoice, err := setupChoice(reader, "Install Open Knowledge instructions for agents?", []string{
+		"Personal — available across all projects",
+		"Project — shared in this repository",
+		"Both — personal and project-specific guidance",
+		"None (not recommended) — CLI only",
+	}, 0)
+	if err != nil {
+		return plan, err
+	}
+	plan.activation.skill = []string{"global", "project", "both", "none"}[skillChoice]
+	observeChoice, err := setupChoice(reader, "Capture possible knowledge gaps after agent sessions?", []string{"Not now", "Enable"}, 0)
+	if err != nil {
+		return plan, err
+	}
+	plan.activation.observe = observeChoice == 1
+	if plan.activation.skill != "none" || plan.activation.observe {
+		defaults := available
+		if plan.agent != "" {
+			defaults = []string{plan.agent}
+		}
+		harnesses, err := setupHarnesses(reader, available, defaults)
+		if err != nil {
+			return plan, err
+		}
+		plan.activation.harnesses = harnesses
+	}
+
+	fmt.Fprintln(os.Stdout, "\nOpen Knowledge setup plan")
+	fmt.Fprintf(os.Stdout, "  Knowledge base: %s\n", plan.options.wiki)
+	if plan.options.source != "" {
+		fmt.Fprintf(os.Stdout, "  Source:         %s\n", plan.options.source)
+	}
+	if plan.action == "agent" {
+		fmt.Fprintf(os.Stdout, "  Setup agent:    %s\n", plan.agent)
+	} else {
+		fmt.Fprintln(os.Stdout, "  Setup agent:    existing agent")
+	}
+	fmt.Fprintf(os.Stdout, "  Skills:         %s\n", plan.activation.skill)
+	fmt.Fprintf(os.Stdout, "  Harnesses:      %s\n", setupHarnessLabel(plan.activation.harnesses))
+	fmt.Fprintf(os.Stdout, "  Observation:    %s\n", enabledLabel(plan.activation.observe))
+	confirmed, err := setupConfirm(reader, "Continue?", true)
+	if err != nil {
+		return plan, err
+	}
+	if !confirmed {
+		return plan, fmt.Errorf("setup cancelled")
+	}
+	return plan, nil
+}
+
+func detectSetupRuntimes(ctx context.Context) []string {
+	var available []string
+	for _, runtime := range agents.SupportedAgentRuntimes() {
+		if _, err := resolveAgentExecutable(ctx, runtime); err == nil {
+			available = append(available, runtime)
+		}
+	}
+	sort.Strings(available)
+	return available
+}
+
+func displayRuntime(runtime string) string {
+	switch runtime {
+	case "codex":
+		return "Codex"
+	case "claude":
+		return "Claude"
+	case "opencode":
+		return "OpenCode"
+	default:
+		return runtime
+	}
+}
+
+func setupChoice(reader *bufio.Reader, question string, choices []string, defaultIndex int) (int, error) {
+	if len(choices) == 0 {
+		return 0, fmt.Errorf("%s has no available choices", question)
+	}
+	fmt.Fprintf(os.Stdout, "\n◆ %s\n", question)
+	for index, choice := range choices {
+		marker := "○"
+		if index == defaultIndex {
+			marker = "●"
+		}
+		fmt.Fprintf(os.Stdout, "  %s %d. %s\n", marker, index+1, choice)
+	}
+	for {
+		fmt.Fprintf(os.Stdout, "Select [%d]: ", defaultIndex+1)
+		answer, err := reader.ReadString('\n')
+		if err != nil && strings.TrimSpace(answer) == "" {
+			return 0, fmt.Errorf("read setup choice: %w", err)
+		}
+		answer = strings.TrimSpace(answer)
+		if answer == "" {
+			return defaultIndex, nil
+		}
+		selected, err := strconv.Atoi(answer)
+		if err == nil && selected >= 1 && selected <= len(choices) {
+			return selected - 1, nil
+		}
+		fmt.Fprintf(os.Stdout, "Enter a number from 1 to %d.\n", len(choices))
+	}
+}
+
+func setupLine(reader *bufio.Reader, question string, defaultValue string) (string, error) {
+	if defaultValue == "" {
+		fmt.Fprintf(os.Stdout, "%s: ", question)
+	} else {
+		fmt.Fprintf(os.Stdout, "%s [%s]: ", question, defaultValue)
+	}
+	answer, err := reader.ReadString('\n')
+	answer = strings.TrimSpace(answer)
+	if err != nil && answer == "" {
+		return "", fmt.Errorf("read setup answer: %w", err)
+	}
+	if answer == "" {
+		answer = defaultValue
+	}
+	if strings.TrimSpace(answer) == "" {
+		return "", fmt.Errorf("%s requires a value", question)
+	}
+	return answer, nil
+}
+
+func setupHarnesses(reader *bufio.Reader, available []string, defaults []string) ([]string, error) {
+	if len(available) == 0 {
+		return nil, fmt.Errorf("setup found no installed agent harness; choose CLI only or install codex, claude, or opencode")
+	}
+	fmt.Fprintln(os.Stdout, "\n◆ Install for which agent environments?")
+	for index, runtime := range available {
+		fmt.Fprintf(os.Stdout, "  %d. %s\n", index+1, displayRuntime(runtime))
+	}
+	fmt.Fprintf(os.Stdout, "Select comma-separated numbers [%s]: ", setupDefaultHarnessIndexes(available, defaults))
+	answer, err := reader.ReadString('\n')
+	answer = strings.TrimSpace(answer)
+	if err != nil && answer == "" {
+		return nil, fmt.Errorf("read setup harnesses: %w", err)
+	}
+	if answer == "" {
+		return append([]string(nil), defaults...), nil
+	}
+	seen := map[string]bool{}
+	var selected []string
+	for _, raw := range strings.Split(answer, ",") {
+		index, err := strconv.Atoi(strings.TrimSpace(raw))
+		if err != nil || index < 1 || index > len(available) {
+			return nil, fmt.Errorf("invalid harness selection %q", raw)
+		}
+		runtime := available[index-1]
+		if !seen[runtime] {
+			seen[runtime] = true
+			selected = append(selected, runtime)
+		}
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("select at least one harness")
+	}
+	return selected, nil
+}
+
+func setupMaintenanceRules(reader *bufio.Reader) ([]string, error) {
+	rules := []struct {
+		id    string
+		label string
+	}{
+		{id: "project", label: "Project changes"},
+		{id: "docs", label: "Documentation"},
+		{id: "decisions", label: "Decisions"},
+		{id: "changelog", label: "Changelog"},
+		{id: "research", label: "Research"},
+		{id: "bugs", label: "Bugs"},
+		{id: "schemas", label: "Schemas"},
+		{id: "summary", label: "Summaries"},
+		{id: "agents", label: "Agent guidance"},
+	}
+	fmt.Fprintln(os.Stdout, "\n◆ Which maintenance behaviors should future agents follow?")
+	for index, rule := range rules {
+		fmt.Fprintf(os.Stdout, "  %d. %s\n", index+1, rule.label)
+	}
+	fmt.Fprint(os.Stdout, "Select comma-separated numbers [let the agent recommend]: ")
+	answer, err := reader.ReadString('\n')
+	answer = strings.TrimSpace(answer)
+	if err != nil && answer == "" {
+		return nil, fmt.Errorf("read setup maintenance rules: %w", err)
+	}
+	if answer == "" {
+		return nil, nil
+	}
+	seen := map[string]bool{}
+	var selected []string
+	for _, raw := range strings.Split(answer, ",") {
+		index, err := strconv.Atoi(strings.TrimSpace(raw))
+		if err != nil || index < 1 || index > len(rules) {
+			return nil, fmt.Errorf("invalid maintenance rule selection %q", raw)
+		}
+		id := rules[index-1].id
+		if !seen[id] {
+			seen[id] = true
+			selected = append(selected, id)
+		}
+	}
+	return selected, nil
+}
+
+func setupDefaultHarnessIndexes(available []string, defaults []string) string {
+	selected := map[string]bool{}
+	for _, runtime := range defaults {
+		selected[runtime] = true
+	}
+	var indexes []string
+	for index, runtime := range available {
+		if selected[runtime] {
+			indexes = append(indexes, strconv.Itoa(index+1))
+		}
+	}
+	if len(indexes) == 0 {
+		return "1"
+	}
+	return strings.Join(indexes, ",")
+}
+
+func setupConfirm(reader *bufio.Reader, question string, defaultValue bool) (bool, error) {
+	label := "y/N"
+	if defaultValue {
+		label = "Y/n"
+	}
+	fmt.Fprintf(os.Stdout, "%s (%s) ", question, label)
+	answer, err := reader.ReadString('\n')
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	if err != nil && answer == "" {
+		return false, fmt.Errorf("read setup confirmation: %w", err)
+	}
+	if answer == "" {
+		return defaultValue, nil
+	}
+	return answer == "y" || answer == "yes", nil
+}
+
 func setupHelpText() string {
 	return `openknowledge setup
 
-Print a portable prompt to create or update an OKF knowledge base.
+Set up an Open Knowledge knowledge base and its agent instructions.
 
 Usage:
-  openknowledge setup
   openknowledge setup [wiki]
-  openknowledge setup [wiki] --rules <rules>
-  openknowledge setup [wiki] --from <source>
-  openknowledge setup --agent
-  openknowledge setup --agent --runtime <codex|claude|opencode>
+  openknowledge setup [wiki] --prompt
+  openknowledge setup [wiki] --interactive
+  openknowledge setup [wiki] --agent <codex|claude|opencode>
+  openknowledge setup [wiki] --from <source> [--about <goal>] [--depth <n>]
+  openknowledge setup complete <wiki> --skill <scope> [--harness <name>] [--observe on|off]
+  openknowledge setup status [wiki]
+  openknowledge setup repair [wiki]
+  openknowledge setup observe <on|off> [repository]
 
-Arguments:
-  wiki        Target knowledge-base directory. Defaults to Wiki. Agent mode
-              requires the target to be inside the current Git repository.
+With terminal input, setup starts an interactive wizard. Without terminal
+input, setup prints a complete task for an agent. Use --prompt or --interactive
+to select the mode explicitly. Use --agent to start one installed agent.
 
-Core flags:
-  --from      Repository, local folder, or website source.
-  --rules     Comma-separated maintenance rules for guided setup. Cannot be
-              combined with --from.
+The source workflow accepts --from, optional --about intent, and optional
+--depth. The agent inspects the source and asks for missing intent. Setup does
+not use predefined knowledge-base types.
 
-Advanced flags:
-  --agent     Run the prompt in a detected agent runtime instead of printing it.
-  --runtime   Agent runtime: codex, claude, or opencode. Requires --agent.
-  --model     Harness-specific model override. Requires --agent.
-  --type      Source workflow: understanding or custom. Requires --from.
-  --about     Custom source-to-wiki goal. Requires --from.
-  --depth     Non-negative source traversal hint. Requires --from; 0 lets the
-              agent choose the minimum depth.
-
-With no arguments, setup prints an open-ended setup interview for Wiki. Run
-this command yourself, then copy the complete printed prompt into an agent that
-already has access to the project. The agent inspects the workspace and asks
-only the questions needed to understand the wiki's purpose, audience, sources,
-structure, and maintenance needs. Use --from only for a repository, local
-folder, or website that you want to turn directly into a source-grounded wiki.
-
-The advanced --agent mode launches a runtime from the Git repository that owns
-the knowledge base. If --runtime is absent, setup asks you to select an installed
-runtime. Non-interactive use requires --runtime. It validates the result and
-installs only that runtime's project skill. It does not enable session
-observation. Run openknowledge agent doctor --runtime <runtime> to diagnose a
-runtime installation.
-
-After setup, the knowledge base is ready. Use search or validate directly when
-you need retrieval or an independent check. The viewer, publishing, registry,
-automation, deterministic scaffold, and portable prompt commands are optional
-workflows.
+Flags:
+  --prompt       Print the complete agent task without changing files.
+  --interactive  Run the terminal wizard.
+  --agent        Start codex, claude, or opencode with the setup task.
+  --model        Harness-specific model override. Requires --agent.
+  --from         Repository, folder, or website source.
+  --about        Optional source-to-wiki goal. Requires --from.
+  --depth        Non-negative traversal hint. Requires --from.
+  --rules        Comma-separated maintenance rules. Incompatible with --from.
 `
 }

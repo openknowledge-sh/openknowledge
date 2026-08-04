@@ -21,6 +21,7 @@
           "title": {"type": "string"},
           "description": {"type": "string"},
           "resource": {"type": "string"},
+          "okf02": {"$ref": "common.schema.json#/$defs/okf02Signals"},
           "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
         },
         "additionalProperties": false

@@ -86,6 +86,18 @@ func BuildGraphWithType(root string, version string, graphType string) (Graph, e
 	return core.BuildGraphWithType(root, version, graphType)
 }
 
+func DeriveOKFV02Signals(frontmatter map[string]any) *OKFV02Signals {
+	return core.DeriveOKFV02Signals(frontmatter)
+}
+
+func OKFV02SourceAnchor(id string) string {
+	return core.OKFV02SourceAnchor(id)
+}
+
+func OKFV02SourceFootnotes(signals *OKFV02Signals) map[string]string {
+	return core.OKFV02SourceFootnotes(signals)
+}
+
 func ReadBundleInfo(root string) (BundleInfo, error) {
 	return core.ReadBundleInfo(root)
 }
@@ -126,8 +138,20 @@ func KnownValidationRules() []string {
 	return core.KnownValidationRules()
 }
 
+func KnownValidationRulesForVersion(version string) ([]string, error) {
+	return core.KnownValidationRulesForVersion(version)
+}
+
 func IsKnownValidationRule(rule string) bool {
 	return core.IsKnownValidationRule(rule)
+}
+
+func IsKnownValidationRuleForVersion(version string, rule string) bool {
+	return core.IsKnownValidationRuleForVersion(version, rule)
+}
+
+func IsValidationRuleOverrideableForVersion(version string, rule string) bool {
+	return core.IsValidationRuleOverrideableForVersion(version, rule)
 }
 
 func LoadValidationOptions(root string) (ValidationOptions, error) {
@@ -142,10 +166,18 @@ func ParseValidationRuleOverride(value string) (string, string, error) {
 	return core.ParseValidationRuleOverride(value)
 }
 
+func ParseValidationRuleOverrideForVersion(version string, value string) (string, string, error) {
+	return core.ParseValidationRuleOverrideForVersion(version, value)
+}
+
 func NormalizeValidationSeverity(value string) (string, error) {
 	return core.NormalizeValidationSeverity(value)
 }
 
 func SetValidationRuleSeverity(options *ValidationOptions, rule string, severity string) error {
 	return core.SetValidationRuleSeverity(options, rule, severity)
+}
+
+func SetValidationRuleSeverityForVersion(options *ValidationOptions, version string, rule string, severity string) error {
+	return core.SetValidationRuleSeverityForVersion(options, version, rule, severity)
 }

@@ -6,7 +6,10 @@
 
   --ok-header-height: 48px;
   --ok-mobile-header-height: 68px;
-  --ok-sidebar-width: min(340px, calc(100vw - 36px));
+  --ok-sidebar-min-width: 280px;
+  --ok-sidebar-default-width: 25vw;
+  --ok-sidebar-max-width: 560px;
+  --ok-sidebar-width: clamp(var(--ok-sidebar-min-width), var(--ok-sidebar-default-width), var(--ok-sidebar-max-width));
   --ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));
   --ok-note-panel-min-width: min(360px, calc(100vw - 24px));
 

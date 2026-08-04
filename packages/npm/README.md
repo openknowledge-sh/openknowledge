@@ -31,7 +31,7 @@ Each checksummed platform archive also receives GitHub/Sigstore build
 provenance that can be verified with `gh attestation verify <archive> -R
 openknowledge-sh/openknowledge`.
 
-Open Knowledge bundles follow OKF v0.1: Markdown with YAML frontmatter that is
+Open Knowledge bundles follow OKF v0.2: Markdown with YAML frontmatter that is
 easy to inspect with shell tools and coding agents.
 
 This package includes `THIRD_PARTY_NOTICES.md` and the upstream Apache-2.0

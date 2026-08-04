@@ -12,7 +12,7 @@ import (
 
 // PublicationSet is the complete, explicit input set for a public artifact.
 // Markdown publication is controlled by okf_publish. Non-Markdown files are
-// excluded unless they match publish.assets in openknowledge.toml.
+// excluded unless they match publish.assets in .openknowledge.toml.
 type PublicationSet struct {
 	Markdown []string
 	Assets   []string
@@ -189,7 +189,7 @@ func isPrivatePublicationPath(relative string) bool {
 	if slash := strings.IndexByte(first, '/'); slash >= 0 {
 		first = first[:slash]
 	}
-	return first == ".git" || first == ".openknowledge" || clean == ValidationConfigFile
+	return first == ".git" || first == ".openknowledge" || clean == ValidationConfigFile || clean == legacyValidationConfigFile
 }
 
 func ShouldPublish(file BundleFile) bool {

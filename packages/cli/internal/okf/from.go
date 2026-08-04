@@ -7,12 +7,9 @@ import (
 	"strings"
 )
 
-const DefaultFromType = "understanding"
-
 type FromPromptOptions struct {
 	Source string
 	Out    string
-	Type   string
 	About  string
 	Depth  int
 }
@@ -26,11 +23,6 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	if options.Out == "" {
 		return "", fmt.Errorf("from requires --out <path>")
 	}
-	wikiType, err := normalizeFromType(options.Type)
-	if err != nil {
-		return "", err
-	}
-	options.Type = wikiType
 	if options.Depth < 0 {
 		return "", fmt.Errorf("--depth must be zero or a positive integer")
 	}
@@ -48,9 +40,8 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteString(fmt.Sprintf("- Source: %s\n", markdownCode(options.Source)))
 	builder.WriteString(fmt.Sprintf("- Source kind: %s\n", inferFromSourceKind(options.Source)))
 	builder.WriteString(fmt.Sprintf("- Output wiki path: %s\n", markdownCode(options.Out)))
-	builder.WriteString(fmt.Sprintf("- Wiki type: %s\n", markdownCode(options.Type)))
 	if strings.TrimSpace(options.About) != "" {
-		builder.WriteString(fmt.Sprintf("- Custom goal: %s\n", markdownCode(strings.TrimSpace(options.About))))
+		builder.WriteString(fmt.Sprintf("- Requested outcome: %s\n", markdownCode(strings.TrimSpace(options.About))))
 	}
 	if options.Depth > 0 {
 		builder.WriteString(fmt.Sprintf("- Depth: %d\n", options.Depth))
@@ -61,54 +52,33 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteString("- Inspect the source first. For repositories, read README files, docs, manifests, build/test files, important directories, and existing agent instructions. For websites, crawl from the source URL only as deep as requested and preserve canonical page URLs.\n")
 	builder.WriteString("- If the output wiki already exists, read its index.md, log.md, AGENTS.md, and any okf_generated_from metadata before editing.\n")
 	builder.WriteString("- Ask the user only for missing intent, audience, scope, or source-boundary details. Do not ask a fixed questionnaire when the source already answers the question.\n")
-	if options.Type == "custom" && strings.TrimSpace(options.About) == "" {
-		builder.WriteString("- Because --type custom has no --about goal, ask what this wiki should help with, who it is for, what to focus on, and how deep to go.\n")
-	}
+	builder.WriteString("- When --about is absent, ask what this wiki should help with, who it is for, what to focus on, and how deep to go.\n")
 	builder.WriteByte('\n')
 
 	builder.WriteString("Generation recipe:\n")
-	switch options.Type {
-	case "custom":
-		if strings.TrimSpace(options.About) == "" {
-			builder.WriteString("- Build a custom generation recipe from the user's answers. Choose focused rules such as overview, architecture, workflows, API/reference, research synthesis, glossary, or citations.\n")
-		} else {
-			builder.WriteString("- Build a custom generation recipe around the custom goal. Choose focused rules such as overview, architecture, workflows, API/reference, research synthesis, glossary, or citations.\n")
-		}
-	default:
-		builder.WriteString("- Create a DeepWiki-style understanding wiki: overview, architecture, structure, workflows, key entrypoints, diagrams when useful, glossary, and source-backed citations.\n")
-	}
+	builder.WriteString("- Build the smallest source-grounded structure that serves the user's goal. Choose focused pages for overview, architecture, workflows, API/reference, research synthesis, glossary, diagrams, or citations when useful.\n")
 	builder.WriteByte('\n')
 
 	builder.WriteString("Write the wiki:\n")
-	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `okn scaffold --name \"<clear wiki name>\" --no-agents --no-setup %q` before customizing it.\n", markdownCode(options.Out), options.Out))
-	builder.WriteString("- Use `--no-agents --no-setup` for generated source wikis unless the user explicitly wants starter agent rules or an interactive setup handoff document.\n")
+	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `okn scaffold --name \"<clear wiki name>\" --no-agents %q` before customizing it.\n", markdownCode(options.Out), options.Out))
 	builder.WriteString("- Keep raw copied material separate from synthesized wiki pages.\n")
 	builder.WriteString("- Write ordinary OKF Markdown so search and validate work without a generation runtime. Keep exact reads, browsing, and exports as optional follow-up workflows.\n")
 	builder.WriteString("- Use normal concept page `type` values such as `Repository Overview`, `Architecture Overview`, `Module`, `Development Workflow`, `API Reference`, `Research Synthesis`, or `Glossary`.\n")
-	builder.WriteString("- Add or update root metadata such as `okf_wiki_type`, `okf_generation_goal`, `okf_generation_rules`, and `okf_generated_from` when useful.\n")
+	builder.WriteString("- Add or update root metadata such as `okf_generation_goal`, `okf_generation_rules`, and `okf_generated_from` when useful.\n")
 	builder.WriteString("- Preserve source links, source files, line ranges, commit IDs, canonical URLs, crawl depth, and fetch timestamps where available.\n")
 	builder.WriteString("- For refreshes, compare existing provenance with the current source and update only affected pages where practical. Preserve human edits when possible.\n\n")
 
 	builder.WriteString("Verify and finish:\n")
+	builder.WriteString("- Remove SETUP.MD after all setup decisions are reflected in the bundle.\n")
 	builder.WriteString(fmt.Sprintf("- Run `okn validate %q` and fix validation errors or avoidable warnings.\n", options.Out))
+	builder.WriteString("- Ask which installed agent harnesses need Open Knowledge instructions. Also ask for the skill scope: global, project, both, or none. Explain that the global skill is reusable across knowledge bases and the project skill can contain repository-specific guidance. Ask separately whether to enable knowledge-gap observation. Observation is opt-in.\n")
+	builder.WriteString(fmt.Sprintf("- Run `okn setup complete %q --skill <global|project|both|none> [--harness <codex|claude|opencode>] --observe <on|off>` with the user's selected skill scope, harnesses, and observation choice. Repeat `--harness` for each selected harness. Omit it only when the skill scope is `none` and observation is off.\n", options.Out))
+	builder.WriteString("- If `okn setup complete` fails, fix the reported problem and run it again.\n")
 	builder.WriteString(fmt.Sprintf("- Run one representative source-grounded query with `okn search %q \"<query>\"`; choose a query that demonstrates the wiki's intended use and confirm the returned evidence is relevant.\n", options.Out))
 	builder.WriteString("- Record meaningful generation or refresh notes in log.md.\n")
-	builder.WriteString("- Finish by telling the user what changed, that validation passed, and what the demonstrated search returned.\n")
+	builder.WriteString("- Finish by telling the user what changed, that validation passed, which connections and skills were installed, and what the demonstrated search returned.\n")
 	builder.WriteString("- Mention `okn get`, `list`, or `view` only when the user asks for exact reading, structural inspection, or human browsing.\n")
 	return builder.String(), nil
-}
-
-func normalizeFromType(value string) (string, error) {
-	value = strings.TrimSpace(strings.ToLower(value))
-	if value == "" {
-		return DefaultFromType, nil
-	}
-	switch value {
-	case "understanding", "custom":
-		return value, nil
-	default:
-		return "", fmt.Errorf("unsupported from type %q; use understanding or custom", value)
-	}
 }
 
 func inferFromSourceKind(source string) string {

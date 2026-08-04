@@ -25,7 +25,7 @@ before(async () => {
   const wiki = path.join(temporary, "Wiki");
   const viewer = path.join(temporary, "viewer");
   await mkdir(path.join(wiki, "guides"), { recursive: true });
-  await writeFile(path.join(wiki, "openknowledge.toml"), "[publish]\nenabled = true\n");
+  await writeFile(path.join(wiki, ".openknowledge.toml"), "[publish]\nenabled = true\n");
   await writeFile(path.join(wiki, "index.md"), [
     "---",
     "okf_bundle_title: Browser Test Handbook",
@@ -46,11 +46,21 @@ before(async () => {
     "type: Guide",
     "title: Rollback Guide",
     "tags: [deployment, recovery]",
+    "generated: { by: process:browser-e2e, at: 2026-08-03T08:00:00Z }",
+    "verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }",
+    "status: stable",
+    "stale_after: 2027-08-03",
+    "sources:",
+    "  - id: rollback-policy",
+    "    resource: https://example.test/rollback-policy",
+    "    title: Rollback policy",
     "---",
     "",
     "# Rollback Guide",
     "",
-    "Validate the deployment, capture evidence, and execute the rollback checklist.",
+    "Validate the deployment, capture evidence, and execute the rollback checklist.[^rollback-policy]",
+    "",
+    "[^rollback-policy]: Rollback policy source.",
     "",
     "```mermaid",
     "sequenceDiagram",
@@ -117,21 +127,65 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   }));
 
   await page.goto(landingURL, { waitUntil: "networkidle" });
-  await assertSemanticPage(page, "Knowledge that works with your agents.");
-  const setupPrompt = page.getByRole("button", { name: "Copy agent setup prompt" });
+  await assertSemanticPage(page, "Build a knowledge base for people and AI agents.");
+  assert.equal(await page.title(), "Open Knowledge - Markdown Knowledge Bases for AI Agents");
+  assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://openknowledge.sh/");
+  assert.match(await page.locator('meta[name="description"]').getAttribute("content"), /AI-ready knowledge bases in Markdown/);
+  await page.getByText("Ready for Codex, Claude, Cursor, or any agent.").waitFor();
+  const release = page.getByRole("link", { name: /Latest Open Knowledge release v0\.8\.4/ });
+  await release.waitFor();
+  const setupPrompt = page.getByRole("button", { name: "Copy setup prompt" });
   await setupPrompt.click();
+  await page.getByText("Paste the prompt into your agent to begin.").waitFor();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   assert.match(clipboard, /curl -fsSL https:\/\/openknowledge\.sh\/install \| bash/);
   assert.match(clipboard, /okn version/);
-  assert.match(clipboard, /run okn setup and follow the complete prompt/);
+  assert.match(clipboard, /run: okn setup --prompt/);
+  assert.match(clipboard, /okn validate and okn setup complete/);
   assert.match(clipboard, /purpose, audience, sources, structure, and maintenance needs/);
-  const githubStar = page.getByRole("link", { name: "Star us on GitHub" });
-  assert.equal(await githubStar.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
-  const compatibility = page.getByLabel("Works with Codex, Claude, and Cursor");
-  assert.equal(await compatibility.count(), 1);
-  assert.match(await compatibility.innerText(), /Codex/);
-  assert.match(await compatibility.innerText(), /Claude/);
-  assert.match(await compatibility.innerText(), /Cursor/);
+  assert.equal(await page.getByRole("heading", { name: "Write", exact: true }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Verify", exact: true }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Share", exact: true }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "One knowledge base. Three ways in." }).count(), 1);
+  const core = page.getByRole("region", { name: "Core" });
+  assert.match(await core.innerText(), /okn setup/);
+  assert.match(await core.innerText(), /okn validate/);
+  assert.doesNotMatch(await core.innerText(), /okn search/);
+  const agents = page.getByRole("region", { name: "For agents" });
+  assert.match(await agents.innerText(), /okn list/);
+  assert.match(await agents.innerText(), /okn get/);
+  assert.match(await agents.innerText(), /okn search/);
+  assert.match(await agents.innerText(), /okn mcp/);
+  const humans = page.getByRole("region", { name: "For humans" });
+  assert.match(await humans.innerText(), /okn view/);
+  const commandDocs = [
+    ["okn setup", "/wiki/features/commands/setup.html"],
+    ["okn validate", "/wiki/features/commands/validate.html"],
+    ["okn list", "/wiki/features/commands/list.html"],
+    ["okn get", "/wiki/features/commands/get.html"],
+    ["okn search", "/wiki/features/commands/search.html"],
+    ["okn mcp", "/wiki/features/commands/mcp.html"],
+    ["okn view", "/wiki/features/commands/view.html"],
+  ];
+  for (const [label, href] of commandDocs) {
+    const commandLink = page.getByRole("link", { name: label, exact: true });
+    assert.equal(await commandLink.count(), 1);
+    assert.equal(await commandLink.getAttribute("href"), href);
+  }
+  const useCases = page.locator(".use-cases");
+  assert.equal(await page.getByRole("heading", { name: "From Markdown to shared context." }).count(), 1);
+  assert.equal(await useCases.getByRole("heading", { name: "Create a knowledge base" }).count(), 1);
+  assert.equal(await useCases.getByRole("heading", { name: "Build from another source" }).count(), 1);
+  assert.equal(await useCases.getByRole("heading", { name: "Connect and retrieve" }).count(), 1);
+  assert.equal(await useCases.getByRole("heading", { name: "Validate before use" }).count(), 1);
+  assert.equal(await useCases.getByRole("heading", { name: "Publish or integrate" }).count(), 1);
+  assert.match(await useCases.innerText(), /okn setup Wiki --prompt --from https:\/\/openknowledge\.sh\/wiki\/ --depth 2/);
+  assert.match(await useCases.innerText(), /okn search project "validation workflow"/);
+  assert.match(await useCases.innerText(), /okn export tar --out \.\/project-wiki\.tar\.gz Wiki/);
+  assert.equal(await page.getByRole("heading", { name: "Your knowledge stays yours." }).count(), 1);
+  const closingGitHub = page.getByRole("link", { name: "Explore on GitHub" });
+  assert.equal(await closingGitHub.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
+  assert.equal(await closingGitHub.locator("svg").count(), 1);
   assert.equal(await page.locator("details").count(), 0);
   assert.equal(errors.length, 0, `landing page browser errors:\n${errors.join("\n")}`);
   await context.close();
@@ -155,6 +209,27 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await search.press("Escape");
   assert.equal(await search.inputValue(), "");
   assert.equal(errors.length, 0, `viewer browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("exported viewer resolves OKF 0.2 source references", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(new URL("guides/rollback.html", viewerURL).href, { waitUntil: "networkidle" });
+  const signals = page.locator("[data-okf02-signals]");
+  assert.equal(await signals.count(), 1);
+  assert.match(await signals.innerText(), /Human reviewed/);
+  assert.match(await signals.innerText(), /Current until 2027-08-03/);
+  const ledger = signals.locator("[data-source-ledger]");
+  assert.equal(await ledger.getAttribute("open"), null);
+  const reference = page.getByRole("link", { name: "Source rollback-policy" });
+  assert.equal(await reference.count(), 1);
+  await reference.click();
+  assert.equal(await ledger.getAttribute("open"), "");
+  assert.equal(await ledger.locator("#ok-source-rollback-policy").count(), 1);
+  assert.equal(errors.length, 0, `viewer OKF 0.2 browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 
@@ -198,6 +273,87 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.locator('[data-note-path="index.md"] .note-chrome').click();
 
   await page.getByRole("button", { name: "Open file explorer" }).click();
+  const viewport = page.viewportSize();
+  await page.waitForFunction(() => {
+    const header = document.querySelector("body.viewer-document > header")?.getBoundingClientRect();
+    const sidebar = document.querySelector(".file-sidebar")?.getBoundingClientRect();
+    const workspace = document.querySelector(".note-workspace")?.getBoundingClientRect();
+    const expectedSidebarWidth = Math.max(280, Math.min(560, Math.round(window.innerWidth * 0.25)));
+    return Boolean(header && sidebar && workspace
+      && Math.abs(sidebar.width - expectedSidebarWidth) < 1
+      && Math.abs(header.left - sidebar.right) < 1
+      && Math.abs(workspace.left - sidebar.right) < 1
+      && Math.abs(header.right - window.innerWidth) < 1);
+  });
+  const transitionLayers = await page.evaluate(async () => {
+    if (typeof document.startViewTransition !== "function") return null;
+    const transition = document.startViewTransition(() => {});
+    await transition.ready;
+    const headerGroup = getComputedStyle(document.documentElement, "::view-transition-group(viewer-header)");
+    const headerNew = getComputedStyle(document.documentElement, "::view-transition-new(viewer-header)");
+    const sidebarGroup = getComputedStyle(document.documentElement, "::view-transition-group(file-sidebar)");
+    const sidebarNew = getComputedStyle(document.documentElement, "::view-transition-new(file-sidebar)");
+    const result = {
+      header: {
+        zIndex: headerGroup.zIndex,
+        animationName: headerNew.animationName,
+        mixBlendMode: headerNew.mixBlendMode,
+      },
+      sidebar: {
+        zIndex: sidebarGroup.zIndex,
+        animationName: sidebarNew.animationName,
+        mixBlendMode: sidebarNew.mixBlendMode,
+      },
+    };
+    transition.skipTransition();
+    await transition.finished;
+    return result;
+  });
+  if (transitionLayers) {
+    assert.deepEqual(transitionLayers, {
+      header: {
+        zIndex: "1",
+        animationName: "none",
+        mixBlendMode: "normal",
+      },
+      sidebar: {
+        zIndex: "2",
+        animationName: "none",
+        mixBlendMode: "normal",
+      },
+    });
+  }
+  const headerBox = await page.locator("body.viewer-document > header").boundingBox();
+  const sidebarBox = await page.locator(".file-sidebar").boundingBox();
+  const workspaceBox = await page.locator(".note-workspace").boundingBox();
+  const scrollRailBox = await page.locator(".workspace-scroll-rail").boundingBox();
+  const navigationBox = await navigationMode.boundingBox();
+  const settingsBox = await page.locator("[data-viewer-settings-trigger]").boundingBox();
+  assert.ok(headerBox && sidebarBox && workspaceBox && scrollRailBox && navigationBox && settingsBox && viewport);
+  assert.equal(Math.round(sidebarBox.width), Math.max(280, Math.min(560, Math.round(viewport.width * 0.25))), "the sidebar should default to a bounded quarter of the viewport");
+  assert.equal(Math.round(headerBox.x), Math.round(sidebarBox.x + sidebarBox.width), "the header should occupy the second grid column");
+  assert.equal(Math.round(workspaceBox.x), Math.round(sidebarBox.x + sidebarBox.width), "the workspace should occupy the second grid column");
+  assert.equal(Math.round(scrollRailBox.x), Math.round(workspaceBox.x + 22), "the horizontal scroll rail should start inside the second grid column");
+  assert.ok(scrollRailBox.x + scrollRailBox.width <= workspaceBox.x + workspaceBox.width, "the horizontal scroll rail should end inside the second grid column");
+  assert.equal(Math.round(headerBox.x + headerBox.width), viewport.width, "the header should end at the viewport edge");
+  assert.ok(navigationBox.x >= headerBox.x && navigationBox.x + navigationBox.width <= viewport.width, "link behavior should remain visible");
+  assert.ok(settingsBox.x >= headerBox.x && settingsBox.x + settingsBox.width <= viewport.width, "viewer settings should remain visible");
+  const sidebarResize = page.getByRole("separator", { name: "Resize file explorer" });
+  await sidebarResize.focus();
+  await sidebarResize.press("End");
+  await page.waitForFunction(() => Math.abs(document.querySelector(".file-sidebar").getBoundingClientRect().width - 560) < 0.1);
+  assert.equal(await sidebarResize.getAttribute("aria-valuenow"), "560");
+  const resizedWorkspaceBox = await page.locator(".note-workspace").boundingBox();
+  const resizedScrollRailBox = await page.locator(".workspace-scroll-rail").boundingBox();
+  assert.ok(resizedWorkspaceBox && resizedScrollRailBox);
+  assert.equal(Math.round(resizedScrollRailBox.x), Math.round(resizedWorkspaceBox.x + 22), "the horizontal scroll rail should follow the resized second grid column");
+  assert.ok(resizedScrollRailBox.width < scrollRailBox.width, "widening the sidebar should shrink the horizontal scroll rail");
+  await sidebarResize.press("Home");
+  await page.waitForFunction(() => Math.abs(document.querySelector(".file-sidebar").getBoundingClientRect().width - 280) < 1);
+  await sidebarResize.press("ArrowRight");
+  await page.waitForFunction(() => Math.abs(document.querySelector(".file-sidebar").getBoundingClientRect().width - 304) < 1);
+  assert.equal(await sidebarResize.getAttribute("aria-valuenow"), "304");
+  assert.equal(await page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith("openknowledge.viewer.sidebarWidth.") && localStorage.getItem(key) === "304")), true, "the resized sidebar width should persist per knowledge graph");
   const currentFile = page.locator('.file-sidebar [data-tree-path="index.md"]');
   assert.equal(await currentFile.getAttribute("aria-current"), "page");
   await page.getByRole("button", { name: "Collapse all" }).click();

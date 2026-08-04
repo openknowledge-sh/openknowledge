@@ -15,6 +15,7 @@ selector resolves to the latest embedded version.
 
 ```sh
 okn spec latest
+okn spec 0.2
 okn spec 0.1
 okn spec --help
 ```
@@ -32,11 +33,11 @@ okn spec --help
 ```text
 # Open Knowledge Format (OKF)
 
-**Version 0.1 - Draft**
+**Version 0.2**
 
 OKF is an open, human- and agent-friendly format for representing
-*knowledge* - the metadata, context, and curated insight that surrounds
-data and systems.
+*knowledge*: the metadata, context, and curated insight that surrounds data
+and systems.
 ```
 
 ## Use cases
@@ -53,6 +54,7 @@ data and systems.
 >
 > * `packages/cli/internal/okf/spec.go`
 > * `packages/cli/internal/okf/assets/specs/0.1.md`
+> * `packages/cli/internal/okf/assets/specs/0.2.md`
 > * `packages/cli/cmd/openknowledge/main.go`
 >
 > **Update notes**

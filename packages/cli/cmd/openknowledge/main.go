@@ -151,145 +151,6 @@ func writeCLIErrorEnvelope(output io.Writer, args []string, exitCode int, messag
 	return encoder.Encode(envelope)
 }
 
-func runPromptSetup(args []string) int {
-	if hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, promptSetupHelpText())
-		return 0
-	}
-	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
-	fs.SetOutput(stderrOutput())
-	var rules string
-	fs.StringVar(&rules, "rules", "", "suggest comma-separated maintenance rules for setup")
-	if err := fs.Parse(args); err != nil {
-		return 2
-	}
-	if fs.NArg() != 0 {
-		fmt.Fprintln(stderrOutput(), "prompt setup accepts no positional arguments")
-		return 2
-	}
-
-	ruleIDs, err := parseRuleIDs(rules)
-	if err != nil {
-		fmt.Fprintln(stderrOutput(), err)
-		return 2
-	}
-	prompt, err := okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs})
-	if err != nil {
-		fmt.Fprintln(stderrOutput(), err)
-		return 2
-	}
-	fmt.Print(prompt)
-	return 0
-}
-
-type fromOptions struct {
-	source   string
-	out      string
-	wikiType string
-	about    string
-	depth    int
-}
-
-func runPromptFrom(args []string) int {
-	if len(args) == 0 || hasHelpFlag(args) {
-		fmt.Fprint(os.Stdout, promptFromHelpText())
-		return 0
-	}
-	options, err := parseFromOptions(args)
-	if err != nil {
-		fmt.Fprintln(stderrOutput(), err)
-		return 2
-	}
-	prompt, err := okf.FromPrompt(okf.FromPromptOptions{
-		Source: options.source,
-		Out:    options.out,
-		Type:   options.wikiType,
-		About:  options.about,
-		Depth:  options.depth,
-	})
-	if err != nil {
-		fmt.Fprintln(stderrOutput(), err)
-		return 2
-	}
-	fmt.Print(prompt)
-	return 0
-}
-
-func parseFromOptions(args []string) (fromOptions, error) {
-	options := fromOptions{wikiType: okf.DefaultFromType}
-	var positionals []string
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--out":
-			value, next, err := nextFlagValue(args, index, "--out")
-			if err != nil {
-				return fromOptions{}, err
-			}
-			options.out = value
-			index = next
-		case strings.HasPrefix(arg, "--out="):
-			options.out = strings.TrimPrefix(arg, "--out=")
-			if strings.TrimSpace(options.out) == "" {
-				return fromOptions{}, fmt.Errorf("--out requires a value")
-			}
-		case arg == "--type":
-			value, next, err := nextFlagValue(args, index, "--type")
-			if err != nil {
-				return fromOptions{}, err
-			}
-			options.wikiType = value
-			index = next
-		case strings.HasPrefix(arg, "--type="):
-			options.wikiType = strings.TrimPrefix(arg, "--type=")
-			if strings.TrimSpace(options.wikiType) == "" {
-				return fromOptions{}, fmt.Errorf("--type requires a value")
-			}
-		case arg == "--about":
-			value, next, err := nextFlagValue(args, index, "--about")
-			if err != nil {
-				return fromOptions{}, err
-			}
-			options.about = value
-			index = next
-		case strings.HasPrefix(arg, "--about="):
-			options.about = strings.TrimPrefix(arg, "--about=")
-			if strings.TrimSpace(options.about) == "" {
-				return fromOptions{}, fmt.Errorf("--about requires a value")
-			}
-		case arg == "--depth":
-			value, next, err := nextFlagValue(args, index, "--depth")
-			if err != nil {
-				return fromOptions{}, err
-			}
-			depth, err := parseNonNegativeIntFlag("--depth", value)
-			if err != nil {
-				return fromOptions{}, err
-			}
-			options.depth = depth
-			index = next
-		case strings.HasPrefix(arg, "--depth="):
-			depth, err := parseNonNegativeIntFlag("--depth", strings.TrimPrefix(arg, "--depth="))
-			if err != nil {
-				return fromOptions{}, err
-			}
-			options.depth = depth
-		case strings.HasPrefix(arg, "-"):
-			return fromOptions{}, fmt.Errorf("unknown prompt from option: %s", arg)
-		default:
-			positionals = append(positionals, arg)
-		}
-	}
-	if len(positionals) != 1 {
-		return fromOptions{}, fmt.Errorf("usage: openknowledge prompt from <source> --out <path>")
-	}
-	options.source = positionals[0]
-	if strings.TrimSpace(options.out) == "" {
-		return fromOptions{}, fmt.Errorf("prompt from requires --out <path>")
-	}
-	return options, nil
-}
-
 func runRules(args []string) int {
 	if len(args) > 0 && args[0] == "apply" {
 		return runRulesApply(args[1:])
@@ -831,6 +692,7 @@ func runScaffold(args []string) int {
 	fs := flag.NewFlagSet("scaffold", flag.ContinueOnError)
 	fs.SetOutput(stderrOutput())
 	nameFlag := fs.String("name", "", "knowledge base name")
+	specVersionFlag := fs.String("spec", "latest", "OKF spec version")
 	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
 	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
 	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for root okf_bundle_purpose metadata")
@@ -845,6 +707,11 @@ func runScaffold(args []string) int {
 	}
 	if fs.NArg() > 1 {
 		fmt.Fprintln(stderrOutput(), "scaffold accepts at most one folder path")
+		return 2
+	}
+	resolvedSpecVersion, ok := okf.ResolveSpecVersion(*specVersionFlag)
+	if !ok {
+		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", strings.TrimSpace(*specVersionFlag))
 		return 2
 	}
 
@@ -878,6 +745,7 @@ func runScaffold(args []string) int {
 	result, err := okf.NewProject(okf.NewProjectOptions{
 		Name:           name,
 		Path:           path,
+		SpecVersion:    resolvedSpecVersion,
 		SkipAgentRules: *noAgentsFlag,
 		SkipSetup:      *noSetupFlag,
 		BundleMetadata: okf.BundleMetadata{
@@ -895,6 +763,7 @@ func runScaffold(args []string) int {
 
 	terminal.success("Created knowledge base")
 	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
+	fmt.Printf("%s OKF %s\n", terminal.muted("spec"), result.SpecVersion)
 	fmt.Println()
 	terminal.section("Scaffold")
 	for _, path := range result.Created {
@@ -908,7 +777,7 @@ func runScaffold(args []string) int {
 		fmt.Println()
 		fmt.Printf("  Set up a flexible knowledge base in Markdown for this workspace. Read %s,\n", terminal.path(result.SetupPath))
 		fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
-		fmt.Println("  run openknowledge validate, and demonstrate one useful openknowledge search query.")
+		fmt.Printf("  run openknowledge validate --spec %s, and demonstrate one useful openknowledge search query.\n", result.SpecVersion)
 	}
 	return 0
 }
@@ -2172,6 +2041,11 @@ func runValidate(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
+	resolvedSpecVersion, ok := okf.ResolveSpecVersion(*specVersion)
+	if !ok {
+		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", strings.TrimSpace(*specVersion))
+		return 2
+	}
 
 	validationOptions, err := okf.LoadValidationOptions(root)
 	if err != nil {
@@ -2180,19 +2054,19 @@ func runValidate(args []string) int {
 	}
 	cliOptions := okf.ValidationOptions{}
 	for _, override := range ruleOverrides {
-		rule, severity, err := okf.ParseValidationRuleOverride(override)
+		rule, severity, err := okf.ParseValidationRuleOverrideForVersion(resolvedSpecVersion, override)
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
-		if err := okf.SetValidationRuleSeverity(&cliOptions, rule, severity); err != nil {
+		if err := okf.SetValidationRuleSeverityForVersion(&cliOptions, resolvedSpecVersion, rule, severity); err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 2
 		}
 	}
 	validationOptions = okf.MergeValidationOptions(validationOptions, cliOptions)
 
-	result, err := okf.ValidateWithVersionAndOptions(root, *specVersion, validationOptions)
+	result, err := okf.ValidateWithVersionAndOptions(root, resolvedSpecVersion, validationOptions)
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
@@ -2844,6 +2718,16 @@ func formatListNode(node *listTreeNode) string {
 			meta += "  "
 		}
 		meta += entry.Title
+	}
+	if entry.OKF02 != nil {
+		signals := []string{entry.OKF02.TrustTier, entry.OKF02.Status}
+		if entry.OKF02.Stale {
+			signals = append(signals, "stale")
+		}
+		if meta != "" {
+			meta += "  "
+		}
+		meta += "[" + strings.Join(signals, ", ") + "]"
 	}
 	if meta == "" {
 		return node.name

@@ -57,8 +57,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-default-width)", 650)`) {
 		t.Fatalf("viewer default panel width should follow a 65ch reading measure with matching resize fallback:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; height: var(--ok-header-height); min-height: 0; z-index: 6; justify-content: center; padding: 0 22px;`) &&
-		!strings.Contains(page, `body.viewer-document > header { position: relative; height: var(--ok-header-height); min-height: 0; z-index: 6; justify-content: center; padding: 0 22px;`) {
+	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; grid-column: 2; grid-row: 1; width: 100%; height: var(--ok-header-height); min-width: 0; min-height: 0; z-index: 6;`) &&
+		!strings.Contains(page, `body.viewer-document > header { position: relative; grid-column: 2; grid-row: 1; width: 100%; height: var(--ok-header-height); min-width: 0; min-height: 0; z-index: 6;`) {
 		t.Fatalf("viewer document header should use a slim fixed height with centered contents:\n%s", page)
 	}
 	if !strings.Contains(page, `border-bottom: 0; background: var(--ok-color-viewer-header-bg);`) ||
@@ -183,7 +183,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }`) {
 		t.Fatalf("single-panel mobile stack should keep symmetric mobile gutters around the centered panel:\n%s", page)
 	}
-	if !strings.Contains(page, `display: flex; width: 100%; height: calc(var(--ok-viewport-height) - var(--ok-header-height))`) || !strings.Contains(page, `overflow: auto hidden`) {
+	if !strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) || !strings.Contains(page, `overflow: auto hidden`) {
 		t.Fatalf("viewer workspace should use an Andy-style flex horizontal scroll container:\n%s", page)
 	}
 	if !strings.Contains(page, `display: flex; flex: 0 0 auto; align-self: stretch`) || strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%`) {
@@ -369,8 +369,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `id: "viewer.search.focus"`) {
 		t.Fatalf("viewer file page did not include the shared shortcut registry:\n%s", page)
 	}
-	if !strings.Contains(page, `.file-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 7; display: flex; width: var(--ok-sidebar-width); flex-direction: column; border-right: 1px solid var(--ok-color-sidebar-border); background: var(--ok-color-sidebar);`) {
-		t.Fatalf("viewer file sidebar should use a subtle divider against the document canvas:\n%s", page)
+	if !strings.Contains(page, `.file-sidebar { position: relative; grid-column: 1; grid-row: 1 / -1; z-index: 7; display: flex; width: 100%; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; border-right: 1px solid var(--ok-color-sidebar-border); background: var(--ok-color-sidebar);`) {
+		t.Fatalf("viewer file sidebar should occupy the first grid column with a subtle divider:\n%s", page)
 	}
 	if !strings.Contains(page, `--ok-color-viewer-canvas: #f4f5f4`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #f7f8f7`) || !strings.Contains(page, `--ok-color-sidebar-header: rgba(247, 248, 247, .94)`) {
 		t.Fatalf("viewer sidebar should use the polished neutral shell palette:\n%s", page)
@@ -379,11 +379,21 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
 		t.Fatalf("viewer file sidebar should close after opening a tree item only on mobile widths:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; header`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > header`) {
-		t.Fatalf("viewer file sidebar should push the page header instead of overlaying it:\n%s", page)
+	if !strings.Contains(page, `body.viewer-document { --ok-sidebar-layout-width: 0px; position: relative; display: grid; grid-template-columns: var(--ok-sidebar-layout-width) minmax(0, 1fr);`) ||
+		!strings.Contains(page, `body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: var(--ok-sidebar-user-width, var(--ok-sidebar-width)); }`) ||
+		!strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) ||
+		!strings.Contains(page, `.workspace-scroll-rail { position: absolute; grid-column: 2; grid-row: 2;`) {
+		t.Fatalf("viewer file sidebar, header, and workspace should share a two-column grid shell:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document.is-sidebar-open &gt; .note-workspace`) && !strings.Contains(page, `body.viewer-document.is-sidebar-open > .note-workspace`) {
-		t.Fatalf("viewer file sidebar should push the workspace instead of overlaying it:\n%s", page)
+	if !strings.Contains(page, `--ok-sidebar-min-width: 280px;`) ||
+		!strings.Contains(page, `--ok-sidebar-default-width: 25vw;`) ||
+		!strings.Contains(page, `--ok-sidebar-max-width: 560px;`) ||
+		!strings.Contains(page, `data-sidebar-resize-handle`) ||
+		!strings.Contains(page, `role="separator"`) ||
+		!strings.Contains(page, `openknowledge.viewer.sidebarWidth.`) ||
+		!strings.Contains(page, `fileSidebar.inert = !open;`) ||
+		!strings.Contains(page, `resizeSidebarWithKeyboard`) {
+		t.Fatalf("viewer file sidebar should be resizable, persistent, bounded, and inert while closed:\n%s", page)
 	}
 	if !strings.Contains(page, `id: "viewer.sidebar.toggle"`) ||
 		!strings.Contains(page, `code: "KeyS"`) ||
@@ -400,6 +410,14 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
+	}
+	if !strings.Contains(page, `body.viewer-document > header { view-transition-name: viewer-header; }`) ||
+		!strings.Contains(page, `.file-sidebar { view-transition-name: file-sidebar; }`) ||
+		!strings.Contains(page, `::view-transition-group(viewer-header) { z-index: 1; }`) ||
+		!strings.Contains(page, `::view-transition-group(file-sidebar) { z-index: 2; }`) ||
+		!strings.Contains(page, `::view-transition-old(viewer-header), ::view-transition-new(viewer-header),`) ||
+		!strings.Contains(page, `::view-transition-old(file-sidebar), ::view-transition-new(file-sidebar) { animation: none; mix-blend-mode: normal; }`) {
+		t.Fatalf("viewer View Transitions should keep the header and file sidebar above note panels:\n%s", page)
 	}
 	if !strings.Contains(page, `clearEnteringPanels();`) || !strings.Contains(page, `document.body.classList.remove("is-view-transitioning")`) || !strings.Contains(page, `transition.updateCallbackDone`) {
 		t.Fatalf("viewer stack transitions should clear fallback panel animations before showing the live DOM:\n%s", page)
@@ -625,6 +643,69 @@ func TestViewerFrontmatterRendersFlowMappingsWithoutHidingMarkdown(t *testing.T)
 	}
 	if !strings.Contains(page, "<h1>Home</h1>") || !strings.Contains(page, "Still readable.") {
 		t.Fatalf("frontmatter rendering should not hide the markdown body:\n%s", page)
+	}
+}
+
+func TestViewerRendersOKFV02KnowledgeSignalsAndContracts(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n")
+	writeViewerFile(t, root, "revenue.md", `---
+type: Attested Computation
+title: Revenue
+runtime: python3
+parameters:
+  - { name: year, type: integer, required: true }
+computation: https://example.test/revenue.py
+executor: { resource: https://example.test/executor, receipt: [stdout, sha256] }
+attester: { resource: https://example.test/attester }
+generated: { by: process:nightly, at: 2026-08-01T09:00:00Z }
+verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }
+status: deprecated
+stale_after: 2026-08-04
+sources:
+  - id: revenue-policy
+    resource: https://example.test/policy
+    title: Revenue policy
+    author: team:finance
+    usage_count: 7
+---
+
+# Revenue
+
+Supported by policy.[^revenue-policy]
+
+[^revenue-policy]: Revenue policy
+`)
+
+	handler := newViewerHandler(root)
+	page := getViewerBody(t, handler, "/file/revenue.md")
+	for _, expected := range []string{
+		`data-okf02-signals`,
+		`data-signal-kind="trust" data-signal-value="human-reviewed"`,
+		`Human reviewed`,
+		`data-signal-value="deprecated"`,
+		`data-signal-value="stale"`,
+		`data-source-ledger`,
+		`id="ok-source-revenue-policy"`,
+		`href="https://example.test/policy"`,
+		`href="#ok-source-revenue-policy"`,
+		`data-computation-contract`,
+		`python3`,
+		`https://example.test/executor`,
+		`https://example.test/attester`,
+		`Execution is never automatic.`,
+	} {
+		if !strings.Contains(page, expected) {
+			t.Fatalf("viewer OKF 0.2 surface missing %q:\n%s", expected, page)
+		}
+	}
+	if strings.Contains(page, "Revenue policy</p>") {
+		t.Fatalf("viewer should resolve the source footnote through structured metadata:\n%s", page)
+	}
+
+	api := getViewerJSON(t, handler, "/api/file/revenue.md")
+	if !strings.Contains(api.Frontmatter, `data-okf02-signals`) || !strings.Contains(api.Body, `href="#ok-source-revenue-policy"`) {
+		t.Fatalf("dynamic viewer panels should retain OKF 0.2 signals and source references: %#v", api)
 	}
 }
 
@@ -1032,7 +1113,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	writeViewerFile(t, root, "assets/public/logo.svg", "<svg/>\n")
 	writeViewerFile(t, root, "assets/private/diagram.svg", "<svg>private</svg>\n")
 	writeViewerFile(t, root, "secret.txt", "do not publish\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
 	if err != nil {
@@ -1044,7 +1125,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if content := readViewerExportFile(t, out, "assets/public/logo.svg"); content != "<svg/>\n" {
 		t.Fatalf("unexpected published asset content: %q", content)
 	}
-	for _, hidden := range []string{"assets/private/diagram.svg", "secret.txt", "openknowledge.toml"} {
+	for _, hidden := range []string{"assets/private/diagram.svg", "secret.txt", ".openknowledge.toml"} {
 		if _, err := os.Stat(filepath.Join(out, filepath.FromSlash(hidden))); !os.IsNotExist(err) {
 			t.Fatalf("expected %s to be absent from public site, got err=%v", hidden, err)
 		}
@@ -1073,7 +1154,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(extracted, "public.md")); err != nil {
 		t.Fatalf("expected published page in portable archive: %v", err)
 	}
-	for _, hidden := range []string{"draft.md", "examples/index.md", "assets/private/diagram.svg", "secret.txt", "openknowledge.toml"} {
+	for _, hidden := range []string{"draft.md", "examples/index.md", "assets/private/diagram.svg", "secret.txt", ".openknowledge.toml"} {
 		if _, err := os.Stat(filepath.Join(extracted, filepath.FromSlash(hidden))); !os.IsNotExist(err) {
 			t.Fatalf("expected unpublished page %s to be absent from portable archive, got err=%v", hidden, err)
 		}
@@ -1086,7 +1167,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 func TestViewerHTMLExportHonorsPublicationTargets(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://example.test/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://example.test/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "no-search.md", "---\ntype: Guide\ntitle: No Search\nokf_targets:\n  search: false\n---\n\n# Unique Search Needle\n")
 	writeViewerFile(t, root, "no-llms.md", "---\ntype: Guide\ntitle: No LLMS\nokf_targets:\n  llms: false\n---\n\n# No LLMS\n")
@@ -1141,7 +1222,7 @@ func TestViewerHTMLExportRejectsUnknownProjectConfigBeforeWriting(t *testing.T) 
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
 	writeViewerFile(t, root, "index.md", "# Home\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\ncss = \"assets/theme.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\ncss = \"assets/theme.css\"\n")
 	if _, err := writeViewerHTMLWithVersion(root, out, "0.1"); err == nil || !strings.Contains(err.Error(), "fields in the document are missing in the target struct") {
 		t.Fatalf("expected strict project config refusal, got %v", err)
 	}
@@ -1236,6 +1317,9 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 		"--ok-font-mono",
 		"--ok-header-height",
 		"--ok-mobile-header-height",
+		"--ok-sidebar-min-width",
+		"--ok-sidebar-default-width",
+		"--ok-sidebar-max-width",
 		"--ok-sidebar-width",
 		"--ok-note-panel-default-width",
 		"--ok-note-panel-min-width",
@@ -1354,7 +1438,7 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
 	writeViewerFile(t, root, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
@@ -1377,7 +1461,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	}
 
 	listRoot := t.TempDir()
-	writeViewerFile(t, listRoot, "openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
+	writeViewerFile(t, listRoot, ".openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
 	writeViewerFile(t, listRoot, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, listRoot, "notes/readme.md", "---\ntype: Note\n---\n\n# Readme\n")
 	listing := getViewerBody(t, newViewerHandler(listRoot), "/")
@@ -1427,7 +1511,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n")
 
@@ -1456,7 +1540,7 @@ func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "---\nokf_bundle_title: \"Team Handbook\"\nokf_bundle_purpose: \"Knowledge for shipping product changes.\"\n---\n\n# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: \"Setup Guide\"\n---\n\n# Setup\n")
 
@@ -1488,7 +1572,7 @@ func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 
 func TestViewerSiteConfigRejectsInvalidBaseURL(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	_, err := writeViewerHTMLWithVersion(root, filepath.Join(t.TempDir(), "site"), "0.1")
@@ -1499,7 +1583,7 @@ func TestViewerSiteConfigRejectsInvalidBaseURL(t *testing.T) {
 
 func TestViewerThemeConfigReportsMissingStylesheetInOpen(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/missing.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/missing.css\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	handler := newViewerHandler(root)
@@ -1521,7 +1605,7 @@ func TestViewerThemeConfigReportsMissingStylesheetInOpen(t *testing.T) {
 
 func TestViewerThemeConfigRejectsStylesheetOutsideBundle(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, "openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nstylesheet = \"../landing.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nstylesheet = \"../landing.css\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	if _, err := writeViewerHTMLWithVersion(root, filepath.Join(t.TempDir(), "site"), "0.1"); err == nil || !strings.Contains(err.Error(), "must stay inside the bundle") {
@@ -1532,7 +1616,7 @@ func TestViewerThemeConfigRejectsStylesheetOutsideBundle(t *testing.T) {
 func TestViewerThemeConfigRejectsSymbolicLink(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "bundle")
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nstylesheet = \"assets/theme.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\nstylesheet = \"assets/theme.css\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	outside := filepath.Join(base, "outside.css")
 	if err := os.WriteFile(outside, []byte("body { display: none; }\n"), 0600); err != nil {
@@ -1787,7 +1871,8 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "notes.txt", "not markdown\n")
 	writeViewerFile(t, root, ".env", "TOKEN=secret\n")
-	writeViewerFile(t, root, "openknowledge.toml", "[html.theme]\nname = \"night\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\nname = \"night\"\n")
+	writeViewerFile(t, root, "openknowledge.toml", "legacy configuration\n")
 	writeViewerFile(t, root, ".git/config", "[remote \"origin\"]\nurl = secret\n")
 	outside := filepath.Join(t.TempDir(), "outside.md")
 	if err := os.WriteFile(outside, []byte("# Outside\n"), 0644); err != nil {
@@ -1817,14 +1902,14 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 		t.Fatalf("expected non-markdown file API to return 404, got %d", recorder.Code)
 	}
 
-	for _, rawPath := range []string{"index.md", ".env", ".git/config", "openknowledge.toml", "missing.txt"} {
+	for _, rawPath := range []string{"index.md", ".env", ".git/config", ".openknowledge.toml", "openknowledge.toml", "missing.txt"} {
 		recorder = httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/raw/"+rawPath, nil))
 		if recorder.Code != http.StatusNotFound {
 			t.Fatalf("expected private or non-asset raw path %s to return 404, got %d", rawPath, recorder.Code)
 		}
 	}
-	for _, assetPath := range []string{".env", ".git/config", "openknowledge.toml"} {
+	for _, assetPath := range []string{".env", ".git/config", ".openknowledge.toml", "openknowledge.toml"} {
 		recorder = httptest.NewRecorder()
 		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/file/"+assetPath, nil))
 		if recorder.Code != http.StatusNotFound {
@@ -1833,7 +1918,7 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 	}
 	indexRecorder := httptest.NewRecorder()
 	handler.ServeHTTP(indexRecorder, httptest.NewRequest(http.MethodGet, "/file/index.md", nil))
-	for _, privateName := range []string{".env", "openknowledge.toml", ".git"} {
+	for _, privateName := range []string{".env", ".openknowledge.toml", "openknowledge.toml", ".git"} {
 		if strings.Contains(indexRecorder.Body.String(), privateName) {
 			t.Fatalf("expected private asset %s to be absent from viewer tree", privateName)
 		}

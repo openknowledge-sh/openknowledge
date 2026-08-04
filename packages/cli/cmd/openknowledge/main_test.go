@@ -33,13 +33,12 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"Share and connect:",
 		"Automate and operate:",
 		"Advanced and portable tools:",
-		"setup        Print a portable knowledge-base setup prompt.",
+		"setup        Set up a knowledge base and its agent instructions.",
 		"search       Build source-grounded context from one or more knowledge bases.",
 		"agent        Run a local knowledge task with an agent.",
-		"integration  Install and manage one local agent-runtime integration.",
 		"automation   Run jobs, insights, runtimes, and deployments.",
 		"export       Export HTML, JSON, graph, or portable tar views.",
-		"prompt       Print or install portable agent instructions.",
+		"prompt       Print or install maintenance instructions.",
 		"scaffold     Create a deterministic local OKF knowledge base.",
 		"validate     Validate a bundle against an OKF spec.",
 		"Get started:",
@@ -144,7 +143,7 @@ func TestRunMainPrintsVersionedJSONRuntimeErrors(t *testing.T) {
 func TestRunMainPreservesMachineValidationResultOnSemanticFailure(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\n[Missing](missing.md)\n")
-	writeMainTestFile(t, root, "openknowledge.toml", "[validation.rules]\nlink-target = \"error\"\n")
+	writeMainTestFile(t, root, okf.ValidationConfigFile, "[validation.rules]\nlink-target = \"error\"\n")
 
 	stdout, stderr, code := captureMainOutput(t, func() int {
 		return runMain([]string{"--error-format", "json", "validate", "--format", "json", root})
@@ -230,18 +229,16 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge setup\n",
 				"openknowledge setup [wiki] --from <source>",
-				"openknowledge setup --agent",
-				"openknowledge setup --agent --runtime <codex|claude|opencode>",
-				"Print a portable prompt to create or update",
-				"complete printed prompt into an agent",
+				"openknowledge setup [wiki] --prompt",
+				"openknowledge setup [wiki] --interactive",
+				"openknowledge setup [wiki] --agent <codex|claude|opencode>",
+				"openknowledge setup complete <wiki>",
+				"Without terminal",
 				"--rules",
 				"--model",
 				"--about",
 				"--depth",
-				"open-ended setup interview for Wiki",
-				"openknowledge agent doctor --runtime <runtime>",
-				"Advanced flags:",
-				"commands are optional",
+				"not use predefined knowledge-base types",
 			},
 		},
 		"insights": {
@@ -252,21 +249,6 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge automation insights run --all",
 				"private evidence-only insight",
 				"--target and --evidence may be repeated",
-			},
-		},
-		"prompt from": {
-			help: promptFromHelpText(),
-			required: []string{
-				"openknowledge prompt from <source> --out <folder>",
-				"openknowledge prompt from <source> --out <folder> --type custom --about <goal>",
-				"Print an agent task prompt",
-				"The command does not fetch, crawl, call an LLM, or write the wiki itself",
-				"--type",
-				"understanding or custom",
-				"--about",
-				"--depth",
-				"Copy the printed prompt",
-				"avoid shell command substitution or piping",
 			},
 		},
 		"prompt rules": {
@@ -347,10 +329,12 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			help: scaffoldHelpText(),
 			required: []string{
 				"openknowledge scaffold --name <name> [folder]",
+				"openknowledge scaffold --spec <version> [folder]",
 				"openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]",
 				"openknowledge scaffold --no-agents --no-setup [folder]",
 				"Arguments:",
 				"--name",
+				"--spec",
 				"--bundle-entry",
 				"--no-agents",
 				"--no-setup",
@@ -487,7 +471,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge spec latest|<version>",
 				"Versions:",
-				"latest, 0.1",
+				"latest, 0.1, 0.2",
 			},
 		},
 		"export": {
@@ -516,7 +500,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.",
 				"openknowledge.json",
 				"assets/openknowledge-bundle.tar.gz",
-				"Default viewer exports read [html.theme] from openknowledge.toml",
+				"Default viewer exports read [html.theme] from .openknowledge.toml",
 				"Built-in variables are defined in viewer_theme.css",
 			},
 		},
@@ -589,7 +573,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 func TestRulesCommandPrintsSelectedRules(t *testing.T) {
 	root := t.TempDir()
 	wiki := filepath.Join(root, "Wiki")
-	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Wiki\n")
 
 	output, stderr, code := captureMainOutput(t, func() int {
 		return runRules([]string{"docs,changelog", "--path", wiki, "--target", "codex"})
@@ -689,7 +673,7 @@ func TestRulesCommandUsesConfiguredEnabledRules(t *testing.T) {
 	root := t.TempDir()
 	wiki := filepath.Join(root, "Wiki")
 	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
-	writeMainTestFile(t, wiki, "openknowledge.toml", "[rules]\nenabled = [\"docs\", \"changelog\"]\n")
+	writeMainTestFile(t, wiki, okf.ValidationConfigFile, "[rules]\nenabled = [\"docs\", \"changelog\"]\n")
 
 	output, stderr, code := captureMainOutput(t, func() int {
 		return runRules([]string{"--path", wiki})
@@ -967,7 +951,7 @@ func TestRulesApplyConfirmationMessagesDescribeWriteType(t *testing.T) {
 
 func TestSetupCommandAcceptsRules(t *testing.T) {
 	output, code := captureMainStdout(t, func() int {
-		return runPromptSetup([]string{"--rules", "docs,changelog"})
+		return runSetup([]string{"--prompt", "--rules", "docs,changelog"})
 	})
 	if code != 0 {
 		t.Fatalf("expected setup command with rules to succeed, got exit code %d\n%s", code, output)
@@ -986,10 +970,11 @@ func TestSetupCommandAcceptsRules(t *testing.T) {
 
 func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 	output, code := captureMainStdout(t, func() int {
-		return runPromptFrom([]string{
+		return runSetup([]string{
+			"Wiki",
+			"--prompt",
+			"--from",
 			"https://github.com/openknowledge-sh/openknowledge",
-			"--out", "Wiki",
-			"--type", "custom",
 			"--about", "Help contributors understand releases",
 			"--depth", "2",
 		})
@@ -1001,12 +986,12 @@ func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 		"source URL or path -> local agent task -> OKF Markdown bundle",
 		"Source: `https://github.com/openknowledge-sh/openknowledge`",
 		"Output wiki path: `Wiki`",
-		"Wiki type: `custom`",
-		"Custom goal: `Help contributors understand releases`",
+		"Requested outcome: `Help contributors understand releases`",
 		"Depth: 2",
-		"okn scaffold --name \"<clear wiki name>\" --no-agents --no-setup \"Wiki\"",
+		"okn scaffold --name \"<clear wiki name>\" --no-agents \"Wiki\"",
 		"okf_generated_from",
 		"okn validate \"Wiki\"",
+		"okn setup complete",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected from output to include %q:\n%s", expected, output)
@@ -1030,6 +1015,8 @@ func TestScaffoldCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"Created knowledge base",
+		"spec OKF 0.2",
+		"+ .openknowledge.toml",
 		"+ index.md",
 		"+ log.md",
 		"+ SPEC.md",
@@ -1054,19 +1041,48 @@ func TestScaffoldCommandCanSkipAgentAndSetupDocs(t *testing.T) {
 	}
 }
 
-func TestParseFromOptionsDefaultsToUnderstanding(t *testing.T) {
-	options, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/", "--out=Wiki", "--depth=0"})
+func TestScaffoldCommandSupportsExplicitSpecVersion(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "legacy-wiki")
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runScaffold([]string{"--name", "Legacy Wiki", "--spec", "0.1", target})
+	})
+	if code != 0 {
+		t.Fatalf("expected 0.1 scaffold to succeed, got %d\nstdout=%s\nstderr=%s", code, output, stderr)
+	}
+	if !strings.Contains(output, "spec OKF 0.1") {
+		t.Fatalf("expected selected spec in scaffold output:\n%s", output)
+	}
+	if !strings.Contains(output, "run openknowledge validate --spec 0.1") {
+		t.Fatalf("expected version-matched validation in scaffold handoff:\n%s", output)
+	}
+	index, err := os.ReadFile(filepath.Join(target, "index.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.source != "https://openknowledge.sh/wiki/" || options.out != "Wiki" || options.wikiType != okf.DefaultFromType || options.depth != 0 {
-		t.Fatalf("unexpected from options: %#v", options)
+	if !strings.Contains(string(index), `okf_version: "0.1"`) {
+		t.Fatalf("expected OKF 0.1 root metadata:\n%s", index)
 	}
-	if _, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/", "--out", "Wiki", "--depth", "-1"}); err == nil {
-		t.Fatal("expected negative depth to fail")
+	spec, err := os.ReadFile(filepath.Join(target, "SPEC.md"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := parseFromOptions([]string{"https://openknowledge.sh/wiki/"}); err == nil {
-		t.Fatal("expected missing --out to fail")
+	if !strings.Contains(string(spec), "Version 0.1") || strings.Contains(string(spec), "Version 0.2") {
+		t.Fatalf("expected the pinned OKF 0.1 document:\n%s", spec)
+	}
+	if result, err := okf.ValidateWithVersion(target, "0.1"); err != nil || len(result.Errors) != 0 {
+		t.Fatalf("expected scaffold to validate against OKF 0.1, result=%#v err=%v", result, err)
+	}
+
+	unsupported := filepath.Join(t.TempDir(), "unsupported")
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runScaffold([]string{"--name", "Unsupported", "--spec", "9.9", unsupported})
+	})
+	if code != 2 || !strings.Contains(stderr, "unsupported OKF spec version: 9.9") {
+		t.Fatalf("expected unsupported scaffold spec error, got code=%d stderr=%q", code, stderr)
+	}
+	if _, err := os.Stat(unsupported); !os.IsNotExist(err) {
+		t.Fatalf("unsupported spec must not create a scaffold, got %v", err)
 	}
 }
 
@@ -1162,6 +1178,26 @@ func TestRunValidateAcceptsRegistryKey(t *testing.T) {
 	})
 	if code != 0 {
 		t.Fatalf("expected validate registry key to succeed, got exit code %d", code)
+	}
+}
+
+func TestRunValidateBindsRuleOverridesToSelectedSpec(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "# Bundle\n")
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runValidate([]string{"--spec", "0.1", "--rule", "okf-0.2-metadata=error", root})
+	})
+	if code != 2 || !strings.Contains(stderr, "not defined for OKF 0.1") {
+		t.Fatalf("expected version-bound CLI rule error, got code=%d stderr=%q", code, stderr)
+	}
+
+	writeMainTestFile(t, root, okf.ValidationConfigFile, "[validation.rules]\n\"okf-0.2-metadata\" = \"error\"\n")
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runValidate([]string{"--spec", "0.1", root})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected 0.1 to ignore the known inactive config rule, got code=%d stderr=%q", code, stderr)
 	}
 }
 
@@ -1289,7 +1325,7 @@ func TestRunDisconnectAcceptsFlagsBeforeAndAfterDocumentedTargetArgument(t *test
 func TestRunValidatePrintsJSONReportWithConfiguredRules(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "# Bundle\n\n[Missing](missing.md)\n")
-	writeMainTestFile(t, root, "openknowledge.toml", "[validation.rules]\nlink-target = \"error\"\n")
+	writeMainTestFile(t, root, okf.ValidationConfigFile, "[validation.rules]\nlink-target = \"error\"\n")
 
 	output, code := captureMainStdout(t, func() int {
 		return runValidate([]string{"--json", root})
@@ -1310,7 +1346,7 @@ func TestRunValidatePrintsJSONReportWithConfiguredRules(t *testing.T) {
 	if len(report.Errors) != 1 || report.Errors[0].Rule != "link-target" || report.Errors[0].Severity != okf.ValidationSeverityError {
 		t.Fatalf("expected escalated link-target error, got %#v", report.Errors)
 	}
-	if report.Policy.Overrides["link-target"] != okf.ValidationSeverityError || !strings.HasSuffix(report.Policy.ConfigPath, "openknowledge.toml") {
+	if report.Policy.Overrides["link-target"] != okf.ValidationSeverityError || !strings.HasSuffix(report.Policy.ConfigPath, okf.ValidationConfigFile) {
 		t.Fatalf("expected policy metadata in report, got %#v", report.Policy)
 	}
 }
@@ -1399,6 +1435,32 @@ func TestRunListJSONUsesVersionedEnvelope(t *testing.T) {
 	}
 	if listing.SchemaVersion != okf.MachineSchemaVersion || listing.Root != root || len(listing.Entries) != 2 {
 		t.Fatalf("unexpected list JSON envelope: %#v", listing)
+	}
+}
+
+func TestRunListOKFV02SurfacesDerivedTrustStatus(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n")
+	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\nverified: { by: process:validator, at: 2026-08-03T10:00:00Z }\nstatus: stable\n---\n\n# Guide\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runList([]string{"--spec", "0.2", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected OKF 0.2 list to succeed, got %d\n%s", code, output)
+	}
+	if !strings.Contains(output, "[machine-confirmed, stable]") {
+		t.Fatalf("expected derived trust and status in text list output:\n%s", output)
+	}
+
+	jsonOutput, code := captureMainStdout(t, func() int {
+		return runList([]string{"--spec", "0.2", "--json", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected OKF 0.2 JSON list to succeed, got %d\n%s", code, jsonOutput)
+	}
+	if !strings.Contains(jsonOutput, `"okf02"`) || !strings.Contains(jsonOutput, `"trustTier": "machine-confirmed"`) {
+		t.Fatalf("expected dedicated OKF 0.2 JSON signals:\n%s", jsonOutput)
 	}
 }
 
@@ -1844,7 +1906,7 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 	runGit(t, base, "init", remote)
 	runGit(t, remote, "config", "user.email", "test@example.com")
 	runGit(t, remote, "config", "user.name", "Test User")
-	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Remote\n")
+	writeMainTestFile(t, remote, "index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: remote\n---\n\n# Remote\n")
 	runGit(t, remote, "add", "index.md")
 	runGit(t, remote, "commit", "-m", "init")
 
@@ -1893,7 +1955,7 @@ func TestRunConnectClonesRemoteSource(t *testing.T) {
 		t.Fatalf("unexpected clean Git status report: %#v", report)
 	}
 
-	writeMainTestFile(t, entry.Path, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: remote\n---\n\n# Locally changed\n")
+	writeMainTestFile(t, entry.Path, "index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: remote\n---\n\n# Locally changed\n")
 	output, stderr, code = captureMainOutput(t, func() int {
 		return runRegistry([]string{"status", "--json", "remote"})
 	})
@@ -2034,7 +2096,7 @@ func TestRunRegistryRefreshRejectsLocalConnection(t *testing.T) {
 func TestRegistryStatusReportsHealthyAndMissingLocalBundles(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "local")
-	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: local\n---\n\n# Local\n")
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: local\n---\n\n# Local\n")
 	t.Setenv(okf.RegistryFileEnv, filepath.Join(base, "registry.json"))
 	if _, _, err := okf.ConnectRegistryEntry("local", root, "read", true); err != nil {
 		t.Fatal(err)
@@ -2492,7 +2554,7 @@ func TestRunConnectAndRefreshPreserveGitRefAndSubdir(t *testing.T) {
 	runGit(t, remote, "add", "README.md")
 	runGit(t, remote, "commit", "-m", "root")
 	runGit(t, remote, "checkout", "-b", "release-docs")
-	writeMainTestFile(t, remote, "knowledge/index.md", "---\nokf_version: \"0.1\"\nokf_bundle_name: monorepo-docs\n---\n\n# Monorepo Docs\n")
+	writeMainTestFile(t, remote, "knowledge/index.md", "---\nokf_version: \"0.2\"\nokf_bundle_name: monorepo-docs\n---\n\n# Monorepo Docs\n")
 	writeMainTestFile(t, remote, "knowledge/guide.md", "---\ntype: Guide\ntitle: First Guide\n---\n\n# First Guide\n")
 	runGit(t, remote, "add", "knowledge")
 	runGit(t, remote, "commit", "-m", "docs v1")
@@ -2774,7 +2836,7 @@ func TestDisconnectDeleteFilesRemovesEntireNestedManagedCache(t *testing.T) {
 	archivePath := filepath.Join(base, "nested.tar.gz")
 	writeMainTestTarGzip(t, archivePath, map[string]string{
 		"LICENSE":         "fixture license\n",
-		"bundle/index.md": "---\nokf_version: \"0.1\"\nokf_bundle_name: nested\n---\n\n# Nested\n",
+		"bundle/index.md": "---\nokf_version: \"0.2\"\nokf_bundle_name: nested\n---\n\n# Nested\n",
 	})
 	registryFile := filepath.Join(base, "registry.json")
 	t.Setenv(okf.RegistryFileEnv, registryFile)

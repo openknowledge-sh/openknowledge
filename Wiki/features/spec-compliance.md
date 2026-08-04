@@ -1,251 +1,135 @@
 ---
 type: Feature Documentation
-title: OKF Hard-Rule Compliance
-description: Hard-rule compliance matrix for Open Knowledge CLI support of embedded OKF specs.
+title: OKF 0.2 Compliance
+description: Compliance and capability matrix for Open Knowledge CLI support of OKF 0.2.
 tags: [openknowledge, okf, spec, compliance, validation]
-timestamp: 2026-06-20T00:00:00Z
+generated: { by: process:openknowledge-docs, at: 2026-08-03T00:00:00Z }
 ---
 
-# OKF Hard-Rule Compliance
+# OKF 0.2 Compliance
 
-This page maps the embedded OKF specifications to Open Knowledge CLI behavior.
-It covers hard rules for validation, parsing, listing, viewing, and export.
-This matrix describes the CLI implementation.
-It is not an upstream certification.
+This page maps OKF 0.2 to Open Knowledge CLI behavior. It is not an upstream
+certification.
 
-This page examines only hard rules.
-These rules use `MUST`, `MUST NOT`, `REQUIRED`, or explicit conformance bullets.
-They can also use equivalent mandatory text.
-For example, the phrase "Every concept is..." defines a hard rule.
-This page excludes recommendations, examples, explanations, format
-comparisons, and optional producer guidance.
+## Version support
 
-## Legend
+The CLI embeds OKF 0.1 and 0.2. The `latest` selector resolves to `0.2`.
+Validation uses a separate rule profile for each version. Every emitted rule,
+its default severity, override permission, section reference, and optional
+version-specific checker is selected from that profile.
+
+```sh
+okn spec 0.2
+okn validate --spec 0.2 Wiki
+okn scaffold --spec 0.1 ./legacy-wiki
+```
+
+New scaffolds use `latest` and declare `okf_version: "0.2"` by default.
+Use `--spec 0.1` to create a 0.1 scaffold. Validation, inline list diagnostics,
+parsing, and creation accept either supported version.
+
+## Status legend
 
 | Status | Meaning |
 | --- | --- |
-| ✅ Compliant | Implemented with focused source or test evidence. |
-| 🟡 Partial | Partly enforced, extended by the CLI, or supported by source without focused tests. |
-| ❌ Not compliant | Known behavior conflicts with a normative spec rule. |
-
-## Embedded version
-
-The embedded version is the [OKF 0.1 Draft](../SPEC.md).
-The CLI selectors are `latest` and `0.1`.
-The embedded source is [0.1.md](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/assets/specs/0.1.md).
-The Wiki also contains a local [spec copy](../SPEC.md).
-
-`latest` resolves to `0.1`.
-`okn spec 0.1` prints the embedded draft.
-Versioned validation accepts `0.1`.
-See the [spec registry](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/spec.go).
-See these tests:
-
-* [TestValidateConformanceBySpecVersion](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_versions_test.go)
-* [TestLatestSpecIsEmbedded](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestCommandHelpTextIncludesCommandSpecificDetails](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/cmd/openknowledge/main_test.go)
-
-The CLI currently supports one embedded spec version.
-The table gives version information as context.
-The compliance checklist covers only hard spec rules.
-
-## OKF 0.1 hard-rule matrix
-
-### Reserved file names
-
-Spec section: [§3.1 Reserved filenames](../SPEC.md#31-reserved-filenames)
-
-Status: ✅ Compliant
-
-Hard rule: Producers MUST NOT use `index.md` or `log.md` as concept documents.
-All other Markdown files are concepts.
-
-CLI behavior: The CLI classifies reserved base names as index or log files.
-It validates all other Markdown files as concepts.
-
-Evidence:
-
-* [TestValidateReservedFiles](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestListIncludesConceptsAndReservedFiles](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [validateDocument](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/ast_validate.go)
-* [isReserved](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/paths.go)
-
-### Concept documents
-
-Spec section: [§4 Concept Documents](../SPEC.md#4-concept-documents)
-
-Status: ✅ Compliant
-
-Hard rule: Every concept is a UTF-8 Markdown file.
-It has YAML frontmatter at the start and a Markdown body.
-
-CLI behavior: The validator rejects invalid UTF-8 Markdown.
-It decodes the complete top-of-file YAML mapping.
-It also identifies the Markdown body boundary.
-Syntax errors in nested mappings, sequences, block scalars, and flow collections cause validation errors.
-
-Evidence:
-
-* [TestValidateRejectsInvalidUTF8Markdown](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestParseFrontmatterDocumentSupportsCompleteYAMLCollectionsAndBlockScalars](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/frontmatter_test.go)
-* [splitFrontmatter](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/frontmatter.go)
-* [parseYAMLFrontmatter](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/frontmatter_yaml.go)
-
-### Parseable frontmatter
-
-Spec sections: [§4.1 Frontmatter](../SPEC.md#41-frontmatter) and
-[§9 Conformance](../SPEC.md#9-conformance)
-
-Status: ✅ Compliant
-
-Hard rule: Each non-reserved `.md` file must contain parseable YAML frontmatter.
-
-CLI behavior: Missing frontmatter causes a validation error.
-A non-mapping YAML root also causes an error.
-Invalid YAML at any nesting depth causes an error.
-The shared parser preserves valid mappings, sequences, collections, block scalars, and typed scalar values.
-
-Evidence:
-
-* [TestParseFrontmatterDocumentRejectsNonMappingRootAndReportsAbsoluteLine](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/frontmatter_test.go)
-* [TestValidateErrorsForUnparseableFrontmatter](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestParseBundlePreservesTypedFrontmatter](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/export_test.go)
-* [parseYAMLFrontmatter](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/frontmatter_yaml.go)
-
-### Required type
-
-Spec sections: [§4.1 Frontmatter](../SPEC.md#41-frontmatter) and
-[§9 Conformance](../SPEC.md#9-conformance)
-
-Status: ✅ Compliant
-
-Hard rule: Concept frontmatter must contain a non-empty `type` field.
-
-CLI behavior: A missing or empty concept `type` causes a validation error.
-It also causes the Concept documents check to fail.
-
-Evidence:
-
-* [TestValidateConceptRequiresType](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestValidateConformanceBySpecVersion](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_versions_test.go)
-* [validateConcept](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validation_rules.go)
-
-### Additional frontmatter
-
-Spec sections: [§4.1 Frontmatter](../SPEC.md#41-frontmatter) and
-[§9 Conformance](../SPEC.md#9-conformance)
-
-Status: ✅ Compliant
-
-Hard rule: Consumers MUST tolerate unknown `type` values.
-They MUST NOT reject missing optional fields or unknown additional keys.
-
-CLI behavior: The validator requires only `type`.
-It accepts any non-empty type string.
-It accepts concept documents without optional fields.
-It also accepts unknown concept frontmatter keys.
-
-Evidence:
-
-* [TestParseBundleIncludesContentLinksAndIssues](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/export_test.go)
-* [TestReadMarkdownDocumentInfoReadsAgentEntrypointMetadata](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/metadata_test.go)
-* [parseYAMLFrontmatter](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/frontmatter_yaml.go)
-
-### Broken links
-
-Spec sections: [§5.3 Link semantics](../SPEC.md#53-link-semantics) and
-[§9 Conformance](../SPEC.md#9-conformance)
-
-Status: ✅ Compliant
-
-Hard rule: Consumers MUST tolerate broken cross-links.
-They MUST NOT reject a bundle because it has broken links.
-
-CLI behavior: Broken local Markdown links cause warnings.
-Validation succeeds when the bundle has warnings and no errors.
-
-Evidence:
-
-* [TestValidateWarnsForBrokenLocalLinks](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestValidateIgnoresLinksInsideFencedCode](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [runValidate](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/cmd/openknowledge/main.go)
-
-### Index files
-
-Spec sections: [§6 Index Files](../SPEC.md#6-index-files),
-[§9 Conformance](../SPEC.md#9-conformance), and
-[§11 Versioning](../SPEC.md#11-versioning)
-
-Status: 🟡 Partial
-
-Hard rule: A reserved `index.md` file must follow the index-file structure.
-Only root `index.md` can contain `okf_version` frontmatter.
-
-CLI behavior: Root `index.md` frontmatter can declare `okf_version`.
-The permissive consumer rule permits unknown additional root keys.
-The CLI also accepts `okf_publish` and strict `okf_targets` metadata in non-root indexes.
-These fields are public-export extensions.
-
-Evidence:
-
-* [TestValidateReservedFiles](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestValidateRootIndexAllowsBundleMetadata](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestValidateIndexAllowsPublishMetadata](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [validateIndex](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validation_rules.go)
-
-### Log files
-
-Spec sections: [§7 Log Files](../SPEC.md#7-log-files-optional) and
-[§9 Conformance](../SPEC.md#9-conformance)
-
-Status: ✅ Compliant
-
-Hard rule: Reserved `log.md` files must not use concept frontmatter.
-Each `##` date heading MUST use the ISO 8601 `YYYY-MM-DD` format.
-
-CLI behavior: The CLI classifies logs as reserved files.
-Frontmatter in a log causes an error.
-A malformed second-level date heading causes a validation error.
-
-Evidence:
-
-* [TestValidateReservedFiles](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_test.go)
-* [TestValidateConformanceBySpecVersion](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_versions_test.go)
-* [validateLog](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validation_rules.go)
-
-### Optional index files
-
-Spec section: [§9 Conformance](../SPEC.md#9-conformance)
-
-Status: ✅ Compliant
-
-Hard rule: Consumers MUST NOT reject a bundle when `index.md` files are absent.
-
-CLI behavior: Index files are optional.
-The viewer starts on the root `index.md` when that file exists.
-Otherwise, the viewer starts on a generated list.
-Validation does not require index files.
-
-Evidence:
-
-* [TestViewerStartsOnOpenIndexMarkdown](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/cmd/openknowledge/viewer_test.go)
-* [TestViewerIndexFallsBackToListWithoutIndexMarkdown](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/cmd/openknowledge/viewer_test.go)
-* [TestValidateConformanceBySpecVersion](https://github.com/openknowledge-sh/openknowledge/blob/main/packages/cli/internal/okf/validate_versions_test.go)
-
-## Known gaps
-
-This page does not identify a blocking conflict with OKF v0.1 section 9.
-The yellow item identifies a CLI extension:
-
-* The validator accepts public-export metadata in non-root `index.md` files.
-  This metadata includes `okf_publish` and `okf_targets`.
+| ✅ Supported | The behavior has focused implementation and test evidence. |
+| 🟡 Partial | The CLI preserves the data but does not provide all semantic behavior. |
+| ➖ Deferred | OKF 0.2 does not define enough runtime behavior to implement it portably. |
+
+## Conformance rules
+
+| OKF 0.2 rule | Status | CLI behavior |
+| --- | --- | --- |
+| Parseable YAML frontmatter on concepts | ✅ | Invalid or missing frontmatter is an error. |
+| Non-empty concept `type` | ✅ | A missing or empty value is an error. Unknown types remain valid. |
+| Reserved `index.md` and `log.md` structure | 🟡 | Core rules pass. Non-root indexes also allow Open Knowledge publication metadata. |
+| Missing optional families remain valid | ✅ | 0.2 metadata diagnostics are warnings. |
+| Unknown keys remain valid | ✅ | The parser preserves complete typed YAML data. |
+| Broken links remain valid | ✅ | Broken local links produce warnings. |
+| Missing indexes remain valid | ✅ | Validation does not require an index. |
+| Bare `verified` mapping becomes one event | ✅ | Versioned AST and bundle reads normalize the mapping to a one-item list. |
+
+See [§11 Conformance](../SPEC.md#11-conformance).
+
+## New 0.2 metadata
+
+The `okf-0.2-metadata` rule checks optional 0.2 families. Its default
+severity is `warning`. It is not part of the OKF 0.1 validation profile, so an
+0.1 validation ignores it in shared `.openknowledge.toml` configuration. An
+explicit CLI `--rule` must belong to the selected profile.
+
+| Family | Checks |
+| --- | --- |
+| `sources` | List and entry shapes, required resource, unique IDs, dates, counts, and usage windows. |
+| Per-claim attribution | Footnote labels match `sources[].id`. |
+| `generated` | Mapping shape, actor convention, and ISO 8601 date-time. |
+| `verified` | Mapping or list shape, actor convention, and ISO 8601 date-time. |
+| Lifecycle | `status` values and `stale_after` date form. |
+| Attested Computation | Runtime, parameters, nested contracts, and one computation form. |
+
+These checks do not reject a conformant bundle. OKF 0.2 makes these families
+optional and gives most family constraints soft conformance status.
+
+The validator accepts fenced and indented computation blocks. The upstream
+worked examples use indented blocks even though §10.3 specifies a fenced block.
+
+## Consumer and exporter support
+
+| Surface | Status | Behavior |
+| --- | --- | --- |
+| AST and JSON bundle | ✅ | Preserve all nested 0.2 frontmatter and unknown keys. |
+| Search and context | ✅ | Index nested frontmatter as searchable metadata. |
+| List output | ✅ | Text output shows derived trust, status, and staleness. JSON entries expose the complete derived `okf02` contract. |
+| Source graph | ✅ | Nodes expose `okf02`. Source, computation, executor, and attester resources create typed provenance edges. External or unresolved resources use `resource` nodes. |
+| Local and default static viewer | ✅ | Shows trust, status, freshness, provenance, structured sources, resolved source footnotes, and Attested Computation contracts. |
+| Plain HTML export | ✅ | Renders semantic frontmatter. OKF 0.2 source footnotes link to matching structured source entries. |
+| Tar export and registry | ✅ | Preserve source Markdown and the selected spec version. |
+| Scaffold | ✅ | Uses 0.2 by default. An explicit 0.1 scaffold uses `timestamp` and embeds the 0.1 spec. |
+
+Trust derivation follows OKF 0.2: no verification is `unverified`, only
+non-human verification is `machine-confirmed`, and any `human:` verification
+is `human-reviewed`. Missing `status` is `stable`. A concept is stale on or
+after its `stale_after` date in the local calendar.
+
+The viewer and exported contracts preserve Attested Computation runtime,
+parameters, computation, executor, receipt, and attester metadata. They do not
+execute any declared resource.
+
+## Migration behavior
+
+OKF 0.2 supersedes two 0.1 conventions:
+
+- `generated.at` supersedes `timestamp`.
+- `sources` and source-keyed footnotes supersede `# Citations`.
+
+The CLI accepts legacy `timestamp` as an unknown field. Default scaffolds use
+`generated`. Explicit 0.1 scaffolds use `timestamp`. The CLI does not convert
+a legacy `# Citations` list to `sources`. OKF 0.2 makes that fallback optional.
+
+## Deferred runtime behavior
+
+The CLI does not execute an `executor` or `attester`. OKF 0.2 records the
+computation and its means, but it does not define a portable invocation ABI,
+sandbox policy, receipt or verdict format, or cache contract. The viewer makes
+this boundary explicit. Execution requires a separately approved runtime and
+deterministic attester.
 
 ---
 
 <!-- okf-footer: agent-maintenance -->
 
+> **Source anchors**
+>
+> - `packages/cli/internal/okf/spec.go`
+> - `packages/cli/internal/okf/spec_0_2.go`
+> - `packages/cli/internal/okf/validation_0_2.go`
+> - `packages/cli/internal/okf/okf_0_2_signals.go`
+> - `packages/cli/internal/okf/graph.go`
+> - `packages/cli/internal/okf/html_frontmatter.go`
+> - `packages/cli/internal/okf/validate_versions_test.go`
+> - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
+>
 > **Update notes**
 >
-> Update this page after a change to an embedded spec version or validation rule.
-> Update it when new tests change a yellow hard-rule row to green.
-> Do not add optional guidance unless it becomes a hard rule.
+> Update this page when spec selection, validation, normalized parsing, or
+> consumer semantics change.

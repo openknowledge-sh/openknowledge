@@ -4,7 +4,7 @@ title: Product Interface Direction
 description: Organize the CLI around one primary path and optional workflows over one OKF knowledge base.
 tags: [openknowledge, product, cli, interface, runtime]
 timestamp: 2026-07-18T00:00:00Z
-status: accepted
+decision_status: accepted
 ---
 
 # Product Interface Direction
@@ -22,7 +22,7 @@ The CLI exposes one primary path and three secondary workflow groups:
 | Workflow | Commands |
 | --- | --- |
 | Start here | `setup`, `search`, `validate` |
-| Work locally | `agent`, `integration`, `get`, `list`, `view` |
+| Work locally | `agent`, `get`, `list`, `view` |
 | Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
 | Automate and operate | `automation` |
 
@@ -46,9 +46,8 @@ The primary activation flow is:
 okn setup
 ```
 
-The command prints a portable setup prompt. A person runs it from the
-project and copies the complete output into an existing agent. The optional
-`--agent` mode can launch a runtime, but it is not the primary flow.
+The command starts a terminal wizard. Without terminal input, it prints a
+complete agent task. Use `--prompt` or `--interactive` to select a mode.
 
 The agent also demonstrates one search that uses source evidence. Thus,
 activation does not require another command.
@@ -57,7 +56,8 @@ Use `search` independently after activation. Use `validate` independently
 after activation. `scaffold` remains an agent-free primitive, not a second
 activation path.
 
-Use `prompt setup|from|rules|review` for additional portable instructions.
+Use `setup --prompt` for portable setup instructions. Use
+`prompt rules|review` for maintenance and review instructions.
 Use `export html|json|graph|tar` for publication.
 Use `automation jobs|insights|runtime|deploy` for unattended and hosted work.
 

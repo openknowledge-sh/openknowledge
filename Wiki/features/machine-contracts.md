@@ -43,7 +43,11 @@ When present, `specVersion` identifies the independently versioned OKF document 
 | `deploy-result.schema.json` | successful `deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
 
-`common.schema.json` contains shared issue, link, retrieval, and typed-frontmatter definitions.
+`common.schema.json` contains shared issue, link, retrieval, typed-frontmatter,
+and OKF 0.2 signal definitions. `list.schema.json` and `graph.schema.json`
+reference its `okf02` contract. This contract contains derived trust,
+lifecycle and staleness, generation and verification events, structured
+sources, and optional Attested Computation data.
 Job contracts are experimental.
 They can change without a new version before version 1.0.
 

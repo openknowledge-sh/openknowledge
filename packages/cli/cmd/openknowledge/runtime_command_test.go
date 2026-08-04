@@ -99,7 +99,7 @@ func TestRuntimeBuildAndServeUseOnlyVerifiedPublicGeneration(t *testing.T) {
 	writeViewerFile(t, root, "Wiki/assets/public/logo.svg", "<svg/>\n")
 	writeViewerFile(t, root, "Wiki/secret.txt", "private\n")
 	writeViewerFile(t, root, "Wiki/.openknowledge/agent.log", "private log\n")
-	writeViewerFile(t, root, "Wiki/openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\"]\n")
+	writeViewerFile(t, root, "Wiki/.openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\"]\n")
 	configPath := filepath.Join(root, "runtime.toml")
 	writeViewerFile(t, root, "runtime.toml", `
 [runtime]
@@ -137,7 +137,7 @@ mcp = true
 			t.Fatalf("expected %s in generation: %v", included, err)
 		}
 	}
-	for _, excluded := range []string{"source/draft.md", "source/secret.txt", "source/openknowledge.toml", "source/.openknowledge/agent.log", "search/search-hidden.md", "mcp/mcp-hidden.md"} {
+	for _, excluded := range []string{"source/draft.md", "source/secret.txt", "source/.openknowledge.toml", "source/openknowledge.toml", "source/.openknowledge/agent.log", "search/search-hidden.md", "mcp/mcp-hidden.md"} {
 		if _, err := os.Stat(filepath.Join(result.Output, filepath.FromSlash(excluded))); !os.IsNotExist(err) {
 			t.Fatalf("expected %s outside generation, got %v", excluded, err)
 		}

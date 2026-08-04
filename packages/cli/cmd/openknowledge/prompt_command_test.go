@@ -10,8 +10,6 @@ func TestPromptDispatchesPortableTools(t *testing.T) {
 		args []string
 		want string
 	}{
-		{args: []string{"setup", "--help"}, want: "openknowledge prompt setup"},
-		{args: []string{"from", "--help"}, want: "openknowledge prompt from"},
 		{args: []string{"rules", "--help"}, want: "openknowledge prompt rules"},
 		{args: []string{"review", "rules", "--help"}, want: "openknowledge prompt review rules"},
 	}
@@ -25,6 +23,10 @@ func TestPromptDispatchesPortableTools(t *testing.T) {
 
 func TestConsolidatedCommandsHaveNoLegacyAliases(t *testing.T) {
 	for _, args := range [][]string{
+		{"prompt", "setup", "--help"},
+		{"prompt", "from", "--help"},
+		{"integration", "--help"},
+		{"agent", "integrate", "--help"},
 		{"from", "--help"},
 		{"rules", "--help"},
 		{"review", "--help"},

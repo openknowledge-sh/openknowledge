@@ -52,7 +52,7 @@ It then uses an explicit publication set.
 It omits Markdown with `okf_publish: false`.
 It omits non-Markdown files that do not match `[publish].assets`.
 Asset patterns cannot include Markdown again.
-The artifact never includes `.git`, `.openknowledge`, or `openknowledge.toml`.
+The artifact never includes `.git`, `.openknowledge`, `.openknowledge.toml`, or legacy `openknowledge.toml`.
 These rules exclude Markdown denied by `okf_publish`.
 They also exclude runtime state and unrelated repository files.
 The standalone `export tar` command preserves the complete source.

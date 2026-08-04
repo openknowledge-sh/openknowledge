@@ -76,13 +76,26 @@ func TestPublicConfigurationAndManifestHelpers(t *testing.T) {
 	if options.Rules["link-target"] != okf.ValidationSeverityError {
 		t.Fatalf("validation option was not applied: %#v", options)
 	}
+	v01Rules, err := okf.KnownValidationRulesForVersion("0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if okf.IsKnownValidationRuleForVersion("0.1", "okf-0.2-metadata") || !okf.IsKnownValidationRuleForVersion("0.2", "okf-0.2-metadata") {
+		t.Fatalf("expected version-bound validation rule discovery: %v", v01Rules)
+	}
+	if !okf.IsKnownValidationRuleForVersion("0.1", "publish-metadata") || okf.IsValidationRuleOverrideableForVersion("0.1", "publish-metadata") {
+		t.Fatal("expected the fixed publish-metadata rule to be part of the 0.1 profile")
+	}
+	if err := okf.SetValidationRuleSeverityForVersion(&options, "0.1", "okf-0.2-metadata", "warn"); err == nil {
+		t.Fatal("expected 0.1 to reject the 0.2-only validation rule")
+	}
 
 	manifestJSON := `{"type":"openknowledge.bundle","version":1,"spec":"0.1","archive":"bundle.tar.gz","archiveSha256":"` + strings.Repeat("a", 64) + `","archiveFormat":"tar.gz"}`
 	manifest, err := okf.DecodeBundleManifest([]byte(manifestJSON))
 	if err != nil || manifest.Type != okf.BundleManifestType {
 		t.Fatalf("unexpected public manifest result: %#v err=%v", manifest, err)
 	}
-	if versions := okf.SupportedSpecVersions(); len(versions) != 1 || versions[0] != okf.LatestSpecVersion {
+	if versions := okf.SupportedSpecVersions(); len(versions) != 2 || versions[0] != "0.1" || versions[1] != okf.LatestSpecVersion {
 		t.Fatalf("unexpected public spec registry: %v", versions)
 	}
 }

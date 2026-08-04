@@ -1,5 +1,5 @@
 ---
-okf_version: "0.1"
+okf_version: "0.2"
 okf_bundle_title: "Open Knowledge CLI Documentation"
 ---
 
@@ -24,7 +24,7 @@ version of this OKF wiki.
 
 - [Installation](features/installation.md)
 - [Command reference](features/commands/)
-- [`openknowledge.toml`](features/configuration.md)
+- [`.openknowledge.toml`](features/configuration.md)
 - [CLI changelog](changelog/cli.md)
 
 ## Workflows
@@ -40,7 +40,7 @@ use `okn setup --agent --runtime <runtime>` to launch one. Use
 ### Work locally
 
 Use [`agent`](features/commands/agent.md) to run an agent task. Use
-[`integration`](features/commands/integration.md) to install one runtime skill.
+[`setup`](features/commands/setup.md) to install skills and harness adapters.
 Use [`get`](features/commands/get.md) to read one document. Use
 [`list`](features/commands/list.md) to inspect the content tree. Use
 [`view`](features/commands/view.md) to browse the wiki.
@@ -71,4 +71,4 @@ creation. Other advanced tools are [`prompt`](features/commands/prompt.md),
 - [Machine-readable contracts](features/machine-contracts.md)
 - [Go API](features/go-api.md)
 - [Maintenance rules](rules/)
-- [OKF v0.1 specification](SPEC.md)
+- [OKF v0.2 specification](SPEC.md)

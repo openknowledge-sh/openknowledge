@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -66,16 +67,16 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 		return okf.HTMLResult{}, err
 	}
 
-	frontmatterByPath, err := viewerFrontmatterHTMLByPath(bundle.Root, bundle.Files)
+	frontmatterByPath, err := viewerFrontmatterHTMLByPath(bundle.Root, bundle.Files, bundle.SpecVersion, viewerStaticMetadataLink)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
-	staticJSON, err := viewerStaticFilesJSON(bundle.Root, bundle.Files, sourceConfig, frontmatterByPath)
+	staticJSON, err := viewerStaticFilesJSON(bundle.Root, bundle.Files, bundle.SpecVersion, sourceConfig, frontmatterByPath)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
 	editorsJSON := viewerEditorsStaticJSON()
-	graphJSON := viewerStaticGraphJSON(bundle.Files)
+	graphJSON := viewerStaticGraphJSON(bundle.Files, bundle.SpecVersion)
 	dataJS := viewerStaticDataScript(staticJSON, graphJSON, editorsJSON)
 
 	var written []string
@@ -97,7 +98,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
 			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
 			Frontmatter: frontmatterByPath[file.Path],
-			Body:        template.HTML(viewerStaticFileBody(file)),
+			Body:        template.HTML(viewerStaticFileBody(file, bundle.SpecVersion)),
 			Tree:        viewerStaticTree(bundle.Files, file.Path),
 			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
 			HeadHTML:    options.HeadHTML,
@@ -269,7 +270,7 @@ func viewerRelPath(root string, target string) string {
 	return filepath.ToSlash(relative)
 }
 
-func viewerStaticFilesJSON(root string, files []okf.BundleFile, sourceConfig viewerSourceConfig, frontmatterByPath map[string]template.HTML) (template.JS, error) {
+func viewerStaticFilesJSON(root string, files []okf.BundleFile, specVersion string, sourceConfig viewerSourceConfig, frontmatterByPath map[string]template.HTML) (template.JS, error) {
 	payload := make([]viewerStaticPayload, 0, len(files))
 	for _, file := range files {
 		if !okf.ShouldPublishToTarget(file, okf.PublicationTargetViewer) || !okf.ShouldPublishToTarget(file, okf.PublicationTargetSearch) {
@@ -286,7 +287,7 @@ func viewerStaticFilesJSON(root string, files []okf.BundleFile, sourceConfig vie
 			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
 			Tags:        tags,
 			Frontmatter: string(frontmatterByPath[file.Path]),
-			Body:        viewerStaticFileBody(file),
+			Body:        viewerStaticFileBody(file, specVersion),
 		})
 	}
 
@@ -297,8 +298,39 @@ func viewerStaticFilesJSON(root string, files []okf.BundleFile, sourceConfig vie
 	return template.JS(data), nil
 }
 
-func viewerStaticFileBody(file okf.BundleFile) string {
-	return okf.RenderMarkdown(file.Body, file.Path, okf.StaticHTMLLink)
+func viewerStaticFileBody(file okf.BundleFile, version string) string {
+	return viewerRenderedBody(file, version, okf.StaticHTMLLink)
+}
+
+func viewerRenderedBody(file okf.BundleFile, version string, resolve okf.LinkResolver) string {
+	if version != "0.2" || file.Reserved {
+		return okf.RenderMarkdown(file.Body, file.Path, resolve)
+	}
+	signals := okf.DeriveOKFV02Signals(file.Frontmatter)
+	return okf.RenderMarkdownWithFootnotes(file.Body, file.Path, resolve, okf.OKFV02SourceFootnotes(signals))
+}
+
+func viewerStaticMetadataLink(currentRel string, href string) string {
+	trimmed := strings.TrimSpace(href)
+	if trimmed == "" {
+		return ""
+	}
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.IsAbs() {
+		return trimmed
+	}
+	target := viewerLinkTargetRel(currentRel, trimmed)
+	if target == "" {
+		return ""
+	}
+	if isMarkdownFile(target) {
+		return viewerStaticRelativeURL(currentRel, target)
+	}
+	currentHTML := viewerHTMLPath(currentRel)
+	relative, err := filepath.Rel(filepath.Dir(filepath.FromSlash(currentHTML)), filepath.FromSlash(target))
+	if err != nil {
+		return filepath.ToSlash(target)
+	}
+	return filepath.ToSlash(relative)
 }
 
 func viewerHTMLPath(markdownPath string) string {
@@ -332,8 +364,8 @@ func viewerStaticTree(files []okf.BundleFile, currentPath string) []viewerTreeIt
 	})
 }
 
-func viewerGraphJSONFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, fileURL func(string) string) template.JS {
-	graph := viewerGraphFromBundleFiles(files, entries, fileURL)
+func viewerGraphJSONFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, specVersion string, fileURL func(string) string) template.JS {
+	graph := viewerGraphFromBundleFiles(files, entries, specVersion, fileURL)
 	data, err := json.Marshal(graph)
 	if err != nil {
 		return `{"nodes":[],"edges":[]}`
@@ -341,7 +373,7 @@ func viewerGraphJSONFromBundleFiles(files []okf.BundleFile, entries []okf.ListEn
 	return template.JS(data)
 }
 
-func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
+func viewerStaticGraphJSON(files []okf.BundleFile, specVersion string) template.JS {
 	entries := make([]okf.ListEntry, 0, len(files))
 	publishedFiles := make([]okf.BundleFile, 0, len(files))
 	for _, file := range files {
@@ -351,7 +383,7 @@ func viewerStaticGraphJSON(files []okf.BundleFile) template.JS {
 		publishedFiles = append(publishedFiles, file)
 		entries = append(entries, okf.ListEntry{Path: file.Path, Title: file.Title})
 	}
-	return viewerGraphJSONFromBundleFiles(publishedFiles, entries, func(path string) string {
+	return viewerGraphJSONFromBundleFiles(publishedFiles, entries, specVersion, func(path string) string {
 		return viewerStaticRelativeURL("index.md", path)
 	})
 }
@@ -373,8 +405,8 @@ func viewerFilesForTargets(files []okf.BundleFile, targets ...okf.PublicationTar
 	return selected
 }
 
-func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, fileURL func(string) string) viewerGraphData {
-	graph := okf.GraphFromBundle(okf.Bundle{Files: files})
+func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry, specVersion string, fileURL func(string) string) viewerGraphData {
+	graph := okf.GraphFromBundle(okf.Bundle{Files: files, SpecVersion: specVersion})
 	titles := make(map[string]string, len(entries))
 	paths := make(map[string]bool, len(entries))
 	for _, entry := range entries {
@@ -401,12 +433,13 @@ func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry,
 		if !paths[edge.Source] || !paths[edge.Target] {
 			continue
 		}
-		key := edge.Source + "\x00" + edge.Target
+		key := edge.Kind + "\x00" + edge.Source + "\x00" + edge.Target
 		if seenEdges[key] {
 			continue
 		}
 		seenEdges[key] = true
 		edges = append(edges, viewerGraphEdge{
+			Kind:   edge.Kind,
 			Source: edge.Source,
 			Target: edge.Target,
 			Label:  edge.Label,

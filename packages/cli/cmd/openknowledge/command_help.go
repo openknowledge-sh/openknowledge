@@ -362,7 +362,7 @@ Connect:
   assets/openknowledge-bundle.tar.gz for remote openknowledge connect.
 
 Theme:
-  Default viewer exports read [html.theme] from openknowledge.toml in the
+  Default viewer exports read [html.theme] from .openknowledge.toml in the
   bundle root. Set stylesheet = "assets/wiki-theme.css" to link theme CSS.
   Built-in variables are defined in viewer_theme.css as --ok-* tokens.
 
@@ -450,74 +450,6 @@ Versions:
 `, supportedSpecVersionsText())
 }
 
-func promptSetupHelpText() string {
-	return `openknowledge prompt setup
-
-Print an agent setup prompt for creating and customizing a knowledge base.
-
-Usage:
-  openknowledge prompt setup
-  openknowledge prompt setup --rules <rules>
-  openknowledge prompt setup --help
-
-The prompt tells an agent to inspect the current workspace, ask tailored
-questions, create a bundle with openknowledge scaffold, customize the scaffold, and
-validate the result.
-
-Options:
-  --rules     Suggest comma-separated maintenance rules for setup.
-
-Available rules:
-  project, docs, decisions, changelog, research, bugs, schemas, summary, agents.
-  Run openknowledge prompt rules --list for descriptions.
-`
-}
-
-func promptFromHelpText() string {
-	return `openknowledge prompt from
-
-Print an agent task prompt for turning a source into an Open Knowledge wiki.
-
-The command does not fetch, crawl, call an LLM, or write the wiki itself. It
-prints a prompt for Codex, Claude Code, Cursor, Cowork, or another local agent
-that can access the source and write files.
-
-Usage:
-  openknowledge prompt from <source> --out <folder>
-  openknowledge prompt from <source> --out <folder> --type understanding
-  openknowledge prompt from <source> --out <folder> --type custom
-  openknowledge prompt from <source> --out <folder> --type custom --about <goal>
-  openknowledge prompt from <source> --out <folder> --depth <count>
-  openknowledge prompt from --help
-
-Arguments:
-  source      Source URL or local path. Examples include GitHub repositories,
-              local repositories, and website documentation roots.
-
-Options:
-  --out       Output Open Knowledge wiki folder. Required.
-  --type      Generation recipe: understanding or custom.
-              Defaults to understanding.
-  --about     Custom goal for --type custom, avoiding the interview step.
-  --depth     Website crawl depth or source traversal depth hint.
-              Defaults to 0, meaning the agent should choose the minimum depth.
-
-Behavior:
-  The generated prompt tells the agent to inspect the source, ask only missing
-  questions, create or update the OKF bundle at --out, preserve provenance such
-  as source URLs or commit IDs, run openknowledge validate, and finish with
-  list/search/get/view commands for the generated wiki. Copy the printed prompt
-  into your agent; avoid shell command substitution or piping for interactive
-  agent CLIs.
-
-Examples:
-  openknowledge prompt from https://github.com/openknowledge-sh/openknowledge --out Wiki
-  openknowledge prompt from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom
-  openknowledge prompt from https://github.com/openknowledge-sh/openknowledge --out Wiki --type custom --about "Help new contributors understand the release workflow"
-  openknowledge prompt from https://openknowledge.sh/wiki/ --out Wiki --type understanding --depth 2
-`
-}
-
 func rulesHelpText() string {
 	return `openknowledge prompt rules
 
@@ -527,7 +459,7 @@ The command does not edit files. It prints a Markdown block you can paste into
 AGENTS.md, CLAUDE.md, Cursor rules, or any project instruction file.
 Built-in rules are always available, and local custom rules can be added as
 OKF Markdown files under rules/ in the selected wiki.
-The selected wiki's openknowledge.toml may configure [rules].paths for custom
+The selected wiki's .openknowledge.toml may configure [rules].paths for custom
 rule directories and [rules].enabled for default selected rules.
 It checks the wiki path and prints non-blocking warnings after the rendered
 rules when the path does not exist, has no Markdown, or does not validate as
@@ -656,13 +588,14 @@ Examples:
 }
 
 func scaffoldHelpText() string {
-	return `openknowledge scaffold
+	return fmt.Sprintf(`openknowledge scaffold
 
 Scaffold a local Open Knowledge bundle.
 
 Usage:
   openknowledge scaffold [folder]
   openknowledge scaffold --name <name> [folder]
+  openknowledge scaffold --spec <version> [folder]
   openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]
   openknowledge scaffold --no-agents --no-setup [folder]
   openknowledge scaffold --help
@@ -672,6 +605,7 @@ Arguments:
 
 Flags:
   --name       Knowledge base name. If omitted, the CLI prompts for one.
+  --spec       OKF spec version. Defaults to latest.
   --bundle-name
                Optional stable bundle id written as okf_bundle_name.
   --bundle-title
@@ -690,10 +624,14 @@ Flags:
 
 Examples:
   openknowledge scaffold ./project-memory
+  openknowledge scaffold --spec 0.1 ./legacy-wiki
   openknowledge scaffold --no-agents --no-setup ./source-wiki
   openknowledge scaffold --name "Project Memory" ./project-memory
   openknowledge scaffold --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility
-`
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
 }
 
 func viewHelpText() string {
@@ -790,10 +728,11 @@ Flags:
   --out        Write a JSON validation report to a file. Requires JSON output.
   --rule       Override one validation rule severity as rule=off|warn|error.
                May be repeated and overrides [validation.rules] config.
+               The rule must belong to the selected OKF spec version.
   --quiet      Print only validation errors.
 
 Config:
-  openknowledge.toml may define [validation.rules] with rule severities:
+  .openknowledge.toml may define [validation.rules] with rule severities:
     link-target = "error"
     markdown-syntax = "off"
 

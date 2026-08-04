@@ -52,6 +52,10 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   The browser stores this selection. Hold Shift during activation to use the
   other mode one time.
   Each panel keeps its own focus and close controls.
+  The open file explorer remains visible during link navigation and uses the
+  first grid column at `25vw` by default. You can resize it within its minimum
+  and maximum limits. The viewer header, note workspace, and horizontal scroll
+  rail remain in the second grid column.
 - AST-based search uses the same section ranking as
   [`okn search`](search.md). It also uses the same one-level link
   expansion. Results group section matches by document. They can link to and
@@ -59,6 +63,11 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The viewer shows typed YAML frontmatter, tag filters, sortable tables, and
   directory breadcrumbs. The file explorer expands the active file branch.
   Directory rows can collapse, and the explorer has a **Collapse all** action.
+- For OKF 0.2 concepts, the viewer derives trust, status, and freshness. It
+  shows generated and verified provenance. Source footnotes open the matching
+  structured source entry. Attested Computation pages show their runtime,
+  parameters, computation, executor receipt fields, and attester contract.
+  The viewer never executes these resources automatically.
 - The knowledge graph reports the selected note and its connection count.
   A left detail panel keeps this information outside the graph canvas.
   The file tree stays in the file explorer. Arrow keys move the selection.
@@ -92,7 +101,7 @@ redirects to a clean URL. A remote client can also send
 `Authorization: Bearer <token>`.
 
 Raw routes serve only regular non-Markdown bundle assets. They exclude
-dotfiles, `.git`, `openknowledge.toml`, and symlinks. Markdown and asset
+dotfiles, `.git`, `.openknowledge.toml`, legacy `openknowledge.toml`, and symlinks. Markdown and asset
 resolution cannot leave the bundle root.
 
 The viewer inserts trusted head fragments in their original form. Use only
@@ -104,7 +113,7 @@ edits. A registry or fingerprint failure returns an error. The viewer does not
 serve stale or partly trusted state.
 
 Theme and source-link configuration comes from
-[`openknowledge.toml`](/features/configuration.md). For deployment, use the
+[`.openknowledge.toml`](/features/configuration.md). For deployment, use the
 [HTML exporter](/features/exporters/html.md).
 
 ---
@@ -114,6 +123,7 @@ Theme and source-link configuration comes from
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/viewer.go`
+> - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/cli/cmd/openknowledge/viewer_assets/`
 > - `packages/web/src/viewer/`

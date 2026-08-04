@@ -130,6 +130,43 @@ func TestMachineSchemasValidateRepresentativeNonEmptyOutputs(t *testing.T) {
 	}
 }
 
+func TestMachineSchemasValidateOKFV02ListAndGraphSignals(t *testing.T) {
+	schemas := compileMachineSchemas(t)
+	signals := &OKFV02Signals{
+		TrustTier:  OKFV02TrustHumanReviewed,
+		Status:     "stable",
+		Stale:      false,
+		StaleAfter: "2026-12-31",
+		Verified:   []OKFV02ActorEvent{{By: "human:reviewer", At: "2026-08-03T10:00:00Z"}},
+		Sources: []OKFV02Source{{
+			ID:          "policy",
+			Resource:    "https://example.test/policy",
+			UsageWindow: &OKFV02UsageWindow{From: "2026-08-01", To: "2026-08-03"},
+		}},
+		Computation: &OKFV02Computation{
+			Runtime:  "python3",
+			Path:     "compute.py",
+			Executor: &OKFV02ResourceContract{Resource: "runner.md", Receipt: []string{"sha256"}},
+			Attester: &OKFV02ResourceContract{Resource: "attester.md"},
+		},
+	}
+	listing := ListResult{
+		SchemaVersion: MachineSchemaVersion,
+		Root:          "/knowledge",
+		Entries:       []ListEntry{{ID: "revenue", Path: "revenue.md", Kind: "concept", Type: "Attested Computation", OKF02: signals}},
+	}
+	graph := Graph{
+		SchemaVersion: MachineSchemaVersion,
+		Root:          "/knowledge",
+		SpecVersion:   "0.2",
+		Type:          GraphTypeSource,
+		Nodes:         []GraphNode{{ID: "revenue", Path: "revenue.md", Kind: "concept", Type: "Attested Computation", OKF02: signals}},
+		Edges:         []GraphEdge{},
+	}
+	validateMachineInstance(t, schemas, "list", machineJSONValue(t, listing))
+	validateMachineInstance(t, schemas, "graph", machineJSONValue(t, graph))
+}
+
 func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 	schemas := compileMachineSchemas(t)
 	outputs := representativeMachineOutputs(t)

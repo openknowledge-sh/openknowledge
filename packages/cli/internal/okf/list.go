@@ -40,7 +40,11 @@ func ListFromAST(bundle ASTBundle, issues []Issue) (ListResult, error) {
 		if document.FrontmatterDiagnostic != nil {
 			metadata = ASTDocumentMetadata{}
 		}
-		entries = append(entries, attachIssues(listEntryFromASTSummary(SummarizeASTDocument(document, metadata)), issuesByPath))
+		entry := listEntryFromASTSummary(SummarizeASTDocument(document, metadata))
+		if bundle.SpecVersion == "0.2" && !document.Reserved && document.FrontmatterDiagnostic == nil {
+			entry.OKF02 = DeriveOKFV02Signals(document.Frontmatter.Data)
+		}
+		entries = append(entries, attachIssues(entry, issuesByPath))
 	}
 	sortListEntries(entries)
 	return ListResult{SchemaVersion: MachineSchemaVersion, Root: bundle.Root, Entries: entries}, nil

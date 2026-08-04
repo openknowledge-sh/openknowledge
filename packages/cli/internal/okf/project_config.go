@@ -149,7 +149,7 @@ func ParseProjectConfig(content string) (ProjectConfig, error) {
 		}
 		sort.Strings(rules)
 		for _, rule := range rules {
-			if err := SetValidationRuleSeverity(&config.Validation, rule, document.Validation.Rules[rule]); err != nil {
+			if err := setConfiguredValidationRuleSeverity(&config.Validation, rule, document.Validation.Rules[rule]); err != nil {
 				return ProjectConfig{}, fmt.Errorf("validation.rules.%s: %w", rule, err)
 			}
 		}

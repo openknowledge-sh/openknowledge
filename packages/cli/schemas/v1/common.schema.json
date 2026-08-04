@@ -2,6 +2,83 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openknowledge.sh/schemas/cli/v1/common.schema.json",
   "$defs": {
+    "okf02ActorEvent": {
+      "type": "object",
+      "required": ["by"],
+      "properties": {
+        "by": {"type": "string"},
+        "at": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "okf02UsageWindow": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"type": "string"},
+        "to": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "okf02Source": {
+      "type": "object",
+      "required": ["resource"],
+      "properties": {
+        "id": {"type": "string"},
+        "resource": {"type": "string"},
+        "title": {"type": "string"},
+        "author": {"type": "string"},
+        "usageCount": {"type": "number", "minimum": 0},
+        "lastModified": {"type": "string"},
+        "usageWindow": {"$ref": "#/$defs/okf02UsageWindow"}
+      },
+      "additionalProperties": false
+    },
+    "okf02Parameter": {
+      "type": "object",
+      "required": ["name", "type", "required"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"type": "string"},
+        "required": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "okf02ResourceContract": {
+      "type": "object",
+      "properties": {
+        "resource": {"type": "string"},
+        "receipt": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "okf02Computation": {
+      "type": "object",
+      "required": ["runtime"],
+      "properties": {
+        "runtime": {"type": "string"},
+        "path": {"type": "string"},
+        "parameters": {"type": "array", "items": {"$ref": "#/$defs/okf02Parameter"}},
+        "executor": {"$ref": "#/$defs/okf02ResourceContract"},
+        "attester": {"$ref": "#/$defs/okf02ResourceContract"}
+      },
+      "additionalProperties": false
+    },
+    "okf02Signals": {
+      "type": "object",
+      "required": ["trustTier", "status", "stale"],
+      "properties": {
+        "trustTier": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
+        "status": {"type": "string"},
+        "stale": {"type": "boolean"},
+        "staleAfter": {"type": "string"},
+        "generated": {"$ref": "#/$defs/okf02ActorEvent"},
+        "verified": {"type": "array", "items": {"$ref": "#/$defs/okf02ActorEvent"}},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/okf02Source"}},
+        "computation": {"$ref": "#/$defs/okf02Computation"}
+      },
+      "additionalProperties": false
+    },
     "retrievalRevision": {
       "type": "object",
       "required": ["specVersion", "indexSha256"],

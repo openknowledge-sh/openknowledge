@@ -1,14 +1,14 @@
 ---
 type: Configuration Reference
-title: openknowledge.toml
+title: .openknowledge.toml
 description: Strict bundle-local configuration contract shared by Open Knowledge CLI features.
 tags: [openknowledge, cli, configuration, toml]
 timestamp: 2026-07-15T00:00:00Z
 ---
 
-# `openknowledge.toml`
+# `.openknowledge.toml`
 
-`openknowledge.toml` is an optional configuration file in the bundle.
+`.openknowledge.toml` is an optional configuration file in the bundle.
 Validation, maintenance rules, the local viewer, and static HTML publication use this file.
 One TOML v1-compatible typed parser decodes the complete file.
 Therefore, each consumer uses the same syntax and reports the same errors.
@@ -70,6 +70,20 @@ Use the canonical values in new configuration.
 The parser reports an error for an unknown top-level section or nested field.
 It also reports duplicate keys, malformed TOML, and incorrect value types.
 Unknown validation rule IDs and invalid severity values are errors.
+The configuration can contain configurable rules from each supported spec
+profile. A command applies only rules from its selected profile. The command
+ignores a known rule from another profile. Quote rule IDs that contain a dot
+when using them as TOML keys:
+
+```toml
+[validation.rules]
+"okf-0.2-metadata" = "error"
+```
+
+Validation with `--spec 0.1` ignores this known 0.2-only rule. An unknown or
+fixed rule still causes an error. An explicit CLI `--rule` must belong to the
+selected profile.
+
 A command does not ignore a typographical error in an unused section.
 This behavior keeps the configuration consistent between all CLI surfaces.
 
@@ -80,7 +94,11 @@ Use the canonical snake-case fields in the table.
 The configuration file is private viewer metadata.
 Asset and raw viewer routes do not list or serve it.
 Bundle-root loading applies the real file system boundary.
-It rejects a symbolic-link `openknowledge.toml` and does not follow the link outside the bundle.
+It rejects a symbolic-link `.openknowledge.toml` and does not follow the link outside the bundle.
+
+The CLI loads only `.openknowledge.toml`.
+It does not load the legacy plain `openknowledge.toml` file.
+The legacy file remains private in viewer raw routes and public artifacts.
 
 Public artifacts use an explicit list of permitted content.
 `[publish] enabled = true` gives the required bundle-level permission.
@@ -88,7 +106,7 @@ The default is `false`.
 After this gate, `okf_publish` and optional `okf_targets` select Markdown.
 A non-Markdown file must match `publish.assets`.
 Asset patterns cannot include unpublished Markdown again.
-The output always excludes `.git`, `.openknowledge`, and `openknowledge.toml`.
+The output always excludes `.git`, `.openknowledge`, `.openknowledge.toml`, and legacy `openknowledge.toml`.
 A public source repository still exposes its Git content.
 Thus, `okf_publish: false` is an artifact filter and not a confidentiality control.
 
@@ -115,7 +133,7 @@ Use `okf_publish: false` to exclude content from each public generation.
 
 ## Consumer behavior
 
-* `okn validate` applies `[validation.rules]`.
+* `okn validate` applies `[validation.rules]` against the selected OKF version.
   It uses `[rules]` for deterministic rule-catalog checks.
 * `okn prompt rules` uses `[rules]` for custom catalog paths and default selection.
 * `okn prompt review rules` also uses `[rules]`.

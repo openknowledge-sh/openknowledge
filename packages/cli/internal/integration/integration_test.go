@@ -137,20 +137,240 @@ func TestStatusAndRemovePreserveUserChanges(t *testing.T) {
 	}
 }
 
-func TestInstallProjectRejectsRuntimeSwitchAndModifiedManagedFile(t *testing.T) {
+func TestReconcileProjectSupportsMultipleHarnessesAndPreservesGuidance(t *testing.T) {
 	repo, wiki := integrationFixture(t)
-	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "claude"}); err != nil {
+	if _, err := ReconcileProject(wiki, ProjectOptions{Harnesses: []string{"claude", "codex", "codex"}, ProjectSkills: true}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "codex"}); err == nil || !strings.Contains(err.Error(), "remove that integration") {
-		t.Fatalf("runtime switch error = %v", err)
-	}
-	skillPath := filepath.Join(repo, ".claude", "skills", "openknowledge", "SKILL.md")
-	if err := os.WriteFile(skillPath, []byte("changed\n"), 0o644); err != nil {
+	config, err := LoadFromRepository(repo)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "claude"}); err == nil || !strings.Contains(err.Error(), "modified managed file") {
-		t.Fatalf("modified file error = %v", err)
+	if strings.Join(config.Harnesses, ",") != "claude,codex" || config.Version != 3 {
+		t.Fatalf("config = %#v", config)
+	}
+	skillPath := filepath.Join(repo, ".agents", "skills", "openknowledge", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content = append(content, []byte("\n## Project guidance\n\nUse the release runbook.\n")...)
+	if err := os.WriteFile(skillPath, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	status, err := Status(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if states := statusStates(status); states[".agents/skills/openknowledge/SKILL.md"] != "managed" {
+		t.Fatalf("guidance edit changed managed-block status: %#v", states)
+	}
+	content = []byte(strings.Replace(string(content), "Use openknowledge registry list", "Broken managed instructions", 1))
+	if err := os.WriteFile(skillPath, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	status, err = Status(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if states := statusStates(status); states[".agents/skills/openknowledge/SKILL.md"] != "modified" {
+		t.Fatalf("managed-block corruption was not detected: %#v", states)
+	}
+	if _, err := RepairProject(repo); err != nil {
+		t.Fatal(err)
+	}
+	content, err = os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "Use the release runbook.") || !strings.Contains(string(content), ProjectManagedStart) {
+		t.Fatalf("repair did not preserve guidance and restore managed block:\n%s", content)
+	}
+	if strings.Contains(string(content), "The connected knowledge base is") {
+		t.Fatalf("project skill hardcodes the knowledge-base path:\n%s", content)
+	}
+}
+
+func statusStates(status StatusResult) map[string]string {
+	states := map[string]string{}
+	for _, file := range status.Files {
+		states[file.Path] = file.State
+	}
+	return states
+}
+
+func TestSetObservationTogglesAllHarnessesIdempotently(t *testing.T) {
+	repo, wiki := integrationFixture(t)
+	if _, err := ReconcileProject(wiki, ProjectOptions{Harnesses: []string{"codex", "opencode"}, ProjectSkills: true}); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := SetObservation(repo, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{".codex/hooks.json", ".opencode/plugins/openknowledge-observer.js"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); err != nil {
+			t.Fatalf("missing observer %s: %v", path, err)
+		}
+	}
+	hooks, err := os.ReadFile(filepath.Join(repo, ".codex", "hooks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(hooks), "openknowledge automation insights observe --runtime codex") != 1 {
+		t.Fatalf("duplicate Codex observer:\n%s", hooks)
+	}
+	if _, err := SetObservation(repo, false); err != nil {
+		t.Fatal(err)
+	}
+	config, err := LoadFromRepository(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Observe || len(config.ObservedHarnesses) != 0 {
+		t.Fatalf("observation remained enabled: %#v", config)
+	}
+	for _, path := range []string{".codex/hooks.json", ".opencode/plugins/openknowledge-observer.js"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); !os.IsNotExist(err) {
+			t.Fatalf("observer remains at %s: %v", path, err)
+		}
+	}
+}
+
+func TestObservationOnlyProjectDoesNotInstallSkills(t *testing.T) {
+	repo, wiki := integrationFixture(t)
+	result, err := ReconcileProject(wiki, ProjectOptions{Harnesses: []string{"codex", "opencode"}, Observe: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(strings.Join(result.Files, "\n"), "/skills/openknowledge/SKILL.md") {
+		t.Fatalf("observation-only result installed a skill: %#v", result.Files)
+	}
+	for _, path := range []string{".agents/skills/openknowledge/SKILL.md", ".opencode/skills/openknowledge/SKILL.md"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); !os.IsNotExist(err) {
+			t.Fatalf("observation-only setup installed %s: %v", path, err)
+		}
+	}
+	for _, path := range []string{".codex/hooks.json", ".opencode/plugins/openknowledge-observer.js"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); err != nil {
+			t.Fatalf("observation-only setup missed %s: %v", path, err)
+		}
+	}
+	status, err := Status(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.ProjectSkills || !status.Observe || len(status.Files) != 2 {
+		t.Fatalf("observation-only status = %#v", status)
+	}
+	if _, err := RepairProject(repo); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{".agents/skills/openknowledge/SKILL.md", ".opencode/skills/openknowledge/SKILL.md"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); !os.IsNotExist(err) {
+			t.Fatalf("repair installed a skill for observation-only setup %s: %v", path, err)
+		}
+	}
+}
+
+func TestRemoveProjectSkillRemovesOnlyManagedBlock(t *testing.T) {
+	repo, wiki := integrationFixture(t)
+	if _, err := ReconcileProject(wiki, ProjectOptions{Harnesses: []string{"codex"}, ProjectSkills: true}); err != nil {
+		t.Fatal(err)
+	}
+	skillPath := filepath.Join(repo, ".agents", "skills", "openknowledge", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content = append(content, []byte("\n## Team notes\n\nKeep this guidance.\n")...)
+	if err := os.WriteFile(skillPath, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Remove(repo); err != nil {
+		t.Fatal(err)
+	}
+	content, err = os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(content), ProjectManagedStart) || !strings.Contains(string(content), "Keep this guidance.") {
+		t.Fatalf("remove did not preserve surrounding project guidance:\n%s", content)
+	}
+}
+
+func TestLoadLegacyProjectSkillAndMigrateItsManagedKind(t *testing.T) {
+	repo, wiki := integrationFixture(t)
+	if _, err := InstallProjectWithOptions(wiki, InstallOptions{Runtime: "codex"}); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(repo, filepath.FromSlash(ConfigPath))
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := strings.Replace(string(content), "version = 3", "version = 2", 1)
+	legacy = strings.Replace(legacy, "kind = 'project_skill'", "kind = 'file'", 1)
+	if err := os.WriteFile(configPath, []byte(legacy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadFromRepository(repo)
+	if err != nil || !loaded.ProjectSkills {
+		t.Fatalf("load legacy config = %#v, %v", loaded, err)
+	}
+	if _, err := ReconcileProject(wiki, ProjectOptions{Harnesses: []string{"codex"}, ProjectSkills: true}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = LoadFromRepository(repo)
+	if err != nil || loaded.Version != 3 || loaded.ManagedFiles[0].Kind != managedFileKindProjectSkill {
+		t.Fatalf("migrated config = %#v, %v", loaded, err)
+	}
+}
+
+func TestReconcileProjectSupportsKnowledgeBaseAtRepositoryRoot(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init")
+	if _, err := ReconcileProject(repo, ProjectOptions{Harnesses: []string{"codex"}, Observe: true, ProjectSkills: true}); err != nil {
+		t.Fatal(err)
+	}
+	config, err := LoadFromRepository(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.KnowledgeBase != "." || config.Insights != "insights" || !config.Observe {
+		t.Fatalf("root knowledge-base config = %#v", config)
+	}
+	for _, path := range []string{".agents/skills/openknowledge/SKILL.md", ".codex/hooks.json"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); err != nil {
+			t.Fatalf("root bundle missed %s: %v", path, err)
+		}
+	}
+}
+
+func TestReconcileProjectAllowsMultipleBundlesInOneRepository(t *testing.T) {
+	repo, first := integrationFixture(t)
+	second := filepath.Join(repo, "ProductKnowledge")
+	if err := os.MkdirAll(second, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReconcileProject(first, ProjectOptions{Harnesses: []string{"codex"}, ProjectSkills: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReconcileProject(second, ProjectOptions{Harnesses: []string{"claude"}, ProjectSkills: true}); err != nil {
+		t.Fatal(err)
+	}
+	config, err := LoadFromRepository(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.KnowledgeBase != "Wiki" || strings.Join(config.Harnesses, ",") != "claude,codex" {
+		t.Fatalf("multiple bundle config = %#v", config)
+	}
+	for _, path := range []string{".agents/skills/openknowledge/SKILL.md", ".claude/skills/openknowledge/SKILL.md"} {
+		if _, err := os.Stat(filepath.Join(repo, filepath.FromSlash(path))); err != nil {
+			t.Fatalf("multiple bundle setup missed %s: %v", path, err)
+		}
 	}
 }
 

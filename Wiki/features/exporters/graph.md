@@ -4,17 +4,18 @@ title: Graph Exporter
 description: JSON graph export target for Open Knowledge source and search graph structure.
 tags: [openknowledge, cli, exporter, graph]
 timestamp: 2026-07-21T00:00:00Z
-status: shipped
+feature_status: shipped
 ---
 
 # Graph Exporter
 
 `okn export graph` writes AST-backed graph JSON for an Open Knowledge bundle.
-The default source graph describes authored files and local links.
+The default source graph describes authored files, local links, and declared
+OKF 0.2 provenance resources.
 The search graph is a retrieval layer.
 The CLI builds this layer from Markdown heading chunks.
 
-These outputs are structural document and chunk link graphs.
+These outputs are structural document, resource, and chunk link graphs.
 They are not entity-resolved semantic knowledge graphs.
 They do not infer domain entities or relationship predicates from prose.
 
@@ -33,7 +34,7 @@ okn export graph --help
 
 | Type | Description |
 | --- | --- |
-| `source` | Default graph. Each node represents a parsed bundle file. Each existing non-self local Markdown link occurrence is an edge. This includes parallel links. |
+| `source` | Default graph. Document nodes represent parsed bundle files. Each existing non-self local Markdown link occurrence is an edge. OKF 0.2 also adds typed provenance edges and resource nodes. |
 | `search` | Derivative search graph. Nodes include bundle files and content-bearing H1-H3 Markdown chunks. Edges include containment, reading order, and local links. |
 
 ## Output
@@ -47,14 +48,29 @@ All graph JSON includes:
 * `edges`.
 * Bundle and node `issues` when validation finds warnings or errors.
 
-Source graph nodes represent parsed bundle files.
-The nodes include reserved files such as `index.md` and `log.md`.
+Source graph document nodes represent parsed bundle files.
+They include reserved files such as `index.md` and `log.md`.
 Source graph edges use source and target Markdown paths.
 Each edge includes source and target document IDs.
 It preserves link labels, hrefs, target anchors, and available line numbers.
 Parallel links between the same files remain separate edges.
 A missing local link target causes a validation issue.
 It does not create a dangling graph node.
+
+For OKF 0.2, concept nodes include a derived `okf02` object. It contains
+trust, lifecycle, provenance, source, and Attested Computation data. Metadata
+resources create these edge kinds:
+
+* `source` for each `sources[].resource`.
+* `computation` for a declared computation path. Inline computation code does
+  not create this edge.
+* `executor` for `executor.resource`.
+* `attester` for `attester.resource`.
+
+A resource that resolves to a Markdown file targets that file node. An
+external or unresolved resource targets a stable node with `kind: "resource"`.
+These edges describe authored provenance. They do not infer domain entities
+or relationship predicates from prose.
 
 Search graph output includes the source graph.
 It also includes content-bearing H1-H3 heading chunk nodes with `kind: "chunk"`.

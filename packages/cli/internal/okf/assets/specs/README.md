@@ -10,6 +10,7 @@ CLI work.
 | Version | File | Upstream source | License | Notes |
 | --- | --- | --- | --- | --- |
 | 0.1 | `0.1.md` | https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md | Apache-2.0 | Verbatim upstream copy, pinned from upstream modification timestamp `2026-06-12T05:02:31Z`. |
+| 0.2 | `0.2.md` | https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/3fcbb9f828c2f23d109c855ee403c3a4c81f3a96/okf/SPEC.md | Apache-2.0 | Verbatim upstream copy from commit `3fcbb9f828c2f23d109c855ee403c3a4c81f3a96`, modified `2026-07-24T16:45:43Z`. |
 
 ## License And Attribution
 

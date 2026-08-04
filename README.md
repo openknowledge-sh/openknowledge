@@ -16,7 +16,7 @@ maintain, validate, and publish.
 
 <p align="left">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
-  <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"><img alt="OKF v0.1" src="https://img.shields.io/badge/OKF-v0.1-2f6feb"></a>
+  <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"><img alt="OKF v0.2" src="https://img.shields.io/badge/OKF-v0.2-2f6feb"></a>
   <a href="https://openknowledge.sh"><img alt="Git-native Markdown wiki" src="https://img.shields.io/badge/wiki-git--native-0f766e"></a>
   <a href="Wiki/index.md"><img alt="Agent-ready docs" src="https://img.shields.io/badge/docs-agent--ready-6f42c1"></a>
 </p>
@@ -31,6 +31,9 @@ Your project
                          │
                          ▼
                   okn validate Wiki
+                         │
+                         ▼
+                okn setup complete
                          │
           ┌──────────┬──────────┬──────────┐
           ▼          ▼          ▼          ▼
@@ -47,35 +50,33 @@ curl -fsSL https://openknowledge.sh/install | bash
 
 ### 2. Create
 
-Choose either setup path.
+Run the interactive setup wizard:
+
+```sh
+okn setup
+```
 
 To use an agent that already works inside the project, copy this prompt:
 
 ```text
-Set up an Open Knowledge wiki for this workspace. If the Open Knowledge CLI is
-not installed, install it with:
-curl -fsSL https://openknowledge.sh/install | bash
-
-Verify the installation with: okn version
-
-Then run okn setup and follow the complete prompt it prints. Inspect this
-workspace first. Ask me focused questions about the wiki's purpose, audience,
-sources, structure, and maintenance needs before you create it. Keep the setup
-open-ended instead of choosing a predefined wiki type. Create the wiki, run its
-validation steps, and explain what you configured.
+Set up Open Knowledge for this workspace. Check the CLI with `okn version`.
+If it is missing, install it from https://openknowledge.sh/install and verify
+the installation. Then run `okn setup --prompt` and follow its complete task.
+Ask me before product-level decisions. Finish with the printed `okn validate`
+and `okn setup complete` commands.
 ```
 
-The agent installs the CLI when necessary. It then runs `okn setup` and follows
-the complete generated interview. The default target is `Wiki`.
+The generated task is the source of truth for the setup workflow. The default
+target is `Wiki`.
 
 To let the CLI launch an installed agent runtime, run:
 
 ```sh
-okn setup --agent --runtime <codex|claude|opencode>
+okn setup --agent <codex|claude|opencode>
 ```
 
-Agent mode runs the same setup interview, validates the wiki, and installs the
-selected runtime's project integration.
+Agent mode runs the same generated task. It validates and activates the wiki
+through `okn setup complete`.
 
 ### 3. Validate
 
@@ -98,33 +99,20 @@ platforms and verification details.
 
 </details>
 
-<details>
-<summary>Optional agent integration</summary>
-
-```sh
-okn integration install Wiki --runtime codex
-```
-
-This optional command installs only the selected runtime. Session observation
-remains off unless you explicitly add `--observe`.
-
-</details>
-
 ## Workflows
 
 ### Create, retrieve, and verify
 
-Use [`setup`](Wiki/features/commands/setup.md) to print an open-ended setup
-prompt for an agent that already works in the project. Alternatively, use
-`okn setup --agent --runtime <runtime>` to launch one. Use
+Use [`setup`](Wiki/features/commands/setup.md) for interactive onboarding. Use
+`okn setup --prompt` for an existing agent. Use `okn setup --agent <runtime>`
+to launch one. Use
 [`search`](Wiki/features/commands/search.md) to retrieve knowledge. Use
 [`validate`](Wiki/features/commands/validate.md) to verify the wiki.
 
 ### Work locally
 
 Use [`agent`](Wiki/features/commands/agent.md) to run an agent task. Use
-[`integration`](Wiki/features/commands/integration.md) to install one runtime
-skill. Use [`get`](Wiki/features/commands/get.md) to read one document. Use
+[`get`](Wiki/features/commands/get.md) to read one document. Use
 [`list`](Wiki/features/commands/list.md) to inspect the content tree. Use
 [`view`](Wiki/features/commands/view.md) to browse the wiki.
 
@@ -159,7 +147,7 @@ It does not deploy the bundle or start an MCP server.
 
 Review the knowledge base before you create this bundle. After you enable
 publication, Markdown is public unless it sets `okf_publish: false`. Add this
-configuration to `Wiki/openknowledge.toml`:
+configuration to `Wiki/.openknowledge.toml`:
 
 ```toml
 [publish]
@@ -175,7 +163,7 @@ okn export html --out ./site Wiki
 The bundle includes a static viewer, `llms.txt`, a connect manifest, and a
 portable source archive. A deployed runtime can also expose filtered search
 and HTTP MCP projections. See [HTML export](Wiki/features/exporters/html.md)
-and [`openknowledge.toml`](Wiki/features/configuration.md) for publication
+and [`.openknowledge.toml`](Wiki/features/configuration.md) for publication
 filters and asset options.
 
 ## Development

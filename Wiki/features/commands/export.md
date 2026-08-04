@@ -43,7 +43,7 @@ okn export tar --out ./wiki.tar.gz Wiki
 | `--script-src <src>` | HTML viewer | environment | Trusted script URL. Repeatable. |
 
 HTML and tar require zero validation errors. HTML also requires publication
-permission in `openknowledge.toml`.
+permission in `.openknowledge.toml`.
 
 JSON and graph print `schemaVersion: "1"` documents to stdout by default. Use
 `--out` to write a file. The command replaces a machine output file only after

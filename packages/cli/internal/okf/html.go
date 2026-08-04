@@ -71,7 +71,7 @@ func WriteHTMLFromAST(ast ASTBundle, out string, pageTemplate *template.Template
 			return HTMLResult{}, err
 		}
 
-		page := htmlPageFromASTDocument(document)
+		page := htmlPageFromASTDocument(document, ast.SpecVersion, pageTemplate == plainPageTemplate)
 		var builder strings.Builder
 		if err := pageTemplate.Execute(&builder, page); err != nil {
 			return HTMLResult{}, err
@@ -86,17 +86,28 @@ func WriteHTMLFromAST(ast ASTBundle, out string, pageTemplate *template.Template
 	return HTMLResult{Root: ast.Root, Out: absoluteOut, Written: written}, nil
 }
 
-func htmlPageFromASTDocument(document ASTDocument) htmlPageData {
+func htmlPageFromASTDocument(document ASTDocument, specVersion string, includeFrontmatter bool) htmlPageData {
 	summary := SummarizeASTDocument(document, document.Metadata)
 	title := summary.Title
 	if title == "" {
 		title = deriveTitle(document.Rel)
 	}
 
+	frontmatter := template.HTML("")
+	body := RenderASTMarkdown(document.Markdown, document.Rel, StaticHTMLLink)
+	if includeFrontmatter {
+		frontmatter = template.HTML(renderPlainFrontmatter(document.Frontmatter.Data, document.Rel))
+		if specVersion == "0.2" && !document.Reserved {
+			signals := DeriveOKFV02Signals(document.Frontmatter.Data)
+			body = RenderMarkdownWithFootnotes(document.Body, document.Rel, StaticHTMLLink, OKFV02SourceFootnotes(signals))
+		}
+	}
+
 	return htmlPageData{
-		Title: title,
-		Path:  document.Rel,
-		Body:  template.HTML(RenderASTMarkdown(document.Markdown, document.Rel, StaticHTMLLink)),
+		Title:       title,
+		Path:        document.Rel,
+		Frontmatter: frontmatter,
+		Body:        template.HTML(body),
 	}
 }
 
@@ -139,6 +150,7 @@ var plainPageTemplate = template.Must(template.New("plain-page").Parse(`<!doctyp
 <body>
   <main>
     <article>
+      {{.Frontmatter}}
       {{.Body}}
     </article>
   </main>

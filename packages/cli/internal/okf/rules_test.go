@@ -14,7 +14,7 @@ func TestRenderRulesListExplainsCommandAndRules(t *testing.T) {
 		"The command does not edit files",
 		"openknowledge prompt rules docs,changelog --path Wiki",
 		"openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md",
-		"openknowledge prompt setup --rules docs,changelog",
+		"openknowledge setup --prompt --rules docs,changelog",
 		"project",
 		"changelog",
 	}
@@ -101,7 +101,7 @@ rule_review_evidence: [git diff, Wiki/security/]
 
 func TestRuleCatalogConfigControlsPathsAndEnabledRules(t *testing.T) {
 	wiki := t.TempDir()
-	writeRuleTestFile(t, wiki, "openknowledge.toml", "[rules]\npaths = [\"policy-rules\"]\nenabled = [\"docs\", \"security\"]\n")
+	writeRuleTestFile(t, wiki, ValidationConfigFile, "[rules]\npaths = [\"policy-rules\"]\nenabled = [\"docs\", \"security\"]\n")
 	writeRuleTestFile(t, wiki, "policy-rules/security.md", `---
 type: Rule
 title: Security
@@ -191,7 +191,7 @@ rule_id: docs
 func TestValidateRuleCatalogReportsInvalidConfiguredEnabledRule(t *testing.T) {
 	wiki := t.TempDir()
 	writeRuleTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
-	writeRuleTestFile(t, wiki, "openknowledge.toml", "[rules]\nenabled = [\"missing-rule\"]\n")
+	writeRuleTestFile(t, wiki, ValidationConfigFile, "[rules]\nenabled = [\"missing-rule\"]\n")
 
 	result, err := Validate(wiki)
 	if err != nil {
@@ -205,7 +205,7 @@ func TestValidateRuleCatalogReportsInvalidConfiguredEnabledRule(t *testing.T) {
 func TestValidateRuleCatalogReportsMissingConfiguredPath(t *testing.T) {
 	wiki := t.TempDir()
 	writeRuleTestFile(t, wiki, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Wiki\n")
-	writeRuleTestFile(t, wiki, "openknowledge.toml", "[rules]\npaths = [\"missing-rules\"]\n")
+	writeRuleTestFile(t, wiki, ValidationConfigFile, "[rules]\npaths = [\"missing-rules\"]\n")
 
 	result, err := Validate(wiki)
 	if err != nil {

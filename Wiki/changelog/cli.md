@@ -13,6 +13,81 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-08-04 — Resizable viewer grid
+
+- The open file explorer now remains opaque during open-beside navigation and
+  uses a resizable first grid column. It defaults to `25vw` with minimum and
+  maximum limits. The viewer header, note workspace, and horizontal scroll
+  rail remain in the second grid column.
+- Source: `packages/web/src/viewer/`,
+  `packages/web/scripts/browser.e2e.mjs`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+- Docs: `Wiki/features/commands/view.md`.
+
+### 2026-08-04 — OKF 0.2 consumer surfaces
+
+- List and graph JSON now expose a dedicated derived `okf02` contract. Text
+  list output shows trust, lifecycle status, and staleness. Graph output adds
+  typed source, computation, executor, and attester provenance edges.
+- Viewer pages now show OKF 0.2 trust, freshness, source details, linked source
+  footnotes, and Attested Computation contracts. Plain HTML now includes
+  semantic frontmatter and linked structured sources.
+- The CLI preserves executor and attester declarations but never executes
+  them automatically. OKF 0.2 does not define a portable runtime ABI or
+  receipt and verdict formats.
+- Source: `packages/cli/internal/okf/okf_0_2_signals.go`,
+  `packages/cli/internal/okf/graph.go`,
+  `packages/cli/internal/okf/html_frontmatter.go`,
+  `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
+  `packages/web/src/viewer/`.
+- Docs: `Wiki/features/spec-compliance.md`,
+  `Wiki/features/commands/list.md`,
+  `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/graph.md`,
+  `Wiki/features/exporters/html.md`,
+  `Wiki/features/go-api.md`,
+  `Wiki/features/machine-contracts.md`.
+
+### 2026-08-03 — OKF 0.2 compatibility
+
+- `latest` now selects OKF 0.2. The CLI still supports explicit OKF 0.1 reads.
+- The parser normalizes a bare `verified` mapping for OKF 0.2 consumers.
+- Validation now warns about malformed optional provenance, trust, lifecycle,
+  source attribution, and attested-computation metadata.
+- Every checker rule, including fixed-severity rules, now belongs to an
+  explicit OKF version profile. Shared configuration can contain rules from
+  multiple profiles. Each validation applies only its active profile.
+- New scaffolds use OKF 0.2 by default. `okn scaffold --spec 0.1` creates a
+  version-matched 0.1 bundle, local spec, metadata, and setup instructions.
+  The terminal handoff now validates against the selected scaffold version.
+- New automation insights use OKF 0.2 lifecycle and `generated` metadata.
+  Insight status changes convert legacy insight provenance to OKF 0.2.
+- Source: `packages/cli/internal/okf/`,
+  `packages/cli/internal/okf/assets/specs/0.2.md`,
+  `packages/cli/internal/insights/`,
+  `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/main_test.go`.
+- Docs: `README.md`, `Wiki/SPEC.md`,
+  `Wiki/features/spec-compliance.md`,
+  `Wiki/features/commands/scaffold.md`,
+  `Wiki/features/commands/insights.md`.
+
+### 2026-08-02 — Unified interactive setup
+
+- `okn setup` now starts a terminal wizard. Without terminal input, it prints
+  a complete agent task. Explicit flags select either mode or launch an agent.
+- `setup complete` validates, connects, installs selected skills, and configures
+  optional observation. Setup also provides status, repair, and observation commands.
+- The CLI removed `integration`, `agent integrate`, `prompt setup`, and
+  `prompt from`. Source setup no longer uses predefined wiki types.
+- Bundle configuration now uses `.openknowledge.toml`. The legacy name is not
+  loaded and remains private in viewer and publication output.
+- Source: `packages/cli/cmd/openknowledge/setup_command.go`,
+  `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`,
+  `packages/cli/internal/integration/`, `packages/cli/internal/okf/`.
+- Docs: `README.md`, `Wiki/features/commands/setup.md`,
+  `Wiki/features/configuration.md`.
+
 ### 2026-07-31 — Mermaid diagram viewport
 
 - A click, Enter, or Space now opens a rendered Mermaid diagram in a

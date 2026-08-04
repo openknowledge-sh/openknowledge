@@ -30,7 +30,7 @@ okn automation deploy <provider>
 | [`deploy`](deploy.md) | Provision the runtime on a supported provider. |
 
 Local commands remain at the root. For example, use `okn setup`,
-`okn search`, `okn validate`, `okn view`, and `okn integration` without the
+`okn search`, `okn validate`, `okn view`, and `okn setup status` without the
 automation prefix.
 
 The old root forms, such as `okn jobs` and `okn runtime`, remain compatible.

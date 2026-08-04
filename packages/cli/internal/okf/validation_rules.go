@@ -91,16 +91,15 @@ func validateInsight(rel string, meta ASTFrontmatter, result *Result) {
 	if !ok || published {
 		add("Open Knowledge insights must declare okf_publish: false")
 	}
-	status := strings.ToLower(frontmatterString(meta, "status"))
-	switch status {
-	case "pending", "resolved", "dismissed", "blocked":
-	default:
-		add("insight status must be pending, resolved, dismissed, or blocked")
-	}
-	for _, key := range []string{"title", "okf_insight_id", "okf_insight_kind", "okf_insight_runtime", "okf_insight_created_at"} {
+	for _, key := range []string{"title", "okf_insight_id", "okf_insight_kind"} {
 		if frontmatterString(meta, key) == "" {
 			add(fmt.Sprintf("insight frontmatter must include non-empty %s", key))
 		}
+	}
+	if result.SpecVersion == "0.2" && usesOKFV02InsightMetadata(meta) {
+		validateOKFV02InsightMetadata(meta, add)
+	} else {
+		validateLegacyInsightMetadata(meta, add)
 	}
 	targets, ok := meta.Data["okf_insight_targets"].([]any)
 	if !ok || len(targets) == 0 {
@@ -113,6 +112,63 @@ func validateInsight(rel string, meta ASTFrontmatter, result *Result) {
 		if !ok || strings.TrimSpace(value) == "" || filepath.IsAbs(value) || clean == ".." || strings.HasPrefix(clean, "../") {
 			add("insight targets must be non-empty knowledge-base-relative paths")
 			return
+		}
+	}
+}
+
+func usesOKFV02InsightMetadata(meta ASTFrontmatter) bool {
+	if _, exists := meta.Data["generated"]; exists {
+		return true
+	}
+	if _, exists := meta.Data["okf_insight_status"]; exists {
+		return true
+	}
+	switch strings.ToLower(frontmatterString(meta, "status")) {
+	case "draft", "stable", "deprecated":
+		return true
+	}
+	return false
+}
+
+func validateOKFV02InsightMetadata(meta ASTFrontmatter, add func(string)) {
+	status := strings.ToLower(frontmatterString(meta, "status"))
+	switch status {
+	case "draft", "stable", "deprecated":
+	default:
+		add("OKF 0.2 insight status must be draft, stable, or deprecated")
+	}
+	workflow := strings.ToLower(frontmatterString(meta, "okf_insight_status"))
+	if workflow != "" && (workflow != "blocked" || status != "draft") {
+		add("okf_insight_status may only be blocked when status is draft")
+	}
+	generated, ok := meta.Data["generated"].(map[string]any)
+	if !ok {
+		add("OKF 0.2 insights must include generated.by and generated.at")
+	} else {
+		if !okfActor(generated["by"]) {
+			add("generated.by must identify an OKF actor")
+		}
+		if !okfDateTime(generated["at"]) {
+			add("generated.at must be an ISO 8601 datetime")
+		}
+	}
+	for _, legacy := range []string{"okf_insight_runtime", "okf_insight_created_at"} {
+		if _, exists := meta.Data[legacy]; exists {
+			add(fmt.Sprintf("OKF 0.2 insights must use generated instead of %s", legacy))
+		}
+	}
+}
+
+func validateLegacyInsightMetadata(meta ASTFrontmatter, add func(string)) {
+	status := strings.ToLower(frontmatterString(meta, "status"))
+	switch status {
+	case "pending", "resolved", "dismissed", "blocked":
+	default:
+		add("legacy insight status must be pending, resolved, dismissed, or blocked")
+	}
+	for _, key := range []string{"okf_insight_runtime", "okf_insight_created_at"} {
+		if frontmatterString(meta, key) == "" {
+			add(fmt.Sprintf("legacy insight frontmatter must include non-empty %s", key))
 		}
 	}
 }

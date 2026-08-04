@@ -7,13 +7,13 @@
 - [Installation](installation.md) — Gives CLI installation and verification
   steps.
 - [Configuration](configuration.md) — Describes the
-  `openknowledge.toml` configuration.
+  `.openknowledge.toml` configuration.
 - [Commands](commands/) — Lists the current CLI commands.
 - [Exporters](exporters/) — Documents HTML, JSON, graph, and tar output.
 - [Machine-readable contracts](machine-contracts.md) — Documents JSON schemas
   and compatibility rules.
 - [Go API](go-api.md) — Documents the read-only core.
-- [Specification compliance](spec-compliance.md) — Reports the OKF v0.1
+- [Specification compliance](spec-compliance.md) — Reports the OKF v0.2
   implementation status.
 - [CLI operations](operations.md) — Gives development, test, publication, and
   release tasks.
