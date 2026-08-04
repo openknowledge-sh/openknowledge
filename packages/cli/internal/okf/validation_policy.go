@@ -30,6 +30,7 @@ var knownValidationRules = map[string]struct{}{
 	"frontmatter":         {},
 	"frontmatter-format":  {},
 	"index-frontmatter":   {},
+	"link-escape":         {},
 	"link-target":         {},
 	"log-date":            {},
 	"log-frontmatter":     {},

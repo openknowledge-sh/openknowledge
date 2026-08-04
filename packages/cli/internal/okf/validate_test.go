@@ -238,6 +238,56 @@ func TestValidateWarnsForBrokenLocalLinks(t *testing.T) {
 	}
 }
 
+func TestValidateSeparatesEscapeAndMissingLinkRules(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "Wiki")
+	writeFile(t, base, "src/app.kt", "package demo\n")
+	writeFile(t, root, "index.md", "# Index\n\n[Code](../src/app.kt)\n[Missing](missing.md)\n")
+	writeFile(t, root, "log.md", "# Log\n\n## 2026-06-16\n\n* Created.\n")
+
+	find := func(warnings []Issue, rule, substr string) bool {
+		for _, w := range warnings {
+			if w.Rule == rule && strings.Contains(w.Message, substr) {
+				return true
+			}
+		}
+		return false
+	}
+
+	result, err := Validate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected no errors, got %#v", result.Errors)
+	}
+	if len(result.Warnings) != 2 {
+		t.Fatalf("expected escape and missing warnings, got %#v", result.Warnings)
+	}
+	if !find(result.Warnings, "link-escape", "escapes bundle root") {
+		t.Fatalf("expected link-escape warning, got %#v", result.Warnings)
+	}
+	if !find(result.Warnings, "link-target", "missing.md") {
+		t.Fatalf("expected link-target missing warning, got %#v", result.Warnings)
+	}
+
+	result, err = ValidateWithVersionAndOptions(root, LatestSpecVersion, ValidationOptions{Rules: map[string]string{"link-escape": "off"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Warnings) != 1 || !find(result.Warnings, "link-target", "missing.md") {
+		t.Fatalf("expected only the missing-link warning after disabling link-escape, got %#v", result.Warnings)
+	}
+
+	result, err = ValidateWithVersionAndOptions(root, LatestSpecVersion, ValidationOptions{Rules: map[string]string{"link-target": "off"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Warnings) != 1 || !find(result.Warnings, "link-escape", "escapes bundle root") {
+		t.Fatalf("expected only the escape warning after disabling link-target, got %#v", result.Warnings)
+	}
+}
+
 func TestValidateOptionsEscalateAndDisableRules(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Index\n\n[Missing](missing.md)\n")

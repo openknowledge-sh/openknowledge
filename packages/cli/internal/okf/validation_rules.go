@@ -140,7 +140,7 @@ func validateDocumentLinks(root string, document ASTDocument, result *Result) {
 			result.Warnings = append(result.Warnings, Issue{
 				Path:    document.Rel,
 				Line:    link.Line,
-				Rule:    "link-target",
+				Rule:    "link-escape",
 				Message: fmt.Sprintf("link target escapes bundle root: %s", link.Href),
 			})
 			continue
