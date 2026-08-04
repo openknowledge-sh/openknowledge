@@ -67,11 +67,10 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The viewer shows typed YAML frontmatter, tag filters, sortable tables, and
   directory breadcrumbs. The file explorer expands the active file branch.
   Directory rows can collapse, and the explorer has a **Collapse all** action.
-- For OKF 0.2 concepts, the viewer derives trust, status, and freshness. It
-  shows generated and verified provenance. Source footnotes open the matching
-  structured source entry. Attested Computation pages show their runtime,
-  parameters, computation, executor receipt fields, and attester contract.
-  The viewer never executes these resources automatically.
+- For OKF 0.2 concepts, the **Frontmatter** panel groups derived trust, status,
+  freshness, provenance, structured sources, and Attested Computation data.
+  Source footnotes open the matching structured source entry. The viewer never
+  executes declared resources automatically.
 - The knowledge graph reports the selected note and its connection count.
   A left detail panel keeps this information outside the graph canvas.
   The file tree stays in the file explorer. Arrow keys move the selection.

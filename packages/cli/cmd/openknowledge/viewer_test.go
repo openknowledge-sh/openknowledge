@@ -713,6 +713,10 @@ Supported by policy.[^revenue-policy]
 	if !strings.Contains(api.Frontmatter, `data-okf02-signals`) || !strings.Contains(api.Body, `href="#ok-source-revenue-policy"`) {
 		t.Fatalf("dynamic viewer panels should retain OKF 0.2 signals and source references: %#v", api)
 	}
+	if !strings.HasPrefix(api.Frontmatter, `<details class="ok-frontmatter" data-frontmatter>`) ||
+		!strings.Contains(api.Frontmatter, `<div class="ok-frontmatter-body"><section class="ok-knowledge-signals"`) {
+		t.Fatalf("viewer should keep OKF 0.2 signals inside the frontmatter disclosure: %s", api.Frontmatter)
+	}
 }
 
 func TestViewerRendersMarkdownExtensionFilesFromAST(t *testing.T) {

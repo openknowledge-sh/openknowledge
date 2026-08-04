@@ -37,7 +37,13 @@ Add an entry under `## Unreleased` in the
 - Source anchors
 - Updated documentation
 
-Keep entries short. Group entries by date.
+Keep entries short. Group entries by product area.
+
+Use headings such as `Viewer`, `Setup`, `Automation`, `Registry`,
+`Compatibility`, or the applicable product feature.
+
+Do not add dates to entry headings. Put the release date only in the released
+version heading.
 
 ## Do not update
 

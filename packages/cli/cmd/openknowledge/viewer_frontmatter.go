@@ -42,12 +42,11 @@ func viewerFrontmatterHTMLForFile(root string, file okf.BundleFile, specVersion 
 	}
 
 	order := viewerFrontmatterTopLevelOrder(string(content), data)
-	frontmatter := renderViewerFrontmatter(data, order, fallback)
-	if specVersion != "0.2" || file.Reserved {
-		return frontmatter, nil
+	var signals template.HTML
+	if specVersion == "0.2" && !file.Reserved {
+		signals = renderViewerOKFV02Signals(okf.DeriveOKFV02Signals(data), file.Path, resolve)
 	}
-	signals := okf.DeriveOKFV02Signals(data)
-	return renderViewerOKFV02Signals(signals, file.Path, resolve) + frontmatter, nil
+	return renderViewerFrontmatter(data, order, fallback, signals), nil
 }
 
 func viewerFrontmatterHTMLByPath(root string, files []okf.BundleFile, specVersion string, resolve okf.LinkResolver) (map[string]template.HTML, error) {
@@ -296,7 +295,7 @@ func viewerFrontmatterTopLevelOrder(content string, data map[string]any) []strin
 	return order
 }
 
-func renderViewerFrontmatter(data map[string]any, order []string, fallback bool) template.HTML {
+func renderViewerFrontmatter(data map[string]any, order []string, fallback bool, signals template.HTML) template.HTML {
 	if len(data) == 0 {
 		return ""
 	}
@@ -304,6 +303,7 @@ func renderViewerFrontmatter(data map[string]any, order []string, fallback bool)
 	var builder strings.Builder
 	count := len(data)
 	fmt.Fprintf(&builder, `<details class="ok-frontmatter" data-frontmatter><summary class="ok-frontmatter-summary"><span class="ok-frontmatter-title">Frontmatter</span><span class="ok-frontmatter-count">%d %s</span></summary><div class="ok-frontmatter-body">`, count, viewerFrontmatterNoun(count, "field", "fields"))
+	builder.WriteString(string(signals))
 	if fallback {
 		builder.WriteString(`<p class="ok-frontmatter-notice">Structured preview is unavailable for this YAML subset; showing compatible scalar values.</p>`)
 	}

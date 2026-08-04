@@ -13,7 +13,17 @@ page records release-level changes.
 
 ## Unreleased
 
-### 2026-08-04 — End timed-out Windows job processes
+### Viewer
+
+- The viewer now keeps OKF 0.2 trust, lifecycle, provenance, sources, and
+  computation details inside the **Frontmatter** disclosure.
+- Authored Markdown now starts the visible document content without a separate
+  metadata block above it.
+- Source: `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
+- Docs: `Wiki/features/commands/view.md`.
+
+### Automation
 
 - Windows job runs now stop the complete child process tree after a command
   timeout.
@@ -22,7 +32,7 @@ page records release-level changes.
   `packages/cli/internal/agents/runner.go`.
 - Docs: `Wiki/features/commands/jobs.md`.
 
-### 2026-08-04 — Keep Git refresh staging stable
+### Registry
 
 - Git resource validation now tolerates temporary Git-internal files that
   disappear during a scan.
@@ -36,65 +46,7 @@ page records release-level changes.
 Version 0.10 makes OKF 0.2 the default, unifies setup, expands provenance
 views, and improves viewer navigation and local automation.
 
-### 2026-08-04 — Navigate immediately on mobile
-
-- On screens up to 680 px, sidebar and note transitions no longer delay
-  navigation.
-- Selecting a sidebar link closes the sidebar and shows its destination
-  immediately.
-- Source: `packages/web/src/viewer/`,
-  `packages/web/scripts/browser.e2e.mjs`.
-- Docs: `Wiki/features/commands/view.md`.
-
-### 2026-08-04 — Use local knowledge consistently on Windows
-
-- `okn connect` reads canonical Windows `file://` URLs for manifests and
-  archives. Windows drive URLs use `file:///C:/path`.
-- Insight creation reports stable slash-separated project paths on all
-  operating systems.
-- Source: `packages/cli/cmd/openknowledge/registry_command.go`,
-  `packages/cli/cmd/openknowledge/insights_command.go`.
-- Docs: `Wiki/features/commands/connect.md`,
-  `Wiki/features/commands/insights.md`.
-
-### 2026-08-04 — Adapt the viewer to your workspace
-
-- The file explorer stays visible and opaque during open-beside navigation.
-- Resize the explorer from its `25vw` default within its minimum and maximum
-  limits.
-- The viewer keeps the header, note workspace, and horizontal scroll rail in
-  the main content column.
-- Source: `packages/web/src/viewer/`,
-  `packages/web/scripts/browser.e2e.mjs`,
-  `packages/cli/cmd/openknowledge/viewer_test.go`.
-- Docs: `Wiki/features/commands/view.md`.
-
-### 2026-08-04 — Use OKF 0.2 across CLI and viewer surfaces
-
-- `okn list` shows trust, lifecycle status, and stale content. List and graph
-  JSON also expose a derived `okf02` contract.
-- Graph output connects sources, computations, executors, and attesters with
-  typed provenance edges.
-- Viewer pages show freshness, provenance, linked sources, and Attested
-  Computation contracts.
-- Plain HTML includes semantic frontmatter and links source footnotes to
-  structured source records.
-- The CLI preserves executor and attester declarations. It never runs these
-  resources automatically.
-- Source: `packages/cli/internal/okf/okf_0_2_signals.go`,
-  `packages/cli/internal/okf/graph.go`,
-  `packages/cli/internal/okf/html_frontmatter.go`,
-  `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
-  `packages/web/src/viewer/`.
-- Docs: `Wiki/features/spec-compliance.md`,
-  `Wiki/features/commands/list.md`,
-  `Wiki/features/commands/view.md`,
-  `Wiki/features/exporters/graph.md`,
-  `Wiki/features/exporters/html.md`,
-  `Wiki/features/go-api.md`,
-  `Wiki/features/machine-contracts.md`.
-
-### 2026-08-03 — Create and validate OKF 0.2 knowledge bases by default
+### OKF 0.2
 
 - The `latest` selector now uses OKF 0.2. Explicit OKF 0.1 reads remain
   available.
@@ -108,17 +60,31 @@ views, and improves viewer navigation and local automation.
 - The scaffold handoff validates the selected OKF version.
 - New insights use OKF 0.2 lifecycle and `generated` metadata. Status changes
   convert legacy insight provenance to OKF 0.2.
+- `okn list` shows trust, lifecycle status, and stale content. List and graph
+  JSON also expose a derived `okf02` contract.
+- Graph output connects sources, computations, executors, and attesters with
+  typed provenance edges.
+- Viewer pages and HTML exports show provenance, linked sources, and Attested
+  Computation contracts.
+- The CLI preserves executor and attester declarations. It never runs these
+  resources automatically.
 - Source: `packages/cli/internal/okf/`,
-  `packages/cli/internal/okf/assets/specs/0.2.md`,
   `packages/cli/internal/insights/`,
   `packages/cli/cmd/openknowledge/main.go`,
-  `packages/cli/cmd/openknowledge/main_test.go`.
+  `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
+  `packages/web/src/viewer/`.
 - Docs: `README.md`, `Wiki/SPEC.md`,
   `Wiki/features/spec-compliance.md`,
+  `Wiki/features/commands/list.md`,
+  `Wiki/features/commands/view.md`,
   `Wiki/features/commands/scaffold.md`,
-  `Wiki/features/commands/insights.md`.
+  `Wiki/features/commands/insights.md`,
+  `Wiki/features/exporters/graph.md`,
+  `Wiki/features/exporters/html.md`,
+  `Wiki/features/go-api.md`,
+  `Wiki/features/machine-contracts.md`.
 
-### 2026-08-02 — Complete setup in one workflow
+### Setup
 
 - `okn setup` starts a terminal wizard. Without terminal input, it prints a
   complete task for an agent.
@@ -134,49 +100,56 @@ views, and improves viewer navigation and local automation.
 - Bundle configuration now uses `.openknowledge.toml`. The CLI does not load
   the legacy name.
 - Both configuration names remain private in viewer and publication output.
+- The generated task starts with an open-ended setup interview for `Wiki`.
+- The README and website explain setup with an existing agent or a selected
+  CLI runtime. The website copy action includes complete agent instructions.
+- The README workflow diagram includes MCP.
 - Source: `packages/cli/cmd/openknowledge/setup_command.go`,
   `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`,
-  `packages/cli/internal/integration/`, `packages/cli/internal/okf/`.
+  `packages/cli/internal/integration/`, `packages/cli/internal/okf/`,
+  `packages/web/index.html`.
 - Docs: `README.md`, `Wiki/features/commands/setup.md`,
   `Wiki/features/configuration.md`.
 
-### 2026-07-31 — Explore Mermaid diagrams in detail
+### Viewer
 
-- Open a rendered Mermaid diagram with a click, Enter, or Space.
-- A viewport dialog provides toolbar, wheel, pinch, drag, and arrow-key
-  controls for zoom and pan.
-- **Fit** shows the complete diagram. **100%** centers it at the original
-  scale.
-- The local viewer and interactive HTML exports use the same controls.
+- Mobile sidebar and note navigation now show destinations immediately without
+  transition delays.
+- The file explorer stays visible during open-beside navigation. Resize it
+  from its `25vw` default within its limits.
+- The viewer keeps the header, note workspace, and horizontal scroll rail in
+  the main content column.
+- Open a Mermaid diagram with a click, Enter, or Space. The viewport dialog
+  provides zoom, pan, **Fit**, and **100%** controls.
+- The local viewer and interactive HTML exports use the same diagram controls.
 - Source: `packages/web/src/viewer/`,
-  `packages/web/scripts/browser.e2e.mjs`.
+  `packages/web/scripts/browser.e2e.mjs`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`.
 - Docs: `Wiki/features/commands/view.md`,
   `Wiki/features/exporters/html.md`.
 
-### 2026-07-31 — Run each scheduled job once
+### Automation
 
 - A scheduled job runs once for each job ID and schedule slot. Repository or
   job-file changes do not replay that slot.
 - Each private jobs worker uses its runtime-specific state directory.
 - Workers remove terminal worktrees and large temporary artifacts after
-  proposal export.
-- Publishers remove branch bundles after publication.
+  proposal export. Publishers remove branch bundles after publication.
 - Source: `packages/cli/internal/agents/plan.go`,
   `packages/cli/cmd/openknowledge/runtime_worker.go`.
 - Docs: `Wiki/features/commands/jobs.md`,
   `Wiki/features/commands/runtime.md`.
 
-### 2026-07-31 — Start setup with an existing agent
+### Compatibility
 
-- The generated task starts with an open-ended setup interview for `Wiki`.
-- The README and website show setup with an existing agent or a selected CLI
-  runtime.
-- The website copy action includes agent installation, verification, and setup
-  instructions.
-- The README workflow diagram includes MCP.
-- Source: `packages/cli/cmd/openknowledge/setup_command.go`,
-  `packages/web/index.html`.
-- Docs: `README.md`, `Wiki/features/commands/setup.md`.
+- `okn connect` reads canonical Windows `file://` URLs for manifests and
+  archives. Windows drive URLs use `file:///C:/path`.
+- Insight creation reports stable slash-separated project paths on all
+  operating systems.
+- Source: `packages/cli/cmd/openknowledge/registry_command.go`,
+  `packages/cli/cmd/openknowledge/insights_command.go`.
+- Docs: `Wiki/features/commands/connect.md`,
+  `Wiki/features/commands/insights.md`.
 
 ## v0.9.0 — 2026-07-30
 
