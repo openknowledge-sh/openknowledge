@@ -47,8 +47,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Each panel keeps its own focus and close controls.
   The open file explorer remains visible during link navigation and uses the
   first grid column at `25vw` by default. You can resize it within its minimum
-  and maximum limits. The viewer header and note workspace remain in the
-  second grid column.
+  and maximum limits. The viewer header, note workspace, and horizontal scroll
+  rail remain in the second grid column.
 - AST-based search uses the same section ranking as
   [`okn search`](search.md). It also uses the same one-level link
   expansion. Results group section matches by document. They can link to and

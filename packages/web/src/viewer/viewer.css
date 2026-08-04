@@ -6,7 +6,7 @@
 * { box-sizing: border-box; }
 html { background: var(--ok-color-viewer-canvas); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { margin: 0; color: var(--ok-color-text); background: var(--ok-color-page); font-family: var(--ok-font-body); font-feature-settings: "cv02", "cv03", "cv04", "cv11"; font-synthesis: none; letter-spacing: -.006em; line-height: 1.55; -moz-osx-font-smoothing: grayscale; -webkit-font-smoothing: antialiased; }
-body.viewer-document { --ok-sidebar-layout-width: 0px; display: grid; grid-template-columns: var(--ok-sidebar-layout-width) minmax(0, 1fr); grid-template-rows: var(--ok-header-height) minmax(0, 1fr); width: 100%; height: var(--ok-viewport-height); overflow: hidden; transition: grid-template-columns .22s cubic-bezier(.22, .8, .2, 1); }
+body.viewer-document { --ok-sidebar-layout-width: 0px; position: relative; display: grid; grid-template-columns: var(--ok-sidebar-layout-width) minmax(0, 1fr); grid-template-rows: var(--ok-header-height) minmax(0, 1fr); width: 100%; height: var(--ok-viewport-height); overflow: hidden; transition: grid-template-columns .22s cubic-bezier(.22, .8, .2, 1); }
 body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: var(--ok-sidebar-user-width, var(--ok-sidebar-width)); }
 body.viewer-document.is-sidebar-resizing { cursor: col-resize; transition: none; user-select: none; }
 body.viewer-asset-document { overflow: auto; }

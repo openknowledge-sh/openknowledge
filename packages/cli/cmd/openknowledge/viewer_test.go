@@ -379,9 +379,10 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
 		t.Fatalf("viewer file sidebar should close after opening a tree item only on mobile widths:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document { --ok-sidebar-layout-width: 0px; display: grid; grid-template-columns: var(--ok-sidebar-layout-width) minmax(0, 1fr);`) ||
+	if !strings.Contains(page, `body.viewer-document { --ok-sidebar-layout-width: 0px; position: relative; display: grid; grid-template-columns: var(--ok-sidebar-layout-width) minmax(0, 1fr);`) ||
 		!strings.Contains(page, `body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: var(--ok-sidebar-user-width, var(--ok-sidebar-width)); }`) ||
-		!strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) {
+		!strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) ||
+		!strings.Contains(page, `.workspace-scroll-rail { position: absolute; grid-column: 2; grid-row: 2;`) {
 		t.Fatalf("viewer file sidebar, header, and workspace should share a two-column grid shell:\n%s", page)
 	}
 	if !strings.Contains(page, `--ok-sidebar-min-width: 280px;`) ||

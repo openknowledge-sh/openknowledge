@@ -17,8 +17,8 @@ page records release-level changes.
 
 - The open file explorer now remains opaque during open-beside navigation and
   uses a resizable first grid column. It defaults to `25vw` with minimum and
-  maximum limits. The viewer header and note workspace remain in the second
-  grid column.
+  maximum limits. The viewer header, note workspace, and horizontal scroll
+  rail remain in the second grid column.
 - Source: `packages/web/src/viewer/`,
   `packages/web/scripts/browser.e2e.mjs`,
   `packages/cli/cmd/openknowledge/viewer_test.go`.
