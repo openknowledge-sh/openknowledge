@@ -13,6 +13,18 @@ page records release-level changes.
 
 ## Unreleased
 
+### 2026-08-04 — Dependency refresh and Node 20 minimum version
+
+- The published npm wrapper now requires Node 20 or later.
+- Web development and build commands now require Node 20. Updated web tooling
+  dependencies require this minimum version.
+- CI tests the npm wrapper and web package on Node 20.
+- Invalid TOML configuration now uses the current parser diagnostics.
+- Source: `packages/npm/package.json`, `packages/web/package.json`,
+  `packages/cli/internal/okf/project_config_test.go`,
+  `.github/workflows/ci.yml`, `pnpm-lock.yaml`.
+- Docs: `Wiki/features/operations.md`.
+
 ### 2026-08-04 — Windows CLI portability
 
 - `connect` now reads canonical Windows `file://` URLs for manifests and

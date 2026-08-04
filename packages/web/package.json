@@ -15,16 +15,16 @@
     "start": "OPENKNOWLEDGE_WEB_ROOT=dist OPENKNOWLEDGE_WEB_EXPORT_WIKI=0 HOST=0.0.0.0 node scripts/serve.mjs"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
-    "mermaid": "11.15.0"
+    "mermaid": "11.16.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
-    "oxlint": "1.15.0",
+    "@types/node": "^26.1.2",
+    "oxlint": "1.76.0",
     "typescript": "5.9.3",
     "vite": "6.4.3",
-    "vitest": "3.2.6"
+    "vitest": "4.1.10"
   }
 }
