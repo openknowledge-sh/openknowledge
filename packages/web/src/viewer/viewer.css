@@ -500,7 +500,7 @@ html[data-viewer-motion="full"] .note-body a { transition: background-color .16s
   header { display: block; }
   body:not(.viewer-document) header span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
   .row { grid-template-columns: 1fr; }
-  body.viewer-document { grid-template-rows: var(--ok-mobile-header-height) minmax(0, 1fr); }
+  body.viewer-document { grid-template-rows: var(--ok-mobile-header-height) minmax(0, 1fr); transition: none; }
   body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: 100vw; }
   body.viewer-document header { display: flex; height: var(--ok-mobile-header-height); justify-content: flex-end; padding: 0 12px; }
   .file-sidebar-head { min-height: var(--ok-mobile-header-height); }
@@ -516,6 +516,7 @@ html[data-viewer-motion="full"] .note-body a { transition: background-color .16s
   .header-search .search-results { left: auto; width: min(320px, calc(100vw - 24px)); }
   .viewer-settings-menu { width: min(300px, calc(100vw - 24px)); }
   .note-workspace { height: 100%; }
+  .note-panel.is-entering, html[data-viewer-motion="full"] .note-panel.is-entering { animation: none; }
   .note-stack { gap: 12px; padding: 8px 12px 12px; }
   .note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }
   .note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 18px; }

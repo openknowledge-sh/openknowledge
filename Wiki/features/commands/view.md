@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-07-31T00:00:00Z
+timestamp: 2026-08-04T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -56,6 +56,10 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   first grid column at `25vw` by default. You can resize it within its minimum
   and maximum limits. The viewer header, note workspace, and horizontal scroll
   rail remain in the second grid column.
+- On viewports up to 680 px, sidebar open and close actions have no motion.
+  Note stack navigation has no View Transition or fallback panel entrance
+  effect. A sidebar link closes the sidebar and shows its destination
+  immediately.
 - AST-based search uses the same section ranking as
   [`okn search`](search.md). It also uses the same one-level link
   expansion. Results group section matches by document. They can link to and

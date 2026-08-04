@@ -411,6 +411,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
 	}
+	if !strings.Contains(page, `return !mobileSidebar.matches && !motionIsReduced();`) ||
+		!strings.Contains(page, `animate && stackMotionIsEnabled() ? " is-entering" : ""`) ||
+		!strings.Contains(page, `body.viewer-document { grid-template-rows: var(--ok-mobile-header-height) minmax(0, 1fr); transition: none; }`) ||
+		!strings.Contains(page, `.note-panel.is-entering, html[data-viewer-motion="full"] .note-panel.is-entering { animation: none; }`) {
+		t.Fatalf("viewer navigation and sidebar motion should be disabled at mobile widths:\n%s", page)
+	}
 	if !strings.Contains(page, `body.viewer-document > header { view-transition-name: viewer-header; }`) ||
 		!strings.Contains(page, `.file-sidebar { view-transition-name: file-sidebar; }`) ||
 		!strings.Contains(page, `::view-transition-group(viewer-header) { z-index: 1; }`) ||

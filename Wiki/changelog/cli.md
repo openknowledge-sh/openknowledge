@@ -36,6 +36,16 @@ page records release-level changes.
 Version 0.10 makes OKF 0.2 the default, unifies setup, expands provenance
 views, and improves viewer navigation and local automation.
 
+### 2026-08-04 — Navigate immediately on mobile
+
+- On screens up to 680 px, sidebar and note transitions no longer delay
+  navigation.
+- Selecting a sidebar link closes the sidebar and shows its destination
+  immediately.
+- Source: `packages/web/src/viewer/`,
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `Wiki/features/commands/view.md`.
+
 ### 2026-08-04 — Use local knowledge consistently on Windows
 
 - `okn connect` reads canonical Windows `file://` URLs for manifests and

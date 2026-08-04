@@ -388,6 +388,35 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await context.close();
 });
 
+test("exported viewer switches sidebar notes without mobile motion", async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.addInitScript(() => {
+    window.__openKnowledgeViewTransitionCount = 0;
+    const startViewTransition = document.startViewTransition?.bind(document);
+    if (!startViewTransition) return;
+    document.startViewTransition = (callback) => {
+      window.__openKnowledgeViewTransitionCount += 1;
+      return startViewTransition(callback);
+    };
+  });
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Open file explorer" }).click();
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).transitionDuration), "0s");
+
+  await page.locator('.file-sidebar [data-tree-directory-path="guides"]').click();
+  await page.locator('.file-sidebar [data-tree-path="guides/rollback.md"]').click();
+  const panel = page.locator('[data-note-path="guides/rollback.md"]');
+  await panel.waitFor({ state: "visible" });
+  assert.equal(await page.locator("[data-file-sidebar]").getAttribute("aria-hidden"), "true");
+  assert.equal(await panel.evaluate((element) => element.classList.contains("is-entering")), false);
+  assert.equal(await page.evaluate(() => window.__openKnowledgeViewTransitionCount), 0);
+  assert.equal(errors.length, 0, `viewer mobile navigation browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
 test("exported viewer renders Mermaid in initial and dynamic note panels", async () => {
   const context = await browser.newContext();
   const page = await context.newPage();

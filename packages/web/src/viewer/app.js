@@ -3420,7 +3420,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function createPanel(data, animate) {
     const panel = document.createElement("article");
-    panel.className = "document note-panel" + (animate ? " is-entering" : "");
+    panel.className = "document note-panel" + (animate && stackMotionIsEnabled() ? " is-entering" : "");
     panel.dataset.notePath = data.path;
     panel.dataset.noteTitle = data.title || data.path;
     panel.tabIndex = -1;
@@ -3545,8 +3545,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     scrollToPanel(panel);
   }
 
+  function stackMotionIsEnabled() {
+    return !mobileSidebar.matches && !motionIsReduced();
+  }
+
   function canUseStackTransition() {
-    return !motionIsReduced() && typeof document.startViewTransition === "function";
+    return stackMotionIsEnabled() && typeof document.startViewTransition === "function";
   }
 
   function clearEnteringPanels() {
