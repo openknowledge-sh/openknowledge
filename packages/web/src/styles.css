@@ -403,12 +403,36 @@ h1 {
   gap: 24px;
   align-items: baseline;
   min-height: 70px;
-  padding: 22px 0;
+  padding: 13px 0;
   border-bottom: 1px solid var(--line);
 }
 
-.command-list code {
+.command-link {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  border-radius: 4px;
   color: var(--accent-strong);
+  text-decoration-line: underline;
+  text-decoration-color: rgba(142, 183, 255, 0.34);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+  transition: color 180ms ease, text-decoration-color 180ms ease;
+}
+
+.command-link:hover {
+  color: var(--ink);
+  text-decoration-color: var(--accent);
+}
+
+.command-link:active {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.command-list code {
+  color: inherit;
   font: 520 0.86rem/1.4 var(--font-mono);
 }
 

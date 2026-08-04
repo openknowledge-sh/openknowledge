@@ -158,6 +158,20 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   assert.match(await agents.innerText(), /okn mcp/);
   const humans = page.getByRole("region", { name: "For humans" });
   assert.match(await humans.innerText(), /okn view/);
+  const commandDocs = [
+    ["okn setup", "/wiki/features/commands/setup.html"],
+    ["okn validate", "/wiki/features/commands/validate.html"],
+    ["okn list", "/wiki/features/commands/list.html"],
+    ["okn get", "/wiki/features/commands/get.html"],
+    ["okn search", "/wiki/features/commands/search.html"],
+    ["okn mcp", "/wiki/features/commands/mcp.html"],
+    ["okn view", "/wiki/features/commands/view.html"],
+  ];
+  for (const [label, href] of commandDocs) {
+    const commandLink = page.getByRole("link", { name: label, exact: true });
+    assert.equal(await commandLink.count(), 1);
+    assert.equal(await commandLink.getAttribute("href"), href);
+  }
   const useCases = page.locator(".use-cases");
   assert.equal(await page.getByRole("heading", { name: "From Markdown to shared context." }).count(), 1);
   assert.equal(await useCases.getByRole("heading", { name: "Create a knowledge base" }).count(), 1);
