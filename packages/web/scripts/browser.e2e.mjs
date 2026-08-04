@@ -263,14 +263,14 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
   assert.equal(await page.locator("[data-note-path]").count(), 2, "beside mode should open a normal note link beside the active panel");
   assert.equal(await page.locator("[data-note-navigator]").count(), 0, "multi-panel mode should not add a fixed bottom navigator");
-  await page.locator('[data-note-path="index.md"]').click();
+  await page.locator('[data-note-path="index.md"] .note-chrome').click();
   assert.equal(await page.locator('[data-note-path="index.md"][data-active-panel="true"]').count(), 1);
   await page.getByRole("link", { name: "rollback guide" }).click({ modifiers: ["Shift"] });
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 1);
   assert.equal(await page.locator("[data-note-path]").count(), 1, "Shift-click should invert beside mode and replace the active panel");
   await page.goBack();
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 2);
-  await page.locator('[data-note-path="index.md"]').click();
+  await page.locator('[data-note-path="index.md"] .note-chrome').click();
 
   await page.getByRole("button", { name: "Open file explorer" }).click();
   const viewport = page.viewportSize();
@@ -414,6 +414,94 @@ test("exported viewer renders Mermaid in initial and dynamic note panels", async
   await context.close();
 });
 
+test("exported Mermaid diagrams open in a zoomable viewport", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  const trigger = page.getByRole("button", { name: "Mermaid diagram 1 in Browser Test Handbook" });
+  await trigger.click();
+
+  const dialog = page.getByRole("dialog", { name: "Mermaid diagram 1 in Browser Test Handbook" });
+  await dialog.waitFor({ state: "visible" });
+  const dialogBox = await dialog.boundingBox();
+  assert.deepEqual(dialogBox && { width: dialogBox.width, height: dialogBox.height }, { width: 1280, height: 720 });
+
+  const status = page.getByRole("status", { name: "Diagram zoom" });
+  const zoomIn = page.getByRole("button", { name: "Zoom in" });
+  const zoomOut = page.getByRole("button", { name: "Zoom out" });
+  const actual = page.getByRole("button", { name: "Show diagram at 100%" });
+  const fit = page.getByRole("button", { name: "Fit diagram to viewport" });
+  const canvas = page.getByLabel("Diagram canvas. Drag to pan.");
+  const stage = page.locator(".ok-mermaid-viewport-stage");
+
+  const fittedZoom = zoomPercent(await status.innerText());
+  await zoomIn.click();
+  assert.ok(zoomPercent(await status.innerText()) > fittedZoom);
+  await zoomOut.click();
+  await actual.click();
+  assert.equal(await status.innerText(), "100%");
+  await fit.click();
+  assert.equal(zoomPercent(await status.innerText()), fittedZoom);
+
+  await canvas.hover();
+  await page.mouse.wheel(0, -100);
+  assert.ok(zoomPercent(await status.innerText()) > fittedZoom);
+
+  const canvasBox = await canvas.boundingBox();
+  assert.ok(canvasBox);
+  const beforeDrag = await stage.getAttribute("style");
+  await page.mouse.move(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(canvasBox.x + canvasBox.width / 2 + 90, canvasBox.y + canvasBox.height / 2 + 50);
+  await page.mouse.up();
+  const afterDrag = await stage.getAttribute("style");
+  assert.notEqual(afterDrag, beforeDrag);
+  await canvas.press("ArrowRight");
+  assert.notEqual(await stage.getAttribute("style"), afterDrag);
+
+  await canvas.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  assert.equal(await trigger.evaluate((element) => document.activeElement === element), true);
+  const restoredDiagram = page.locator('[data-note-path="index.md"] [data-mermaid-output] svg');
+  await restoredDiagram.waitFor({ state: "visible" });
+  assert.equal(await restoredDiagram.count(), 1);
+
+  await trigger.press("Enter");
+  await dialog.waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Close diagram viewer" }).click();
+  await dialog.waitFor({ state: "hidden" });
+  assert.equal(await trigger.evaluate((element) => document.activeElement === element), true);
+  await restoredDiagram.waitFor({ state: "visible" });
+  await page.keyboard.press("Space");
+  await dialog.waitFor({ state: "visible" });
+  await page.keyboard.press("Escape");
+
+  assert.equal(errors.length, 0, `viewer Mermaid viewport browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("exported Mermaid viewport fits mobile screens", async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Mermaid diagram 1 in Browser Test Handbook" }).click();
+  const dialog = page.getByRole("dialog", { name: "Mermaid diagram 1 in Browser Test Handbook" });
+  const toolbar = page.getByRole("toolbar", { name: "Diagram zoom controls" });
+  const dialogBox = await dialog.boundingBox();
+  const toolbarBox = await toolbar.boundingBox();
+  assert.deepEqual(dialogBox && { width: dialogBox.width, height: dialogBox.height }, { width: 390, height: 844 });
+  assert.ok(toolbarBox && toolbarBox.x >= 0 && toolbarBox.x + toolbarBox.width <= 390);
+  for (const name of ["Zoom out", "Zoom in", "Show diagram at 100%", "Fit diagram to viewport", "Close diagram viewer"]) {
+    assert.equal(await page.getByRole("button", { name }).isVisible(), true);
+  }
+  assert.equal(errors.length, 0, `mobile Mermaid viewport browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
 test("nested exported pages work directly from file URLs", async () => {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -470,6 +558,10 @@ function collectPageErrors(page) {
   });
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   return errors;
+}
+
+function zoomPercent(value) {
+  return Number.parseInt(value, 10);
 }
 
 async function listen(server) {

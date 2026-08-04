@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-07-30T00:00:00Z
+timestamp: 2026-07-31T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -40,6 +40,13 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The viewer renders Markdown and follows local links. It renders fenced
   `mermaid` blocks as diagrams. It also shows note panels, source graphs,
   validation context, highlighted assets, and media or PDF previews.
+- Click a rendered Mermaid diagram to open a viewport-filling dialog.
+  You can also focus the diagram and press Enter or Space.
+  Use the toolbar, wheel, or pinch gesture to zoom.
+  Drag the diagram, or use the arrow keys, to pan.
+  Select **Fit** to fit the complete diagram in the viewport.
+  Select **100%** to center the diagram at its original scale.
+  Press Escape to close the dialog.
 - The link behavior control is next to viewer settings. Open-beside mode is the
   default. The control can select the current panel mode.
   The browser stores this selection. Hold Shift during activation to use the
@@ -120,6 +127,7 @@ Theme and source-link configuration comes from
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/cli/cmd/openknowledge/viewer_assets/`
 > - `packages/web/src/viewer/`
+> - `packages/web/scripts/browser.e2e.mjs`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/internal/okf/search.go`
 >

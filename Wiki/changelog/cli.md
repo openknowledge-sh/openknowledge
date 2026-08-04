@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-07-30T00:00:00Z
+timestamp: 2026-07-31T00:00:00Z
 ---
 
 # CLI Changelog
@@ -87,6 +87,19 @@ page records release-level changes.
   `packages/cli/internal/integration/`, `packages/cli/internal/okf/`.
 - Docs: `README.md`, `Wiki/features/commands/setup.md`,
   `Wiki/features/configuration.md`.
+
+### 2026-07-31 — Mermaid diagram viewport
+
+- A click, Enter, or Space now opens a rendered Mermaid diagram in a
+  viewport-filling dialog.
+- Toolbar, wheel, pinch, drag, and arrow-key controls provide zoom and pan.
+- **Fit** fits the complete diagram in the viewport.
+  **100%** centers the diagram at its original scale.
+- The local viewer and interactive HTML exports use the same controls.
+- Source: `packages/web/src/viewer/`,
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`.
 
 ### 2026-07-31 — Bounded scheduled-job storage
 
