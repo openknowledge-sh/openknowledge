@@ -8,6 +8,9 @@ updates:
       day: "monday"
       time: "05:00"
       timezone: "Etc/UTC"
+    groups:
+      npm-dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: "gomod"
     directory: "/packages/cli"
@@ -16,6 +19,9 @@ updates:
       day: "monday"
       time: "05:15"
       timezone: "Etc/UTC"
+    groups:
+      go-dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -24,6 +30,9 @@ updates:
       day: "monday"
       time: "05:30"
       timezone: "Etc/UTC"
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -32,3 +41,6 @@ updates:
       day: "monday"
       time: "05:45"
       timezone: "Etc/UTC"
+    groups:
+      docker-images:
+        patterns: ["*"]

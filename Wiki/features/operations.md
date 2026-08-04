@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-08-04T00:00:00Z
 ---
 
 # CLI Operations
@@ -20,6 +20,9 @@ Wiki          canonical CLI documentation
 The root `package.json` owns the release version and workspace commands.
 
 ## Local development
+
+Use Node 20 or later for workspace development and web builds.
+Updated web tooling dependencies require this minimum version.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -70,8 +73,10 @@ The workflow does these tasks:
 8. Validate `Wiki/` with the built binary.
 9. Fail when generation changes tracked files.
 10. Run CLI tests and builds on Linux, macOS, and Windows.
-11. Verify npm and web behavior on Node 18.
-12. Verify an installed packed artifact on Node 18.
+11. Verify npm and web behavior on Node 20.
+12. Verify an installed packed artifact on Node 20.
+
+The published npm wrapper requires Node 20 or later.
 
 Require the `CI / verify` check in branch protection.
 

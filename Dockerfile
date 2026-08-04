@@ -1,7 +1,9 @@
 FROM golang:1.26.5-bookworm AS build
 
+COPY --from=node:20-bookworm-slim /usr/local/ /usr/local/
+
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates nodejs npm \
+  && apt-get install -y --no-install-recommends ca-certificates \
   && npm install -g pnpm@10 \
   && rm -rf /var/lib/apt/lists/*
 
@@ -15,7 +17,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 RUN pnpm build:web
 
-FROM node:22-bookworm-slim
+FROM node:26-bookworm-slim
 
 WORKDIR /app
 

@@ -22,7 +22,7 @@ source.
 
 ## Mermaid
 
-The packaged Open Knowledge CLI embeds Mermaid 11.15.0 to render fenced
+The packaged Open Knowledge CLI embeds Mermaid 11.16.0 to render fenced
 `mermaid` blocks in the local and static HTML viewers.
 
 - Upstream repository: https://github.com/mermaid-js/mermaid
@@ -36,9 +36,9 @@ The embedded browser build retains upstream bundled dependency notices.
 The packaged Open Knowledge CLI uses the following libraries to serialize
 registry updates across processes and atomically replace the registry file:
 
-- `github.com/gofrs/flock` v0.12.1 — BSD 3-Clause License
+- `github.com/gofrs/flock` v0.13.0 — BSD 3-Clause License
   (`third_party/licenses/gofrs-flock-BSD-3-Clause.txt`)
 - `github.com/natefinch/atomic` v1.0.1 — MIT License
   (`third_party/licenses/natefinch-atomic-MIT.txt`)
-- `golang.org/x/sys` v0.26.0 — BSD 3-Clause License
+- `golang.org/x/sys` v0.47.0 — BSD 3-Clause License
   (`third_party/licenses/golang-x-sys-BSD-3-Clause.txt`)

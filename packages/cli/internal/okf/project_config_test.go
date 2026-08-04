@@ -74,7 +74,7 @@ func TestParseProjectConfigFailsClosedAcrossEverySection(t *testing.T) {
 		content  string
 		expected string
 	}{
-		{name: "syntax", content: "[html.theme\nname = \"night\"\n", expected: "expected character ]"},
+		{name: "syntax", content: "[html.theme\nname = \"night\"\n", expected: "close table name"},
 		{name: "unknown root", content: "[deployment]\nurl = \"https://example.test\"\n", expected: "fields in the document are missing in the target struct"},
 		{name: "unknown HTML field", content: "[html.theme]\ncss = \"theme.css\"\n", expected: "fields in the document are missing in the target struct"},
 		{name: "wrong HTML type", content: "[html.site]\nbase_url = 42\n", expected: "cannot decode TOML integer"},
@@ -86,7 +86,7 @@ func TestParseProjectConfigFailsClosedAcrossEverySection(t *testing.T) {
 		{name: "unsafe publish backslash", content: "[publish]\nassets = 'assets\\secret.txt'\n", expected: "forward slashes"},
 		{name: "malformed publish glob", content: "[publish]\nassets = \"assets/[.txt\"\n", expected: "syntax error in pattern"},
 		{name: "unknown validation rule", content: "[validation.rules]\nnot-a-rule = \"warn\"\n", expected: "unknown validation rule"},
-		{name: "wrong validation severity type", content: "[validation.rules]\nlink-target = true\n", expected: "cannot assign boolean"},
+		{name: "wrong validation severity type", content: "[validation.rules]\nlink-target = true\n", expected: "boolean into string"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
