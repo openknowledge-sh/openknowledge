@@ -2,6 +2,8 @@ package main
 
 import _ "embed"
 
+// pnpm build:viewer generates these ignored assets from packages/web/src/viewer.
+
 //go:embed viewer_assets/viewer.js
 var viewerJS string
 

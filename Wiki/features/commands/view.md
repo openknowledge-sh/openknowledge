@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-08-04T00:00:00Z
+timestamp: 2026-08-06T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -126,10 +126,12 @@ Theme and source-link configuration comes from
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/viewer.go`
+> - `packages/cli/cmd/openknowledge/viewer_assets.go`
 > - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
-> - `packages/cli/cmd/openknowledge/viewer_assets/`
 > - `packages/web/src/viewer/`
+> - `packages/web/vite.viewer.config.ts`
+> - `packages/web/vite.theme.config.ts`
 > - `packages/web/scripts/browser.e2e.mjs`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/internal/okf/search.go`

@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-04T00:00:00Z
+timestamp: 2026-08-06T00:00:00Z
 ---
 
 # CLI Changelog
@@ -12,6 +12,17 @@ Current behavior belongs in the [command reference](/features/commands/). This
 page records release-level changes.
 
 ## Unreleased
+
+### Packaging
+
+- Git no longer stores compiled viewer JavaScript and CSS.
+- Source builds, tests, security scans, platform checks, and releases build
+  viewer assets before Go embeds them.
+- Source: `package.json`, `.gitignore`, `packages/web/vite.viewer.config.ts`,
+  `packages/web/vite.theme.config.ts`, `.github/workflows/ci.yml`,
+  `.github/workflows/security.yml`, `.github/workflows/release.yml`.
+- Docs: `Wiki/features/operations.md`,
+  `Wiki/features/exporters/html.md`.
 
 ### Viewer
 

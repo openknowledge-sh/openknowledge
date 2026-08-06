@@ -21,6 +21,10 @@ var expectedWriteCapabilities = map[string]struct{}{
 
 var expectedPublishSteps = []string{
 	"Checkout verified release commit",
+	"Setup pnpm",
+	"Setup Node",
+	"Install dependencies",
+	"Build viewer assets",
 	"Prepare release tag",
 	"Run GoReleaser",
 	"Attest release archives",

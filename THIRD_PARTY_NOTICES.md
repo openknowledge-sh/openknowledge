@@ -27,7 +27,7 @@ the local and static HTML viewers.
 
 - Upstream repository: https://github.com/mermaid-js/mermaid
 - Bundled viewer source: `packages/web/src/viewer/mermaid-global.ts`
-- Generated CLI asset: `packages/cli/cmd/openknowledge/viewer_assets/viewer.js`
+- Generated CLI build output: `packages/cli/cmd/openknowledge/viewer_assets/viewer.js`
 - License: MIT License
 - License copy: `third_party/licenses/mermaid-MIT.txt`
 

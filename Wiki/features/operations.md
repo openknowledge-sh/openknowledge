@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-08-06T00:00:00Z
 ---
 
 # CLI Operations
@@ -37,6 +37,7 @@ pnpm build
 | `pnpm test:browser` | Exercise the production landing build and exported viewer over HTTP and `file://` in Chromium. |
 | `pnpm test:race` | Run all Go tests with the race detector. |
 | `pnpm test:coverage` | Produce `coverage.out` for the Go packages. |
+| `pnpm build:viewer` | Build ignored viewer assets for Go embedding. |
 | `pnpm check:format` | Fail when committed Go files are not formatted. |
 | `pnpm check:onboarding-docs` | Keep README, website, and wiki setup/publication guidance aligned. |
 | `pnpm check:repo-jobs` | Validate repository job definitions. |
@@ -46,7 +47,7 @@ pnpm build
 | `pnpm check:workflow-permissions` | Enforce reviewed minimal write scopes. |
 | `pnpm check:security-config` | Verify scanning and dependency-update coverage. |
 | `pnpm check:container-runtime` | Verify toolchain, image, user, volume, and credential boundaries. |
-| `pnpm build:cli` | Build `bin/openknowledge`. |
+| `pnpm build:cli` | Build viewer assets and `bin/openknowledge`. |
 | `pnpm build:web` | Build the website and exported wiki. |
 | `pnpm dev:web` | Run the local website workflow. |
 
@@ -68,10 +69,11 @@ The workflow does these tasks:
 6. Build the CLI and website.
 7. Test landing and viewer journeys in Chromium.
 8. Validate `Wiki/` with the built binary.
-9. Fail when generation changes tracked files.
-10. Run CLI tests and builds on Linux, macOS, and Windows.
-11. Verify npm and web behavior on Node 18.
-12. Verify an installed packed artifact on Node 18.
+9. Reject tracked viewer build output.
+10. Build viewer assets before Go tests on Linux, macOS, and Windows.
+11. Run CLI tests and builds on Linux, macOS, and Windows.
+12. Verify npm and web behavior on Node 18.
+13. Verify an installed packed artifact on Node 18.
 
 Require the `CI / verify` check in branch protection.
 
@@ -85,9 +87,10 @@ Results can change when vulnerability databases change.
 
 `pnpm build:web` builds `packages/web/dist`.
 Vite compiles the landing page from `packages/web/src/main.ts`.
-It also builds the shared viewer bundle from `packages/web/src/viewer`.
-The build synchronizes generated viewer assets into the Go embed directory
-before it builds the wiki export.
+It builds the shared viewer bundle from `packages/web/src/viewer`.
+Vite writes the bundle directly into the ignored Go embed directory.
+Git does not track the compiled viewer files.
+Commands that build or test the CLI generate these files first.
 It exports `Wiki/` to `dist/wiki`.
 It publishes JSON schemas under `dist/schemas/cli/`.
 By default, the exporter uses the current Go source.
@@ -127,6 +130,7 @@ It completes the quality gate before it creates and pushes the version commit.
 The workflow creates the release tag from this verified commit.
 The gate includes browser journeys, race tests, and a real packed npm installation.
 It also includes a GoReleaser snapshot with all six supported OS and architecture archives.
+The publication job rebuilds viewer assets from the verified source before GoReleaser runs.
 Only the commit and publication jobs receive write permissions.
 The npm and publication jobs receive their required OIDC permissions.
 Only the publication job receives attestation permissions.
