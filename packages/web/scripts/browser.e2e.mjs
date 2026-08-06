@@ -218,7 +218,12 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   const errors = collectPageErrors(page);
 
   await page.goto(new URL("guides/rollback.html", viewerURL).href, { waitUntil: "networkidle" });
-  const signals = page.locator("[data-okf02-signals]");
+  const frontmatter = page.locator("[data-frontmatter]");
+  assert.equal(await frontmatter.count(), 1);
+  assert.equal(await frontmatter.getAttribute("open"), null);
+  await frontmatter.locator(":scope > summary").click();
+  assert.equal(await frontmatter.getAttribute("open"), "");
+  const signals = frontmatter.locator("[data-okf02-signals]");
   assert.equal(await signals.count(), 1);
   assert.match(await signals.innerText(), /Human reviewed/);
   assert.match(await signals.innerText(), /Current until 2027-08-03/);
