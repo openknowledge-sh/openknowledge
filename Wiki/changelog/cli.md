@@ -13,6 +13,28 @@ page records release-level changes.
 
 ## Unreleased
 
+### Release automation
+
+- The release guide now documents the repository's four release jobs, input
+  formats, credential preflight, exact commit handoff, and tag reuse rule.
+- Source: `.github/workflows/release.yml`.
+- Docs: `Wiki/features/operations.md`.
+
+### Telemetry
+
+- The CLI now discloses default-on anonymous usage and sanitized error telemetry
+  before it sends the first event. `--no-telemetry` and
+  `okn telemetry disable` save an opt-out.
+- The first-party website relay validates an exact event allowlist. Website
+  page and copy events require consent.
+- The relay now maps accepted events to PostHog's batch ingestion protocol,
+  keeps the project token server-side, and disables person-profile processing.
+- Product telemetry stays separate from opt-in local session observation.
+- Source: `packages/cli/internal/telemetry/`,
+  `packages/cli/cmd/openknowledge/telemetry_command.go`, and `packages/web/`.
+- Docs: `Wiki/features/telemetry.md` and
+  `Wiki/features/commands/telemetry.md`.
+
 ### Setup
 
 - `okn setup skill` now installs global or project instructions without the

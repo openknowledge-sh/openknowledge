@@ -23,13 +23,6 @@
     <meta name="twitter:image:alt" content="Open Knowledge: build a knowledge base for people and AI agents">
     <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-62SWM7FC2J"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag("js", new Date());
-      gtag("config", "G-62SWM7FC2J");
-    </script>
     <link rel="stylesheet" href="/src/styles.css">
     <script type="application/ld+json">
       {
@@ -306,6 +299,8 @@
         <nav class="footer-links" aria-label="Footer links">
           <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
           <a href="/wiki/">Wiki</a>
+          <a href="/wiki/features/telemetry.html">Privacy</a>
+          <button type="button" data-analytics-settings>Analytics preferences</button>
           <a href="/wiki/changelog/cli.html">Changelog</a>
           <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
         </nav>
@@ -313,9 +308,23 @@
       </footer>
     </div>
 
+    <aside class="analytics-consent" data-analytics-consent hidden aria-labelledby="analytics-consent-title">
+      <div>
+        <strong id="analytics-consent-title">Anonymous website analytics</strong>
+        <p>
+          Allow page and setup-prompt copy events. We do not send page content,
+          IP addresses, or raw user agents. <a href="/wiki/features/telemetry.html">Privacy details</a>
+        </p>
+      </div>
+      <div class="analytics-consent-actions">
+        <button type="button" data-analytics-decline>Decline</button>
+        <button type="button" data-analytics-accept>Allow</button>
+      </div>
+    </aside>
+
     <template id="setup-prompt">Set up Open Knowledge for this workspace. Check whether the Open Knowledge CLI is installed with: okn version
 
-If it is missing, install it with: curl -fsSL https://openknowledge.sh/install | bash
+If it is missing, install it with: curl -fsSL https://openknowledge.sh/install?source=homepage | bash
 
 Verify the installation with okn version. Then run: okn setup --prompt
 

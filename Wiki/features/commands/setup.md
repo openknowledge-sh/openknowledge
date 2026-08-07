@@ -108,6 +108,9 @@ user-managed project guidance.
 Use `okn setup observe on` only after you approve local capture of possible
 knowledge gaps. Use `okn setup observe off` to disable capture.
 
+Product telemetry is separate from observation. The `--observe` choice does not
+enable, disable, or change product telemetry.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->

@@ -35,4 +35,5 @@ Use this index to select a command for your task. Run
 - [ast](ast.md): Inspect the parsed document model.
 - [spec](spec.md): Print an embedded OKF specification.
 - [version](version.md): Print the CLI version.
+- [telemetry](telemetry.md): Inspect or change anonymous product telemetry.
 - [help](help.md): Read about global flags and help.

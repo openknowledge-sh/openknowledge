@@ -16,6 +16,7 @@ import (
 
 	"github.com/natefinch/atomic"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/telemetry"
 )
 
 var version = "0.9.0"
@@ -30,6 +31,7 @@ const maxCLIErrorMessageBytes = 256 * 1024
 
 type cliGlobalOptions struct {
 	errorFormat string
+	noTelemetry bool
 }
 
 type cliErrorEnvelope struct {
@@ -77,9 +79,19 @@ func runMain(args []string) int {
 		return 2
 	}
 	if options.errorFormat == "json" {
-		return runWithJSONErrorEnvelope(commandArgs)
+		session := telemetry.Start(telemetry.StartOptions{
+			Version: version, Command: cliErrorCommand(commandArgs), NoTelemetry: options.noTelemetry, Silent: true, Stderr: stderrOutput(),
+		})
+		code := runWithJSONErrorEnvelope(commandArgs)
+		session.Finish(code)
+		return code
 	}
-	return dispatchCLI(commandArgs)
+	session := telemetry.Start(telemetry.StartOptions{
+		Version: version, Command: cliErrorCommand(commandArgs), NoTelemetry: options.noTelemetry, Stderr: stderrOutput(),
+	})
+	code := dispatchCLI(commandArgs)
+	session.Finish(code)
+	return code
 }
 
 func parseCLIGlobalOptions(args []string) (cliGlobalOptions, []string, error) {
@@ -95,6 +107,9 @@ func parseCLIGlobalOptions(args []string) (cliGlobalOptions, []string, error) {
 			args = args[2:]
 		case strings.HasPrefix(arg, "--error-format="):
 			options.errorFormat = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--error-format=")))
+			args = args[1:]
+		case arg == "--no-telemetry":
+			options.noTelemetry = true
 			args = args[1:]
 		default:
 			if options.errorFormat != "text" && options.errorFormat != "json" {

@@ -88,6 +88,7 @@ before(async () => {
     env: {
       ...process.env,
       GOCACHE: process.env.GOCACHE || path.join(temporary, "go-cache"),
+      OPENKNOWLEDGE_TELEMETRY_SUPPRESS: "1",
     },
     stdio: "pipe",
   });
@@ -117,6 +118,11 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: landingURL });
   const page = await context.newPage();
   const errors = collectPageErrors(page);
+  const telemetry = [];
+  await page.route("**/api/telemetry", async (route) => {
+    telemetry.push(JSON.parse(route.request().postData() || "{}"));
+    await route.fulfill({ status: 204, body: "" });
+  });
   await page.route("https://api.github.com/**", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -127,6 +133,15 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   }));
 
   await page.goto(landingURL, { waitUntil: "networkidle" });
+  assert.equal(telemetry.length, 0, "website telemetry must wait for consent");
+  const analyticsNotice = page.getByRole("complementary", { name: "Anonymous website analytics" });
+  await analyticsNotice.waitFor({ state: "visible" });
+  await analyticsNotice.getByRole("button", { name: "Allow" }).click();
+  await page.waitForFunction(() => window.localStorage.getItem("openknowledge.analytics.consent") === "granted");
+  await page.waitForFunction(() => window.localStorage.getItem("openknowledge.analytics.id"));
+  await page.waitForTimeout(10);
+  assert.equal(telemetry.length, 1);
+  assert.equal(telemetry[0].events[0].event_name, "web_page_viewed");
   await assertSemanticPage(page, "Build a knowledge base for people and AI agents.");
   assert.equal(await page.title(), "Open Knowledge - Markdown Knowledge Bases for AI Agents");
   assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://openknowledge.sh/");
@@ -137,8 +152,12 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   const setupPrompt = page.getByRole("button", { name: "Copy setup prompt" });
   await setupPrompt.click();
   await page.getByText("Paste the prompt into your agent to begin.").waitFor();
+  await page.waitForTimeout(10);
+  assert.equal(telemetry.length, 2);
+  assert.equal(telemetry[1].events[0].event_name, "setup_prompt_copied");
+  assert.equal(telemetry[1].events[0].interaction, "setup_prompt");
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(clipboard, /curl -fsSL https:\/\/openknowledge\.sh\/install \| bash/);
+  assert.match(clipboard, /curl -fsSL https:\/\/openknowledge\.sh\/install\?source=homepage \| bash/);
   assert.match(clipboard, /okn version/);
   assert.match(clipboard, /run: okn setup --prompt/);
   assert.match(clipboard, /okn validate and okn setup complete/);

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { Writable } from "node:stream";
+import { Readable, Writable } from "node:stream";
 import { afterAll, beforeAll, test } from "vitest";
-import { createWebHandler, createWebServer } from "./server.mjs";
+import { createWebHandler, createWebServer, forwardTelemetry, toPostHogBatch } from "./server.mjs";
 
 let handler;
 let root;
@@ -87,6 +87,132 @@ test("keeps redirects explicit and uncached", async () => {
   assert.equal(alias.header("location"), "/wiki/features/commands/setup.html?source=test");
 });
 
+test("accepts only allowlisted telemetry without request identity", async () => {
+  const captured = [];
+  const telemetryHandler = createWebHandler({ root, telemetrySink: (envelope) => captured.push(envelope) });
+  const valid = {
+    schema_version: "1",
+    events: [{
+      schema_version: "1",
+      event_name: "cli_error",
+      event_id: "event-123",
+      occurred_at: "2026-08-07T12:00:00Z",
+      surface: "cli",
+      installation_id: "random-installation-id",
+      app_version: "0.9.0",
+      os: "linux",
+      arch: "arm64",
+      command: "validate",
+      outcome: "error",
+      duration_bucket: "100ms-1s",
+      error_kind: "command_failed",
+    }],
+  };
+  const response = await request("/api/telemetry", "POST", {
+    handler: telemetryHandler,
+    headers: { "content-type": "application/json", "user-agent": "private raw user agent" },
+    body: JSON.stringify(valid),
+  });
+  assert.equal(response.statusCode, 204);
+  assert.equal(response.body(), "");
+  assert.deepEqual(captured, [valid]);
+  assert.doesNotMatch(JSON.stringify(captured), /private raw user agent/);
+
+  const invalid = structuredClone(valid);
+  invalid.events[0].command = "/Users/private/project";
+  const rejected = await request("/api/telemetry", "POST", {
+    handler: telemetryHandler,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(invalid),
+  });
+  assert.equal(rejected.statusCode, 400);
+  assert.equal(captured.length, 1);
+});
+
+test("records an aggregate install attempt with normalized client family", async () => {
+  const captured = [];
+  const telemetryHandler = createWebHandler({ root, telemetrySink: (envelope) => captured.push(envelope) });
+  const response = await request("/install?source=homepage", "GET", {
+    handler: telemetryHandler,
+    headers: { "user-agent": "curl/8.12.1 private-build-detail" },
+  });
+  assert.equal(response.statusCode, 302);
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].events[0].event_name, "install_redirect_requested");
+  assert.equal(captured[0].events[0].client_family, "curl");
+  assert.equal(captured[0].events[0].source, "homepage");
+  assert.doesNotMatch(JSON.stringify(captured), /8\.12\.1|private-build-detail/);
+});
+
+test("maps the privacy allowlist to anonymous PostHog batch events", () => {
+  const envelope = {
+    schema_version: "1",
+    events: [{
+      schema_version: "1",
+      event_name: "cli_error",
+      event_id: "event-123",
+      occurred_at: "2026-08-07T12:00:00Z",
+      surface: "cli",
+      installation_id: "random-installation-id",
+      app_version: "0.9.0",
+      os: "linux",
+      arch: "arm64",
+      command: "validate",
+      outcome: "error",
+      duration_bucket: "100ms-1s",
+      error_kind: "command_failed",
+      path: "/Users/private/project",
+    }],
+  };
+  const batch = toPostHogBatch(envelope, "phc_project_token");
+  assert.equal(batch.api_key, "phc_project_token");
+  assert.equal(batch.historical_migration, false);
+  assert.deepEqual(batch.batch, [{
+    event: "cli_error",
+    timestamp: "2026-08-07T12:00:00Z",
+    properties: {
+      distinct_id: "cli:random-installation-id",
+      $process_person_profile: false,
+      schema_version: "1",
+      event_id: "event-123",
+      surface: "cli",
+      app_version: "0.9.0",
+      os: "linux",
+      arch: "arm64",
+      command: "validate",
+      outcome: "error",
+      duration_bucket: "100ms-1s",
+      error_kind: "command_failed",
+    },
+  }]);
+  assert.doesNotMatch(JSON.stringify(batch), /installation_id/);
+  assert.doesNotMatch(JSON.stringify(batch), /Users|path/);
+});
+
+test("posts PostHog batches to EU ingestion without bearer authentication", async () => {
+  const requests = [];
+  const envelope = {
+    schema_version: "1",
+    events: [{
+      schema_version: "1",
+      event_name: "install_redirect_requested",
+      event_id: "event-123",
+      occurred_at: "2026-08-07T12:00:00Z",
+      surface: "server",
+      source: "homepage",
+      client_family: "curl",
+    }],
+  };
+  await forwardTelemetry(envelope, "https://eu.i.posthog.com", "phc_project_token", async (url, options) => {
+    requests.push({ url, options });
+    return { ok: true, status: 200 };
+  });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "https://eu.i.posthog.com/batch/");
+  assert.equal(requests[0].options.headers.Authorization, undefined);
+  assert.deepEqual(JSON.parse(requests[0].options.body), toPostHogBatch(envelope, "phc_project_token"));
+});
+
 test("serves configured wiki fallback but rejects symlink escapes", async () => {
   const fallback = await request("/wiki/fallback.html");
   assert.equal(fallback.statusCode, 200);
@@ -106,9 +232,14 @@ test("bounds HTTP server resources", () => {
   assert.equal(server.maxRequestsPerSocket, 100);
 });
 
-async function request(url, method = "GET") {
+async function request(url, method = "GET", options = {}) {
   const response = new MemoryResponse();
-  await handler({ method, url, resume() {} }, response);
+  const body = options.body || "";
+  const incoming = Readable.from(body ? [body] : []);
+  incoming.method = method;
+  incoming.url = url;
+  incoming.headers = options.headers || {};
+  await (options.handler || handler)(incoming, response);
   return response;
 }
 

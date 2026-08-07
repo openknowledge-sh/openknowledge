@@ -20,6 +20,7 @@ curl -fsSL https://openknowledge.sh/install | bash
 The installer supports macOS and Linux on `amd64` and `arm64`.
 It downloads the applicable release archive and verifies its SHA-256.
 It tests the staged binary with `openknowledge version`.
+The preflight test suppresses telemetry and does not create a telemetry ID.
 It then replaces the destination and creates `okn` as a relative symbolic link.
 It does not replace an unrelated `okn` command.
 A failed download, check, or test does not remove an existing binary.
@@ -76,6 +77,11 @@ assets exist. The package versions must also match.
 Offline transactional tests cover shell and npm installation.
 The root `pnpm test` gate runs these tests.
 
+Before the CLI sends its first event, it prints the product telemetry
+disclosure. Telemetry is enabled by default. Use
+`okn --no-telemetry <command>` to disable it before the first event. See
+[Product Telemetry and Privacy](telemetry.md).
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -85,6 +91,7 @@ The root `pnpm test` gate runs these tests.
 > - `install`
 > - `packages/npm/install.js`
 > - `packages/npm/install.test.js`
+> - `packages/cli/internal/telemetry/`
 > - `.github/workflows/release.yml`
 > - `scripts/test-install.sh`
 >
