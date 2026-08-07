@@ -15,6 +15,16 @@ page records release-level changes.
 
 ### Viewer
 
+- The local viewer and interactive HTML exports now use the light blue Open
+  Knowledge theme on the first visit and after a settings reset.
+- The **Night** theme remains available. A saved browser preference overrides
+  the new default.
+- Source: `packages/cli/cmd/openknowledge/viewer_theme.css`,
+  `Wiki/assets/openknowledge-site.css`,
+  `packages/cli/cmd/openknowledge/viewer_templates.go`,
+  `packages/web/src/viewer/`.
+- Docs: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`.
 - The viewer now keeps OKF 0.2 trust, lifecycle, provenance, sources, and
   computation details inside the **Frontmatter** disclosure.
 - Authored Markdown now starts the visible document content without a separate

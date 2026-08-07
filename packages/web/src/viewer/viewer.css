@@ -36,8 +36,8 @@ body.viewer-document > header { position: relative; grid-column: 2; grid-row: 1;
 .theme-option:hover { background: var(--ok-color-editor-menu-item-hover-bg); }
 .theme-option:focus-visible { outline: 2px solid var(--ok-color-focus-ring); outline-offset: 1px; }
 .theme-option.is-selected { border-color: var(--ok-color-accent-border); background: var(--ok-color-accent-selected); color: var(--ok-color-accent-strong); }
-.theme-swatch { flex: 0 0 auto; width: 18px; height: 18px; border: 1px solid var(--ok-color-editor-option-border); border-radius: 999px; background: linear-gradient(135deg, #f0f0f0 0 50%, #0f7a4d 50%); box-shadow: 0 0 0 2px var(--ok-color-editor-option-bg); }
-.theme-swatch-default { background: linear-gradient(135deg, #f4f5f4 0 50%, #0b7a53 50%); }
+.theme-swatch { flex: 0 0 auto; width: 18px; height: 18px; border: 1px solid var(--ok-color-editor-option-border); border-radius: 999px; background: linear-gradient(135deg, #edf5fa 0 50%, #0a4a9c 50%); box-shadow: 0 0 0 2px var(--ok-color-editor-option-bg); }
+.theme-swatch-default { background: linear-gradient(135deg, #edf5fa 0 50%, #0a4a9c 50%); }
 .theme-swatch-night { background: linear-gradient(135deg, #0d100e 0 50%, #68e0ad 50%); }
 .theme-swatch-paper { background: linear-gradient(135deg, #f7f1e6 0 50%, #9b4f1f 50%); }
 .theme-swatch-ocean { background: linear-gradient(135deg, #eef6f8 0 50%, #0f6f8f 50%); }

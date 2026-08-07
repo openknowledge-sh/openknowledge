@@ -1,7 +1,7 @@
 (function () {
   const root = document.documentElement;
   const storageKey = "openknowledge.viewer.theme";
-  const defaultPreset = "night";
+  const defaultPreset = "default";
   const presets = ["default", "night", "paper", "ocean", "rose", "custom"];
 
   function readLocalStorage() {

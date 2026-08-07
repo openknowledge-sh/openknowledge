@@ -16,7 +16,22 @@
   font-display: swap;
 }
 
-:root,
+:root {
+  --ok-font-body: "Geist", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ok-font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  --ok-header-height: 48px;
+  --ok-mobile-header-height: 68px;
+  --ok-sidebar-width: min(340px, calc(100vw - 36px));
+  --ok-note-panel-default-width: min(calc(65ch + 68px), calc(100vw - 44px));
+  --ok-note-panel-min-width: min(360px, calc(100vw - 24px));
+
+  --ok-color-code-inline-text: #063675;
+  --ok-color-graph-node-shadow: rgba(8, 43, 99, .1);
+  --ok-color-graph-node-active-shadow: rgba(var(--ok-color-accent-rgb), .18);
+  --ok-color-graph-label-halo: #edf5fa;
+}
+
 :root[data-openknowledge-theme="openknowledge-site"][data-viewer-theme="night"] {
   color-scheme: dark;
 

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#e5f0f9">
+    <title>Getting Started with Open Knowledge</title>
+    <meta name="description" content="Install Open Knowledge, create a Markdown knowledge base, open it locally, and use it with your agent.">
+    <link rel="canonical" href="https://openknowledge.sh/getting-started/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Open Knowledge">
+    <meta property="og:url" content="https://openknowledge.sh/getting-started/">
+    <meta property="og:title" content="Getting Started with Open Knowledge">
+    <meta property="og:description" content="A practical path from your first Markdown file to reusable context for people and agents.">
+    <meta property="og:image" content="https://openknowledge.sh/og.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-62SWM7FC2J"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag("js", new Date());
+      gtag("config", "G-62SWM7FC2J");
+    </script>
+    <link rel="stylesheet" href="/src/styles.css">
+    <!-- OPENKNOWLEDGE_HEAD -->
+  </head>
+  <body class="guide-page">
+    <div class="page-shell">
+      <header class="topbar" aria-label="Site navigation">
+        <div class="topbar-primary">
+          <a class="brand" href="/" aria-label="Open Knowledge home">
+            <img src="/logo-mark.png" alt="">
+            <span>Open Knowledge CLI</span>
+          </a>
+          <a
+            class="release-badge"
+            href="https://github.com/openknowledge-sh/openknowledge/releases/latest"
+            target="_blank"
+            rel="noreferrer"
+            data-release-badge
+            data-release-api="https://api.github.com/repos/openknowledge-sh/openknowledge/releases/latest"
+            aria-label="Latest Open Knowledge release on GitHub"
+          >
+            <span data-release-version>Latest release</span>
+            <time data-release-age hidden></time>
+          </a>
+        </div>
+
+        <nav class="nav-links" aria-label="Open Knowledge links">
+          <a href="/getting-started/" aria-current="page">Start</a>
+          <a href="/wiki/">Docs</a>
+          <a
+            class="github-star-action"
+            href="https://github.com/openknowledge-sh/openknowledge"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open Knowledge on GitHub"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+              <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.37 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.51-1.11-1.51-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.27 2.75 1.05A9.28 9.28 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.82-4.57 5.08.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.8 0 .27.18.59.69.49A10.06 10.06 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"></path>
+            </svg>
+            <span class="github-star-label">GitHub</span>
+          </a>
+        </nav>
+      </header>
+
+      <main class="guide-main">
+        <section class="guide-hero" aria-labelledby="guide-title">
+          <div class="guide-hero-copy">
+            <h1 id="guide-title">Create your knowledge base in 5 minutes.</h1>
+            <p>
+              Start in the terminal. Keep the source in plain Markdown. Open the
+              same knowledge base for people, search, and agent workflows.
+            </p>
+            <div class="guide-hero-actions">
+              <a class="primary-action" href="#install">Start with the terminal</a>
+              <a class="text-action" href="/wiki/features/commands/">Browse CLI commands</a>
+            </div>
+          </div>
+
+          <ol class="guide-index" aria-label="Getting started steps">
+            <li><a href="#install">Install and initialize</a></li>
+            <li><a href="#open">Open it locally</a></li>
+            <li><a href="#agent">Work with an agent</a></li>
+            <li><a href="#maintain">Keep it useful</a></li>
+          </ol>
+        </section>
+
+        <div class="guide-flows">
+          <section class="guide-step" id="install" aria-labelledby="install-title">
+            <div class="guide-step-copy">
+              <h2 id="install-title">Install, then start the setup task.</h2>
+              <p>
+                Install the CLI with the shell script. Then print the setup task
+                that guides an agent through the knowledge-base decisions.
+              </p>
+              <div class="guide-command-stack" aria-label="Installation commands">
+                <button class="guide-copy-command" type="button" data-copy-command aria-label="Copy install command">
+                  <code data-command>curl -fsSL https://openknowledge.sh/install | bash</code>
+                  <span data-command-status>Copy</span>
+                </button>
+                <button class="guide-copy-command" type="button" data-copy-command aria-label="Copy setup command">
+                  <code data-command>okn setup</code>
+                  <span data-command-status>Copy</span>
+                </button>
+              </div>
+              <a class="text-action" href="/wiki/features/commands/setup.html">Read the setup reference</a>
+            </div>
+            <figure class="guide-media">
+              <div class="guide-media-frame guide-media-frame--screenshot guide-media-frame--install-screenshot">
+                <img
+                  class="guide-media-image"
+                  src="/getting-started-install.webp"
+                  alt="Terminal showing Open Knowledge CLI version 0.10.0 installed successfully from the shell script"
+                  width="1600"
+                  height="928"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+              <figcaption>Install the Open Knowledge CLI from the terminal.</figcaption>
+            </figure>
+          </section>
+
+          <section class="guide-step guide-step-reverse" id="open" aria-labelledby="open-title">
+            <div class="guide-step-copy">
+              <h2 id="open-title">Browse the knowledge base locally.</h2>
+              <p>
+                Run the local viewer for a knowledge-base path. The viewer opens
+                in your browser by default and keeps the source files local.
+              </p>
+              <div class="guide-command"><span>$</span><code>okn view Wiki</code></div>
+              <a class="text-action" href="/wiki/features/commands/view.html">Read the viewer reference</a>
+            </div>
+            <figure class="guide-media">
+              <div class="guide-media-frame guide-media-frame--screenshot guide-media-frame--viewer-screenshot">
+                <img
+                  class="guide-media-image"
+                  src="/getting-started-viewer.webp"
+                  alt="Open Knowledge local viewer displaying the CLI documentation knowledge base"
+                  width="1600"
+                  height="1162"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+              <figcaption>Browse the same Markdown knowledge base in the local viewer.</figcaption>
+            </figure>
+          </section>
+
+          <section class="guide-step" id="agent" aria-labelledby="agent-title">
+            <div class="guide-step-copy">
+              <h2 id="agent-title">Ask an agent with source context.</h2>
+              <p>
+                Run an agent task from the project root. Direct mode works in
+                the current filesystem, so review the resulting changes before you keep them.
+              </p>
+              <div class="guide-prompt"><code>okn agent exec "Update the release workflow from the repository, then validate the knowledge base."</code></div>
+              <a class="text-action" href="/wiki/features/commands/agent.html">Read the agent reference</a>
+            </div>
+            <figure class="guide-media">
+              <div class="guide-media-frame guide-media-frame--screenshot guide-media-frame--agent-screenshot">
+                <img
+                  class="guide-media-image"
+                  src="/getting-started-agent.webp"
+                  alt="Terminal showing an Open Knowledge agent task working with repository source context"
+                  width="1600"
+                  height="1129"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+              <figcaption>Ask an agent to update the knowledge base from repository source context.</figcaption>
+            </figure>
+          </section>
+
+          <section class="guide-step guide-step-reverse" id="maintain" aria-labelledby="maintain-title">
+            <div class="guide-step-copy">
+              <h2 id="maintain-title">Validate changes. Keep the history.</h2>
+              <p>
+                Run validation after meaningful edits. Review the same Markdown
+                changes in Git so useful context can improve with the project.
+              </p>
+              <div class="guide-command"><span>$</span><code>okn validate Wiki</code></div>
+              <a class="text-action" href="/wiki/features/commands/validate.html">Read the validation reference</a>
+            </div>
+            <figure class="guide-media">
+              <div class="guide-media-frame guide-media-frame--screenshot">
+                <img
+                  class="guide-media-image"
+                  src="/getting-started-validate.webp"
+                  alt="Terminal showing the results of running okn validate Wiki"
+                  width="1600"
+                  height="1085"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </div>
+              <figcaption>Validate the Markdown bundle before keeping the change in Git.</figcaption>
+            </figure>
+          </section>
+        </div>
+
+        <section class="guide-closing" aria-labelledby="guide-closing-title">
+          <img
+            class="guide-closing-image"
+            src="/knowledge-stays-yours.webp"
+            alt=""
+            width="1672"
+            height="941"
+            loading="lazy"
+            decoding="async"
+            aria-hidden="true"
+          >
+          <h2 id="guide-closing-title">Start with one useful question.</h2>
+          <p>Build only the context that people and agents need, then improve it as the work changes.</p>
+          <div class="guide-hero-actions">
+            <a class="primary-action" href="/wiki/features/commands/setup.html">Set up a knowledge base</a>
+            <a class="text-action" href="/">Back to the overview</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer guide-footer">
+        <div class="footer-brand">
+          <a class="footer-logo" href="/" aria-label="Open Knowledge home">
+            <img src="/logo-mark.png" alt="" aria-hidden="true">
+            <span>Open Knowledge</span>
+          </a>
+          <p>AI-ready Markdown knowledge bases built on Open Knowledge Format v0.2.</p>
+        </div>
+        <nav class="footer-links" aria-label="Footer links">
+          <a href="/getting-started/" aria-current="page">Getting started</a>
+          <a href="/wiki/">Wiki</a>
+          <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+        </nav>
+        <p class="footer-meta">Apache-2.0 · Open source</p>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

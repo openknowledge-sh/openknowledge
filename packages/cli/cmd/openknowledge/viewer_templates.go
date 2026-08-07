@@ -3,7 +3,7 @@ package main
 import "html/template"
 
 var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!doctype html>
-<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="night">
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="default">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -61,7 +61,7 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
 </html>`))
 
 var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!doctype html>
-<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="night">
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="default">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -105,7 +105,7 @@ var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!do
 </html>`))
 
 var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doctype html>
-<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="night">
+<html lang="en" data-openknowledge-theme="{{.Theme.Name}}" data-viewer-theme="default">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

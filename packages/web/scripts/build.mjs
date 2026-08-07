@@ -5,8 +5,13 @@ import { distRoot as dist, exportWiki } from "./wiki-export.mjs";
 
 const headMarker = "<!-- OPENKNOWLEDGE_HEAD -->";
 
-const indexPath = path.join(dist, "index.html");
-await writeFile(indexPath, await injectHeadHTML(await readFile(indexPath, "utf8")));
+const sitePages = [
+  path.join(dist, "index.html"),
+  path.join(dist, "getting-started", "index.html"),
+];
+for (const pagePath of sitePages) {
+  await writeFile(pagePath, await injectHeadHTML(await readFile(pagePath, "utf8")));
+}
 
 await exportWiki(path.join(dist, "wiki"), { clean: false });
 await publishCLISchemas(path.join(dist, "schemas"));

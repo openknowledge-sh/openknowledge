@@ -1,9 +1,24 @@
 const copyButton = document.querySelector<HTMLButtonElement>("[data-copy-setup]");
 const copyStatus = document.querySelector<HTMLElement>("[data-copy-status]");
+const installCopyButton = document.querySelector<HTMLButtonElement>("[data-copy-install]");
+const installCommand = document.querySelector<HTMLElement>("[data-install-command]");
+const installStatus = document.querySelector<HTMLElement>("[data-install-status]");
+const guideCopyButtons = document.querySelectorAll<HTMLButtonElement>("[data-copy-command]");
 const promptTemplate = document.querySelector<HTMLTemplateElement>("#setup-prompt");
 const releaseBadge = document.querySelector<HTMLElement>("[data-release-badge]");
 const releaseFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+const copyStatusReadyText = copyStatus?.textContent?.trim() ?? "";
 let copyResetTimer: number | undefined;
+let installCopyResetTimer: number | undefined;
+const guideCopyResetTimers = new WeakMap<HTMLButtonElement, number>();
+
+type ElementCanvasContext = CanvasRenderingContext2D & {
+  drawElementImage?: (element: Element, x: number, y: number) => DOMMatrix;
+};
+
+type PaintableCanvas = HTMLCanvasElement & {
+  requestPaint?: () => void;
+};
 
 async function copyText(text: string) {
   if (navigator.clipboard?.writeText) {
@@ -108,6 +123,7 @@ if (copyButton && copyStatus && promptTemplate) {
       copyResetTimer = window.setTimeout(() => {
         copyButton.textContent = "Copy setup prompt";
         delete copyButton.dataset.state;
+        copyStatus.textContent = copyStatusReadyText;
       }, 2400);
       return;
     }
@@ -115,3 +131,215 @@ if (copyButton && copyStatus && promptTemplate) {
     copyStatus.textContent = "Copy failed. Open the documentation for the setup steps.";
   });
 }
+
+if (installCopyButton && installCommand && installStatus) {
+  installCopyButton.addEventListener("click", async () => {
+    const command = installCommand.textContent?.trim() ?? "";
+    if (!command) return;
+
+    window.clearTimeout(installCopyResetTimer);
+    installCopyButton.disabled = true;
+    installCopyButton.setAttribute("aria-busy", "true");
+    const copied = await copyText(command);
+    installCopyButton.disabled = false;
+    installCopyButton.removeAttribute("aria-busy");
+
+    if (copied) {
+      installCopyButton.dataset.state = "copied";
+      installCopyButton.setAttribute("aria-label", "Install command copied");
+      installStatus.textContent = "Copied. Paste it into your terminal.";
+      installCopyResetTimer = window.setTimeout(() => {
+        delete installCopyButton.dataset.state;
+        installCopyButton.setAttribute("aria-label", "Copy install command");
+        installStatus.textContent = "Copy and run in your terminal.";
+      }, 2400);
+      return;
+    }
+
+    installStatus.textContent = "Copy failed. Select the command and copy it manually.";
+  });
+}
+
+for (const button of guideCopyButtons) {
+  const command = button.querySelector<HTMLElement>("[data-command]");
+  const status = button.querySelector<HTMLElement>("[data-command-status]");
+  const readyLabel = button.getAttribute("aria-label") ?? "Copy command";
+  if (!command || !status) continue;
+
+  button.addEventListener("click", async () => {
+    const commandText = command.textContent?.trim() ?? "";
+    if (!commandText) return;
+
+    const resetTimer = guideCopyResetTimers.get(button);
+    if (resetTimer) window.clearTimeout(resetTimer);
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    const copied = await copyText(commandText);
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+
+    if (copied) {
+      button.dataset.state = "copied";
+      button.setAttribute("aria-label", `${readyLabel.replace(/^Copy /, "")} copied`);
+      status.textContent = "Copied";
+      guideCopyResetTimers.set(
+        button,
+        window.setTimeout(() => {
+          delete button.dataset.state;
+          button.setAttribute("aria-label", readyLabel);
+          status.textContent = "Copy";
+        }, 2400),
+      );
+      return;
+    }
+
+    status.textContent = "Select and copy";
+  });
+}
+
+function coverPlacement(containerWidth: number, containerHeight: number, image: HTMLImageElement) {
+  const scale = Math.max(containerWidth / image.naturalWidth, containerHeight / image.naturalHeight);
+  return {
+    height: image.naturalHeight * scale,
+    scale,
+    width: image.naturalWidth * scale,
+    x: (containerWidth - image.naturalWidth * scale) / 2,
+    y: (containerHeight - image.naturalHeight * scale) / 2,
+  };
+}
+
+type Point = { x: number; y: number };
+
+function solveLinearSystem(rows: number[][]) {
+  const size = rows.length;
+
+  for (let column = 0; column < size; column += 1) {
+    let pivot = column;
+    for (let row = column + 1; row < size; row += 1) {
+      if (Math.abs(rows[row][column]) > Math.abs(rows[pivot][column])) pivot = row;
+    }
+    if (Math.abs(rows[pivot][column]) < 1e-10) return null;
+    [rows[column], rows[pivot]] = [rows[pivot], rows[column]];
+
+    const divisor = rows[column][column];
+    for (let value = column; value <= size; value += 1) rows[column][value] /= divisor;
+
+    for (let row = 0; row < size; row += 1) {
+      if (row === column) continue;
+      const factor = rows[row][column];
+      for (let value = column; value <= size; value += 1) {
+        rows[row][value] -= factor * rows[column][value];
+      }
+    }
+  }
+
+  return rows.map((row) => row[size]);
+}
+
+function projectRectangle(width: number, height: number, corners: readonly Point[]) {
+  const source: readonly Point[] = [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+  ];
+  const rows: number[][] = [];
+
+  for (let index = 0; index < source.length; index += 1) {
+    const { x, y } = source[index];
+    const { x: targetX, y: targetY } = corners[index];
+    rows.push([x, 0, y, 0, 1, 0, -targetX * x, -targetX * y, targetX]);
+    rows.push([0, x, 0, y, 0, 1, -targetY * x, -targetY * y, targetY]);
+  }
+
+  const values = solveLinearSystem(rows);
+  if (!values) return "none";
+  const [a, b, c, d, e, f, g, h] = values;
+  return `matrix3d(${a},${b},0,${g},${c},${d},0,${h},0,0,1,0,${e},${f},0,1)`;
+}
+
+function positionTerminal() {
+  const stage = document.querySelector<HTMLElement>("[data-hero-stage]");
+  const image = document.querySelector<HTMLImageElement>("[data-hero-image]");
+  const terminal = document.querySelector<HTMLElement>("[data-hero-terminal]");
+  if (!stage || !image || !terminal || !image.naturalWidth || window.innerWidth <= 640) return;
+
+  const rect = stage.getBoundingClientRect();
+  const placement = coverPlacement(rect.width, rect.height, image);
+  const screenCorners = [
+    { x: 1137, y: 478 },
+    { x: 1373, y: 478 },
+    { x: 1376, y: 681 },
+    { x: 1137, y: 681 },
+  ].map(({ x, y }) => ({
+    x: placement.x + x * placement.scale,
+    y: placement.y + y * placement.scale,
+  }));
+
+  terminal.style.transform = projectRectangle(230, 188, screenCorners);
+}
+
+async function initializeHeroCanvas() {
+  const stage = document.querySelector<HTMLElement>("[data-hero-stage]");
+  const canvas = document.querySelector<PaintableCanvas>("[data-hero-canvas]");
+  const image = document.querySelector<HTMLImageElement>("[data-hero-image]");
+  const content = document.querySelector<HTMLElement>("[data-hero-content]");
+  const terminal = document.querySelector<HTMLElement>("[data-hero-terminal]");
+  if (!stage || !canvas || !image || !content || !terminal) return;
+
+  try {
+    await image.decode();
+  } catch {
+    if (!image.complete) return;
+  }
+
+  positionTerminal();
+  const terminalObserver = new ResizeObserver(positionTerminal);
+  terminalObserver.observe(stage);
+
+  const context = canvas.getContext("2d") as ElementCanvasContext | null;
+  if (!context || typeof context.drawElementImage !== "function" || window.innerWidth <= 640) {
+    return;
+  }
+
+  stage.dataset.renderer = "html-canvas";
+  canvas.append(content);
+
+  const paint = () => {
+    const rect = stage.getBoundingClientRect();
+    const pixelRatio = Math.max(1, window.devicePixelRatio || 1);
+    const pixelWidth = Math.round(rect.width * pixelRatio);
+    const pixelHeight = Math.round(rect.height * pixelRatio);
+    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, rect.width, rect.height);
+
+    const placement = coverPlacement(rect.width, rect.height, image);
+    context.drawImage(image, placement.x, placement.y, placement.width, placement.height);
+
+    const bottomFade = context.createLinearGradient(0, rect.height * 0.67, 0, rect.height);
+    bottomFade.addColorStop(0, "rgba(5, 7, 11, 0)");
+    bottomFade.addColorStop(0.58, "rgba(5, 7, 11, 0.14)");
+    bottomFade.addColorStop(1, "#05070b");
+    context.fillStyle = bottomFade;
+    context.fillRect(0, 0, rect.width, rect.height);
+
+    const contentX = Math.max(32, (rect.width - 1120) / 2);
+    const contentY = Math.max(168, Math.min(210, rect.height * 0.23));
+    const contentTransform = context.drawElementImage?.(content, contentX, contentY);
+    if (contentTransform) content.style.transform = contentTransform.toString();
+
+  };
+
+  canvas.addEventListener("paint", paint);
+  const resizeObserver = new ResizeObserver(() => {
+    positionTerminal();
+    canvas.requestPaint?.();
+  });
+  resizeObserver.observe(stage);
+  canvas.requestPaint?.();
+}
+
+void initializeHeroCanvas();

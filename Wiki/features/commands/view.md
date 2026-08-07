@@ -77,7 +77,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Enter opens the selected note.
 - You can change browser-local themes, typography, line length, contrast,
   motion, and link settings. **Reset to defaults** restores the viewer
-  defaults. These preferences do not change source Markdown.
+  defaults. The first visit uses the light blue default theme. A saved theme
+  preference overrides this default. These preferences do not change source
+  Markdown.
 - Direct paths and writable local connections provide local editor links.
   Static exports use configured repository source links.
 - The local viewer serves the same Vite-built JavaScript and CSS bundle as

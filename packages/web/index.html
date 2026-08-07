@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#05070b">
+    <meta name="theme-color" content="#bdd5ef">
     <title>Open Knowledge - Markdown Knowledge Bases for AI Agents</title>
     <meta name="description" content="Build AI-ready knowledge bases in Markdown. Create, validate, search, publish, and serve trusted context to people and AI agents over MCP.">
     <link rel="canonical" href="https://openknowledge.sh/">
@@ -85,202 +85,319 @@
 
       <main>
         <section class="hero" aria-labelledby="hero-title">
-          <h1 id="hero-title">Build a knowledge base for people and AI agents.</h1>
-          <p class="hero-copy">
-            Keep your knowledge in Markdown. Open Knowledge makes it easy to
-            validate, search, and share.
-          </p>
-          <div class="hero-actions">
-            <button class="primary-action" type="button" data-copy-setup>
-              Copy setup prompt
+          <div class="hero-stage" data-hero-stage>
+            <img
+              class="hero-scene-image"
+              src="/openknowledge-workspace-hero.webp"
+              alt=""
+              width="1536"
+              height="1024"
+              fetchpriority="high"
+              data-hero-image
+            >
+            <canvas class="hero-canvas" layoutsubtree data-hero-canvas></canvas>
+
+            <div class="hero-content" data-hero-content>
+              <h1 id="hero-title" aria-label="Build a knowledge base for people and AI agents.">
+                <span class="hero-title-desktop" aria-hidden="true">
+                  <span class="hero-title-lead">Build a knowledge base</span>
+                  <span>for people and</span>
+                  <span>AI agents.</span>
+                </span>
+                <span class="hero-title-mobile" aria-hidden="true">
+                  <span>Build a knowledge</span>
+                  <span>base for people</span>
+                  <span>and AI agents.</span>
+                </span>
+              </h1>
+              <p class="hero-copy">
+                Keep your knowledge in Markdown. Open Knowledge makes it easy to
+                validate, search, and share.
+              </p>
+              <div class="hero-actions">
+                <button class="primary-action" type="button" data-copy-setup>
+                  Copy setup prompt
+                </button>
+                <a class="text-action" href="/getting-started/">See how it works</a>
+              </div>
+              <p class="copy-status">
+                <span class="agent-compatibility">
+                  <span class="agent-brand">
+                    <svg class="agent-brand-logo agent-brand-logo--codex" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                      <path d="M38.355 36.52v-9.415c0-.793.297-1.388.99-1.784l18.93-10.902c2.578-1.486 5.65-2.18 8.82-2.18 11.894 0 19.426 9.218 19.426 19.029 0 .694 0 1.486-.1 2.28L66.799 22.05c-1.189-.694-2.379-.694-3.568 0L38.355 36.52Zm44.202 36.67V50.694c0-1.388-.596-2.38-1.785-3.073L55.897 33.15l8.126-4.658c.694-.396 1.289-.396 1.982 0l18.93 10.902c5.452 3.172 9.118 9.91 9.118 16.452 0 7.531-4.46 14.47-11.496 17.344Zm-50.05-19.82-8.127-4.757c-.693-.396-.99-.99-.99-1.784V25.025c0-10.605 8.126-18.633 19.127-18.633 4.163 0 8.028 1.388 11.3 3.865l-19.525 11.3c-1.189.693-1.784 1.684-1.784 3.072v28.74ZM50 63.478l-11.645-6.541V43.062L50 36.522l11.645 6.54v13.875L50 63.477Zm7.483 30.129c-4.163 0-8.028-1.388-11.3-3.865l19.525-11.3c1.189-.693 1.784-1.684 1.784-3.071V46.629l8.226 4.757c.694.396.991.991.991 1.784v21.803c0 10.605-8.226 18.633-19.226 18.633v.001Zm-23.49-22.101-18.93-10.902c-5.45-3.172-9.117-9.91-9.117-16.451 0-7.632 4.559-14.47 11.595-17.344v22.596c0 1.388.595 2.379 1.784 3.072l24.777 14.37-8.126 4.659c-.694.396-1.289.396-1.982 0ZM32.905 87.76c-11.2 0-19.425-8.425-19.425-18.83 0-.794.1-1.587.198-2.38L33.2 77.85c1.189.693 2.379.693 3.568 0l24.876-14.37v9.415c0 .793-.298 1.388-.992 1.784L41.724 85.58c-2.576 1.486-5.649 2.18-8.82 2.18h.001Zm24.579 11.793c11.992 0 22.001-8.523 24.281-19.822C92.864 76.857 100 66.451 100 55.846c0-6.937-2.973-13.676-8.325-18.533.496-2.081.793-4.163.793-6.243 0-14.172-11.496-24.777-24.777-24.777-2.676 0-5.253.396-7.83 1.288C55.401 3.221 49.257.445 42.517.445c-11.992 0-22.001 8.523-24.281 19.822C7.136 23.14 0 33.547 0 44.152c0 6.938 2.973 13.676 8.325 18.533-.496 2.081-.793 4.163-.793 6.243 0 14.172 11.497 24.778 24.777 24.778 2.676 0 5.253-.397 7.83-1.289 4.459 4.36 10.604 7.136 17.344 7.136Z"></path>
+                    </svg>
+                    <span>Codex</span>
+                  </span>
+                  <span class="agent-brand">
+                    <svg class="agent-brand-logo agent-brand-logo--claude" viewBox="0 0 125 125" aria-hidden="true" focusable="false">
+                      <path d="M54.375 118.75 56.125 111l2-10 1.625-8 1.5-9.875.875-3.25-.125-.25-.625.125-7.5 10.25-11.375 15.375-9 9.5-2.125.875-3.75-1.875.375-3.5 2.125-3 12.375-15.875 7.5-9.875 4.875-5.625-.125-.75h-.25l-33 21.5-5.875.75L13 95.125l.375-3.875L14.625 90l9.875-6.875L49.125 69.375l.375-1.25-.375-.625h-1.25l-4.125-.25-14-.375-12.125-.5-11.875-.625-3-.625L0 61.375l.25-1.875 2.5-1.625 3.625.25 7.875.625 11.875.75 8.625.5 12.75 1.375h2l.25-.875-.625-.5-.5-.5-12.375-8.25L23 42.5l-7-5.125-3.75-2.625-1.875-2.375-.75-5.25L13 23.375l4.625.375 1.125.25 4.625 3.625 9.875 7.625 13 9.625 1.875 1.5.875-.5v-.375l-.875-1.375-7-12.75-7.5-13-3.375-5.375-.875-3.25A13.1 13.1 0 0 1 28.875 6l3.875-5.25L34.875 0l5.25.75 2.125 1.875L45.5 10l5.125 11.625 8.125 15.75 2.375 4.75 1.25 4.25.5 1.375h.875V47l.625-9 1.25-10.875 1.25-14  .375-4 2-4.75 3.875-2.5 3 1.375 2.5 3.625-.375 2.25-1.375 9.625-3 15.125L72 44.125h1.125l1.25-1.375L79.5 36l8.625-10.75 3.75-4.25 4.5-4.75L99.25 14h5.375l3.875 5.875-1.75 6.125-5.5 7-4.625 5.875L90 47.75l-4 7.125.375.5h.875l14.875-3.25 8.125-1.375 9.5-1.625 4.375 2  .5 2-1.75 4.25-10.25 2.5-12 2.375-17.875 4.25-.25.125.25.375 8 .75 3.5.25h8.5l15.75 1.125 4.125 2.75 2.375 3.25-.375 2.625-6.375 3.125-8.5-2-20-4.75L83 72.5h-1v1l5.75 5.625L98.125 88l13.125 12.125.625 3-1.625 2.5-1.75-.25L97 96.625l-4.5-3.875-10-8.375h-.625v.875l2.25 3.375 12.25 18.375.625 5.625-.875 1.75-3.25 1.125-3.375-.625-7.25-10-7.375-11.375-6-10.125-.625.5-3.625 37.75L63 123.5l-3.75 1.5-3.125-2.375Z"></path>
+                    </svg>
+                    <span>Claude</span>
+                  </span>
+                  <span class="agent-brand">
+                    <svg class="agent-brand-logo agent-brand-logo--cursor" viewBox="90 67 332 379" aria-hidden="true" focusable="false">
+                      <path d="m415.348 156.575-151.504-87.4699c-4.865-2.8094-10.868-2.8094-15.733 0l-151.4964 87.4699c-4.0897 2.361-6.6146 6.728-6.6146 11.458v176.383c0 4.73 2.5249 9.097 6.6146 11.459l151.5034 87.469c4.865 2.81 10.868 2.81 15.733 0l151.504-87.469c4.09-2.362 6.615-6.729 6.615-11.459v-176.383c0-4.73-2.525-9.097-6.615-11.458Zm-9.517 18.528-146.254 253.319c-.989 1.707-3.599 1.01-3.599-.967v-165.871c0-3.314-1.771-6.38-4.645-8.044l-143.644-82.932c-1.707-.989-1.01-3.599.967-3.599h292.51c4.153 0 6.749 4.502 4.672 8.101h-.007Z"></path>
+                    </svg>
+                    <span>Cursor</span>
+                  </span>
+                  <span class="agent-local">or any local agent.</span>
+                </span>
+                <span class="copy-status-live" role="status" aria-live="polite" data-copy-status>Ready for Codex, Claude, Cursor, or any local agent.</span>
+              </p>
+            </div>
+
+            <button
+              class="screen-terminal"
+              type="button"
+              aria-label="Copy install command"
+              data-copy-install
+              data-hero-terminal
+            >
+              <code class="terminal-command" data-install-command>curl -fsSL https://openknowledge.sh/install | bash</code>
+              <span class="terminal-status" role="status" aria-live="polite" data-install-status>
+                Copy and run in your terminal.
+              </span>
             </button>
-            <a class="text-action" href="/wiki/">Read the documentation</a>
           </div>
-          <p class="copy-status" role="status" aria-live="polite" data-copy-status>
-            Ready for Codex, Claude, Cursor, or any agent.
-          </p>
         </section>
 
-        <section class="principles" aria-label="How Open Knowledge works">
-          <article>
-            <svg class="principle-icon" aria-hidden="true" viewBox="0 0 32 32" focusable="false">
-              <path d="M8 4.5h11l5 5v18H8z"></path>
-              <path d="M19 4.5v5h5M12 16h8M12 21h6"></path>
-            </svg>
-            <h2>Write</h2>
-            <p>Use plain Markdown and YAML in the Git workflow you already know.</p>
-          </article>
-          <article>
-            <svg class="principle-icon" aria-hidden="true" viewBox="0 0 32 32" focusable="false">
-              <circle cx="16" cy="16" r="11.5"></circle>
-              <path d="m10.8 16.2 3.3 3.3 7.1-7.3"></path>
-            </svg>
-            <h2>Verify</h2>
-            <p>Catch structural problems before they reach people or agents.</p>
-          </article>
-          <article>
-            <svg class="principle-icon" aria-hidden="true" viewBox="0 0 32 32" focusable="false">
-              <circle cx="8" cy="16" r="3"></circle>
-              <circle cx="23" cy="8.5" r="3"></circle>
-              <circle cx="23" cy="23.5" r="3"></circle>
-              <path d="m10.7 14.6 9.6-4.8m-9.6 7.6 9.6 4.8"></path>
-            </svg>
-            <h2>Share</h2>
-            <p>Browse locally, publish to the web, or serve read-only over MCP.</p>
-          </article>
-        </section>
-
-        <section class="commands" aria-labelledby="commands-title">
-          <div class="commands-copy">
-            <h2 id="commands-title">One knowledge base.<br>Three ways in.</h2>
+        <section class="principles" aria-labelledby="principles-title">
+          <header class="principles-intro">
+            <h2 id="principles-title">Write it once. Keep it useful.</h2>
             <p>
-              Manage the source, connect an agent, or browse the same knowledge
-              yourself.
+              Open Knowledge keeps the source simple and the workflow familiar,
+              from the first Markdown file to the context an agent retrieves.
             </p>
-          </div>
-
-          <div class="workflow-groups">
-            <section class="workflow-group" aria-labelledby="core-workflow-title">
-              <header class="workflow-group-copy">
-                <h3 id="core-workflow-title">Core</h3>
-                <p>Create, maintain, and retrieve.</p>
-              </header>
-              <div class="command-list">
-                <div>
-                  <a class="command-link" href="/wiki/features/commands/setup.html">
-                    <code>okn setup</code>
-                  </a>
-                  <span>Create</span>
-                </div>
-                <div>
-                  <a class="command-link" href="/wiki/features/commands/validate.html">
-                    <code>okn validate</code>
-                  </a>
-                  <span>Validate</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="workflow-group" aria-labelledby="agent-workflow-title">
-              <header class="workflow-group-copy">
-                <h3 id="agent-workflow-title">For agents</h3>
-                <p>Read exact sources or retrieve context.</p>
-              </header>
-              <div class="command-list">
-                <div>
-                  <a class="command-link" href="/wiki/features/commands/list.html">
-                    <code>okn list</code>
-                  </a>
-                  <span>Inspect the structure</span>
-                </div>
-                <div>
-                  <a class="command-link" href="/wiki/features/commands/get.html">
-                    <code>okn get</code>
-                  </a>
-                  <span>Read exact files</span>
-                </div>
-                <div>
-                  <a class="command-link" href="/wiki/features/commands/search.html">
-                    <code>okn search</code>
-                  </a>
-                  <span>Retrieve context</span>
-                </div>
-                <div>
-                  <a class="command-link" href="/wiki/features/commands/mcp.html">
-                    <code>okn mcp</code>
-                  </a>
-                  <span>Connect through MCP</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="workflow-group" aria-labelledby="people-workflow-title">
-              <header class="workflow-group-copy">
-                <h3 id="people-workflow-title">For humans</h3>
-                <p>Browse the same source in the viewer.</p>
-              </header>
-              <div class="command-list">
-                <div>
-                  <a class="command-link" href="/wiki/features/commands/view.html">
-                    <code>okn view</code>
-                  </a>
-                  <span>Open the knowledge base</span>
-                </div>
-              </div>
-            </section>
-          </div>
-        </section>
-
-        <section class="use-cases" aria-labelledby="use-cases-title">
-          <header class="use-cases-heading">
-            <h2 id="use-cases-title">From Markdown to shared context.</h2>
-            <p>Five common paths through the CLI, from setup to publishing.</p>
           </header>
 
-          <div class="use-case-list">
-            <article class="use-case">
-              <div class="use-case-copy">
-                <h3>Create a knowledge base</h3>
-                <p>Start the guided setup interview, or let the CLI launch a selected agent runtime.</p>
-              </div>
-              <div class="use-case-commands">
-                <code><strong>okn</strong> setup</code>
-                <code><strong>okn</strong> setup --agent codex</code>
-              </div>
+          <div class="principle-list">
+            <article>
+              <figure class="principle-visual principle-visual--symbol">
+                <img
+                  class="principle-3d-icon"
+                  src="/principle-write-3d-cool.webp"
+                  alt="Three-dimensional floppy disk labeled .md"
+                  width="1254"
+                  height="1254"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </figure>
+              <h3>Write</h3>
+              <p>Use plain Markdown and YAML in the Git workflow you already know.</p>
             </article>
+            <article>
+              <figure class="principle-visual principle-visual--symbol">
+                <img
+                  class="principle-3d-icon"
+                  src="/principle-verify-3d-cool.webp"
+                  alt="Three-dimensional validation check mark"
+                  width="1254"
+                  height="1254"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </figure>
+              <h3>Verify</h3>
+              <p>Catch structural problems before they reach people or agents.</p>
+            </article>
+            <article>
+              <figure class="principle-visual principle-visual--symbol principle-visual--brand">
+                <img
+                  class="principle-3d-icon"
+                  src="/principle-share-3d-cool.webp"
+                  alt="Three-dimensional Open Knowledge ring logo"
+                  width="1254"
+                  height="1254"
+                  loading="lazy"
+                  decoding="async"
+                >
+              </figure>
+              <h3>Share</h3>
+              <p>
+                <a class="principle-inline-link" href="/wiki/features/commands/view.html">Browse locally</a>,
+                <a class="principle-inline-link" href="/wiki/features/commands/export.html">publish to the web</a>,
+                or
+                <a class="principle-inline-link" href="/wiki/features/commands/mcp.html">serve read-only over MCP</a>.
+              </p>
+            </article>
+          </div>
+        </section>
 
-            <article class="use-case">
-              <div class="use-case-copy">
-                <h3>Build from another source</h3>
-                <p>Print an agent task grounded in a repository, folder, or website.</p>
-              </div>
-              <div class="use-case-commands">
-                <code><strong>okn</strong> setup Wiki --prompt --from https://github.com/openknowledge-sh/openknowledge</code>
-                <code><strong>okn</strong> setup Wiki --prompt --from https://openknowledge.sh/wiki/ --depth 2</code>
-              </div>
-            </article>
+        <section class="why-knowledge" aria-labelledby="why-knowledge-title">
+          <header class="why-knowledge-intro">
+            <h2 id="why-knowledge-title">
+              <span>Why create a knowledge base?</span>
+            </h2>
+            <p>
+              Because durable knowledge should outlive a single conversation,
+              tool, or agent. Keep it in plain files you can review, version,
+              and reuse.
+            </p>
+          </header>
 
-            <article class="use-case">
-              <div class="use-case-copy">
-                <h3>Connect and retrieve</h3>
-                <p>Give the bundle a stable name, then search it or browse it locally.</p>
-              </div>
-              <div class="use-case-commands">
-                <code><strong>okn</strong> connect Wiki --as project</code>
-                <code><strong>okn</strong> search project "validation workflow"</code>
-                <code><strong>okn</strong> view project</code>
-              </div>
+          <div class="reason-list">
+            <article>
+              <h3>Make context durable.</h3>
+              <p>
+                Store the source in
+                <span class="concept-marked">
+                  <svg class="concept-icon" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
+                    <path d="M3 4.5h14v11H3zM5.6 12V8l2.4 2.7L10.4 8v4m2.2-1.2 1.4 1.4 1.4-1.4"></path>
+                  </svg>
+                  Markdown
+                </span>
+                and keep its history in
+                <span class="concept-marked">
+                  <svg class="concept-icon" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
+                    <circle cx="6" cy="5" r="2"></circle>
+                    <circle cx="14" cy="15" r="2"></circle>
+                    <circle cx="6" cy="15" r="2"></circle>
+                    <path d="M6 7v6m2-6 4.5 6"></path>
+                  </svg>
+                  Git
+                </span>.
+              </p>
             </article>
+            <article>
+              <h3>Give everyone the same answer.</h3>
+              <p>
+                People browse it.
+                <span class="concept-marked">
+                  <svg class="concept-icon" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
+                    <rect x="4" y="5" width="12" height="10" rx="3"></rect>
+                    <path d="M7 10h.01M13 10h.01M8 13h4M10 5V3"></path>
+                  </svg>
+                  Agents
+                </span>
+                retrieve it through the
+                <a class="concept-link" href="/wiki/features/commands/">
+                  <svg class="concept-icon" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
+                    <rect x="2.5" y="4" width="15" height="12" rx="2"></rect>
+                    <path d="m6 8 2 2-2 2m4.5 0h3.5"></path>
+                  </svg>
+                  CLI
+                </a>
+                or
+                <a class="concept-link" href="/wiki/features/commands/mcp.html">
+                  <svg class="concept-icon" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
+                    <circle cx="5" cy="10" r="2.25"></circle>
+                    <circle cx="15" cy="6" r="2.25"></circle>
+                    <circle cx="15" cy="14" r="2.25"></circle>
+                    <path d="m7 9.2 5.8-2.3M7 10.8l5.8 2.3"></path>
+                  </svg>
+                  MCP
+                </a>.
+              </p>
+            </article>
+            <article>
+              <h3>Change tools without starting over.</h3>
+              <p>
+                <a class="knowledge-link" href="/wiki/">The knowledge stays readable</a>,
+                portable, and under your control.
+              </p>
+            </article>
+          </div>
+        </section>
 
-            <article class="use-case">
-              <div class="use-case-copy">
-                <h3>Validate before use</h3>
-                <p>Catch structure errors and review link warnings before agents or publishing depend on the knowledge base.</p>
-              </div>
-              <div class="use-case-commands">
-                <code><strong>okn</strong> validate Wiki</code>
-                <code><strong>okn</strong> list --depth 2 Wiki</code>
-                <code><strong>okn</strong> ast Wiki</code>
-              </div>
-            </article>
+        <section class="how-it-works-banner" aria-labelledby="how-it-works-title">
+          <img
+            class="how-it-works-image"
+            src="/how-it-works-clippy.webp"
+            alt=""
+            width="1672"
+            height="941"
+            loading="lazy"
+            decoding="async"
+            aria-hidden="true"
+          >
+          <div class="how-it-works-content">
+            <h2 id="how-it-works-title">See how it works.</h2>
+            <p>
+              Go from installation to a useful, validated knowledge base in a
+              few practical steps.
+            </p>
+            <a class="primary-action how-it-works-action" href="/getting-started/">
+              See the 5-minute guide
+            </a>
+          </div>
+        </section>
 
-            <article class="use-case">
-              <div class="use-case-copy">
-                <h3>Publish or integrate</h3>
-                <p>After review, set <code>[publish] enabled = true</code> to ship HTML. Export portable JSON or a complete source archive separately.</p>
-              </div>
-              <div class="use-case-commands">
-                <code><strong>okn</strong> export html --out ./project-site Wiki</code>
-                <code><strong>okn</strong> export json Wiki</code>
-                <code><strong>okn</strong> export tar --out ./project-wiki.tar.gz Wiki</code>
-              </div>
-            </article>
+        <section class="founder-message" aria-labelledby="founder-message-title">
+          <header>
+            <h2 id="founder-message-title">The Idea Behind Open Knowledge</h2>
+          </header>
+          <div class="founder-letter">
+            <p>
+              Agents do their best work when the context around a task is
+              precise, concrete, and close to the source. I found myself
+              creating more and more focused knowledge bases to give them that
+              context: project documentation, changelogs, research notes, and
+              records of the decisions behind the work.
+            </p>
+            <p>
+              Each knowledge base had a different purpose, but the same work
+              kept returning. The files needed a clear structure. Links and
+              metadata needed to be checked. People needed a way to browse the
+              content, and agents needed a dependable way to retrieve it. The
+              tooling I wanted around those plain files did not exist as one
+              coherent system.
+            </p>
+            <p>
+              That recurring gap became Open Knowledge. It is a way to create,
+              validate, browse, and share focused knowledge bases without
+              hiding their source inside another product. The knowledge stays
+              in Markdown and YAML, follows the Git workflow you already know,
+              and remains useful to both people and agents as the work changes.
+            </p>
+            <p class="founder-letter-signoff">Thanks for spending time with Open Knowledge.</p>
+            <aside class="founder-lineage" aria-label="Open Knowledge background and sources">
+              <p>
+                The path to Open Knowledge started with a pattern, not a product.
+                <a
+                  class="founder-letter-link"
+                  href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f"
+                  target="_blank"
+                  rel="noreferrer"
+                >Andrej Karpathy&rsquo;s LLM Wiki</a>
+                gave a clear shape to the idea of agents maintaining a shared
+                Markdown library that becomes more useful over time.
+                <a
+                  class="founder-letter-link"
+                  href="https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing/"
+                  target="_blank"
+                  rel="noreferrer"
+                >Google Cloud later formalized the broader LLM-wiki pattern</a>
+                as the open, vendor-neutral Open Knowledge Format. Open Knowledge
+                CLI is independent tooling built to create and operate bundles that
+                follow
+                <a
+                  class="founder-letter-link"
+                  href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >OKF v0.2</a>.
+              </p>
+            </aside>
           </div>
         </section>
 
         <section class="closing" aria-labelledby="closing-title">
-          <h2 id="closing-title">Your knowledge stays yours.</h2>
-          <p>Open source. Git-native. Built on the Open Knowledge Format.</p>
+          <img
+            class="closing-image"
+            src="/knowledge-stays-yours.webp"
+            alt=""
+            width="1672"
+            height="941"
+            loading="lazy"
+            decoding="async"
+            aria-hidden="true"
+          >
+          <h2 id="closing-title">
+            <span>Your knowledge</span>
+            <span>stays yours</span>
+          </h2>
+          <p>Open source. Git-native. Built on Open Knowledge Format v0.2.</p>
           <a
             class="github-star-action closing-github-action"
             href="https://github.com/openknowledge-sh/openknowledge"
@@ -301,9 +418,10 @@
             <img src="/logo-mark.png" alt="" aria-hidden="true">
             <span>Open Knowledge</span>
           </a>
-          <p>AI-ready knowledge bases in Markdown for agents and humans.</p>
+          <p>AI-ready Markdown knowledge bases built on Open Knowledge Format v0.2.</p>
         </div>
         <nav class="footer-links" aria-label="Footer links">
+          <a href="/getting-started/">Getting started</a>
           <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
           <a href="/wiki/">Wiki</a>
           <a href="/wiki/changelog/cli.html">Changelog</a>

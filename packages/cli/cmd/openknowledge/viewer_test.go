@@ -43,9 +43,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer file page did not include seamless header override:\n%s", page)
 	}
 	if !strings.Contains(page, `data-openknowledge-theme="default"`) ||
-		!strings.Contains(page, `data-viewer-theme="night"`) ||
-		!strings.Contains(page, `const defaultPreset = "night";`) ||
-		!strings.Contains(page, `const defaultThemePreset = "night";`) ||
+		!strings.Contains(page, `data-viewer-theme="default"`) ||
+		!strings.Contains(page, `const defaultPreset = "default";`) ||
+		!strings.Contains(page, `const defaultThemePreset = "default";`) ||
 		!strings.Contains(page, `--ok-color-accent`) ||
 		!strings.Contains(page, `--ok-font-body`) {
 		t.Fatalf("viewer file page should expose theme data and root CSS variables:\n%s", page)
@@ -372,8 +372,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.file-sidebar { position: relative; grid-column: 1; grid-row: 1 / -1; z-index: 7; display: flex; width: 100%; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; border-right: 1px solid var(--ok-color-sidebar-border); background: var(--ok-color-sidebar);`) {
 		t.Fatalf("viewer file sidebar should occupy the first grid column with a subtle divider:\n%s", page)
 	}
-	if !strings.Contains(page, `--ok-color-viewer-canvas: #f4f5f4`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #f7f8f7`) || !strings.Contains(page, `--ok-color-sidebar-header: rgba(247, 248, 247, .94)`) {
-		t.Fatalf("viewer sidebar should use the polished neutral shell palette:\n%s", page)
+	if !strings.Contains(page, `--ok-color-viewer-canvas: #dceaf5`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #e5f0f8`) || !strings.Contains(page, `--ok-color-sidebar-header: rgba(229, 240, 248, .94)`) {
+		t.Fatalf("viewer sidebar should use the Open Knowledge light blue shell palette:\n%s", page)
 	}
 	if !strings.Contains(page, `const mobileSidebar = window.matchMedia("(max-width: 680px)")`) ||
 		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
@@ -938,9 +938,9 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if strings.Contains(indexHTML, `<script>`) {
 		t.Fatalf("generated viewer code must not require executable inline scripts:\n%s", indexHTML)
 	}
-	if !strings.Contains(index, `data-viewer-theme="night"`) ||
-		!strings.Contains(index, `const defaultPreset = "night";`) ||
-		!strings.Contains(index, `const defaultThemePreset = "night";`) {
+	if !strings.Contains(index, `data-viewer-theme="default"`) ||
+		!strings.Contains(index, `const defaultPreset = "default";`) ||
+		!strings.Contains(index, `const defaultThemePreset = "default";`) {
 		t.Fatalf("expected exported viewer to use Night on first run and bootstrap saved theme choices before paint:\n%s", index)
 	}
 	if !strings.Contains(index, `class="ok-table" data-ok-table`) || !strings.Contains(index, `function enhanceTables(scope)`) || !strings.Contains(index, `.ok-table-tools`) || !strings.Contains(index, `.ok-table-filter-panel`) {
@@ -1456,17 +1456,17 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 
 	handler := newViewerHandler(root)
 	page := getViewerBody(t, handler, "/file/index.md")
-	if !strings.Contains(page, `data-openknowledge-theme="landing"`) || !strings.Contains(page, `data-viewer-theme="night"`) || !strings.Contains(page, `href="/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(page, `data-openknowledge-theme="landing"`) || !strings.Contains(page, `data-viewer-theme="default"`) || !strings.Contains(page, `href="/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer should link the configured theme stylesheet from the raw endpoint:\n%s", page)
 	}
 
 	asset := getViewerBody(t, handler, "/file/references/report.pdf")
-	if !strings.Contains(asset, `data-openknowledge-theme="landing"`) || !strings.Contains(asset, `data-viewer-theme="night"`) || !strings.Contains(asset, `href="/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(asset, `data-openknowledge-theme="landing"`) || !strings.Contains(asset, `data-viewer-theme="default"`) || !strings.Contains(asset, `href="/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer asset pages should link the configured theme stylesheet from the raw endpoint:\n%s", asset)
 	}
 
 	alias := getViewerBody(t, newViewerHandlerWithAlias(root, "project-memory"), "/project-memory/file/index.md")
-	if !strings.Contains(alias, `data-openknowledge-theme="landing"`) || !strings.Contains(alias, `data-viewer-theme="night"`) || !strings.Contains(alias, `href="/project-memory/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(alias, `data-openknowledge-theme="landing"`) || !strings.Contains(alias, `data-viewer-theme="default"`) || !strings.Contains(alias, `href="/project-memory/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer alias pages should link the prefixed theme stylesheet from the raw endpoint:\n%s", alias)
 	}
 
@@ -1475,7 +1475,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	writeViewerFile(t, listRoot, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
 	writeViewerFile(t, listRoot, "notes/readme.md", "---\ntype: Note\n---\n\n# Readme\n")
 	listing := getViewerBody(t, newViewerHandler(listRoot), "/")
-	if !strings.Contains(listing, `data-openknowledge-theme="landing"`) || !strings.Contains(listing, `data-viewer-theme="night"`) || !strings.Contains(listing, `href="/raw/assets/wiki-theme.css"`) {
+	if !strings.Contains(listing, `data-openknowledge-theme="landing"`) || !strings.Contains(listing, `data-viewer-theme="default"`) || !strings.Contains(listing, `href="/raw/assets/wiki-theme.css"`) {
 		t.Fatalf("viewer index pages should link the configured theme stylesheet from the raw endpoint:\n%s", listing)
 	}
 
@@ -1488,7 +1488,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	}
 
 	index := readViewerExportFile(t, out, "index.html")
-	if !strings.Contains(index, `data-openknowledge-theme="landing"`) || !strings.Contains(index, `data-viewer-theme="night"`) || !strings.Contains(index, `href="assets/wiki-theme.css"`) {
+	if !strings.Contains(index, `data-openknowledge-theme="landing"`) || !strings.Contains(index, `data-viewer-theme="default"`) || !strings.Contains(index, `href="assets/wiki-theme.css"`) {
 		t.Fatalf("expected exported index to link copied theme stylesheet:\n%s", index)
 	}
 	if !strings.Contains(index, `<a class="brand" href="index.html">Home</a>`) {

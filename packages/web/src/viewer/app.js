@@ -51,7 +51,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const knownNotePaths = collectKnownNotePaths();
   const knowledgeGraph = readKnowledgeGraph();
   const themePresets = ["default", "night", "paper", "ocean", "rose", "custom"];
-  const defaultThemePreset = "night";
+  const defaultThemePreset = "default";
   const accessibilityFonts = {
     system: 'Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif',
     readable: 'Verdana, Tahoma, Arial, sans-serif',
@@ -79,12 +79,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     underlineLinks: false
   };
   const customThemeDefaults = {
-    page: "#f4f5f4",
-    surface: "#ffffff",
-    text: "#202322",
-    muted: "#707773",
-    accent: "#0b7a53",
-    border: "#e3e6e4"
+    page: "#edf5fa",
+    surface: "#fbfdff",
+    text: "#082b63",
+    muted: "#496887",
+    accent: "#0a4a9c",
+    border: "#c8d9e8"
   };
   const customThemeVariables = {
     page: ["--ok-color-page", "--ok-color-header-bg", "--ok-color-viewer-canvas", "--ok-color-viewer-header-bg", "--ok-color-sidebar", "--ok-color-sidebar-header"],
@@ -2768,7 +2768,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const surface = mermaidThemeValue(styles, "--ok-color-surface", page);
     const text = mermaidThemeValue(styles, "--ok-color-text", "#202322");
     const muted = mermaidThemeValue(styles, "--ok-color-muted", "#707773");
-    const accent = mermaidThemeValue(styles, "--ok-color-accent", "#0b7a53");
+    const accent = mermaidThemeValue(styles, "--ok-color-accent", "#0a4a9c");
     const border = mermaidThemeValue(styles, "--ok-color-border", "#e3e6e4");
     return {
       startOnLoad: false,

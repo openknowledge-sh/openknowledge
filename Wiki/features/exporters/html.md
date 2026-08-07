@@ -40,6 +40,7 @@ Viewer mode includes:
 
 - static Markdown pages with file navigation, Mermaid diagrams, search, graph
   data, stacked panels, metadata inspectors, table controls, themes, and mobile layout
+- a light blue default theme that matches the Open Knowledge website
 - OKF 0.2 trust, status, freshness, provenance, structured source, and
   Attested Computation contract views
 - `llms.txt` for pages enabled for both `viewer` and `llms`
@@ -64,6 +65,9 @@ Use `--script-src` for trusted external scripts.
 The local viewer and interactive HTML exports use the same diagram controls.
 Both viewer modes provide zoom, pan, **Fit**, and **100%** controls in a
 viewport-filling dialog.
+
+The first visit uses the default light theme. A browser-local theme preference
+overrides the default theme. The **Night** theme remains available in settings.
 
 Viewer mode displays executor and attester declarations. It does not execute
 either resource.

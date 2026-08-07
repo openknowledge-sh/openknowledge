@@ -365,7 +365,7 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.locator('[data-theme-option="default"]').click();
   await page.locator("[data-accessibility-size]").selectOption("large");
   await page.getByRole("button", { name: "Reset to defaults" }).click();
-  assert.equal(await page.locator("html").getAttribute("data-viewer-theme"), "night");
+  assert.equal(await page.locator("html").getAttribute("data-viewer-theme"), "default");
   assert.equal(await page.locator("html").getAttribute("data-viewer-font-size"), "default");
   assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
   assert.equal(await navigationMode.getAttribute("aria-pressed"), "true");
