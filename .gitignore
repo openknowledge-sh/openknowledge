@@ -3,7 +3,7 @@
 /dist/
 /packages/npm/vendor/
 /packages/web/dist/
-/packages/web/viewer-dist/
+/packages/cli/cmd/openknowledge/viewer_assets/
 .pnpm-store/
 node_modules/
 deploy/runtime/secrets/

@@ -23,6 +23,7 @@ const requiredWorkflowFragments = [
   "language: javascript-typescript",
   "build-mode: none",
   "queries: security-extended",
+  "pnpm build:viewer",
   "go build ./...",
   "go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...",
   "https://github.com/google/osv-scanner/releases/download/v2.3.8/osv-scanner_linux_amd64",

@@ -7,11 +7,11 @@
   "scripts": {
     "dev": "vite",
     "build": "pnpm build:viewer && vite build && node scripts/build.mjs",
-    "build:viewer": "vite build --config vite.viewer.config.ts && vite build --config vite.theme.config.ts && node scripts/sync-viewer.mjs",
+    "build:viewer": "vite build --config vite.viewer.config.ts && vite build --config vite.theme.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src scripts vite.config.ts vite.viewer.config.ts vite.theme.config.ts --deny-warnings",
     "test": "pnpm typecheck && pnpm lint && vitest run",
-    "test:browser": "node --test scripts/browser.e2e.mjs",
+    "test:browser": "pnpm build:viewer && node --test scripts/browser.e2e.mjs",
     "start": "OPENKNOWLEDGE_WEB_ROOT=dist OPENKNOWLEDGE_WEB_EXPORT_WIKI=0 HOST=0.0.0.0 node scripts/serve.mjs"
   },
   "engines": {

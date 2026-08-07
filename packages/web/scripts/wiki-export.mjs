@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFile, rm } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,6 +14,7 @@ export async function run(command, args) {
   await new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: repoRoot,
+      env: { ...process.env, OPENKNOWLEDGE_TELEMETRY_SUPPRESS: "1" },
       stdio: "inherit"
     });
 
@@ -45,20 +46,10 @@ export async function exportWiki(out = path.join(distRoot, "wiki"), options = {}
   }
 
   const args = ["export", "html", "--out", out];
-  const headHTML = options.headHTML === undefined ? await landingAnalyticsHeadHTML() : options.headHTML;
+  const headHTML = options.headHTML || "";
   if (headHTML.trim()) {
     args.push("--head-html", headHTML);
   }
   args.push(wikiRoot);
   await runOpenKnowledge(args);
-}
-
-export async function landingAnalyticsHeadHTML() {
-  const html = await readFile(path.join(webRoot, "index.html"), "utf8");
-  return extractLandingAnalyticsHeadHTML(html);
-}
-
-export function extractLandingAnalyticsHeadHTML(html) {
-  const match = html.match(/<script async src="https:\/\/www\.googletagmanager\.com\/gtag\/js\?id=[^"]+"><\/script>\s*<script>\s*window\.dataLayer = window\.dataLayer \|\| \[];[\s\S]*?gtag\("config", "[^"]+"\);\s*<\/script>/);
-  return match ? match[0] : "";
 }

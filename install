@@ -181,7 +181,7 @@ install -m 0755 "$candidate" "$staging"
 alias_staging_dir="$(mktemp -d "$install_dir/.okn.install.XXXXXX")"
 ln -s "$binary" "$alias_staging_dir/$alias_binary"
 
-if ! candidate_version="$("$staging" version)"; then
+if ! candidate_version="$(OPENKNOWLEDGE_TELEMETRY_SUPPRESS=1 "$staging" version)"; then
   echo "openknowledge install: downloaded binary failed its version preflight" >&2
   exit 1
 fi

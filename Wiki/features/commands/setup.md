@@ -20,6 +20,9 @@ okn setup Wiki --agent codex
 okn setup Wiki --from ./repository
 okn setup Wiki --from ./repository --about "Explain release workflows"
 okn setup Wiki --from https://example.com/docs --depth 2
+okn setup skill
+okn setup skill --scope global --harness codex
+okn setup skill --scope project --project ./repository --harness codex
 okn setup complete Wiki --skill project --harness codex --observe off
 okn setup status
 okn setup repair
@@ -47,6 +50,22 @@ depth.
 
 Setup has no knowledge-base type option. Maintenance rules are independent
 choices in the setup flow.
+
+## Skill installation
+
+Use `okn setup skill` to install or update Open Knowledge instructions without
+the complete knowledge-base setup flow. The command does not require a Wiki
+argument.
+
+On a terminal, the command first asks for the `global`, `project`, or `both`
+scope. For a project scope, select a compatible local registry entry or enter
+a local knowledge base path. Then, select one or more detected agent harnesses.
+
+For noninteractive use, set `--scope <global|project|both>`. Repeat
+`--harness <codex|claude|opencode>` to select more than one harness. Set
+`--project <registry-key|path>` when the selected scope includes a project.
+
+A global installation does not require a Wiki, project, or registry entry.
 
 ## Completion
 
@@ -89,6 +108,9 @@ user-managed project guidance.
 Use `okn setup observe on` only after you approve local capture of possible
 knowledge gaps. Use `okn setup observe off` to disable capture.
 
+Product telemetry is separate from observation. The `--observe` choice does not
+enable, disable, or change product telemetry.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -97,6 +119,7 @@ knowledge gaps. Use `okn setup observe off` to disable capture.
 >
 > * `packages/cli/cmd/openknowledge/setup_command.go`
 > * `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`
+> * `packages/cli/cmd/openknowledge/setup_skill_command.go`
 > * `packages/cli/internal/integration/manage.go`
 > * `packages/cli/internal/okf/setup.go`
 > * `packages/cli/internal/okf/from.go`

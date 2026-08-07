@@ -23,6 +23,7 @@ The published documentation is at
 version of this OKF wiki.
 
 - [Installation](features/installation.md)
+- [Product telemetry and privacy](features/telemetry.md)
 - [Command reference](features/commands/)
 - [`.openknowledge.toml`](features/configuration.md)
 - [CLI changelog](changelog/cli.md)

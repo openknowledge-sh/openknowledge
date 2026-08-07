@@ -21,6 +21,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
+      - name: Reject tracked viewer build output
+        shell: bash
+        run: |
+          tracked="$(git ls-files -- packages/cli/cmd/openknowledge/viewer_assets)"
+          if [ -n "$tracked" ]; then
+            echo "Compiled viewer assets must not be committed:" >&2
+            printf '%s\n' "$tracked" >&2
+            exit 1
+          fi
+
       - name: Setup Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
@@ -73,9 +83,6 @@ jobs:
       - name: Validate repository wiki
         run: ./bin/openknowledge validate Wiki
 
-      - name: Verify generated files are current
-        run: git diff --exit-code
-
   go-platforms:
     name: Go tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -92,6 +99,23 @@ jobs:
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: packages/cli/go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build viewer assets
+        run: pnpm build:viewer
 
       - name: Test CLI
         run: go test ./packages/cli/...

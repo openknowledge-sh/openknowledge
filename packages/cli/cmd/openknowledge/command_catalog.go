@@ -27,7 +27,7 @@ var commandGroups = []commandGroup{
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("complete", "status", "repair", "observe"), Run: runSetup},
+	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("skill", "complete", "status", "repair", "observe"), Run: runSetup},
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 
@@ -53,6 +53,7 @@ var rootCommandCatalog = []rootCommand{
 	{Name: "ast", Group: "Advanced and portable tools", Summary: "Print parsed OKF AST JSON.", Run: runAST},
 	{Name: "spec", Group: "Advanced and portable tools", Summary: "Print an embedded OKF spec.", Run: runSpec},
 	{Name: "version", Group: "Advanced and portable tools", Summary: "Print the CLI version.", Run: runVersion},
+	{Name: "telemetry", Group: "Advanced and portable tools", Summary: "Inspect or change anonymous product telemetry.", Subcommands: commandNames("status", "enable", "disable", "show-payload"), Run: runTelemetry},
 }
 
 var rootCommandsByName = func() map[string]rootCommand {
@@ -155,6 +156,7 @@ Usage:
 	output.WriteString(`Flags:
   -h, --help                Show this help.
   --error-format text|json  Format command failures on stderr (default text).
+  --no-telemetry            Disable telemetry now and for future commands.
 
 Start with setup for an interactive onboarding. Use setup --prompt when an
 existing agent should run the onboarding task. Run openknowledge <command>

@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-08-07T00:00:00Z
 ---
 
 # CLI Operations
@@ -37,6 +37,7 @@ pnpm build
 | `pnpm test:browser` | Exercise the production landing build and exported viewer over HTTP and `file://` in Chromium. |
 | `pnpm test:race` | Run all Go tests with the race detector. |
 | `pnpm test:coverage` | Produce `coverage.out` for the Go packages. |
+| `pnpm build:viewer` | Build ignored viewer assets for Go embedding. |
 | `pnpm check:format` | Fail when committed Go files are not formatted. |
 | `pnpm check:onboarding-docs` | Keep README, website, and wiki setup/publication guidance aligned. |
 | `pnpm check:repo-jobs` | Validate repository job definitions. |
@@ -46,7 +47,7 @@ pnpm build
 | `pnpm check:workflow-permissions` | Enforce reviewed minimal write scopes. |
 | `pnpm check:security-config` | Verify scanning and dependency-update coverage. |
 | `pnpm check:container-runtime` | Verify toolchain, image, user, volume, and credential boundaries. |
-| `pnpm build:cli` | Build `bin/openknowledge`. |
+| `pnpm build:cli` | Build viewer assets and `bin/openknowledge`. |
 | `pnpm build:web` | Build the website and exported wiki. |
 | `pnpm dev:web` | Run the local website workflow. |
 
@@ -68,10 +69,11 @@ The workflow does these tasks:
 6. Build the CLI and website.
 7. Test landing and viewer journeys in Chromium.
 8. Validate `Wiki/` with the built binary.
-9. Fail when generation changes tracked files.
-10. Run CLI tests and builds on Linux, macOS, and Windows.
-11. Verify npm and web behavior on Node 18.
-12. Verify an installed packed artifact on Node 18.
+9. Reject tracked viewer build output.
+10. Build viewer assets before Go tests on Linux, macOS, and Windows.
+11. Run CLI tests and builds on Linux, macOS, and Windows.
+12. Verify npm and web behavior on Node 18.
+13. Verify an installed packed artifact on Node 18.
 
 Require the `CI / verify` check in branch protection.
 
@@ -85,17 +87,18 @@ Results can change when vulnerability databases change.
 
 `pnpm build:web` builds `packages/web/dist`.
 Vite compiles the landing page from `packages/web/src/main.ts`.
-It also builds the shared viewer bundle from `packages/web/src/viewer`.
-The build synchronizes generated viewer assets into the Go embed directory
-before it builds the wiki export.
+It builds the shared viewer bundle from `packages/web/src/viewer`.
+Vite writes the bundle directly into the ignored Go embed directory.
+Git does not track the compiled viewer files.
+Commands that build or test the CLI generate these files first.
 It exports `Wiki/` to `dist/wiki`.
 It publishes JSON schemas under `dist/schemas/cli/`.
 By default, the exporter uses the current Go source.
 Set `OPENKNOWLEDGE_BIN` to test a specified binary.
 
-The build extracts the analytics head block from `packages/web/index.html`.
-It injects this block into wiki pages.
-Use these variables for other trusted head content:
+The landing page uses a first-party telemetry client after website consent.
+The build does not inject product analytics into exported wiki pages.
+Use these variables for trusted custom head content:
 
 ```sh
 OPENKNOWLEDGE_HEAD_FILE=./head.html pnpm build:web
@@ -114,6 +117,76 @@ It sends CSP, HSTS, frame denial, MIME sniffing prevention, and explicit cache p
 Railway website deployment uses the repository `Dockerfile` and `railway.json`.
 The final image runs as the unprivileged Node user.
 
+The server accepts bounded envelopes at `/api/telemetry`. It validates an exact
+event allowlist and does not forward request identity.
+
+The relay uses PostHog's batch capture protocol. It does not send the Open
+Knowledge envelope directly and it does not use bearer authentication. Without
+both variables below, the endpoint accepts and discards valid events:
+
+```text
+OPENKNOWLEDGE_TELEMETRY_UPSTREAM=https://eu.i.posthog.com/batch/
+OPENKNOWLEDGE_TELEMETRY_TOKEN=phc_REPLACE_WITH_PROJECT_TOKEN
+```
+
+`OPENKNOWLEDGE_TELEMETRY_TOKEN` must be the PostHog **project token** from the
+project settings, not a personal API key. The relay places it in PostHog's
+`api_key` request field. The EU endpoint keeps ingestion in PostHog EU Cloud.
+The upstream may also be the root ingestion host; the relay normalizes a root
+URL to `/batch/`. A custom path, query, fragment, or URL-embedded credentials is
+rejected.
+
+### PostHog and Railway setup
+
+1. Create or select a PostHog EU Cloud project. In its project settings, copy
+   the project token shown with the event-ingestion configuration.
+2. Open the deployed web service in Railway. Under **Variables**, add the two
+   variables above with the real project token. Do not add a PostHog personal
+   API key and do not expose the token through a `VITE_` variable.
+3. Redeploy the service so the Node server reads the variables. No repository
+   or Railway configuration-file change is required.
+4. In PostHog, open **Activity** or **Live events**. Visit the deployed homepage,
+   accept analytics, and copy the setup prompt. Confirm `web_page_viewed` and
+   `setup_prompt_copied` arrive with `$process_person_profile = false`.
+5. Follow the displayed install path and confirm
+   `install_redirect_requested`. Then run `okn telemetry status` and a normal
+   CLI command. Confirm CLI events arrive without paths, arguments, content,
+   output, error messages, hostnames, client IP fields, or raw user agents.
+6. If no events arrive, confirm the project is an EU project, the endpoint is
+   exactly `https://eu.i.posthog.com/batch/`, and the value is the project token.
+   A wrong token or host is intentionally invisible to clients because relay
+   delivery failures never affect website or CLI behavior.
+
+For a pre-production CLI check, point one invocation at the deployed relay:
+
+```sh
+OPENKNOWLEDGE_TELEMETRY_ENDPOINT=https://YOUR_DOMAIN/api/telemetry okn version
+```
+
+The command must behave normally even if ingestion is unavailable. Use
+`okn telemetry show-payload` to inspect a representative allowlisted CLI
+payload before validating delivery.
+
+### PostHog insights
+
+Create a dashboard with these insights:
+
+| Insight | PostHog definition |
+| --- | --- |
+| Website setup interest | Funnel from `web_page_viewed` to `setup_prompt_copied`, unique by `distinct_id` |
+| Observable install attempts | Trend of `install_redirect_requested`, broken down by `source` and `client_family` |
+| CLI activation | Funnel from `cli_first_command` to `cli_setup_completed` to `cli_first_meaningful_use`, unique by `distinct_id` |
+| Daily active installations | Daily trend of `cli_daily_active`, counting unique `distinct_id` values |
+| Meaningful-use retention | Retention from `cli_first_meaningful_use` to `cli_daily_active` |
+| Sanitized failures | Trend of `cli_error`, broken down by `error_kind`, `command`, and `app_version` |
+| Version adoption | Trend of `cli_command_completed`, broken down by `app_version` |
+
+Do not build a single person-level funnel from website visit through CLI use.
+Web, server, and CLI identifiers are deliberately separate, so such a funnel
+would imply attribution the system does not observe. Compare those stages as
+aggregate rates instead. `cli_error` supports privacy-safe failure trends but
+not native PostHog Error Tracking issue grouping.
+
 ## Release
 
 Run the manual workflow from the current default-branch tip:
@@ -122,21 +195,42 @@ Run the manual workflow from the current default-branch tip:
 Actions → Release → Run workflow → version: 0.9.0
 ```
 
-The workflow updates the root, npm, web, and Go fallback versions.
-It completes the quality gate before it creates and pushes the version commit.
-The workflow creates the release tag from this verified commit.
-The gate includes browser journeys, race tests, and a real packed npm installation.
-It also includes a GoReleaser snapshot with all six supported OS and architecture archives.
-Only the commit and publication jobs receive write permissions.
-The npm and publication jobs receive their required OIDC permissions.
-Only the publication job receives attestation permissions.
-GoReleaser publishes checksums, archives, licenses, the installer, and signed provenance.
-npm publishes the matching wrapper with provenance.
-Deployable projects build a pinned runtime from the committed `.openknowledge/runtime/Dockerfile`.
-Releases do not publish role images.
+The version input accepts `0.9.0`, `v0.9.0`, or a prerelease such as
+`v0.9.0-rc.1`. The workflow serializes release runs and does not cancel an
+active release.
 
-Stable releases use the npm `latest` tag.
-Prereleases use the `next` tag.
+The `verify` job requires the current default-branch tip. It then completes
+these tasks before any repository write:
+
+1. Update the root, npm, web, and Go fallback versions.
+2. Install frozen dependencies and verify version alignment.
+3. Verify tidy Go modules, Go formatting, policy checks, tests, and builds.
+4. Run race tests, `go vet`, and Chromium browser journeys.
+5. Build the release binary and validate `Wiki/` with that binary.
+6. Install the packed npm artifact in an isolated test project.
+7. Build and inspect a six-archive GoReleaser snapshot.
+8. Verify `NPM_TOKEN` with the npm registry.
+
+The `commit_release` job applies the same version update to the verified source.
+It pushes a version commit only when the tracked version files change.
+The `publish_release` job checks out that exact commit and prepares the release
+tag. It reuses the tag only when the tag already points to that commit.
+
+The publication job rebuilds viewer assets before GoReleaser runs. GoReleaser
+publishes six archives, checksums, licenses, and the installer. The workflow
+attests the archives from `dist/checksums.txt`.
+
+The final `npm` job checks out the release tag. It verifies the package version
+before it publishes the wrapper with npm provenance. Stable releases use the
+npm `latest` tag. Prereleases use the `next` tag.
+
+Only `commit_release` and `publish_release` receive repository write access.
+Only `publish_release` receives attestation access. The publication and npm
+jobs receive only their required OIDC access.
+
+Deployable projects build a pinned runtime from the committed
+`.openknowledge/runtime/Dockerfile`. Releases do not publish role images.
+
 Use this command to verify an archive:
 
 ```sh

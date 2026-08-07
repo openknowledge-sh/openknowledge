@@ -1,3 +1,5 @@
+import { initializeAnalytics, trackWebEvent } from "./analytics";
+
 const copyButton = document.querySelector<HTMLButtonElement>("[data-copy-setup]");
 const copyStatus = document.querySelector<HTMLElement>("[data-copy-status]");
 const installCopyButton = document.querySelector<HTMLButtonElement>("[data-copy-install]");
@@ -103,6 +105,7 @@ async function hydrateReleaseBadge() {
 }
 
 void hydrateReleaseBadge();
+initializeAnalytics();
 
 if (copyButton && copyStatus && promptTemplate) {
   copyButton.addEventListener("click", async () => {
@@ -117,6 +120,7 @@ if (copyButton && copyStatus && promptTemplate) {
     copyButton.removeAttribute("aria-busy");
 
     if (copied) {
+      trackWebEvent("setup_prompt_copied");
       copyButton.textContent = "Copied";
       copyButton.dataset.state = "copied";
       copyStatus.textContent = "Paste the prompt into your agent to begin.";

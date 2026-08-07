@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const viewerAssetsRoot = path.resolve(root, "../cli/cmd/openknowledge/viewer_assets");
 
 export default defineConfig({
   publicDir: false,
@@ -15,6 +16,6 @@ export default defineConfig({
       fileName: () => "viewer.js",
       cssFileName: "viewer",
     },
-    outDir: "viewer-dist",
+    outDir: viewerAssetsRoot,
   },
 });

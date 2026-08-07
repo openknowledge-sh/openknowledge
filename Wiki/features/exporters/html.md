@@ -3,7 +3,7 @@ type: Exporter Documentation
 title: HTML Exporter
 description: Publish an Open Knowledge bundle as a static site.
 tags: [openknowledge, cli, exporter, html]
-timestamp: 2026-07-31T00:00:00Z
+timestamp: 2026-08-06T00:00:00Z
 ---
 
 # HTML Exporter
@@ -57,6 +57,8 @@ pages do not embed a copy of the complete collection.
 
 The shared JavaScript includes the pinned Mermaid runtime. Vite builds the
 viewer from the TypeScript and JavaScript sources in `packages/web/src/viewer`.
+Workspace and release builds generate the embedded viewer assets on demand.
+Git does not track the compiled viewer files.
 Generated pages do not require `unsafe-inline` in `script-src`.
 The deployment owns trusted inline scripts from `--head-file` or `--head-html`.
 These scripts can require a CSP nonce or hash.
@@ -157,6 +159,7 @@ Then, it registers the materialized source.
 > - `packages/web/src/viewer/`
 > - `packages/web/scripts/browser.e2e.mjs`
 > - `packages/web/vite.viewer.config.ts`
+> - `packages/web/vite.theme.config.ts`
 > - `packages/cli/internal/okf/export_test.go`
 >
 > **Update notes**

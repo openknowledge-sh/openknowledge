@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-04T00:00:00Z
+timestamp: 2026-08-07T00:00:00Z
 ---
 
 # CLI Changelog
@@ -33,28 +33,43 @@ page records release-level changes.
   `packages/cli/cmd/openknowledge/viewer_test.go`.
 - Docs: `Wiki/features/commands/view.md`.
 
-### Automation
+### Release automation
 
-- Windows job runs now stop the complete child process tree after a command
-  timeout.
-- The CLI releases private run logs before it returns.
-- Source: `packages/cli/internal/agents/process_group_windows.go`,
-  `packages/cli/internal/agents/runner.go`.
-- Docs: `Wiki/features/commands/jobs.md`.
+- The release guide now documents the repository's four release jobs, input
+  formats, credential preflight, exact commit handoff, and tag reuse rule.
+- Source: `.github/workflows/release.yml`.
+- Docs: `Wiki/features/operations.md`.
 
-### Registry
+### Telemetry
 
-- Git resource validation now tolerates temporary Git-internal files that
-  disappear during a scan.
-- Missing bundle files and missing staging roots still stop the refresh.
-- Source: `packages/cli/cmd/openknowledge/registry_command.go`.
-- Docs: `Wiki/features/commands/connect.md`,
-  `Wiki/features/commands/registry.md`.
+- The CLI now discloses default-on anonymous usage and sanitized error telemetry
+  before it sends the first event. `--no-telemetry` and
+  `okn telemetry disable` save an opt-out.
+- The first-party website relay validates an exact event allowlist. Website
+  page and copy events require consent.
+- The relay now maps accepted events to PostHog's batch ingestion protocol,
+  keeps the project token server-side, and disables person-profile processing.
+- Product telemetry stays separate from opt-in local session observation.
+- Source: `packages/cli/internal/telemetry/`,
+  `packages/cli/cmd/openknowledge/telemetry_command.go`, and `packages/web/`.
+- Docs: `Wiki/features/telemetry.md` and
+  `Wiki/features/commands/telemetry.md`.
+
+### Setup
+
+- `okn setup skill` now installs global or project instructions without the
+  complete knowledge-base setup flow. Interactive use selects the scope,
+  project target when required, and detected harnesses.
+- Noninteractive use supports `--scope`, repeatable `--harness`, and
+  `--project`. A global installation does not require a Wiki or registry entry.
+- Source: `packages/cli/cmd/openknowledge/setup_skill_command.go`.
+- Docs: `Wiki/features/commands/setup.md`.
 
 ## v0.10.0 — 2026-08-04
 
 Version 0.10 makes OKF 0.2 the default, unifies setup, expands provenance
-views, and improves viewer navigation and local automation.
+views, and improves viewer navigation, registry refreshes, and local
+automation.
 
 ### OKF 0.2
 
@@ -78,21 +93,6 @@ views, and improves viewer navigation and local automation.
   Computation contracts.
 - The CLI preserves executor and attester declarations. It never runs these
   resources automatically.
-- Source: `packages/cli/internal/okf/`,
-  `packages/cli/internal/insights/`,
-  `packages/cli/cmd/openknowledge/main.go`,
-  `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
-  `packages/web/src/viewer/`.
-- Docs: `README.md`, `Wiki/SPEC.md`,
-  `Wiki/features/spec-compliance.md`,
-  `Wiki/features/commands/list.md`,
-  `Wiki/features/commands/view.md`,
-  `Wiki/features/commands/scaffold.md`,
-  `Wiki/features/commands/insights.md`,
-  `Wiki/features/exporters/graph.md`,
-  `Wiki/features/exporters/html.md`,
-  `Wiki/features/go-api.md`,
-  `Wiki/features/machine-contracts.md`.
 
 ### Setup
 
@@ -114,15 +114,13 @@ views, and improves viewer navigation and local automation.
 - The README and website explain setup with an existing agent or a selected
   CLI runtime. The website copy action includes complete agent instructions.
 - The README workflow diagram includes MCP.
-- Source: `packages/cli/cmd/openknowledge/setup_command.go`,
-  `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`,
-  `packages/cli/internal/integration/`, `packages/cli/internal/okf/`,
-  `packages/web/index.html`.
-- Docs: `README.md`, `Wiki/features/commands/setup.md`,
-  `Wiki/features/configuration.md`.
 
 ### Viewer
 
+- The **Frontmatter** disclosure contains OKF 0.2 trust, lifecycle,
+  provenance, source, and computation details.
+- Authored Markdown starts the visible document without a separate metadata
+  block above it.
 - Mobile sidebar and note navigation now show destinations immediately without
   transition delays.
 - The file explorer stays visible during open-beside navigation. Resize it
@@ -132,11 +130,6 @@ views, and improves viewer navigation and local automation.
 - Open a Mermaid diagram with a click, Enter, or Space. The viewport dialog
   provides zoom, pan, **Fit**, and **100%** controls.
 - The local viewer and interactive HTML exports use the same diagram controls.
-- Source: `packages/web/src/viewer/`,
-  `packages/web/scripts/browser.e2e.mjs`,
-  `packages/cli/cmd/openknowledge/viewer_test.go`.
-- Docs: `Wiki/features/commands/view.md`,
-  `Wiki/features/exporters/html.md`.
 
 ### Automation
 
@@ -145,10 +138,20 @@ views, and improves viewer navigation and local automation.
 - Each private jobs worker uses its runtime-specific state directory.
 - Workers remove terminal worktrees and large temporary artifacts after
   proposal export. Publishers remove branch bundles after publication.
-- Source: `packages/cli/internal/agents/plan.go`,
-  `packages/cli/cmd/openknowledge/runtime_worker.go`.
-- Docs: `Wiki/features/commands/jobs.md`,
-  `Wiki/features/commands/runtime.md`.
+- On Windows, a command timeout stops the complete child process tree.
+- The CLI releases private run logs when a run finishes.
+
+### Registry
+
+- Registry refreshes tolerate temporary Git files that disappear during a
+  scan.
+- A refresh still stops when a bundle file or staging root is missing.
+
+### Distribution
+
+- Source distributions exclude compiled viewer JavaScript and CSS.
+- Supported build, test, security, and release workflows generate viewer
+  assets when required.
 
 ### Compatibility
 
@@ -156,10 +159,6 @@ views, and improves viewer navigation and local automation.
   archives. Windows drive URLs use `file:///C:/path`.
 - Insight creation reports stable slash-separated project paths on all
   operating systems.
-- Source: `packages/cli/cmd/openknowledge/registry_command.go`,
-  `packages/cli/cmd/openknowledge/insights_command.go`.
-- Docs: `Wiki/features/commands/connect.md`,
-  `Wiki/features/commands/insights.md`.
 
 ## v0.9.0 — 2026-07-30
 

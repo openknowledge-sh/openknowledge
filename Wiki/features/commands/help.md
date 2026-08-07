@@ -19,6 +19,7 @@ okn -h
 okn <command> --help
 okn automation jobs <subcommand> --help
 okn --error-format json <command> [args...]
+okn --no-telemetry <command> [args...]
 ```
 
 Command help also accepts `-h` and `-help`. Nested job commands provide
@@ -33,7 +34,7 @@ subcommand help. Other groups can provide a group overview. The
 | Work locally | `agent`, `get`, `list`, `view` |
 | Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
 | Automate and operate | `automation` |
-| Advanced and portable tools | `scaffold`, `prompt`, `ast`, `spec`, `version` |
+| Advanced and portable tools | `scaffold`, `prompt`, `ast`, `spec`, `version`, `telemetry` |
 
 An unknown command prints root usage to stderr and exits with status `2`.
 
@@ -41,6 +42,10 @@ Put the global `--error-format text|json` option before the command. JSON mode
 wraps error diagnostics on stderr. It does not change command stdout or
 command-specific JSON. See
 [Machine-readable contracts](/features/machine-contracts.md).
+
+Put the global `--no-telemetry` option before the command. This option disables
+telemetry for the current command and saves the disabled preference. See
+[telemetry](telemetry.md).
 
 ---
 

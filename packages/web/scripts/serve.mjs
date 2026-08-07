@@ -14,6 +14,8 @@ if (refreshWiki) {
 const server = createWebServer({
   root,
   fallbackRoot: root === distRoot ? "" : distRoot,
+  telemetryUpstream: (process.env.OPENKNOWLEDGE_TELEMETRY_UPSTREAM || "").trim(),
+  telemetryToken: (process.env.OPENKNOWLEDGE_TELEMETRY_TOKEN || "").trim(),
 });
 
 server.listen(port, host, () => {
