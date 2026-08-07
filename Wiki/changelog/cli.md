@@ -13,7 +13,15 @@ page records release-level changes.
 
 ## Unreleased
 
-No changes yet.
+### Setup
+
+- `okn setup skill` now installs global or project instructions without the
+  complete knowledge-base setup flow. Interactive use selects the scope,
+  project target when required, and detected harnesses.
+- Noninteractive use supports `--scope`, repeatable `--harness`, and
+  `--project`. A global installation does not require a Wiki or registry entry.
+- Source: `packages/cli/cmd/openknowledge/setup_skill_command.go`.
+- Docs: `Wiki/features/commands/setup.md`.
 
 ## v0.10.0 — 2026-08-04
 

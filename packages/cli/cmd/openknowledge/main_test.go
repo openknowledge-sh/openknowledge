@@ -233,6 +233,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge setup [wiki] --prompt",
 				"openknowledge setup [wiki] --interactive",
 				"openknowledge setup [wiki] --agent <codex|claude|opencode>",
+				"openknowledge setup skill",
 				"openknowledge setup complete <wiki>",
 				"Without terminal",
 				"--rules",

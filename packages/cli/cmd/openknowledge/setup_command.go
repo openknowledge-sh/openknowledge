@@ -51,6 +51,8 @@ type setupWizardPlan struct {
 func runSetup(args []string) int {
 	if len(args) > 0 {
 		switch args[0] {
+		case "skill":
+			return runSetupSkill(args[1:])
 		case "complete":
 			return runSetupComplete(args[1:])
 		case "status":
@@ -609,6 +611,7 @@ Usage:
   openknowledge setup [wiki] --interactive
   openknowledge setup [wiki] --agent <codex|claude|opencode>
   openknowledge setup [wiki] --from <source> [--about <goal>] [--depth <n>]
+  openknowledge setup skill [--scope <global|project|both>] [--project <target>] [--harness <name>]
   openknowledge setup complete <wiki> --skill <scope> [--harness <name>] [--observe on|off]
   openknowledge setup status [wiki]
   openknowledge setup repair [wiki]
