@@ -19,7 +19,7 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/telemetry"
 )
 
-var version = "0.10.0"
+var version = "0.11.0"
 
 var terminal = newTerminal(os.Stdout)
 
