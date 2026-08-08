@@ -13,7 +13,12 @@ page records release-level changes.
 
 ## Unreleased
 
-No changes yet.
+### Security
+
+- Mermaid diagram rendering now uses Mermaid 11.16.1. Its dependency updates
+  include DOMPurify 3.4.13 and nanoid 3.3.17 to fix seven known vulnerabilities.
+- Source: `package.json`, `packages/web/package.json`, `pnpm-lock.yaml`.
+- Docs: `Wiki/changelog/cli.md`.
 
 ## v0.11.0 — 2026-08-08
 
