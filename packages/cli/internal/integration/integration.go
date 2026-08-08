@@ -12,12 +12,12 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-func RepositoryRoot(path string) (string, error) {
+func ProjectRoot(path string) (string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
-	return repositoryRoot(abs)
+	return projectRoot(abs)
 }
 
 func LoadFromRepository(root string) (Config, error) {
@@ -88,16 +88,57 @@ func FindRepository(start string) (string, Config, error) {
 	return "", Config{}, fmt.Errorf("no project setup found; run openknowledge setup")
 }
 
-func repositoryRoot(path string) (string, error) {
-	for current := path; ; current = filepath.Dir(current) {
+func projectRoot(path string) (string, error) {
+	for current := existingDirectory(path); ; current = filepath.Dir(current) {
+		if _, err := os.Stat(filepath.Join(current, ConfigPath)); err == nil {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+	}
+	for current := existingDirectory(path); ; current = filepath.Dir(current) {
+		// Git is a useful project-boundary signal, but OKF does not require it.
 		if info, err := os.Stat(filepath.Join(current, ".git")); err == nil && (info.IsDir() || info.Mode().IsRegular()) {
 			return current, nil
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
-			return "", fmt.Errorf("knowledge base is not inside a Git repository")
+			break
 		}
 	}
+	workingDirectory, err := os.Getwd()
+	if err == nil {
+		workingDirectory, err = filepath.Abs(workingDirectory)
+		if err == nil && pathWithin(workingDirectory, path) {
+			return workingDirectory, nil
+		}
+	}
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		return path, nil
+	}
+	return filepath.Dir(path), nil
+}
+
+func existingDirectory(path string) string {
+	if info, err := os.Stat(path); err == nil && !info.IsDir() {
+		return filepath.Dir(path)
+	}
+	for current := path; ; current = filepath.Dir(current) {
+		if info, err := os.Stat(current); err == nil && info.IsDir() {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return current
+		}
+	}
+}
+
+func pathWithin(root string, path string) bool {
+	relative, err := filepath.Rel(root, path)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func escapes(path string) bool {

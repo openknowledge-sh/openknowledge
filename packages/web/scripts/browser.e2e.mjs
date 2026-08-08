@@ -181,12 +181,55 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   const guideLink = page.getByRole("link", { name: "See the 5-minute guide" });
   assert.equal(await guideLink.getAttribute("href"), "/getting-started/");
   assert.equal(await page.getByRole("heading", { name: "The idea behind Open Knowledge" }).count(), 1);
+  const projectDocumentation = page.getByRole("link", { name: "project documentation" });
+  assert.equal(await projectDocumentation.getAttribute("href"), "/use-cases/project-documentation/");
   assert.match(await page.locator("#closing-title").innerText(), /Your knowledge\s+stays yours/);
   const closingGitHub = page.getByRole("link", { name: "Save on GitHub" });
   assert.equal(await closingGitHub.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
   assert.equal(await closingGitHub.locator("svg").count(), 1);
   assert.equal(await page.locator("details").count(), 0);
   assert.equal(errors.length, 0, `landing page browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("project documentation reads as an educational Wikipedia demo", async () => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(new URL("use-cases/project-documentation/", landingURL).href, { waitUntil: "networkidle" });
+  await assertSemanticPage(page, "How to build project documentation that people and agents can use");
+  assert.equal(await page.title(), "How to Build Useful Project Documentation · Open Knowledge");
+  assert.equal(
+    await page.locator('link[rel="canonical"]').getAttribute("href"),
+    "https://openknowledge.sh/use-cases/project-documentation/",
+  );
+  assert.equal(await page.getByRole("navigation", { name: "Breadcrumb" }).count(), 1);
+  assert.equal(await page.getByRole("navigation", { name: "Article contents" }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "First, set up Open Knowledge" }).count(), 1);
+  assert.equal(await page.getByText("mkdir wikipedia-project-docs", { exact: false }).count(), 1);
+  assert.equal(await page.getByText("okn setup Wiki --interactive", { exact: false }).count(), 1);
+  assert.equal(await page.getByRole("link", { name: "Read the setup command reference" }).getAttribute("href"), "/wiki/features/commands/setup.html");
+  assert.equal(await page.getByRole("heading", { name: "A concrete demo: documenting Wikipedia" }).count(), 1);
+  assert.equal(await page.getByText("wikipedia-project-docs/", { exact: false }).count(), 1);
+  const plannedRepository = page.locator(".article-repository-placeholder");
+  assert.equal(await plannedRepository.count(), 1);
+  assert.equal(await plannedRepository.locator("a").count(), 0);
+  assert.match(await plannedRepository.innerText(), /planned demo repository/i);
+  assert.equal(await page.locator(".article-screenshot-placeholder").count(), 4);
+  assert.equal(await page.locator(".article-screenshot-placeholder figcaption > strong", { hasText: "What to capture" }).count(), 4);
+  assert.equal(await page.locator(".article-content img").count(), 0);
+  assert.equal(await page.getByText('okn search Wiki "how are disputed article changes discussed?"', { exact: false }).count(), 1);
+  assert.equal(await page.getByText("okn validate Wiki", { exact: false }).count(), 1);
+  assert.equal(await page.getByRole("link", { name: "Follow the Getting Started guide" }).getAttribute("href"), "/getting-started/");
+  assert.equal(await page.locator(".site-footer").evaluate((footer) => getComputedStyle(footer).borderTopWidth), "1px");
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  assert.ok((await page.locator(".screenshot-stage").first().boundingBox())?.height < 400, "mobile screenshot placeholder must stay compact");
+  assert.equal(await page.getByRole("link", { name: "Plan the knowledge architecture" }).isVisible(), true);
+  assert.equal(errors.length, 0, `project documentation browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 

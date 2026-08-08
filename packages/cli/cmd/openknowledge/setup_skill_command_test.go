@@ -60,6 +60,20 @@ func TestSetupSkillProjectAcceptsRegistryKey(t *testing.T) {
 	}
 }
 
+func TestSetupSkillProjectSupportsKnowledgeBaseOutsideGit(t *testing.T) {
+	wiki := setupLifecycleStandaloneBundle(t)
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runSetupSkill([]string{"--scope", "project", "--project", wiki, "--harness", "codex"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("skill code=%d stderr=%s", code, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(wiki, ".agents", "skills", "openknowledge", "SKILL.md")); err != nil {
+		t.Fatalf("project skill missing: %v", err)
+	}
+}
+
 func TestSetupSkillInteractiveDetectsHarnessWithoutProject(t *testing.T) {
 	home := t.TempDir()
 	setSetupTestHome(t, home)

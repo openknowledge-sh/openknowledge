@@ -50,11 +50,13 @@ type InstallOptions struct {
 }
 
 // ProjectOptions describes the project-owned parts of an integration.
-// Harnesses are de-duplicated before they are written.
+// Harnesses are de-duplicated before they are written. Root can select an
+// explicit project directory when no integration or Git boundary exists.
 type ProjectOptions struct {
 	Harnesses     []string
 	Observe       bool
 	ProjectSkills bool
+	Root          string
 }
 
 type InstallResult struct {
@@ -131,13 +133,23 @@ func ReconcileProject(wiki string, options ProjectOptions) (InstallResult, error
 	if !info.IsDir() {
 		return InstallResult{}, fmt.Errorf("knowledge base is not a directory: %s", wikiAbs)
 	}
-	root, err := repositoryRoot(wikiAbs)
+	root := options.Root
+	if root == "" {
+		root, err = projectRoot(wikiAbs)
+	} else {
+		root, err = filepath.Abs(root)
+	}
 	if err != nil {
 		return InstallResult{}, err
 	}
+	if info, statErr := os.Stat(root); statErr != nil {
+		return InstallResult{}, fmt.Errorf("project root: %w", statErr)
+	} else if !info.IsDir() {
+		return InstallResult{}, fmt.Errorf("project root is not a directory: %s", root)
+	}
 	relWiki, err := filepath.Rel(root, wikiAbs)
 	if err != nil || escapes(relWiki) {
-		return InstallResult{}, fmt.Errorf("knowledge base must be a directory inside its Git repository")
+		return InstallResult{}, fmt.Errorf("knowledge base must be a directory inside its project root")
 	}
 	relWiki = filepath.ToSlash(relWiki)
 

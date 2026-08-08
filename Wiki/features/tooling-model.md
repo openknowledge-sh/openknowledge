@@ -8,7 +8,7 @@ timestamp: 2026-07-17T00:00:00Z
 
 # Tooling Model
 
-Open Knowledge provides one lifecycle for a Git-native OKF knowledge base.
+Open Knowledge provides one lifecycle for an OKF knowledge base.
 Search, the viewer, MCP, agents, jobs, exports, and services use the same knowledge base.
 They do not use separate knowledge models.
 

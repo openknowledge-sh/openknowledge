@@ -60,8 +60,10 @@ func runSetupComplete(args []string) int {
 		return code
 	}
 	installProjectSkill := options.skill == setupSkillProject || options.skill == setupSkillBoth
+	projectRoot := ""
 	if installProjectSkill || options.observe {
-		if _, err := integration.RepositoryRoot(wiki); err != nil {
+		projectRoot, err = integration.ProjectRoot(wiki)
+		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
@@ -110,6 +112,7 @@ func runSetupComplete(args []string) int {
 			Harnesses:     projectHarnesses,
 			Observe:       options.observe,
 			ProjectSkills: installProjectSkill,
+			Root:          projectRoot,
 		})
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)

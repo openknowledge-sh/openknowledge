@@ -348,6 +348,27 @@ func TestReconcileProjectSupportsKnowledgeBaseAtRepositoryRoot(t *testing.T) {
 	}
 }
 
+func TestReconcileProjectSupportsKnowledgeBaseOutsideGit(t *testing.T) {
+	wiki := t.TempDir()
+	result, err := ReconcileProject(wiki, ProjectOptions{Harnesses: []string{"codex"}, ProjectSkills: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Root != wiki {
+		t.Fatalf("project root = %q, want %q", result.Root, wiki)
+	}
+	config, err := LoadFromRepository(wiki)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.KnowledgeBase != "." {
+		t.Fatalf("knowledge base = %q, want root bundle", config.KnowledgeBase)
+	}
+	if _, err := os.Stat(filepath.Join(wiki, ".agents", "skills", "openknowledge", "SKILL.md")); err != nil {
+		t.Fatalf("project skill missing: %v", err)
+	}
+}
+
 func TestReconcileProjectAllowsMultipleBundlesInOneRepository(t *testing.T) {
 	repo, first := integrationFixture(t)
 	second := filepath.Join(repo, "ProductKnowledge")

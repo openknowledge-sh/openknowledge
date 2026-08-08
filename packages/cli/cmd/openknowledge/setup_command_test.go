@@ -56,9 +56,8 @@ func TestSetupFromUsesIntentWithoutTypes(t *testing.T) {
 	}
 }
 
-func TestSetupAgentUsesRuntimeValue(t *testing.T) {
+func TestSetupAgentUsesRuntimeValueWithoutGit(t *testing.T) {
 	repo := t.TempDir()
-	runGit(t, repo, "init")
 	wiki := filepath.Join(repo, "Knowledge")
 	expectedExecutable := stubCodexResolver(t, "/test/codex")
 	originalRun := runAgentProcess

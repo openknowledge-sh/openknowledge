@@ -38,7 +38,8 @@ Without a terminal, `okn setup` prints the agent task. Use `--prompt` to print
 the task in any environment. Use `--interactive` to start the wizard.
 
 Use `--agent <codex|claude|opencode>` to start one installed agent harness.
-The agent works from the repository that contains the target bundle.
+The agent works from the project directory that contains the target bundle.
+Setup does not require a Git repository.
 
 The optional `wiki` argument selects the bundle path. The default is `Wiki`.
 
@@ -82,8 +83,8 @@ okn setup complete Wiki \
 ```
 
 `--skill` selects instruction scope. `global` installs instructions for the
-current user. `project` installs repository instructions. `both` installs both
-scopes. `none` installs no instructions.
+current user. `project` installs project-local instructions. `both` installs
+both scopes. `none` installs no instructions.
 
 Repeat `--harness` to select more than one supported harness. With the `none`
 skill scope, use `--harness` only when observation is on. Observation is disabled

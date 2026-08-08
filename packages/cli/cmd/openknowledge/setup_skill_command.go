@@ -153,9 +153,6 @@ func setupSkillProjectTarget(reader *bufio.Reader) (string, error) {
 		if entry.Managed {
 			continue
 		}
-		if _, err := integration.RepositoryRoot(entry.Path); err != nil {
-			continue
-		}
 		compatible = append(compatible, entry)
 		labels = append(labels, fmt.Sprintf("%s — %s", entry.Name, entry.Path))
 	}
@@ -172,6 +169,7 @@ func setupSkillProjectTarget(reader *bufio.Reader) (string, error) {
 
 func applySetupSkill(options setupSkillOptions) int {
 	projectTarget := ""
+	projectRoot := ""
 	if options.scope == setupSkillProject || options.scope == setupSkillBoth {
 		resolved, err := okf.ResolveKnowledgeRoot(options.project)
 		if err != nil {
@@ -190,7 +188,8 @@ func applySetupSkill(options setupSkillOptions) int {
 			fmt.Fprintf(stderrOutput(), "knowledge base is not a directory: %s\n", projectTarget)
 			return 1
 		}
-		if _, err := integration.RepositoryRoot(projectTarget); err != nil {
+		projectRoot, err = integration.ProjectRoot(projectTarget)
+		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 1
 		}
@@ -221,6 +220,7 @@ func applySetupSkill(options setupSkillOptions) int {
 		result, err := integration.ReconcileProject(projectTarget, integration.ProjectOptions{
 			Harnesses:     options.harnesses,
 			ProjectSkills: true,
+			Root:          projectRoot,
 		})
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)

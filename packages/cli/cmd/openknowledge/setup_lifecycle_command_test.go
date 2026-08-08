@@ -102,7 +102,7 @@ func TestSetupCompleteSupportsStandaloneGlobalScope(t *testing.T) {
 	}
 }
 
-func TestSetupCompleteRejectsProjectScopeOutsideRepositoryBeforeMutation(t *testing.T) {
+func TestSetupCompleteSupportsProjectScopeOutsideGit(t *testing.T) {
 	wiki := setupLifecycleStandaloneBundle(t)
 	home := t.TempDir()
 	setSetupTestHome(t, home)
@@ -110,15 +110,20 @@ func TestSetupCompleteRejectsProjectScopeOutsideRepositoryBeforeMutation(t *test
 	_, stderr, code := captureMainOutput(t, func() int {
 		return runSetupComplete([]string{wiki, "--skill", "both", "--harness", "codex"})
 	})
-	if code != 1 || !strings.Contains(stderr, "not inside a Git repository") {
+	if code != 0 || stderr != "" {
 		t.Fatalf("complete code=%d stderr=%s", code, stderr)
 	}
-	if _, err := os.Stat(filepath.Join(home, ".agents", "skills", "openknowledge", "SKILL.md")); !os.IsNotExist(err) {
-		t.Fatalf("failed preflight installed a global skill: %v", err)
+	for _, path := range []string{
+		filepath.Join(wiki, ".agents", "skills", "openknowledge", "SKILL.md"),
+		filepath.Join(home, ".agents", "skills", "openknowledge", "SKILL.md"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("missing skill %s: %v", path, err)
+		}
 	}
 	entries, err := okf.RegistryEntries()
-	if err != nil || len(entries) != 0 {
-		t.Fatalf("failed preflight changed registry: %+v err=%v", entries, err)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("registry entries=%+v err=%v", entries, err)
 	}
 }
 

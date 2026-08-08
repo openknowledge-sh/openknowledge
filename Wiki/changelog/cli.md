@@ -13,6 +13,30 @@ page records release-level changes.
 
 ## Unreleased
 
+### Setup
+
+- Setup and project skill installation now support knowledge bases outside Git
+  repositories. Git remains optional for an OKF bundle.
+- Source: `packages/cli/cmd/openknowledge/setup_command.go`,
+  `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`,
+  `packages/cli/cmd/openknowledge/setup_skill_command.go`, and
+  `packages/cli/internal/integration/`.
+- Docs: `Wiki/features/commands/setup.md`,
+  `Wiki/features/tooling-model.md`,
+  `Wiki/features/knowledge-architecture.md`, and
+  `Wiki/decisions/product-interface.md`.
+
+### Website
+
+- The homepage now links to a project documentation use-case page.
+- The educational article uses a Wikipedia demo to explain repository-based
+  documentation, retrieval, and validation.
+- The article includes a copyable Open Knowledge setup sequence for the demo.
+- Four screenshot briefs define the visuals for the planned demo repository.
+- Source: `packages/web/index.html` and
+  `packages/web/use-cases/project-documentation/index.html`.
+- Docs: `Wiki/changelog/cli.md`.
+
 ### Security
 
 - Mermaid diagram rendering now uses Mermaid 11.16.1. Its dependency updates

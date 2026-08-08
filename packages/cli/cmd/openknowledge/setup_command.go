@@ -170,7 +170,7 @@ func runSetupAgent(options setupCLIOptions, runtime string, task string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
-	repository, err := integration.RepositoryRoot(wikiAbs)
+	projectRoot, err := integration.ProjectRoot(wikiAbs)
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
@@ -182,7 +182,7 @@ func runSetupAgent(options setupCLIOptions, runtime string, task string) int {
 		return 1
 	}
 	code := runAgentWithOptions(agentCLIOptions{
-		path:         repository,
+		path:         projectRoot,
 		executable:   executable,
 		model:        options.model,
 		prompt:       task,

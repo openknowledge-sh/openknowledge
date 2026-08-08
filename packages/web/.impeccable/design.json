@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-08T00:00:00Z",
+  "title": "Design System: Open Knowledge Web",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "navigation-lift",
+        "value": "0 12px 34px rgba(8, 43, 99, 0.12)",
+        "purpose": "Separate the fixed topbar from page content."
+      },
+      {
+        "name": "action-lift",
+        "value": "0 9px 24px rgba(8, 43, 99, 0.24)",
+        "purpose": "Give the primary action clear priority."
+      },
+      {
+        "name": "proof-lift",
+        "value": "0 28px 70px rgba(8, 43, 99, 0.16)",
+        "purpose": "Lift real product windows and source demonstrations."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "180ms ease",
+        "purpose": "Hover, focus, and active state changes."
+      },
+      {
+        "name": "authored-entrance",
+        "value": "720ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "One page-level entrance for the primary proof surface."
+      }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "640px" },
+      { "name": "stack", "value": "860px" },
+      { "name": "tablet", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main action on marketing and guide surfaces.",
+      "html": "<button class=\"ds-primary\">Start a project wiki</button>",
+      "css": ".ds-primary { min-height: 50px; padding: 0 22px; border: 0; border-radius: 12px; background: #0a397f; color: #f7f9fb; font: 610 0.92rem/1 Manrope, sans-serif; box-shadow: 0 9px 24px rgba(8,43,99,.24); transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease; } .ds-primary:hover { background: #061f4a; box-shadow: 0 12px 30px rgba(8,43,99,.3); transform: translateY(-1px); } .ds-primary:focus-visible { outline: 2px solid #0a4a9c; outline-offset: 4px; }"
+    },
+    {
+      "name": "Text Action",
+      "kind": "custom",
+      "description": "A secondary route that stays inside the reading flow.",
+      "html": "<a class=\"ds-text-action\" href=\"#\">See an example structure</a>",
+      "css": ".ds-text-action { color: #31577f; font: 520 .91rem/1.5 Manrope, sans-serif; text-decoration-color: transparent; text-underline-offset: 5px; } .ds-text-action:hover { color: #082b63; text-decoration-color: currentColor; } .ds-text-action:focus-visible { outline: 2px solid #0a4a9c; outline-offset: 4px; }"
+    },
+    {
+      "name": "Topbar",
+      "kind": "nav",
+      "refersTo": "topbar",
+      "description": "The fixed navigation surface shared by every website route.",
+      "html": "<nav class=\"ds-topbar\"><strong>Open Knowledge CLI</strong><span>Start&nbsp;&nbsp; Docs&nbsp;&nbsp; GitHub</span></nav>",
+      "css": ".ds-topbar { display: flex; min-height: 64px; align-items: center; justify-content: space-between; padding: 0 16px; border: 1px solid rgba(255,255,255,.66); border-radius: 18px; background: rgba(239,247,252,.92); color: #082b63; font: 520 .9rem/1 Manrope, sans-serif; box-shadow: 0 12px 34px rgba(8,43,99,.12); } .ds-topbar:focus-within { outline: 2px solid #0a4a9c; outline-offset: 4px; }"
+    },
+    {
+      "name": "Source Panel",
+      "kind": "custom",
+      "description": "A dark surface for Markdown, commands, and source-preserving output.",
+      "html": "<pre class=\"ds-source\"><code>okn search Wiki \"deployment workflow\"</code></pre>",
+      "css": ".ds-source { margin: 0; padding: 28px; border-radius: 16px; background: #071c3d; color: #d9e8f8; font: 500 .78rem/1.75 \"IBM Plex Mono\", monospace; box-shadow: 0 24px 60px rgba(8,43,99,.16); white-space: pre-wrap; }"
+    },
+    {
+      "name": "Release Badge",
+      "kind": "chip",
+      "description": "A compact version and freshness indicator in the topbar.",
+      "html": "<span class=\"ds-release\">v0.11.0&nbsp;&nbsp; today</span>",
+      "css": ".ds-release { display: inline-flex; min-height: 30px; align-items: center; padding: 0 10px; border: 1px solid rgba(8,43,99,.24); border-radius: 999px; background: rgba(255,255,255,.54); color: #082b63; font: 500 .72rem/1 \"IBM Plex Mono\", monospace; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Open Project Desk",
+    "overview": "The website feels like a bright workspace where project files, documentation, and tools remain visible together. Large direct typography establishes the idea. Real product surfaces and precise source-file geometry provide proof.",
+    "keyCharacteristics": [
+      "Large Manrope headlines with compact line height.",
+      "Light-blue page fields and deep-blue text.",
+      "Real viewer captures, terminal surfaces, and authored source diagrams.",
+      "Generous editorial spacing with restrained controls."
+    ],
+    "rules": [
+      { "name": "The Blue Field Rule", "body": "Use blue as a page-scale field or a clear action. Do not scatter blue as unrelated decoration.", "section": "colors" },
+      { "name": "The One Large Thought Rule", "body": "Let one headline dominate each major field. Do not compete with parallel headings at the same scale.", "section": "typography" },
+      { "name": "The Flat Reading Rule", "body": "Keep prose and lists flat. Reserve elevation for objects that represent an interface or an action.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do show real source files, viewer states, and terminal output.",
+      "Do vary page rhythm between large fields, quiet prose, and product proof.",
+      "Do keep one source path or command readable when a technical visual is central.",
+      "Do use SVG icons from the established stroke system."
+    ],
+    "donts": [
+      "Don't turn the page into a grid of interchangeable feature cards.",
+      "Don't use monospace as decoration outside code, paths, versions, or data.",
+      "Don't invent customer proof, benchmarks, or product behavior.",
+      "Don't use gradient text, decorative glass, or a second accent palette."
+    ]
+  }
+}

@@ -28,7 +28,7 @@ The README is the product overview.
 
 | Layer | Current behavior |
 | --- | --- |
-| Source | Git-native Markdown concepts with YAML frontmatter and authored links. |
+| Source | Filesystem-based Markdown concepts with YAML frontmatter and authored links. |
 | Metadata | Typed values in the AST and JSON model. Selected fields contribute to lexical ranking. |
 | Retrieval | Field-weighted section BM25, deterministic boosts, one-hop link expansion, federated rank fusion, and token-budgeted context. |
 | Graphs | Structural file and chunk graphs with authored link occurrences, containment, and reading order. |

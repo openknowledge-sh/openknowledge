@@ -12,7 +12,7 @@ decision_status: accepted
 ## Decision
 
 Open Knowledge gives one lifecycle for an OKF knowledge base. All product
-interfaces use the same Git-native Markdown object.
+interfaces use the same OKF Markdown bundle.
 
 These interfaces include search, the viewer, MCP, agents, jobs, exports, and
 runtime generations.
