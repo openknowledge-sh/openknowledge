@@ -20,21 +20,6 @@ No changes yet.
 Version 0.11 adds privacy-safe product telemetry, standalone skill setup, a
 new website guide, and a refreshed default viewer theme.
 
-### Website
-
-- The redesigned landing page now explains the Open Knowledge workflow and
-  links to a new five-minute getting-started guide.
-- The guide provides copyable commands for installation, setup, the viewer,
-  search, and validation.
-- The landing-page **See how it works** link now uses an outlined button and
-  arrow icon. The secondary action is easier to find.
-- Copy controls remain available after a successful copy. The setup block
-  keeps its success color, and its icon returns to the copy state.
-- Updated illustrations, icons, and social preview assets match the new site.
-- Source: `packages/web/index.html`, `packages/web/getting-started/index.html`,
-  `packages/web/src/`, and `packages/web/public/`.
-- Docs: `packages/web/index.html`, `packages/web/getting-started/index.html`.
-
 ### Viewer
 
 - The local viewer and interactive HTML exports now use the light blue Open
