@@ -750,8 +750,8 @@ h1 > span,
 
 .reason-list article {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(360px, 1fr);
-  gap: clamp(56px, 10vw, 124px);
+  grid-template-columns: minmax(280px, 0.9fr) minmax(400px, 1.1fr);
+  gap: clamp(56px, 8vw, 104px);
   align-items: start;
   padding: 34px 0 38px;
   border-bottom: 1px solid var(--line);
@@ -772,7 +772,7 @@ h1 > span,
 }
 
 .reason-list p {
-  max-width: 48ch;
+  max-width: 54ch;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.7;
