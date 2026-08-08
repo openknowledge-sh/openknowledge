@@ -869,7 +869,6 @@ h1 > span,
   width: 15px;
   height: 15px;
   flex: 0 0 auto;
-  transform: translateY(-1px);
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
