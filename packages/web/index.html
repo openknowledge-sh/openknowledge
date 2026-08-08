@@ -21,8 +21,8 @@
     <meta name="twitter:description" content="Build AI-ready knowledge bases in Markdown, then validate, search, publish, and serve them to people and agents over MCP.">
     <meta name="twitter:image" content="https://openknowledge.sh/og.png">
     <meta name="twitter:image:alt" content="Open Knowledge: build a knowledge base for people and AI agents">
-    <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+    <link rel="icon" href="/favicon.png?v=2" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" sizes="180x180">
     <link rel="stylesheet" href="/src/styles.css">
     <script type="application/ld+json">
       {
@@ -38,43 +38,20 @@
     <!-- OPENKNOWLEDGE_HEAD -->
   </head>
   <body>
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="icon-markdown" viewBox="0 0 20 20">
+        <path d="M3 4.5h14v11H3zM5.6 12V8l2.4 2.7L10.4 8v4m2.2-1.2 1.4 1.4 1.4-1.4"></path>
+      </symbol>
+      <symbol id="icon-agent" viewBox="0 0 20 20">
+        <rect x="4" y="5" width="12" height="10" rx="3"></rect>
+        <path d="M7 10h.01M13 10h.01M8 13h4M10 5V3"></path>
+      </symbol>
+      <symbol id="icon-knowledge-base" viewBox="0 0 20 20">
+        <path d="m4 5.5 6-2.5 6 2.5-6 2.5-6-2.5Zm0 4 6 2.5 6-2.5M4 13.5l6 2.5 6-2.5"></path>
+      </symbol>
+    </svg>
     <div class="page-shell">
-      <header class="topbar" aria-label="Site navigation">
-        <div class="topbar-primary">
-          <a class="brand" href="/" aria-label="Open Knowledge CLI home">
-            <img src="/logo-mark.png" alt="">
-            <span>Open Knowledge CLI</span>
-          </a>
-          <a
-            class="release-badge"
-            href="https://github.com/openknowledge-sh/openknowledge/releases/latest"
-            target="_blank"
-            rel="noreferrer"
-            data-release-badge
-            data-release-api="https://api.github.com/repos/openknowledge-sh/openknowledge/releases/latest"
-            aria-label="Latest Open Knowledge release on GitHub"
-          >
-            <span data-release-version>Latest release</span>
-            <time data-release-age hidden></time>
-          </a>
-        </div>
-
-        <nav class="nav-links" aria-label="Open Knowledge links">
-          <a href="/wiki/">Docs</a>
-          <a
-            class="github-star-action"
-            href="https://github.com/openknowledge-sh/openknowledge"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Star Open Knowledge on GitHub"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-              <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.37 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.51-1.11-1.51-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.27 2.75 1.05A9.28 9.28 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.82-4.57 5.08.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.8 0 .27.18.59.69.49A10.06 10.06 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"></path>
-            </svg>
-            <span class="github-star-label">Star on GitHub</span>
-          </a>
-        </nav>
-      </header>
+      <open-knowledge-header></open-knowledge-header>
 
       <main>
         <section class="hero" aria-labelledby="hero-title">
@@ -89,6 +66,7 @@
               data-hero-image
             >
             <canvas class="hero-canvas" layoutsubtree data-hero-canvas></canvas>
+            <span class="hero-power-light" data-hero-power-light aria-hidden="true"></span>
 
             <div class="hero-content" data-hero-content>
               <h1 id="hero-title" aria-label="Build a knowledge base for people and AI agents.">
@@ -104,11 +82,15 @@
                 </span>
               </h1>
               <p class="hero-copy">
-                Keep your knowledge in Markdown. Open Knowledge makes it easy to
-                validate, search, and share.
+                Keep your knowledge in
+                <span class="markdown-term">Markdown</span>.
+                Open Knowledge makes it easy to validate, search, and share.
               </p>
               <div class="hero-actions">
                 <button class="primary-action" type="button" data-copy-setup>
+                  <svg class="hero-action-icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-agent"></use>
+                  </svg>
                   Copy setup prompt
                 </button>
                 <a class="text-action" href="/getting-started/">See how it works</a>
@@ -133,7 +115,9 @@
                     </svg>
                     <span>Cursor</span>
                   </span>
-                  <span class="agent-local">or any local agent.</span>
+                  <span class="agent-local">
+                    or any local agent.
+                  </span>
                 </span>
                 <span class="copy-status-live" role="status" aria-live="polite" data-copy-status>Ready for Codex, Claude, Cursor, or any local agent.</span>
               </p>
@@ -159,7 +143,17 @@
             <h2 id="principles-title">Write it once. Keep it useful.</h2>
             <p>
               Open Knowledge keeps the source simple and the workflow familiar,
-              from the first Markdown file to the context an agent retrieves.
+              from the first
+              <span class="markdown-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-markdown"></use></svg>
+                Markdown
+              </span>
+              file to the context an
+              <span class="agent-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
+                agent
+              </span>
+              retrieves.
             </p>
           </header>
 
@@ -177,7 +171,14 @@
                 >
               </figure>
               <h3>Write</h3>
-              <p>Use plain Markdown and YAML in the Git workflow you already know.</p>
+              <p>
+                Use plain
+                <span class="markdown-term">
+                  <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-markdown"></use></svg>
+                  Markdown
+                </span>
+                and YAML in the Git workflow you already know.
+              </p>
             </article>
             <article>
               <figure class="principle-visual principle-visual--symbol">
@@ -192,7 +193,13 @@
                 >
               </figure>
               <h3>Verify</h3>
-              <p>Catch structural problems before they reach people or agents.</p>
+              <p>
+                Catch structural problems before they reach people or
+                <span class="agent-term">
+                  <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
+                  agents
+                </span>.
+              </p>
             </article>
             <article>
               <figure class="principle-visual principle-visual--symbol principle-visual--brand">
@@ -220,24 +227,26 @@
         <section class="why-knowledge" aria-labelledby="why-knowledge-title">
           <header class="why-knowledge-intro">
             <h2 id="why-knowledge-title">
-              <span>Why create a knowledge base?</span>
+              <span>Own the context</span>
             </h2>
             <p>
-              Because durable knowledge should outlive a single conversation,
-              tool, or agent. Keep it in plain files you can review, version,
-              and reuse.
+              Store knowledge in files you can inspect, version, and reuse. Give
+              people and
+              <span class="agent-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
+                agents
+              </span>
+              the same context across tools.
             </p>
           </header>
 
           <div class="reason-list">
             <article>
-              <h3>Make context durable.</h3>
+              <h3>Use plain files</h3>
               <p>
                 Store the source in
-                <span class="concept-marked">
-                  <svg class="concept-icon" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
-                    <path d="M3 4.5h14v11H3zM5.6 12V8l2.4 2.7L10.4 8v4m2.2-1.2 1.4 1.4 1.4-1.4"></path>
-                  </svg>
+                <span class="markdown-term">
+                  <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-markdown"></use></svg>
                   Markdown
                 </span>
                 and keep its history in
@@ -253,14 +262,11 @@
               </p>
             </article>
             <article>
-              <h3>Give everyone the same answer.</h3>
+              <h3>Share one source</h3>
               <p>
-                People browse it.
-                <span class="concept-marked">
-                  <svg class="concept-icon" aria-hidden="true" viewBox="0 0 20 20" focusable="false">
-                    <rect x="4" y="5" width="12" height="10" rx="3"></rect>
-                    <path d="M7 10h.01M13 10h.01M8 13h4M10 5V3"></path>
-                  </svg>
+                People <a class="knowledge-link" href="/wiki/">browse it</a>.
+                <span class="agent-term">
+                  <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
                   Agents
                 </span>
                 retrieve it through the
@@ -284,10 +290,16 @@
               </p>
             </article>
             <article>
-              <h3>Change tools without starting over.</h3>
+              <h3>Change tools without starting over</h3>
               <p>
-                <a class="knowledge-link" href="/wiki/">The knowledge stays readable</a>,
-                portable, and under your control.
+                Your knowledge stays readable, portable, and under your control
+                with
+                <a
+                  class="knowledge-link"
+                  href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >OKF v0.2</a>.
               </p>
             </article>
           </div>
@@ -307,8 +319,12 @@
           <div class="how-it-works-content">
             <h2 id="how-it-works-title">See how it works.</h2>
             <p>
-              Go from installation to a useful, validated knowledge base in a
-              few practical steps.
+              Go from installation to a useful, validated
+              <span class="knowledge-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-knowledge-base"></use></svg>
+                knowledge base
+              </span>
+              in a few practical steps.
             </p>
             <a class="primary-action how-it-works-action" href="/getting-started/">
               See the 5-minute guide
@@ -318,30 +334,61 @@
 
         <section class="founder-message" aria-labelledby="founder-message-title">
           <header>
-            <h2 id="founder-message-title">The Idea Behind Open Knowledge</h2>
+            <h2 id="founder-message-title">The idea behind Open Knowledge</h2>
           </header>
           <div class="founder-letter">
             <p>
-              Agents do their best work when the context around a task is
+              <span class="agent-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
+                Agents
+              </span>
+              do their best work when the context around a task is
               precise, concrete, and close to the source. I found myself
-              creating more and more focused knowledge bases to give them that
-              context: project documentation, changelogs, research notes, and
-              records of the decisions behind the work.
+              creating more and more focused
+              <span class="knowledge-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-knowledge-base"></use></svg>
+                knowledge bases
+              </span>
+              to give them that context: project documentation, changelogs,
+              research notes, and records of the decisions behind the work.
             </p>
             <p>
-              Each knowledge base had a different purpose, but the same work
-              kept returning. The files needed a clear structure. Links and
-              metadata needed to be checked. People needed a way to browse the
-              content, and agents needed a dependable way to retrieve it. The
+              Each
+              <span class="knowledge-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-knowledge-base"></use></svg>
+                knowledge base
+              </span>
+              had a different purpose, but the same work kept returning. The
+              files needed a clear structure. Links and metadata needed to be
+              checked. People needed a way to browse the content, and
+              <span class="agent-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
+                agents
+              </span>
+              needed a dependable way to retrieve it. The
               tooling I wanted around those plain files did not exist as one
               coherent system.
             </p>
             <p>
               That recurring gap became Open Knowledge. It is a way to create,
-              validate, browse, and share focused knowledge bases without
-              hiding their source inside another product. The knowledge stays
-              in Markdown and YAML, follows the Git workflow you already know,
-              and remains useful to both people and agents as the work changes.
+              validate, browse, and share focused
+              <span class="knowledge-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-knowledge-base"></use></svg>
+                knowledge bases
+              </span>
+              without hiding their source inside another product. The knowledge
+              stays in
+              <span class="markdown-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-markdown"></use></svg>
+                Markdown
+              </span>
+              and YAML, follows the Git workflow you already know,
+              and remains useful to both people and
+              <span class="agent-term">
+                <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
+                agents
+              </span>
+              as the work changes.
             </p>
             <p class="founder-letter-signoff">Thanks for spending time with Open Knowledge.</p>
             <aside class="founder-lineage" aria-label="Open Knowledge background and sources">
@@ -353,8 +400,17 @@
                   target="_blank"
                   rel="noreferrer"
                 >Andrej Karpathy&rsquo;s LLM Wiki</a>
-                gave a clear shape to the idea of agents maintaining a shared
-                Markdown library that becomes more useful over time.
+                gave a clear shape to the idea of
+                <span class="agent-term">
+                  <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-agent"></use></svg>
+                  agents
+                </span>
+                maintaining a shared
+                <span class="markdown-term">
+                  <svg class="concept-icon" aria-hidden="true" focusable="false"><use href="#icon-markdown"></use></svg>
+                  Markdown
+                </span>
+                library that becomes more useful over time.
                 <a
                   class="founder-letter-link"
                   href="https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing/"
@@ -400,39 +456,18 @@
             <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
               <path d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.37 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.51-1.11-1.51-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.27 2.75 1.05A9.28 9.28 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.82-4.57 5.08.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.8 0 .27.18.59.69.49A10.06 10.06 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"></path>
             </svg>
-            <span>Explore on GitHub</span>
+            <span>Save on GitHub</span>
           </a>
         </section>
       </main>
 
-      <footer class="site-footer">
-        <div class="footer-brand">
-          <a class="footer-logo" href="/" aria-label="Open Knowledge home">
-            <img src="/logo-mark.png" alt="" aria-hidden="true">
-            <span>Open Knowledge</span>
-          </a>
-          <p>AI-ready Markdown knowledge bases built on Open Knowledge Format v0.2.</p>
-        </div>
-        <nav class="footer-links" aria-label="Footer links">
-          <a href="/getting-started/">Getting started</a>
-          <a href="https://github.com/openknowledge-sh/openknowledge/blob/main/README.md" target="_blank" rel="noreferrer">README</a>
-          <a href="/wiki/">Wiki</a>
-          <a href="/wiki/features/telemetry.html">Privacy</a>
-          <button type="button" data-analytics-settings>Analytics preferences</button>
-          <a href="/wiki/changelog/cli.html">Changelog</a>
-          <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
-        </nav>
-        <p class="footer-meta">Apache-2.0 · Open source</p>
-      </footer>
+      <open-knowledge-footer></open-knowledge-footer>
     </div>
 
     <aside class="analytics-consent" data-analytics-consent hidden aria-labelledby="analytics-consent-title">
-      <div>
-        <strong id="analytics-consent-title">Anonymous website analytics</strong>
-        <p>
-          Allow page and setup-prompt copy events. We do not send page content,
-          IP addresses, or raw user agents. <a href="/wiki/features/telemetry.html">Privacy details</a>
-        </p>
+      <div class="analytics-consent-copy">
+        <strong id="analytics-consent-title">Allow anonymous website analytics?</strong>
+        <a href="/wiki/features/telemetry.html">Privacy</a>
       </div>
       <div class="analytics-consent-actions">
         <button type="button" data-analytics-decline>Decline</button>

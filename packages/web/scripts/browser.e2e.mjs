@@ -202,7 +202,7 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   assert.match(await useCases.innerText(), /okn search project "validation workflow"/);
   assert.match(await useCases.innerText(), /okn export tar --out \.\/project-wiki\.tar\.gz Wiki/);
   assert.equal(await page.getByRole("heading", { name: "Your knowledge stays yours." }).count(), 1);
-  const closingGitHub = page.getByRole("link", { name: "Explore on GitHub" });
+  const closingGitHub = page.getByRole("link", { name: "Save on GitHub" });
   assert.equal(await closingGitHub.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
   assert.equal(await closingGitHub.locator("svg").count(), 1);
   assert.equal(await page.locator("details").count(), 0);

@@ -1,4 +1,5 @@
 import { initializeAnalytics, trackWebEvent } from "./analytics";
+import "./site-components";
 
 const copyButton = document.querySelector<HTMLButtonElement>("[data-copy-setup]");
 const copyStatus = document.querySelector<HTMLElement>("[data-copy-status]");
@@ -266,6 +267,7 @@ function positionTerminal() {
   const stage = document.querySelector<HTMLElement>("[data-hero-stage]");
   const image = document.querySelector<HTMLImageElement>("[data-hero-image]");
   const terminal = document.querySelector<HTMLElement>("[data-hero-terminal]");
+  const powerLight = document.querySelector<HTMLElement>("[data-hero-power-light]");
   if (!stage || !image || !terminal || !image.naturalWidth || window.innerWidth <= 640) return;
 
   const rect = stage.getBoundingClientRect();
@@ -281,6 +283,32 @@ function positionTerminal() {
   }));
 
   terminal.style.transform = projectRectangle(230, 188, screenCorners);
+
+  if (powerLight) {
+    const diameter = Math.max(4, 5 * placement.scale);
+    powerLight.style.left = `${placement.x + 1361 * placement.scale - diameter / 2}px`;
+    powerLight.style.top = `${placement.y + 713 * placement.scale - diameter / 2 - 4}px`;
+    powerLight.style.width = `${diameter}px`;
+    powerLight.style.height = `${diameter}px`;
+  }
+}
+
+function initializeHeroPowerLight() {
+  const stage = document.querySelector<HTMLElement>("[data-hero-stage]");
+  const powerLight = document.querySelector<HTMLElement>("[data-hero-power-light]");
+  if (!stage || !powerLight) return;
+
+  let isVisible = false;
+  const updateAnimation = () => {
+    powerLight.classList.toggle("is-active", isVisible && document.visibilityState === "visible");
+  };
+
+  const observer = new IntersectionObserver(([entry]) => {
+    isVisible = entry.isIntersecting;
+    updateAnimation();
+  });
+  observer.observe(stage);
+  document.addEventListener("visibilitychange", updateAnimation);
 }
 
 async function initializeHeroCanvas() {
@@ -347,3 +375,4 @@ async function initializeHeroCanvas() {
 }
 
 void initializeHeroCanvas();
+initializeHeroPowerLight();
