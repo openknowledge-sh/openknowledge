@@ -99,10 +99,10 @@ platforms and verification details.
 
 </details>
 
-Before the CLI sends its first event, it discloses anonymous usage and
-sanitized error telemetry. Telemetry is enabled by default. Run
-`okn telemetry show-payload` to inspect a sample. Put `--no-telemetry` before a
-command to disable telemetry and save the opt-out. See
+Anonymous usage and sanitized error telemetry is disabled by default. Run
+`okn telemetry show-payload` to inspect a sample. Run `okn telemetry enable`
+to opt in. Run `okn telemetry disable`, or put `--no-telemetry` before a
+command, to disable it. See
 [Product Telemetry and Privacy](Wiki/features/telemetry.md).
 
 ## Workflows

@@ -1,20 +1,20 @@
 ---
 type: Feature Documentation
 title: Product Telemetry and Privacy
-description: Describes anonymous CLI and website telemetry, data limits, and opt-out controls.
+description: Describes anonymous CLI and website telemetry, data limits, and consent controls.
 tags: [openknowledge, telemetry, analytics, privacy]
 timestamp: 2026-08-08T00:00:00Z
 ---
 
 # Product Telemetry and Privacy
 
-Open Knowledge collects bounded product telemetry to measure installation,
+Open Knowledge can collect bounded product telemetry to measure installation,
 activation, useful command activity, daily activity, and sanitized errors.
 
-CLI telemetry is enabled by default. The CLI prints a disclosure before it
-sends the first event. Telemetry commands do not send events. JSON error mode
-waits for a prior telemetry disclosure. Installer preflight and continuous
-integration do not send telemetry.
+CLI telemetry is disabled by default. The CLI sends no event and creates no
+installation ID before you run `okn telemetry enable`. Telemetry commands do
+not send events. Installer preflight and continuous integration do not send
+telemetry.
 
 Website analytics require explicit consent. The website records no analytics
 event before consent.
@@ -31,6 +31,10 @@ okn telemetry disable
 okn telemetry enable
 okn --no-telemetry <command>
 ```
+
+On an unconfigured installation, `status` reports `disabled` and `default`.
+Run `okn telemetry enable` to create a random installation ID and enable CLI
+telemetry.
 
 Put `--no-telemetry` before the command. This option disables telemetry for the
 current command and future commands. It also deletes the random installation ID.
@@ -78,8 +82,9 @@ not add request IP addresses or raw user agents to events or upstream requests.
 
 ## Delivery
 
-The CLI sends one bounded JSON envelope after a command finishes. Delivery uses
-a short timeout. A delivery failure does not change output or exit status.
+When enabled, the CLI sends one bounded JSON envelope after a command finishes.
+Delivery uses a short timeout. A delivery failure does not change output or
+exit status.
 
 The first-party relay accepts only documented fields and values. It rejects
 extra content. The relay converts accepted envelopes to PostHog's batch capture

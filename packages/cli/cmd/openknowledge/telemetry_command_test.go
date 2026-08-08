@@ -37,8 +37,16 @@ func TestTelemetryCommandsExposeStateAndPayload(t *testing.T) {
 	stdout, stderr, code := captureMainOutput(t, func() int {
 		return runTelemetry([]string{"status"})
 	})
-	if code != 0 || stderr != "" || !strings.Contains(stdout, "Telemetry:      enabled") || !strings.Contains(stdout, "Configuration: default") {
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Telemetry:      disabled") || !strings.Contains(stdout, "Configuration: default") {
 		t.Fatalf("unexpected default status: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	stdout, stderr, code = captureMainOutput(t, func() int { return runTelemetry([]string{"enable"}) })
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "telemetry is enabled") {
+		t.Fatalf("unexpected enable result: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	stdout, _, _ = captureMainOutput(t, func() int { return runTelemetry([]string{"status"}) })
+	if !strings.Contains(stdout, "Telemetry:      enabled") || !strings.Contains(stdout, "Configuration: saved") {
+		t.Fatalf("unexpected enabled status: %q", stdout)
 	}
 	_, _, code = captureMainOutput(t, func() int { return runTelemetry([]string{"disable"}) })
 	if code != 0 {
@@ -55,5 +63,15 @@ func TestTelemetryCommandsExposeStateAndPayload(t *testing.T) {
 	var payload telemetry.Envelope
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil || len(payload.Events) != 1 {
 		t.Fatalf("invalid sample payload: %v %q", err, stdout)
+	}
+}
+
+func TestTelemetryHelpDescribesExplicitOptIn(t *testing.T) {
+	help := telemetryHelpText()
+	if !strings.Contains(help, "disabled by default") || !strings.Contains(help, "telemetry enable") {
+		t.Fatalf("telemetry help does not describe explicit opt-in: %q", help)
+	}
+	if strings.Contains(help, "enabled by default") {
+		t.Fatalf("telemetry help still describes an enabled default: %q", help)
 	}
 }

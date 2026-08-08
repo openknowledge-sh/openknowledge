@@ -20,6 +20,25 @@ page records release-level changes.
 - Source: `package.json`, `packages/web/package.json`, `pnpm-lock.yaml`.
 - Docs: `Wiki/changelog/cli.md`.
 
+### Telemetry
+
+- CLI product telemetry is now opt-in. The CLI sends no event and creates no
+  installation ID before you run `okn telemetry enable`.
+- Unconfigured `okn telemetry status` reports `disabled` and `default`.
+- The schema version 2 migration disables all schema version 1 configurations.
+  It deletes each random installation ID and all activity state.
+- v0.11.0 did not distinguish automatic enablement from explicit opt-in. If you
+  enabled telemetry in v0.11.0, run `okn telemetry enable` again.
+- `okn telemetry disable`, `--no-telemetry`, `DO_NOT_TRACK`, and
+  `OPENKNOWLEDGE_TELEMETRY=off` remain unchanged.
+- Installer preflight and continuous integration suppression remain unchanged.
+- Website consent and aggregate `/install` redirect telemetry remain unchanged.
+- Source: `packages/cli/internal/telemetry/`,
+  `packages/cli/cmd/openknowledge/telemetry_command.go`.
+- Docs: `README.md`, `packages/npm/README.md`,
+  `Wiki/features/commands/telemetry.md`, `Wiki/features/telemetry.md`,
+  `Wiki/features/installation.md`, and `Wiki/features/index.md`.
+
 ## v0.11.0 — 2026-08-08
 
 Version 0.11 adds privacy-safe product telemetry, standalone skill setup, a

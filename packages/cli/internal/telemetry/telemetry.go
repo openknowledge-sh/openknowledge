@@ -26,8 +26,9 @@ const (
 	ControlEnv    = "OPENKNOWLEDGE_TELEMETRY"
 	SuppressEnv   = "OPENKNOWLEDGE_TELEMETRY_SUPPRESS"
 
-	defaultEndpoint = "https://openknowledge.sh/api/telemetry"
-	maxConfigBytes  = 64 << 10
+	currentConfigSchemaVersion = "2"
+	defaultEndpoint            = "https://openknowledge.sh/api/telemetry"
+	maxConfigBytes             = 64 << 10
 )
 
 var now = time.Now
@@ -248,6 +249,25 @@ func Load() (Config, bool, error) {
 	if err != nil {
 		return Config{}, false, err
 	}
+	config, exists, err := readConfig(path)
+	if err != nil || !exists {
+		return config, exists, err
+	}
+	switch config.SchemaVersion {
+	case "1":
+		// Version 1 cannot distinguish default enablement from explicit consent.
+		config = defaultConfig()
+		if err := save(path, config); err != nil {
+			return Config{}, false, err
+		}
+	case currentConfigSchemaVersion:
+	default:
+		return Config{}, false, fmt.Errorf("unsupported telemetry config version")
+	}
+	return config, true, nil
+}
+
+func readConfig(path string) (Config, bool, error) {
 	file, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return Config{}, false, nil
@@ -268,9 +288,6 @@ func Load() (Config, bool, error) {
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&config); err != nil {
 		return Config{}, false, err
-	}
-	if config.SchemaVersion != "1" {
-		return Config{}, false, fmt.Errorf("unsupported telemetry config version")
 	}
 	return config, true, nil
 }
@@ -326,7 +343,7 @@ func SamplePayload() Envelope {
 }
 
 func disclosureText() string {
-	return `Open Knowledge sends anonymous usage and sanitized error telemetry by default.
+	return `Open Knowledge sends anonymous usage and sanitized error telemetry because it is enabled.
 It sends command names, outcomes, timing buckets, version, OS, architecture,
 and a random installation ID. It never sends arguments, paths, content,
 repository or user identity, command output, hostnames, IP addresses, or raw
@@ -335,7 +352,7 @@ user agents. Disable it with "okn --no-telemetry <command>" or
 }
 
 func defaultConfig() Config {
-	return Config{SchemaVersion: "1", Enabled: true}
+	return Config{SchemaVersion: currentConfigSchemaVersion, Enabled: false}
 }
 
 func save(path string, config Config) (resultErr error) {

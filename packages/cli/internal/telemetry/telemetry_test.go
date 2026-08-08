@@ -23,7 +23,75 @@ func noContentResponse() *http.Response {
 	return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader(""))}
 }
 
-func TestFirstRunDisclosesAndSendsAllowlistedEvents(t *testing.T) {
+func TestFirstRunDefaultsToDisabledAndSendsNothing(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "telemetry.json")
+	t.Setenv(ConfigFileEnv, configPath)
+	t.Setenv(SuppressEnv, "")
+	t.Setenv("CI", "")
+	t.Setenv(ControlEnv, "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	requests := 0
+	client := testClient(func(request *http.Request) (*http.Response, error) {
+		requests++
+		_, _ = io.Copy(io.Discard, request.Body)
+		return noContentResponse(), nil
+	})
+	t.Setenv(EndpointEnv, "https://telemetry.example.test/v1/events")
+
+	session := Start(StartOptions{Version: "1.2.3", Command: "validate", HTTPClient: client})
+	session.Finish(0)
+
+	if requests != 0 {
+		t.Fatalf("default telemetry sent %d requests", requests)
+	}
+	config, exists, err := Status()
+	if err != nil || exists || config.Enabled || config.InstallationID != "" {
+		t.Fatalf("unexpected default config: %#v exists=%v err=%v", config, exists, err)
+	}
+}
+
+func TestLegacyDefaultOnConfigMigratesToDisabled(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "telemetry.json")
+	t.Setenv(ConfigFileEnv, configPath)
+	t.Setenv(SuppressEnv, "")
+	t.Setenv("CI", "")
+	t.Setenv(ControlEnv, "")
+	t.Setenv("DO_NOT_TRACK", "")
+	legacy := Config{
+		SchemaVersion:          "1",
+		Enabled:                true,
+		InstallationID:         "legacy-installation-id",
+		DisclosedAt:            "2026-08-08T00:00:00Z",
+		FirstCommandRecorded:   true,
+		FirstMeaningfulUseSeen: true,
+		LastActiveDate:         "2026-08-08",
+	}
+	if err := save(configPath, legacy); err != nil {
+		t.Fatalf("save legacy config: %v", err)
+	}
+
+	requests := 0
+	client := testClient(func(request *http.Request) (*http.Response, error) {
+		requests++
+		_, _ = io.Copy(io.Discard, request.Body)
+		return noContentResponse(), nil
+	})
+	t.Setenv(EndpointEnv, "https://telemetry.example.test/v1/events")
+
+	Start(StartOptions{Version: "1.2.3", Command: "search", HTTPClient: client}).Finish(0)
+
+	if requests != 0 {
+		t.Fatalf("legacy telemetry sent %d requests", requests)
+	}
+	config, exists, err := Load()
+	if err != nil || !exists || config.SchemaVersion != "2" || config.Enabled || config.InstallationID != "" ||
+		config.DisclosedAt != "" || config.FirstCommandRecorded || config.FirstMeaningfulUseSeen || config.LastActiveDate != "" {
+		t.Fatalf("unexpected migrated config: %#v exists=%v err=%v", config, exists, err)
+	}
+}
+
+func TestExplicitOptInSendsAllowlistedEvents(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "telemetry.json")
 	t.Setenv(ConfigFileEnv, configPath)
 	t.Setenv(SuppressEnv, "")
@@ -42,15 +110,13 @@ func TestFirstRunDisclosesAndSendsAllowlistedEvents(t *testing.T) {
 		return noContentResponse(), nil
 	})
 	t.Setenv(EndpointEnv, "https://telemetry.example.test/v1/events")
+	if _, err := SetEnabled(true); err != nil {
+		t.Fatalf("enable telemetry: %v", err)
+	}
 
-	var disclosure strings.Builder
-	session := Start(StartOptions{Version: "1.2.3", Command: "validate", Stderr: &disclosure, HTTPClient: client})
+	session := Start(StartOptions{Version: "1.2.3", Command: "validate", HTTPClient: client})
 	session.Finish(1)
 
-	if !strings.Contains(disclosure.String(), "anonymous usage and sanitized error telemetry") ||
-		!strings.Contains(disclosure.String(), "--no-telemetry") {
-		t.Fatalf("missing first-run disclosure: %q", disclosure.String())
-	}
 	if len(received.Events) != 3 {
 		t.Fatalf("expected command, first-command, and error events, got %#v", received.Events)
 	}
@@ -111,6 +177,9 @@ func TestMeaningfulUseAndDailyActivityAreBounded(t *testing.T) {
 		return noContentResponse(), nil
 	})
 	t.Setenv(EndpointEnv, "https://telemetry.example.test/v1/events")
+	if _, err := SetEnabled(true); err != nil {
+		t.Fatalf("enable telemetry: %v", err)
+	}
 
 	Start(StartOptions{Version: "1.2.3", Command: "export html", Stderr: io.Discard, HTTPClient: client}).Finish(0)
 	Start(StartOptions{Version: "1.2.3", Command: "export html", Stderr: io.Discard, HTTPClient: client}).Finish(0)

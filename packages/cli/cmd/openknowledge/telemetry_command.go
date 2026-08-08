@@ -81,10 +81,11 @@ Usage:
   openknowledge telemetry disable
   openknowledge telemetry show-payload
 
-Telemetry is enabled by default after a first-run disclosure. It sends only
-allowlisted command, outcome, duration, version, platform, and random
-installation identifiers. It does not send command arguments, paths, content,
-repository or user identity, output, hostnames, IP addresses, or raw user
-agents. Use --no-telemetry before a command to disable telemetry persistently.
+Telemetry is disabled by default. Enable it with "openknowledge telemetry
+enable". When enabled, it sends only allowlisted command, outcome, duration,
+version, platform, and random installation identifiers. It does not send
+command arguments, paths, content, repository or user identity, output,
+hostnames, IP addresses, or raw user agents. Use --no-telemetry before a
+command to disable telemetry persistently.
 `
 }

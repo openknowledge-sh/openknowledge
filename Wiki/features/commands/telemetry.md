@@ -20,13 +20,14 @@ okn telemetry enable
 okn --no-telemetry <command>
 ```
 
-Telemetry is enabled by default. The CLI prints a disclosure before it sends
-the first event. Installer preflight and continuous integration do not send
-telemetry.
+Telemetry is disabled by default. The CLI sends no event and creates no
+installation ID before you run `okn telemetry enable`. Installer preflight and
+continuous integration do not send telemetry.
 
 `status` reports the saved or default preference. Process-level environment
-overrides do not change this report. `show-payload` prints a representative
-JSON envelope without sending it.
+overrides do not change this report. On an unconfigured installation, `status`
+reports `disabled` and `default`. `show-payload` prints a representative JSON
+envelope without sending it.
 
 `disable` deletes the random installation ID and clears activity markers.
 `enable` creates a new random installation ID when necessary.
