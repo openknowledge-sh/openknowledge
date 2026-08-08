@@ -77,9 +77,8 @@ assets exist. The package versions must also match.
 Offline transactional tests cover shell and npm installation.
 The root `pnpm test` gate runs these tests.
 
-Before the CLI sends its first event, it prints the product telemetry
-disclosure. Telemetry is enabled by default. Use
-`okn --no-telemetry <command>` to disable it before the first event. See
+CLI telemetry is disabled by default. The CLI sends no event and creates no
+installation ID before you run `okn telemetry enable`. See
 [Product Telemetry and Privacy](telemetry.md).
 
 ---

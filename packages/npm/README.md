@@ -14,10 +14,10 @@ okn version
 
 The `openknowledge` and `okn` commands run the same installed CLI.
 
-Before the CLI sends its first event, it discloses default-on anonymous usage
-and sanitized error telemetry. Run `okn telemetry show-payload` to inspect a
-sample. Use `okn --no-telemetry <command>` or `okn telemetry disable` to save an
-opt-out. Telemetry does not include command arguments, paths, content,
+Anonymous usage and sanitized error telemetry is disabled by default. Run
+`okn telemetry show-payload` to inspect a sample. Run `okn telemetry enable`
+to opt in. Use `okn --no-telemetry <command>` or `okn telemetry disable` to
+disable it. Telemetry does not include command arguments, paths, content,
 identities, output, hostnames, IP addresses, or raw user agents.
 
 The package downloads the matching binary from GitHub Releases during

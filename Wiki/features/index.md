@@ -7,7 +7,7 @@
 - [Installation](installation.md) — Gives CLI installation and verification
   steps.
 - [Product telemetry and privacy](telemetry.md) — Describes collected data and
-  opt-out controls.
+  opt-in controls.
 - [Configuration](configuration.md) — Describes the
   `.openknowledge.toml` configuration.
 - [Commands](commands/) — Lists the current CLI commands.
