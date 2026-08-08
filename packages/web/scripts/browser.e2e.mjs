@@ -210,6 +210,59 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   await context.close();
 });
 
+test("getting started keeps completed commands visible and reusable", async () => {
+  const context = await browser.newContext();
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: landingURL });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(new URL("getting-started/", landingURL).href, { waitUntil: "networkidle" });
+  const commands = page.locator("[data-copy-command]");
+  assert.equal(await commands.count(), 5);
+  assert.equal(await page.locator(".guide-command-number").count(), 0);
+
+  const viewerFrame = page.locator(".guide-media-frame--viewer-screenshot");
+  const desktopViewerBounds = await viewerFrame.boundingBox();
+  assert.ok(desktopViewerBounds && Math.abs(desktopViewerBounds.width - desktopViewerBounds.height) < 1);
+  assert.equal(
+    await viewerFrame.locator("img").evaluate((image) => getComputedStyle(image).objectPosition),
+    "36% 50%",
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileViewerBounds = await viewerFrame.boundingBox();
+  assert.ok(mobileViewerBounds && Math.abs(mobileViewerBounds.width / mobileViewerBounds.height - 1.1) < 0.01);
+  assert.equal(
+    await viewerFrame.locator("img").evaluate((image) => getComputedStyle(image).objectPosition),
+    "34% 50%",
+  );
+
+  const install = commands.first();
+  await install.click();
+  assert.equal(
+    await page.evaluate(() => navigator.clipboard.readText()),
+    "curl -fsSL https://openknowledge.sh/install | bash",
+  );
+  assert.equal(await install.getAttribute("data-state"), "copied");
+  assert.equal(await install.getAttribute("data-feedback"), "copied");
+
+  await page.waitForFunction(
+    () => document.querySelector("[data-copy-command]")?.getAttribute("data-feedback") === null,
+  );
+  assert.equal(await install.getAttribute("data-state"), "copied");
+  assert.equal(await install.getAttribute("data-feedback"), null);
+  assert.equal(await install.getAttribute("aria-label"), "Copy install command again");
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector(".guide-copy-icon-copy")).opacity === "1",
+  );
+  assert.equal(
+    await install.locator(".guide-copy-icon").evaluate((icon) => getComputedStyle(icon).color),
+    "rgb(7, 90, 73)",
+  );
+  assert.equal(errors.length, 0, `getting started browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
 test("exported viewer supports accessible search and keyboard navigation", async () => {
   const context = await browser.newContext();
   const page = await context.newPage();

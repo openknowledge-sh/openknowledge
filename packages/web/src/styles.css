@@ -1852,12 +1852,17 @@ h1 > span,
   color: #075a49;
 }
 
-.guide-copy-command[data-state="copied"] .guide-copy-icon-copy {
+.guide-copy-command[data-state="copied"]:hover {
+  border-color: rgba(7, 90, 73, 0.52);
+  background: #deeee9;
+}
+
+.guide-copy-command[data-feedback="copied"] .guide-copy-icon-copy {
   opacity: 0;
   transform: scale(0.72);
 }
 
-.guide-copy-command[data-state="copied"] .guide-copy-icon-check {
+.guide-copy-command[data-feedback="copied"] .guide-copy-icon-check {
   opacity: 1;
   transform: scale(1);
 }
@@ -1894,7 +1899,11 @@ h1 > span,
 }
 
 .guide-media-frame.guide-media-frame--viewer-screenshot {
-  aspect-ratio: 1966 / 1610;
+  aspect-ratio: 1;
+}
+
+.guide-media-frame--viewer-screenshot .guide-media-image {
+  object-position: 36% 50%;
 }
 
 .guide-media-frame.guide-media-frame--validate-screenshot {
@@ -2244,6 +2253,14 @@ h1 > span,
 
   .guide-media-frame {
     min-height: 0;
+  }
+
+  .guide-media-frame.guide-media-frame--viewer-screenshot {
+    aspect-ratio: 11 / 10;
+  }
+
+  .guide-media-frame--viewer-screenshot .guide-media-image {
+    object-position: 34% 50%;
   }
 }
 

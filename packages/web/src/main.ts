@@ -185,14 +185,15 @@ for (const button of guideCopyButtons) {
 
     if (copied) {
       button.dataset.state = "copied";
+      button.dataset.feedback = "copied";
       button.setAttribute("aria-label", `${readyLabel.replace(/^Copy /, "")} copied`);
       status.textContent = "Copied";
       guideCopyResetTimers.set(
         button,
         window.setTimeout(() => {
-          delete button.dataset.state;
-          button.setAttribute("aria-label", readyLabel);
-          status.textContent = "Copy";
+          delete button.dataset.feedback;
+          button.setAttribute("aria-label", `${readyLabel} again`);
+          status.textContent = "Copy again";
         }, 2400),
       );
       return;

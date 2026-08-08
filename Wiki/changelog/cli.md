@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-07T00:00:00Z
+timestamp: 2026-08-08T00:00:00Z
 ---
 
 # CLI Changelog
@@ -12,6 +12,16 @@ Current behavior belongs in the [command reference](/features/commands/). This
 page records release-level changes.
 
 ## Unreleased
+
+### Website
+
+- After a successful copy, the block stays green. The check icon changes to a
+  green copy icon after 2.4 seconds.
+- The **Open the knowledge base** step now uses a taller illustration with a
+  closer crop.
+- Source: `packages/web/getting-started/index.html`,
+  `packages/web/src/main.ts`, `packages/web/src/styles.css`.
+- Docs: `packages/web/getting-started/index.html`.
 
 ### Viewer
 
