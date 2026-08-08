@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-08-07T00:00:00Z
+timestamp: 2026-08-08T00:00:00Z
 ---
 
 # CLI Operations
@@ -178,25 +178,27 @@ Create a dashboard with these insights:
 | CLI activation | Funnel from `cli_first_command` to `cli_setup_completed` to `cli_first_meaningful_use`, unique by `distinct_id` |
 | Daily active installations | Daily trend of `cli_daily_active`, counting unique `distinct_id` values |
 | Meaningful-use retention | Retention from `cli_first_meaningful_use` to `cli_daily_active` |
-| Sanitized failures | Trend of `cli_error`, broken down by `error_kind`, `command`, and `app_version` |
+| Sanitized failure trends | Trend of `cli_error`, broken down by `error_kind`, `command`, and `app_version` |
+| Sanitized error issues | PostHog Error Tracking issues from `$exception`, filtered by `surface = cli` |
 | Version adoption | Trend of `cli_command_completed`, broken down by `app_version` |
 
 Do not build a single person-level funnel from website visit through CLI use.
 Web, server, and CLI identifiers are deliberately separate, so such a funnel
 would imply attribution the system does not observe. Compare those stages as
-aggregate rates instead. `cli_error` supports privacy-safe failure trends but
-not native PostHog Error Tracking issue grouping.
+aggregate rates instead. The relay creates synthetic `$exception` events from
+`cli_error`. These issues contain no error message, stack trace, path, arguments,
+or output. Do not count both event types in one failure metric.
 
 ## Release
 
 Run the manual workflow from the current default-branch tip:
 
 ```text
-Actions → Release → Run workflow → version: 0.9.0
+Actions → Release → Run workflow → version: 0.11.0
 ```
 
-The version input accepts `0.9.0`, `v0.9.0`, or a prerelease such as
-`v0.9.0-rc.1`. The workflow serializes release runs and does not cancel an
+The version input accepts `0.11.0`, `v0.11.0`, or a prerelease such as
+`v0.11.0-rc.1`. The workflow serializes release runs and does not cancel an
 active release.
 
 The `verify` job requires the current default-branch tip. It then completes

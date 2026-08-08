@@ -167,26 +167,79 @@ test("maps the privacy allowlist to anonymous PostHog batch events", () => {
   const batch = toPostHogBatch(envelope, "phc_project_token");
   assert.equal(batch.api_key, "phc_project_token");
   assert.equal(batch.historical_migration, false);
-  assert.deepEqual(batch.batch, [{
-    event: "cli_error",
-    timestamp: "2026-08-07T12:00:00Z",
-    properties: {
-      distinct_id: "cli:random-installation-id",
-      $process_person_profile: false,
+  assert.deepEqual(batch.batch, [
+    {
+      event: "cli_error",
+      timestamp: "2026-08-07T12:00:00Z",
+      properties: {
+        distinct_id: "cli:random-installation-id",
+        $process_person_profile: false,
+        schema_version: "1",
+        event_id: "event-123",
+        surface: "cli",
+        app_version: "0.9.0",
+        os: "linux",
+        arch: "arm64",
+        command: "validate",
+        outcome: "error",
+        duration_bucket: "100ms-1s",
+        error_kind: "command_failed",
+      },
+    },
+    {
+      event: "$exception",
+      timestamp: "2026-08-07T12:00:00Z",
+      properties: {
+        distinct_id: "cli:random-installation-id",
+        $process_person_profile: false,
+        schema_version: "1",
+        event_id: "event-123",
+        surface: "cli",
+        app_version: "0.9.0",
+        os: "linux",
+        arch: "arm64",
+        command: "validate",
+        outcome: "error",
+        duration_bucket: "100ms-1s",
+        error_kind: "command_failed",
+        $exception_list: [{
+          type: "OpenKnowledgeCommandError",
+          value: "The command failed.",
+          mechanism: { handled: true, synthetic: true },
+        }],
+        $exception_fingerprint: "openknowledge-cli:validate:command_failed",
+        $exception_level: "error",
+      },
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(batch), /installation_id/);
+  assert.doesNotMatch(JSON.stringify(batch), /Users|path/);
+  assert.doesNotMatch(JSON.stringify(batch), /stack|trace|private/);
+});
+
+test("maps usage failures to a separate sanitized PostHog issue", () => {
+  const batch = toPostHogBatch({
+    schema_version: "1",
+    events: [{
       schema_version: "1",
-      event_id: "event-123",
+      event_name: "cli_error",
+      event_id: "event-usage",
+      occurred_at: "2026-08-07T12:00:00Z",
       surface: "cli",
+      installation_id: "random-installation-id",
       app_version: "0.9.0",
       os: "linux",
       arch: "arm64",
       command: "validate",
       outcome: "error",
-      duration_bucket: "100ms-1s",
-      error_kind: "command_failed",
-    },
-  }]);
-  assert.doesNotMatch(JSON.stringify(batch), /installation_id/);
-  assert.doesNotMatch(JSON.stringify(batch), /Users|path/);
+      duration_bucket: "under-10ms",
+      error_kind: "usage",
+    }],
+  }, "phc_project_token");
+  const exception = batch.batch.find((event) => event.event === "$exception");
+  assert.equal(exception.properties.$exception_list[0].type, "OpenKnowledgeUsageError");
+  assert.equal(exception.properties.$exception_list[0].value, "The command returned a usage error.");
+  assert.equal(exception.properties.$exception_fingerprint, "openknowledge-cli:validate:usage");
 });
 
 test("posts PostHog batches to EU ingestion without bearer authentication", async () => {

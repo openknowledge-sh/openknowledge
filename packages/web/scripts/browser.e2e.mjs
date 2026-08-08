@@ -146,7 +146,17 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   assert.equal(await page.title(), "Open Knowledge - Markdown Knowledge Bases for AI Agents");
   assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://openknowledge.sh/");
   assert.match(await page.locator('meta[name="description"]').getAttribute("content"), /AI-ready knowledge bases in Markdown/);
-  await page.getByText("Ready for Codex, Claude, Cursor, or any agent.").waitFor();
+  await page.getByText("Ready for Codex, Claude, Cursor, or any local agent.").waitFor();
+  const walkthrough = page.getByRole("link", { name: "See how it works" });
+  assert.equal(await walkthrough.getAttribute("href"), "/getting-started/");
+  assert.equal(await walkthrough.locator('use[href="#icon-arrow-right"]').count(), 1);
+  assert.deepEqual(
+    await walkthrough.evaluate((link) => {
+      const style = getComputedStyle(link);
+      return { display: style.display, minHeight: style.minHeight, borderWidth: style.borderTopWidth };
+    }),
+    { display: "flex", minHeight: "50px", borderWidth: "1px" },
+  );
   const release = page.getByRole("link", { name: /Latest Open Knowledge release v0\.8\.4/ });
   await release.waitFor();
   const setupPrompt = page.getByRole("button", { name: "Copy setup prompt" });
@@ -165,43 +175,13 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   assert.equal(await page.getByRole("heading", { name: "Write", exact: true }).count(), 1);
   assert.equal(await page.getByRole("heading", { name: "Verify", exact: true }).count(), 1);
   assert.equal(await page.getByRole("heading", { name: "Share", exact: true }).count(), 1);
-  assert.equal(await page.getByRole("heading", { name: "One knowledge base. Three ways in." }).count(), 1);
-  const core = page.getByRole("region", { name: "Core" });
-  assert.match(await core.innerText(), /okn setup/);
-  assert.match(await core.innerText(), /okn validate/);
-  assert.doesNotMatch(await core.innerText(), /okn search/);
-  const agents = page.getByRole("region", { name: "For agents" });
-  assert.match(await agents.innerText(), /okn list/);
-  assert.match(await agents.innerText(), /okn get/);
-  assert.match(await agents.innerText(), /okn search/);
-  assert.match(await agents.innerText(), /okn mcp/);
-  const humans = page.getByRole("region", { name: "For humans" });
-  assert.match(await humans.innerText(), /okn view/);
-  const commandDocs = [
-    ["okn setup", "/wiki/features/commands/setup.html"],
-    ["okn validate", "/wiki/features/commands/validate.html"],
-    ["okn list", "/wiki/features/commands/list.html"],
-    ["okn get", "/wiki/features/commands/get.html"],
-    ["okn search", "/wiki/features/commands/search.html"],
-    ["okn mcp", "/wiki/features/commands/mcp.html"],
-    ["okn view", "/wiki/features/commands/view.html"],
-  ];
-  for (const [label, href] of commandDocs) {
-    const commandLink = page.getByRole("link", { name: label, exact: true });
-    assert.equal(await commandLink.count(), 1);
-    assert.equal(await commandLink.getAttribute("href"), href);
-  }
-  const useCases = page.locator(".use-cases");
-  assert.equal(await page.getByRole("heading", { name: "From Markdown to shared context." }).count(), 1);
-  assert.equal(await useCases.getByRole("heading", { name: "Create a knowledge base" }).count(), 1);
-  assert.equal(await useCases.getByRole("heading", { name: "Build from another source" }).count(), 1);
-  assert.equal(await useCases.getByRole("heading", { name: "Connect and retrieve" }).count(), 1);
-  assert.equal(await useCases.getByRole("heading", { name: "Validate before use" }).count(), 1);
-  assert.equal(await useCases.getByRole("heading", { name: "Publish or integrate" }).count(), 1);
-  assert.match(await useCases.innerText(), /okn setup Wiki --prompt --from https:\/\/openknowledge\.sh\/wiki\/ --depth 2/);
-  assert.match(await useCases.innerText(), /okn search project "validation workflow"/);
-  assert.match(await useCases.innerText(), /okn export tar --out \.\/project-wiki\.tar\.gz Wiki/);
-  assert.equal(await page.getByRole("heading", { name: "Your knowledge stays yours." }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Use plain files" }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Share one source" }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Change tools without starting over" }).count(), 1);
+  const guideLink = page.getByRole("link", { name: "See the 5-minute guide" });
+  assert.equal(await guideLink.getAttribute("href"), "/getting-started/");
+  assert.equal(await page.getByRole("heading", { name: "The idea behind Open Knowledge" }).count(), 1);
+  assert.match(await page.locator("#closing-title").innerText(), /Your knowledge\s+stays yours/);
   const closingGitHub = page.getByRole("link", { name: "Save on GitHub" });
   assert.equal(await closingGitHub.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
   assert.equal(await closingGitHub.locator("svg").count(), 1);

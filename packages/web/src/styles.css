@@ -388,6 +388,36 @@ h1 > span,
   gap: 8px;
 }
 
+.hero-secondary-action {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 20px;
+  border: 1px solid rgba(8, 43, 99, 0.48);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.24);
+  color: #082b63;
+  font-size: 0.92rem;
+  font-weight: 610;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.hero-secondary-action:hover {
+  border-color: #082b63;
+  background: rgba(232, 241, 249, 0.84);
+  color: #061d42;
+  transform: translateY(-1px);
+}
+
+.hero-secondary-action:active {
+  background: rgba(217, 231, 244, 0.88);
+  transform: translateY(0);
+}
+
 .hero-action-icon {
   width: 18px;
   height: 18px;
@@ -790,7 +820,7 @@ h1 > span,
 .concept-link {
   display: inline-flex;
   align-items: center;
-  vertical-align: -0.08em;
+  vertical-align: baseline;
   gap: 4px;
   color: #123b71;
   font-weight: 620;
@@ -802,7 +832,7 @@ h1 > span,
 .knowledge-term {
   display: inline-flex;
   align-items: center;
-  vertical-align: -0.08em;
+  vertical-align: baseline;
   gap: 4px;
   color: inherit;
   font-weight: inherit;

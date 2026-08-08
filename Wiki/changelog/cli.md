@@ -13,15 +13,27 @@ page records release-level changes.
 
 ## Unreleased
 
+No changes yet.
+
+## v0.11.0 — 2026-08-08
+
+Version 0.11 adds privacy-safe product telemetry, standalone skill setup, a
+new website guide, and a refreshed default viewer theme.
+
 ### Website
 
-- After a successful copy, the block stays green. The check icon changes to a
-  green copy icon after 2.4 seconds.
-- The **Open the knowledge base** step now uses a taller illustration with a
-  closer crop.
-- Source: `packages/web/getting-started/index.html`,
-  `packages/web/src/main.ts`, `packages/web/src/styles.css`.
-- Docs: `packages/web/getting-started/index.html`.
+- The redesigned landing page now explains the Open Knowledge workflow and
+  links to a new five-minute getting-started guide.
+- The guide provides copyable commands for installation, setup, the viewer,
+  search, and validation.
+- The landing-page **See how it works** link now uses an outlined button and
+  arrow icon. The secondary action is easier to find.
+- Copy controls remain available after a successful copy. The setup block
+  keeps its success color, and its icon returns to the copy state.
+- Updated illustrations, icons, and social preview assets match the new site.
+- Source: `packages/web/index.html`, `packages/web/getting-started/index.html`,
+  `packages/web/src/`, and `packages/web/public/`.
+- Docs: `packages/web/index.html`, `packages/web/getting-started/index.html`.
 
 ### Viewer
 
@@ -35,13 +47,6 @@ page records release-level changes.
   `packages/web/src/viewer/`.
 - Docs: `Wiki/features/commands/view.md`,
   `Wiki/features/exporters/html.md`.
-- The viewer now keeps OKF 0.2 trust, lifecycle, provenance, sources, and
-  computation details inside the **Frontmatter** disclosure.
-- Authored Markdown now starts the visible document content without a separate
-  metadata block above it.
-- Source: `packages/cli/cmd/openknowledge/viewer_frontmatter.go`,
-  `packages/cli/cmd/openknowledge/viewer_test.go`.
-- Docs: `Wiki/features/commands/view.md`.
 
 ### Release automation
 
@@ -53,15 +58,24 @@ page records release-level changes.
 ### Telemetry
 
 - The CLI now discloses default-on anonymous usage and sanitized error telemetry
-  before it sends the first event. `--no-telemetry` and
-  `okn telemetry disable` save an opt-out.
+  before it sends the first event. Telemetry commands inspect the payload,
+  report status, and save an opt-in or opt-out.
+- `--no-telemetry` saves an opt-out before the command runs. Installer
+  preflight and continuous integration do not send events.
 - The first-party website relay validates an exact event allowlist. Website
   page and copy events require consent.
+- The `/install` redirect records an aggregate source and client family without
+  a browser or installation identifier.
 - The relay now maps accepted events to PostHog's batch ingestion protocol,
   keeps the project token server-side, and disables person-profile processing.
+- The relay now maps each `cli_error` to a synthetic PostHog `$exception` event.
+  Native issue grouping receives no raw message, stack trace, path, or output.
+- The CLI schema does not change. The CLI does not include the PostHog Go SDK
+  or a PostHog project token.
 - Product telemetry stays separate from opt-in local session observation.
 - Source: `packages/cli/internal/telemetry/`,
-  `packages/cli/cmd/openknowledge/telemetry_command.go`, and `packages/web/`.
+  `packages/cli/cmd/openknowledge/telemetry_command.go`, `install`, and
+  `packages/web/`.
 - Docs: `Wiki/features/telemetry.md` and
   `Wiki/features/commands/telemetry.md`.
 

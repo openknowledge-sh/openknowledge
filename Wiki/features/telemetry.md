@@ -3,7 +3,7 @@ type: Feature Documentation
 title: Product Telemetry and Privacy
 description: Describes anonymous CLI and website telemetry, data limits, and opt-out controls.
 tags: [openknowledge, telemetry, analytics, privacy]
-timestamp: 2026-08-07T00:00:00Z
+timestamp: 2026-08-08T00:00:00Z
 ---
 
 # Product Telemetry and Privacy
@@ -12,8 +12,9 @@ Open Knowledge collects bounded product telemetry to measure installation,
 activation, useful command activity, daily activity, and sanitized errors.
 
 CLI telemetry is enabled by default. The CLI prints a disclosure before it
-sends the first event. Telemetry commands and JSON error output do not send
-events. Installer preflight and continuous integration do not send telemetry.
+sends the first event. Telemetry commands do not send events. JSON error mode
+waits for a prior telemetry disclosure. Installer preflight and continuous
+integration do not send telemetry.
 
 Website analytics require explicit consent. The website records no analytics
 event before consent.
@@ -59,6 +60,10 @@ fixed source label and a normalized client family, such as `curl` or `browser`.
 The homepage copy uses a visible fixed `source=homepage` query. It does not use
 a browser or installation identifier.
 
+`install_redirect_requested` records a request for the tracked install path. It
+does not confirm a completed installation. `cli_first_command` records the first
+observed CLI run. Setup and meaningful-use events require successful commands.
+
 ## Excluded data
 
 Telemetry events do not contain:
@@ -88,9 +93,15 @@ events, the consent-created random browser ID for web events, and the random
 event ID for aggregate install redirects. These identities are intentionally
 not joined across surfaces.
 
-Sanitized failures appear as the `cli_error` product event. They do not create
-native PostHog Error Tracking issues because Open Knowledge does not collect an
-exception message, stack trace, source path, command arguments, or output.
+Sanitized failures appear as the `cli_error` product event. The relay also
+creates a synthetic PostHog `$exception` event for native issue grouping.
+
+The synthetic exception uses only the command and `error_kind` for its
+fingerprint. It uses a fixed description and does not contain an error message,
+stack trace, source path, command arguments, or output.
+
+The CLI event schema does not change. The CLI does not use the PostHog Go SDK
+or receive a PostHog project token.
 
 Session observation is a separate local feature. `--observe` remains opt-in and
 does not change product telemetry.

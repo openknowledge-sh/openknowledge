@@ -275,18 +275,44 @@ export function toPostHogBatch(envelope, projectToken) {
   return {
     api_key: projectToken,
     historical_migration: false,
-    batch: envelope.events.map((event) => ({
-      event: event.event_name,
-      timestamp: event.occurred_at,
-      properties: {
-        distinct_id: postHogDistinctID(event),
-        $process_person_profile: false,
-        schema_version: event.schema_version,
-        event_id: event.event_id,
-        surface: event.surface,
-        ...postHogEventProperties(event),
-      },
-    })),
+    batch: envelope.events.flatMap((event) => {
+      const productEvent = {
+        event: event.event_name,
+        timestamp: event.occurred_at,
+        properties: postHogBaseProperties(event),
+      };
+      if (event.event_name !== "cli_error") return [productEvent];
+      return [productEvent, sanitizedPostHogException(event)];
+    }),
+  };
+}
+
+function postHogBaseProperties(event) {
+  return {
+    distinct_id: postHogDistinctID(event),
+    $process_person_profile: false,
+    schema_version: event.schema_version,
+    event_id: event.event_id,
+    surface: event.surface,
+    ...postHogEventProperties(event),
+  };
+}
+
+function sanitizedPostHogException(event) {
+  const usageError = event.error_kind === "usage";
+  return {
+    event: "$exception",
+    timestamp: event.occurred_at,
+    properties: {
+      ...postHogBaseProperties(event),
+      $exception_list: [{
+        type: usageError ? "OpenKnowledgeUsageError" : "OpenKnowledgeCommandError",
+        value: usageError ? "The command returned a usage error." : "The command failed.",
+        mechanism: { handled: true, synthetic: true },
+      }],
+      $exception_fingerprint: `openknowledge-cli:${event.command}:${event.error_kind}`,
+      $exception_level: "error",
+    },
   };
 }
 
