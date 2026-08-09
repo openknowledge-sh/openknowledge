@@ -102,7 +102,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   let mermaidRenderID = 0;
   let mermaidRequestID = 0;
   let mermaidThemeTimer = 0;
-  let frontmatterControlID = 0;
   const panelCloseShortcut = {
     id: "viewer.panel.close",
     code: "KeyW",
@@ -1901,9 +1900,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return a.z - b.z;
     }).forEach(function (state) {
       const activeNode = state === active;
-      const connectedNode = active && links.some(function (edge) {
-        return (edge.source === active.path && edge.target === state.path) || (edge.target === active.path && edge.source === state.path);
-      });
       const scale = nodeScale * (1 + state.z * 0.32);
       const radius = state.radius * scale;
       const groupColor = theme.groups[groupIndexes[state.group] % theme.groups.length];
@@ -4092,51 +4088,15 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function integratePanelFrontmatter(panel) {
     const frontmatter = panel.querySelector(".note-body > [data-frontmatter]");
     const chrome = panel.querySelector(":scope > .note-chrome");
-    const actions = chrome?.querySelector(".note-actions");
     const summary = frontmatter?.querySelector(":scope > .ok-frontmatter-summary");
     const content = frontmatter?.querySelector(":scope > .ok-frontmatter-body");
-    if (!frontmatter || !chrome || !actions || !summary || !content || frontmatter.dataset.headerIntegrated === "true") {
+    if (!frontmatter || !chrome || !summary || !content || frontmatter.dataset.panelIntegrated === "true") {
       return;
     }
 
-    frontmatterControlID += 1;
-    const contentID = "note-frontmatter-" + frontmatterControlID;
-    const title = summary.querySelector(".ok-frontmatter-title")?.textContent?.trim() || "Frontmatter";
-    const count = summary.querySelector(".ok-frontmatter-count")?.textContent?.trim() || "";
-    const trigger = document.createElement("button");
-    const triggerTitle = document.createElement("span");
-    const triggerCount = document.createElement("span");
-
-    trigger.type = "button";
-    trigger.className = "ok-frontmatter-trigger";
-    trigger.dataset.frontmatterTrigger = "";
-    trigger.setAttribute("aria-controls", contentID);
-    triggerTitle.className = "ok-frontmatter-trigger-title";
-    triggerTitle.textContent = title;
-    triggerCount.className = "ok-frontmatter-trigger-count";
-    triggerCount.textContent = count;
-    trigger.append(triggerTitle, triggerCount);
-
-    content.id = contentID;
-    summary.hidden = true;
-    frontmatter.dataset.headerIntegrated = "true";
-    frontmatter.classList.add("is-header-integrated");
+    frontmatter.dataset.panelIntegrated = "true";
+    frontmatter.classList.add("is-panel-integrated");
     chrome.after(frontmatter);
-    actions.prepend(trigger);
-
-    function syncTrigger() {
-      const expanded = frontmatter.open;
-      trigger.setAttribute("aria-expanded", expanded ? "true" : "false");
-      trigger.setAttribute("aria-label", (expanded ? "Hide " : "Show ") + title.toLocaleLowerCase() + (count ? ", " + count : ""));
-      trigger.title = expanded ? "Hide " + title.toLocaleLowerCase() : "Show " + title.toLocaleLowerCase();
-    }
-
-    trigger.addEventListener("click", function () {
-      frontmatter.open = !frontmatter.open;
-      syncTrigger();
-    });
-    frontmatter.addEventListener("toggle", syncTrigger);
-    syncTrigger();
   }
 
   function updateLinkBehaviorHints(scope) {

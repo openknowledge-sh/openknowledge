@@ -72,8 +72,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   and errors. Select **Retry** after an error. Use the arrow keys to select a
   result. Press Enter to open it. Press Shift+Enter to use the other panel
   mode. Press Escape to close search.
-- Each note uses a compact header. Select **Frontmatter** to expand the full
-  typed YAML table below the header.
+- Each note uses a compact header. The full-width **Frontmatter** disclosure is
+  immediately below the header and starts collapsed. Select **Frontmatter** to
+  expand the full typed YAML table.
   The viewer also provides tag filters, sortable tables, and directory
   breadcrumbs. The **Documents** view expands the active file branch.
   Directory rows can collapse, and the explorer has a **Collapse all** action.

@@ -512,6 +512,25 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await assertSemanticPage(page, "Browser Test Handbook");
   const search = page.locator(".search-input");
   assert.equal(await search.count(), 1, `viewer search input missing at ${page.url()}\n${(await page.content()).slice(0, 2000)}`);
+  const quietSearchStyle = await page.locator(".header-search").evaluate((headerSearch) => {
+    const input = headerSearch.querySelector(".search-input");
+    const icon = headerSearch.querySelector(".search-icon");
+    const shortcut = headerSearch.querySelector(".search-shortcut");
+    return {
+      background: getComputedStyle(input).backgroundColor,
+      boxShadow: getComputedStyle(input).boxShadow,
+      iconVisible: Boolean(icon && getComputedStyle(icon).display !== "none"),
+      shortcutBorder: getComputedStyle(shortcut).borderTopWidth,
+      shortcutBackground: getComputedStyle(shortcut).backgroundColor,
+    };
+  });
+  assert.deepEqual(quietSearchStyle, {
+    background: "rgba(0, 0, 0, 0)",
+    boxShadow: "none",
+    iconVisible: true,
+    shortcutBorder: "0px",
+    shortcutBackground: "rgba(0, 0, 0, 0)",
+  });
   await search.focus();
   await search.fill("rollback");
   const result = page.locator(".search-results a", { hasText: "Rollback Guide" }).first();
@@ -561,24 +580,26 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   await page.goto(new URL("guides/rollback.html", viewerURL).href, { waitUntil: "networkidle" });
   const panel = page.locator('[data-note-path="guides/rollback.md"]');
   const frontmatter = page.locator("[data-frontmatter]");
-  const frontmatterTrigger = panel.locator(".note-actions > [data-frontmatter-trigger]");
+  const frontmatterSummary = frontmatter.locator(":scope > summary");
   assert.equal(await frontmatter.count(), 1);
-  assert.equal(await frontmatterTrigger.count(), 1);
+  assert.equal(await frontmatterSummary.count(), 1);
   assert.equal(await frontmatter.getAttribute("open"), null);
-  assert.equal(await frontmatterTrigger.getAttribute("aria-expanded"), "false");
-  assert.equal(await frontmatter.locator(":scope > summary").isHidden(), true);
-  await frontmatterTrigger.focus();
-  await page.keyboard.press("Enter");
-  assert.equal(await frontmatter.getAttribute("open"), "");
-  assert.equal(await frontmatterTrigger.getAttribute("aria-expanded"), "true");
+  assert.equal(await frontmatterSummary.isVisible(), true);
   const panelBox = await panel.boundingBox();
   const chromeBox = await panel.locator(":scope > .note-chrome").boundingBox();
-  const frontmatterBox = await frontmatter.boundingBox();
-  const headingBox = await panel.getByRole("heading", { name: "Rollback Guide" }).boundingBox();
-  assert.ok(panelBox && chromeBox && frontmatterBox && headingBox);
-  assert.ok(frontmatterBox.y >= chromeBox.y + chromeBox.height - 1, "frontmatter should expand below the compact header");
-  assert.ok(frontmatterBox.width >= panelBox.width - 2, "expanded frontmatter should use the full note width");
-  assert.ok(headingBox.y >= frontmatterBox.y + frontmatterBox.height, "expanded frontmatter should stay in normal flow before the Markdown body");
+  const collapsedFrontmatterBox = await frontmatter.boundingBox();
+  const collapsedHeadingBox = await panel.getByRole("heading", { name: "Rollback Guide" }).boundingBox();
+  assert.ok(panelBox && chromeBox && collapsedFrontmatterBox && collapsedHeadingBox);
+  assert.ok(collapsedFrontmatterBox.y >= chromeBox.y + chromeBox.height - 1, "frontmatter should sit below the compact header");
+  assert.ok(collapsedFrontmatterBox.width >= panelBox.width - 2, "collapsed frontmatter should use the full note width");
+  assert.ok(collapsedHeadingBox.y >= collapsedFrontmatterBox.y + collapsedFrontmatterBox.height, "collapsed frontmatter should stay in normal flow before the Markdown body");
+  await frontmatterSummary.focus();
+  await page.keyboard.press("Enter");
+  assert.equal(await frontmatter.getAttribute("open"), "");
+  const expandedFrontmatterBox = await frontmatter.boundingBox();
+  const expandedHeadingBox = await panel.getByRole("heading", { name: "Rollback Guide" }).boundingBox();
+  assert.ok(expandedFrontmatterBox && expandedHeadingBox);
+  assert.ok(expandedHeadingBox.y >= expandedFrontmatterBox.y + expandedFrontmatterBox.height, "expanded frontmatter should stay in normal flow before the Markdown body");
   const signals = frontmatter.locator("[data-okf02-signals]");
   assert.equal(await signals.count(), 1);
   assert.match(await signals.innerText(), /Human reviewed/);
@@ -594,9 +615,9 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   await page.locator("[data-viewer-settings-trigger]").click();
   const frontmatterVisibility = page.locator("[data-frontmatter-visibility]");
   await frontmatterVisibility.uncheck({ force: true });
-  assert.equal(await frontmatterTrigger.isVisible(), false);
+  assert.equal(await frontmatterSummary.isVisible(), false);
   await frontmatterVisibility.check({ force: true });
-  assert.equal(await frontmatterTrigger.isVisible(), true);
+  assert.equal(await frontmatterSummary.isVisible(), true);
   assert.equal(errors.length, 0, `viewer OKF 0.2 browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
@@ -665,7 +686,11 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.getByRole("link", { name: "rollback guide" }).click();
   await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
   assert.equal(await page.locator("[data-note-path]").count(), 2, "beside mode should open a normal note link beside the active panel");
-  assert.equal(await page.locator('[data-note-path="guides/rollback.md"] .note-actions > [data-frontmatter-trigger]').count(), 1, "dynamic note panels should integrate frontmatter into the header");
+  const dynamicFrontmatter = page.locator('[data-note-path="guides/rollback.md"] > [data-frontmatter]');
+  assert.equal(await dynamicFrontmatter.count(), 1, "dynamic note panels should place frontmatter below the header");
+  assert.equal(await dynamicFrontmatter.getAttribute("open"), null, "dynamic frontmatter should start collapsed");
+  assert.equal(await dynamicFrontmatter.locator(":scope > summary").isVisible(), true);
+  assert.equal(await page.locator('[data-note-path="guides/rollback.md"] .note-actions > [data-frontmatter-trigger]').count(), 0, "frontmatter should not add a control to the header");
   assert.equal(await page.locator("[data-note-navigator]").count(), 0, "multi-panel mode should not add a fixed bottom navigator");
   await page.locator('[data-note-path="index.md"] .note-chrome').click();
   assert.equal(await page.locator('[data-note-path="index.md"][data-active-panel="true"]').count(), 1);

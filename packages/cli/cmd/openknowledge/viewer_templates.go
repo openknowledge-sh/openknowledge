@@ -133,6 +133,10 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     <section class="search header-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}" data-primary-search>
       <label class="sr-only" for="viewer-search">Search</label>
       <div class="search-field">
+        <svg class="search-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5"></circle>
+          <path d="m16 16 4 4"></path>
+        </svg>
         <input id="viewer-search" class="search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search">
         <kbd class="search-shortcut" data-search-shortcut>⌘K</kbd>
       </div>

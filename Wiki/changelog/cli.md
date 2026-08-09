@@ -15,8 +15,9 @@ page records release-level changes.
 
 ### Viewer
 
-- Markdown note panels now use a compact header. The **Frontmatter** control
-  expands the full typed YAML table below the header.
+- Markdown note panels now show the full-width **Frontmatter** disclosure
+  immediately below the compact header. The disclosure starts collapsed.
+  Select **Frontmatter** to expand the full typed YAML table.
 - Viewer search now strips common Markdown markup from excerpts and adds folder
   context to `Index` titles. The panel shows progress, result counts, and
   errors with **Retry**.

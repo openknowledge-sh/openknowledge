@@ -65,8 +65,14 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `.editor-open .editor-mark { border: 0; background: transparent; }`) {
 		t.Fatalf("viewer document chrome should avoid redundant nested borders:\n%s", page)
 	}
-	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }`) {
+	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(420px, 38vw); min-width: 240px; margin: 0; }`) {
 		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
+	}
+	if !strings.Contains(page, `class="search-icon control-icon"`) ||
+		!strings.Contains(page, `.header-search .search-input { height: 36px; min-height: 0; padding: 7px 42px 7px 30px; border: 0; border-radius: 0; background: transparent; box-shadow: none;`) ||
+		!strings.Contains(page, `.header-search .search-shortcut { position: absolute; right: 4px;`) ||
+		!strings.Contains(page, `border: 0; border-radius: 0; background: transparent;`) {
+		t.Fatalf("viewer header search should use a quiet transparent surface with a search icon:\n%s", page)
 	}
 	if !strings.Contains(page, `.search.header-search { width: min(38vw, 300px); min-width: 0; margin-right: 44px; }`) {
 		t.Fatalf("viewer mobile header search should reserve the link behavior control slot:\n%s", page)
@@ -118,17 +124,19 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-frontmatter-visibility checked`) ||
 		!strings.Contains(page, `openknowledge.viewer.frontmatter`) ||
 		!strings.Contains(page, `applyFrontmatterPreference`) ||
-		!strings.Contains(page, `body.is-frontmatter-hidden .ok-frontmatter, body.is-frontmatter-hidden .ok-frontmatter-trigger`) {
+		!strings.Contains(page, `body.is-frontmatter-hidden .ok-frontmatter { display: none; }`) {
 		t.Fatalf("viewer should persist a global frontmatter visibility preference:\n%s", page)
 	}
 	if !strings.Contains(page, `function integratePanelFrontmatter(panel)`) ||
 		!strings.Contains(page, `chrome.after(frontmatter)`) ||
-		!strings.Contains(page, `actions.prepend(trigger)`) ||
-		!strings.Contains(page, `trigger.setAttribute("aria-expanded", expanded ? "true" : "false")`) ||
+		!strings.Contains(page, `frontmatter.classList.add("is-panel-integrated")`) ||
+		strings.Contains(page, `actions.prepend(trigger)`) ||
+		strings.Contains(page, `summary.hidden = true`) ||
 		!strings.Contains(page, `.note-chrome { position: sticky; top: 0; z-index: 5; display: flex; min-height: 44px;`) ||
-		!strings.Contains(page, `.ok-frontmatter.is-header-integrated { margin: -18px -34px 22px;`) ||
+		!strings.Contains(page, `.ok-frontmatter.is-panel-integrated { margin: -18px -34px 22px;`) ||
+		!strings.Contains(page, `.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary { min-height: 46px;`) ||
 		!strings.Contains(page, `@container note-panel (max-width: 520px)`) {
-		t.Fatalf("viewer note panels should use a compact header with full-width, container-aware frontmatter:\n%s", page)
+		t.Fatalf("viewer note panels should keep collapsed, full-width frontmatter below the compact header:\n%s", page)
 	}
 	if !strings.Contains(page, `data-accessibility-font`) ||
 		!strings.Contains(page, `data-accessibility-size`) ||
