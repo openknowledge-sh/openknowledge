@@ -1,0 +1,22 @@
+name: Validate demo
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install Open Knowledge
+        run: curl -fsSL https://openknowledge.sh/install | bash
+      - name: Validate knowledge base
+        run: ~/.local/bin/okn validate Wiki
+      - name: Test documented search
+        run: ~/.local/bin/okn search Wiki "what evidence supports the citation workflow?" --matches --limit 3
+      - name: Test static export
+        run: ~/.local/bin/okn export html --out site Wiki

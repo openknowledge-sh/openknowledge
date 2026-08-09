@@ -10,32 +10,33 @@ related_targets: ["packages/web/index.html","packages/web/src/styles.css","packa
 ## Scope and mode
 
 - Primary target: `use-cases/project-documentation/index.html`
-- Mode: Read.
+- Mode: Persuade through a Read-oriented conversion guide.
 
 ## Audience and job
 
-Developers and team leads need to understand how repository-based project
-documentation becomes source-backed context for people and agents. The page
-must teach the method through a concrete Wikipedia demo.
+Developers and team leads repeatedly explain project context to teammates and
+agents. The page must show how a small knowledge base makes that context durable
+and reviewable with code changes.
 
 ## Action and proof
 
-Proof comes from explanatory prose, a concrete repository structure, runnable
-commands, and screenshot production briefs. The demo repository URL is still
-unresolved and must remain visibly marked as planned.
+The primary action starts Getting Started. Proof comes from a three-document
+starter structure, runnable commands, a source-backed agent workflow, explicit
+outcomes, and honest screenshot briefs. The demo URL remains planned.
 
 ## Chosen direction
 
-Use a narrow documentation essay with a table of contents and restrained code
-examples. Move from the purpose of project documentation to the Wikipedia demo,
-then through writing, browsing, retrieval, and validation. Treat screenshot
-placeholders as editorial production briefs, not product cards.
+Use a narrow guide with a table of contents and restrained code examples. Move
+from the context gap to architecture, conventions, and decisions. Then show an
+agent retrieving context, changing code, proposing a knowledge update, and
+submitting both for review. Keep Wikipedia as the illustrative demo.
 
 ## Constraints
 
 Use only shipped behavior. Do not invent a repository URL, add customer claims,
 or present illustrative Wikipedia content as complete documentation. Keep all
-visible page copy in English.
+visible page copy in English. Apply ASD-STE100 to visible copy. Explain each
+technical term for readers without software experience.
 
 ## Unresolved decisions
 

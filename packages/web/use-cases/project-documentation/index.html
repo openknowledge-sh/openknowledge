@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#e5f0f9">
-    <title>How to Build Useful Project Documentation · Open Knowledge</title>
-    <meta name="description" content="A practical guide to keeping project documentation in a repository, using a Wikipedia knowledge base as a concrete example.">
+    <title>Clear Project Documentation for People and AI · Open Knowledge</title>
+    <meta name="description" content="A simple guide to keeping project choices, rules, and explanations close to the work.">
     <link rel="canonical" href="https://openknowledge.sh/use-cases/project-documentation/">
     <meta property="og:type" content="article">
     <meta property="og:site_name" content="Open Knowledge">
     <meta property="og:url" content="https://openknowledge.sh/use-cases/project-documentation/">
-    <meta property="og:title" content="How to Build Useful Project Documentation">
-    <meta property="og:description" content="A practical guide to repository-based documentation for people and agents, illustrated with a Wikipedia demo.">
+    <meta property="og:title" content="Clear Project Documentation for People and AI">
+    <meta property="og:description" content="Help people and AI understand why your project works the way it does.">
     <meta property="og:image" content="https://openknowledge.sh/og.png">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="/favicon.png?v=2" type="image/png" sizes="512x512">
@@ -19,13 +19,13 @@
     <link rel="stylesheet" href="/src/styles.css">
     <!-- OPENKNOWLEDGE_HEAD -->
   </head>
-  <body class="use-case-page project-docs-page">
+  <body class="use-case-page project-docs-page" data-language-standard="asd-ste100">
     <!--
-      THESIS: This is a practical documentation guide built around a Wikipedia demo; it refuses a marketing landing-page structure.
-      OWN-WORLD: A paper-like reading column, deep-blue ink, quiet rules, source code, and screenshot production briefs extend the existing site.
-      STORY: The reader learns what project documentation must do, sees a repository shape, writes a source, then browses, searches, and validates it.
-      FIRST VIEWPORT: Breadcrumb, article title, explanatory deck, and reading metadata; there is no marketing CTA or product mockup.
-      FORM: Documentation essay, user-directed; seed key user-directed-blog-documentation.
+      THESIS: Durable project context must travel with code changes; this page refuses a thin feature summary and teaches the complete operating loop.
+      OWN-WORLD: A paper-like reading column, deep-blue ink, quiet rules, source code, and honest screenshot briefs extend the established duotone site.
+      STORY: The reader recognizes the context gap, starts with three small documents, gives an agent relevant context, and reviews code plus context together.
+      FIRST VIEWPORT: Breadcrumb, problem-led promise, and direct explanation; the guide earns its action through a substantial workflow.
+      FORM: Conversion guide with a Read-oriented body; seed key durable-context-loop.
       FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
     -->
     <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -53,16 +53,15 @@
       <main class="project-main">
         <header class="article-hero">
           <nav class="article-breadcrumbs" aria-label="Breadcrumb">
-            <a href="/">Use cases</a>
+            <a href="/use-cases/">Use cases</a>
             <span aria-hidden="true">/</span>
             <span aria-current="page">Project documentation</span>
           </nav>
-          <h1>How to build project documentation that people and agents can use</h1>
+          <h1>Help people and AI understand your project</h1>
           <p class="article-deck">
-            Project documentation should explain how the work actually works—not
-            merely describe the product. This guide uses a small Wikipedia
-            knowledge base to show how one reviewed source can serve teammates,
-            contributors, and AI agents.
+            Code shows what a project does. It often does not explain why the team
+            made each choice. A small knowledge base keeps those explanations close
+            to the work.
           </p>
         </header>
 
@@ -70,281 +69,267 @@
           <aside class="article-toc" aria-labelledby="article-toc-title">
             <strong id="article-toc-title">In this guide</strong>
             <nav aria-label="Article contents">
+              <a href="#problem">Why context gets lost</a>
               <a href="#setup">Set up Open Knowledge</a>
-              <a href="#job">The job of the docs</a>
-              <a href="#repository">The repository</a>
-              <a href="#wikipedia-demo">Wikipedia demo</a>
-              <a href="#write">Write the source</a>
-              <a href="#browse">Browse it</a>
-              <a href="#retrieve">Retrieve context</a>
-              <a href="#validate">Validate it</a>
+              <a href="#first-base">Start with three pages</a>
+              <a href="#wikipedia-demo">Wikipedia example</a>
+              <a href="#workflow">Give AI useful context</a>
+              <a href="#review">Review code and explanations</a>
+              <a href="#outcome">What improves</a>
+              <a href="#next">Next step</a>
             </nav>
           </aside>
 
           <article class="article-content">
+            <section id="problem">
+              <h2>Important project knowledge gets lost</h2>
+              <p>
+                Source code shows the result. It does not always explain why a
+                pattern exists or what the team expects during review.
+              </p>
+              <ul class="article-friction-list">
+                <li><strong>An AI agent guesses.</strong><span>It may choose a sensible pattern that conflicts with an earlier decision.</span></li>
+                <li><strong>People repeat the same explanation.</strong><span>Important rules return to chats, calls, and review comments.</span></li>
+                <li><strong>The guide becomes outdated.</strong><span>The next person sees new code but does not see the reason for it.</span></li>
+              </ul>
+              <blockquote>
+                <p>If the project does not save its explanations, every new person must discover them again.</p>
+              </blockquote>
+            </section>
+
             <section id="setup">
               <h2>First, set up Open Knowledge</h2>
               <p>
-                Start inside the repository that will hold the Wikipedia demo.
-                Open Knowledge will treat its <code>Wiki/</code> directory as the
-                reviewed source used throughout this guide.
+                Open Knowledge stores the project guide as linked Markdown files in
+                <code>Wiki/</code>. Markdown is a simple text format that works with
+                many tools.
               </p>
               <ol class="article-setup-list">
                 <li>
-                  <h3>Create the repository</h3>
-                  <p>Make an empty project and start its Git history.</p>
-                  <pre class="article-command"><code><span>$</span> mkdir wikipedia-project-docs
-<span>$</span> cd wikipedia-project-docs
+                  <h3>Open the project folder</h3>
+                  <p>Use an existing project, or create this small demo project.</p>
+                  <pre class="article-command"><code><span>$</span> mkdir example-project-docs
+<span>$</span> cd example-project-docs
 <span>$</span> git init</code></pre>
                 </li>
                 <li>
-                  <h3>Install the CLI</h3>
-                  <p>If <code>okn --version</code> already works, skip this command.</p>
+                  <h3>Install Open Knowledge</h3>
+                  <p>If <code>okn version</code> already works, skip this command.</p>
                   <pre class="article-command"><code><span>$</span> curl -fsSL https://openknowledge.sh/install | bash</code></pre>
                 </li>
                 <li>
                   <h3>Create the knowledge base</h3>
-                  <p>Run the wizard and choose the agent you use for this project.</p>
+                  <p>Start the guided setup and choose the AI tool used by the project.</p>
                   <pre class="article-command"><code><span>$</span> okn setup Wiki --interactive</code></pre>
                 </li>
               </ol>
               <p class="article-note">
-                The setup wizard detects the project and prepares an agent task.
-                That task creates or completes <code>Wiki/</code>, validates the
-                bundle, and checks it with a representative search.
+                Setup gives the AI agent a task. The task creates <code>Wiki/</code>,
+                checks the files, and runs one useful search.
               </p>
-              <p><a href="/wiki/features/commands/setup.html">Read the setup command reference</a></p>
+              <p><a href="/wiki/features/commands/setup.html">Read the technical setup guide</a></p>
             </section>
 
-            <section id="job">
-              <h2>What project documentation needs to do</h2>
+            <section id="first-base">
+              <h2>Start with three simple pages</h2>
               <p>
-                Useful documentation gives a reader enough context to make the
-                next decision safely. It describes current behavior, the reasons
-                behind important choices, the workflows people follow, and the
-                boundaries they should not cross.
+                Do not move every old note. Start with the information that the team
+                often repeats during work and review.
               </p>
+              <dl class="article-foundation-list">
+                <div>
+                  <dt>Architecture</dt>
+                  <dd>How the main parts connect and which limits a change must respect.</dd>
+                </div>
+                <div>
+                  <dt>Team rules</dt>
+                  <dd>Shared rules for code, tests, names, and review.</dd>
+                </div>
+                <div>
+                  <dt>Decisions</dt>
+                  <dd>Important choices, their reasons, and what future work must consider.</dd>
+                </div>
+              </dl>
+              <pre class="article-code"><code>Wiki/
+├── index.md
+├── architecture/
+│   └── system-overview.md
+├── conventions/
+│   └── code-and-review.md
+└── decisions/
+    └── 0001-context-next-to-code.md</code></pre>
               <p>
-                That reader may now be a person or an agent. The medium does not
-                have to change. Both benefit from the same qualities: a clear
-                structure, precise language, visible sources, and changes that
-                pass through review with the rest of the project.
+                These pages answer one useful question: what should someone know
+                before changing this project?
               </p>
-              <blockquote>
-                <p>The goal is not to write more. It is to make the project’s working knowledge findable, reviewable, and specific enough to act on.</p>
-              </blockquote>
-            </section>
-
-            <section id="repository">
-              <h2>Use a repository, not another workspace</h2>
-              <p>
-                Put the canonical documentation beside the work it explains.
-                Markdown gives people a readable source, Git gives the source a
-                history, and review makes documentation changes visible before
-                they become accepted project knowledge.
-              </p>
-              <aside class="article-repository-placeholder" aria-label="Planned demo repository">
+              <aside class="article-repository-placeholder" aria-label="Project documentation demo repository">
                 <svg aria-hidden="true"><use href="#icon-repository"></use></svg>
                 <div>
-                  <span>Planned demo repository</span>
-                  <code>github.com/openknowledge-sh/wikipedia-project-docs</code>
-                  <p>Replace this placeholder with the repository URL when the demo is published.</p>
+                  <span>Demo repository</span>
+                  <a href="https://github.com/openknowledge-sh/example-project-docs">Open the project documentation demo on GitHub</a>
+                  <p>Clone the project to test its code, knowledge search, validation, viewer, and static export.</p>
                 </div>
               </aside>
             </section>
 
-            <section id="wikipedia-demo">
-              <h2>A concrete demo: documenting Wikipedia</h2>
-              <p>
-                Imagine a small knowledge base that explains Wikipedia’s
-                editorial model. Its purpose is not to reproduce Wikipedia’s
-                own documentation. It is an illustrative project that turns a
-                complex, public workflow into a source-backed set of pages.
-              </p>
-              <p>
-                Start with the questions a new contributor—or an agent helping
-                one—would need answered:
-              </p>
-              <ul>
-                <li>How does an article move from a draft to reviewed content?</li>
-                <li>Where are source and citation requirements documented?</li>
-                <li>How do editors discuss a disputed change?</li>
-                <li>Which pages define the current editorial workflow?</li>
-              </ul>
-              <p>A small repository can give those questions a navigable shape:</p>
-              <pre class="article-code"><code>wikipedia-project-docs/
-├── README.md
-└── Wiki/
-    ├── index.md
-    ├── concepts/
-    │   ├── article-lifecycle.md
-    │   ├── citations-and-sources.md
-    │   └── talk-pages.md
-    ├── workflows/
-    │   ├── content-review.md
-    │   └── dispute-resolution.md
-    └── sources/
-        └── index.md</code></pre>
-              <p class="article-note">
-                This structure is illustrative. The published demo should cite
-                the relevant public Wikipedia policies and clearly distinguish
-                source material from the demo’s own explanation.
-              </p>
-            </section>
-
             <figure class="article-screenshot-placeholder">
-              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of the Wikipedia documentation repository in an editor">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of the starter project knowledge base in an editor">
                 <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
                 <span>Screenshot 01</span>
-                <strong>Repository source</strong>
+                <strong>A small first knowledge base</strong>
                 <div class="screenshot-wireframe screenshot-wireframe--editor" aria-hidden="true">
                   <i></i><i></i><i></i><i></i><i></i>
                 </div>
               </div>
               <figcaption>
                 <strong>What to capture</strong>
-                <p>Open the Wikipedia demo repository in an editor. Keep the <code>Wiki/</code> tree visible and <code>article-lifecycle.md</code> open. Show YAML frontmatter, one authored link, and the Git branch. Hide personal paths and unrelated editor panels.</p>
+                <p>Open the demo in an editor. Show the three folders and one short page. Hide personal paths and unrelated panels.</p>
               </figcaption>
             </figure>
 
-            <section id="write">
-              <h2>Make the structure readable before it is searchable</h2>
+            <section id="wikipedia-demo">
+              <h2>See the same pattern in a Wikipedia example</h2>
               <p>
-                A reader should understand where a page belongs without needing
-                search. Use an index to explain the map, group pages around the
-                questions they answer, and link related concepts in the prose.
-                Metadata should clarify the page—not compensate for unclear writing.
+                The demo uses Wikipedia to show the same small structure. It is an
+                example, not a replacement for Wikipedia policies.
               </p>
-              <pre class="article-code"><code>---
-type: Feature Documentation
-title: Article lifecycle
-tags: [wikipedia, editorial-workflow]
----
-
-# Article lifecycle
-
-An article can move through drafting, review, and
-continued revision. See [Citations and sources]
-(./citations-and-sources.md) for source requirements.</code></pre>
+              <pre class="article-code"><code>example-project-docs/
+└── Wiki/
+    ├── index.md
+    ├── architecture/
+    │   └── editorial-workflow.md
+    ├── conventions/
+    │   └── citations-and-sources.md
+    ├── decisions/
+    │   └── 0001-demo-scope.md
+    └── sources/
+        └── index.md</code></pre>
               <p>
-                Open Knowledge reads the Markdown and frontmatter as an OKF
-                bundle. The files remain useful in an editor, in a pull request,
-                and anywhere else that can read plain text.
+                The architecture page explains how editors move content through the
+                process. The team rules page explains source requirements. The
+                decision page defines the demo scope.
               </p>
-              <p><a href="/wiki/features/knowledge-architecture.html">Read the knowledge architecture guide</a></p>
-            </section>
-
-            <section id="browse">
-              <h2>Browse the repository like documentation</h2>
-              <p>
-                A folder tree is good for authors. Readers often need a calmer
-                view with rendered pages, working links, related documents, and
-                enough source information to understand where a claim came from.
+              <p class="article-note">
+                The public demo must cite Wikipedia policies. It must also separate
+                those policies from the demo explanation.
               </p>
-              <pre class="article-command"><code><span>$</span> okn view Wiki</code></pre>
             </section>
 
             <figure class="article-screenshot-placeholder">
-              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of the Wikipedia knowledge base in the local viewer">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of the Wikipedia demo in the Open Knowledge local viewer">
                 <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
                 <span>Screenshot 02</span>
-                <strong>Local viewer</strong>
+                <strong>The same source, readable by people</strong>
                 <div class="screenshot-wireframe screenshot-wireframe--viewer" aria-hidden="true">
                   <i></i><i></i><i></i><i></i><i></i>
                 </div>
               </div>
               <figcaption>
                 <strong>What to capture</strong>
-                <p>Run <code>okn view Wiki</code> and open “Article lifecycle.” Keep the documentation tree visible and place “Citations and sources” beside it as a related page. Hide private filesystem paths and browser extensions.</p>
+                <p>Run <code>okn view Wiki</code>. Open “Editorial workflow” and keep the page list visible. Hide private paths and browser extensions.</p>
               </figcaption>
             </figure>
 
-            <section id="retrieve">
-              <h2>Retrieve a focused answer, with its source</h2>
+            <section id="workflow">
+              <h2>Give the AI agent context before it changes code</h2>
               <p>
-                An agent rarely needs the entire repository. Search can return
-                the relevant sections with their paths, headings, relationships,
-                and source locations. The retrieval stays local and deterministic;
-                it does not call an LLM.
+                The AI agent usually needs only a few relevant pages. Open Knowledge
+                search finds those pages and shows where each result came from.
               </p>
-              <pre class="article-command"><code><span>$</span> okn search Wiki "how are disputed article changes discussed?"</code></pre>
+              <p>Search runs on the local computer. It does not send the question to an AI model.</p>
+              <pre class="article-command"><code><span>$</span> okn search Wiki "what context affects citation validation?"</code></pre>
               <p>
-                A useful result would point to <code>concepts/talk-pages.md</code>
-                and <code>workflows/dispute-resolution.md</code>. The answer can
-                then be checked against the exact pages that produced it.
+                The agent reads the relevant pages before it plans or changes code.
+                It can name the pages that guide its work.
               </p>
+              <p>Add this simple rule to the project:</p>
+              <pre class="article-code"><code>Before changing code:
+1. Search Wiki for context relevant to the task.
+2. Cite the Markdown files that guide the change.
+3. Implement and test the code change.
+4. If the change makes the context outdated,
+   propose a Wiki update in the same change.</code></pre>
               <p><a href="/wiki/features/commands/search.html">Read the search command reference</a></p>
             </section>
 
             <figure class="article-screenshot-placeholder">
-              <div class="screenshot-stage screenshot-stage--terminal" role="img" aria-label="Placeholder for a screenshot of Open Knowledge search results for the Wikipedia demo">
+              <div class="screenshot-stage screenshot-stage--terminal" role="img" aria-label="Placeholder for a screenshot of source-preserving context retrieved before a code change">
                 <svg aria-hidden="true"><use href="#icon-terminal"></use></svg>
                 <span>Screenshot 03</span>
-                <strong>Search context</strong>
+                <strong>Context before code</strong>
                 <div class="screenshot-wireframe screenshot-wireframe--terminal" aria-hidden="true">
                   <i></i><i></i><i></i><i></i><i></i>
                 </div>
               </div>
               <figcaption>
                 <strong>What to capture</strong>
-                <p>Run the query above in a clean terminal. Include results from <code>talk-pages.md</code> and <code>dispute-resolution.md</code>, with file and line ranges visible. Crop before unrelated shell history begins.</p>
+                <p>Run the query in a clean terminal. Show the question and two useful results. Hide unrelated command history.</p>
               </figcaption>
             </figure>
 
-            <section>
-              <h2>Let an agent use the same repository</h2>
+            <section id="review">
+              <h2>Review the code and its explanation together</h2>
               <p>
-                The last screenshot should connect the method to the use case:
-                an agent answers a project question, but its response still
-                points back to the reviewed Markdown. The repository remains the
-                source; the agent is another reader of it.
+                After the code change, check whether the project guide is still
+                correct. Ask whether the change affects architecture, team rules, or
+                an earlier decision.
               </p>
+              <p>
+                If it does, the agent proposes an update to the right Markdown page.
+                A person reviews the code and explanation together. Not every code
+                change needs a guide update.
+              </p>
+              <p>These example files could appear in one review:</p>
+              <pre class="article-code"><code>src/citations/validate.ts
+tests/citations/validate.test.ts
+Wiki/conventions/citations-and-sources.md
+Wiki/decisions/0002-reject-bare-urls.md</code></pre>
+              <p>
+                Run validation before approval. It checks file structure, document
+                details, Markdown, and links between local files.
+              </p>
+              <pre class="article-command"><code><span>$</span> okn validate Wiki</code></pre>
+              <p><a href="/wiki/features/commands/validate.html">Read the validation command reference</a></p>
             </section>
 
             <figure class="article-screenshot-placeholder">
-              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of an agent using the Wikipedia documentation repository">
-                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of a code change and its proposed documentation update">
+                <svg aria-hidden="true"><use href="#icon-check"></use></svg>
                 <span>Screenshot 04</span>
-                <strong>Agent using the repository</strong>
+                <strong>Code and context in one review</strong>
                 <div class="screenshot-wireframe screenshot-wireframe--agent" aria-hidden="true">
                   <i></i><i></i><i></i><i></i><i></i>
                 </div>
               </div>
               <figcaption>
                 <strong>What to capture</strong>
-                <p>Ask the same dispute-resolution question in an agent connected to the demo repository. Show the response citing the two Markdown files. Keep repository context visible and crop vendor chrome if it competes with the evidence.</p>
+                <p>Show a real review with one code file and one <code>Wiki/</code> update. Show the successful validation result. Do not use customer data.</p>
               </figcaption>
             </figure>
 
-            <section id="validate">
-              <h2>Validate the source before it spreads</h2>
+            <section id="outcome">
+              <h2>The project keeps its knowledge</h2>
               <p>
-                Documentation becomes more valuable when more systems depend on
-                it—and more costly when its structure breaks. Validate the bundle
-                before a change is merged or shared as agent context.
+                The goal is not perfect documentation. The goal is a clear project
+                guide that changes with the work it explains.
               </p>
-              <pre class="article-command"><code><span>$</span> okn validate Wiki</code></pre>
-              <p>
-                Validation checks frontmatter, document types, Markdown syntax,
-                and local link targets. It cannot judge whether the explanation
-                is true, but it can keep the source coherent enough to review.
-              </p>
-              <p><a href="/wiki/features/commands/validate.html">Read the validation command reference</a></p>
+              <ul class="article-outcome-list">
+                <li><strong>Fewer repeated explanations</strong><span>Important rules live in reviewed pages instead of repeated messages.</span></li>
+                <li><strong>Less lost context</strong><span>Decision pages keep the reason after a chat or AI session ends.</span></li>
+                <li><strong>One clear review</strong><span>Reviewers can check the code and its explanation together.</span></li>
+              </ul>
             </section>
 
-            <footer class="article-next">
-              <h2>Build the demo repository next</h2>
+            <footer class="article-next" id="next">
+              <h2>Start with the question your team repeats</h2>
               <p>
-                The next useful artifact is the repository itself: a small,
-                cited Wikipedia knowledge base that produces the four screenshots
-                in this guide. Until it is published, the repository address above
-                remains deliberately marked as a placeholder.
+                Create one architecture page, one team rules page, and one decision
+                page. Ask the next AI agent to read them before a real code change.
               </p>
-              <nav aria-label="Related pages">
-                <a href="/getting-started/">Follow the Getting Started guide</a>
+              <div class="article-next-actions">
+                <a class="primary-action" href="/getting-started/">Create your first knowledge base</a>
                 <a href="/wiki/features/knowledge-architecture.html">Plan the knowledge architecture</a>
-                <a href="/">Return to the Open Knowledge overview</a>
-              </nav>
+              </div>
             </footer>
           </article>
         </div>

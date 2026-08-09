@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#e5f0f9">
+    <title>Clear Changelogs for Every Release · Open Knowledge</title>
+    <meta name="description" content="A simple guide to recording product changes while the details are still clear.">
+    <link rel="canonical" href="https://openknowledge.sh/use-cases/changelogs/">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Open Knowledge">
+    <meta property="og:url" content="https://openknowledge.sh/use-cases/changelogs/">
+    <meta property="og:title" content="Clear Changelogs for Every Release">
+    <meta property="og:description" content="Keep a clear record of what changed and why users should care.">
+    <meta property="og:image" content="https://openknowledge.sh/og.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="/favicon.png?v=2" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" sizes="180x180">
+    <link rel="stylesheet" href="/src/styles.css">
+    <!-- OPENKNOWLEDGE_HEAD -->
+  </head>
+  <body class="use-case-page changelog-page" data-language-standard="asd-ste100">
+    <!--
+      THESIS: A useful changelog is written beside the user-visible change, while its reason and evidence are still available.
+      OWN-WORLD: The established paper-like reading column, deep-blue ink, quiet rules, code examples, and honest screenshot briefs.
+      STORY: The reader recognizes release archaeology, starts a small changelog knowledge base, installs the maintenance rule, and reviews code plus release memory together.
+      FIRST VIEWPORT: Breadcrumb, problem-led promise, and an editorial deck rather than a product feature grid.
+      FORM: Read-oriented conversion guide in the established Open Knowledge use-case system.
+    -->
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="icon-camera" viewBox="0 0 24 24">
+        <path d="M4 7.5h3l1.5-2h7l1.5 2h3v11H4z"></path>
+        <circle cx="12" cy="13" r="3.25"></circle>
+      </symbol>
+      <symbol id="icon-repository" viewBox="0 0 24 24">
+        <path d="M5 4.5h11a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2z"></path>
+        <path d="M8 4.5v15M11 9h4M11 13h4"></path>
+      </symbol>
+      <symbol id="icon-terminal" viewBox="0 0 24 24">
+        <rect x="3" y="4.5" width="18" height="15" rx="2"></rect>
+        <path d="m7 9 3 3-3 3M13 15h4"></path>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <path d="m8 12.5 2.6 2.6L16.5 9"></path>
+      </symbol>
+    </svg>
+
+    <div class="page-shell">
+      <open-knowledge-header></open-knowledge-header>
+
+      <main class="project-main">
+        <header class="article-hero">
+          <nav class="article-breadcrumbs" aria-label="Breadcrumb">
+            <a href="/use-cases/">Use cases</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Changelogs</span>
+          </nav>
+          <h1>Keep a clear record of every product change</h1>
+          <p class="article-deck">
+            A changelog is a list of important changes in each release. It tells
+            people what changed and why it matters. Open Knowledge keeps this list
+            close to the work.
+          </p>
+        </header>
+
+        <div class="article-layout">
+          <aside class="article-toc" aria-labelledby="article-toc-title">
+            <strong id="article-toc-title">In this guide</strong>
+            <nav aria-label="Article contents">
+              <a href="#problem">Why release notes take time</a>
+              <a href="#setup">Set up Open Knowledge</a>
+              <a href="#first-base">Start with two simple files</a>
+              <a href="#entry">Write a useful entry</a>
+              <a href="#workflow">Ask AI to suggest an entry</a>
+              <a href="#review">Review before release</a>
+              <a href="#outcome">What improves</a>
+              <a href="#next">Next step</a>
+            </nav>
+          </aside>
+
+          <article class="article-content">
+            <section id="problem">
+              <h2>Release notes should not require detective work</h2>
+              <p>
+                Details often live in code, tests, reviews, and conversations. At
+                release time, someone must find the changes that matter to users.
+              </p>
+              <ul class="article-friction-list">
+                <li><strong>The code note says too little.</strong><span>“Update parser” does not explain what a user will see.</span></li>
+                <li><strong>The release owner starts again.</strong><span>The reason and user impact may be hard to find later.</span></li>
+                <li><strong>Guides and history become mixed.</strong><span>A guide explains the product now. A changelog explains what changed.</span></li>
+              </ul>
+              <blockquote>
+                <p>Record a product change while its code, tests, and reason are still together.</p>
+              </blockquote>
+            </section>
+
+            <section id="setup">
+              <h2>First, set up Open Knowledge</h2>
+              <p>
+                Store the changelog as a simple Markdown file in the project. Open
+                Knowledge can tell an AI agent when it should suggest an entry.
+              </p>
+              <ol class="article-setup-list">
+                <li>
+                  <h3>Install Open Knowledge</h3>
+                  <p>If <code>okn version</code> already works, skip this command.</p>
+                  <pre class="article-command"><code><span>$</span> curl -fsSL https://openknowledge.sh/install | bash</code></pre>
+                </li>
+                <li>
+                  <h3>Create the knowledge base</h3>
+                  <p>Start the guided setup in the project that owns the product.</p>
+                  <pre class="article-command"><code><span>$</span> okn setup Wiki --interactive</code></pre>
+                </li>
+                <li>
+                  <h3>Add the changelog rule</h3>
+                  <p>Add the built-in rule to the project instructions.</p>
+                  <pre class="article-command"><code><span>$</span> okn prompt rules apply changelog --path Wiki --file AGENTS.md</code></pre>
+                </li>
+              </ol>
+              <p class="article-note">
+                The rule covers changes that users can see. It also covers setup,
+                publishing, and package changes. It skips internal cleanup that users
+                cannot see.
+              </p>
+              <p><a href="/wiki/features/commands/rules.html">Read the technical rules guide</a></p>
+            </section>
+
+            <section id="first-base">
+              <h2>Start with current guides and one changelog</h2>
+              <p>
+                A small knowledge base needs one place for current instructions. It
+                also needs one place for the history of important changes.
+              </p>
+              <dl class="article-foundation-list">
+                <div>
+                  <dt>Current guides</dt>
+                  <dd>How the product works now, with instructions and examples.</dd>
+                </div>
+                <div>
+                  <dt>Changelog</dt>
+                  <dd>What users gained or what they need to change for each release.</dd>
+                </div>
+                <div>
+                  <dt><code>log.md</code></dt>
+                  <dd>An optional file for changes to the knowledge base itself. It does not record product changes.</dd>
+                </div>
+              </dl>
+              <pre class="article-code"><code>Wiki/
+├── index.md
+├── features/
+│   └── citation-review.md  # current behavior
+├── changelog/
+│   └── editor-helper.md    # release history
+└── log.md                 # knowledge-base update history</code></pre>
+              <p>
+                Open Knowledge uses this structure today. The guides explain the
+                current product. The changelog explains what changed in each release.
+              </p>
+              <aside class="article-repository-placeholder" aria-label="Changelog demo repository">
+                <svg aria-hidden="true"><use href="#icon-repository"></use></svg>
+                <div>
+                  <span>Demo repository</span>
+                  <a href="https://github.com/openknowledge-sh/example-changelog">Open the changelog demo on GitHub</a>
+                  <p>Clone the project to test source-backed entries against its code, tests, and current guide.</p>
+                </div>
+              </aside>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of current documentation beside a release changelog">
+                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
+                <span>Screenshot 01</span>
+                <strong>Current guides beside product history</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--editor" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Open the real project in an editor. Show the current guide and changelog together. Hide personal paths and unrelated panels.</p>
+              </figcaption>
+            </figure>
+
+            <section id="entry">
+              <h2>Write for the person affected by the change</h2>
+              <p>
+                A useful entry says what changed and why it matters. File links help
+                a reviewer check the claim. Guide links show where users can learn more.
+              </p>
+              <pre class="article-code"><code>## Unreleased
+
+### Viewer
+
+- The local viewer and interactive HTML exports now use
+  the light blue Open Knowledge theme by default.
+- A saved browser preference still overrides the default.
+- Source: `packages/web/src/viewer/`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`.
+- Docs: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`.</code></pre>
+              <p>
+                This real entry starts with what the user will see. It then links to
+                the code and guides that support the message.
+              </p>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of a source-backed Open Knowledge changelog entry">
+                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
+                <span>Screenshot 02</span>
+                <strong>An entry that a reviewer can check</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--viewer" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Open the Unreleased section in <code>Wiki/changelog/cli.md</code>. Show one change with its Source and Docs lines. Use only real project content.</p>
+              </figcaption>
+            </figure>
+
+            <section id="workflow">
+              <h2>Ask the AI agent whether users will notice the change</h2>
+              <p>
+                The rule gives the AI agent one clear decision. If users will notice
+                the change, the agent suggests a short entry. Otherwise, it leaves
+                the changelog unchanged.
+              </p>
+              <pre class="article-code"><code>Before finishing a code change:
+1. Decide if users will notice the change.
+2. If they will, update the current guide.
+3. Suggest a short changelog entry.
+4. Add links to the code and guide.
+5. Skip the entry for formatting-only or internal cleanup.</code></pre>
+              <p>
+                Open Knowledge provides the rule and files. The AI agent suggests
+                the text. A person still checks and approves the claim.
+              </p>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage screenshot-stage--terminal" role="img" aria-label="Placeholder for a screenshot of an agent classifying a change and proposing a changelog update">
+                <svg aria-hidden="true"><use href="#icon-terminal"></use></svg>
+                <span>Screenshot 03</span>
+                <strong>Will users notice this change?</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--terminal" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Show an AI summary for a real change. Include the suggested entry and its file links. Do not imply automatic approval.</p>
+              </figcaption>
+            </figure>
+
+            <section id="review">
+              <h2>Review the entry before you publish it</h2>
+              <p>
+                A reviewer can check the code, tests, current guide, and changelog
+                together. The entry must describe the real result for users.
+              </p>
+              <pre class="article-code"><code>packages/cli/cmd/openknowledge/example.go
+packages/cli/cmd/openknowledge/example_test.go
+Wiki/features/commands/example.md
+Wiki/changelog/cli.md</code></pre>
+              <p>Before approval, check three things:</p>
+              <ul>
+                <li>Does the entry describe a user-visible outcome?</li>
+                <li>Do the file and guide links support the claim?</li>
+                <li>Does Open Knowledge report a valid knowledge base?</li>
+              </ul>
+              <pre class="article-command"><code><span>$</span> okn validate Wiki</code></pre>
+              <p class="article-note">
+                Validation checks file structure, document details, Markdown, and
+                local links. A person must still check the meaning of the entry.
+              </p>
+              <p><a href="/wiki/features/commands/validate.html">Read the validation command reference</a></p>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of code, tests, documentation, and changelog in one review">
+                <svg aria-hidden="true"><use href="#icon-check"></use></svg>
+                <span>Screenshot 04</span>
+                <strong>One change with a clear explanation</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--agent" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Show one real review with code, a test, a guide, and the changelog. Include a successful validation result. Hide private details.</p>
+              </figcaption>
+            </figure>
+
+            <section id="outcome">
+              <h2>Release notes become easier to prepare</h2>
+              <p>
+                The changelog grows through small reviewed entries. At release time,
+                the team edits known entries instead of searching for forgotten changes.
+              </p>
+              <ul class="article-outcome-list">
+                <li><strong>Less searching</strong><span>The team records user impact while the details are still clear.</span></li>
+                <li><strong>Fewer repeated questions</strong><span>Release owners start with reviewed entries from each change.</span></li>
+                <li><strong>One clear review</strong><span>The team checks the product, guide, and history together.</span></li>
+              </ul>
+            </section>
+
+            <footer class="article-next" id="next">
+              <h2>Start with the next visible change</h2>
+              <p>
+                Create a small knowledge base and add the changelog rule. Ask the
+                next AI agent whether users will notice its change. Start with one
+                accurate entry.
+              </p>
+              <div class="article-next-actions">
+                <a class="primary-action" href="/getting-started/">Create a changelog knowledge base</a>
+                <a href="/wiki/features/commands/rules.html">Add the changelog rule</a>
+              </div>
+            </footer>
+          </article>
+        </div>
+      </main>
+
+      <open-knowledge-footer></open-knowledge-footer>
+    </div>
+
+    <aside class="analytics-consent" data-analytics-consent hidden aria-labelledby="analytics-consent-title">
+      <div class="analytics-consent-copy">
+        <strong id="analytics-consent-title">Allow anonymous website analytics?</strong>
+        <a href="/wiki/features/telemetry.html">Privacy</a>
+      </div>
+      <div class="analytics-consent-actions">
+        <button type="button" data-analytics-decline>Decline</button>
+        <button type="button" data-analytics-accept>Allow</button>
+      </div>
+    </aside>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

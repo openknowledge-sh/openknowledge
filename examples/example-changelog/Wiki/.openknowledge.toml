@@ -1,0 +1,15 @@
+[rules]
+enabled = ["docs", "changelog"]
+
+[validation.rules]
+link-target = "error"
+
+[html.source]
+github_base = "https://github.com/openknowledge-sh/example-changelog/blob/main"
+entry = "Wiki"
+
+[html.site]
+base_url = "https://openknowledge-sh.github.io/example-changelog/"
+
+[publish]
+enabled = true

@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#e5f0f9">
+    <title>Simple Research Notes with Clear Sources · Open Knowledge</title>
+    <meta name="description" content="A simple guide to keeping research findings, sources, limits, and open questions together.">
+    <link rel="canonical" href="https://openknowledge.sh/use-cases/research-notes/">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Open Knowledge">
+    <meta property="og:url" content="https://openknowledge.sh/use-cases/research-notes/">
+    <meta property="og:title" content="Simple Research Notes with Clear Sources">
+    <meta property="og:description" content="Help people and AI check the evidence behind each research finding.">
+    <meta property="og:image" content="https://openknowledge.sh/og.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="/favicon.png?v=2" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" sizes="180x180">
+    <link rel="stylesheet" href="/src/styles.css">
+    <!-- OPENKNOWLEDGE_HEAD -->
+  </head>
+  <body class="use-case-page research-notes-page" data-language-standard="asd-ste100">
+    <!--
+      THESIS: Research becomes durable when conclusions remain connected to their evidence and uncertainty; this page refuses the disposable AI summary.
+      OWN-WORLD: The established paper-like reading column, deep-blue ink, quiet rules, source metadata, and honest screenshot briefs.
+      STORY: The reader recognizes the evidence gap, starts with raw sources and one synthesis, gives an agent a citation rule, and reviews the result.
+      FIRST VIEWPORT: Breadcrumb, evidence-led promise, and an editorial deck; the primary action follows the complete working loop.
+      FORM: Established Read-oriented conversion guide; seed key evidence-before-synthesis.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="icon-camera" viewBox="0 0 24 24">
+        <path d="M4 7.5h3l1.5-2h7l1.5 2h3v11H4z"></path>
+        <circle cx="12" cy="13" r="3.25"></circle>
+      </symbol>
+      <symbol id="icon-repository" viewBox="0 0 24 24">
+        <path d="M5 4.5h11a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2z"></path>
+        <path d="M8 4.5v15M11 9h4M11 13h4"></path>
+      </symbol>
+      <symbol id="icon-terminal" viewBox="0 0 24 24">
+        <rect x="3" y="4.5" width="18" height="15" rx="2"></rect>
+        <path d="m7 9 3 3-3 3M13 15h4"></path>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <path d="m8 12.5 2.6 2.6L16.5 9"></path>
+      </symbol>
+    </svg>
+
+    <div class="page-shell">
+      <open-knowledge-header></open-knowledge-header>
+
+      <main class="project-main">
+        <header class="article-hero">
+          <nav class="article-breadcrumbs" aria-label="Breadcrumb">
+            <a href="/use-cases/">Use cases</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Research notes</span>
+          </nav>
+          <h1>Keep every research finding connected to its sources</h1>
+          <p class="article-deck">
+            A research note keeps the summary, source links, and open questions in
+            one place. The next person can check the evidence instead of repeating
+            the same search.
+          </p>
+        </header>
+
+        <div class="article-layout">
+          <aside class="article-toc" aria-labelledby="article-toc-title">
+            <strong id="article-toc-title">In this guide</strong>
+            <nav aria-label="Article contents">
+              <a href="#problem">Why a summary is not enough</a>
+              <a href="#setup">Set up Open Knowledge</a>
+              <a href="#first-base">Start with sources and a summary</a>
+              <a href="#note">Show where findings came from</a>
+              <a href="#workflow">Research with AI</a>
+              <a href="#reuse">Find the evidence again</a>
+              <a href="#review">Review facts and limits</a>
+              <a href="#outcome">What improves</a>
+              <a href="#next">Next step</a>
+            </nav>
+          </aside>
+
+          <article class="article-content">
+            <section id="problem">
+              <h2>A clear answer is not enough</h2>
+              <p>
+                Research often ends in a chat message or short summary. The answer
+                remains, but the source trail disappears. Later, nobody knows which
+                statements came from evidence.
+              </p>
+              <ul class="article-friction-list">
+                <li><strong>The sources disappear.</strong><span>Links, files, and quotes stay in a browser session or AI chat.</span></li>
+                <li><strong>A guess can look like a fact.</strong><span>A confident summary may hide weak evidence or important limits.</span></li>
+                <li><strong>The next person starts again.</strong><span>Another person or AI agent repeats the search because no useful record exists.</span></li>
+              </ul>
+              <blockquote>
+                <p>A research finding becomes useful when a reader can follow it back to its source.</p>
+              </blockquote>
+            </section>
+
+            <section id="setup">
+              <h2>First, set up Open Knowledge</h2>
+              <p>
+                Store the research as simple Markdown files in the project. Then add
+                the built-in research rule to the AI agent instructions.
+              </p>
+              <ol class="article-setup-list">
+                <li>
+                  <h3>Install Open Knowledge</h3>
+                  <p>If <code>okn version</code> already works, skip this command.</p>
+                  <pre class="article-command"><code><span>$</span> curl -fsSL https://openknowledge.sh/install | bash</code></pre>
+                </li>
+                <li>
+                  <h3>Create the knowledge base</h3>
+                  <p>Start the guided setup in the project that will use the research.</p>
+                  <pre class="article-command"><code><span>$</span> okn setup Wiki --interactive</code></pre>
+                </li>
+                <li>
+                  <h3>Add the research rule</h3>
+                  <p>Add the rule to the project instructions.</p>
+                  <pre class="article-command"><code><span>$</span> okn prompt rules apply research --path Wiki --file AGENTS.md</code></pre>
+                </li>
+              </ol>
+              <p class="article-note">
+                The rule keeps source notes separate from the summary. It keeps
+                source links with each finding. It also keeps unsupported ideas out
+                of confirmed project knowledge.
+              </p>
+              <p><a href="/wiki/features/commands/rules.html">Read the technical rules guide</a></p>
+            </section>
+
+            <section id="first-base">
+              <h2>Start with one question, source notes, and one summary</h2>
+              <p>
+                Do not build a large research library first. Start with one useful
+                question and keep the first knowledge base small.
+              </p>
+              <dl class="article-foundation-list">
+                <div>
+                  <dt>Research question</dt>
+                  <dd>The question that the research must answer, with a clear limit.</dd>
+                </div>
+                <div>
+                  <dt>Source notes</dt>
+                  <dd>Links, files, quotes, dates, and notes that show what the AI agent read.</dd>
+                </div>
+                <div>
+                  <dt>Research summary</dt>
+                  <dd>Findings, limits, and open questions with links to the source notes.</dd>
+                </div>
+              </dl>
+              <pre class="article-code"><code>Wiki/
+├── index.md
+├── research/
+│   └── citation-workflow.md
+└── sources/
+    ├── index.md
+    ├── verifiability-policy.md
+    ├── reliable-sources-guideline.md
+    └── citing-sources-guideline.md</code></pre>
+              <p>
+                Source notes stay in <code>sources/</code>. The research summary stays
+                in <code>research/</code>. Links connect each finding to its evidence.
+              </p>
+              <aside class="article-repository-placeholder" aria-label="Research notes demo repository">
+                <svg aria-hidden="true"><use href="#icon-repository"></use></svg>
+                <div>
+                  <span>Demo repository</span>
+                  <a href="https://github.com/openknowledge-sh/example-research-notes">Open the research notes demo on GitHub</a>
+                  <p>Clone the project to test source notes, synthesis, search, validation, viewer, and static export.</p>
+                </div>
+              </aside>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of raw research sources beside a synthesis note">
+                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
+                <span>Screenshot 01</span>
+                <strong>Source notes stay separate from the summary</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--editor" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Open a demo in an editor. Show one source note beside its research summary. Hide personal paths and unrelated panels.</p>
+              </figcaption>
+            </figure>
+
+            <section id="note">
+              <h2>Show where each finding came from</h2>
+              <p>
+                Open Knowledge can store source details with each research page.
+                Each source needs a web link or file path. An optional ID connects a
+                finding to the right source.
+              </p>
+              <pre class="article-code"><code>---
+type: Research Note
+title: Citation workflow comparison
+status: draft
+sources:
+  - id: editor-interviews
+    resource: ../sources/editor-interviews.md
+    title: Editor interview notes
+  - id: tool-docs
+    resource: ../sources/citation-tool-docs.md
+    title: Citation tool documentation
+---
+
+# Findings
+
+The first workflow should preserve a source URL and the
+claim it supports.[^editor-interviews]
+
+# Limits
+
+The current evidence does not cover mobile editing.
+
+[^editor-interviews]: Editor interview notes.</code></pre>
+              <p>
+                This example is not real research. It shows one finding, one source
+                ID, and one clear limit. The limit remains visible to every reader.
+              </p>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of source metadata and citations in the local viewer">
+                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
+                <span>Screenshot 02</span>
+                <strong>A finding with a visible source</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--viewer" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Run <code>okn view Wiki</code>. Show the research note, its source link, Findings, and Limits. Label the page as a demo.</p>
+              </figcaption>
+            </figure>
+
+            <section id="workflow">
+              <h2>Give the AI agent a simple research process</h2>
+              <p>
+                Start the task with a clear question. End it with a research note
+                that another person can check. Save each source during the research.
+              </p>
+              <pre class="article-code"><code>For this research task:
+1. Write the question and its limit.
+2. Save links, files, and quotes in source notes.
+3. Link each finding to its source.
+4. Separate facts, possible conclusions, limits, and questions.
+5. Do not treat an unsupported idea as a fact.</code></pre>
+              <p>
+                The rule does not decide if a source is trustworthy. It keeps the
+                source available so a person can judge the finding.
+              </p>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage screenshot-stage--terminal" role="img" aria-label="Placeholder for a screenshot of an agent reporting findings, inferences, and open questions">
+                <svg aria-hidden="true"><use href="#icon-terminal"></use></svg>
+                <span>Screenshot 03</span>
+                <strong>Findings with clear limits</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--terminal" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Show an AI summary for a real or labeled demo task. Include one source, one finding, one limit, and one open question.</p>
+              </figcaption>
+            </figure>
+
+            <section id="reuse">
+              <h2>Find the evidence again</h2>
+              <p>
+                A person or AI agent can search the knowledge base later. Search
+                runs on the local computer and shows the exact files and sections
+                behind each result.
+              </p>
+              <pre class="article-command"><code><span>$</span> okn search Wiki "what evidence supports the citation workflow?"</code></pre>
+              <p>
+                The result can include the research summary and its linked source
+                notes. The reader can then open the original source record.
+              </p>
+              <p><a href="/wiki/features/commands/search.html">Read the search command reference</a></p>
+            </section>
+
+            <section id="review">
+              <h2>Review the facts and the limits</h2>
+              <p>
+                Review the note before the project depends on it. A clear paragraph
+                can still say more than its sources support.
+              </p>
+              <ul>
+                <li>Does each finding link to a source?</li>
+                <li>Does the note separate facts from possible conclusions?</li>
+                <li>Does the note show limits and unanswered questions?</li>
+                <li>Does Open Knowledge report valid files and links?</li>
+              </ul>
+              <pre class="article-command"><code><span>$</span> okn validate Wiki</code></pre>
+              <p class="article-note">
+                Validation checks file structure, document details, Markdown, and
+                local links. It does not prove that a source or finding is correct.
+              </p>
+              <p><a href="/wiki/features/commands/validate.html">Read the validation command reference</a></p>
+            </section>
+
+            <figure class="article-screenshot-placeholder">
+              <div class="screenshot-stage" role="img" aria-label="Placeholder for a screenshot of research sources, synthesis, and validation in one review">
+                <svg aria-hidden="true"><use href="#icon-check"></use></svg>
+                <span>Screenshot 04</span>
+                <strong>Sources and findings in one review</strong>
+                <div class="screenshot-wireframe screenshot-wireframe--agent" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <figcaption>
+                <strong>What to capture</strong>
+                <p>Show one source note and one research summary in a review. Include a successful validation result. Use only public or demo material.</p>
+              </figcaption>
+            </figure>
+
+            <section id="outcome">
+              <h2>The next question starts with useful sources</h2>
+              <p>
+                You do not need to save every browser tab. Save the smallest useful
+                path from each finding back to its source.
+              </p>
+              <ul class="article-outcome-list">
+                <li><strong>Less repeated research</strong><span>People and AI agents can reuse a reviewed set of sources.</span></li>
+                <li><strong>Clear limits</strong><span>Limits and open questions remain part of the research note.</span></li>
+                <li><strong>One clear review</strong><span>A reviewer can check the sources and findings together.</span></li>
+              </ul>
+            </section>
+
+            <footer class="article-next" id="next">
+              <h2>Start with the question you expect to ask twice</h2>
+              <p>
+                Create one source note and one research summary. Add the research
+                rule. Then ask an AI agent to answer one real project question.
+              </p>
+              <div class="article-next-actions">
+                <a class="primary-action" href="/getting-started/">Create a research knowledge base</a>
+                <a href="/wiki/features/commands/rules.html">Add the research rule</a>
+              </div>
+            </footer>
+          </article>
+        </div>
+      </main>
+
+      <open-knowledge-footer></open-knowledge-footer>
+    </div>
+
+    <aside class="analytics-consent" data-analytics-consent hidden aria-labelledby="analytics-consent-title">
+      <div class="analytics-consent-copy">
+        <strong id="analytics-consent-title">Allow anonymous website analytics?</strong>
+        <a href="/wiki/features/telemetry.html">Privacy</a>
+      </div>
+      <div class="analytics-consent-actions">
+        <button type="button" data-analytics-decline>Decline</button>
+        <button type="button" data-analytics-accept>Allow</button>
+      </div>
+    </aside>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

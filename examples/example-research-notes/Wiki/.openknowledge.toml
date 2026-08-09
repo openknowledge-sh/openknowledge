@@ -1,0 +1,15 @@
+[rules]
+enabled = ["research"]
+
+[validation.rules]
+link-target = "error"
+
+[html.source]
+github_base = "https://github.com/openknowledge-sh/example-research-notes/blob/main"
+entry = "Wiki"
+
+[html.site]
+base_url = "https://openknowledge-sh.github.io/example-research-notes/"
+
+[publish]
+enabled = true

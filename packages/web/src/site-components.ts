@@ -8,10 +8,15 @@ function isGettingStartedPage() {
   return window.location.pathname.startsWith("/getting-started");
 }
 
+function isUseCasesPage() {
+  return window.location.pathname.startsWith("/use-cases");
+}
+
 class OpenKnowledgeHeader extends HTMLElement {
   connectedCallback() {
     if (this.dataset.rendered) return;
     const startCurrent = isGettingStartedPage() ? ' aria-current="page"' : "";
+    const useCasesCurrent = isUseCasesPage() ? ' aria-current="page"' : "";
 
     this.innerHTML = `
       <header class="topbar" aria-label="Site navigation">
@@ -36,6 +41,7 @@ class OpenKnowledgeHeader extends HTMLElement {
 
         <nav class="nav-links" aria-label="Open Knowledge links">
           <a href="/getting-started/"${startCurrent}>Start</a>
+          <a href="/use-cases/"${useCasesCurrent}>Use cases</a>
           <a href="/wiki/">Docs</a>
           <a
             class="github-star-action"
@@ -59,6 +65,7 @@ class OpenKnowledgeFooter extends HTMLElement {
     if (this.dataset.rendered) return;
     const guideClass = isGettingStartedPage() ? " guide-footer" : "";
     const startCurrent = isGettingStartedPage() ? ' aria-current="page"' : "";
+    const useCasesCurrent = isUseCasesPage() ? ' aria-current="page"' : "";
 
     this.innerHTML = `
       <footer class="site-footer${guideClass}">
@@ -73,6 +80,7 @@ class OpenKnowledgeFooter extends HTMLElement {
           <div class="footer-link-group">
             <span class="footer-link-heading">Start</span>
             <a href="/getting-started/"${startCurrent}>Getting started</a>
+            <a href="/use-cases/"${useCasesCurrent}>Use cases</a>
             <a href="/wiki/">Wiki</a>
           </div>
           <div class="footer-link-group">

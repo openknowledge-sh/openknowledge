@@ -34,7 +34,7 @@ version of this OKF wiki.
 
 Use [`setup`](features/commands/setup.md) to print an open-ended setup prompt.
 Copy the output into an agent that already works in the project. Alternatively,
-use `okn setup --agent --runtime <runtime>` to launch one. Use
+use `okn setup --agent <codex|claude|opencode>` to launch one. Use
 [`search`](features/commands/search.md) to retrieve knowledge. Use
 [`validate`](features/commands/validate.md) to verify the wiki.
 

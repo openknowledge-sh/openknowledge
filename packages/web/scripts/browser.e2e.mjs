@@ -183,6 +183,10 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   assert.equal(await page.getByRole("heading", { name: "The idea behind Open Knowledge" }).count(), 1);
   const projectDocumentation = page.getByRole("link", { name: "project documentation" });
   assert.equal(await projectDocumentation.getAttribute("href"), "/use-cases/project-documentation/");
+  const changelogs = page.getByRole("link", { name: "changelogs" });
+  assert.equal(await changelogs.getAttribute("href"), "/use-cases/changelogs/");
+  const researchNotes = page.getByRole("link", { name: "research notes" });
+  assert.equal(await researchNotes.getAttribute("href"), "/use-cases/research-notes/");
   assert.match(await page.locator("#closing-title").innerText(), /Your knowledge\s+stays yours/);
   const closingGitHub = page.getByRole("link", { name: "Save on GitHub" });
   assert.equal(await closingGitHub.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
@@ -192,44 +196,257 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   await context.close();
 });
 
-test("project documentation reads as an educational Wikipedia demo", async () => {
+test("use case index links every finished guide", async () => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const page = await context.newPage();
   const errors = collectPageErrors(page);
 
+  await page.goto(new URL("use-cases/", landingURL).href, { waitUntil: "networkidle" });
+  await assertSemanticPage(page, "Keep the knowledge your work depends on");
+  await assertASDSTE100Copy(page);
+  assert.equal(await page.title(), "Open Knowledge Use Cases · Open Knowledge");
+  assert.equal(
+    await page.locator('link[rel="canonical"]').getAttribute("href"),
+    "https://openknowledge.sh/use-cases/",
+  );
+  assert.equal(await page.locator('.nav-links a[href="/use-cases/"]').getAttribute("aria-current"), "page");
+
+  const expectedGuides = [
+    ["Project documentation", "/use-cases/project-documentation/"],
+    ["Changelogs", "/use-cases/changelogs/"],
+    ["Research notes", "/use-cases/research-notes/"],
+  ];
+  for (const [name, href] of expectedGuides) {
+    const guide = page.locator(`.use-case-entry[href="${href}"]`);
+    assert.equal(await guide.getAttribute("href"), href);
+    assert.equal(await guide.getByRole("heading", { name }).count(), 1);
+  }
+  assert.equal(await page.getByRole("link", { name: "Set up Open Knowledge" }).getAttribute("href"), "/getting-started/");
+  assert.equal(errors.length, 0, `use case index browser errors:\n${errors.join("\n")}`);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
+  await context.close();
+});
+
+test("project documentation guides a durable code-and-context workflow", async () => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+  await stubReleaseAPI(page);
+
   await page.goto(new URL("use-cases/project-documentation/", landingURL).href, { waitUntil: "networkidle" });
-  await assertSemanticPage(page, "How to build project documentation that people and agents can use");
-  assert.equal(await page.title(), "How to Build Useful Project Documentation · Open Knowledge");
+  await assertSemanticPage(page, "Help people and AI understand your project");
+  await assertASDSTE100Copy(page);
+  assert.equal(await page.title(), "Clear Project Documentation for People and AI · Open Knowledge");
   assert.equal(
     await page.locator('link[rel="canonical"]').getAttribute("href"),
     "https://openknowledge.sh/use-cases/project-documentation/",
   );
   assert.equal(await page.getByRole("navigation", { name: "Breadcrumb" }).count(), 1);
   assert.equal(await page.getByRole("navigation", { name: "Article contents" }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Important project knowledge gets lost" }).count(), 1);
   assert.equal(await page.getByRole("heading", { name: "First, set up Open Knowledge" }).count(), 1);
-  assert.equal(await page.getByText("mkdir wikipedia-project-docs", { exact: false }).count(), 1);
+  assert.equal(await page.getByText("mkdir example-project-docs", { exact: false }).count(), 1);
   assert.equal(await page.getByText("okn setup Wiki --interactive", { exact: false }).count(), 1);
-  assert.equal(await page.getByRole("link", { name: "Read the setup command reference" }).getAttribute("href"), "/wiki/features/commands/setup.html");
-  assert.equal(await page.getByRole("heading", { name: "A concrete demo: documenting Wikipedia" }).count(), 1);
-  assert.equal(await page.getByText("wikipedia-project-docs/", { exact: false }).count(), 1);
-  const plannedRepository = page.locator(".article-repository-placeholder");
-  assert.equal(await plannedRepository.count(), 1);
-  assert.equal(await plannedRepository.locator("a").count(), 0);
-  assert.match(await plannedRepository.innerText(), /planned demo repository/i);
+  assert.equal(await page.getByRole("link", { name: "Read the technical setup guide" }).getAttribute("href"), "/wiki/features/commands/setup.html");
+  assert.equal(await page.getByRole("heading", { name: "Start with three simple pages" }).count(), 1);
+  assert.equal(await page.getByText("Architecture", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("Team rules", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("Decisions", { exact: true }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "See the same pattern in a Wikipedia example" }).count(), 1);
+  assert.equal(await page.getByText("example-project-docs/", { exact: false }).count(), 1);
+  const demoRepository = page.getByRole("link", { name: "Open the project documentation demo on GitHub" });
+  assert.equal(
+    await demoRepository.getAttribute("href"),
+    "https://github.com/openknowledge-sh/example-project-docs",
+  );
   assert.equal(await page.locator(".article-screenshot-placeholder").count(), 4);
   assert.equal(await page.locator(".article-screenshot-placeholder figcaption > strong", { hasText: "What to capture" }).count(), 4);
   assert.equal(await page.locator(".article-content img").count(), 0);
-  assert.equal(await page.getByText('okn search Wiki "how are disputed article changes discussed?"', { exact: false }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Give the AI agent context before it changes code" }).count(), 1);
+  assert.equal(await page.getByText('okn search Wiki "what context affects citation validation?"', { exact: false }).count(), 1);
+  assert.equal(await page.getByText("propose a Wiki update in the same change", { exact: false }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Review the code and its explanation together" }).count(), 1);
   assert.equal(await page.getByText("okn validate Wiki", { exact: false }).count(), 1);
-  assert.equal(await page.getByRole("link", { name: "Follow the Getting Started guide" }).getAttribute("href"), "/getting-started/");
+  assert.equal(await page.getByText("Fewer repeated explanations", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("Less lost context", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("One clear review", { exact: true }).count(), 1);
+  const nextAction = page.getByRole("link", { name: "Create your first knowledge base" });
+  assert.equal(await nextAction.getAttribute("href"), "/getting-started/");
+  assert.deepEqual(
+    await nextAction.evaluate((action) => {
+      const style = getComputedStyle(action);
+      return { display: style.display, alignItems: style.alignItems, justifyContent: style.justifyContent };
+    }),
+    { display: "flex", alignItems: "center", justifyContent: "center" },
+  );
+  assert.ok((await nextAction.boundingBox())?.height <= 52, "project guide CTA must stay compact");
   assert.equal(await page.locator(".site-footer").evaluate((footer) => getComputedStyle(footer).borderTopWidth), "1px");
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
 
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
   assert.ok((await page.locator(".screenshot-stage").first().boundingBox())?.height < 400, "mobile screenshot placeholder must stay compact");
-  assert.equal(await page.getByRole("link", { name: "Plan the knowledge architecture" }).isVisible(), true);
+  assert.equal(await nextAction.isVisible(), true);
   assert.equal(errors.length, 0, `project documentation browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("changelog guide keeps user-visible changes ready for release", async () => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+  await stubReleaseAPI(page);
+
+  await page.goto(new URL("use-cases/changelogs/", landingURL).href, { waitUntil: "networkidle" });
+  await assertSemanticPage(page, "Keep a clear record of every product change");
+  await assertASDSTE100Copy(page);
+  assert.equal(await page.title(), "Clear Changelogs for Every Release · Open Knowledge");
+  assert.equal(
+    await page.locator('link[rel="canonical"]').getAttribute("href"),
+    "https://openknowledge.sh/use-cases/changelogs/",
+  );
+  assert.equal(await page.getByRole("navigation", { name: "Breadcrumb" }).count(), 1);
+  assert.equal(await page.getByRole("navigation", { name: "Article contents" }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Release notes should not require detective work" }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "First, set up Open Knowledge" }).count(), 1);
+  assert.equal(await page.getByText("okn setup Wiki --interactive", { exact: false }).count(), 1);
+  assert.equal(
+    await page.getByText("okn prompt rules apply changelog --path Wiki --file AGENTS.md", { exact: false }).count(),
+    1,
+  );
+  assert.equal(
+    await page.getByRole("link", { name: "Read the technical rules guide" }).getAttribute("href"),
+    "/wiki/features/commands/rules.html",
+  );
+  assert.equal(await page.getByRole("heading", { name: "Start with current guides and one changelog" }).count(), 1);
+  assert.equal(await page.getByText("Current guides", { exact: true }).count(), 1);
+  assert.equal(await page.locator(".article-foundation-list dt", { hasText: "Changelog" }).count(), 1);
+  assert.equal(await page.locator(".article-foundation-list dt code", { hasText: "log.md" }).count(), 1);
+  const repositoryExample = page.getByRole("link", { name: "Open the changelog demo on GitHub" });
+  assert.equal(
+    await repositoryExample.getAttribute("href"),
+    "https://github.com/openknowledge-sh/example-changelog",
+  );
+  assert.equal(await page.getByRole("heading", { name: "Write for the person affected by the change" }).count(), 1);
+  assert.equal(await page.getByText("Source: `packages/web/src/viewer/`", { exact: false }).count(), 1);
+  assert.equal(await page.locator(".article-screenshot-placeholder").count(), 4);
+  assert.equal(
+    await page.locator(".article-screenshot-placeholder figcaption > strong", { hasText: "What to capture" }).count(),
+    4,
+  );
+  assert.equal(await page.locator(".article-content img").count(), 0);
+  assert.equal(await page.getByRole("heading", { name: "Ask the AI agent whether users will notice the change" }).count(), 1);
+  assert.equal(await page.getByText("Decide if users will notice the change", { exact: false }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Review the entry before you publish it" }).count(), 1);
+  assert.equal(await page.getByText("okn validate Wiki", { exact: false }).count(), 1);
+  assert.equal(await page.getByText("Less searching", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("Fewer repeated questions", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("One clear review", { exact: true }).count(), 1);
+  const nextAction = page.getByRole("link", { name: "Create a changelog knowledge base" });
+  assert.equal(await nextAction.getAttribute("href"), "/getting-started/");
+  assert.deepEqual(
+    await nextAction.evaluate((action) => {
+      const style = getComputedStyle(action);
+      return { display: style.display, alignItems: style.alignItems, justifyContent: style.justifyContent };
+    }),
+    { display: "flex", alignItems: "center", justifyContent: "center" },
+  );
+  assert.ok((await nextAction.boundingBox())?.height <= 52, "changelog guide CTA must stay compact");
+  assert.equal(await page.locator(".site-footer").evaluate((footer) => getComputedStyle(footer).borderTopWidth), "1px");
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  assert.ok((await page.locator(".screenshot-stage").first().boundingBox())?.height < 400, "mobile screenshot placeholder must stay compact");
+  assert.equal(await nextAction.isVisible(), true);
+  assert.equal(errors.length, 0, `changelog guide browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("research notes guide keeps synthesis connected to evidence", async () => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+  await stubReleaseAPI(page);
+
+  await page.goto(new URL("use-cases/research-notes/", landingURL).href, { waitUntil: "networkidle" });
+  await assertSemanticPage(page, "Keep every research finding connected to its sources");
+  await assertASDSTE100Copy(page);
+  assert.equal(await page.title(), "Simple Research Notes with Clear Sources · Open Knowledge");
+  assert.equal(
+    await page.locator('link[rel="canonical"]').getAttribute("href"),
+    "https://openknowledge.sh/use-cases/research-notes/",
+  );
+  assert.equal(await page.getByRole("navigation", { name: "Breadcrumb" }).count(), 1);
+  assert.equal(await page.getByRole("navigation", { name: "Article contents" }).count(), 1);
+  assert.equal(
+    await page.getByRole("heading", { name: "A clear answer is not enough" }).count(),
+    1,
+  );
+  assert.equal(await page.getByRole("heading", { name: "First, set up Open Knowledge" }).count(), 1);
+  assert.equal(await page.getByText("okn setup Wiki --interactive", { exact: false }).count(), 1);
+  assert.equal(
+    await page.getByText("okn prompt rules apply research --path Wiki --file AGENTS.md", { exact: false }).count(),
+    1,
+  );
+  assert.equal(
+    await page.getByRole("link", { name: "Read the technical rules guide" }).getAttribute("href"),
+    "/wiki/features/commands/rules.html",
+  );
+  assert.equal(
+    await page.getByRole("heading", { name: "Start with one question, source notes, and one summary" }).count(),
+    1,
+  );
+  assert.equal(await page.getByText("Research question", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("Source notes", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("Research summary", { exact: true }).count(), 1);
+  const provenanceReference = page.getByRole("link", { name: "Open the research notes demo on GitHub" });
+  assert.equal(
+    await provenanceReference.getAttribute("href"),
+    "https://github.com/openknowledge-sh/example-research-notes",
+  );
+  assert.equal(await page.getByRole("heading", { name: "Show where each finding came from" }).count(), 1);
+  assert.equal(await page.getByText("type: Research Note", { exact: false }).count(), 1);
+  assert.equal(await page.getByText("status: draft", { exact: false }).count(), 1);
+  assert.equal(await page.getByText("The current evidence does not cover mobile editing", { exact: false }).count(), 1);
+  assert.equal(await page.locator(".article-screenshot-placeholder").count(), 4);
+  assert.equal(
+    await page.locator(".article-screenshot-placeholder figcaption > strong", { hasText: "What to capture" }).count(),
+    4,
+  );
+  assert.equal(await page.locator(".article-content img").count(), 0);
+  assert.equal(await page.getByRole("heading", { name: "Give the AI agent a simple research process" }).count(), 1);
+  assert.equal(await page.getByText("Separate facts, possible conclusions, limits, and questions", { exact: false }).count(), 1);
+  assert.equal(await page.getByRole("heading", { name: "Find the evidence again" }).count(), 1);
+  assert.equal(
+    await page.getByText('okn search Wiki "what evidence supports the citation workflow?"', { exact: false }).count(),
+    1,
+  );
+  assert.equal(await page.getByRole("heading", { name: "Review the facts and the limits" }).count(), 1);
+  assert.equal(await page.getByText("okn validate Wiki", { exact: false }).count(), 1);
+  assert.equal(await page.getByText("Less repeated research", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("Clear limits", { exact: true }).count(), 1);
+  assert.equal(await page.getByText("One clear review", { exact: true }).count(), 1);
+  const nextAction = page.getByRole("link", { name: "Create a research knowledge base" });
+  assert.equal(await nextAction.getAttribute("href"), "/getting-started/");
+  assert.deepEqual(
+    await nextAction.evaluate((action) => {
+      const style = getComputedStyle(action);
+      return { display: style.display, alignItems: style.alignItems, justifyContent: style.justifyContent };
+    }),
+    { display: "flex", alignItems: "center", justifyContent: "center" },
+  );
+  assert.ok((await nextAction.boundingBox())?.height <= 52, "research notes guide CTA must stay compact");
+  assert.equal(await page.locator(".site-footer").evaluate((footer) => getComputedStyle(footer).borderTopWidth), "1px");
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  assert.ok((await page.locator(".screenshot-stage").first().boundingBox())?.height < 400, "mobile screenshot placeholder must stay compact");
+  assert.equal(await nextAction.isVisible(), true);
+  assert.equal(errors.length, 0, `research notes browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 
@@ -847,6 +1064,41 @@ async function assertSemanticPage(page, expectedHeading) {
   assert.deepEqual(violations, []);
 }
 
+async function assertASDSTE100Copy(page) {
+  assert.equal(await page.locator("body").getAttribute("data-language-standard"), "asd-ste100");
+  const violations = await page.evaluate(() => {
+    const selectors = [
+      ".article-deck",
+      ".article-content section > p",
+      ".article-content blockquote p",
+      ".article-friction-list span",
+      ".article-outcome-list span",
+      ".article-foundation-list dd",
+      ".article-repository-placeholder p",
+      ".article-screenshot-placeholder figcaption p",
+      ".article-setup-list > li > p",
+      ".article-next > p",
+    ];
+    const instructionVerbs = new Set([
+      "add", "apply", "ask", "create", "decide", "do", "hide", "include",
+      "keep", "link", "open", "run", "save", "show", "skip", "start", "use", "write",
+    ]);
+    const failures = [];
+    for (const element of document.querySelectorAll(selectors.join(","))) {
+      const text = (element.textContent || "").replace(/\s+/g, " ").trim();
+      if (text.includes(";")) failures.push(`semicolon: ${text}`);
+      for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+        const words = sentence.match(/[A-Za-z0-9][A-Za-z0-9'’/-]*/g) || [];
+        const firstWord = words[0]?.toLowerCase();
+        const limit = instructionVerbs.has(firstWord) ? 20 : 25;
+        if (words.length > limit) failures.push(`${words.length}/${limit} words: ${sentence}`);
+      }
+    }
+    return failures;
+  });
+  assert.deepEqual(violations, []);
+}
+
 function collectPageErrors(page) {
   const errors = [];
   page.on("console", (message) => {
@@ -854,6 +1106,17 @@ function collectPageErrors(page) {
   });
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   return errors;
+}
+
+async function stubReleaseAPI(page) {
+  await page.route("https://api.github.com/**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      tag_name: "v0.8.4",
+      published_at: "2026-07-28T00:00:00Z",
+    }),
+  }));
 }
 
 function zoomPercent(value) {
