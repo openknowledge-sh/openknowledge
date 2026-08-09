@@ -63,6 +63,12 @@
   --ok-color-search-result-border: transparent;
   --ok-color-search-result-hover-border: transparent;
   --ok-color-search-result-hover-bg: #e8f2f9;
+  --ok-search-popover-radius: 12px;
+  --ok-search-result-radius: 7px;
+  --ok-search-title-size: 14px;
+  --ok-search-body-size: 12px;
+  --ok-search-meta-size: 11px;
+  --ok-search-caption-size: 10.5px;
 
   --ok-color-card-border: #c8d9e8;
   --ok-color-card-bg: #fbfdff;

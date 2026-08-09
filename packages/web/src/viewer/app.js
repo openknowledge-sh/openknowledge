@@ -8,10 +8,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
   const sidebarClose = document.querySelector("[data-sidebar-close]");
   const sidebarResizeHandle = document.querySelector("[data-sidebar-resize-handle]");
+  const documentsViewToggle = document.querySelector("[data-documents-view-toggle]");
   const settings = document.querySelector("[data-viewer-settings]");
   const settingsTrigger = document.querySelector("[data-viewer-settings-trigger]");
   const settingsMenu = document.querySelector("[data-viewer-settings-menu]");
   const navigationModeToggle = document.querySelector("[data-navigation-mode-toggle]");
+  const graphViewToggle = document.querySelector("[data-graph-view-toggle]");
   const customThemeFields = document.querySelector("[data-theme-custom-fields]");
   const frontmatterVisibility = document.querySelector("[data-frontmatter-visibility]");
   const accessibilityFont = document.querySelector("[data-accessibility-font]");
@@ -38,10 +40,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const navigationModeStorageKey = "openknowledge.viewer.navigationMode";
   const defaultNavigationMode = "beside";
   let navigationMode = defaultNavigationMode;
+  let graphViewRequested = false;
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const viewerStorageScope = graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + viewerStorageScope;
   const sidebarWidthStorageKey = "openknowledge.viewer.sidebarWidth." + viewerStorageScope;
+  const graphSettingsStorageKey = "openknowledge.viewer.graphSettings." + viewerStorageScope;
   const editorOptions = readEditorOptions();
   const panelWidths = readPanelWidths();
   let sidebarWidth = readSidebarWidth();
@@ -88,16 +92,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   };
   const customThemeVariables = {
     page: ["--ok-color-page", "--ok-color-header-bg", "--ok-color-viewer-canvas", "--ok-color-viewer-header-bg", "--ok-color-sidebar", "--ok-color-sidebar-header"],
-    surface: ["--ok-color-surface", "--ok-color-note-chrome-bg", "--ok-color-search-input-bg", "--ok-color-search-popover-bg", "--ok-color-editor-trigger-bg", "--ok-color-editor-menu-bg", "--ok-color-card-bg", "--ok-color-editor-mark-bg"],
-    text: ["--ok-color-text", "--ok-color-document-text", "--ok-color-control-hover-text", "--ok-color-editor-mark-text", "--ok-color-code-block-bg"],
-    muted: ["--ok-color-muted", "--ok-color-control-text", "--ok-color-close-text", "--ok-color-sidebar-text", "--ok-color-search-shortcut-text", "--ok-color-tree-text", "--ok-color-tree-badge-text", "--ok-color-note-close-text", "--ok-color-editor-trigger-text"],
+    surface: ["--ok-color-surface", "--ok-color-note-chrome-bg", "--ok-color-search-input-bg", "--ok-color-search-popover-bg", "--ok-color-editor-trigger-bg", "--ok-color-editor-menu-bg", "--ok-color-card-bg", "--ok-color-editor-mark-bg", "--ok-color-graph-node-bg"],
+    text: ["--ok-color-text", "--ok-color-document-text", "--ok-color-control-hover-text", "--ok-color-editor-mark-text", "--ok-color-code-block-bg", "--ok-color-graph-label-active"],
+    muted: ["--ok-color-muted", "--ok-color-control-text", "--ok-color-close-text", "--ok-color-sidebar-text", "--ok-color-search-shortcut-text", "--ok-color-tree-text", "--ok-color-tree-badge-text", "--ok-color-note-close-text", "--ok-color-editor-trigger-text", "--ok-color-graph-label"],
     accent: ["--ok-color-accent", "--ok-color-accent-strong", "--ok-color-focus-ring", "--ok-color-graph-node-active-border"],
-    border: ["--ok-color-border", "--ok-color-control-hover-border", "--ok-color-close-hover-border", "--ok-color-sidebar-border", "--ok-color-search-input-border", "--ok-color-search-shortcut-border", "--ok-color-search-popover-border", "--ok-color-card-border", "--ok-color-tree-badge-border", "--ok-color-note-close-hover-border", "--ok-color-editor-trigger-border", "--ok-color-editor-trigger-separator", "--ok-color-editor-menu-border", "--ok-color-editor-menu-separator"]
+    border: ["--ok-color-border", "--ok-color-control-hover-border", "--ok-color-close-hover-border", "--ok-color-sidebar-border", "--ok-color-search-input-border", "--ok-color-search-shortcut-border", "--ok-color-search-popover-border", "--ok-color-card-border", "--ok-color-tree-badge-border", "--ok-color-note-close-hover-border", "--ok-color-editor-trigger-border", "--ok-color-editor-trigger-separator", "--ok-color-editor-menu-border", "--ok-color-editor-menu-separator", "--ok-color-graph-node-border"]
   };
   let mermaidRenderQueue = Promise.resolve();
   let mermaidRenderID = 0;
   let mermaidRequestID = 0;
   let mermaidThemeTimer = 0;
+  let frontmatterControlID = 0;
   const panelCloseShortcut = {
     id: "viewer.panel.close",
     code: "KeyW",
@@ -269,6 +274,57 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       saveNavigationModePreference(next);
       applyNavigationMode(next);
     });
+  }
+
+  function graphViewIsVisible() {
+    return graphViewRequested || panels().length === 0;
+  }
+
+  function setGraphViewRequested(value) {
+    graphViewRequested = Boolean(value);
+    updateWorkspaceState();
+    updateTitle();
+  }
+
+  function bindGraphView() {
+    if (!graphViewToggle || graphViewToggle.dataset.graphViewBound === "true") {
+      return;
+    }
+    graphViewToggle.dataset.graphViewBound = "true";
+    graphViewToggle.addEventListener("click", function () {
+      setGraphViewRequested(true);
+      if (mobileSidebar.matches) {
+        setSidebarOpen(false);
+      }
+    });
+  }
+
+  function bindDocumentsView() {
+    if (!documentsViewToggle || documentsViewToggle.dataset.documentsViewBound === "true") {
+      return;
+    }
+    documentsViewToggle.dataset.documentsViewBound = "true";
+    documentsViewToggle.addEventListener("click", function () {
+      if (panels().length === 0) {
+        fileSidebar?.querySelector("[data-tree-path]")?.focus();
+        return;
+      }
+      setGraphViewRequested(false);
+      if (mobileSidebar.matches) {
+        setSidebarOpen(false);
+      }
+    });
+  }
+
+  function organizeSidebarControls() {
+    const graphSlot = fileSidebar?.querySelector("[data-sidebar-graph-slot]");
+    const settingsSlot = fileSidebar?.querySelector("[data-sidebar-settings-slot]");
+    if (graphSlot && graphViewToggle) {
+      graphSlot.replaceWith(graphViewToggle);
+    }
+    if (settingsSlot && settings) {
+      settingsSlot.replaceWith(settings);
+    }
   }
 
   function readThemePreference() {
@@ -476,6 +532,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       "--ok-color-sidebar-tree-hover-bg",
       "--ok-color-search-result-hover-bg",
       "--ok-color-editor-menu-item-hover-bg",
+      "--ok-color-graph-edge",
+      "--ok-color-graph-edge-muted",
       "--ok-color-graph-edge-active"
     ].forEach(function (name) {
       document.documentElement.style.removeProperty(name);
@@ -505,6 +563,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     document.documentElement.style.setProperty("--ok-color-sidebar-tree-hover-bg", colorMix(custom.page, custom.accent, 0.13));
     document.documentElement.style.setProperty("--ok-color-search-result-hover-bg", colorMix(custom.surface, custom.accent, 0.08));
     document.documentElement.style.setProperty("--ok-color-editor-menu-item-hover-bg", colorMix(custom.surface, custom.accent, 0.08));
+    const mutedRGB = hexToRGB(custom.muted).join(", ");
+    document.documentElement.style.setProperty("--ok-color-graph-edge", "rgba(" + mutedRGB + ", .28)");
+    document.documentElement.style.setProperty("--ok-color-graph-edge-muted", "rgba(" + mutedRGB + ", .11)");
     document.documentElement.style.setProperty("--ok-color-graph-edge-active", "rgba(" + accentRGB + ", .78)");
   }
 
@@ -878,21 +939,18 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function ensureSidebarCollapseControl() {
-    const head = fileSidebar?.querySelector(".file-sidebar-head");
-    const close = head?.querySelector("[data-sidebar-close]");
-    if (!head || !close || head.querySelector("[data-sidebar-collapse]")) {
+    const actions = fileSidebar?.querySelector("[data-sidebar-tree-actions]");
+    if (!actions || actions.querySelector("[data-sidebar-collapse]")) {
       return;
     }
-    const actions = document.createElement("div");
-    actions.className = "file-sidebar-actions";
+    actions.classList.add("file-sidebar-actions");
     const collapse = document.createElement("button");
     collapse.type = "button";
     collapse.className = "file-sidebar-collapse";
     collapse.dataset.sidebarCollapse = "";
     collapse.textContent = "Collapse all";
     collapse.addEventListener("click", collapseKnowledgeTrees);
-    close.before(actions);
-    actions.append(collapse, close);
+    actions.append(collapse);
   }
 
   function noteIndexPath(parts) {
@@ -987,6 +1045,48 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
   }
 
+  const defaultGraphSettings = Object.freeze({
+    arrows: false,
+    colorGroups: true,
+    labelThreshold: 48,
+    nodeSize: 100,
+    linkThickness: 100,
+    centerForce: 34,
+    repelForce: 100,
+    linkForce: 100,
+  });
+
+  function graphSettingNumber(value, fallback, min, max) {
+    const number = Number(value);
+    return clamp(Number.isFinite(number) ? number : fallback, min, max);
+  }
+
+  function normalizeGraphSettings(value) {
+    const candidate = value && typeof value === "object" ? value : {};
+    return {
+      arrows: Boolean(candidate.arrows),
+      colorGroups: candidate.colorGroups !== false,
+      labelThreshold: graphSettingNumber(candidate.labelThreshold, defaultGraphSettings.labelThreshold, 0, 100),
+      nodeSize: graphSettingNumber(candidate.nodeSize, defaultGraphSettings.nodeSize, 50, 180),
+      linkThickness: graphSettingNumber(candidate.linkThickness, defaultGraphSettings.linkThickness, 40, 260),
+      centerForce: graphSettingNumber(candidate.centerForce, defaultGraphSettings.centerForce, 0, 100),
+      repelForce: graphSettingNumber(candidate.repelForce, defaultGraphSettings.repelForce, 0, 200),
+      linkForce: graphSettingNumber(candidate.linkForce, defaultGraphSettings.linkForce, 0, 200),
+    };
+  }
+
+  function readGraphSettings() {
+    return normalizeGraphSettings(readStoredJSON(graphSettingsStorageKey));
+  }
+
+  function saveGraphSettings(settingsValue) {
+    try {
+      window.localStorage.setItem(graphSettingsStorageKey, JSON.stringify(settingsValue));
+    } catch {
+      // Browser storage can be disabled in private or file-export contexts.
+    }
+  }
+
   function renderKnowledgeGraph() {
     const graphView = document.querySelector("[data-knowledge-graph-view]");
     const graphSidebar = document.querySelector("[data-knowledge-graph-sidebar]");
@@ -995,12 +1095,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     graphView.replaceChildren();
     graphSidebar?.replaceChildren();
+
     const info = document.createElement("div");
     info.className = "knowledge-graph-info";
     const title = document.createElement("h2");
-    title.textContent = "Knowledge graph";
+    title.textContent = "Graph view";
     const help = document.createElement("p");
-    help.textContent = "Select a node to inspect its connections. Use arrow keys to move and Enter to open.";
+    help.textContent = "Drag to pan, scroll to zoom, or select a node to inspect it.";
     const status = document.createElement("p");
     status.className = "knowledge-graph-status";
     status.dataset.knowledgeGraphStatus = "";
@@ -1010,6 +1111,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       : "No notes";
     info.append(title, help, status);
     (graphSidebar || graphView).append(info);
+
     if (!knowledgeGraph.nodes.length) {
       const empty = document.createElement("p");
       empty.className = "empty";
@@ -1018,45 +1120,265 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
 
-    const width = 900;
-    const height = 640;
+    const worldWidth = 900;
+    const worldHeight = 640;
     const labelsByPath = graphUniqueNodeLabels(knowledgeGraph.nodes);
-    const positions = graphLayoutPositions(knowledgeGraph, width, height, labelsByPath);
+    const positions = graphLayoutPositions(knowledgeGraph, worldWidth, worldHeight, labelsByPath);
+    const settingsValue = readGraphSettings();
     const canvas = document.createElement("canvas");
     canvas.className = "knowledge-graph-canvas";
     canvas.dataset.knowledgeGraphCanvas = "true";
-    canvas.width = width;
-    canvas.height = height;
     canvas.tabIndex = 0;
     canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", "Interactive graph of Markdown files. Use arrow keys to select a note and Enter to open it.");
+    canvas.setAttribute("aria-label", "Interactive graph of Markdown files. Drag to pan, scroll to zoom, use arrow keys to select a note, and press Enter to open it.");
     graphView.append(canvas);
-    createKnowledgeGraphCanvas(canvas, knowledgeGraph, positions, labelsByPath, width, height, status).start();
+
+    const controller = createKnowledgeGraphCanvas(canvas, knowledgeGraph, positions, labelsByPath, worldWidth, worldHeight, status, settingsValue);
+    if (graphSidebar) {
+      graphSidebar.append(createKnowledgeGraphControls(controller, settingsValue));
+    }
+    controller.start();
   }
 
-  function createKnowledgeGraphCanvas(canvas, graph, positions, labelsByPath, width, height, status) {
+  function createKnowledgeGraphControls(controller, settingsValue) {
+    const controls = document.createElement("div");
+    controls.className = "knowledge-graph-controls";
+    const bindings = [];
+
+    const filterSection = graphControlSection("Filters", true);
+    const filterLabel = document.createElement("label");
+    filterLabel.className = "knowledge-graph-filter";
+    const filterText = document.createElement("span");
+    filterText.className = "sr-only";
+    filterText.textContent = "Filter notes";
+    const filterInput = document.createElement("input");
+    filterInput.type = "search";
+    filterInput.placeholder = "Filter notes…";
+    filterInput.autocomplete = "off";
+    filterInput.dataset.graphFilter = "";
+    filterInput.addEventListener("input", function () {
+      controller.setFilter(filterInput.value);
+    });
+    filterLabel.append(filterText, filterInput);
+    filterSection.body.append(filterLabel);
+
+    const groupSection = graphControlSection("Groups", true);
+    groupSection.body.append(graphToggleControl("Color nodes by folder", settingsValue.colorGroups, function (checked) {
+      settingsValue.colorGroups = checked;
+      controller.setSetting("colorGroups", checked);
+      saveGraphSettings(settingsValue);
+    }, function (checked) {
+      settingsValue.colorGroups = checked;
+    }, bindings));
+
+    const displaySection = graphControlSection("Display", true);
+    displaySection.body.append(graphToggleControl("Show arrows", settingsValue.arrows, function (checked) {
+      settingsValue.arrows = checked;
+      controller.setSetting("arrows", checked);
+      saveGraphSettings(settingsValue);
+    }, function (checked) {
+      settingsValue.arrows = checked;
+    }, bindings));
+    displaySection.body.append(graphRangeControl("Text fade threshold", "labelThreshold", settingsValue.labelThreshold, 0, 100, 1, function (value) {
+      return Math.round(value) + "%";
+    }, controller, settingsValue, bindings));
+    displaySection.body.append(graphRangeControl("Node size", "nodeSize", settingsValue.nodeSize, 50, 180, 1, function (value) {
+      return Math.round(value) + "%";
+    }, controller, settingsValue, bindings));
+    displaySection.body.append(graphRangeControl("Link thickness", "linkThickness", settingsValue.linkThickness, 40, 260, 1, function (value) {
+      return Math.round(value) + "%";
+    }, controller, settingsValue, bindings));
+
+    const forceSection = graphControlSection("Forces", false);
+    forceSection.body.append(graphRangeControl("Center force", "centerForce", settingsValue.centerForce, 0, 100, 1, function (value) {
+      return Math.round(value) + "%";
+    }, controller, settingsValue, bindings));
+    forceSection.body.append(graphRangeControl("Repel force", "repelForce", settingsValue.repelForce, 0, 200, 1, function (value) {
+      return Math.round(value) + "%";
+    }, controller, settingsValue, bindings));
+    forceSection.body.append(graphRangeControl("Link force", "linkForce", settingsValue.linkForce, 0, 200, 1, function (value) {
+      return Math.round(value) + "%";
+    }, controller, settingsValue, bindings));
+
+    const viewportActions = document.createElement("div");
+    viewportActions.className = "knowledge-graph-actions knowledge-graph-viewport-actions";
+    const zoomOut = graphActionButton("Zoom out", function () { controller.zoomBy(0.82); });
+    const actualSize = graphActionButton("100%", function () { controller.actualSize(); });
+    const zoomIn = graphActionButton("Zoom in", function () { controller.zoomBy(1.22); });
+    const fit = graphActionButton("Fit", function () { controller.fit(); });
+    viewportActions.append(zoomOut, actualSize, zoomIn, fit);
+
+    const graphActions = document.createElement("div");
+    graphActions.className = "knowledge-graph-actions";
+    const animation = graphActionButton(controller.isRunning() ? "Pause" : "Resume", function () {
+      controller.setRunning(!controller.isRunning());
+    });
+    animation.dataset.graphAnimation = "";
+    animation.setAttribute("aria-pressed", controller.isRunning() ? "true" : "false");
+    controller.onRunningChange(function (running) {
+      animation.textContent = running ? "Pause" : "Resume";
+      animation.setAttribute("aria-pressed", running ? "true" : "false");
+    });
+    const reset = graphActionButton("Reset graph", function () {
+      Object.assign(settingsValue, defaultGraphSettings);
+      bindings.forEach(function (binding) {
+        binding(settingsValue);
+      });
+      filterInput.value = "";
+      controller.reset(settingsValue);
+      saveGraphSettings(settingsValue);
+    });
+    graphActions.append(animation, reset);
+
+    const controlSections = [filterSection.details, groupSection.details, displaySection.details, forceSection.details];
+    controlSections.forEach(function (section) {
+      const summary = section.querySelector("summary");
+      summary.addEventListener("click", function (event) {
+        if (mobileSidebar.matches) {
+          event.preventDefault();
+        }
+      });
+    });
+
+    const settingsDisclosure = document.createElement("details");
+    settingsDisclosure.className = "knowledge-graph-settings";
+    const settingsSummary = document.createElement("summary");
+    settingsSummary.textContent = "Graph settings";
+    const settingsBody = document.createElement("div");
+    settingsBody.className = "knowledge-graph-settings-body";
+    settingsBody.append(...controlSections, viewportActions, graphActions);
+    settingsDisclosure.append(settingsSummary, settingsBody);
+
+    const syncSettingsDisclosure = function () {
+      const mobile = mobileSidebar.matches;
+      settingsDisclosure.open = !mobile;
+      controlSections.forEach(function (section) {
+        const summary = section.querySelector("summary");
+        section.open = mobile || section.dataset.desktopOpen === "true";
+        if (mobile) {
+          summary.tabIndex = -1;
+          summary.setAttribute("role", "heading");
+          summary.setAttribute("aria-level", "3");
+        } else {
+          summary.removeAttribute("tabindex");
+          summary.removeAttribute("role");
+          summary.removeAttribute("aria-level");
+        }
+      });
+    };
+    mobileSidebar.addEventListener("change", syncSettingsDisclosure);
+    syncSettingsDisclosure();
+
+    controls.append(settingsDisclosure);
+    return controls;
+  }
+
+  function graphControlSection(title, open) {
+    const details = document.createElement("details");
+    details.className = "knowledge-graph-control-section";
+    details.dataset.desktopOpen = open ? "true" : "false";
+    details.open = open;
+    const summary = document.createElement("summary");
+    summary.textContent = title;
+    const body = document.createElement("div");
+    body.className = "knowledge-graph-control-body";
+    details.append(summary, body);
+    return { details: details, body: body };
+  }
+
+  function graphToggleControl(labelText, checked, onChange, onReset, bindings) {
+    const label = document.createElement("label");
+    label.className = "knowledge-graph-toggle";
+    const text = document.createElement("span");
+    text.textContent = labelText;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = checked;
+    input.addEventListener("change", function () {
+      onChange(input.checked);
+    });
+    bindings.push(function (settingsValue) {
+      const key = labelText === "Show arrows" ? "arrows" : "colorGroups";
+      input.checked = Boolean(settingsValue[key]);
+      onReset(input.checked);
+    });
+    label.append(text, input);
+    return label;
+  }
+
+  function graphRangeControl(labelText, key, value, min, max, step, format, controller, settingsValue, bindings) {
+    const label = document.createElement("label");
+    label.className = "knowledge-graph-range";
+    label.htmlFor = "knowledge-graph-" + key;
+    const header = document.createElement("span");
+    header.className = "knowledge-graph-range-header";
+    const text = document.createElement("span");
+    text.textContent = labelText;
+    const output = document.createElement("output");
+    output.textContent = format(value);
+    const input = document.createElement("input");
+    input.id = "knowledge-graph-" + key;
+    input.type = "range";
+    input.min = String(min);
+    input.max = String(max);
+    input.step = String(step);
+    input.value = String(value);
+    input.addEventListener("input", function () {
+      const nextValue = Number(input.value);
+      settingsValue[key] = nextValue;
+      output.textContent = format(nextValue);
+      controller.setSetting(key, nextValue);
+      saveGraphSettings(settingsValue);
+    });
+    bindings.push(function (nextSettings) {
+      input.value = String(nextSettings[key]);
+      output.textContent = format(nextSettings[key]);
+    });
+    header.append(text, output);
+    label.append(header, input);
+    return label;
+  }
+
+  function graphActionButton(label, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function createKnowledgeGraphCanvas(canvas, graph, positions, labelsByPath, worldWidth, worldHeight, status, settingsValue) {
     const context = canvas.getContext("2d");
+    const settingsState = normalizeGraphSettings(settingsValue);
     const nodeSet = Object.create(null);
+    const degree = Object.create(null);
     graph.nodes.forEach(function (node) {
       if (node && typeof node.path === "string") {
         nodeSet[node.path] = true;
+        degree[node.path] = 0;
       }
     });
     const links = graph.edges.filter(function (edge) {
-      return edge && nodeSet[edge.source] && nodeSet[edge.target] && positions[edge.source] && positions[edge.target];
+      const valid = edge && nodeSet[edge.source] && nodeSet[edge.target] && positions[edge.source] && positions[edge.target];
+      if (valid) {
+        degree[edge.source] += 1;
+        degree[edge.target] += 1;
+      }
+      return valid;
     });
     const states = graph.nodes.filter(function (node) {
       return node && typeof node.path === "string" && positions[node.path];
     }).map(function (node) {
       const point = positions[node.path];
-      const label = graphNodeLabel(node, labelsByPath);
+      const nodeDegree = degree[node.path] || 0;
       return {
         node: node,
         path: node.path,
-        label: label,
+        group: graphPathGroup(node.path),
+        label: graphNodeLabel(node, labelsByPath),
         fullLabel: graphNodeFullLabel(node, labelsByPath),
-        radius: node.path === "index.md" ? 16 : 10,
-        labelOffset: node.path === "index.md" ? 31 : 25,
+        radius: node.path === "index.md" ? 10 : 4.5 + Math.min(5.5, Math.sqrt(nodeDegree) * 1.45),
+        degree: nodeDegree,
         baseX: point.x,
         baseY: point.y,
         x: point.x,
@@ -1071,93 +1393,280 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       stateByPath[state.path] = state;
     });
 
+    const viewport = {
+      width: worldWidth,
+      height: worldHeight,
+      pixelRatio: 1,
+      camera: { x: 0, y: 0, zoom: 1 },
+    };
+    const runningListeners = [];
+    let filter = "";
     let activePath = "";
     let keyboardIndex = states.findIndex(function (state) { return state.path === "index.md"; });
+    let lastPointer = null;
+    let pointerGesture = null;
+    let frame = 0;
+    let cameraReady = false;
+    let running = !motionIsReduced();
+    let resizeObserver = null;
+    let themeObserver = null;
+
     if (keyboardIndex < 0) {
       keyboardIndex = 0;
     }
-    let lastPointer = null;
-    let frame = 0;
+
+    const visibleStates = function () {
+      if (!filter) {
+        return states;
+      }
+      return states.filter(function (state) {
+        return state.path.toLowerCase().includes(filter) || state.fullLabel.toLowerCase().includes(filter);
+      });
+    };
+
+    const visibleLinks = function (visible) {
+      const visiblePaths = new Set(visible.map(function (state) { return state.path; }));
+      return links.filter(function (edge) {
+        return visiblePaths.has(edge.source) && visiblePaths.has(edge.target);
+      });
+    };
+
+    const updateStatus = function () {
+      const visible = visibleStates();
+      if (activePath && stateByPath[activePath] && visible.includes(stateByPath[activePath])) {
+        const selected = stateByPath[activePath];
+        const connectionCount = visibleLinks(visible).filter(function (edge) {
+          return edge.source === activePath || edge.target === activePath;
+        }).length;
+        const connectionLabel = connectionCount + (connectionCount === 1 ? " connection" : " connections");
+        status.textContent = connectionLabel;
+        canvas.setAttribute("aria-label", "Selected " + selected.fullLabel + " with " + connectionLabel + ". Use arrow keys to move and Enter to open.");
+        return;
+      }
+      status.textContent = filter
+        ? visible.length + " of " + states.length + (states.length === 1 ? " note" : " notes")
+        : states.length + (states.length === 1 ? " note" : " notes");
+      canvas.setAttribute("aria-label", "Interactive graph of Markdown files. Drag to pan, scroll to zoom, use arrow keys to select a note, and press Enter to open it.");
+    };
 
     const setActivePath = function (path) {
-      const nextPath = path && stateByPath[path] ? path : "";
+      const visible = visibleStates();
+      const nextPath = path && stateByPath[path] && visible.includes(stateByPath[path]) ? path : "";
       if (nextPath === activePath) {
         return;
       }
       activePath = nextPath;
       canvas.dataset.activeGraphPath = activePath;
-      canvas.style.cursor = activePath ? "pointer" : "default";
       if (activePath) {
         const activeIndex = states.findIndex(function (state) { return state.path === activePath; });
         if (activeIndex >= 0) {
           keyboardIndex = activeIndex;
         }
-        const selected = stateByPath[activePath];
-        const connectionCount = links.filter(function (edge) {
-          return edge.source === activePath || edge.target === activePath;
-        }).length;
-        const connectionLabel = connectionCount + (connectionCount === 1 ? " connection" : " connections");
-        if (status) {
-          status.textContent = selected.fullLabel + " · " + connectionLabel + " · Enter to open";
-        }
-        canvas.setAttribute("aria-label", "Selected " + selected.fullLabel + " with " + connectionLabel + ". Use arrow keys to move and Enter to open.");
-      } else {
-        if (status) {
-          status.textContent = graph.nodes.length + (graph.nodes.length === 1 ? " note" : " notes");
-        }
-        canvas.setAttribute("aria-label", "Interactive graph of Markdown files. Use arrow keys to select a note and Enter to open it.");
       }
+      updateStatus();
+      invalidate();
     };
 
     const resizeCanvas = function () {
-      const pixelRatio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-      canvas.width = Math.round(width * pixelRatio);
-      canvas.height = Math.round(height * pixelRatio);
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      if (!context) {
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const nextWidth = Math.max(1, Math.round(rect.width));
+      const nextHeight = Math.max(1, Math.round(rect.height));
+      const measurable = rect.width > 50 && rect.height > 50;
+      const previousWidth = viewport.width;
+      const previousHeight = viewport.height;
+      viewport.width = nextWidth;
+      viewport.height = nextHeight;
+      viewport.pixelRatio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+      canvas.width = Math.round(nextWidth * viewport.pixelRatio);
+      canvas.height = Math.round(nextHeight * viewport.pixelRatio);
+      if (!cameraReady && measurable) {
+        fitCamera();
+        cameraReady = true;
+      } else if (cameraReady) {
+        viewport.camera.x += (nextWidth - previousWidth) / 2;
+        viewport.camera.y += (nextHeight - previousHeight) / 2;
+      }
+      invalidate();
     };
 
-    const canvasPoint = function (event) {
+    const screenPoint = function (event) {
       const rect = canvas.getBoundingClientRect();
-      if (!rect.width || !rect.height) {
-        return { x: 0, y: 0 };
-      }
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
+
+    const worldPoint = function (point) {
       return {
-        x: (event.clientX - rect.left) * (width / rect.width),
-        y: (event.clientY - rect.top) * (height / rect.height),
+        x: (point.x - viewport.camera.x) / viewport.camera.zoom,
+        y: (point.y - viewport.camera.y) / viewport.camera.zoom,
       };
+    };
+
+    const fitCamera = function () {
+      const visible = visibleStates();
+      if (!visible.length) {
+        return;
+      }
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      visible.forEach(function (state) {
+        minX = Math.min(minX, state.x);
+        maxX = Math.max(maxX, state.x);
+        minY = Math.min(minY, state.y);
+        maxY = Math.max(maxY, state.y);
+      });
+      const padding = 54;
+      const spanX = Math.max(80, maxX - minX);
+      const spanY = Math.max(80, maxY - minY);
+      const zoom = clamp(Math.min((viewport.width - padding * 2) / spanX, (viewport.height - padding * 2) / spanY), 0.28, 2.4);
+      viewport.camera.zoom = zoom;
+      viewport.camera.x = viewport.width / 2 - ((minX + maxX) / 2) * zoom;
+      viewport.camera.y = viewport.height / 2 - ((minY + maxY) / 2) * zoom;
+      invalidate();
+    };
+
+    const actualSize = function () {
+      const visible = visibleStates();
+      if (!visible.length) {
+        return;
+      }
+      const centerX = visible.reduce(function (sum, state) { return sum + state.x; }, 0) / visible.length;
+      const centerY = visible.reduce(function (sum, state) { return sum + state.y; }, 0) / visible.length;
+      viewport.camera.zoom = 1;
+      viewport.camera.x = viewport.width / 2 - centerX;
+      viewport.camera.y = viewport.height / 2 - centerY;
+      invalidate();
+    };
+
+    const zoomAt = function (factor, point) {
+      const anchor = point || { x: viewport.width / 2, y: viewport.height / 2 };
+      const before = worldPoint(anchor);
+      viewport.camera.zoom = clamp(viewport.camera.zoom * factor, 0.24, 4);
+      viewport.camera.x = anchor.x - before.x * viewport.camera.zoom;
+      viewport.camera.y = anchor.y - before.y * viewport.camera.zoom;
+      invalidate();
+    };
+
+    const setRunning = function (nextRunning) {
+      const normalized = Boolean(nextRunning);
+      if (normalized === running) {
+        return;
+      }
+      running = normalized;
+      runningListeners.forEach(function (listener) { listener(running); });
+      invalidate();
+    };
+
+    const resetGraph = function (nextSettings) {
+      Object.assign(settingsState, normalizeGraphSettings(nextSettings));
+      filter = "";
+      activePath = "";
+      states.forEach(function (state) {
+        state.x = state.baseX;
+        state.y = state.baseY;
+        state.vx = 0;
+        state.vy = 0;
+        state.z = 0;
+      });
+      setRunning(!motionIsReduced());
+      updateStatus();
+      fitCamera();
     };
 
     const updatePointerTarget = function (point) {
       lastPointer = point;
-      const hit = graphCanvasHitTest(states, point);
+      const hit = graphCanvasHitTest(visibleStates(), worldPoint(point), settingsState);
       setActivePath(hit ? hit.path : "");
     };
 
-    canvas.addEventListener("pointermove", function (event) {
-      updatePointerTarget(canvasPoint(event));
+    canvas.addEventListener("wheel", function (event) {
+      event.preventDefault();
+      zoomAt(Math.exp(-event.deltaY * 0.0015), screenPoint(event));
+    }, { passive: false });
+    canvas.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0) {
+        return;
+      }
+      const point = screenPoint(event);
+      const hit = graphCanvasHitTest(visibleStates(), worldPoint(point), settingsState);
+      pointerGesture = {
+        pointerID: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        cameraX: viewport.camera.x,
+        cameraY: viewport.camera.y,
+        node: hit,
+        nodeX: hit ? hit.x : 0,
+        nodeY: hit ? hit.y : 0,
+        moved: false,
+      };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.dataset.graphDragging = hit ? "node" : "canvas";
+      event.preventDefault();
     });
+    canvas.addEventListener("pointermove", function (event) {
+      const point = screenPoint(event);
+      if (!pointerGesture || pointerGesture.pointerID !== event.pointerId) {
+        updatePointerTarget(point);
+        return;
+      }
+      const dx = event.clientX - pointerGesture.startX;
+      const dy = event.clientY - pointerGesture.startY;
+      pointerGesture.moved = pointerGesture.moved || Math.abs(dx) + Math.abs(dy) > 5;
+      if (pointerGesture.node) {
+        pointerGesture.node.x = pointerGesture.nodeX + dx / viewport.camera.zoom;
+        pointerGesture.node.y = pointerGesture.nodeY + dy / viewport.camera.zoom;
+        pointerGesture.node.baseX = pointerGesture.node.x;
+        pointerGesture.node.baseY = pointerGesture.node.y;
+        pointerGesture.node.vx = 0;
+        pointerGesture.node.vy = 0;
+        setActivePath(pointerGesture.node.path);
+      } else {
+        viewport.camera.x = pointerGesture.cameraX + dx;
+        viewport.camera.y = pointerGesture.cameraY + dy;
+      }
+      invalidate();
+    });
+    const endPointerGesture = function (event) {
+      if (!pointerGesture || pointerGesture.pointerID !== event.pointerId) {
+        return;
+      }
+      const activatedNode = pointerGesture.node;
+      const shouldOpen = activatedNode && !pointerGesture.moved && event.type === "pointerup";
+      pointerGesture = null;
+      delete canvas.dataset.graphDragging;
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+      if (shouldOpen) {
+        openTarget(activatedNode.path, true, shouldOpenBeside(false));
+      }
+    };
+    canvas.addEventListener("pointerup", endPointerGesture);
+    canvas.addEventListener("pointercancel", endPointerGesture);
     canvas.addEventListener("pointerleave", function () {
       lastPointer = null;
-      if (document.activeElement !== canvas) {
+      if (!pointerGesture && document.activeElement !== canvas) {
         setActivePath("");
       }
     });
-    canvas.addEventListener("click", function (event) {
-      const hit = graphCanvasHitTest(states, canvasPoint(event));
-      if (hit) {
-        openTarget(hit.path, true, shouldOpenBeside(false));
-      }
-    });
     canvas.addEventListener("focus", function () {
-      if (states[keyboardIndex]) {
-        setActivePath(states[keyboardIndex].path);
+      const visible = visibleStates();
+      const target = states[keyboardIndex] && visible.includes(states[keyboardIndex]) ? states[keyboardIndex] : visible[0];
+      if (target) {
+        setActivePath(target.path);
       }
     });
     canvas.addEventListener("blur", function () {
       setActivePath(lastPointer ? activePath : "");
     });
     canvas.addEventListener("keydown", function (event) {
-      if (!states.length) {
+      const visible = visibleStates();
+      if (!visible.length) {
         return;
       }
       if (event.key === "Enter" || event.key === " ") {
@@ -1167,22 +1676,58 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         }
         return;
       }
+      if (event.key === "Escape") {
+        setActivePath("");
+        return;
+      }
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        zoomAt(1.22);
+        return;
+      }
+      if (event.key === "-") {
+        event.preventDefault();
+        zoomAt(0.82);
+        return;
+      }
+      if (event.key === "0") {
+        event.preventDefault();
+        fitCamera();
+        return;
+      }
       if (event.key !== "ArrowRight" && event.key !== "ArrowDown" && event.key !== "ArrowLeft" && event.key !== "ArrowUp") {
         return;
       }
       event.preventDefault();
+      const currentIndex = Math.max(0, visible.findIndex(function (state) { return state.path === activePath; }));
       const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
-      keyboardIndex = (keyboardIndex + direction + states.length) % states.length;
-      setActivePath(states[keyboardIndex].path);
+      const nextIndex = (currentIndex + direction + visible.length) % visible.length;
+      keyboardIndex = states.indexOf(visible[nextIndex]);
+      setActivePath(visible[nextIndex].path);
     });
 
+    const invalidate = function () {
+      if (!frame) {
+        frame = window.requestAnimationFrame(tick);
+      }
+    };
+
     const tick = function () {
-      if (!canvas.isConnected) {
+      frame = 0;
+      if (!canvas.isConnected || !context) {
+        resizeObserver?.disconnect();
+        themeObserver?.disconnect();
         return;
       }
-      frame = window.requestAnimationFrame(tick);
-      graphCanvasPhysicsStep(states, links, stateByPath, activePath, width, height);
-      drawKnowledgeGraphCanvas(context, states, links, stateByPath, activePath, width, height);
+      const visible = visibleStates();
+      const currentLinks = visibleLinks(visible);
+      if (running) {
+        graphCanvasPhysicsStep(visible, currentLinks, stateByPath, activePath, worldWidth, worldHeight, settingsState);
+      }
+      drawKnowledgeGraphCanvas(context, visible, currentLinks, stateByPath, activePath, viewport, settingsState);
+      if (running) {
+        invalidate();
+      }
     };
 
     return {
@@ -1190,23 +1735,46 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         if (!context) {
           return;
         }
+        resizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(resizeCanvas) : null;
+        resizeObserver?.observe(canvas);
+        themeObserver = new MutationObserver(invalidate);
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-viewer-theme", "data-viewer-contrast", "style"] });
         resizeCanvas();
-        drawKnowledgeGraphCanvas(context, states, links, stateByPath, activePath, width, height);
-        frame = window.requestAnimationFrame(tick);
+        updateStatus();
+        invalidate();
       },
-      stop: function () {
-        if (frame) {
-          window.cancelAnimationFrame(frame);
+      fit: fitCamera,
+      actualSize: actualSize,
+      zoomBy: function (factor) { zoomAt(factor); },
+      isRunning: function () { return running; },
+      setRunning: setRunning,
+      onRunningChange: function (listener) { runningListeners.push(listener); },
+      setFilter: function (value) {
+        filter = String(value || "").trim().toLowerCase();
+        if (activePath && !visibleStates().includes(stateByPath[activePath])) {
+          activePath = "";
+        }
+        updateStatus();
+        fitCamera();
+      },
+      setSetting: function (key, value) {
+        if (Object.prototype.hasOwnProperty.call(settingsState, key)) {
+          settingsState[key] = value;
+          invalidate();
         }
       },
+      reset: resetGraph,
     };
   }
 
-  function graphCanvasPhysicsStep(states, links, stateByPath, activePath, width, height) {
+  function graphCanvasPhysicsStep(states, links, stateByPath, activePath, width, height, settingsValue) {
     const active = activePath ? stateByPath[activePath] : null;
+    const centerStrength = settingsValue.centerForce / 100;
+    const repelStrength = settingsValue.repelForce / 100;
+    const linkStrength = settingsValue.linkForce / 100;
     states.forEach(function (state) {
       const targetZ = state === active ? 1 : 0;
-      const basePull = state === active ? 0.052 : 0.034;
+      const basePull = 0.004 + centerStrength * (state === active ? 0.042 : 0.026);
       state.vx += (state.baseX - state.x) * basePull;
       state.vy += (state.baseY - state.y) * basePull;
       state.z += (targetZ - state.z) * 0.095;
@@ -1223,8 +1791,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       const dy = target.y - source.y || 0.01;
       const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
       const connected = active && (edge.source === active.path || edge.target === active.path);
-      const desired = 104 + (connected ? 28 * hoverStrength : 0);
-      const force = (distance - desired) * (connected ? 0.0015 : 0.0011);
+      const desired = 104 + (connected ? 22 * hoverStrength : 0);
+      const force = (distance - desired) * (connected ? 0.0017 : 0.0011) * linkStrength;
       const nx = dx / distance;
       const ny = dy / distance;
       source.vx += nx * force;
@@ -1243,9 +1811,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         const nx = dx / distance;
         const ny = dy / distance;
         const activePair = active && (a === active || b === active);
-        const desired = activePair ? 48 + (64 + graphLabelWidth(active.fullLabel) * 0.2) * hoverStrength : 46;
+        const desired = activePair ? 68 + 52 * hoverStrength : 34 + (a.radius + b.radius) * (settingsValue.nodeSize / 100);
         if (distance < desired) {
-          const push = Math.min(activePair ? 3.2 : 1.6, (desired - distance) * (activePair ? 0.014 + hoverStrength * 0.012 : 0.009));
+          const push = Math.min(activePair ? 3.1 : 1.7, (desired - distance) * (activePair ? 0.018 : 0.011) * repelStrength);
           if (a !== active) {
             a.vx -= nx * push;
             a.vy -= ny * push;
@@ -1258,33 +1826,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       }
     }
 
-    if (active && hoverStrength > 0.02) {
-      const activeBox = graphCanvasNodeBox(active, active.fullLabel);
-      states.forEach(function (state) {
-        if (state === active) {
-          return;
-        }
-        const overlap = graphBoxOverlap(activeBox, graphCanvasNodeBox(state, state.label));
-        if (!overlap) {
-          return;
-        }
-        const dx = state.x - active.x || 0.01;
-        const dy = state.y - active.y || 0.01;
-        const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        const push = Math.min(3.2, (Math.max(overlap.x, overlap.y) * 0.026 + 0.8) * hoverStrength);
-        state.vx += (dx / distance) * push;
-        state.vy += (dy / distance) * push;
-      });
-    }
-
     states.forEach(function (state) {
       state.x += state.vx;
       state.y += state.vy;
-      graphClampState(state, width, height);
+      state.x = clamp(state.x, 24, width - 24);
+      state.y = clamp(state.y, 24, height - 24);
       graphLimitVelocity(state, active ? 5.5 : 4.2);
-      const damping = active ? 0.58 : 0.66;
-      state.vx *= damping;
-      state.vy *= damping;
+      state.vx *= active ? 0.58 : 0.66;
+      state.vy *= active ? 0.58 : 0.66;
       if (Math.abs(state.vx) < 0.018) {
         state.vx = 0;
       }
@@ -1309,10 +1858,22 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     state.vy *= scale;
   }
 
-  function drawKnowledgeGraphCanvas(context, states, links, stateByPath, activePath, width, height) {
+  function drawKnowledgeGraphCanvas(context, states, links, stateByPath, activePath, viewport, settingsValue) {
     const active = activePath ? stateByPath[activePath] : null;
     const theme = graphCanvasTheme();
-    context.clearRect(0, 0, width, height);
+    const camera = viewport.camera;
+    const nodeScale = settingsValue.nodeSize / 100;
+    const linkScale = settingsValue.linkThickness / 100;
+    const groupIndexes = Object.create(null);
+    Array.from(new Set(states.map(function (state) { return state.group; }))).sort().forEach(function (group, index) {
+      groupIndexes[group] = index;
+    });
+
+    context.setTransform(viewport.pixelRatio, 0, 0, viewport.pixelRatio, 0, 0);
+    context.clearRect(0, 0, viewport.width, viewport.height);
+    context.save();
+    context.translate(camera.x, camera.y);
+    context.scale(camera.zoom, camera.zoom);
     context.lineCap = "round";
     context.lineJoin = "round";
 
@@ -1323,55 +1884,128 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         return;
       }
       const connected = active && (edge.source === active.path || edge.target === active.path);
+      const color = connected ? theme.edgeActive : active ? theme.edgeMuted : theme.edge;
+      const lineWidth = (connected ? 2.1 : 0.9) * linkScale;
       context.beginPath();
       context.moveTo(source.x, source.y);
       context.lineTo(target.x, target.y);
-      context.strokeStyle = connected ? theme.edgeActive : active ? theme.edgeMuted : theme.edge;
-      context.lineWidth = connected ? 2.35 : 1.05;
+      context.strokeStyle = color;
+      context.lineWidth = lineWidth;
       context.stroke();
+      if (settingsValue.arrows) {
+        graphDrawArrow(context, source, target, target.radius * nodeScale + 3, color, lineWidth);
+      }
     });
 
     states.slice().sort(function (a, b) {
       return a.z - b.z;
     }).forEach(function (state) {
       const activeNode = state === active;
-      const scale = 1 + state.z * 0.22;
+      const connectedNode = active && links.some(function (edge) {
+        return (edge.source === active.path && edge.target === state.path) || (edge.target === active.path && edge.source === state.path);
+      });
+      const scale = nodeScale * (1 + state.z * 0.32);
       const radius = state.radius * scale;
-      const label = activeNode ? state.fullLabel : state.label;
+      const groupColor = theme.groups[groupIndexes[state.group] % theme.groups.length];
+      const nodeColor = settingsValue.colorGroups ? groupColor : theme.node;
       context.save();
       context.globalAlpha = 1;
       context.beginPath();
-      context.arc(state.x, state.y - state.z * 6, radius, 0, Math.PI * 2);
-      context.fillStyle = theme.nodeBg;
+      context.arc(state.x, state.y - state.z * 4, radius, 0, Math.PI * 2);
+      context.fillStyle = activeNode && !settingsValue.colorGroups ? theme.nodeActive : nodeColor;
       context.fill();
-      context.strokeStyle = activeNode ? theme.nodeActiveBorder : theme.nodeBorder;
-      context.lineWidth = activeNode ? 3 : state.path === "index.md" ? 2 : 1.55;
-      context.stroke();
+      if (activeNode) {
+        context.strokeStyle = theme.nodeActiveRing;
+        context.lineWidth = 2.4 / Math.max(0.55, camera.zoom);
+        context.stroke();
+      }
 
-      context.font = (activeNode ? "600 13px" : "400 12px") + " " + theme.fontBody;
-      context.textBaseline = "middle";
-      context.textAlign = graphCanvasTextAlign(state.x, graphLabelWidth(label), width);
-      const labelX = context.textAlign === "start" ? Math.max(16, state.x - graphLabelWidth(label) / 2) : context.textAlign === "end" ? Math.min(width - 16, state.x + graphLabelWidth(label) / 2) : state.x;
-      const labelY = state.y + state.labelOffset + state.z * 4;
-      context.fillStyle = activeNode ? theme.labelActive : theme.label;
-      context.fillText(label, labelX, labelY);
+      const labelImportance = Math.min(0.5, state.degree * 0.09) + (state.path === "index.md" ? 0.35 : 0);
+      const reveal = clamp((camera.zoom + labelImportance - (0.68 + settingsValue.labelThreshold * 0.006)) / 0.28, 0, 1);
+      if (activeNode || reveal > 0.02) {
+        const label = activeNode ? state.fullLabel : state.label;
+        context.globalAlpha = activeNode ? 1 : reveal;
+        context.font = (activeNode ? "650 13px" : "500 11.5px") + " " + theme.fontBody;
+        context.textBaseline = "middle";
+        context.textAlign = "center";
+        const labelY = state.y + radius + 13 + state.z * 2;
+        context.fillStyle = activeNode ? theme.labelActive : theme.label;
+        context.fillText(label, state.x, labelY);
+      }
       context.restore();
     });
+    context.restore();
+  }
+
+  function graphDrawArrow(context, source, target, targetRadius, color, lineWidth) {
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < targetRadius + 8) {
+      return;
+    }
+    const nx = dx / distance;
+    const ny = dy / distance;
+    const tipX = target.x - nx * targetRadius;
+    const tipY = target.y - ny * targetRadius;
+    const size = 5 + lineWidth;
+    context.beginPath();
+    context.moveTo(tipX, tipY);
+    context.lineTo(tipX - nx * size - ny * size * 0.68, tipY - ny * size + nx * size * 0.68);
+    context.lineTo(tipX - nx * size + ny * size * 0.68, tipY - ny * size - nx * size * 0.68);
+    context.closePath();
+    context.fillStyle = color;
+    context.fill();
   }
 
   function graphCanvasTheme() {
     const highContrastMode = document.documentElement.dataset.viewerContrast === "high";
+    const accentRGB = themeValue("--ok-color-accent-rgb", "15, 122, 77").split(",").map(function (component) {
+      return clamp(Number(component.trim()) || 0, 0, 255);
+    });
+    const hsl = graphRGBToHSL(accentRGB[0], accentRGB[1], accentRGB[2]);
+    const darkMode = getComputedStyle(document.documentElement).colorScheme.includes("dark");
+    const lightness = darkMode ? 67 : 43;
+    const hueOffsets = [0, 42, -42, 86, -86, 164];
+    const groups = hueOffsets.map(function (offset, index) {
+      const saturation = clamp(hsl.s + (index % 2 === 0 ? 4 : -8), 46, 82);
+      return "hsl(" + ((hsl.h + offset + 360) % 360) + " " + saturation + "% " + clamp(lightness + (index % 3 - 1) * 5, 32, 76) + "%)";
+    });
+    const text = themeValue("--ok-color-text", "#202322");
     return {
       fontBody: themeValue("--ok-font-body", "Inter, ui-sans-serif, system-ui, sans-serif"),
-      edge: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-edge", "rgba(128, 138, 133, .25)"),
+      edge: highContrastMode ? text : themeValue("--ok-color-graph-edge", "rgba(128, 138, 133, .25)"),
       edgeMuted: highContrastMode ? themeValue("--ok-color-muted", "#707773") : themeValue("--ok-color-graph-edge-muted", "rgba(128, 138, 133, .11)"),
       edgeActive: themeValue("--ok-color-graph-edge-active", "rgba(15, 122, 77, .78)"),
-      nodeBg: themeValue("--ok-color-graph-node-bg", "#f8f8f8"),
-      nodeBorder: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-node-border", "#aeb8b2"),
-      nodeActiveBorder: themeValue("--ok-color-graph-node-active-border", "#0f7a4d"),
-      label: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-label", "#5f6b66"),
-      labelActive: highContrastMode ? themeValue("--ok-color-text", "#202322") : themeValue("--ok-color-graph-label-active", "#26302c"),
+      node: highContrastMode ? text : groups[0],
+      nodeActive: themeValue("--ok-color-graph-node-active-border", "#0f7a4d"),
+      nodeActiveRing: themeValue("--ok-color-graph-node-bg", "#f8f8f8"),
+      label: highContrastMode ? text : themeValue("--ok-color-graph-label", "#5f6b66"),
+      labelActive: highContrastMode ? text : themeValue("--ok-color-graph-label-active", "#26302c"),
+      groups: highContrastMode ? [text] : groups,
     };
+  }
+
+  function graphRGBToHSL(red, green, blue) {
+    const r = red / 255;
+    const g = green / 255;
+    const b = blue / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+    let hue = 0;
+    if (delta) {
+      if (max === r) {
+        hue = 60 * (((g - b) / delta) % 6);
+      } else if (max === g) {
+        hue = 60 * ((b - r) / delta + 2);
+      } else {
+        hue = 60 * ((r - g) / delta + 4);
+      }
+    }
+    const lightness = (max + min) / 2;
+    const saturation = delta ? delta / (1 - Math.abs(2 * lightness - 1)) : 0;
+    return { h: (hue + 360) % 360, s: saturation * 100, l: lightness * 100 };
   }
 
   function themeValue(name, fallback) {
@@ -1379,46 +2013,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return value || fallback;
   }
 
-  function graphCanvasHitTest(states, point) {
+  function graphCanvasHitTest(states, point, settingsValue) {
     for (let index = states.length - 1; index >= 0; index -= 1) {
       const state = states[index];
       const dx = point.x - state.x;
       const dy = point.y - state.y;
-      const radius = state.radius * (1 + state.z * 0.22) + 6;
+      const radius = state.radius * (settingsValue.nodeSize / 100) * (1 + state.z * 0.32) + 7;
       if (dx * dx + dy * dy <= radius * radius) {
-        return state;
-      }
-      if (graphPointInBox(point, graphCanvasNodeBox(state, state.z > 0.6 ? state.fullLabel : state.label))) {
         return state;
       }
     }
     return null;
-  }
-
-  function graphCanvasNodeBox(state, label) {
-    const labelWidth = graphLabelWidth(label);
-    const labelTop = state.y + state.labelOffset - 10;
-    const halfWidth = Math.max(state.radius + 8, labelWidth / 2 + 9);
-    return {
-      left: state.x - halfWidth,
-      right: state.x + halfWidth,
-      top: Math.min(state.y - state.radius - 8, labelTop),
-      bottom: Math.max(state.y + state.radius + 8, labelTop + 22),
-    };
-  }
-
-  function graphPointInBox(point, box) {
-    return point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom;
-  }
-
-  function graphCanvasTextAlign(x, labelWidth, width) {
-    if (x - labelWidth / 2 < 16) {
-      return "start";
-    }
-    if (x + labelWidth / 2 > width - 16) {
-      return "end";
-    }
-    return "center";
   }
 
   function graphLayoutPositions(graph, width, height, labelsByPath) {
@@ -1601,7 +2206,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const paddingY = 58;
     const spanX = Math.max(1, maxX - minX);
     const spanY = Math.max(1, maxY - minY);
-    const scale = Math.min((width - paddingX * 2) / spanX, (height - paddingY * 2) / spanY, 1.28);
+    const scale = Math.min((width - paddingX * 2) / spanX, (height - paddingY * 2) / spanY, 3.2);
     const sourceCenterX = (minX + maxX) / 2;
     const sourceCenterY = (minY + maxY) / 2;
     const targetCenterX = width / 2;
@@ -2645,12 +3250,32 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function updateWorkspaceState() {
     const panelCount = panels().length;
     const isEmpty = panelCount === 0;
+    const showGraph = graphViewRequested || isEmpty;
     workspace.classList.toggle("is-empty", isEmpty);
-    workspace.classList.toggle("is-single-panel", panelCount === 1);
-    workspace.classList.toggle("is-multi-panel", panelCount > 1);
+    workspace.classList.toggle("is-graph-view", showGraph);
+    workspace.classList.toggle("is-single-panel", !showGraph && panelCount === 1);
+    workspace.classList.toggle("is-multi-panel", !showGraph && panelCount > 1);
     if (emptyState) {
-      emptyState.hidden = !isEmpty;
+      emptyState.hidden = !showGraph;
     }
+    if (graphViewToggle) {
+      graphViewToggle.dataset.active = showGraph ? "true" : "false";
+      graphViewToggle.setAttribute("aria-pressed", showGraph ? "true" : "false");
+      if (showGraph) {
+        graphViewToggle.setAttribute("aria-current", "page");
+      } else {
+        graphViewToggle.removeAttribute("aria-current");
+      }
+    }
+    if (documentsViewToggle) {
+      documentsViewToggle.dataset.active = showGraph ? "false" : "true";
+      if (showGraph) {
+        documentsViewToggle.removeAttribute("aria-current");
+      } else {
+        documentsViewToggle.setAttribute("aria-current", "page");
+      }
+    }
+    document.documentElement.dataset.viewerView = showGraph ? "graph" : "notes";
     panels().forEach(applyPanelWidth);
     ensureActivePanel();
     updateCloseLinks();
@@ -2677,7 +3302,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function canShowWorkspaceRail() {
-    return Boolean(scrollRail && scrollTrack && scrollThumb && panels().length > 1 && maxWorkspaceScroll() > 1 && !workspace.classList.contains("is-empty"));
+    return Boolean(scrollRail && scrollTrack && scrollThumb && panels().length > 1 && maxWorkspaceScroll() > 1 && !workspace.classList.contains("is-graph-view"));
   }
 
   function queueWorkspaceRailUpdate() {
@@ -2730,6 +3355,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function updateTitle() {
+    if (graphViewIsVisible()) {
+      document.title = "Graph view - Open Knowledge";
+      return;
+    }
     const all = panels();
     const currentPanel = activePanel() || all[all.length - 1];
     if (!currentPanel) {
@@ -3460,6 +4089,56 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return panel;
   }
 
+  function integratePanelFrontmatter(panel) {
+    const frontmatter = panel.querySelector(".note-body > [data-frontmatter]");
+    const chrome = panel.querySelector(":scope > .note-chrome");
+    const actions = chrome?.querySelector(".note-actions");
+    const summary = frontmatter?.querySelector(":scope > .ok-frontmatter-summary");
+    const content = frontmatter?.querySelector(":scope > .ok-frontmatter-body");
+    if (!frontmatter || !chrome || !actions || !summary || !content || frontmatter.dataset.headerIntegrated === "true") {
+      return;
+    }
+
+    frontmatterControlID += 1;
+    const contentID = "note-frontmatter-" + frontmatterControlID;
+    const title = summary.querySelector(".ok-frontmatter-title")?.textContent?.trim() || "Frontmatter";
+    const count = summary.querySelector(".ok-frontmatter-count")?.textContent?.trim() || "";
+    const trigger = document.createElement("button");
+    const triggerTitle = document.createElement("span");
+    const triggerCount = document.createElement("span");
+
+    trigger.type = "button";
+    trigger.className = "ok-frontmatter-trigger";
+    trigger.dataset.frontmatterTrigger = "";
+    trigger.setAttribute("aria-controls", contentID);
+    triggerTitle.className = "ok-frontmatter-trigger-title";
+    triggerTitle.textContent = title;
+    triggerCount.className = "ok-frontmatter-trigger-count";
+    triggerCount.textContent = count;
+    trigger.append(triggerTitle, triggerCount);
+
+    content.id = contentID;
+    summary.hidden = true;
+    frontmatter.dataset.headerIntegrated = "true";
+    frontmatter.classList.add("is-header-integrated");
+    chrome.after(frontmatter);
+    actions.prepend(trigger);
+
+    function syncTrigger() {
+      const expanded = frontmatter.open;
+      trigger.setAttribute("aria-expanded", expanded ? "true" : "false");
+      trigger.setAttribute("aria-label", (expanded ? "Hide " : "Show ") + title.toLocaleLowerCase() + (count ? ", " + count : ""));
+      trigger.title = expanded ? "Hide " + title.toLocaleLowerCase() : "Show " + title.toLocaleLowerCase();
+    }
+
+    trigger.addEventListener("click", function () {
+      frontmatter.open = !frontmatter.open;
+      syncTrigger();
+    });
+    frontmatter.addEventListener("toggle", syncTrigger);
+    syncTrigger();
+  }
+
   function updateLinkBehaviorHints(scope) {
     const root = scope || document;
     root.querySelectorAll("[data-tree-path], .search-result[href]").forEach(function (link) {
@@ -3475,6 +4154,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function bindPanel(panel) {
     renderPanelBreadcrumbs(panel);
+    integratePanelFrontmatter(panel);
     applyPanelWidth(panel);
     ensurePanelResizeHandles(panel);
     syncPanelCloseShortcut(panel);
@@ -3610,6 +4290,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel) {
+    if (graphViewRequested) {
+      setGraphViewRequested(false);
+    }
     const source = sourcePanel || activePanel();
     if (!source) {
       await openInitialNote(targetPath, pushHistory, highlightText);
@@ -4343,7 +5026,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     fileSidebar.addEventListener("click", function (event) {
       const treeLink = closestElement(event.target, "[data-tree-path]");
       const link = treeLink || closestElement(event.target, "a[href]");
-      if (!link) {
+      if (!link || link.dataset.directLink === "true") {
         return;
       }
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) {
@@ -4383,6 +5066,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   window.addEventListener("popstate", function () {
+    graphViewRequested = false;
     const paths = stackFromLocation();
     restoreStack(paths, highlightFromLocation());
   });
@@ -4422,7 +5106,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   const requestedStack = stackFromLocation();
   const requestedHighlight = highlightFromLocation();
+  organizeSidebarControls();
   bindNavigationMode();
+  bindDocumentsView();
+  bindGraphView();
   bindViewerSettings();
   prepareKnowledgeTrees();
   renderKnowledgeGraph();

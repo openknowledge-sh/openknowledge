@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-08T00:00:00Z
+timestamp: 2026-08-09T00:00:00Z
 ---
 
 # CLI Changelog
@@ -12,6 +12,34 @@ Current behavior belongs in the [command reference](/features/commands/). This
 page records release-level changes.
 
 ## Unreleased
+
+### Viewer
+
+- Markdown note panels now use a compact header. The **Frontmatter** control
+  expands the full typed YAML table below the header.
+- Viewer search now strips common Markdown markup from excerpts and adds folder
+  context to `Index` titles. The panel shows progress, result counts, and
+  errors with **Retry**.
+- The viewer sidebar now has separate **Documents**, **Graph**, and
+  **Settings** items. The **Documents** view contains the file tree.
+- The canvas knowledge graph now provides pan, zoom, node drag, filters,
+  display controls, force controls, and saved folder colors.
+- The graph workspace fills the available desktop height. One collapsed
+  **Graph settings** disclosure contains all controls on small viewports.
+- The sidebar status now shows only the connection count for the selected or
+  hovered node. The canvas `aria-label` keeps the node name and Enter hint.
+- **Fit**, **Reset graph**, **Pause**, and **Resume** control the graph view.
+- Long brand names in viewer headers now truncate with an ellipsis when space
+  is limited.
+- Source: `packages/cli/cmd/openknowledge/viewer_templates.go`,
+  `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/web/src/viewer/app.js`,
+  `packages/web/src/viewer/search.js`,
+  `packages/web/src/viewer/viewer.css`,
+  `packages/cli/cmd/openknowledge/viewer_theme.css`, and
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `Wiki/features/commands/view.md` and
+  `Wiki/features/exporters/html.md`.
 
 ### Setup
 

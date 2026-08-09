@@ -152,12 +152,22 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         <path d="M15 8h2.5"></path>
       </svg>
     </button>
+    <button class="graph-view-toggle" type="button" data-graph-view-toggle aria-label="Graph view" aria-controls="knowledge-graph" aria-pressed="false" title="Graph view">
+      <svg class="graph-view-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="5.5" cy="7" r="2"></circle>
+        <circle cx="18.5" cy="5" r="2"></circle>
+        <circle cx="15.5" cy="18" r="2"></circle>
+        <path d="m7.4 6.7 9.1-1.3M6.7 8.5l7.6 7.9m2.2-.3 1.5-9"></path>
+      </svg>
+      <span class="sidebar-navigation-label">Graph</span>
+    </button>
     <div class="viewer-settings" data-viewer-settings>
       <button class="viewer-settings-trigger" type="button" data-viewer-settings-trigger aria-haspopup="dialog" aria-expanded="false" aria-label="Viewer settings" title="Settings">
         <svg class="viewer-settings-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
           <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.65V21.3a2.1 2.1 0 0 1-4.2 0v-.06a1.8 1.8 0 0 0-1.1-1.65 1.8 1.8 0 0 0-1.98.36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04A1.8 1.8 0 0 0 3.8 15a1.8 1.8 0 0 0-1.65-1.1H2.1a2.1 2.1 0 0 1 0-4.2h.06A1.8 1.8 0 0 0 3.8 8a1.8 1.8 0 0 0-.36-1.98l-.04-.04A2.1 2.1 0 0 1 6.37 3l.04.04A1.8 1.8 0 0 0 8.4 3.4a1.8 1.8 0 0 0 1.1-1.65V1.7a2.1 2.1 0 0 1 4.2 0v.06a1.8 1.8 0 0 0 1.1 1.65 1.8 1.8 0 0 0 1.98-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04A1.8 1.8 0 0 0 19.4 8a1.8 1.8 0 0 0 1.65 1.1h.06a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"></path>
         </svg>
+        <span class="sidebar-navigation-label">Settings</span>
       </button>
       <div class="viewer-settings-menu" data-viewer-settings-menu role="dialog" aria-label="Viewer settings" hidden>
         <div class="viewer-settings-title">Theme</div>
@@ -284,7 +294,13 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   </header>
   <aside class="file-sidebar" data-file-sidebar aria-label="File explorer" aria-hidden="true">
     <div class="file-sidebar-head">
-      <span>Files</span>
+      <a class="file-sidebar-brand" href="{{.HomeURL}}" data-direct-link="true">
+        <span class="file-sidebar-brand-mark" aria-hidden="true">OK</span>
+        <span class="file-sidebar-brand-copy">
+          <strong>{{.BrandName}}</strong>
+          <small title="{{.Root}}">{{.Root}}</small>
+        </span>
+      </a>
       <button class="file-sidebar-close" type="button" data-sidebar-close aria-label="Close file explorer" title="Close">
         <svg class="note-close-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M18 6 6 18"></path>
@@ -292,7 +308,21 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </svg>
       </button>
     </div>
-    <div class="file-sidebar-tree knowledge-tree" role="tree">
+    <nav class="file-sidebar-navigation" aria-label="Viewer">
+      <button class="sidebar-navigation-item" type="button" data-documents-view-toggle aria-label="Documents" aria-controls="note-workspace" aria-current="page">
+        <svg class="sidebar-navigation-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6.5 3.5h7l4 4v13h-11a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z"></path>
+          <path d="M13.5 3.5v4h4M8 12h6M8 16h6"></path>
+        </svg>
+        <span class="sidebar-navigation-label">Documents</span>
+      </button>
+      <span data-sidebar-graph-slot></span>
+    </nav>
+    <div class="file-sidebar-section-head">
+      <span>Knowledge base</span>
+      <span data-sidebar-tree-actions></span>
+    </div>
+    <div id="file-sidebar-tree" class="file-sidebar-tree knowledge-tree" role="tree" aria-label="Documents">
       {{range .Tree}}
         {{if .Directory}}
           <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
@@ -306,10 +336,13 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         <p class="empty">No Markdown files found.</p>
       {{end}}
     </div>
+    <div class="file-sidebar-footer">
+      <span data-sidebar-settings-slot></span>
+    </div>
     <button class="file-sidebar-resize" type="button" data-sidebar-resize-handle role="separator" aria-label="Resize file explorer" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="560" aria-valuenow="280" title="Resize file explorer"></button>
   </aside>
   <main id="note-workspace" class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
-    <section class="knowledge-empty" data-empty-state aria-label="Knowledge graph" hidden>
+    <section id="knowledge-graph" class="knowledge-empty" data-empty-state aria-label="Knowledge graph" hidden>
       <div class="knowledge-empty-inner">
         <aside class="knowledge-empty-pane knowledge-graph-sidebar" data-knowledge-graph-sidebar aria-label="Knowledge graph details"></aside>
         <div class="knowledge-empty-pane knowledge-empty-graph" data-knowledge-graph-view aria-label="Knowledge graph"></div>

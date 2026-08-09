@@ -3,7 +3,7 @@ type: Exporter Documentation
 title: HTML Exporter
 description: Publish an Open Knowledge bundle as a static site.
 tags: [openknowledge, cli, exporter, html]
-timestamp: 2026-08-06T00:00:00Z
+timestamp: 2026-08-09T00:00:00Z
 ---
 
 # HTML Exporter
@@ -38,8 +38,9 @@ Plain mode does not support head injection.
 
 Viewer mode includes:
 
-- static Markdown pages with file navigation, Mermaid diagrams, search, graph
-  data, stacked panels, metadata inspectors, table controls, themes, and mobile layout
+- static Markdown pages with **Documents**, **Graph**, and **Settings** sidebar
+  items, Mermaid diagrams, search, stacked panels, metadata inspectors, table
+  controls, themes, and mobile layout
 - a light blue default theme that matches the Open Knowledge website
 - OKF 0.2 trust, status, freshness, provenance, structured source, and
   Attested Computation contract views
@@ -54,6 +55,13 @@ Every page references one shared `viewer.js`, `viewer.css`,
 `viewer-theme.js`, and `viewer-data.js`. The data file contains the rendered
 note collection, graph, and deterministic editor catalog. Individual HTML
 pages do not embed a copy of the complete collection.
+
+Viewer-mode search strips common Markdown markup from excerpts. It adds folder
+context to `Index` titles. It keeps arrow key, Enter, Shift+Enter, and Escape
+controls.
+
+Viewer mode provides the graph controls that the [`view`](../commands/view.md)
+command provides.
 
 The shared JavaScript includes the pinned Mermaid runtime. Vite builds the
 viewer from the TypeScript and JavaScript sources in `packages/web/src/viewer`.

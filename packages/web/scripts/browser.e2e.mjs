@@ -307,17 +307,61 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await context.close();
 });
 
+test("exported viewer keeps long responsive brands visible before the search field", async () => {
+  const context = await browser.newContext({ viewport: { width: 570, height: 844 } });
+  const page = await context.newPage();
+
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  const brand = page.locator(".header-left .brand");
+  await brand.evaluate((element) => {
+    element.textContent = "Open Knowledge CLI Documentation";
+  });
+
+  for (const width of [570, 690, 943]) {
+    await page.setViewportSize({ width, height: 844 });
+    const brandBox = await brand.boundingBox();
+    const searchBox = await page.locator(".search.header-search").boundingBox();
+    const brandOverflow = await brand.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      textOverflow: getComputedStyle(element).textOverflow,
+    }));
+
+    assert.ok(brandBox && searchBox, `the brand and search should remain visible at ${width}px`);
+    assert.equal(brandOverflow.textOverflow, "ellipsis");
+    assert.ok(brandOverflow.clientWidth >= 96, `the brand should keep a useful visible width at ${width}px`);
+    assert.ok(brandOverflow.clientWidth < brandOverflow.scrollWidth, `the long brand should be truncated at ${width}px`);
+    assert.ok(brandBox.x + brandBox.width <= searchBox.x, `the truncated brand should not sit beneath search at ${width}px`);
+  }
+  await context.close();
+});
+
 test("exported viewer resolves OKF 0.2 source references", async () => {
   const context = await browser.newContext();
   const page = await context.newPage();
   const errors = collectPageErrors(page);
 
   await page.goto(new URL("guides/rollback.html", viewerURL).href, { waitUntil: "networkidle" });
+  const panel = page.locator('[data-note-path="guides/rollback.md"]');
   const frontmatter = page.locator("[data-frontmatter]");
+  const frontmatterTrigger = panel.locator(".note-actions > [data-frontmatter-trigger]");
   assert.equal(await frontmatter.count(), 1);
+  assert.equal(await frontmatterTrigger.count(), 1);
   assert.equal(await frontmatter.getAttribute("open"), null);
-  await frontmatter.locator(":scope > summary").click();
+  assert.equal(await frontmatterTrigger.getAttribute("aria-expanded"), "false");
+  assert.equal(await frontmatter.locator(":scope > summary").isHidden(), true);
+  await frontmatterTrigger.focus();
+  await page.keyboard.press("Enter");
   assert.equal(await frontmatter.getAttribute("open"), "");
+  assert.equal(await frontmatterTrigger.getAttribute("aria-expanded"), "true");
+  const panelBox = await panel.boundingBox();
+  const chromeBox = await panel.locator(":scope > .note-chrome").boundingBox();
+  const frontmatterBox = await frontmatter.boundingBox();
+  const headingBox = await panel.getByRole("heading", { name: "Rollback Guide" }).boundingBox();
+  assert.ok(panelBox && chromeBox && frontmatterBox && headingBox);
+  assert.ok(frontmatterBox.y >= chromeBox.y + chromeBox.height - 1, "frontmatter should expand below the compact header");
+  assert.ok(frontmatterBox.width >= panelBox.width - 2, "expanded frontmatter should use the full note width");
+  assert.ok(headingBox.y >= frontmatterBox.y + frontmatterBox.height, "expanded frontmatter should stay in normal flow before the Markdown body");
   const signals = frontmatter.locator("[data-okf02-signals]");
   assert.equal(await signals.count(), 1);
   assert.match(await signals.innerText(), /Human reviewed/);
@@ -329,19 +373,61 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   await reference.click();
   assert.equal(await ledger.getAttribute("open"), "");
   assert.equal(await ledger.locator("#ok-source-rollback-policy").count(), 1);
+  await page.getByRole("button", { name: "Open file explorer" }).click();
+  await page.locator("[data-viewer-settings-trigger]").click();
+  const frontmatterVisibility = page.locator("[data-frontmatter-visibility]");
+  await frontmatterVisibility.uncheck({ force: true });
+  assert.equal(await frontmatterTrigger.isVisible(), false);
+  await frontmatterVisibility.check({ force: true });
+  assert.equal(await frontmatterTrigger.isVisible(), true);
   assert.equal(errors.length, 0, `viewer OKF 0.2 browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 
 test("exported viewer keeps note navigation, explorer context, and settings discoverable", async () => {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
   const page = await context.newPage();
   const errors = collectPageErrors(page);
 
   await page.goto(viewerURL, { waitUntil: "networkidle" });
   const navigationMode = page.locator("[data-navigation-mode-toggle]");
+  const graphViewControl = page.getByRole("button", { name: "Graph view" });
+  const documentsViewControl = page.getByRole("button", { name: "Documents", exact: true });
+  await page.getByRole("button", { name: "Open file explorer" }).click();
+  await page.locator('[data-note-path="index.md"]').evaluate((panel) => {
+    panel.dataset.graphToggleTest = "preserved";
+  });
   assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
   assert.equal(await navigationMode.getAttribute("aria-pressed"), "true");
+  assert.equal(await graphViewControl.getAttribute("aria-current"), null);
+  assert.equal(await graphViewControl.getAttribute("aria-pressed"), "false");
+  await graphViewControl.click();
+  await page.locator("[data-knowledge-graph-view] canvas").waitFor({ state: "visible" });
+  assert.equal(await page.locator("html").getAttribute("data-viewer-view"), "graph");
+  assert.equal(await graphViewControl.getAttribute("aria-current"), "page");
+  assert.equal(await graphViewControl.getAttribute("aria-pressed"), "true");
+  assert.equal(await page.locator("[data-note-path]").count(), 1, "opening graph view should preserve note panels");
+  assert.equal(await page.locator("[data-note-path]").first().isVisible(), false, "graph view should temporarily hide preserved panels");
+  await documentsViewControl.click();
+  await page.locator('[data-note-path="index.md"]').waitFor({ state: "visible" });
+  assert.equal(await page.locator("html").getAttribute("data-viewer-view"), "notes");
+  assert.equal(await graphViewControl.getAttribute("aria-current"), null);
+  assert.equal(await graphViewControl.getAttribute("aria-pressed"), "false");
+  assert.equal(await page.locator("[data-note-path]").count(), 1, "closing graph view should restore preserved note panels");
+  assert.equal(await page.locator('[data-note-path="index.md"]').getAttribute("data-graph-toggle-test"), "preserved", "closing graph view should restore the same panel element");
+  await graphViewControl.click();
+  await page.locator("[data-knowledge-graph-view] canvas").waitFor({ state: "visible" });
+  const graphSearch = page.locator(".search-input");
+  await graphSearch.fill("rollback");
+  const graphSearchResult = page.locator(".search-results a", { hasText: "Rollback Guide" }).first();
+  await graphSearchResult.waitFor({ state: "visible" });
+  await graphSearchResult.click();
+  await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
+  assert.equal(await page.locator("html").getAttribute("data-viewer-view"), "notes");
+  assert.equal(await graphViewControl.getAttribute("aria-current"), null);
+  assert.equal(await page.locator("[data-note-path]").count(), 2, "graph navigation should follow open-beside mode");
+  await page.goBack();
+  await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 1);
   await navigationMode.click();
   assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
   assert.equal(await navigationMode.getAttribute("aria-pressed"), "false");
@@ -362,6 +448,7 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.getByRole("link", { name: "rollback guide" }).click();
   await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
   assert.equal(await page.locator("[data-note-path]").count(), 2, "beside mode should open a normal note link beside the active panel");
+  assert.equal(await page.locator('[data-note-path="guides/rollback.md"] .note-actions > [data-frontmatter-trigger]').count(), 1, "dynamic note panels should integrate frontmatter into the header");
   assert.equal(await page.locator("[data-note-navigator]").count(), 0, "multi-panel mode should not add a fixed bottom navigator");
   await page.locator('[data-note-path="index.md"] .note-chrome').click();
   assert.equal(await page.locator('[data-note-path="index.md"][data-active-panel="true"]').count(), 1);
@@ -372,7 +459,9 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 2);
   await page.locator('[data-note-path="index.md"] .note-chrome').click();
 
-  await page.getByRole("button", { name: "Open file explorer" }).click();
+  if (await page.locator("body").evaluate((body) => !body.classList.contains("is-sidebar-open"))) {
+    await page.getByRole("button", { name: "Open file explorer" }).click();
+  }
   const viewport = page.viewportSize();
   await page.waitForFunction(() => {
     const header = document.querySelector("body.viewer-document > header")?.getBoundingClientRect();
@@ -428,8 +517,10 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   const workspaceBox = await page.locator(".note-workspace").boundingBox();
   const scrollRailBox = await page.locator(".workspace-scroll-rail").boundingBox();
   const navigationBox = await navigationMode.boundingBox();
+  const documentsViewBox = await documentsViewControl.boundingBox();
+  const graphViewBox = await graphViewControl.boundingBox();
   const settingsBox = await page.locator("[data-viewer-settings-trigger]").boundingBox();
-  assert.ok(headerBox && sidebarBox && workspaceBox && scrollRailBox && navigationBox && settingsBox && viewport);
+  assert.ok(headerBox && sidebarBox && workspaceBox && scrollRailBox && navigationBox && documentsViewBox && graphViewBox && settingsBox && viewport);
   assert.equal(Math.round(sidebarBox.width), Math.max(280, Math.min(560, Math.round(viewport.width * 0.25))), "the sidebar should default to a bounded quarter of the viewport");
   assert.equal(Math.round(headerBox.x), Math.round(sidebarBox.x + sidebarBox.width), "the header should occupy the second grid column");
   assert.equal(Math.round(workspaceBox.x), Math.round(sidebarBox.x + sidebarBox.width), "the workspace should occupy the second grid column");
@@ -437,7 +528,9 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   assert.ok(scrollRailBox.x + scrollRailBox.width <= workspaceBox.x + workspaceBox.width, "the horizontal scroll rail should end inside the second grid column");
   assert.equal(Math.round(headerBox.x + headerBox.width), viewport.width, "the header should end at the viewport edge");
   assert.ok(navigationBox.x >= headerBox.x && navigationBox.x + navigationBox.width <= viewport.width, "link behavior should remain visible");
-  assert.ok(settingsBox.x >= headerBox.x && settingsBox.x + settingsBox.width <= viewport.width, "viewer settings should remain visible");
+  assert.ok(documentsViewBox.x >= sidebarBox.x && documentsViewBox.x + documentsViewBox.width <= sidebarBox.x + sidebarBox.width, "Documents should stay in the sidebar");
+  assert.ok(graphViewBox.x >= sidebarBox.x && graphViewBox.x + graphViewBox.width <= sidebarBox.x + sidebarBox.width, "Graph should stay in the sidebar");
+  assert.ok(settingsBox.x >= sidebarBox.x && settingsBox.x + settingsBox.width <= sidebarBox.x + sidebarBox.width, "Settings should stay in the sidebar");
   const sidebarResize = page.getByRole("separator", { name: "Resize file explorer" });
   await sidebarResize.focus();
   await sidebarResize.press("End");
@@ -476,6 +569,9 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.locator("[data-note-path]").first().locator("[data-close-panel]").click();
   await page.locator("[data-empty-state]").waitFor({ state: "visible" });
   assert.equal(await page.locator("[data-note-path]").count(), 0);
+  assert.equal(await graphViewControl.getAttribute("aria-pressed"), "true");
+  await graphViewControl.click();
+  assert.equal(await page.locator("html").getAttribute("data-viewer-view"), "graph", "graph view should remain visible when no note panels exist");
   assert.equal(await page.locator("[data-empty-state] .knowledge-tree").count(), 0, "the graph view should not duplicate the file explorer");
   const graphSidebar = page.locator("[data-knowledge-graph-sidebar]");
   const graphCanvas = page.locator("[data-knowledge-graph-view] canvas");
@@ -483,7 +579,56 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await graphCanvas.waitFor({ state: "visible" });
   const graphSidebarBox = await graphSidebar.boundingBox();
   const graphCanvasBox = await graphCanvas.boundingBox();
+  const graphEmptyBox = await page.locator("[data-empty-state]").boundingBox();
   assert.ok(graphSidebarBox && graphCanvasBox && graphSidebarBox.x + graphSidebarBox.width <= graphCanvasBox.x, "graph details should stay beside the canvas");
+  assert.ok(graphEmptyBox && Math.abs(graphCanvasBox.height - graphEmptyBox.height) < 1, "desktop graph canvas should fill the available viewer height");
+  assert.equal(Math.round(graphCanvasBox.y + graphCanvasBox.height), 1200, "desktop graph canvas should reach the viewport bottom");
+  assert.equal(await graphSidebar.getByRole("heading", { name: "Graph view" }).count(), 1);
+  const graphSettings = graphSidebar.locator(".knowledge-graph-settings");
+  assert.equal(await graphSettings.getAttribute("open"), "", "desktop graph settings should stay expanded");
+  assert.equal(await graphSettings.locator(".knowledge-graph-control-section[open]").count(), 3, "desktop graph sections should keep their existing open defaults");
+  assert.equal(await graphSidebar.getByPlaceholder("Filter notes…").count(), 1);
+  assert.equal(await graphSidebar.getByLabel("Color nodes by folder").isChecked(), true);
+  assert.equal(await graphSidebar.getByLabel("Show arrows").isChecked(), false);
+  assert.equal(await graphSidebar.getByLabel("Text fade threshold").count(), 1);
+  assert.equal(await graphSidebar.getByLabel("Node size").count(), 1);
+  assert.equal(await graphSidebar.getByLabel("Link thickness").count(), 1);
+  assert.equal(await graphSidebar.getByRole("button", { name: "Fit" }).count(), 1);
+  assert.equal(await graphSidebar.getByRole("button", { name: "Reset graph" }).count(), 1);
+  const animationControl = graphSidebar.locator("[data-graph-animation]");
+  assert.equal(await animationControl.getAttribute("aria-pressed"), "true");
+  await animationControl.click();
+  assert.equal(await animationControl.textContent(), "Resume");
+  assert.equal(await animationControl.getAttribute("aria-pressed"), "false");
+  await graphCanvas.focus();
+  const selectedGraphStatus = await graphSidebar.locator("[data-knowledge-graph-status]").textContent();
+  assert.match(selectedGraphStatus, /^\d+ connections?$/, "selected graph status should show only the connection count");
+  assert.doesNotMatch(selectedGraphStatus, /Enter|·/, "selected graph status should stay concise and inline");
+  assert.match(await graphCanvas.getAttribute("aria-label"), /^Selected .+ with \d+ connections?\..+Enter to open\.$/, "the canvas label should retain selected-node keyboard context");
+  const graphFilter = graphSidebar.getByPlaceholder("Filter notes…");
+  await graphFilter.fill("rollback");
+  assert.match(await graphSidebar.locator("[data-knowledge-graph-status]").textContent(), /^1 of /);
+  await graphFilter.fill("");
+  await graphSidebar.getByLabel("Show arrows").check();
+  await graphSidebar.getByLabel("Node size").fill("125");
+  assert.equal(
+    await page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith("openknowledge.viewer.graphSettings.") && JSON.parse(localStorage.getItem(key)).nodeSize === 125)),
+    true,
+    "graph display settings should persist per knowledge graph",
+  );
+  await graphSidebar.getByRole("button", { name: "Zoom in" }).click();
+  await graphSidebar.getByRole("button", { name: "Zoom out" }).click();
+  await graphSidebar.getByRole("button", { name: "100%" }).click();
+  await graphSidebar.getByRole("button", { name: "Fit" }).click();
+  await graphSidebar.getByRole("button", { name: "Reset graph" }).click();
+  assert.equal(await graphSidebar.getByLabel("Show arrows").isChecked(), false);
+  assert.equal(await graphSidebar.getByLabel("Node size").inputValue(), "100");
+  assert.equal(await graphCanvas.evaluate((canvas) => canvas.width >= Math.round(canvas.getBoundingClientRect().width)), true, "graph canvas should use a responsive high-resolution backing surface");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForFunction(() => !document.querySelector("[data-knowledge-graph-sidebar] .knowledge-graph-settings")?.open);
+  assert.equal(await graphSettings.getAttribute("open"), null, "mobile graph settings should start collapsed");
+  assert.equal(await graphSidebar.getByRole("button", { name: "Fit" }).isVisible(), false, "collapsed mobile graph settings should hide all actions");
+  assert.equal(Math.round((await graphCanvas.boundingBox()).height), 380, "mobile graph canvas should keep its bounded height");
   assert.equal(errors.length, 0, `viewer navigation browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
@@ -503,6 +648,27 @@ test("exported viewer switches sidebar notes without mobile motion", async () =>
     };
   });
   await page.goto(viewerURL, { waitUntil: "networkidle" });
+  const mobileGraphControl = page.getByRole("button", { name: "Graph view" });
+  const mobileDocumentsControl = page.getByRole("button", { name: "Documents", exact: true });
+  await page.getByRole("button", { name: "Open file explorer" }).click();
+  await mobileGraphControl.click();
+  const mobileGraphSidebar = page.locator("[data-knowledge-graph-sidebar]");
+  await mobileGraphSidebar.waitFor({ state: "visible" });
+  const mobileGraphSettings = mobileGraphSidebar.locator(".knowledge-graph-settings");
+  assert.equal(await mobileGraphSettings.getAttribute("open"), null, "mobile graph settings should start collapsed");
+  assert.equal(await mobileGraphSidebar.getByText("Filters", { exact: true }).isVisible(), false, "collapsed mobile graph settings should hide every section");
+  assert.equal(await mobileGraphSidebar.getByRole("button", { name: "Fit" }).isVisible(), false, "collapsed mobile graph settings should hide every action");
+  const collapsedSidebarBox = await mobileGraphSidebar.boundingBox();
+  const mobileCanvasBox = await page.locator("[data-knowledge-graph-view] canvas").boundingBox();
+  assert.ok(collapsedSidebarBox && mobileCanvasBox && mobileCanvasBox.y - collapsedSidebarBox.y - collapsedSidebarBox.height <= 24, "collapsed graph settings should not reserve empty vertical space");
+  await mobileGraphSidebar.getByText("Graph settings", { exact: true }).click();
+  assert.equal(await mobileGraphSettings.getAttribute("open"), "", "mobile graph settings should open as one disclosure");
+  assert.equal(await mobileGraphSidebar.getByPlaceholder("Filter notes…").isVisible(), true, "open mobile graph settings should show filter controls");
+  assert.equal(await mobileGraphSidebar.getByLabel("Center force").isVisible(), true, "open mobile graph settings should show force controls");
+  assert.equal(await mobileGraphSidebar.getByRole("button", { name: "Fit" }).isVisible(), true, "open mobile graph settings should show every action");
+  await page.getByRole("button", { name: "Open file explorer" }).click();
+  await mobileDocumentsControl.click();
+  await page.locator('[data-note-path="index.md"]').waitFor({ state: "visible" });
   await page.getByRole("button", { name: "Open file explorer" }).click();
   assert.equal(await page.evaluate(() => getComputedStyle(document.body).transitionDuration), "0s");
 
@@ -536,6 +702,7 @@ test("exported viewer renders Mermaid in initial and dynamic note panels", async
   assert.equal(await invalidDiagram.locator("[data-mermaid-error]:visible").count(), 1);
   assert.equal(await invalidDiagram.locator("[data-mermaid-source]:visible").count(), 1);
 
+  await page.getByRole("button", { name: "Open file explorer" }).click();
   await page.locator("[data-viewer-settings-trigger]").click();
   await page.locator('[data-theme-option="default"]').click();
   await page.locator('[data-note-path="guides/rollback.md"] [data-mermaid-diagram][data-mermaid-state="rendered"]').waitFor();

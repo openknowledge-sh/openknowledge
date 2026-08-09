@@ -172,7 +172,7 @@
 
       if (controller) controller.abort();
       controller = new AbortController();
-      status.textContent = "Searching...";
+      renderSearchState(results, status, "Searching…", "loading", setResultsOpen, setActiveResult, true);
 
       try {
         const response = await fetch(searchURL + "?q=" + encodeURIComponent(query) + "&limit=12", {
@@ -186,9 +186,10 @@
         renderResults(results, status, payload.results || [], query, setResultsOpen, setActiveResult);
       } catch (error) {
         if (error.name === "AbortError") return;
-        status.textContent = "Search failed.";
-        setActiveResult(-1, false);
-        setResultsOpen(false);
+        renderSearchState(results, status, "Search unavailable.", "error", setResultsOpen, setActiveResult, true, {
+          label: "Retry",
+          run: runSearch,
+        });
       }
     }
 
@@ -206,6 +207,7 @@
         renderResults(results, status, items, normalizedTag, setResultsOpen, setActiveResult, {
           emptyStatus: "No other notes tagged \"" + normalizedTag + "\".",
           keepOpenWhenEmpty: true,
+          showMatchCounts: false,
           statusText: items.length + " note" + (items.length === 1 ? "" : "s") + " tagged \"" + normalizedTag + "\"",
         });
         return;
@@ -213,7 +215,7 @@
 
       if (controller) controller.abort();
       controller = new AbortController();
-      status.textContent = "Finding tagged notes...";
+      renderSearchState(results, status, "Finding tagged notes…", "loading", setResultsOpen, setActiveResult, true);
       const params = new URLSearchParams({ tag: normalizedTag, limit: "30" });
       if (currentPath) {
         params.set("exclude", currentPath);
@@ -229,13 +231,15 @@
         renderResults(results, status, items, normalizedTag, setResultsOpen, setActiveResult, {
           emptyStatus: "No other notes tagged \"" + normalizedTag + "\".",
           keepOpenWhenEmpty: true,
+          showMatchCounts: false,
           statusText: items.length + " note" + (items.length === 1 ? "" : "s") + " tagged \"" + normalizedTag + "\"",
         });
       } catch (error) {
         if (error.name === "AbortError") return;
-        status.textContent = "Tag lookup failed.";
-        setActiveResult(-1, false);
-        setResultsOpen(false);
+        renderSearchState(results, status, "Tag lookup unavailable.", "error", setResultsOpen, setActiveResult, true, {
+          label: "Retry",
+          run: () => runTagSearch(normalizedTag),
+        });
       }
     }
 
@@ -270,6 +274,7 @@
       }
       status.textContent = "";
       results.replaceChildren();
+      resetSearchResults(results);
       setActiveResult(-1, false);
       setResultsOpen(false);
     }
@@ -328,21 +333,24 @@
     const config = options || {};
     const groupedItems = groupSearchResults(items);
     results.replaceChildren();
+    resetSearchResults(results);
     if (groupedItems.length === 0) {
       const emptyText = config.emptyStatus ?? "No results for \"" + query + "\".";
-      status.textContent = emptyText;
       if (emptyText) {
-        const empty = document.createElement("div");
-        empty.className = "search-empty";
-        empty.textContent = emptyText;
-        results.append(empty);
+        const keepOpenWhenEmpty = config.keepOpenWhenEmpty !== false;
+        renderSearchState(results, status, emptyText, "empty", setResultsOpen, setActiveResult, keepOpenWhenEmpty);
+      } else {
+        status.textContent = "";
+        setActiveResult(-1, false);
+        setResultsOpen(false);
       }
-      setActiveResult(-1, false);
-      setResultsOpen(Boolean(config.keepOpenWhenEmpty));
       return;
     }
 
-    status.textContent = config.statusText || (groupedItems.length + " document" + (groupedItems.length === 1 ? "" : "s"));
+    const summary = config.statusText || (groupedItems.length + " document" + (groupedItems.length === 1 ? "" : "s"));
+    status.textContent = summary;
+    results.dataset.summary = summary;
+    results.dataset.hasOptions = "true";
     setResultsOpen(true);
     groupedItems.forEach((item, index) => {
       const link = document.createElement("a");
@@ -357,38 +365,77 @@
       titleRow.className = "search-result-title-row";
       const title = document.createElement("span");
       title.className = "search-result-title";
-      appendHighlightedText(title, item.title || item.path, query);
+      const displayTitle = searchResultTitle(item);
+      appendHighlightedText(title, displayTitle, query);
       titleRow.append(title);
-      if (item.matchCount > 1) {
+      if (config.showMatchCounts !== false && query && item.matchCount > 0) {
         const count = document.createElement("span");
         count.className = "search-result-count";
-        count.textContent = item.matchCount + " matches";
+        count.textContent = item.matchCount + " match" + (item.matchCount === 1 ? "" : "es");
         titleRow.append(count);
       }
       link.append(titleRow);
 
-      const meta = document.createElement("span");
-      meta.className = "search-result-meta";
-      meta.textContent = [item.path, item.type, item.matchCount === 1 ? item.heading : ""].filter(Boolean).join(" - ");
-      link.append(meta);
+      const showPath = item.path && String(item.path).toLocaleLowerCase() !== displayTitle.toLocaleLowerCase();
+      if (showPath) {
+        const meta = document.createElement("span");
+        meta.className = "search-result-meta";
+        meta.textContent = item.path;
+        link.append(meta);
+      }
 
       if (item.snippet) {
         const snippet = document.createElement("span");
         snippet.className = "search-result-snippet";
-        appendHighlightedText(snippet, item.snippet, query);
+        appendHighlightedText(snippet, plainSearchExcerpt(item.snippet), query);
         link.append(snippet);
       }
 
-      if (item.headings.length > 1) {
-        const headings = document.createElement("span");
-        headings.className = "search-result-headings";
-        headings.textContent = item.headings.slice(0, 3).join(" · ");
-        link.append(headings);
-      }
+      const accessibleCount = config.showMatchCounts !== false && query && item.matchCount
+        ? item.matchCount + " match" + (item.matchCount === 1 ? "" : "es")
+        : "";
+      link.setAttribute("aria-label", [displayTitle, item.path, accessibleCount].filter(Boolean).join(", "));
 
       results.append(link);
     });
     setActiveResult(0, false);
+  }
+
+  function renderSearchState(results, status, message, kind, setResultsOpen, setActiveResult, open, action) {
+    status.textContent = message;
+    results.replaceChildren();
+    resetSearchResults(results);
+    results.classList.add("is-" + kind);
+    results.setAttribute("role", "group");
+    results.setAttribute("aria-label", "Search status");
+
+    const state = document.createElement("div");
+    state.className = "search-state";
+    const text = document.createElement("span");
+    text.className = "search-state-message";
+    text.textContent = message;
+    state.append(text);
+
+    if (action) {
+      const button = document.createElement("button");
+      button.className = "search-state-action";
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", action.run);
+      state.append(button);
+    }
+
+    results.append(state);
+    setActiveResult(-1, false);
+    setResultsOpen(open);
+  }
+
+  function resetSearchResults(results) {
+    results.classList.remove("is-loading", "is-error", "is-empty");
+    delete results.dataset.summary;
+    delete results.dataset.hasOptions;
+    results.setAttribute("role", "listbox");
+    results.setAttribute("aria-label", "Search results");
   }
 
   function groupSearchResults(items) {
@@ -400,20 +447,48 @@
       if (!group) {
         group = Object.assign({}, item, {
           matchCount: 0,
-          headings: [],
         });
         byPath.set(path, group);
         groups.push(group);
       }
       group.matchCount += 1;
-      if (item.heading && !group.headings.includes(item.heading)) {
-        group.headings.push(item.heading);
-      }
       if (!group.snippet && item.snippet) {
         group.snippet = item.snippet;
       }
     });
     return groups;
+  }
+
+  function searchResultTitle(item) {
+    const title = String(item.title || item.path || "").trim();
+    if (!/^index(?:\.md)?$/i.test(title)) {
+      return title;
+    }
+    const segments = String(item.path || "").split("/").filter(Boolean);
+    if (segments[segments.length - 1]?.toLowerCase() === "index.md") {
+      segments.pop();
+    }
+    if (segments.length === 0) {
+      return "Home";
+    }
+    const parent = segments[segments.length - 1]
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (character) => character.toUpperCase());
+    return parent + " / Index";
+  }
+
+  function plainSearchExcerpt(value) {
+    return String(value || "")
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/(^|\s)#{1,6}\s+/g, "$1")
+      .replace(/(^|\s)>\s?/g, "$1")
+      .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      .replace(/[~*_]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function navigationModeTitle() {
@@ -485,7 +560,7 @@
     if (!results.id) {
       results.id = (input.id || "viewer-search") + "-results-" + Math.random().toString(36).slice(2);
     }
-    results.setAttribute("role", "listbox");
+    resetSearchResults(results);
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-controls", results.id);

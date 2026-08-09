@@ -68,8 +68,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(460px, 42vw); min-width: 240px; margin: 0; }`) {
 		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
 	}
-	if !strings.Contains(page, `.search.header-search { width: min(34vw, 280px); min-width: 0; margin-right: 84px; }`) {
-		t.Fatalf("viewer mobile header search should reserve navigation and settings control slots:\n%s", page)
+	if !strings.Contains(page, `.search.header-search { width: min(38vw, 300px); min-width: 0; margin-right: 44px; }`) {
+		t.Fatalf("viewer mobile header search should reserve the link behavior control slot:\n%s", page)
 	}
 	if !strings.Contains(page, `data-navigation-mode-toggle`) ||
 		!strings.Contains(page, `navigation-mode-icon-single`) ||
@@ -77,7 +77,24 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `data-mode="beside"`) ||
 		!strings.Contains(page, `aria-label="Link behavior: Open beside"`) ||
 		!strings.Contains(page, `aria-pressed="true"`) {
-		t.Fatalf("viewer should render a link behavior toggle beside settings:\n%s", page)
+		t.Fatalf("viewer should render a link behavior toggle in the document header:\n%s", page)
+	}
+	if !strings.Contains(page, `data-graph-view-toggle`) ||
+		!strings.Contains(page, `data-documents-view-toggle`) ||
+		!strings.Contains(page, `data-sidebar-graph-slot`) ||
+		!strings.Contains(page, `aria-label="Graph view"`) ||
+		!strings.Contains(page, `aria-controls="knowledge-graph" aria-pressed="false"`) ||
+		!strings.Contains(page, `id="knowledge-graph"`) {
+		t.Fatalf("viewer should render separate Documents and Graph sidebar items:\n%s", page)
+	}
+	if !strings.Contains(page, `setGraphViewRequested(true)`) ||
+		!strings.Contains(page, `function bindDocumentsView()`) ||
+		!strings.Contains(page, `graphViewToggle.setAttribute("aria-pressed", showGraph ? "true" : "false")`) ||
+		!strings.Contains(page, `settingsSummary.textContent = "Graph settings"`) ||
+		!strings.Contains(page, `mobileSidebar.addEventListener("change", syncSettingsDisclosure)`) ||
+		!strings.Contains(page, `settingsDisclosure.open = !mobile`) ||
+		!strings.Contains(page, `summary.setAttribute("role", "heading")`) {
+		t.Fatalf("viewer sidebar views should preserve panels and collapse all graph settings on mobile:\n%s", page)
 	}
 	if !strings.Contains(page, `data-viewer-settings-trigger`) ||
 		!strings.Contains(page, `data-theme-option="default"`) ||
@@ -101,8 +118,17 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-frontmatter-visibility checked`) ||
 		!strings.Contains(page, `openknowledge.viewer.frontmatter`) ||
 		!strings.Contains(page, `applyFrontmatterPreference`) ||
-		!strings.Contains(page, `body.is-frontmatter-hidden .ok-frontmatter`) {
+		!strings.Contains(page, `body.is-frontmatter-hidden .ok-frontmatter, body.is-frontmatter-hidden .ok-frontmatter-trigger`) {
 		t.Fatalf("viewer should persist a global frontmatter visibility preference:\n%s", page)
+	}
+	if !strings.Contains(page, `function integratePanelFrontmatter(panel)`) ||
+		!strings.Contains(page, `chrome.after(frontmatter)`) ||
+		!strings.Contains(page, `actions.prepend(trigger)`) ||
+		!strings.Contains(page, `trigger.setAttribute("aria-expanded", expanded ? "true" : "false")`) ||
+		!strings.Contains(page, `.note-chrome { position: sticky; top: 0; z-index: 5; display: flex; min-height: 44px;`) ||
+		!strings.Contains(page, `.ok-frontmatter.is-header-integrated { margin: -18px -34px 22px;`) ||
+		!strings.Contains(page, `@container note-panel (max-width: 520px)`) {
+		t.Fatalf("viewer note panels should use a compact header with full-width, container-aware frontmatter:\n%s", page)
 	}
 	if !strings.Contains(page, `data-accessibility-font`) ||
 		!strings.Contains(page, `data-accessibility-size`) ||
@@ -305,7 +331,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if strings.Contains(page, `data-view-mode-toggle`) || strings.Contains(page, `data-view-mode-icon`) || strings.Contains(page, `is-focus-mode`) {
 		t.Fatalf("viewer file page should always use stack panels without focus mode controls:\n%s", page)
 	}
-	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) {
+	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) ||
+		!strings.Contains(page, `class="file-sidebar-navigation"`) || !strings.Contains(page, `data-sidebar-settings-slot`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
 	}
 	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
@@ -313,8 +340,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `function groupSearchResults(items)`) ||
 		!strings.Contains(page, `group.matchCount += 1`) ||
-		!strings.Contains(page, `search-result-count`) ||
-		!strings.Contains(page, `item.headings.slice(0, 3).join(" · ")`) {
+		!strings.Contains(page, `search-result-count`) {
 		t.Fatalf("viewer search should group section matches into one result per document:\n%s", page)
 	}
 	if strings.Contains(page, `id="viewer-sidebar-search"`) || strings.Contains(page, `file-sidebar-search`) {
@@ -329,14 +355,29 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer search dropdown should dismiss on outside pointer and focus:\n%s", page)
 	}
 	if !strings.Contains(page, `.header-search .search-results { position: absolute; top: calc(100% + 8px);`) ||
+		!strings.Contains(page, `.header-search .search-result { gap: 4px; padding: 11px 10px; border: 0; border-radius: 0;`) ||
 		!strings.Contains(page, `.header-search .search-result-title`) ||
-		!strings.Contains(page, `.header-search .search-result-snippet`) {
+		!strings.Contains(page, `.header-search .search-result-snippet`) ||
+		strings.Contains(page, `search-result-context`) ||
+		!strings.Contains(page, `content: "Arrow keys navigate · Enter opens · Shift+Enter changes panel mode"`) {
 		t.Fatalf("viewer header search should use a streamlined result surface with clear hierarchy:\n%s", page)
+	}
+	if !strings.Contains(page, `function plainSearchExcerpt(value)`) ||
+		!strings.Contains(page, `function searchResultTitle(item)`) ||
+		!strings.Contains(page, `const showPath = item.path && String(item.path).toLocaleLowerCase() !== displayTitle.toLocaleLowerCase()`) ||
+		!strings.Contains(page, `return parent + " / Index"`) ||
+		!strings.Contains(page, `const keepOpenWhenEmpty = config.keepOpenWhenEmpty !== false`) ||
+		!strings.Contains(page, `"Search unavailable."`) ||
+		!strings.Contains(page, `label: "Retry"`) ||
+		!strings.Contains(page, `.header-search .search-results { position: fixed; top: calc(var(--ok-mobile-header-height) + 8px);`) {
+		t.Fatalf("viewer search should show readable results, visible recovery, and a viewport-safe mobile panel:\n%s", page)
 	}
 	if !strings.Contains(page, `isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore`) || !strings.Contains(page, `isIndexMarkdownPath(a.path) ? 1 : -1`) {
 		t.Fatalf("viewer static search should rank index.md files below regular pages:\n%s", page)
 	}
-	if !strings.Contains(page, `renderResults(results, status, payload.results || [], query`) || strings.Contains(page, `setResultsOpen(false);\n\n      if (staticNotes.length > 0)`) {
+	if !strings.Contains(page, `renderResults(results, status, payload.results || [], query`) ||
+		!strings.Contains(page, `renderSearchState(results, status, "Searching…", "loading"`) ||
+		strings.Contains(page, `setResultsOpen(false);\n\n      if (staticNotes.length > 0)`) {
 		t.Fatalf("viewer search should keep the dropdown open while typed queries are pending:\n%s", page)
 	}
 	if !strings.Contains(page, `initializeSearchAccessibility`) || !strings.Contains(page, `event.key === "ArrowDown"`) || !strings.Contains(page, `selectedSearchResult(results, activeIndex)`) || !strings.Contains(page, `aria-activedescendant`) {
@@ -475,11 +516,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `knowledge-graph-status`) ||
 		!strings.Contains(page, `status.setAttribute("aria-live", "polite")`) ||
-		!strings.Contains(page, `status.textContent = selected.fullLabel + " · " + connectionLabel + " · Enter to open"`) ||
+		!strings.Contains(page, `status.textContent = connectionLabel`) ||
+		!strings.Contains(page, `context.fillStyle = activeNode && !settingsValue.colorGroups ? theme.nodeActive : nodeColor`) ||
 		!strings.Contains(page, `function graphCanvasTheme()`) ||
-		!strings.Contains(page, `.knowledge-graph-sidebar { position: sticky;`) ||
+		!strings.Contains(page, `.knowledge-graph-sidebar { align-self: stretch; height: 100%; overflow: auto;`) ||
 		strings.Contains(page, `.knowledge-graph-header { position: absolute;`) {
-		t.Fatalf("viewer graph should expose selected-node context and accessible contrast:\n%s", page)
+		t.Fatalf("viewer graph should show concise connection context and preserve folder colors:\n%s", page)
 	}
 	if !strings.Contains(page, `graphEaseInOut`) || !strings.Contains(page, `graphLimitVelocity`) || !strings.Contains(page, `context.globalAlpha = 1`) {
 		t.Fatalf("viewer canvas graph should damp hover physics without dimming inactive nodes:\n%s", page)
@@ -493,7 +535,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `.knowledge-empty-inner { display: grid`) || !strings.Contains(page, `grid-template-columns: minmax(210px, 260px) minmax(0, 1fr)`) || !strings.Contains(page, `renderKnowledgeGraph()`) {
 		t.Fatalf("viewer empty state should render graph details beside a wide graph canvas:\n%s", page)
 	}
-	if !strings.Contains(page, `context.font = (activeNode ? "600 13px" : "400 12px") + " " + theme.fontBody`) || !strings.Contains(page, `fontBody: themeValue("--ok-font-body"`) || !strings.Contains(page, `String(label || "").length * 7.2`) {
+	if !strings.Contains(page, `context.font = (activeNode ? "650 13px" : "500 11.5px") + " " + theme.fontBody`) || !strings.Contains(page, `fontBody: themeValue("--ok-font-body"`) || !strings.Contains(page, `String(label || "").length * 7.2`) {
 		t.Fatalf("viewer knowledge graph labels should use smaller sans-serif typography:\n%s", page)
 	}
 	if !strings.Contains(page, "/api/file/") {
