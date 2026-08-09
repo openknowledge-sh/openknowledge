@@ -358,10 +358,12 @@ body.is-frontmatter-hidden .ok-frontmatter { display: none; }
 .note-body .ok-source-ref a { padding: 1px 3px; border-radius: 4px; background: var(--ok-color-accent-soft); color: var(--ok-color-accent-strong); font-weight: 750; text-decoration: none !important; }
 .ok-source-entry:target { background: var(--ok-color-accent-softer); }
 .ok-frontmatter { margin: 0 0 30px; overflow: hidden; border: 1px solid var(--ok-color-border); border-radius: 10px; background: var(--ok-color-surface); }
-.ok-frontmatter.is-panel-integrated { margin: -18px -34px 22px; border: 0; border-bottom: 1px solid var(--ok-color-border); border-radius: 0; background: var(--ok-color-page); }
-.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary { min-height: 46px; padding: 9px 34px; background: var(--ok-color-accent-softer); }
-.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary:hover { background: var(--ok-color-accent-soft); color: var(--ok-color-accent-strong); }
-.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary .ok-frontmatter-title { font-weight: 720; }
+.ok-frontmatter.is-panel-integrated { margin: -18px -34px 22px; border: 0; border-bottom: 1px solid var(--ok-color-border); border-radius: 0; background: transparent; }
+.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary { min-height: 44px; padding: 7px 34px; background: transparent; color: var(--ok-color-muted); }
+.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary:hover { background: var(--ok-color-control-hover-bg); color: var(--ok-color-text); }
+.ok-frontmatter.is-panel-integrated[open] > .ok-frontmatter-summary { background: var(--ok-color-accent-softer); color: var(--ok-color-text); }
+.ok-frontmatter.is-panel-integrated[open] > .ok-frontmatter-summary:hover { background: var(--ok-color-accent-soft); color: var(--ok-color-accent-strong); }
+.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary .ok-frontmatter-title { font-weight: 650; }
 .ok-frontmatter-summary { display: flex; min-height: 42px; align-items: center; gap: 10px; padding: 8px 13px; color: var(--ok-color-text); cursor: pointer; list-style: none; user-select: none; transition: background-color .14s ease; }
 .ok-frontmatter-summary::-webkit-details-marker { display: none; }
 .ok-frontmatter-summary::after { width: 7px; height: 7px; margin: -4px 2px 0 auto; border-right: 1.5px solid var(--ok-color-muted); border-bottom: 1.5px solid var(--ok-color-muted); content: ""; transform: rotate(45deg); transition: transform .14s ease; }

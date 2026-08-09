@@ -134,7 +134,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		strings.Contains(page, `summary.hidden = true`) ||
 		!strings.Contains(page, `.note-chrome { position: sticky; top: 0; z-index: 5; display: flex; min-height: 44px;`) ||
 		!strings.Contains(page, `.ok-frontmatter.is-panel-integrated { margin: -18px -34px 22px;`) ||
-		!strings.Contains(page, `.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary { min-height: 46px;`) ||
+		!strings.Contains(page, `.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary { min-height: 44px; padding: 7px 34px; background: transparent;`) ||
 		!strings.Contains(page, `@container note-panel (max-width: 520px)`) {
 		t.Fatalf("viewer note panels should keep collapsed, full-width frontmatter below the compact header:\n%s", page)
 	}
