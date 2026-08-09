@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-08-08T00:00:00Z
+timestamp: 2026-08-09T00:00:00Z
 ---
 
 # CLI Operations
@@ -34,7 +34,7 @@ pnpm build
 | `pnpm test:npm-install` | Test the npm downloader and archive parser offline. |
 | `pnpm test:packed-npm` | Pack and install the exact npm publication artifact on the active Node version. |
 | `pnpm test:demos` | Validate, search, export, and test the three use-case demo knowledge bases. |
-| `pnpm test:web` | Run TypeScript checks, Oxlint, and static server tests. |
+| `pnpm test:web` | Run Oxlint and static server tests. |
 | `pnpm test:browser` | Exercise the production landing build and exported viewer over HTTP and `file://` in Chromium. |
 | `pnpm test:race` | Run all Go tests with the race detector. |
 | `pnpm test:coverage` | Produce `coverage.out` for the Go packages. |
@@ -86,7 +86,7 @@ Results can change when vulnerability databases change.
 ## Website
 
 `pnpm build:web` builds `packages/web/dist`.
-Vite compiles the landing page from `packages/web/src/main.ts`.
+Vite compiles the landing page from `packages/web/src/main.js`.
 It builds the shared viewer bundle from `packages/web/src/viewer`.
 Vite writes the bundle directly into the ignored Go embed directory.
 Git does not track the compiled viewer files.

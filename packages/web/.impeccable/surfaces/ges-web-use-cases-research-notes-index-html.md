@@ -2,7 +2,7 @@
 version: 1
 slug: "ges-web-use-cases-research-notes-index-html"
 primary_target: "packages/web/use-cases/research-notes/index.html"
-related_targets: ["packages/web/index.html","packages/web/src/styles.css","packages/web/vite.config.ts","packages/web/scripts/build.mjs","packages/web/scripts/browser.e2e.mjs"]
+related_targets: ["packages/web/index.html","packages/web/src/styles/index.css","packages/web/vite.config.js","packages/web/scripts/build.mjs","packages/web/scripts/browser.e2e.mjs"]
 ---
 
 # Research notes use case

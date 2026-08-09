@@ -159,8 +159,8 @@ Theme and source-link configuration comes from
 > - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/web/src/viewer/`
-> - `packages/web/vite.viewer.config.ts`
-> - `packages/web/vite.theme.config.ts`
+> - `packages/web/vite.viewer.config.js`
+> - `packages/web/vite.theme.config.js`
 > - `packages/web/scripts/browser.e2e.mjs`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/internal/okf/search.go`

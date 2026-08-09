@@ -1098,8 +1098,13 @@ func viewerSourceForAssertions(t *testing.T) string {
 	t.Helper()
 	var source strings.Builder
 	for _, name := range []string{
-		"theme.ts",
-		"viewer.css",
+		"theme.js",
+		"styles/shell.css",
+		"styles/search-workspace.css",
+		"styles/graph-navigation.css",
+		"styles/document.css",
+		"styles/motion.css",
+		"styles/responsive.css",
 		"shortcuts.js",
 		"app.js",
 		"search.js",

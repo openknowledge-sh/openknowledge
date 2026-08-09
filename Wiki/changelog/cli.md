@@ -36,7 +36,7 @@ page records release-level changes.
   `packages/cli/cmd/openknowledge/viewer_test.go`,
   `packages/web/src/viewer/app.js`,
   `packages/web/src/viewer/search.js`,
-  `packages/web/src/viewer/viewer.css`,
+  `packages/web/src/viewer/styles/`,
   `packages/cli/cmd/openknowledge/viewer_theme.css`, and
   `packages/web/scripts/browser.e2e.mjs`.
 - Docs: `Wiki/features/commands/view.md` and

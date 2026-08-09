@@ -10,7 +10,7 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: path.join(root, "src/viewer/index.ts"),
+      entry: path.join(root, "src/viewer/index.js"),
       name: "OpenKnowledgeViewer",
       formats: ["iife"],
       fileName: () => "viewer.js",

@@ -64,7 +64,7 @@ Viewer mode provides the graph controls that the [`view`](../commands/view.md)
 command provides.
 
 The shared JavaScript includes the pinned Mermaid runtime. Vite builds the
-viewer from the TypeScript and JavaScript sources in `packages/web/src/viewer`.
+viewer from JavaScript and CSS modules in `packages/web/src/viewer`.
 Workspace and release builds generate the embedded viewer assets on demand.
 Git does not track the compiled viewer files.
 Generated pages do not require `unsafe-inline` in `script-src`.
@@ -166,8 +166,8 @@ Then, it registers the materialized source.
 > - `packages/cli/cmd/openknowledge/viewer_theme.go`
 > - `packages/web/src/viewer/`
 > - `packages/web/scripts/browser.e2e.mjs`
-> - `packages/web/vite.viewer.config.ts`
-> - `packages/web/vite.theme.config.ts`
+> - `packages/web/vite.viewer.config.js`
+> - `packages/web/vite.theme.config.js`
 > - `packages/cli/internal/okf/export_test.go`
 >
 > **Update notes**

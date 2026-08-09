@@ -34,7 +34,7 @@ runtimes, terminals, code review, and source-controlled project documentation.
 - The CLI can set up, validate, browse, search, export, and serve an OKF bundle.
 - Search returns source-based Markdown context and does not call an LLM.
 - The local MCP server is read-only.
-- The project website uses static HTML, TypeScript, CSS, and Vite.
+- The project website uses static HTML, JavaScript, CSS, and Vite.
 - Product claims must match the CLI implementation and repository documentation.
 
 ## Brand Commitments

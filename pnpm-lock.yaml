@@ -23,15 +23,9 @@ importers:
         specifier: 11.16.1
         version: 11.16.1
     devDependencies:
-      '@types/node':
-        specifier: ^20.19.43
-        version: 20.19.43
       oxlint:
         specifier: 1.15.0
         version: 1.15.0
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
       vite:
         specifier: 6.4.3
         version: 6.4.3(@types/node@20.19.43)
@@ -965,11 +959,6 @@ packages:
     resolution: {integrity: sha512-JfJeIHke7y2egdGGgRAvpCwYFUsHlM2gPcrVOxFkznt/4uzQ7HFmvE63iFHVLBJNDuyDOQgijDK/tXH/f6Msjg==}
     engines: {node: '>=6.10'}
 
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
@@ -1388,6 +1377,7 @@ snapshots:
   '@types/node@20.19.43':
     dependencies:
       undici-types: 6.21.0
+    optional: true
 
   '@types/trusted-types@2.0.7':
     optional: true
@@ -1901,9 +1891,8 @@ snapshots:
 
   ts-dedent@2.3.0: {}
 
-  typescript@5.9.3: {}
-
-  undici-types@6.21.0: {}
+  undici-types@6.21.0:
+    optional: true
 
   uuid@14.0.1: {}
 

@@ -2,7 +2,7 @@
 version: 1
 slug: "use-cases-index-html"
 primary_target: "use-cases/index.html"
-related_targets: ["src/styles.css","src/site-components.ts","vite.config.ts","scripts/build.mjs","scripts/browser.e2e.mjs"]
+related_targets: ["src/styles/index.css","src/site-components.js","vite.config.js","scripts/build.mjs","scripts/browser.e2e.mjs"]
 ---
 
 # Use cases index
