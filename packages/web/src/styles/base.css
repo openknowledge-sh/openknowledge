@@ -137,6 +137,7 @@ main {
   font-size: 0.93rem;
   font-weight: 620;
   text-decoration: none;
+  padding-left: 10px;
 }
 
 .brand img {

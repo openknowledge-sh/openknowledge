@@ -52,7 +52,7 @@ main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56p
 .workspace-name { overflow: hidden; color: var(--ok-color-text); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-root { overflow: hidden; color: var(--ok-color-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%; margin: 0; padding: 0; overflow: auto hidden; background: var(--ok-color-viewer-canvas); scroll-behavior: smooth; overscroll-behavior-x: contain; }
-.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 16px; min-width: max-content; min-height: 0; padding: 16px max(24px, calc((100vw - 1180px) / 2)) 24px 24px; }
+.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 16px; min-width: max-content; min-height: 0; padding: 10px max(24px, calc((100vw - 1180px) / 2)) 24px 24px; }
 .note-workspace.is-single-panel .note-stack { box-sizing: border-box; flex-basis: 100%; min-width: 100%; justify-content: center; padding-left: max(24px, calc((100vw - 1180px) / 2)); padding-right: max(24px, calc((100vw - 1180px) / 2)); }
 .note-workspace.is-single-panel, .note-workspace.is-multi-panel { scrollbar-width: none; }
 .note-workspace.is-single-panel::-webkit-scrollbar, .note-workspace.is-multi-panel::-webkit-scrollbar { width: 0; height: 0; }
