@@ -75,16 +75,12 @@ page records release-level changes.
 
 ### Website
 
-- The `/use-cases/` index and homepage now link to project documentation,
-  changelog, and research notes guides.
-- Each guide explains a source-backed agent workflow and links to a runnable
-  example repository.
 - The three examples cover project context, release memory, and research
   synthesis. Each example includes validation, search, export, and tests.
 - `pnpm test:demos` verifies all three knowledge bases against the current CLI.
 - The guides use ASD-STE100 rules and supported CLI command syntax.
-- Source: `examples/`, `scripts/test-demo-knowledge-bases.sh`, `package.json`,
-  and `packages/web/`.
+- Source: `examples/`, `scripts/test-demo-knowledge-bases.sh`, and
+  `package.json`.
 - Docs: `Wiki/index.md`, `Wiki/features/operations.md`, and
   `Wiki/changelog/cli.md`.
 
