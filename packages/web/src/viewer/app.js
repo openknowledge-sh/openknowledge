@@ -726,7 +726,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
 
     const raw = url.pathname.slice(filePrefix.length) || "index.md";
-    if (!isMarkdownPath(raw)) {
+    if (!isPanelPreviewPath(raw)) {
       return null;
     }
     try {
@@ -740,8 +740,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return prefix + path.split("/").map(encodeURIComponent).join("/");
   }
 
-  function isMarkdownPath(path) {
-    return /\.(md|markdown)$/i.test(String(path || "").split("?")[0].split("#")[0]);
+  function isPanelPreviewPath(path) {
+    return /\.(md|markdown|go|js|mjs|cjs|jsx|ts|mts|cts|tsx|json|jsonc|html|htm|css|sh|bash|zsh|py|rb|rs|java|kt|kts|swift|sql|yml|yaml|toml|xml|svg|txt|log|csv|tsv|ini|env|gitignore|dockerignore)$/i.test(String(path || "").split("?")[0].split("#")[0]);
   }
 
   function fileURL(path) {
@@ -4147,7 +4147,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     chrome.append(actions);
 
     const body = document.createElement("div");
-    body.className = "note-body";
+    const assetKind = data.kind === "code" || data.kind === "text" ? data.kind : "";
+    body.className = "note-body" + (assetKind ? " asset-" + assetKind : "");
     body.innerHTML = (data.frontmatter || "") + data.body;
 
     panel.append(chrome, body);

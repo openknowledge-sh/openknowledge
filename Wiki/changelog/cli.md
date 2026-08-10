@@ -15,6 +15,8 @@ page records release-level changes.
 
 ### Viewer
 
+- Source and text files now open as syntax-highlighted note cards in the
+  document stack. Other assets keep their raw or dedicated previews.
 - Viewer development now supports Vite hot reload through
   `pnpm dev:viewer -- [path]`. The command keeps the Go viewer active while
   Vite serves source CSS and JavaScript.

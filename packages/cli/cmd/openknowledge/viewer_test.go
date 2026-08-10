@@ -732,8 +732,8 @@ func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
 	if !strings.Contains(page, `class="code-block language-go" data-language="go"`) || !strings.Contains(page, `tok-keyword">func</span>`) {
 		t.Fatalf("viewer should syntax-highlight fenced code blocks:\n%s", page)
 	}
-	if !strings.Contains(viewerRuntime, `function isMarkdownPath(path)`) && !strings.Contains(viewerRuntime, `isMarkdownPath`) {
-		t.Fatalf("viewer stack runtime should distinguish markdown links from asset links:\n%s", page)
+	if !strings.Contains(viewerRuntime, `function isPanelPreviewPath(path)`) || !strings.Contains(viewerRuntime, `isPanelPreviewPath(raw)`) {
+		t.Fatalf("viewer stack runtime should recognize code and text panel links:\n%s", page)
 	}
 
 	rawRecorder := httptest.NewRecorder()
@@ -751,15 +751,25 @@ func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
 	}
 
 	codePage := getViewerBody(t, handler, "/file/src/tool.go")
-	if !strings.Contains(codePage, `asset-code`) || !strings.Contains(codePage, `class="code-block language-go" data-language="go"`) || !strings.Contains(codePage, `tok-keyword">package</span>`) {
-		t.Fatalf("viewer should render highlighted code asset preview:\n%s", codePage)
+	if !strings.Contains(codePage, `class="viewer-document is-stack-mode"`) ||
+		!strings.Contains(codePage, `data-note-workspace`) ||
+		!strings.Contains(codePage, `data-note-path="src/tool.go"`) ||
+		!strings.Contains(codePage, `class="note-body asset-code"`) ||
+		!strings.Contains(codePage, `class="code-block language-go" data-language="go"`) ||
+		!strings.Contains(codePage, `tok-keyword">package</span>`) {
+		t.Fatalf("viewer should render highlighted code files in the standard note stack:\n%s", codePage)
 	}
-	if !strings.Contains(codePage, `href="/raw/src/tool.go"`) {
-		t.Fatalf("code asset preview should expose raw file link:\n%s", codePage)
+	if strings.Contains(codePage, `class="viewer-document viewer-asset-document"`) {
+		t.Fatalf("code files should not use the standalone asset page:\n%s", codePage)
+	}
+
+	codeAPI := getViewerJSON(t, handler, "/api/file/src/tool.go")
+	if codeAPI.Path != "src/tool.go" || codeAPI.Kind != "code" || !strings.Contains(codeAPI.Body, `class="code-block language-go"`) {
+		t.Fatalf("viewer API should return a highlighted code panel payload: %#v", codeAPI)
 	}
 
 	pdfPage := getViewerBody(t, handler, "/file/references/report.pdf")
-	if !strings.Contains(pdfPage, `class="asset-frame"`) || !strings.Contains(pdfPage, `src="/raw/references/report.pdf"`) {
+	if !strings.Contains(pdfPage, `class="viewer-document viewer-asset-document"`) || !strings.Contains(pdfPage, `class="asset-frame"`) || !strings.Contains(pdfPage, `src="/raw/references/report.pdf"`) {
 		t.Fatalf("direct PDF asset page should embed the raw browser PDF URL:\n%s", pdfPage)
 	}
 }
@@ -1823,10 +1833,11 @@ func TestViewerSearchRefreshesWhenSizeAndMtimeAreUnchanged(t *testing.T) {
 	}
 }
 
-func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
+func TestViewerRejectsTraversalAndNonPreviewAPI(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "notes.txt", "not markdown\n")
+	writeViewerFile(t, root, "data.bin", "not a preview\n")
 	writeViewerFile(t, root, ".env", "TOKEN=secret\n")
 	writeViewerFile(t, root, ".openknowledge.toml", "[html.theme]\nname = \"night\"\n")
 	writeViewerFile(t, root, "openknowledge.toml", "legacy configuration\n")
@@ -1855,8 +1866,14 @@ func TestViewerRejectsTraversalAndNonMarkdownAPI(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/file/notes.txt", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"kind":"text"`) {
+		t.Fatalf("expected text file API to return a panel payload, code=%d body=%q", recorder.Code, recorder.Body.String())
+	}
+
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/file/data.bin", nil))
 	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("expected non-markdown file API to return 404, got %d", recorder.Code)
+		t.Fatalf("expected non-preview file API to return 404, got %d", recorder.Code)
 	}
 
 	for _, rawPath := range []string{"index.md", ".env", ".git/config", ".openknowledge.toml", "openknowledge.toml", "missing.txt"} {

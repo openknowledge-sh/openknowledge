@@ -40,6 +40,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The viewer renders Markdown and follows local links. It renders fenced
   `mermaid` blocks as diagrams. It also shows note panels, source graphs,
   validation context, highlighted assets, and media or PDF previews.
+- Source and text files open as standard note cards. They use the same
+  breadcrumbs, panel controls, syntax highlighting, and open-beside behavior.
+  Other assets keep their raw or dedicated media previews.
 - Click a rendered Mermaid diagram to open a viewport-filling dialog.
   You can also focus the diagram and press Enter or Space.
   Use the toolbar, wheel, or pinch gesture to zoom.

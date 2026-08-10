@@ -368,7 +368,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
             </a>
           </div>
         </div>
-        <div class="note-body">
+        <div class="note-body{{if .Kind}} asset-{{.Kind}}{{end}}">
           {{.Frontmatter}}
           {{.Body}}
         </div>

@@ -743,6 +743,7 @@ type viewerFileData struct {
 	Theme       viewerThemeData
 	Frontmatter template.HTML
 	Body        template.HTML
+	Kind        string
 	Tree        []viewerTreeItem
 	EditorsJSON template.JS
 	StaticJSON  template.JS
@@ -777,6 +778,7 @@ type viewerAssetData struct {
 type viewerFilePayload struct {
 	Title       string `json:"title"`
 	Path        string `json:"path"`
+	Kind        string `json:"kind,omitempty"`
 	Frontmatter string `json:"frontmatter,omitempty"`
 	Body        string `json:"body"`
 }
@@ -845,6 +847,26 @@ type viewerTreeItem struct {
 
 func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, frame viewerFrame, linkPrefix string, options viewerOptions) {
 	if cleanRel, ok := cleanViewerRel(rel, true); ok && !isMarkdownFile(cleanRel) {
+		asset, found, err := viewerAsset(root, cleanRel, linkPrefix)
+		if !found {
+			http.NotFound(response, request)
+			return
+		}
+		if err != nil {
+			http.Error(response, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if asset.Kind == "code" || asset.Kind == "text" {
+			data, err := viewerFileDataForAsset(root, asset, frame, linkPrefix)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			data.HeadHTML = options.HeadHTML
+			data.Editable = !options.ReadOnly
+			renderHTML(response, viewerFileTemplate, data)
+			return
+		}
 		renderViewerAsset(response, request, root, cleanRel, linkPrefix, options)
 		return
 	}
@@ -1014,6 +1036,24 @@ func viewerRawPathIsPrivate(rel string) bool {
 }
 
 func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
+	if cleanRel, ok := cleanViewerRel(rel, true); ok && !isMarkdownFile(cleanRel) {
+		asset, found, err := viewerAsset(root, cleanRel, linkPrefix)
+		if !found || err != nil || (asset.Kind != "code" && asset.Kind != "text") {
+			http.NotFound(response, request)
+			return
+		}
+		response.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if err := json.NewEncoder(response).Encode(viewerFilePayload{
+			Title: asset.Title,
+			Path:  asset.Path,
+			Kind:  asset.Kind,
+			Body:  string(asset.Body),
+		}); err != nil {
+			http.Error(response, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
 	data, ok, err := viewerFile(root, rel, viewerFrame{}, linkPrefix)
 	if !ok {
 		http.NotFound(response, request)
@@ -1028,11 +1068,41 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 	if err := json.NewEncoder(response).Encode(viewerFilePayload{
 		Title:       data.Title,
 		Path:        data.Path,
+		Kind:        data.Kind,
 		Frontmatter: string(data.Frontmatter),
 		Body:        string(data.Body),
 	}); err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func viewerFileDataForAsset(root string, asset viewerAssetData, frame viewerFrame, linkPrefix string) (viewerFileData, error) {
+	bundle, err := okf.ParseBundle(root)
+	if err != nil {
+		return viewerFileData{}, err
+	}
+	entries := viewerEntriesFromBundleFiles(bundle.Files)
+	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(path string) string {
+		return fileURLWithPrefix(linkPrefix, path)
+	})
+
+	return viewerFileData{
+		Frame:       frame,
+		Title:       asset.Title,
+		BrandName:   asset.BrandName,
+		HomeURL:     asset.HomeURL,
+		Root:        root,
+		Path:        asset.Path,
+		FileURL:     fileURLWithPrefix(linkPrefix, asset.Path),
+		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
+		SearchURL:   searchURLWithPrefix(linkPrefix),
+		Theme:       asset.Theme,
+		Body:        asset.Body,
+		Kind:        asset.Kind,
+		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
+		EditorsJSON: viewerEditorsJSON(),
+		GraphJSON:   graphJSON,
+	}, nil
 }
 
 func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (viewerFileData, bool, error) {
