@@ -62,6 +62,16 @@ page records release-level changes.
 - Docs: `Wiki/features/commands/view.md` and
   `Wiki/features/exporters/html.md`.
 
+### Export
+
+- `okn export html --no-source-archive` now omits the portable source archive
+  and its connect manifest. Viewer HTML exports include both files by default.
+- Source: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/viewer_export.go`, and
+  `packages/cli/cmd/openknowledge/command_help.go`.
+- Docs: `Wiki/features/commands/export.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/features/exporters/tar.md`.
+
 ### Setup
 
 - Setup and project skill installation now support knowledge bases outside Git

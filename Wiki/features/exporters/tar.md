@@ -46,6 +46,8 @@ The related `openknowledge.json` manifest uses contract version `1`.
 Its type is `openknowledge.bundle`.
 It contains a supported OKF `spec` value and `archiveFormat: "tar.gz"`.
 It also contains the archive path and required SHA-256.
+Use `okn export html --no-source-archive` to omit the archive and manifest.
+This option does not change the standalone `okn export tar` command.
 
 The public HTML export requires `[publish] enabled = true`.
 It then uses an explicit publication set.

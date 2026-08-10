@@ -15,6 +15,7 @@ Both modes require `[publish] enabled = true`.
 
 ```sh
 okn export html --out <folder> [key-or-path]
+okn export html --no-source-archive --out <folder> [key-or-path]
 okn export html --plain --out <folder> [key-or-path]
 okn export html --head-file <file> --out <folder> [key-or-path]
 okn export html --script-src <src> --out <folder> [key-or-path]
@@ -25,6 +26,7 @@ okn export html --script-src <src> --out <folder> [key-or-path]
 | `key-or-path` | `.` | Registry key or bundle root. |
 | `--out <folder>` | required | Output directory. |
 | `--plain` | off | Omit viewer CSS, JavaScript, search, graph, and chrome. |
+| `--no-source-archive` | off | Omit the portable source archive and connect manifest. |
 | `--spec <version>` | `latest` | OKF spec used for validation. |
 | `--head-file <file>` | environment | Trusted head fragment for viewer mode. |
 | `--head-html <html>` | environment | Trusted inline head fragment for viewer mode. |
@@ -47,8 +49,12 @@ Viewer mode includes:
 - `llms.txt` for pages enabled for both `viewer` and `llms`
 - `sitemap.xml` when the configuration contains `[html.site].base_url`
 - `openknowledge.json` and `assets/openknowledge-bundle.tar.gz` for remote
-  `okn connect`
+  `okn connect`, unless `--no-source-archive` is set
 - allowed public assets at their bundle-relative paths
+
+Use `--no-source-archive` when the published source would make the site too
+large. A site without these files does not support remote `okn connect` from
+its site URL.
 
 Viewer mode writes its executable JavaScript below `assets/openknowledge/`.
 Every page references one shared `viewer.js`, `viewer.css`,
@@ -125,7 +131,7 @@ contract.
 The source must validate without errors.
 The exporter permits warnings.
 The exporter builds a complete sibling generation.
-It replaces the destination only when all pages, assets, manifests, and archives are complete.
+It replaces the destination only when all selected files are complete.
 A failed build preserves the previous site.
 A successful build removes stale output.
 
@@ -140,12 +146,12 @@ The output must not equal or contain the source root.
 
 Viewer pages rewrite local links and hide HTML comments.
 They show content after `<!-- okf-footer: agent-maintenance -->` as subdued maintenance metadata.
-The portable archive contains only publishable Markdown and allowed assets.
+When included, the portable archive contains only publishable Markdown and allowed assets.
 It excludes project configuration and `.openknowledge` job or run state.
 It also excludes Markdown with `okf_publish: false`, including private insights.
 It excludes assets that do not match the asset list.
 
-`okn connect <site-url>` validates the strict manifest and archive digest.
+When these files are included, `okn connect <site-url>` validates the strict manifest and archive digest.
 It also validates the extracted bundle and declared OKF version.
 Then, it registers the materialized source.
 

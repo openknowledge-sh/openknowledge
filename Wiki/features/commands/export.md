@@ -24,6 +24,7 @@ The source can be a local or connected knowledge base.
 
 ```sh
 okn export html --out ./site Wiki
+okn export html --no-source-archive --out ./site Wiki
 okn export html --plain --out ./plain-site Wiki
 okn export json Wiki
 okn export json --out ./bundle.json Wiki
@@ -39,6 +40,7 @@ okn export tar --out ./wiki.tar.gz Wiki
 | `--out <path>` | all | stdout for JSON/graph | Required directory for HTML. Required file for tar. |
 | `--type source|search` | graph | `source` | Graph projection. |
 | `--plain` | HTML | off | Semantic HTML without viewer assets. |
+| `--no-source-archive` | HTML viewer | off | Omit the source archive and connect manifest. |
 | `--head-file`, `--head-html` | HTML viewer | environment | Trusted head injection. |
 | `--script-src <src>` | HTML viewer | environment | Trusted script URL. Repeatable. |
 

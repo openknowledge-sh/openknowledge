@@ -14,7 +14,8 @@ import (
 )
 
 type viewerHTMLExportOptions struct {
-	HeadHTML template.HTML
+	HeadHTML          template.HTML
+	OmitSourceArchive bool
 }
 
 func writeViewerHTMLWithVersion(root string, out string, version string) (okf.HTMLResult, error) {
@@ -127,11 +128,13 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 		return okf.HTMLResult{}, err
 	}
 	written = append(written, scriptAssets...)
-	archiveResult, err := writeViewerExportBundleAssets(bundle.Root, absoluteOut, version, sourceExcludes)
-	if err != nil {
-		return okf.HTMLResult{}, err
+	if !options.OmitSourceArchive {
+		archiveResult, err := writeViewerExportBundleAssets(bundle.Root, absoluteOut, version, sourceExcludes)
+		if err != nil {
+			return okf.HTMLResult{}, err
+		}
+		written = append(written, archiveResult...)
 	}
-	written = append(written, archiveResult...)
 	discoveryResult, err := writeViewerDiscoveryFiles(bundle.Files, absoluteOut, siteConfig)
 	if err != nil {
 		return okf.HTMLResult{}, err

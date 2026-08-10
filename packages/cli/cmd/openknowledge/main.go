@@ -2258,14 +2258,15 @@ func runExport(args []string) int {
 }
 
 type exportOptions struct {
-	path       string
-	out        string
-	spec       string
-	graphType  string
-	plain      bool
-	headHTML   string
-	headFile   string
-	scriptSrcs []string
+	path              string
+	out               string
+	spec              string
+	graphType         string
+	plain             bool
+	omitSourceArchive bool
+	headHTML          string
+	headFile          string
+	scriptSrcs        []string
 }
 
 func runExportHTML(args []string) int {
@@ -2285,6 +2286,10 @@ func runExportHTML(args []string) int {
 	if options.plain {
 		if flag := options.headFlag(); flag != "" {
 			fmt.Fprintf(stderrOutput(), "%s requires the default viewer export; remove --plain\n", flag)
+			return 2
+		}
+		if options.omitSourceArchive {
+			fmt.Fprintln(stderrOutput(), "--no-source-archive requires the default viewer export; remove --plain")
 			return 2
 		}
 	}
@@ -2307,7 +2312,10 @@ func runExportHTML(args []string) int {
 			fmt.Fprintln(stderrOutput(), loadErr)
 			return 2
 		}
-		result, err = writeViewerHTMLWithOptions(root, options.out, options.spec, viewerHTMLExportOptions{HeadHTML: headInjection})
+		result, err = writeViewerHTMLWithOptions(root, options.out, options.spec, viewerHTMLExportOptions{
+			HeadHTML:          headInjection,
+			OmitSourceArchive: options.omitSourceArchive,
+		})
 	}
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
@@ -2341,6 +2349,10 @@ func runExportJSON(args []string) int {
 	}
 	if flag := options.headFlag(); flag != "" {
 		fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", flag)
+		return 2
+	}
+	if options.omitSourceArchive {
+		fmt.Fprintln(stderrOutput(), "unknown flag: --no-source-archive")
 		return 2
 	}
 
@@ -2400,6 +2412,10 @@ func runExportTar(args []string) int {
 		fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", flag)
 		return 2
 	}
+	if options.omitSourceArchive {
+		fmt.Fprintln(stderrOutput(), "unknown flag: --no-source-archive")
+		return 2
+	}
 	if options.out == "" {
 		fmt.Fprintln(stderrOutput(), "openknowledge export tar requires --out <file>")
 		return 2
@@ -2441,6 +2457,10 @@ func runExportGraph(args []string) int {
 	}
 	if flag := options.headFlag(); flag != "" {
 		fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", flag)
+		return 2
+	}
+	if options.omitSourceArchive {
+		fmt.Fprintln(stderrOutput(), "unknown flag: --no-source-archive")
 		return 2
 	}
 
@@ -2518,6 +2538,8 @@ func parseExportOptions(args []string) (exportOptions, error) {
 			}
 		case arg == "--plain":
 			options.plain = true
+		case arg == "--no-source-archive":
+			options.omitSourceArchive = true
 		case arg == "--head-file":
 			index++
 			if index >= len(args) || strings.TrimSpace(args[index]) == "" {

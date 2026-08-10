@@ -296,6 +296,7 @@ Convert an Open Knowledge bundle to another format.
 Usage:
   openknowledge export html --out <folder> [path]
   openknowledge export html --plain --out <folder> [path]
+  openknowledge export html --no-source-archive --out <folder> [path]
   openknowledge export html --head-file <file> --out <folder> [path]
   openknowledge export html --script-src <src> --out <folder> [path]
   openknowledge export json [path]
@@ -317,6 +318,8 @@ Flags:
   --out        Output folder for html, optional output file for json/graph, archive file for tar.
   --head-file  Trusted HTML fragment file to inject into default viewer HTML <head>.
   --head-html  Trusted HTML fragment to inject into default viewer HTML <head>.
+  --no-source-archive
+               Omit the portable source archive and connect manifest from HTML viewer output.
   --script-src Script src to inject into default viewer HTML <head>. May be repeated.
 
 Versions:
@@ -332,6 +335,7 @@ Write a static HTML site for an Open Knowledge bundle.
 Usage:
   openknowledge export html --out <folder> [path]
   openknowledge export html --plain --out <folder> [path]
+  openknowledge export html --no-source-archive --out <folder> [path]
   openknowledge export html --head-file <file> --out <folder> [path]
   openknowledge export html --script-src <src> --out <folder> [path]
   openknowledge export html --spec <version> --out <folder> [path]
@@ -346,6 +350,8 @@ Flags:
                 <head>. Defaults to OPENKNOWLEDGE_HEAD_FILE when set.
   --head-html  Trusted HTML fragment to inject into default viewer HTML <head>.
                 Defaults to OPENKNOWLEDGE_HEAD_HTML when set.
+  --no-source-archive
+               Omit the portable source archive and connect manifest.
   --plain      Generate plain semantic HTML without CSS, JavaScript, or viewer chrome.
   --script-src Script src to inject into default viewer HTML <head>. May be
                 repeated. Defaults to comma- or newline-separated
@@ -358,8 +364,8 @@ Examples:
   openknowledge export html --head-html '<meta name="robots" content="noindex">' --out ./site ./project-memory
 
 Connect:
-  Default viewer exports include openknowledge.json and
-  assets/openknowledge-bundle.tar.gz for remote openknowledge connect.
+  Viewer exports include openknowledge.json and assets/openknowledge-bundle.tar.gz
+  for remote openknowledge connect unless --no-source-archive is set.
 
 Theme:
   Default viewer exports read [html.theme] from .openknowledge.toml in the
