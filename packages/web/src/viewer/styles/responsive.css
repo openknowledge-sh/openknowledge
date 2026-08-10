@@ -10,13 +10,13 @@
   body.is-stack-mode .header-left { max-width: min(44%, calc(66% - 78px)); }
   .header-left .brand { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sidebar-shortcut { display: none; }
-  .navigation-mode-toggle { right: 12px; }
-  .graph-view-toggle { right: 52px; }
+  .graph-view-toggle { right: 12px; }
   .viewer-settings { right: 12px; }
   .search.header-search { width: min(38vw, 300px); min-width: 0; margin-right: 44px; }
   .header-search .search-shortcut { display: none; }
   .header-search .search-input { padding-right: 10px; }
   .header-search .search-results { position: fixed; top: calc(var(--ok-mobile-header-height) + 8px); right: 12px; left: 12px; width: auto; max-height: calc(var(--ok-viewport-height) - var(--ok-mobile-header-height) - 20px); }
+  .header-search .search-results[data-mode] { right: 12px; left: 12px; width: auto; transform: none; }
   .viewer-settings-menu { width: min(300px, calc(100vw - 24px)); }
   .note-workspace { height: 100%; }
   .note-panel.is-entering, html[data-viewer-motion="full"] .note-panel.is-entering { animation: none; }
@@ -28,8 +28,8 @@
   body.viewer-document.is-sidebar-open > .workspace-scroll-rail,
   body.viewer-document.is-sidebar-open > .powered-by-openknowledge { display: none; }
   .knowledge-empty { overflow: auto; }
-  .knowledge-empty-inner { height: auto; min-height: 100%; grid-template-columns: 1fr; grid-template-rows: max-content auto; align-content: start; gap: 22px; padding: 28px 14px 44px; }
-  .knowledge-graph-sidebar { position: relative; top: auto; align-self: start; height: auto; max-height: none; overflow: visible; padding: 0 0 18px; border-right: 0; border-bottom: 0; }
+  .knowledge-empty-inner { height: 100%; min-height: 380px; grid-template-columns: 1fr; grid-template-rows: 1fr; padding: 0; }
+  .knowledge-graph-sidebar { position: absolute; top: 50%; left: 14px; width: min(250px, calc(100vw - 28px)); max-height: calc(100% - 92px); overflow: auto; padding: 16px; transform: translateY(-50%); }
   .knowledge-graph-settings > summary { position: relative; display: block; min-height: 44px; padding: 13px 28px 13px 1px; color: var(--ok-color-text); cursor: pointer; font-size: 12px; font-weight: 700; list-style: none; }
   .knowledge-graph-settings > summary::-webkit-details-marker { display: none; }
   .knowledge-graph-settings > summary:after { position: absolute; top: 50%; right: 3px; width: 7px; height: 7px; margin-top: -5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; content: ""; opacity: .62; transform: rotate(45deg); transition: transform .16s ease; }

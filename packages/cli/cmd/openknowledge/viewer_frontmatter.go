@@ -44,7 +44,7 @@ func viewerFrontmatterHTMLForFile(root string, file okf.BundleFile, specVersion 
 	order := viewerFrontmatterTopLevelOrder(string(content), data)
 	var signals template.HTML
 	if specVersion == "0.2" && !file.Reserved {
-		signals = renderViewerOKFV02Signals(okf.DeriveOKFV02Signals(data), file.Path, resolve)
+		signals = renderViewerOKFV02Signals(okf.DeriveOKFV02Signals(data), data, file.Path, resolve)
 	}
 	return renderViewerFrontmatter(data, order, fallback, signals), nil
 }
@@ -63,15 +63,17 @@ func viewerFrontmatterHTMLByPath(root string, files []okf.BundleFile, specVersio
 	return result, nil
 }
 
-func renderViewerOKFV02Signals(signals *okf.OKFV02Signals, currentRel string, resolve okf.LinkResolver) template.HTML {
+func renderViewerOKFV02Signals(signals *okf.OKFV02Signals, frontmatter map[string]any, currentRel string, resolve okf.LinkResolver) template.HTML {
 	if signals == nil {
 		return ""
 	}
 	var builder strings.Builder
 	builder.WriteString(`<section class="ok-knowledge-signals" data-okf02-signals aria-label="Knowledge signals">`)
-	builder.WriteString(`<div class="ok-signal-strip">`)
-	viewerSignalBadge(&builder, "trust", signals.TrustTier, viewerTrustLabel(signals.TrustTier))
-	viewerSignalBadge(&builder, "status", signals.Status, viewerStatusLabel(signals.Status))
+	builder.WriteString(`<dl class="ok-signal-strip">`)
+	_, verifiedSpecified := frontmatter["verified"]
+	status, statusSpecified := frontmatter["status"].(string)
+	viewerSignalItem(&builder, "trust", signals.TrustTier, "Trust", viewerTrustLabel(signals.TrustTier), !verifiedSpecified)
+	viewerSignalItem(&builder, "status", signals.Status, "Status", viewerStatusLabel(signals.Status), !statusSpecified || strings.TrimSpace(status) == "")
 	if signals.StaleAfter != "" {
 		freshness := "current"
 		label := "Current until " + signals.StaleAfter
@@ -79,9 +81,9 @@ func renderViewerOKFV02Signals(signals *okf.OKFV02Signals, currentRel string, re
 			freshness = "stale"
 			label = "Stale since " + signals.StaleAfter
 		}
-		viewerSignalBadge(&builder, "freshness", freshness, label)
+		viewerSignalItem(&builder, "freshness", freshness, "Freshness", label, false)
 	}
-	builder.WriteString(`</div>`)
+	builder.WriteString(`</dl>`)
 
 	if signals.Generated != nil || len(signals.Verified) > 0 {
 		builder.WriteString(`<p class="ok-signal-provenance">`)
@@ -113,8 +115,13 @@ func renderViewerOKFV02Signals(signals *okf.OKFV02Signals, currentRel string, re
 	return template.HTML(builder.String())
 }
 
-func viewerSignalBadge(builder *strings.Builder, kind string, value string, label string) {
-	fmt.Fprintf(builder, `<span class="ok-signal-badge" data-signal-kind="%s" data-signal-value="%s"><span class="sr-only">%s: </span>%s</span>`, html.EscapeString(kind), html.EscapeString(value), html.EscapeString(viewerStatusLabel(kind)), html.EscapeString(label))
+func viewerSignalItem(builder *strings.Builder, kind string, value string, fieldLabel string, valueLabel string, isDefault bool) {
+	builder.WriteString(`<div class="ok-signal-item">`)
+	fmt.Fprintf(builder, `<dt class="ok-signal-label">%s</dt><dd class="ok-signal-content"><span class="ok-signal-value" data-signal-kind="%s" data-signal-value="%s">%s</span>`, html.EscapeString(fieldLabel), html.EscapeString(kind), html.EscapeString(value), html.EscapeString(valueLabel))
+	if isDefault {
+		builder.WriteString(`<span class="ok-signal-default" data-signal-default="true">Default</span>`)
+	}
+	builder.WriteString(`</dd></div>`)
 }
 
 func viewerTrustLabel(value string) string {

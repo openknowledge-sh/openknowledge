@@ -334,6 +334,7 @@
     const groupedItems = groupSearchResults(items);
     results.replaceChildren();
     resetSearchResults(results);
+    results.dataset.mode = query ? "matches" : "initial";
     if (groupedItems.length === 0) {
       const emptyText = config.emptyStatus ?? "No results for \"" + query + "\".";
       if (emptyText) {
@@ -368,6 +369,15 @@
       const displayTitle = searchResultTitle(item);
       appendHighlightedText(title, displayTitle, query);
       titleRow.append(title);
+
+      const showPath = item.path && String(item.path).toLocaleLowerCase() !== displayTitle.toLocaleLowerCase();
+      if (showPath) {
+        const meta = document.createElement("span");
+        meta.className = "search-result-meta";
+        meta.textContent = item.path;
+        titleRow.append(meta);
+      }
+
       if (config.showMatchCounts !== false && query && item.matchCount > 0) {
         const count = document.createElement("span");
         count.className = "search-result-count";
@@ -375,14 +385,6 @@
         titleRow.append(count);
       }
       link.append(titleRow);
-
-      const showPath = item.path && String(item.path).toLocaleLowerCase() !== displayTitle.toLocaleLowerCase();
-      if (showPath) {
-        const meta = document.createElement("span");
-        meta.className = "search-result-meta";
-        meta.textContent = item.path;
-        link.append(meta);
-      }
 
       if (item.snippet) {
         const snippet = document.createElement("span");
@@ -434,6 +436,7 @@
     results.classList.remove("is-loading", "is-error", "is-empty");
     delete results.dataset.summary;
     delete results.dataset.hasOptions;
+    delete results.dataset.mode;
     results.setAttribute("role", "listbox");
     results.setAttribute("aria-label", "Search results");
   }

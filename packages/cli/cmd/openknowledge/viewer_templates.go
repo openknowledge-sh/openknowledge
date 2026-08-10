@@ -143,19 +143,6 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       <div class="search-status" aria-live="polite"></div>
       <div class="search-results" hidden></div>
     </section>
-    <button class="navigation-mode-toggle" type="button" data-navigation-mode-toggle data-mode="beside" aria-label="Link behavior: Open beside" aria-pressed="true" title="Links open beside">
-      <svg class="navigation-mode-icon navigation-mode-icon-single control-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="5" y="4" width="14" height="16" rx="2"></rect>
-        <path d="M8.5 8h7"></path>
-        <path d="M8.5 11h7"></path>
-      </svg>
-      <svg class="navigation-mode-icon navigation-mode-icon-split control-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-        <path d="M12 4v16"></path>
-        <path d="M6.5 8h2.5"></path>
-        <path d="M15 8h2.5"></path>
-      </svg>
-    </button>
     <button class="graph-view-toggle" type="button" data-graph-view-toggle aria-label="Graph view" aria-controls="knowledge-graph" aria-pressed="false" title="Graph view">
       <svg class="graph-view-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="5.5" cy="7" r="2"></circle>
@@ -211,6 +198,14 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </div>
         <div class="viewer-settings-section">
           <div class="viewer-settings-title">Document</div>
+          <label class="viewer-setting-toggle">
+            <span class="viewer-setting-copy">
+              <strong>Horizontal stack</strong>
+              <small>Open linked documents beside the current document.</small>
+            </span>
+            <input type="checkbox" data-horizontal-stack checked>
+            <span class="viewer-setting-switch" aria-hidden="true"></span>
+          </label>
           <label class="viewer-setting-toggle">
             <span class="viewer-setting-copy">
               <strong>Show frontmatter</strong>
@@ -297,12 +292,6 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     </div>
   </header>
   <aside class="file-sidebar" data-file-sidebar aria-label="File explorer" aria-hidden="true">
-    <button class="file-sidebar-close" type="button" data-sidebar-close aria-label="Close file explorer" title="Close">
-      <svg class="note-close-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M18 6 6 18"></path>
-        <path d="m6 6 12 12"></path>
-      </svg>
-    </button>
     <nav class="file-sidebar-navigation" aria-label="Viewer">
       <button class="sidebar-navigation-item" type="button" data-documents-view-toggle aria-label="Documents" aria-controls="note-workspace" aria-current="page">
         <svg class="sidebar-navigation-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">

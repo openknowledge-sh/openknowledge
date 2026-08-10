@@ -75,21 +75,18 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
 	}
 	if !strings.Contains(page, `class="search-icon control-icon"`) ||
-		!strings.Contains(page, `.header-search .search-input { height: 36px; min-height: 0; padding: 7px 42px 7px 30px; border: 0; border-radius: 0; background: transparent; box-shadow: none;`) ||
-		!strings.Contains(page, `.header-search .search-shortcut { position: absolute; right: 4px;`) ||
-		!strings.Contains(page, `border: 0; border-radius: 0; background: transparent;`) {
-		t.Fatalf("viewer header search should use a quiet transparent surface with a search icon:\n%s", page)
+		!strings.Contains(page, `.header-search .search-field { position: relative; display: flex; height: 36px; align-items: center; border: 0; border-radius: 8px; background: var(--ok-color-control-hover-bg);`) ||
+		!strings.Contains(page, `.header-search .search-input { height: 36px; min-height: 0; padding: 7px 44px 7px 34px; border: 0; border-radius: 8px; background: transparent;`) ||
+		!strings.Contains(page, `.header-search .search-shortcut { position: absolute; right: 8px;`) {
+		t.Fatalf("viewer header search should use a quiet filled surface without an underline:\n%s", page)
 	}
 	if !strings.Contains(page, `.search.header-search { width: min(38vw, 300px); min-width: 0; margin-right: 44px; }`) {
 		t.Fatalf("viewer mobile header search should reserve the link behavior control slot:\n%s", page)
 	}
-	if !strings.Contains(page, `data-navigation-mode-toggle`) ||
-		!strings.Contains(page, `navigation-mode-icon-single`) ||
-		!strings.Contains(page, `navigation-mode-icon-split`) ||
-		!strings.Contains(page, `data-mode="beside"`) ||
-		!strings.Contains(page, `aria-label="Link behavior: Open beside"`) ||
-		!strings.Contains(page, `aria-pressed="true"`) {
-		t.Fatalf("viewer should render a link behavior toggle in the document header:\n%s", page)
+	if !strings.Contains(page, `data-horizontal-stack checked`) ||
+		!strings.Contains(page, `<strong>Horizontal stack</strong>`) ||
+		strings.Contains(page, `data-navigation-mode-toggle`) {
+		t.Fatalf("viewer should render horizontal stack as an enabled Document setting instead of a header control:\n%s", page)
 	}
 	if !strings.Contains(page, `data-graph-view-toggle`) ||
 		!strings.Contains(page, `data-documents-view-toggle`) ||
@@ -99,7 +96,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `id="knowledge-graph"`) {
 		t.Fatalf("viewer should render separate Documents and Graph sidebar items:\n%s", page)
 	}
-	if !strings.Contains(page, `setGraphViewRequested(true)`) ||
+	if !strings.Contains(page, `setGraphViewRequested(!graphViewRequested)`) ||
 		!strings.Contains(page, `function bindDocumentsView()`) ||
 		!strings.Contains(page, `graphViewToggle.setAttribute("aria-pressed", showGraph ? "true" : "false")`) ||
 		!strings.Contains(page, `settingsSummary.textContent = "Graph settings"`) ||
@@ -172,7 +169,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `openknowledge.viewer.navigationMode`) ||
 		!strings.Contains(page, `function shouldOpenBeside(shiftKey)`) ||
 		!strings.Contains(page, `return shiftKey ? !besideByDefault : besideByDefault`) ||
-		!strings.Contains(page, `navigationModeToggle.dataset.mode = navigationMode`) {
+		!strings.Contains(page, `horizontalStack.checked = navigationMode === "beside"`) {
 		t.Fatalf("viewer should persist and apply replace or open-beside link behavior:\n%s", page)
 	}
 	if !strings.Contains(page, `href="/file/workflows/docs.md"`) {
@@ -346,8 +343,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer file page should always use stack panels without focus mode controls:\n%s", page)
 	}
 	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) ||
-		!strings.Contains(page, `class="file-sidebar-navigation"`) || !strings.Contains(page, `data-sidebar-close`) || !strings.Contains(page, `data-sidebar-settings-slot`) ||
-		strings.Contains(page, `file-sidebar-head`) || strings.Contains(page, `file-sidebar-brand`) {
+		!strings.Contains(page, `class="file-sidebar-navigation"`) || !strings.Contains(page, `data-sidebar-settings-slot`) ||
+		strings.Contains(page, `data-sidebar-close`) || strings.Contains(page, `file-sidebar-head`) || strings.Contains(page, `file-sidebar-brand`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
 	}
 	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
@@ -745,9 +742,12 @@ Supported by policy.[^revenue-policy]
 	page := getViewerBody(t, handler, "/file/revenue.md")
 	for _, expected := range []string{
 		`data-okf02-signals`,
+		`<dt class="ok-signal-label">Trust</dt>`,
 		`data-signal-kind="trust" data-signal-value="human-reviewed"`,
 		`Human reviewed`,
+		`<dt class="ok-signal-label">Status</dt>`,
 		`data-signal-value="deprecated"`,
+		`<dt class="ok-signal-label">Freshness</dt>`,
 		`data-signal-value="stale"`,
 		`data-source-ledger`,
 		`id="ok-source-revenue-policy"`,
@@ -763,6 +763,9 @@ Supported by policy.[^revenue-policy]
 			t.Fatalf("viewer OKF 0.2 surface missing %q:\n%s", expected, page)
 		}
 	}
+	if strings.Contains(page, `data-signal-default="true"`) {
+		t.Fatalf("viewer should not mark explicit OKF 0.2 signals as defaults:\n%s", page)
+	}
 	if strings.Contains(page, "Revenue policy</p>") {
 		t.Fatalf("viewer should resolve the source footnote through structured metadata:\n%s", page)
 	}
@@ -774,6 +777,27 @@ Supported by policy.[^revenue-policy]
 	if !strings.HasPrefix(api.Frontmatter, `<details class="ok-frontmatter" data-frontmatter>`) ||
 		!strings.Contains(api.Frontmatter, `<div class="ok-frontmatter-body"><section class="ok-knowledge-signals"`) {
 		t.Fatalf("viewer should keep OKF 0.2 signals inside the frontmatter disclosure: %s", api.Frontmatter)
+	}
+}
+
+func TestViewerLabelsInferredOKFV02SignalDefaults(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n")
+	writeViewerFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n")
+
+	page := getViewerBody(t, newViewerHandler(root), "/file/guide.md")
+	for _, expected := range []string{
+		`<dt class="ok-signal-label">Trust</dt>`,
+		`data-signal-kind="trust" data-signal-value="unverified">Unverified</span><span class="ok-signal-default" data-signal-default="true">Default</span>`,
+		`<dt class="ok-signal-label">Status</dt>`,
+		`data-signal-kind="status" data-signal-value="stable">Stable</span><span class="ok-signal-default" data-signal-default="true">Default</span>`,
+	} {
+		if !strings.Contains(page, expected) {
+			t.Fatalf("viewer inferred OKF 0.2 signals missing %q:\n%s", expected, page)
+		}
+	}
+	if strings.Count(page, `data-signal-default="true"`) != 2 {
+		t.Fatalf("viewer should mark both inferred OKF 0.2 signals as defaults:\n%s", page)
 	}
 }
 

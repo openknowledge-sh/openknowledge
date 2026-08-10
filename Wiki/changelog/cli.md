@@ -21,15 +21,26 @@ page records release-level changes.
 - Markdown note panels now show the full-width **Frontmatter** disclosure
   immediately below the compact header. The disclosure starts collapsed.
   Select **Frontmatter** to expand the full typed YAML table.
+- OKF 0.2 knowledge signals now show separate field labels and values. The
+  viewer marks inferred `unverified` trust and `stable` status as **Default**.
 - Viewer search now strips common Markdown markup from excerpts and adds folder
   context to `Index` titles. The panel shows progress, result counts, and
   errors with **Retry**. The result panel omits persistent summary and keyboard
-  hint rows.
+  hint rows. Initial suggestions and typed results use the same wider layout.
+  Each file name and path stays on one line. Typed results add highlighted
+  excerpts and match counts.
 - The viewer sidebar now has separate **Documents**, **Graph**, and
   **Settings** items. The **Documents** view contains the file tree. The sidebar
-  omits the duplicate badge, knowledge base name, and filesystem path header.
+  omits the duplicate identity header and close button.
+  The Graph icon also remains available in the top bar. Select it again to
+  return to the open documents.
+- The link display mode moved from the top bar to a **Horizontal stack** switch
+  under **Settings** → **Document**. It is enabled by default.
 - The canvas knowledge graph now provides pan, zoom, node drag, filters,
-  display controls, force controls, and saved folder colors.
+  display controls, force controls, and saved folder colors. Compact icon-only
+  viewport controls sit in the canvas's lower-left corner. A settings icon
+  toggles the graph controls in a vertically centered card on the canvas. The
+  card starts hidden.
 - The graph workspace fills the available desktop height. One collapsed
   **Graph settings** disclosure contains all controls on small viewports.
 - The sidebar status now shows only the connection count for the selected or

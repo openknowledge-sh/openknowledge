@@ -6,13 +6,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const emptyState = document.querySelector("[data-empty-state]");
   const fileSidebar = document.querySelector("[data-file-sidebar]");
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
-  const sidebarClose = document.querySelector("[data-sidebar-close]");
   const sidebarResizeHandle = document.querySelector("[data-sidebar-resize-handle]");
   const documentsViewToggle = document.querySelector("[data-documents-view-toggle]");
   const settings = document.querySelector("[data-viewer-settings]");
   const settingsTrigger = document.querySelector("[data-viewer-settings-trigger]");
   const settingsMenu = document.querySelector("[data-viewer-settings-menu]");
-  const navigationModeToggle = document.querySelector("[data-navigation-mode-toggle]");
+  const horizontalStack = document.querySelector("[data-horizontal-stack]");
   const graphViewToggle = document.querySelector("[data-graph-view-toggle]");
   const customThemeFields = document.querySelector("[data-theme-custom-fields]");
   const frontmatterVisibility = document.querySelector("[data-frontmatter-visibility]");
@@ -248,11 +247,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function applyNavigationMode(value) {
     navigationMode = normalizeNavigationMode(value);
     document.documentElement.dataset.viewerNavigationMode = navigationMode;
-    if (navigationModeToggle) {
-      navigationModeToggle.dataset.mode = navigationMode;
-      navigationModeToggle.setAttribute("aria-pressed", navigationMode === "beside" ? "true" : "false");
-      navigationModeToggle.setAttribute("aria-label", "Link behavior: " + (navigationMode === "beside" ? "Open beside" : "Open in current panel"));
-      navigationModeToggle.title = navigationModeTitle();
+    if (horizontalStack) {
+      horizontalStack.checked = navigationMode === "beside";
     }
     updateLinkBehaviorHints();
   }
@@ -264,12 +260,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function bindNavigationMode() {
     applyNavigationMode(readNavigationModePreference());
-    if (!navigationModeToggle || navigationModeToggle.dataset.modeBound === "true") {
+    if (!horizontalStack || horizontalStack.dataset.modeBound === "true") {
       return;
     }
-    navigationModeToggle.dataset.modeBound = "true";
-    navigationModeToggle.addEventListener("click", function () {
-      const next = navigationMode === "beside" ? "replace" : "beside";
+    horizontalStack.dataset.modeBound = "true";
+    horizontalStack.addEventListener("change", function () {
+      const next = horizontalStack.checked ? "beside" : "replace";
       saveNavigationModePreference(next);
       applyNavigationMode(next);
     });
@@ -291,7 +287,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     graphViewToggle.dataset.graphViewBound = "true";
     graphViewToggle.addEventListener("click", function () {
-      setGraphViewRequested(true);
+      setGraphViewRequested(!graphViewRequested);
       if (mobileSidebar.matches) {
         setSidebarOpen(false);
       }
@@ -319,7 +315,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const graphSlot = fileSidebar?.querySelector("[data-sidebar-graph-slot]");
     const settingsSlot = fileSidebar?.querySelector("[data-sidebar-settings-slot]");
     if (graphSlot && graphViewToggle) {
-      graphSlot.replaceWith(graphViewToggle);
+      const sidebarGraphToggle = graphViewToggle.cloneNode(true);
+      sidebarGraphToggle.removeAttribute("data-graph-view-toggle");
+      sidebarGraphToggle.dataset.sidebarGraphToggle = "";
+      sidebarGraphToggle.addEventListener("click", function () {
+        graphViewToggle.click();
+      });
+      graphSlot.replaceWith(sidebarGraphToggle);
     }
     if (settingsSlot && settings) {
       settingsSlot.replaceWith(settings);
@@ -1094,6 +1096,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     graphView.replaceChildren();
     graphSidebar?.replaceChildren();
+    if (graphSidebar) {
+      graphSidebar.hidden = true;
+    }
 
     const info = document.createElement("div");
     info.className = "knowledge-graph-info";
@@ -1133,6 +1138,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     graphView.append(canvas);
 
     const controller = createKnowledgeGraphCanvas(canvas, knowledgeGraph, positions, labelsByPath, worldWidth, worldHeight, status, settingsValue);
+    graphView.append(createKnowledgeGraphViewportActions(controller, graphSidebar));
     if (graphSidebar) {
       graphSidebar.append(createKnowledgeGraphControls(controller, settingsValue));
     }
@@ -1199,14 +1205,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return Math.round(value) + "%";
     }, controller, settingsValue, bindings));
 
-    const viewportActions = document.createElement("div");
-    viewportActions.className = "knowledge-graph-actions knowledge-graph-viewport-actions";
-    const zoomOut = graphActionButton("Zoom out", function () { controller.zoomBy(0.82); });
-    const actualSize = graphActionButton("100%", function () { controller.actualSize(); });
-    const zoomIn = graphActionButton("Zoom in", function () { controller.zoomBy(1.22); });
-    const fit = graphActionButton("Fit", function () { controller.fit(); });
-    viewportActions.append(zoomOut, actualSize, zoomIn, fit);
-
     const graphActions = document.createElement("div");
     graphActions.className = "knowledge-graph-actions";
     const animation = graphActionButton(controller.isRunning() ? "Pause" : "Resume", function () {
@@ -1245,7 +1243,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     settingsSummary.textContent = "Graph settings";
     const settingsBody = document.createElement("div");
     settingsBody.className = "knowledge-graph-settings-body";
-    settingsBody.append(...controlSections, viewportActions, graphActions);
+    settingsBody.append(...controlSections, graphActions);
     settingsDisclosure.append(settingsSummary, settingsBody);
 
     const syncSettingsDisclosure = function () {
@@ -1344,6 +1342,59 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     button.textContent = label;
     button.addEventListener("click", onClick);
     return button;
+  }
+
+  function createKnowledgeGraphViewportActions(controller, graphSidebar) {
+    const actions = document.createElement("div");
+    actions.className = "knowledge-graph-viewport-actions";
+    actions.setAttribute("role", "toolbar");
+    actions.setAttribute("aria-label", "Graph viewport controls");
+    actions.append(
+      graphIconActionButton("Zoom out", "minus", function () { controller.zoomBy(0.82); }),
+      graphIconActionButton("Zoom in", "plus", function () { controller.zoomBy(1.22); }),
+      graphIconActionButton("Fit graph", "fit", function () { controller.fit(); }),
+    );
+    if (graphSidebar) {
+      const settings = graphIconActionButton("Graph settings", "settings", function () {
+        const expanded = settings.getAttribute("aria-expanded") === "true";
+        settings.setAttribute("aria-expanded", expanded ? "false" : "true");
+        graphSidebar.hidden = expanded;
+      });
+      settings.className = "knowledge-graph-settings-toggle";
+      settings.setAttribute("aria-expanded", "false");
+      actions.append(settings);
+    }
+    return actions;
+  }
+
+  function graphIconActionButton(label, icon, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.append(graphViewportIcon(icon));
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function graphViewportIcon(icon) {
+    const namespace = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(namespace, "svg");
+    svg.setAttribute("viewBox", "0 0 20 20");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const pathData = {
+      minus: ["M5 10h10"],
+      plus: ["M5 10h10", "M10 5v10"],
+      fit: ["M8 4.5H4.5V8", "M12 4.5h3.5V8", "M8 15.5H4.5V12", "M12 15.5h3.5V12"],
+      settings: ["M4 6h12", "M4 10h12", "M4 14h12", "M7 4v4", "M13 8v4", "M8 12v4"],
+    };
+    (pathData[icon] || []).forEach(function (data) {
+      const path = document.createElementNS(namespace, "path");
+      path.setAttribute("d", data);
+      svg.append(path);
+    });
+    return svg;
   }
 
   function createKnowledgeGraphCanvas(canvas, graph, positions, labelsByPath, worldWidth, worldHeight, status, settingsValue) {
@@ -3247,6 +3298,15 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const panelCount = panels().length;
     const isEmpty = panelCount === 0;
     const showGraph = graphViewRequested || isEmpty;
+    const graphWasVisible = document.documentElement.dataset.viewerView === "graph";
+    if (showGraph && !graphWasVisible) {
+      const graphSidebar = document.querySelector("[data-knowledge-graph-sidebar]");
+      const graphSettingsToggle = document.querySelector(".knowledge-graph-settings-toggle");
+      if (graphSidebar) {
+        graphSidebar.hidden = true;
+      }
+      graphSettingsToggle?.setAttribute("aria-expanded", "false");
+    }
     workspace.classList.toggle("is-empty", isEmpty);
     workspace.classList.toggle("is-graph-view", showGraph);
     workspace.classList.toggle("is-single-panel", !showGraph && panelCount === 1);
@@ -3261,6 +3321,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         graphViewToggle.setAttribute("aria-current", "page");
       } else {
         graphViewToggle.removeAttribute("aria-current");
+      }
+    }
+    const sidebarGraphToggle = fileSidebar?.querySelector("[data-sidebar-graph-toggle]");
+    if (sidebarGraphToggle) {
+      sidebarGraphToggle.dataset.active = showGraph ? "true" : "false";
+      sidebarGraphToggle.setAttribute("aria-pressed", showGraph ? "true" : "false");
+      if (showGraph) {
+        sidebarGraphToggle.setAttribute("aria-current", "page");
+      } else {
+        sidebarGraphToggle.removeAttribute("aria-current");
       }
     }
     if (documentsViewToggle) {
@@ -4971,12 +5041,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         element.textContent = label;
       });
     }
-  }
-  if (sidebarClose) {
-    sidebarClose.addEventListener("click", function () {
-      setSidebarOpen(false);
-      sidebarToggle?.focus();
-    });
   }
   if (sidebarResizeHandle) {
     sidebarResizeHandle.addEventListener("pointerdown", startSidebarResize);

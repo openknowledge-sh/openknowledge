@@ -80,18 +80,23 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Directory rows can collapse, and the explorer has a **Collapse all** action.
 - For OKF 0.2 concepts, the expanded frontmatter area groups derived trust,
   status, freshness, provenance, structured sources, and Attested Computation
-  data.
+  data. Each derived signal has a field label and a value. The viewer marks
+  inferred `unverified` trust and `stable` status values as **Default**.
   Source footnotes open the matching structured source entry. The viewer never
   executes declared resources automatically.
 - The knowledge graph uses a theme-aware canvas. The left detail panel shows
   only the connection count for the selected or hovered node. The canvas
   `aria-label` keeps the node name and Enter hint.
+  The top-bar Graph icon toggles between the graph and the open documents.
   On viewports wider than 680 px, the graph workspace fills the viewport below
   the header. The canvas is 380 px high on smaller viewports. On viewports up
   to 680 px, the **Graph settings** disclosure starts collapsed and contains
-  all graph controls and actions.
-  Drag the canvas to pan. Use the wheel or trackpad to zoom.
-  Drag a node to move it. Select **Fit** to show the complete graph.
+  graph filters, display and force controls, and reset and animation actions.
+  Drag the canvas to pan. Use the wheel or trackpad to zoom. Icon-only zoom,
+  fit, and settings controls sit in the canvas's lower-left corner.
+  Graph settings are hidden by default. The settings control toggles a
+  vertically centered card on the canvas's left.
+  Drag a node to move it. Use the fit control to show the complete graph.
   Filter notes by title or path. The **Color nodes by folder** control applies
   theme-aware colors. Hovered and selected nodes keep their folder colors.
   Display controls adjust arrows, labels, node size, and link thickness.
@@ -105,6 +110,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   defaults. The first visit uses the light blue default theme. A saved theme
   preference overrides this default. These preferences do not change source
   Markdown.
+  The **Horizontal stack** switch is enabled by default in the **Document**
+  section. Disable it to replace the current document when following a link.
 - Direct paths and writable local connections provide local editor links.
   Static exports use configured repository source links.
 - The local viewer serves the same Vite-built JavaScript and CSS bundle as
