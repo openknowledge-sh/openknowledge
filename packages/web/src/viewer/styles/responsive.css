@@ -5,7 +5,6 @@
   body.viewer-document { grid-template-rows: var(--ok-mobile-header-height) minmax(0, 1fr); transition: none; }
   body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: 100vw; }
   body.viewer-document header { display: flex; height: var(--ok-mobile-header-height); justify-content: flex-end; padding: 0 12px; }
-  .file-sidebar-head { min-height: var(--ok-mobile-header-height); }
   .file-sidebar-resize { display: none; }
   .header-left { left: 12px; max-width: min(44%, calc(66% - 78px)); }
   body.is-stack-mode .header-left { max-width: min(44%, calc(66% - 78px)); }

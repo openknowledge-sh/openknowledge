@@ -15,14 +15,19 @@ page records release-level changes.
 
 ### Viewer
 
+- Viewer development now supports Vite hot reload through
+  `pnpm dev:viewer -- [path]`. The command keeps the Go viewer active while
+  Vite serves source CSS and JavaScript.
 - Markdown note panels now show the full-width **Frontmatter** disclosure
   immediately below the compact header. The disclosure starts collapsed.
   Select **Frontmatter** to expand the full typed YAML table.
 - Viewer search now strips common Markdown markup from excerpts and adds folder
   context to `Index` titles. The panel shows progress, result counts, and
-  errors with **Retry**.
+  errors with **Retry**. The result panel omits persistent summary and keyboard
+  hint rows.
 - The viewer sidebar now has separate **Documents**, **Graph**, and
-  **Settings** items. The **Documents** view contains the file tree.
+  **Settings** items. The **Documents** view contains the file tree. The sidebar
+  omits the duplicate badge, knowledge base name, and filesystem path header.
 - The canvas knowledge graph now provides pan, zoom, node drag, filters,
   display controls, force controls, and saved folder colors.
 - The graph workspace fills the available desktop height. One collapsed
@@ -34,6 +39,7 @@ page records release-level changes.
   is limited.
 - Source: `packages/cli/cmd/openknowledge/viewer_templates.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`,
+  `packages/web/scripts/dev-viewer.mjs`,
   `packages/web/src/viewer/app.js`,
   `packages/web/src/viewer/search.js`,
   `packages/web/src/viewer/styles/`,

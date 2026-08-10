@@ -39,6 +39,7 @@ pnpm build
 | `pnpm test:race` | Run all Go tests with the race detector. |
 | `pnpm test:coverage` | Produce `coverage.out` for the Go packages. |
 | `pnpm build:viewer` | Build ignored viewer assets for Go embedding. |
+| `pnpm dev:viewer -- [path]` | Run the Go viewer with Vite hot reload. |
 | `pnpm check:format` | Fail when committed Go files are not formatted. |
 | `pnpm check:repo-jobs` | Validate repository job definitions. |
 | `pnpm check:versions` | Verify package and Go fallback version alignment. |
@@ -53,6 +54,11 @@ pnpm build
 
 `pnpm test` runs all policy checks.
 It also runs installer, web, and CLI tests.
+
+Use `pnpm dev:viewer -- Wiki` when you change files in
+`packages/web/src/viewer`. Vite updates CSS without a restart. It reloads the
+page when a JavaScript change requires a full reload. Set
+`OPENKNOWLEDGE_VIEWER_DEV_PORT` to select the Vite port.
 
 ## Continuous integration
 

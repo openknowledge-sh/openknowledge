@@ -15,6 +15,12 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
+func TestViewerHeaderSearchOmitsPersistentSummaryAndHint(t *testing.T) {
+	if strings.Contains(viewerCSS, "content: attr(data-summary)") || strings.Contains(viewerCSS, "Arrow keys navigate") {
+		t.Fatal("viewer header search should not include persistent summary or keyboard hint rows")
+	}
+}
+
 func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nSee [Workflow](workflows/docs.md) and [Concepts](concepts/).\n\n| Name | Kind | Count |\n| :--- | --- | ---: |\n| `path` | argument | 1 |\n| `--spec` | flag | 2 |\n")
@@ -340,7 +346,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer file page should always use stack panels without focus mode controls:\n%s", page)
 	}
 	if !strings.Contains(page, `data-sidebar-toggle`) || !strings.Contains(page, `data-file-sidebar`) || !strings.Contains(page, `aria-label="File explorer"`) ||
-		!strings.Contains(page, `class="file-sidebar-navigation"`) || !strings.Contains(page, `data-sidebar-settings-slot`) {
+		!strings.Contains(page, `class="file-sidebar-navigation"`) || !strings.Contains(page, `data-sidebar-close`) || !strings.Contains(page, `data-sidebar-settings-slot`) ||
+		strings.Contains(page, `file-sidebar-head`) || strings.Contains(page, `file-sidebar-brand`) {
 		t.Fatalf("viewer file page did not include file explorer sidebar controls:\n%s", page)
 	}
 	if !strings.Contains(page, `id="viewer-search"`) || !strings.Contains(page, `data-primary-search`) || !strings.Contains(page, `data-search-url="/api/search"`) || !strings.Contains(page, `searchStaticNotes`) {
@@ -367,7 +374,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `.header-search .search-result-title`) ||
 		!strings.Contains(page, `.header-search .search-result-snippet`) ||
 		strings.Contains(page, `search-result-context`) ||
-		!strings.Contains(page, `content: "Arrow keys navigate · Enter opens · Shift+Enter changes panel mode"`) {
+		strings.Contains(page, `content: attr(data-summary)`) ||
+		strings.Contains(page, `Arrow keys navigate`) {
 		t.Fatalf("viewer header search should use a streamlined result surface with clear hierarchy:\n%s", page)
 	}
 	if !strings.Contains(page, `function plainSearchExcerpt(value)`) ||

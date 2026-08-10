@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "dev:web": "pnpm --filter @openknowledge-sh/web dev",
+    "dev:viewer": "pnpm --filter @openknowledge-sh/web dev:viewer",
     "build:web": "pnpm --filter @openknowledge-sh/web build",
     "build:viewer": "pnpm --filter @openknowledge-sh/web build:viewer",
     "test:cli": "pnpm build:viewer && go test ./packages/cli/...",

@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:viewer": "node scripts/dev-viewer.mjs",
     "build": "pnpm build:viewer && vite build && node scripts/build.mjs",
     "build:viewer": "vite build --config vite.viewer.config.js && vite build --config vite.theme.config.js",
     "lint": "oxlint src scripts vite.config.js vite.viewer.config.js vite.theme.config.js --deny-warnings",

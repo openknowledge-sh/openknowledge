@@ -297,21 +297,12 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     </div>
   </header>
   <aside class="file-sidebar" data-file-sidebar aria-label="File explorer" aria-hidden="true">
-    <div class="file-sidebar-head">
-      <a class="file-sidebar-brand" href="{{.HomeURL}}" data-direct-link="true">
-        <span class="file-sidebar-brand-mark" aria-hidden="true">OK</span>
-        <span class="file-sidebar-brand-copy">
-          <strong>{{.BrandName}}</strong>
-          <small title="{{.Root}}">{{.Root}}</small>
-        </span>
-      </a>
-      <button class="file-sidebar-close" type="button" data-sidebar-close aria-label="Close file explorer" title="Close">
-        <svg class="note-close-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M18 6 6 18"></path>
-          <path d="m6 6 12 12"></path>
-        </svg>
-      </button>
-    </div>
+    <button class="file-sidebar-close" type="button" data-sidebar-close aria-label="Close file explorer" title="Close">
+      <svg class="note-close-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 6 6 18"></path>
+        <path d="m6 6 12 12"></path>
+      </svg>
+    </button>
     <nav class="file-sidebar-navigation" aria-label="Viewer">
       <button class="sidebar-navigation-item" type="button" data-documents-view-toggle aria-label="Documents" aria-controls="note-workspace" aria-current="page">
         <svg class="sidebar-navigation-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
