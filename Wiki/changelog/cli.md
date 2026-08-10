@@ -21,8 +21,9 @@ page records release-level changes.
 - Markdown note panels now show the full-width **Frontmatter** disclosure
   immediately below the compact header. The disclosure starts collapsed.
   Select **Frontmatter** to expand the full typed YAML table.
-- OKF 0.2 knowledge signals now show separate field labels and values. The
-  viewer marks inferred `unverified` trust and `stable` status as **Default**.
+- OKF 0.2 knowledge signals now use the same two-column field-and-value rows as
+  the frontmatter table. The viewer marks inferred `unverified` trust and
+  `stable` status as **Default**.
 - Viewer search now strips common Markdown markup from excerpts and adds folder
   context to `Index` titles. The panel shows progress, result counts, and
   errors with **Retry**. The result panel omits persistent summary and keyboard

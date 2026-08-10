@@ -80,7 +80,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Directory rows can collapse, and the explorer has a **Collapse all** action.
 - For OKF 0.2 concepts, the expanded frontmatter area groups derived trust,
   status, freshness, provenance, structured sources, and Attested Computation
-  data. Each derived signal has a field label and a value. The viewer marks
+  data. Each derived signal uses the same two-column field-and-value rows as
+  the frontmatter table. The viewer marks
   inferred `unverified` trust and `stable` status values as **Default**.
   Source footnotes open the matching structured source entry. The viewer never
   executes declared resources automatically.

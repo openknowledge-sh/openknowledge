@@ -67,16 +67,16 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `body.viewer-document > header { position: relative; grid-column: 2; grid-row: 1; width: 100%; height: var(--ok-header-height); min-width: 0; min-height: 0; z-index: 6;`) {
 		t.Fatalf("viewer document header should use a slim fixed height with centered contents:\n%s", page)
 	}
-	if !strings.Contains(page, `border-bottom: 0; background: var(--ok-color-viewer-header-bg);`) ||
+	if !strings.Contains(page, `border-bottom: 0; background: var(--ok-color-viewer-canvas);`) ||
 		!strings.Contains(page, `.editor-open .editor-mark { border: 0; background: transparent; }`) {
 		t.Fatalf("viewer document chrome should avoid redundant nested borders:\n%s", page)
 	}
-	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; width: min(420px, 38vw); min-width: 240px; margin: 0; }`) {
+	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; align-self: center; width: min(420px, 38vw); min-width: 240px; margin: 0; }`) {
 		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
 	}
 	if !strings.Contains(page, `class="search-icon control-icon"`) ||
-		!strings.Contains(page, `.header-search .search-field { position: relative; display: flex; height: 36px; align-items: center; border: 0; border-radius: 8px; background: var(--ok-color-control-hover-bg);`) ||
-		!strings.Contains(page, `.header-search .search-input { height: 36px; min-height: 0; padding: 7px 44px 7px 34px; border: 0; border-radius: 8px; background: transparent;`) ||
+		!strings.Contains(page, `.header-search .search-field { position: relative; display: flex; height: 30px; align-items: center; border: 0; border-radius: 8px; background: var(--ok-color-control-hover-bg);`) ||
+		!strings.Contains(page, `.header-search .search-input { height: 30px; min-height: 0; padding: 5px 44px 5px 34px; border: 0; border-radius: 8px; background: transparent;`) ||
 		!strings.Contains(page, `.header-search .search-shortcut { position: absolute; right: 8px;`) {
 		t.Fatalf("viewer header search should use a quiet filled surface without an underline:\n%s", page)
 	}

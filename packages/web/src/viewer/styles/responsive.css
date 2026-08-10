@@ -8,7 +8,7 @@
   .file-sidebar-resize { display: none; }
   .header-left { left: 12px; max-width: min(44%, calc(66% - 78px)); }
   body.is-stack-mode .header-left { max-width: min(44%, calc(66% - 78px)); }
-  .header-left .brand { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-left .brand { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
   .sidebar-shortcut { display: none; }
   .graph-view-toggle { right: 12px; }
   .viewer-settings { right: 12px; }
@@ -46,7 +46,7 @@
   .ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary { padding-right: 22px; padding-left: 22px; }
   .ok-frontmatter.is-panel-integrated > .ok-frontmatter-body { padding-right: 22px; padding-left: 22px; }
   .document h1 { font-size: 28px; }
-  .ok-frontmatter-row, .ok-frontmatter-value > .ok-frontmatter-map .ok-frontmatter-row, .ok-frontmatter-list-value > .ok-frontmatter-map .ok-frontmatter-row { grid-template-columns: 1fr; gap: 5px; }
+  .ok-signal-item, .ok-frontmatter-row, .ok-frontmatter-value > .ok-frontmatter-map .ok-frontmatter-row, .ok-frontmatter-list-value > .ok-frontmatter-map .ok-frontmatter-row { grid-template-columns: 1fr; gap: 5px; }
   .ok-computation-contract > dl > div { grid-template-columns: 1fr; gap: 4px; }
   .document .ok-source-entry { grid-template-columns: 1fr; }
   .ok-frontmatter-value > .ok-frontmatter-map, .ok-frontmatter-list-value > .ok-frontmatter-map { padding-left: 6px; }
@@ -72,7 +72,7 @@
   .note-body h1 { font-size: calc(28px * var(--ok-document-scale, 1)); }
 }
 @container note-panel (max-width: 520px) {
-  .ok-frontmatter-row, .ok-frontmatter-value > .ok-frontmatter-map .ok-frontmatter-row, .ok-frontmatter-list-value > .ok-frontmatter-map .ok-frontmatter-row { grid-template-columns: 1fr; gap: 5px; }
+  .ok-signal-item, .ok-frontmatter-row, .ok-frontmatter-value > .ok-frontmatter-map .ok-frontmatter-row, .ok-frontmatter-list-value > .ok-frontmatter-map .ok-frontmatter-row { grid-template-columns: 1fr; gap: 5px; }
   .ok-frontmatter-value > .ok-frontmatter-map, .ok-frontmatter-list-value > .ok-frontmatter-map { padding-left: 6px; }
 }
 @media (max-width: 680px), (hover: none) and (pointer: coarse) {

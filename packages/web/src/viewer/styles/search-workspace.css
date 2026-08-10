@@ -2,13 +2,13 @@
   .sidebar-shortcut { display: none; }
   .search.header-search { width: min(420px, calc(100% - 220px)); min-width: 200px; }
 }
-.search.header-search { position: relative; z-index: 6; width: min(420px, 38vw); min-width: 240px; margin: 0; }
-.header-search .search-field { position: relative; display: flex; height: 36px; align-items: center; border: 0; border-radius: 8px; background: var(--ok-color-control-hover-bg); transition: background-color .14s ease, box-shadow .14s ease; }
+.search.header-search { position: relative; z-index: 6; align-self: center; width: min(420px, 38vw); min-width: 240px; margin: 0; }
+.header-search .search-field { position: relative; display: flex; height: 30px; align-items: center; border: 0; border-radius: 8px; background: var(--ok-color-control-hover-bg); transition: background-color .14s ease, box-shadow .14s ease; }
 .header-search .search-field:hover { background: var(--ok-color-accent-softer); }
 .header-search .search-field:focus-within { background: var(--ok-color-accent-softer); box-shadow: 0 0 0 2px var(--ok-color-accent-focus); }
 .header-search .search-icon { position: absolute; left: 10px; width: 17px; height: 17px; color: var(--ok-color-muted); pointer-events: none; transition: color .14s ease; }
 .header-search .search-field:focus-within .search-icon { color: var(--ok-color-accent-strong); }
-.header-search .search-input { height: 36px; min-height: 0; padding: 7px 44px 7px 34px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; font-size: 13px; transition: color .14s ease; }
+.header-search .search-input { height: 30px; min-height: 0; padding: 5px 44px 5px 34px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; font-size: 13px; transition: color .14s ease; }
 .header-search .search-input::placeholder { color: var(--ok-color-muted); opacity: .82; }
 .header-search .search-input:focus { border: 0; background: transparent; box-shadow: none; outline: none; }
 .header-search .search-shortcut { position: absolute; right: 8px; display: inline-flex; min-width: 28px; height: 22px; align-items: center; justify-content: center; padding: 0 2px; border: 0; border-radius: 0; background: transparent; color: var(--ok-color-muted); font: 600 11px/1 var(--ok-font-body); opacity: .78; pointer-events: none; }
