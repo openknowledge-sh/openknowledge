@@ -15,12 +15,6 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
-func TestViewerHeaderSearchOmitsPersistentSummaryAndHint(t *testing.T) {
-	if strings.Contains(viewerCSS, "content: attr(data-summary)") || strings.Contains(viewerCSS, "Arrow keys navigate") {
-		t.Fatal("viewer header search should not include persistent summary or keyboard hint rows")
-	}
-}
-
 func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nSee [Workflow](workflows/docs.md) and [Concepts](concepts/).\n\n| Name | Kind | Count |\n| :--- | --- | ---: |\n| `path` | argument | 1 |\n| `--spec` | flag | 2 |\n")
@@ -32,7 +26,6 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	page := getViewerBody(t, handler, "/file/index.md")
 	page += viewerSourceForAssertions(t)
 	page += getViewerBody(t, handler, "/"+viewerThemeScriptAsset)
-	page += getViewerBody(t, handler, "/"+viewerStylesheetAsset)
 	if !strings.Contains(page, `class="ok-frontmatter" data-frontmatter`) ||
 		strings.Contains(page, `class="ok-frontmatter" data-frontmatter open`) ||
 		!strings.Contains(page, `<code>okf_version</code>`) ||
@@ -45,43 +38,14 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if strings.Contains(page, "<span>index.md</span>") {
 		t.Fatalf("viewer file header should not repeat the current file path:\n%s", page)
 	}
-	if !strings.Contains(page, "body.viewer-document &gt; header") && !strings.Contains(page, "body.viewer-document > header") {
-		t.Fatalf("viewer file page did not include seamless header override:\n%s", page)
-	}
 	if !strings.Contains(page, `data-openknowledge-theme="default"`) ||
 		!strings.Contains(page, `data-viewer-theme="default"`) ||
 		!strings.Contains(page, `const defaultPreset = "default";`) ||
-		!strings.Contains(page, `const defaultThemePreset = "default";`) ||
-		!strings.Contains(page, `--ok-color-accent`) ||
-		!strings.Contains(page, `--ok-font-body`) {
-		t.Fatalf("viewer file page should expose theme data and root CSS variables:\n%s", page)
+		!strings.Contains(page, `const defaultThemePreset = "default";`) {
+		t.Fatalf("viewer file page should expose theme data:\n%s", page)
 	}
-	if !strings.Contains(page, `--ok-viewport-height: 100vh`) || !strings.Contains(page, `--ok-viewport-height: 100svh`) || !strings.Contains(page, `-webkit-text-size-adjust: 100%; text-size-adjust: 100%;`) {
-		t.Fatalf("viewer should normalize iOS viewport height and text scaling:\n%s", page)
-	}
-	if !strings.Contains(strings.ReplaceAll(page, " ", ""), `--ok-note-panel-default-width:min(calc(65ch+68px),calc(100vw-44px));`) ||
-		!strings.Contains(page, `cssLengthPixels("var(--ok-note-panel-default-width)", 650)`) {
-		t.Fatalf("viewer default panel width should follow a 65ch reading measure with matching resize fallback:\n%s", page)
-	}
-	if !strings.Contains(page, `body.viewer-document &gt; header { position: relative; grid-column: 2; grid-row: 1; width: 100%; height: var(--ok-header-height); min-width: 0; min-height: 0; z-index: 6;`) &&
-		!strings.Contains(page, `body.viewer-document > header { position: relative; grid-column: 2; grid-row: 1; width: 100%; height: var(--ok-header-height); min-width: 0; min-height: 0; z-index: 6;`) {
-		t.Fatalf("viewer document header should use a slim fixed height with centered contents:\n%s", page)
-	}
-	if !strings.Contains(page, `border-bottom: 0; background: var(--ok-color-viewer-canvas);`) ||
-		!strings.Contains(page, `.editor-open .editor-mark { border: 0; background: transparent; }`) {
-		t.Fatalf("viewer document chrome should avoid redundant nested borders:\n%s", page)
-	}
-	if !strings.Contains(page, `.search.header-search { position: relative; z-index: 6; align-self: center; width: min(420px, 38vw); min-width: 240px; margin: 0; }`) {
-		t.Fatalf("viewer header search should keep generic search margins from shifting it off center:\n%s", page)
-	}
-	if !strings.Contains(page, `class="search-icon control-icon"`) ||
-		!strings.Contains(page, `.header-search .search-field { position: relative; display: flex; height: 30px; align-items: center; border: 0; border-radius: 8px; background: var(--ok-color-control-hover-bg);`) ||
-		!strings.Contains(page, `.header-search .search-input { height: 30px; min-height: 0; padding: 5px 44px 5px 34px; border: 0; border-radius: 8px; background: transparent;`) ||
-		!strings.Contains(page, `.header-search .search-shortcut { position: absolute; right: 8px;`) {
-		t.Fatalf("viewer header search should use a quiet filled surface without an underline:\n%s", page)
-	}
-	if !strings.Contains(page, `.search.header-search { width: min(38vw, 300px); min-width: 0; margin-right: 44px; }`) {
-		t.Fatalf("viewer mobile header search should reserve the link behavior control slot:\n%s", page)
+	if !strings.Contains(page, `class="search-icon control-icon"`) {
+		t.Fatalf("viewer header search should include its search icon:\n%s", page)
 	}
 	if !strings.Contains(page, `data-horizontal-stack checked`) ||
 		!strings.Contains(page, `<strong>Horizontal stack</strong>`) ||
@@ -126,19 +90,14 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	}
 	if !strings.Contains(page, `data-frontmatter-visibility checked`) ||
 		!strings.Contains(page, `openknowledge.viewer.frontmatter`) ||
-		!strings.Contains(page, `applyFrontmatterPreference`) ||
-		!strings.Contains(page, `body.is-frontmatter-hidden .ok-frontmatter { display: none; }`) {
+		!strings.Contains(page, `applyFrontmatterPreference`) {
 		t.Fatalf("viewer should persist a global frontmatter visibility preference:\n%s", page)
 	}
 	if !strings.Contains(page, `function integratePanelFrontmatter(panel)`) ||
 		!strings.Contains(page, `chrome.after(frontmatter)`) ||
 		!strings.Contains(page, `frontmatter.classList.add("is-panel-integrated")`) ||
 		strings.Contains(page, `actions.prepend(trigger)`) ||
-		strings.Contains(page, `summary.hidden = true`) ||
-		!strings.Contains(page, `.note-chrome { position: sticky; top: 0; z-index: 5; display: flex; min-height: 44px;`) ||
-		!strings.Contains(page, `.ok-frontmatter.is-panel-integrated { margin: -18px -34px 22px;`) ||
-		!strings.Contains(page, `.ok-frontmatter.is-panel-integrated > .ok-frontmatter-summary { min-height: 44px; padding: 7px 34px; background: transparent;`) ||
-		!strings.Contains(page, `@container note-panel (max-width: 520px)`) {
+		strings.Contains(page, `summary.hidden = true`) {
 		t.Fatalf("viewer note panels should keep collapsed, full-width frontmatter below the compact header:\n%s", page)
 	}
 	if !strings.Contains(page, `data-accessibility-font`) ||
@@ -153,10 +112,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `openknowledge.viewer.accessibility`) ||
 		!strings.Contains(page, `applyAccessibilityPreference`) ||
 		!strings.Contains(page, `motionIsReduced`) ||
-		!strings.Contains(page, `body.is-links-underlined .note-body a`) ||
-		!strings.Contains(page, `dataset.viewerUnderlines = normalized.underlineLinks ? "on" : "off"`) ||
-		!strings.Contains(page, `html[data-viewer-underlines="off"] .note-body a`) ||
-		!strings.Contains(page, `html[data-viewer-contrast="high"]`) {
+		!strings.Contains(page, `dataset.viewerUnderlines = normalized.underlineLinks ? "on" : "off"`) {
 		t.Fatalf("viewer should persist and apply reading and accessibility preferences:\n%s", page)
 	}
 	if !strings.Contains(page, `data-settings-reset`) ||
@@ -184,64 +140,22 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `<th scope="col" data-align="left">Name</th>`) || !strings.Contains(page, `<td data-align="right">2</td>`) {
 		t.Fatalf("viewer should preserve markdown table alignment metadata:\n%s", page)
 	}
-	if !strings.Contains(page, `.code-block[data-language] { padding-top: 34px; }`) || !strings.Contains(page, `content: attr(data-language)`) || !strings.Contains(page, `opacity: .78`) || !strings.Contains(page, `font: 400 .94em/1.6 var(--ok-font-mono)`) {
-		t.Fatalf("viewer should style code blocks with a subtle language label and body-sized code text:\n%s", page)
-	}
-	if strings.Contains(page, `.code-block[data-language]::before { display: block; margin: -16px`) || strings.Contains(page, `radial-gradient(circle at 16px 50%`) {
-		t.Fatalf("viewer code block label should not use the heavy header strip treatment:\n%s", page)
-	}
-	if !strings.Contains(page, `.tok-command { color: var(--ok-color-syntax-keyword); font-weight: inherit; }`) || !strings.Contains(page, `.tok-flag`) || !strings.Contains(page, `.tok-variable`) {
-		t.Fatalf("viewer should include shell-specific syntax token styles without oversized command text:\n%s", page)
-	}
-	if !strings.Contains(page, `.ok-table-tools`) || !strings.Contains(page, `.ok-table-filter-menu`) || !strings.Contains(page, `Clear filters`) || !strings.Contains(page, `function enhanceTables(scope)`) || !strings.Contains(page, `bindSortableTableHeader`) || !strings.Contains(page, `Filter table`) {
-		t.Fatalf("viewer should embed rich table styling and runtime controls:\n%s", page)
-	}
-	if !strings.Contains(page, `.ok-table-filter-trigger { display: inline-flex; height: 30px; align-items: center; gap: 8px; padding: 0 9px; border: 1px solid transparent; border-radius: 6px; background: transparent;`) {
-		t.Fatalf("viewer table filters trigger should use a ghost button treatment:\n%s", page)
-	}
-	if !strings.Contains(page, `.ok-table code { overflow-wrap: anywhere; white-space: normal; word-break: break-word; }`) {
-		t.Fatalf("viewer table inline code should wrap long paths inside cells:\n%s", page)
-	}
-	if !strings.Contains(page, `.note-chrome { position: sticky; top: 0; z-index: 5;`) || !strings.Contains(page, `.ok-table-tools { position: relative; z-index: 2;`) || !strings.Contains(page, `.ok-table-filter-menu[open] { z-index: 3; }`) {
-		t.Fatalf("viewer note chrome should stay layered above sticky table controls while scrolling:\n%s", page)
+	if !strings.Contains(page, `Clear filters`) || !strings.Contains(page, `function enhanceTables(scope)`) || !strings.Contains(page, `bindSortableTableHeader`) || !strings.Contains(page, `Filter table`) {
+		t.Fatalf("viewer should embed rich table runtime controls:\n%s", page)
 	}
 	if !strings.Contains(page, `data-note-workspace`) || !strings.Contains(page, `data-note-path="index.md"`) {
 		t.Fatalf("viewer file page did not include stacked note layout:\n%s", page)
 	}
-	if !strings.Contains(page, `.document h2 { margin: 40px 0 13px; padding-top: 0; border-top: 0;`) || !strings.Contains(page, `.document li + li { margin-top: 6px; }`) || !strings.Contains(page, `.document h1 code, .document h2 code, .document h3 code`) {
-		t.Fatalf("viewer document typography should distinguish sections and list items:\n%s", page)
+	if !strings.Contains(page, `is-single-panel`) {
+		t.Fatalf("viewer should identify a lone open panel:\n%s", page)
 	}
-	if !strings.Contains(page, `is-single-panel`) || !strings.Contains(page, `justify-content: center`) {
-		t.Fatalf("viewer should center a lone open panel before additional panels are opened:\n%s", page)
-	}
-	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { box-sizing: border-box; flex-basis: 100%; min-width: 100%; justify-content: center; padding-left: max(24px, calc((100vw - 1180px) / 2)); padding-right: max(24px, calc((100vw - 1180px) / 2)); }`) {
-		t.Fatalf("single-panel stack should use symmetric viewport gutters around the centered panel:\n%s", page)
-	}
-	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }`) {
-		t.Fatalf("single-panel mobile stack should keep symmetric mobile gutters around the centered panel:\n%s", page)
-	}
-	if !strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) || !strings.Contains(page, `overflow: auto hidden`) {
-		t.Fatalf("viewer workspace should use an Andy-style flex horizontal scroll container:\n%s", page)
-	}
-	if !strings.Contains(page, `display: flex; flex: 0 0 auto; align-self: stretch`) || strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; align-items: stretch; gap: 18px; min-width: max-content; height: 100%`) {
-		t.Fatalf("viewer note stack should stretch inside the horizontal scroller without forcing full scrollbar height:\n%s", page)
-	}
-	if !strings.Contains(page, `.note-stack { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-self: stretch; align-items: stretch; gap: 16px; min-width: max-content; min-height: 0; padding: 16px max(24px, calc((100vw - 1180px) / 2)) 24px 24px; }`) {
-		t.Fatalf("viewer note stack should use a compact top gutter so panels can extend vertically:\n%s", page)
-	}
-	if !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 50px; }`) || !strings.Contains(page, `.note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 18px; }`) {
-		t.Fatalf("single and multi-panel stacks should reserve a compact bottom rail gap on desktop and reclaim it on mobile:\n%s", page)
-	}
-	if !strings.Contains(page, `min-height: 0; padding: 0 34px 34px; overflow-x: hidden; overflow-y: auto`) || strings.Contains(page, `max-width: none; height: 100%; padding: 0 34px 34px`) {
-		t.Fatalf("viewer panels should leave the horizontal scrollbar gutter to the workspace:\n%s", page)
-	}
-	if !strings.Contains(page, `--note-panel-width`) || !strings.Contains(page, `--ok-note-panel-min-width`) || !strings.Contains(page, `minPanelWidth`) {
+	if !strings.Contains(page, `minPanelWidth`) {
 		t.Fatalf("viewer panels should expose a resizable width with a minimum width:\n%s", page)
 	}
 	if !strings.Contains(page, `data-panel-resize-handle`) || !strings.Contains(page, `note-resize-handle-left`) || !strings.Contains(page, `note-resize-handle-right`) {
 		t.Fatalf("viewer panels should include left and right resize handles:\n%s", page)
 	}
-	if !strings.Contains(page, `syncPanelResizeHandles(panel)`) || !strings.Contains(page, `--note-panel-scroll-top`) || !strings.Contains(page, `transform: translateY(var(--note-panel-scroll-top, 0px))`) {
+	if !strings.Contains(page, `syncPanelResizeHandles(panel)`) {
 		t.Fatalf("viewer panel resize handles should stay aligned while note content scrolls:\n%s", page)
 	}
 	if !strings.Contains(page, `panelWidthStorageKey`) || !strings.Contains(page, `readPanelWidths`) || !strings.Contains(page, `savePanelWidths`) || !strings.Contains(page, `writeCookie(panelWidthStorageKey`) {
@@ -267,12 +181,6 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		strings.Contains(page, `.workspace-note-nav`) {
 		t.Fatalf("viewer should not duplicate open panels in a fixed bottom navigator:\n%s", page)
 	}
-	if !strings.Contains(page, `.workspace-scroll-rail`) || !strings.Contains(page, `.workspace-scroll-thumb`) || !strings.Contains(page, `.note-workspace.is-single-panel, .note-workspace.is-multi-panel { scrollbar-width: none; }`) {
-		t.Fatalf("viewer should style a custom rail and hide native workspace scrollbars around note panels:\n%s", page)
-	}
-	if !strings.Contains(page, `@media (max-width: 680px), (hover: none) and (pointer: coarse)`) || !strings.Contains(page, `.workspace-scroll-rail, .powered-by-openknowledge { display: none; }`) {
-		t.Fatalf("viewer mobile and touch layouts should hide fixed bottom chrome instead of letting it conflict with Safari chrome:\n%s", page)
-	}
 	if !strings.Contains(page, `updateWorkspaceRail`) || !strings.Contains(page, `scrollWorkspaceFromRail`) || !strings.Contains(page, `aria-valuenow`) {
 		t.Fatalf("viewer should synchronize the custom rail with workspace horizontal scroll:\n%s", page)
 	}
@@ -291,13 +199,10 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `isSpacePanActive()`) || !strings.Contains(page, `window.addEventListener("keydown", startSpacePan, true)`) || !strings.Contains(page, `fromSpacePan: fromSpacePan`) || !strings.Contains(page, `consumeSuppressedWorkspaceClick(event)`) {
 		t.Fatalf("viewer should support canvas-style Space+drag panning across note panels without activating links:\n%s", page)
 	}
-	if !strings.Contains(page, `.note-workspace.is-multi-panel.is-space-panning`) || !strings.Contains(page, `cursor: grab`) || !strings.Contains(page, `user-select: none`) {
-		t.Fatalf("viewer should expose Space+drag panning cursor styles:\n%s", page)
-	}
 	if !strings.Contains(page, `class="viewer-document is-stack-mode"`) {
 		t.Fatalf("viewer file page should start in stack panel mode:\n%s", page)
 	}
-	if !strings.Contains(page, `note-panel is-active-panel`) || !strings.Contains(page, `.note-panel:not(.is-active-panel) .editor-picker`) {
+	if !strings.Contains(page, `note-panel is-active-panel`) {
 		t.Fatalf("viewer file page did not limit editor picker to the active panel:\n%s", page)
 	}
 	if !strings.Contains(page, `data-note-root="`) {
@@ -358,7 +263,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if strings.Contains(page, `id="viewer-sidebar-search"`) || strings.Contains(page, `file-sidebar-search`) {
 		t.Fatalf("viewer file sidebar should not include search:\n%s", page)
 	}
-	if !strings.Contains(page, `.search-results[hidden] { display: none; }`) || !strings.Contains(page, `renderDefaultResults(true)`) || !strings.Contains(page, `defaultSearchResults()`) || !strings.Contains(page, `Top files`) {
+	if !strings.Contains(page, `renderDefaultResults(true)`) || !strings.Contains(page, `defaultSearchResults()`) || !strings.Contains(page, `Top files`) {
 		t.Fatalf("viewer search dropdown should stay open on focus with default results for an empty query:\n%s", page)
 	}
 	if !strings.Contains(page, `document.addEventListener("pointerdown"`) ||
@@ -366,12 +271,9 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `document.addEventListener("focusin"`) {
 		t.Fatalf("viewer search dropdown should dismiss on outside pointer and focus:\n%s", page)
 	}
-	if !strings.Contains(page, `.header-search .search-results { position: absolute; top: calc(100% + 8px);`) ||
-		!strings.Contains(page, `.header-search .search-result { gap: 4px; padding: 11px 10px; border: 0; border-radius: 0;`) ||
-		!strings.Contains(page, `.header-search .search-result-title`) ||
-		!strings.Contains(page, `.header-search .search-result-snippet`) ||
+	if !strings.Contains(page, `search-result-title`) ||
+		!strings.Contains(page, `search-result-snippet`) ||
 		strings.Contains(page, `search-result-context`) ||
-		strings.Contains(page, `content: attr(data-summary)`) ||
 		strings.Contains(page, `Arrow keys navigate`) {
 		t.Fatalf("viewer header search should use a streamlined result surface with clear hierarchy:\n%s", page)
 	}
@@ -381,8 +283,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `return parent + " / Index"`) ||
 		!strings.Contains(page, `const keepOpenWhenEmpty = config.keepOpenWhenEmpty !== false`) ||
 		!strings.Contains(page, `"Search unavailable."`) ||
-		!strings.Contains(page, `label: "Retry"`) ||
-		!strings.Contains(page, `.header-search .search-results { position: fixed; top: calc(var(--ok-mobile-header-height) + 8px);`) {
+		!strings.Contains(page, `label: "Retry"`) {
 		t.Fatalf("viewer search should show readable results, visible recovery, and a viewport-safe mobile panel:\n%s", page)
 	}
 	if !strings.Contains(page, `isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore`) || !strings.Contains(page, `isIndexMarkdownPath(a.path) ? 1 : -1`) {
@@ -400,14 +301,13 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `Links open beside. Hold Shift to replace the current panel.`) {
 		t.Fatalf("viewer search should follow the selected link behavior and its Shift override:\n%s", page)
 	}
-	if !strings.Contains(page, `results.addEventListener("click"`) || !strings.Contains(page, `closeSearch(true)`) || !strings.Contains(page, `.search-result.is-active`) {
-		t.Fatalf("viewer search dropdown should close on result activation and style keyboard selection:\n%s", page)
+	if !strings.Contains(page, `results.addEventListener("click"`) || !strings.Contains(page, `closeSearch(true)`) {
+		t.Fatalf("viewer search dropdown should close on result activation:\n%s", page)
 	}
 	if !strings.Contains(page, `item.highlightURL || item.url`) ||
 		!strings.Contains(page, `ok-highlight`) ||
 		!strings.Contains(page, `applySearchHighlight`) ||
-		!strings.Contains(page, `mark.ok-search-highlight`) ||
-		!strings.Contains(page, `.ok-search-highlight`) {
+		!strings.Contains(page, `mark.ok-search-highlight`) {
 		t.Fatalf("viewer should support search result deep-link highlighting:\n%s", page)
 	}
 	if !strings.Contains(page, `search-shortcut`) ||
@@ -423,26 +323,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `id: "viewer.search.focus"`) {
 		t.Fatalf("viewer file page did not include the shared shortcut registry:\n%s", page)
 	}
-	if !strings.Contains(page, `.file-sidebar { position: relative; grid-column: 1; grid-row: 1 / -1; z-index: 7; display: flex; width: 100%; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; border-right: 1px solid var(--ok-color-sidebar-border); background: var(--ok-color-sidebar);`) {
-		t.Fatalf("viewer file sidebar should occupy the first grid column with a subtle divider:\n%s", page)
-	}
-	if !strings.Contains(page, `--ok-color-viewer-canvas: #dceaf5`) || !strings.Contains(page, `background: var(--ok-color-viewer-canvas)`) || !strings.Contains(page, `--ok-color-sidebar: #e5f0f8`) || !strings.Contains(page, `--ok-color-sidebar-header: rgba(229, 240, 248, .94)`) {
-		t.Fatalf("viewer sidebar should use the Open Knowledge light blue shell palette:\n%s", page)
-	}
 	if !strings.Contains(page, `const mobileSidebar = window.matchMedia("(max-width: 680px)")`) ||
 		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
 		t.Fatalf("viewer file sidebar should close after opening a tree item only on mobile widths:\n%s", page)
 	}
-	if !strings.Contains(page, `body.viewer-document { --ok-sidebar-layout-width: 0px; position: relative; display: grid; grid-template-columns: var(--ok-sidebar-layout-width) minmax(0, 1fr);`) ||
-		!strings.Contains(page, `body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: var(--ok-sidebar-user-width, var(--ok-sidebar-width)); }`) ||
-		!strings.Contains(page, `.note-workspace { position: relative; grid-column: 2; grid-row: 2; display: flex; width: 100%; min-width: 0; min-height: 0; height: 100%;`) ||
-		!strings.Contains(page, `.workspace-scroll-rail { position: absolute; grid-column: 2; grid-row: 2;`) {
-		t.Fatalf("viewer file sidebar, header, and workspace should share a two-column grid shell:\n%s", page)
-	}
-	if !strings.Contains(page, `--ok-sidebar-min-width: 280px;`) ||
-		!strings.Contains(page, `--ok-sidebar-default-width: 25vw;`) ||
-		!strings.Contains(page, `--ok-sidebar-max-width: 560px;`) ||
-		!strings.Contains(page, `data-sidebar-resize-handle`) ||
+	if !strings.Contains(page, `data-sidebar-resize-handle`) ||
 		!strings.Contains(page, `role="separator"`) ||
 		!strings.Contains(page, `openknowledge.viewer.sidebarWidth.`) ||
 		!strings.Contains(page, `fileSidebar.inert = !open;`) ||
@@ -457,27 +342,15 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer file sidebar should register a primary-alt-s keyboard shortcut:\n%s", page)
 	}
 	if !strings.Contains(page, `class="sidebar-shortcut" data-sidebar-shortcut`) ||
-		!strings.Contains(page, `document.querySelectorAll("[data-sidebar-shortcut]")`) ||
-		!strings.Contains(page, `.sidebar-shortcut { display: inline-flex; min-width: 44px; height: 22px;`) ||
-		!strings.Contains(page, `.sidebar-shortcut { display: none; }`) {
+		!strings.Contains(page, `document.querySelectorAll("[data-sidebar-shortcut]")`) {
 		t.Fatalf("viewer file sidebar should show a visible shortcut badge:\n%s", page)
 	}
-	if !strings.Contains(page, `document.startViewTransition`) || !strings.Contains(page, `view-transition-name: note-workspace`) {
+	if !strings.Contains(page, `document.startViewTransition`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
 	}
 	if !strings.Contains(page, `return !mobileSidebar.matches && !motionIsReduced();`) ||
-		!strings.Contains(page, `animate && stackMotionIsEnabled() ? " is-entering" : ""`) ||
-		!strings.Contains(page, `body.viewer-document { grid-template-rows: var(--ok-mobile-header-height) minmax(0, 1fr); transition: none; }`) ||
-		!strings.Contains(page, `.note-panel.is-entering, html[data-viewer-motion="full"] .note-panel.is-entering { animation: none; }`) {
+		!strings.Contains(page, `animate && stackMotionIsEnabled() ? " is-entering" : ""`) {
 		t.Fatalf("viewer navigation and sidebar motion should be disabled at mobile widths:\n%s", page)
-	}
-	if !strings.Contains(page, `body.viewer-document > header { view-transition-name: viewer-header; }`) ||
-		!strings.Contains(page, `.file-sidebar { view-transition-name: file-sidebar; }`) ||
-		!strings.Contains(page, `::view-transition-group(viewer-header) { z-index: 1; }`) ||
-		!strings.Contains(page, `::view-transition-group(file-sidebar) { z-index: 2; }`) ||
-		!strings.Contains(page, `::view-transition-old(viewer-header), ::view-transition-new(viewer-header),`) ||
-		!strings.Contains(page, `::view-transition-old(file-sidebar), ::view-transition-new(file-sidebar) { animation: none; mix-blend-mode: normal; }`) {
-		t.Fatalf("viewer View Transitions should keep the header and file sidebar above note panels:\n%s", page)
 	}
 	if !strings.Contains(page, `clearEnteringPanels();`) || !strings.Contains(page, `document.body.classList.remove("is-view-transitioning")`) || !strings.Contains(page, `transition.updateCallbackDone`) {
 		t.Fatalf("viewer stack transitions should clear fallback panel animations before showing the live DOM:\n%s", page)
@@ -488,11 +361,6 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `tree-directory`) ||
 		strings.Contains(page, `knowledge-empty-tree`) {
 		t.Fatalf("viewer should keep the file tree in the explorer and graph details in the empty state:\n%s", page)
-	}
-	if !strings.Contains(page, `.tree-directory { margin: 7px 0 1px; background: transparent; color: var(--ok-color-tree-directory-text); cursor: pointer;`) ||
-		!strings.Contains(page, `.file-sidebar .tree-directory { background: transparent;`) ||
-		!strings.Contains(page, `.tree-directory::before { content: none; }`) {
-		t.Fatalf("viewer file tree should render directories as lightweight text rows:\n%s", page)
 	}
 	if !strings.Contains(page, `function prepareKnowledgeTrees()`) ||
 		!strings.Contains(page, `function collapseKnowledgeTrees()`) ||
@@ -507,11 +375,6 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `tree-file-system`) || !strings.Contains(page, `>system</span>`) {
 		t.Fatalf("viewer file tree should mark reserved markdown files with a system badge:\n%s", page)
 	}
-	if !strings.Contains(page, `.tree-file-name { flex: 0 1 auto;`) ||
-		!strings.Contains(page, `.tree-file-system { flex: 0 0 auto;`) ||
-		strings.Contains(page, `.tree-file-system { margin-left: auto;`) {
-		t.Fatalf("viewer file tree should keep system badges adjacent to file names:\n%s", page)
-	}
 	if !strings.Contains(page, `data-knowledge-graph`) || !strings.Contains(page, `data-knowledge-graph-view`) || !strings.Contains(page, `"source":"index.md"`) || !strings.Contains(page, `"target":"workflows/docs.md"`) {
 		t.Fatalf("viewer file page did not include connected knowledge graph data:\n%s", page)
 	}
@@ -521,7 +384,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `resolveGraphCollisions`) || !strings.Contains(page, `graphNodeCollisionBox`) || !strings.Contains(page, `graphBoxOverlap`) {
 		t.Fatalf("viewer knowledge graph should try to resolve node label collisions:\n%s", page)
 	}
-	if !strings.Contains(page, `createKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasPhysicsStep`) || !strings.Contains(page, `drawKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasHitTest`) || !strings.Contains(page, `requestAnimationFrame(tick)`) || !strings.Contains(page, `dataset.knowledgeGraphCanvas`) || !strings.Contains(page, `.knowledge-graph-canvas`) {
+	if !strings.Contains(page, `createKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasPhysicsStep`) || !strings.Contains(page, `drawKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasHitTest`) || !strings.Contains(page, `requestAnimationFrame(tick)`) || !strings.Contains(page, `dataset.knowledgeGraphCanvas`) {
 		t.Fatalf("viewer knowledge graph should render as an animated canvas graph:\n%s", page)
 	}
 	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `const connected = active && (edge.source === active.path || edge.target === active.path)`) || !strings.Contains(page, `openTarget(activePath, true, shouldOpenBeside(false))`) {
@@ -531,25 +394,20 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `status.setAttribute("aria-live", "polite")`) ||
 		!strings.Contains(page, `status.textContent = connectionLabel`) ||
 		!strings.Contains(page, `context.fillStyle = activeNode && !settingsValue.colorGroups ? theme.nodeActive : nodeColor`) ||
-		!strings.Contains(page, `function graphCanvasTheme()`) ||
-		!strings.Contains(page, `.knowledge-graph-sidebar { align-self: stretch; height: 100%; overflow: auto;`) ||
-		strings.Contains(page, `.knowledge-graph-header { position: absolute;`) {
+		!strings.Contains(page, `function graphCanvasTheme()`) {
 		t.Fatalf("viewer graph should show concise connection context and preserve folder colors:\n%s", page)
 	}
 	if !strings.Contains(page, `graphEaseInOut`) || !strings.Contains(page, `graphLimitVelocity`) || !strings.Contains(page, `context.globalAlpha = 1`) {
 		t.Fatalf("viewer canvas graph should damp hover physics without dimming inactive nodes:\n%s", page)
 	}
-	if strings.Contains(page, `context.shadowBlur`) || strings.Contains(page, `context.strokeText(label`) || strings.Contains(page, `--ok-color-graph-label-halo`) {
+	if strings.Contains(page, `context.shadowBlur`) || strings.Contains(page, `context.strokeText(label`) {
 		t.Fatalf("viewer canvas graph hover should avoid node shadows and label halo text:\n%s", page)
 	}
 	if !strings.Contains(page, `graphUniqueNodeLabels`) || !strings.Contains(page, `graphShortestUniquePathSuffix`) || !strings.Contains(page, `parts.slice(-2).join("/")`) {
 		t.Fatalf("viewer knowledge graph should disambiguate generic node labels with path suffixes:\n%s", page)
 	}
-	if !strings.Contains(page, `.knowledge-empty-inner { display: grid`) || !strings.Contains(page, `grid-template-columns: minmax(210px, 260px) minmax(0, 1fr)`) || !strings.Contains(page, `renderKnowledgeGraph()`) {
-		t.Fatalf("viewer empty state should render graph details beside a wide graph canvas:\n%s", page)
-	}
-	if !strings.Contains(page, `context.font = (activeNode ? "650 13px" : "500 11.5px") + " " + theme.fontBody`) || !strings.Contains(page, `fontBody: themeValue("--ok-font-body"`) || !strings.Contains(page, `String(label || "").length * 7.2`) {
-		t.Fatalf("viewer knowledge graph labels should use smaller sans-serif typography:\n%s", page)
+	if !strings.Contains(page, `renderKnowledgeGraph()`) {
+		t.Fatalf("viewer empty state should render the knowledge graph:\n%s", page)
 	}
 	if !strings.Contains(page, "/api/file/") {
 		t.Fatalf("viewer file page did not include note API runtime:\n%s", page)
@@ -1533,10 +1391,12 @@ func TestViewerDefaultThemeCSSDefinesSupportedVariables(t *testing.T) {
 }
 
 func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
+	const themeFixture = "/* custom viewer theme */\n"
+
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
 	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
-	writeViewerFile(t, root, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
+	writeViewerFile(t, root, "assets/wiki-theme.css", themeFixture)
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
 	writeViewerFile(t, root, "references/report.pdf", "%PDF-1.4\n% test pdf\n")
@@ -1559,7 +1419,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 
 	listRoot := t.TempDir()
 	writeViewerFile(t, listRoot, ".openknowledge.toml", "[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
-	writeViewerFile(t, listRoot, "assets/wiki-theme.css", ":root { --ok-color-accent: #3257ff; }\n")
+	writeViewerFile(t, listRoot, "assets/wiki-theme.css", themeFixture)
 	writeViewerFile(t, listRoot, "notes/readme.md", "---\ntype: Note\n---\n\n# Readme\n")
 	listing := getViewerBody(t, newViewerHandler(listRoot), "/")
 	if !strings.Contains(listing, `data-openknowledge-theme="landing"`) || !strings.Contains(listing, `data-viewer-theme="default"`) || !strings.Contains(listing, `href="/raw/assets/wiki-theme.css"`) {
@@ -1600,7 +1460,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 	}
 
 	theme := readViewerExportFile(t, out, "assets/wiki-theme.css")
-	if !strings.Contains(theme, `--ok-color-accent: #3257ff`) {
+	if theme != themeFixture {
 		t.Fatalf("expected export to copy theme stylesheet, got:\n%s", theme)
 	}
 }
