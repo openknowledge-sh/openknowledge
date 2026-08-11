@@ -24,7 +24,8 @@ func splitContextSectionsFromASTDocument(entry ListEntry, document ASTDocument) 
 	}
 
 	boundaries := contextSectionBoundaries(document.Markdown.Sections, bodyLine)
-	sections := contextSectionsFromBoundaries(entry, document.Frontmatter.Values, document.Body, document.Links, bodyLine, boundaries)
+	readerBody := astMarkdownReaderBody(document.Body, bodyLine, document.Markdown.Blocks)
+	sections := contextSectionsFromBoundaries(entry, document.Frontmatter.Values, readerBody, document.Links, bodyLine, boundaries)
 	attachContextSectionAnchors(sections, boundaries, document.Markdown.Headings)
 	return sections
 }

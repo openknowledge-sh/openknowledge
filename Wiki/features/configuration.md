@@ -18,7 +18,7 @@ Therefore, each consumer uses the same syntax and reports the same errors.
 ```toml
 [rules]
 paths = ["rules", "policy-rules"]
-enabled = ["docs", "changelog"]
+enabled = ["project", "writing", "docs"]
 
 [validation.rules]
 link-target = "error"
@@ -43,7 +43,7 @@ assets = ["assets/public/**", "whitepapers/*.pdf"]
 | Field | Type | Behavior |
 | --- | --- | --- |
 | `rules.paths` | string or string array | Relative custom-rule directories. The default is `rules`. |
-| `rules.enabled` | string or string array | Default canonical rule IDs for rules and review commands. |
+| `rules.enabled` | string or string array | Default canonical rule IDs for rules and review commands. The fallback is `project` and `writing`. |
 | `validation.rules.<rule-id>` | string | Canonical severity for a known validation rule. Use `off`, `warn`, or `error`. The CLI accepts the compatibility aliases below. |
 | `html.theme.name` | string | Viewer or export theme contract name. The default is `default`. |
 | `html.theme.stylesheet` | string | Relative bundle CSS path or absolute HTTP(S) URL. |

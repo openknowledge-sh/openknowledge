@@ -13,6 +13,47 @@ page records release-level changes.
 
 ## Unreleased
 
+### Rules and setup
+
+- New knowledge bases now enable the built-in `project` and `writing` rules.
+  The rule catalog also offers `iso-plain-language` as an optional rule.
+- Setup uses the same default selection. Explicit CLI or
+  `.openknowledge.toml` rule selections continue to replace the defaults.
+- Ordinary setup and source setup now include complete selected-rule
+  instructions. Their scaffold commands persist the exact selection.
+- `okn scaffold --rules <rules>` persists an explicit built-in selection.
+  Starter agent guidance includes those rules. The terminal validation handoff
+  includes the created bundle path.
+- Source: `packages/cli/internal/okf/rules.go`,
+  `packages/cli/internal/okf/rule_catalog.go`,
+  `packages/cli/internal/okf/new.go`,
+  `packages/cli/internal/okf/from.go`,
+  `packages/cli/internal/okf/setup.go`, and
+  `packages/cli/cmd/openknowledge/setup_command.go`.
+- Docs: `Wiki/features/commands/rules.md`,
+  `Wiki/features/commands/setup.md`,
+  `Wiki/features/commands/scaffold.md`, and
+  `Wiki/features/configuration.md`.
+
+### Content review and annotations
+
+- `okn prompt review content` now prints a portable, advisory content-health
+  review with deterministic bundle, page, Git, concern, and ordered-ruleset
+  identity. Changed scope includes direct local Markdown dependencies; full
+  scope works outside Git.
+- Markdown now supports bounded `agent-context` annotations. The AST preserves
+  their child blocks, viewers render a separate collapsed disclosure, and
+  ordinary reader search excludes their content. Legacy maintenance footers
+  remain accepted through end-of-file.
+- Source: `packages/cli/internal/okf/content_review.go`,
+  `packages/cli/internal/okf/ast_markdown.go`,
+  `packages/cli/internal/okf/markdown.go`, and
+  `packages/cli/cmd/openknowledge/main.go`.
+- Docs: `Wiki/features/commands/review.md`,
+  `Wiki/features/commands/ast.md`,
+  `Wiki/features/commands/view.md`, and
+  `Wiki/features/exporters/html.md`.
+
 ### Viewer
 
 - Source and text files now open as syntax-highlighted note cards in the

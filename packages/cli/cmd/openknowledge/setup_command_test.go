@@ -24,6 +24,7 @@ func TestSetupPromptModePrintsCompleteTask(t *testing.T) {
 		"This setup guide is meant to be executed",
 		"create or update the knowledge base at Knowledge",
 		"Selected maintenance rules:",
+		`--rules "docs"`,
 		"okn validate",
 		"okn setup complete",
 		"okn search",
@@ -46,13 +47,33 @@ func TestSetupFromUsesIntentWithoutTypes(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("setup code=%d stderr=%s", code, stderr)
 	}
-	for _, expected := range []string{"Source: `./source`", "Requested outcome: `Explain releases`", "Depth: 2", "okn setup complete"} {
+	for _, expected := range []string{"Source: `./source`", "Requested outcome: `Explain releases`", "Depth: 2", "### writing", `enabled = ["project", "writing"]`, "okn setup complete"} {
 		if !strings.Contains(stdout, expected) {
 			t.Fatalf("source prompt missing %q:\n%s", expected, stdout)
 		}
 	}
 	if strings.Contains(stdout, "Wiki type:") || strings.Contains(stdout, "--type") {
 		t.Fatalf("source prompt must not expose types:\n%s", stdout)
+	}
+}
+
+func TestSetupFromAcceptsExplicitRules(t *testing.T) {
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runSetup([]string{
+			"Wiki", "--prompt", "--from", "./source", "--rules", "project,writing,iso-plain-language",
+		})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("setup code=%d stderr=%s", code, stderr)
+	}
+	for _, expected := range []string{
+		`enabled = ["project", "writing", "iso-plain-language"]`,
+		`--rules "project,writing,iso-plain-language"`,
+		"### iso-plain-language",
+	} {
+		if !strings.Contains(stdout, expected) {
+			t.Fatalf("source prompt missing %q:\n%s", expected, stdout)
+		}
 	}
 }
 
@@ -120,6 +141,11 @@ func TestSetupInteractivePrintsSelectedActivationPlan(t *testing.T) {
 		"What do you want to set up?",
 		"How should setup run?",
 		"Which maintenance behaviors should future agents follow?",
+		"Clear, concise writing",
+		"ISO 24495-1 plain-language principles",
+		"Selected maintenance rules:",
+		"- project: General project knowledge.",
+		"- writing: Apply the common editorial rule",
 		"Install Open Knowledge instructions for agents?",
 		"None (not recommended)",
 		"Open Knowledge setup plan",
@@ -134,7 +160,6 @@ func TestSetupInteractivePrintsSelectedActivationPlan(t *testing.T) {
 func TestParseSetupArgsRejectsRemovedAndAmbiguousOptions(t *testing.T) {
 	for _, args := range [][]string{
 		{"Wiki", "Other"},
-		{"Wiki", "--rules", "docs", "--from", "."},
 		{"Wiki", "--about", "goal"},
 		{"Wiki", "--type", "understanding"},
 		{"Wiki", "--runtime", "codex"},

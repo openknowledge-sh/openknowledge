@@ -66,6 +66,9 @@ assets = ["whitepapers/*.pdf", "assets/public/**", "assets/public/**"]
 	if defaultConfig.Publish.Enabled {
 		t.Fatal("public artifact publishing must default to disabled")
 	}
+	if strings.Join(defaultConfig.Rules.Enabled, ",") != "project,writing" || defaultConfig.Rules.EnabledConfigured {
+		t.Fatalf("unexpected default rules: %#v", defaultConfig.Rules)
+	}
 }
 
 func TestParseProjectConfigFailsClosedAcrossEverySection(t *testing.T) {

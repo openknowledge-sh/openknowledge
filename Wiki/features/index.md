@@ -4,6 +4,9 @@
   knowledge-base lifecycle.
 - [Knowledge architecture](knowledge-architecture.md) — Explains the canonical
   OKF source and its projections.
+- [Content health direction](content-health-direction.md) — Describes shipped
+  writing, portable review, annotation, and validation foundations plus the
+  remaining agentic automation direction.
 - [Installation](installation.md) — Gives CLI installation and verification
   steps.
 - [Product telemetry and privacy](telemetry.md) — Describes collected data and

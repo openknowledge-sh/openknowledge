@@ -59,7 +59,7 @@ func searchDocumentFromASTDocument(document ASTDocument) searchDocument {
 		summary.Type,
 		summary.Title,
 		summary.Description,
-		document.Body,
+		astMarkdownReaderText(document.Markdown),
 		astMarkdownHeadingText(document.Markdown),
 		frontmatter,
 	)
@@ -74,7 +74,7 @@ func searchDocumentFromBundleFile(file BundleFile) searchDocument {
 		file.Type,
 		file.Title,
 		file.Description,
-		file.Body,
+		astMarkdownReaderText(markdown),
 		astMarkdownHeadingText(markdown),
 		file.Frontmatter,
 	)

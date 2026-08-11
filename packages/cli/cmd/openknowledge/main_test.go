@@ -293,7 +293,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"advisory AI review prompt",
 				"--rules",
 				"--all",
-				"Defaults to [rules].enabled, then project",
+				"Defaults to [rules].enabled, then project and writing",
 			},
 		},
 		"jobs": {
@@ -332,6 +332,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 			required: []string{
 				"openknowledge scaffold --name <name> [folder]",
 				"openknowledge scaffold --spec <version> [folder]",
+				"openknowledge scaffold --rules <rules> [folder]",
 				"openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]",
 				"openknowledge scaffold --no-agents --no-setup [folder]",
 				"Arguments:",
@@ -619,6 +620,8 @@ func TestRulesCommandListsRules(t *testing.T) {
 		"does not edit files",
 		"Available rules:",
 		"project",
+		"writing",
+		"iso-plain-language",
 		"docs",
 		"changelog",
 		"agents",
@@ -699,6 +702,27 @@ func TestRulesCommandUsesConfiguredEnabledRules(t *testing.T) {
 	}
 }
 
+func TestRulesCommandUsesProjectAndWritingByDefault(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	writeMainTestFile(t, wiki, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Wiki\n")
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runRules([]string{"--path", wiki})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("rules code=%d stderr=%s\n%s", code, stderr, output)
+	}
+	for _, expected := range []string{"Project rules:", "Writing rules:"} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected default output to include %q:\n%s", expected, output)
+		}
+	}
+	if strings.Contains(output, "ISO 24495-1 Plain-Language Principles rules:") {
+		t.Fatalf("did not expect optional ISO rule in default output:\n%s", output)
+	}
+}
+
 func TestReviewRulesCommandPrintsPrompt(t *testing.T) {
 	root := t.TempDir()
 	wiki := filepath.Join(root, "Wiki")
@@ -734,6 +758,47 @@ rule_review_evidence: [git diff, Wiki/security/]
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected review output to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestReviewContentCommandPrintsPortableIdentityAndScope(t *testing.T) {
+	wiki := t.TempDir()
+	writeMainTestFile(t, wiki, "index.md", "---\ntype: Index\n---\n\n# Wiki\n")
+
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runReview([]string{"content", wiki, "--scope", "full", "--concerns", "task-usefulness,rule-compliance"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("content review code=%d stderr=%s\n%s", code, stderr, output)
+	}
+	for _, expected := range []string{
+		"Open Knowledge Content Review",
+		"Review scope: `full`",
+		"Bundle SHA-256:",
+		"Resolved rule instructions SHA-256:",
+		"task-usefulness",
+		"rule-compliance",
+		"## writing",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected content review output to include %q:\n%s", expected, output)
+		}
+	}
+	if strings.Contains(output, "duplication-conflicts") {
+		t.Fatalf("content review ignored explicit concerns:\n%s", output)
+	}
+}
+
+func TestParseReviewContentArgsRejectsConflictsAndUnknownOptions(t *testing.T) {
+	for _, args := range [][]string{
+		{"--rules", "writing", "--all-rules"},
+		{"--scope", "full", "--base", "main"},
+		{"--unknown"},
+		{"one", "two"},
+	} {
+		if _, err := parseReviewContentArgs(args); err == nil {
+			t.Fatalf("expected content review arguments to fail: %#v", args)
 		}
 	}
 }
@@ -993,13 +1058,48 @@ func TestFromCommandPrintsSourceToWikiPrompt(t *testing.T) {
 		"Output wiki path: `Wiki`",
 		"Requested outcome: `Help contributors understand releases`",
 		"Depth: 2",
-		"okn scaffold --name \"<clear wiki name>\" --no-agents \"Wiki\"",
+		"okn scaffold --name \"<clear wiki name>\" --rules \"project,writing\" --no-agents \"Wiki\"",
 		"okf_generated_from",
 		"okn validate \"Wiki\"",
 		"okn setup complete",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected from output to include %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestScaffoldCommandPersistsExplicitRules(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "public-guide")
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runScaffold([]string{
+			"--name", "Public Guide",
+			"--rules", "project,writing,iso-plain-language",
+			target,
+		})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("scaffold code=%d stderr=%s", code, stderr)
+	}
+	content, err := os.ReadFile(filepath.Join(target, okf.ValidationConfigFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), `enabled = ["project", "writing", "iso-plain-language"]`) {
+		t.Fatalf("explicit rules were not persisted:\n%s", content)
+	}
+	agentContent, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"### Writing",
+		"### ISO 24495-1 Plain-Language Principles",
+		"without claiming certification or full compliance",
+	} {
+		if !strings.Contains(string(agentContent), expected) {
+			t.Fatalf("configured agent rules missing %q:\n%s", expected, agentContent)
 		}
 	}
 }
@@ -1060,6 +1160,9 @@ func TestScaffoldCommandSupportsExplicitSpecVersion(t *testing.T) {
 	}
 	if !strings.Contains(output, "run openknowledge validate --spec 0.1") {
 		t.Fatalf("expected version-matched validation in scaffold handoff:\n%s", output)
+	}
+	if !strings.Contains(output, fmt.Sprintf("%q", target)) {
+		t.Fatalf("expected scaffold validation handoff to include the bundle path:\n%s", output)
 	}
 	index, err := os.ReadFile(filepath.Join(target, "index.md"))
 	if err != nil {

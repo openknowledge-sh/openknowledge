@@ -3,6 +3,15 @@
 This log tracks documentation-structure changes. Product history belongs in
 [the CLI changelog](changelog/cli.md).
 
+## 2026-08-11
+
+- Documented the implemented `writing` default and optional
+  `iso-plain-language` rule.
+- Added the candidate content-health direction for writing rules, optional
+  profiles, agent review, annotations, and portable maintenance automation.
+- Documented the shipped portable content-review identity and bounded
+  agent-context annotations.
+
 ## 2026-07-28
 
 - Documented portable setup output and the explicit `--agent` workflow.

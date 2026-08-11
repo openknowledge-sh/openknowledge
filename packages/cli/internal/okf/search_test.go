@@ -57,6 +57,49 @@ func TestSearchIndexFromASTMatchesBundleSearch(t *testing.T) {
 	}
 }
 
+func TestSearchExcludesAgentContextAnnotations(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", strings.Join([]string{
+		"# Home",
+		"",
+		"Reader-visible guidance.",
+		"",
+		"<!-- okf-annotation: agent-context -->",
+		"Private maintenance canary phrase.",
+		"<!-- /okf-annotation -->",
+	}, "\n"))
+
+	results, err := Search(root, SearchOptions{Query: "canary phrase", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 0 {
+		t.Fatalf("expected agent context to be excluded from search, got %#v", results)
+	}
+	sectionResults, err := SearchKnowledge(root, SearchOptions{Query: "canary phrase", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sectionResults.Results) != 0 {
+		t.Fatalf("expected agent context to be excluded from section search, got %#v", sectionResults.Results)
+	}
+
+	results, err = Search(root, SearchOptions{Query: "visible guidance", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Path != "index.md" {
+		t.Fatalf("expected reader content to remain searchable, got %#v", results)
+	}
+	sectionResults, err = SearchKnowledge(root, SearchOptions{Query: "visible guidance", Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sectionResults.Results) != 1 || sectionResults.Results[0].Path != "index.md" {
+		t.Fatalf("expected reader content in section search, got %#v", sectionResults.Results)
+	}
+}
+
 func TestSearchUsesASTBackedIndex(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n\nRead the incident playbook.\n")

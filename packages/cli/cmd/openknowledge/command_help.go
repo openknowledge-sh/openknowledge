@@ -483,7 +483,7 @@ Usage:
 
 Arguments:
   rules       Comma-separated maintenance rules to include.
-              Defaults to project.
+              Defaults to [rules].enabled, then project and writing.
 
 Options:
   --path      Open Knowledge wiki path used in generated rules.
@@ -519,7 +519,7 @@ Usage:
 
 Arguments:
   rules       Comma-separated maintenance rules to include.
-              Defaults to project.
+              Defaults to [rules].enabled, then project and writing.
 
 Options:
   --file      Agent instruction file to update.
@@ -553,12 +553,47 @@ Usage:
   openknowledge prompt review --help
 
 Subcommands:
+  content    Print a content-health review prompt with exact source identity.
   rules      Print an AI review prompt for selected maintenance rules.
 
 Examples:
+  openknowledge prompt review content Wiki --scope changed
+  openknowledge prompt review content Wiki --scope full
   openknowledge prompt review rules Wiki
   openknowledge prompt review rules --rules docs,changelog --path Wiki
   openknowledge prompt review rules --all Wiki
+`
+}
+
+func reviewContentHelpText() string {
+	return `openknowledge prompt review content
+
+Print a portable content-health review prompt with exact source and rule
+identity. The command does not start a model or edit files.
+
+Usage:
+  openknowledge prompt review content [path]
+  openknowledge prompt review content --path <path> --scope changed|full
+  openknowledge prompt review content --rules <rules> --concerns <concerns>
+  openknowledge prompt review content --all-rules [path]
+
+Arguments:
+  path         Open Knowledge wiki path. Defaults to .openknowledge.
+
+Options:
+  --path       Open Knowledge wiki path.
+  --scope      changed or full. Defaults to changed.
+  --base       Git base for changed scope. Defaults to HEAD.
+  --rules      Comma-separated rules. Defaults to configured rules.
+  --all-rules  Include every built-in and local rule.
+  --concerns   Comma-separated content-health concern IDs. Defaults to all.
+
+Changed scope includes changed Markdown pages and their direct local-link
+dependencies. Full scope includes every Markdown page in the bundle.
+
+Examples:
+  openknowledge prompt review content Wiki --scope changed --base main
+  openknowledge prompt review content Wiki --scope full
 `
 }
 
@@ -583,7 +618,7 @@ Arguments:
 Options:
   --path     Open Knowledge wiki path.
   --rules    Comma-separated maintenance rules to review.
-             Defaults to [rules].enabled, then project.
+             Defaults to [rules].enabled, then project and writing.
   --all      Review every built-in and local custom rule.
 
 Examples:
@@ -602,6 +637,7 @@ Usage:
   openknowledge scaffold [folder]
   openknowledge scaffold --name <name> [folder]
   openknowledge scaffold --spec <version> [folder]
+  openknowledge scaffold --rules <rules> [folder]
   openknowledge scaffold --bundle-name <id> --bundle-purpose <text> [folder]
   openknowledge scaffold --no-agents --no-setup [folder]
   openknowledge scaffold --help
@@ -612,6 +648,8 @@ Arguments:
 Flags:
   --name       Knowledge base name. If omitted, the CLI prompts for one.
   --spec       OKF spec version. Defaults to latest.
+  --rules      Comma-separated built-in maintenance rules. Defaults to
+               project,writing.
   --bundle-name
                Optional stable bundle id written as okf_bundle_name.
   --bundle-title
@@ -631,6 +669,7 @@ Flags:
 Examples:
   openknowledge scaffold ./project-memory
   openknowledge scaffold --spec 0.1 ./legacy-wiki
+  openknowledge scaffold --rules project,writing,iso-plain-language ./public-guide
   openknowledge scaffold --no-agents --no-setup ./source-wiki
   openknowledge scaffold --name "Project Memory" ./project-memory
   openknowledge scaffold --name "Accessibility Review" --bundle-name accessibility --bundle-purpose "Accessibility review guidance." --bundle-tag accessibility --bundle-entry default=agents/accessibility-checker.md ./accessibility

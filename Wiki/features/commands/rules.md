@@ -35,12 +35,20 @@ okn prompt rules apply docs --path Wiki --dry-run
 | `apply --yes` | off | Auto-select or create `AGENTS.md` and skip confirmation. |
 | `apply --dry-run` | off | Print the proposed file. Do not write the file. |
 
-Built-in IDs are `project`, `docs`, `decisions`, `changelog`, `research`,
-`bugs`, `schemas`, `summary`, and `agents`. A wiki can define additional rules
-under `rules/`. Command-line selections override configured defaults.
+Built-in IDs are `project`, `writing`, `iso-plain-language`, `docs`,
+`decisions`, `changelog`, `research`, `bugs`, `schemas`, `summary`, and
+`agents`. A wiki can define additional rules under `rules/`.
+
+Without an explicit selection, the command uses `[rules].enabled`. The fallback
+selection is `project` and `writing`. Command-line selections override both.
+
+The `writing` rule supplies the common editorial baseline. Select
+`iso-plain-language` when a knowledge base needs stronger reader-centered
+plain-language instructions. That rule applies principles based on ISO
+24495-1. It does not claim certification or full compliance.
 
 This wiki defines the `asd-ste100` rule. Its `[rules].enabled` configuration
-selects `project` and `asd-ste100` by default.
+selects `project`, `writing`, and `asd-ste100`.
 
 When possible, target inference selects the instruction format from the
 destination. Otherwise, it uses `generic`. In a terminal, warnings follow the

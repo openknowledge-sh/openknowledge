@@ -16,6 +16,8 @@ func TestRenderRulesListExplainsCommandAndRules(t *testing.T) {
 		"openknowledge prompt rules apply docs,changelog --path Wiki --file AGENTS.md",
 		"openknowledge setup --prompt --rules docs,changelog",
 		"project",
+		"writing",
+		"iso-plain-language",
 		"changelog",
 	}
 
@@ -23,6 +25,47 @@ func TestRenderRulesListExplainsCommandAndRules(t *testing.T) {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("expected rules list to include %q:\n%s", expected, output)
 		}
+	}
+}
+
+func TestDefaultRulesIncludeProjectAndWriting(t *testing.T) {
+	ruleSets, err := ResolveRuleSets(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ruleSets) != 2 || ruleSets[0].ID != "project" || ruleSets[1].ID != "writing" {
+		t.Fatalf("unexpected default rules: %#v", ruleSets)
+	}
+
+	writing := ruleSets[1]
+	if len(writing.Rules) != 10 || !strings.Contains(writing.ReviewPrompt, "task-focused") {
+		t.Fatalf("unexpected writing rule: %#v", writing)
+	}
+
+	iso, err := ResolveRuleSets([]string{"iso-plain-language"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(iso) != 1 || len(iso[0].Rules) != 6 || !strings.Contains(iso[0].ReviewPrompt, "Do not claim ISO certification") {
+		t.Fatalf("unexpected ISO plain language rule: %#v", iso)
+	}
+}
+
+func TestRenderAgentRulesUsesDefaultProjectAndWritingRules(t *testing.T) {
+	wiki := t.TempDir()
+	writeRuleTestFile(t, wiki, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Wiki\n")
+
+	output, err := RenderAgentRules(AgentRulesOptions{Wiki: wiki})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{"Project rules:", "Writing rules:"} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected default output to include %q:\n%s", expected, output)
+		}
+	}
+	if strings.Contains(output, "ISO 24495-1 Plain-Language Principles rules:") {
+		t.Fatalf("did not expect optional ISO rule in default output:\n%s", output)
 	}
 }
 
@@ -319,7 +362,11 @@ func TestSetupPromptWithOptionsIncludesSelectedRules(t *testing.T) {
 		"Selected maintenance rules:",
 		"- docs: Keep docs in sync",
 		"- changelog: Track user-facing changes",
-		"Use these as the starting point for AGENTS.md",
+		"Use these as the starting point for the knowledge base, AGENTS.md",
+		`enabled = ["docs", "changelog"]`,
+		`okn scaffold --name "<knowledge base name>" --rules "docs,changelog" "<folder path>"`,
+		"### docs",
+		"Keep docs focused on shipped behavior",
 	}
 	for _, expected := range required {
 		if !strings.Contains(prompt, expected) {
@@ -328,8 +375,18 @@ func TestSetupPromptWithOptionsIncludesSelectedRules(t *testing.T) {
 	}
 
 	defaultPrompt := SetupPrompt()
-	if !strings.Contains(defaultPrompt, "Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents.") {
+	if !strings.Contains(defaultPrompt, "Default rules: project and writing. Optional rules: iso-plain-language, docs, decisions, changelog, research, bugs, schemas, summary, and agents.") {
 		t.Fatalf("expected default setup prompt to list available rules:\n%s", defaultPrompt)
+	}
+	for _, expected := range []string{
+		`enabled = ["project", "writing"]`,
+		`okn scaffold --name "<knowledge base name>" --rules "project,writing" "<folder path>"`,
+		"### writing",
+		"Start with the reader's task or required answer.",
+	} {
+		if !strings.Contains(defaultPrompt, expected) {
+			t.Fatalf("expected default setup prompt to include %q:\n%s", expected, defaultPrompt)
+		}
 	}
 }
 

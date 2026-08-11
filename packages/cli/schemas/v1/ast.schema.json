@@ -120,8 +120,17 @@
         "codeBlock": {"$ref": "#/$defs/codeBlock"},
         "list": {"$ref": "#/$defs/list"},
         "table": {"$ref": "#/$defs/table"},
+        "annotation": {"$ref": "#/$defs/annotation"},
         "links": {"type": "array", "items": {"$ref": "#/$defs/markdownLink"}},
         "children": {"type": "array", "items": {"$ref": "#/$defs/block"}}
+      },
+      "additionalProperties": false
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["capability"],
+      "properties": {
+        "capability": {"const": "agent-context"}
       },
       "additionalProperties": false
     },

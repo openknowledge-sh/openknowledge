@@ -10,7 +10,7 @@ github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
 entry = "Wiki"
 
 [rules]
-enabled = ["project", "asd-ste100"]
+enabled = ["project", "writing", "asd-ste100"]
 
 [publish]
 enabled = true

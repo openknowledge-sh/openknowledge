@@ -30,6 +30,7 @@ Usage:
   openknowledge prompt rules [<rules>] [--path <wiki>]
   openknowledge prompt rules apply [<rules>] [--path <wiki>]
   openknowledge prompt review rules [wiki]
+  openknowledge prompt review content [wiki] [--scope changed|full]
 
 Use openknowledge setup --prompt for a portable setup task. The prompt
 namespace contains maintenance and review tools.

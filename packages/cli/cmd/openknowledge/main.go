@@ -284,10 +284,38 @@ func runReview(args []string) int {
 	switch args[0] {
 	case "rules":
 		return runReviewRules(args[1:])
+	case "content":
+		return runReviewContent(args[1:])
 	default:
 		fmt.Fprintf(stderrOutput(), "unknown review subcommand: %s\n", args[0])
 		return 2
 	}
+}
+
+func runReviewContent(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, reviewContentHelpText())
+		return 0
+	}
+	options, err := parseReviewContentArgs(args)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 2
+	}
+	review, err := okf.BuildContentReview(okf.ContentReviewOptions{
+		Wiki:     options.wiki,
+		Rules:    options.rules,
+		AllRules: options.allRules,
+		Scope:    options.scope,
+		Base:     options.base,
+		Concerns: options.concerns,
+	})
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 2
+	}
+	fmt.Print(review.Prompt)
+	return 0
 }
 
 func runReviewRules(args []string) int {
@@ -335,6 +363,15 @@ type reviewRulesArgs struct {
 	wiki  string
 	rules []string
 	all   bool
+}
+
+type reviewContentArgs struct {
+	wiki     string
+	rules    []string
+	allRules bool
+	scope    string
+	base     string
+	concerns []string
 }
 
 func parseRulesArgs(args []string) (rulesArgs, error) {
@@ -512,6 +549,77 @@ func parseReviewRulesArgs(args []string) (reviewRulesArgs, error) {
 	}
 	if options.all && len(options.rules) > 0 {
 		return options, fmt.Errorf("--all cannot be combined with --rules")
+	}
+	return options, nil
+}
+
+func parseReviewContentArgs(args []string) (reviewContentArgs, error) {
+	options := reviewContentArgs{wiki: okf.DefaultRulesWiki, scope: okf.ContentReviewScopeChanged}
+	var positionals []string
+	for index := 0; index < len(args); index++ {
+		argument := args[index]
+		switch {
+		case argument == "--path" || argument == "--scope" || argument == "--base" || argument == "--rules" || argument == "--concerns":
+			value, next, err := nextFlagValue(args, index, argument)
+			if err != nil {
+				return options, err
+			}
+			switch argument {
+			case "--path":
+				options.wiki = value
+			case "--scope":
+				options.scope = value
+			case "--base":
+				options.base = value
+			case "--rules":
+				options.rules, err = parseRuleIDs(value)
+			case "--concerns":
+				options.concerns, err = parseRuleIDs(value)
+			}
+			if err != nil {
+				return options, err
+			}
+			index = next
+		case strings.HasPrefix(argument, "--path="):
+			options.wiki = strings.TrimPrefix(argument, "--path=")
+		case strings.HasPrefix(argument, "--scope="):
+			options.scope = strings.TrimPrefix(argument, "--scope=")
+		case strings.HasPrefix(argument, "--base="):
+			options.base = strings.TrimPrefix(argument, "--base=")
+		case strings.HasPrefix(argument, "--rules="):
+			var err error
+			options.rules, err = parseRuleIDs(strings.TrimPrefix(argument, "--rules="))
+			if err != nil {
+				return options, err
+			}
+		case strings.HasPrefix(argument, "--concerns="):
+			var err error
+			options.concerns, err = parseRuleIDs(strings.TrimPrefix(argument, "--concerns="))
+			if err != nil {
+				return options, err
+			}
+		case argument == "--all-rules":
+			options.allRules = true
+		case strings.HasPrefix(argument, "-"):
+			return options, fmt.Errorf("unknown content review option: %s", argument)
+		default:
+			positionals = append(positionals, argument)
+		}
+	}
+	if len(positionals) > 1 {
+		return options, fmt.Errorf("content review accepts at most one wiki path")
+	}
+	if len(positionals) == 1 {
+		options.wiki = positionals[0]
+	}
+	if strings.TrimSpace(options.wiki) == "" {
+		return options, fmt.Errorf("--path requires a non-empty value")
+	}
+	if options.allRules && len(options.rules) > 0 {
+		return options, fmt.Errorf("--all-rules cannot be combined with --rules")
+	}
+	if strings.EqualFold(strings.TrimSpace(options.scope), okf.ContentReviewScopeFull) && strings.TrimSpace(options.base) != "" {
+		return options, fmt.Errorf("--base applies only to --scope changed")
 	}
 	return options, nil
 }
@@ -708,6 +816,7 @@ func runScaffold(args []string) int {
 	fs.SetOutput(stderrOutput())
 	nameFlag := fs.String("name", "", "knowledge base name")
 	specVersionFlag := fs.String("spec", "latest", "OKF spec version")
+	rulesFlag := fs.String("rules", "", "comma-separated maintenance rules")
 	bundleNameFlag := fs.String("bundle-name", "", "stable bundle id for root okf_bundle_name metadata")
 	bundleTitleFlag := fs.String("bundle-title", "", "bundle title for root okf_bundle_title metadata")
 	bundlePurposeFlag := fs.String("bundle-purpose", "", "bundle purpose for root okf_bundle_purpose metadata")
@@ -727,6 +836,11 @@ func runScaffold(args []string) int {
 	resolvedSpecVersion, ok := okf.ResolveSpecVersion(*specVersionFlag)
 	if !ok {
 		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", strings.TrimSpace(*specVersionFlag))
+		return 2
+	}
+	ruleIDs, err := parseRuleIDs(*rulesFlag)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
 
@@ -761,6 +875,7 @@ func runScaffold(args []string) int {
 		Name:           name,
 		Path:           path,
 		SpecVersion:    resolvedSpecVersion,
+		Rules:          ruleIDs,
 		SkipAgentRules: *noAgentsFlag,
 		SkipSetup:      *noSetupFlag,
 		BundleMetadata: okf.BundleMetadata{
@@ -792,7 +907,7 @@ func runScaffold(args []string) int {
 		fmt.Println()
 		fmt.Printf("  Set up a flexible knowledge base in Markdown for this workspace. Read %s,\n", terminal.path(result.SetupPath))
 		fmt.Println("  inspect this workspace and any relevant memories, ask only the setup questions still needed,")
-		fmt.Printf("  run openknowledge validate --spec %s, and demonstrate one useful openknowledge search query.\n", result.SpecVersion)
+		fmt.Printf("  run openknowledge validate --spec %s %q, and demonstrate one useful openknowledge search query.\n", result.SpecVersion, result.Root)
 	}
 	return 0
 }

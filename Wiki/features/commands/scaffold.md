@@ -18,6 +18,7 @@ the agent-guided [`okn setup`](setup.md) task.
 okn scaffold [folder]
 okn scaffold --name "Project Memory" ./project-memory
 okn scaffold --spec 0.1 ./legacy-wiki
+okn scaffold --rules project,writing,iso-plain-language ./public-guide
 okn scaffold --no-agents --no-setup ./source-wiki
 ```
 
@@ -26,6 +27,7 @@ okn scaffold --no-agents --no-setup ./source-wiki
 | `folder` | Destination. Defaults to a slug derived from the name. |
 | `--name <name>` | Display name. Prompts when omitted. |
 | `--spec <version>` | OKF spec version. Defaults to `latest`, which is 0.2. |
+| `--rules <rules>` | Comma-separated built-in rules. Defaults to `project,writing`. |
 | `--bundle-name <id>` | Stable `okf_bundle_name`. |
 | `--bundle-title <title>` | Display `okf_bundle_title`. |
 | `--bundle-purpose <text>` | `okf_bundle_purpose`. |
@@ -53,6 +55,12 @@ The default scaffold declares `okf_version: "0.2"`. Use `--spec 0.1` to
 create an OKF 0.1 scaffold. The command writes the selected spec to `SPEC.md`.
 It also writes the selected version to setup instructions and the terminal
 handoff validation command.
+
+The scaffold enables `project` and `writing` in `.openknowledge.toml`.
+Use `--rules` to persist an explicit built-in rule selection during creation.
+Starter `AGENTS.md` includes the selected instructions and their summaries.
+
+The terminal handoff includes the bundle path in its validation command.
 
 OKF 0.2 scaffolds use `generated.by` and `generated.at`. OKF 0.1 scaffolds use
 `timestamp`.

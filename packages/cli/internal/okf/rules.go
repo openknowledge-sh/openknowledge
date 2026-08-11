@@ -45,6 +45,38 @@ func RuleSets() []RuleSet {
 			},
 		},
 		{
+			ID:      "writing",
+			Label:   "Writing",
+			Summary: "Apply the common editorial rule for any written language.",
+			Rules: []string{
+				"Start with the reader's task or required answer.",
+				"Put primary information before supporting context.",
+				"Use one term consistently for each concept.",
+				"Make each actor and action clear when the language permits.",
+				"Keep each sentence and paragraph focused on one idea.",
+				"Remove repeated claims, introductions, and defaults.",
+				"Use progressive disclosure when details interrupt the main task.",
+				"Keep source references for claims that depend on evidence.",
+				"Separate current behavior, planned work, and historical information.",
+				"Give copyable examples for commands, formats, and procedures.",
+			},
+			ReviewPrompt: "Check whether the content is direct, consistent, concise, task-focused, and supported by evidence when required.",
+		},
+		{
+			ID:      "iso-plain-language",
+			Label:   "ISO 24495-1 Plain-Language Principles",
+			Summary: "Apply reader-centered principles based on ISO 24495-1 without claiming certification or full compliance.",
+			Rules: []string{
+				"Identify the intended readers, their purposes, and their context before writing.",
+				"Select the information readers need to achieve their purposes.",
+				"Organize the content so readers can find needed information.",
+				"Use wording and structure that the intended readers can understand.",
+				"Make the content usable for the intended task.",
+				"Evaluate the content with representative readers when practical.",
+			},
+			ReviewPrompt: "Check whether intended readers can get, find, understand, and use the needed information. Do not claim ISO certification.",
+		},
+		{
 			ID:      "docs",
 			Label:   "Docs",
 			Summary: "Keep docs in sync with implementation.",
@@ -268,9 +300,29 @@ func renderSelectedSetupRules(ruleSets []RuleSet) string {
 	}
 	var builder strings.Builder
 	builder.WriteString("\nSelected maintenance rules:\n")
-	builder.WriteString("Use these as the starting point for AGENTS.md, workflow docs, and any agent instruction files. Ask the user before adding or removing rules if the workspace context is unclear.\n")
+	builder.WriteString("Use these as the starting point for the knowledge base, AGENTS.md, workflow docs, and any agent instruction files. Ask the user before adding or removing rules if the workspace context is unclear.\n")
 	for _, ruleSet := range ruleSets {
 		builder.WriteString(fmt.Sprintf("- %s: %s\n", ruleSet.ID, ruleSet.Summary))
+	}
+	builder.WriteString("\nPersist this exact selection in the new bundle's .openknowledge.toml file:\n\n")
+	builder.WriteString("```toml\n[rules]\nenabled = [")
+	for index, ruleSet := range ruleSets {
+		if index > 0 {
+			builder.WriteString(", ")
+		}
+		builder.WriteString(fmt.Sprintf("%q", ruleSet.ID))
+	}
+	builder.WriteString("]\n```\n\n")
+	builder.WriteString("Apply these instructions while creating and reviewing the initial pages:\n")
+	for _, ruleSet := range ruleSets {
+		builder.WriteString("\n### ")
+		builder.WriteString(ruleSet.ID)
+		builder.WriteByte('\n')
+		for _, rule := range ruleSet.Rules {
+			builder.WriteString("- ")
+			builder.WriteString(rule)
+			builder.WriteByte('\n')
+		}
 	}
 	return builder.String()
 }

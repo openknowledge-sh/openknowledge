@@ -23,7 +23,10 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 		"copy this entire prompt and paste it into Codex",
 		"Avoid shell command substitution or piping",
 		"Build the smallest source-grounded structure",
-		"okn scaffold --name \"<clear wiki name>\" --no-agents \"Wiki\"",
+		"okn scaffold --name \"<clear wiki name>\" --rules \"project,writing\" --no-agents \"Wiki\"",
+		"enabled = [\"project\", \"writing\"]",
+		"### writing",
+		"Start with the reader's task or required answer.",
 		"okf_generated_from",
 		"search and validate work without a generation runtime",
 		"okn validate \"Wiki\"",
@@ -60,6 +63,27 @@ func TestFromPromptBuildsPortableAgentTask(t *testing.T) {
 	} {
 		if strings.Contains(prompt, unexpected) {
 			t.Fatalf("expected onboarding prompt not to prescribe %q:\n%s", unexpected, prompt)
+		}
+	}
+}
+
+func TestFromPromptIncludesAndPersistsExplicitRules(t *testing.T) {
+	prompt, err := FromPrompt(FromPromptOptions{
+		Source: "./source",
+		Out:    "Knowledge",
+		Rules:  []string{"project", "writing", "iso-plain-language"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		`enabled = ["project", "writing", "iso-plain-language"]`,
+		`--rules "project,writing,iso-plain-language"`,
+		"### iso-plain-language",
+		"without claiming certification or full compliance",
+	} {
+		if !strings.Contains(prompt, expected) {
+			t.Fatalf("expected source prompt to include %q:\n%s", expected, prompt)
 		}
 	}
 }

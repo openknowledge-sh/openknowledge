@@ -12,6 +12,7 @@ type FromPromptOptions struct {
 	Out    string
 	About  string
 	Depth  int
+	Rules  []string
 }
 
 func FromPrompt(options FromPromptOptions) (string, error) {
@@ -25,6 +26,14 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	}
 	if options.Depth < 0 {
 		return "", fmt.Errorf("--depth must be zero or a positive integer")
+	}
+	rules, err := resolveSetupRuleSets(options.Rules)
+	if err != nil {
+		return "", err
+	}
+	selectedRuleIDs := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		selectedRuleIDs = append(selectedRuleIDs, rule.ID)
 	}
 
 	var builder strings.Builder
@@ -54,13 +63,15 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteString("- Ask the user only for missing intent, audience, scope, or source-boundary details. Do not ask a fixed questionnaire when the source already answers the question.\n")
 	builder.WriteString("- When --about is absent, ask what this wiki should help with, who it is for, what to focus on, and how deep to go.\n")
 	builder.WriteByte('\n')
+	builder.WriteString(renderSelectedSetupRules(rules))
+	builder.WriteByte('\n')
 
 	builder.WriteString("Generation recipe:\n")
 	builder.WriteString("- Build the smallest source-grounded structure that serves the user's goal. Choose focused pages for overview, architecture, workflows, API/reference, research synthesis, glossary, diagrams, or citations when useful.\n")
 	builder.WriteByte('\n')
 
 	builder.WriteString("Write the wiki:\n")
-	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `okn scaffold --name \"<clear wiki name>\" --no-agents %q` before customizing it.\n", markdownCode(options.Out), options.Out))
+	builder.WriteString(fmt.Sprintf("- Create or update the OKF bundle at %s. If it does not exist or is empty, initialize it with `okn scaffold --name \"<clear wiki name>\" --rules %q --no-agents %q` before customizing it.\n", markdownCode(options.Out), strings.Join(selectedRuleIDs, ","), options.Out))
 	builder.WriteString("- Keep raw copied material separate from synthesized wiki pages.\n")
 	builder.WriteString("- Write ordinary OKF Markdown so search and validate work without a generation runtime. Keep exact reads, browsing, and exports as optional follow-up workflows.\n")
 	builder.WriteString("- Use normal concept page `type` values such as `Repository Overview`, `Architecture Overview`, `Module`, `Development Workflow`, `API Reference`, `Research Synthesis`, or `Glossary`.\n")

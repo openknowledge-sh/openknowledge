@@ -12,6 +12,7 @@ func TestPromptDispatchesPortableTools(t *testing.T) {
 	}{
 		{args: []string{"rules", "--help"}, want: "openknowledge prompt rules"},
 		{args: []string{"review", "rules", "--help"}, want: "openknowledge prompt review rules"},
+		{args: []string{"review", "content", "--help"}, want: "openknowledge prompt review content"},
 	}
 	for _, test := range tests {
 		stdout, stderr, code := captureMainOutput(t, func() int { return runPrompt(test.args) })

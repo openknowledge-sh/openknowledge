@@ -163,12 +163,18 @@ func ParseRuleCatalogConfig(content string) (RuleCatalogConfig, error) {
 }
 
 func defaultRuleCatalogConfig() RuleCatalogConfig {
-	return RuleCatalogConfig{Paths: []string{CustomRulesDir}}
+	return RuleCatalogConfig{
+		Paths:   []string{CustomRulesDir},
+		Enabled: []string{"project", "writing"},
+	}
 }
 
 func withRuleCatalogDefaults(config RuleCatalogConfig) RuleCatalogConfig {
 	if len(config.Paths) == 0 {
 		config.Paths = []string{CustomRulesDir}
+	}
+	if !config.EnabledConfigured && len(config.Enabled) == 0 {
+		config.Enabled = []string{"project", "writing"}
 	}
 	return config
 }
@@ -537,7 +543,7 @@ func renderRulesList(ruleSets []RuleSet) string {
 
 func resolveRuleSetsFromCatalog(ruleSets []RuleSet, ids []string) ([]RuleSet, error) {
 	if len(ids) == 0 {
-		ids = []string{"project"}
+		ids = []string{"project", "writing"}
 	}
 	byID := map[string]RuleSet{}
 	for _, ruleSet := range ruleSets {

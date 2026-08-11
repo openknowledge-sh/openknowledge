@@ -4,6 +4,7 @@ type NewProjectOptions struct {
 	Name           string
 	Path           string
 	SpecVersion    string
+	Rules          []string
 	BundleMetadata BundleMetadata
 	SkipAgentRules bool
 	SkipSetup      bool

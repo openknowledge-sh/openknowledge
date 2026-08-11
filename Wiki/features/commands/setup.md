@@ -19,6 +19,7 @@ okn setup Wiki --interactive
 okn setup Wiki --agent codex
 okn setup Wiki --from ./repository
 okn setup Wiki --from ./repository --about "Explain release workflows"
+okn setup Wiki --from ./repository --rules project,writing,iso-plain-language
 okn setup Wiki --from https://example.com/docs --depth 2
 okn setup skill
 okn setup skill --scope global --harness codex
@@ -51,6 +52,22 @@ depth.
 
 Setup has no knowledge-base type option. Maintenance rules are independent
 choices in the setup flow.
+
+The setup wizard selects `project` and `writing` by default. It offers
+`iso-plain-language` and the other maintenance rules as optional selections.
+An explicit `--rules` value replaces the default selection.
+
+The same selection applies to ordinary setup and `--from` setup. The generated
+task includes each selected rule's instructions and exact configuration.
+
+The generated scaffold command persists the selection before content creation.
+
+New scaffolds record the default in `.openknowledge.toml`:
+
+```toml
+[rules]
+enabled = ["project", "writing"]
+```
 
 ## Skill installation
 

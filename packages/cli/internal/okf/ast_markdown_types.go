@@ -10,16 +10,21 @@ type ASTMarkdown struct {
 }
 
 type ASTMarkdownBlock struct {
-	Kind      string                `json:"kind"`
-	LineStart int                   `json:"lineStart"`
-	LineEnd   int                   `json:"lineEnd"`
-	Text      string                `json:"text,omitempty"`
-	Heading   *ASTMarkdownHeading   `json:"heading,omitempty"`
-	CodeBlock *ASTMarkdownCodeBlock `json:"codeBlock,omitempty"`
-	List      *ASTMarkdownList      `json:"list,omitempty"`
-	Table     *ASTMarkdownTable     `json:"table,omitempty"`
-	Links     []ASTMarkdownLink     `json:"links,omitempty"`
-	Children  []ASTMarkdownBlock    `json:"children,omitempty"`
+	Kind       string                 `json:"kind"`
+	LineStart  int                    `json:"lineStart"`
+	LineEnd    int                    `json:"lineEnd"`
+	Text       string                 `json:"text,omitempty"`
+	Heading    *ASTMarkdownHeading    `json:"heading,omitempty"`
+	CodeBlock  *ASTMarkdownCodeBlock  `json:"codeBlock,omitempty"`
+	List       *ASTMarkdownList       `json:"list,omitempty"`
+	Table      *ASTMarkdownTable      `json:"table,omitempty"`
+	Annotation *ASTMarkdownAnnotation `json:"annotation,omitempty"`
+	Links      []ASTMarkdownLink      `json:"links,omitempty"`
+	Children   []ASTMarkdownBlock     `json:"children,omitempty"`
+}
+
+type ASTMarkdownAnnotation struct {
+	Capability string `json:"capability"`
 }
 
 type ASTMarkdownHeading struct {

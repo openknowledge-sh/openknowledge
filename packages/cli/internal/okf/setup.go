@@ -34,7 +34,7 @@ Use these seed questions only when context cannot answer them:
 2. Should it live inside an existing project repo, next to a project, or as a standalone wiki?
 3. Which existing sources or context should the knowledge base use?
 4. Which maintenance rules should future agents follow, if any?
-   Available rules: project, docs, decisions, changelog, research, bugs, schemas, summary, agents. Run okn prompt rules --list for descriptions.
+   Default rules: project and writing. Optional rules: iso-plain-language, docs, decisions, changelog, research, bugs, schemas, summary, and agents. Run okn prompt rules --list for descriptions.
 5. Are there privacy, safety, source-boundary, or "do not edit" rules?
 
 After the user answers:
@@ -84,13 +84,27 @@ func SetupPrompt() string {
 }
 
 func SetupPromptWithOptions(options SetupPromptOptions) (string, error) {
-	if len(options.Rules) == 0 {
-		return setupPrompt, nil
-	}
-	rules, err := ResolveRuleSets(options.Rules)
+	rules, err := resolveSetupRuleSets(options.Rules)
 	if err != nil {
 		return "", err
 	}
+	ruleIDs := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		ruleIDs = append(ruleIDs, rule.ID)
+	}
+	prompt := strings.Replace(
+		setupPrompt,
+		`okn scaffold --name "<knowledge base name>" "<folder path>"`,
+		`okn scaffold --name "<knowledge base name>" --rules "`+strings.Join(ruleIDs, ",")+`" "<folder path>"`,
+		1,
+	)
 	selected := renderSelectedSetupRules(rules)
-	return strings.Replace(setupPrompt, "\nAfter the user answers:", selected+"\nAfter the user answers:", 1), nil
+	return strings.Replace(prompt, "\nAfter the user answers:", selected+"\nAfter the user answers:", 1), nil
+}
+
+func resolveSetupRuleSets(ids []string) ([]RuleSet, error) {
+	if len(ids) == 0 {
+		ids = []string{"project", "writing"}
+	}
+	return ResolveRuleSets(ids)
 }

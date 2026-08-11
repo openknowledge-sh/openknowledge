@@ -20,6 +20,14 @@ func NewProject(options NewProjectOptions) (NewProjectResult, error) {
 		return NewProjectResult{}, fmt.Errorf("unsupported OKF spec version: %s", strings.TrimSpace(options.SpecVersion))
 	}
 	options.SpecVersion = resolvedSpecVersion
+	ruleSets, err := resolveSetupRuleSets(options.Rules)
+	if err != nil {
+		return NewProjectResult{}, err
+	}
+	options.Rules = options.Rules[:0]
+	for _, ruleSet := range ruleSets {
+		options.Rules = append(options.Rules, ruleSet.ID)
+	}
 
 	root := strings.TrimSpace(options.Path)
 	if root == "" {
@@ -100,7 +108,7 @@ func newProjectFiles(name string, metadata BundleMetadata, options NewProjectOpt
 	files := []projectFile{
 		{
 			name:    ValidationConfigFile,
-			content: "# Open Knowledge bundle configuration.\n",
+			content: newProjectConfigContent(options.Rules),
 		},
 		{
 			name:    "index.md",
@@ -128,6 +136,14 @@ func newProjectFiles(name string, metadata BundleMetadata, options NewProjectOpt
 		content: specDocumentForVersion(options.SpecVersion),
 	})
 	return files
+}
+
+func newProjectConfigContent(ruleIDs []string) string {
+	quoted := make([]string, 0, len(ruleIDs))
+	for _, id := range ruleIDs {
+		quoted = append(quoted, fmt.Sprintf("%q", id))
+	}
+	return "# Open Knowledge bundle configuration.\n\n[rules]\nenabled = [" + strings.Join(quoted, ", ") + "]\n"
 }
 
 func newIndexContent(title string, metadata BundleMetadata, options NewProjectOptions) string {
@@ -191,6 +207,7 @@ knowledge base.`
 interview the user when needed, then replace or extend this file with rules
 that fit the final knowledge base.`
 	}
+	configuredRules := newConfiguredRulesContent(options.Rules)
 
 	return fmt.Sprintf(`---
 type: Agent Rules
@@ -220,10 +237,34 @@ You are working inside a local Open Knowledge wiki.
 * Preserve citations or source paths when a page depends on external material.
 * After meaningful wiki edits, run okn validate --spec %s and fix issues before finishing.
 
+%s
 ## Setup
 
 %s
-`, title, generationMetadata(options.SpecVersion, "openknowledge-scaffold", date+"T00:00:00Z"), options.SpecVersion, setupGuidance)
+`, title, generationMetadata(options.SpecVersion, "openknowledge-scaffold", date+"T00:00:00Z"), options.SpecVersion, configuredRules, setupGuidance)
+}
+
+func newConfiguredRulesContent(ruleIDs []string) string {
+	ruleSets, err := ResolveRuleSets(ruleIDs)
+	if err != nil || len(ruleSets) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	builder.WriteString("## Configured Maintenance Rules\n\n")
+	builder.WriteString("These instructions match `[rules].enabled` in `.openknowledge.toml`.\n")
+	for _, ruleSet := range ruleSets {
+		builder.WriteString("\n### ")
+		builder.WriteString(ruleSet.Label)
+		builder.WriteString("\n\n")
+		builder.WriteString(ruleSet.Summary)
+		builder.WriteString("\n\n")
+		for _, rule := range ruleSet.Rules {
+			builder.WriteString("- ")
+			builder.WriteString(rule)
+			builder.WriteByte('\n')
+		}
+	}
+	return strings.TrimRight(builder.String(), "\n")
 }
 
 func newSetupContent(title, date string, options NewProjectOptions) string {
@@ -274,7 +315,7 @@ context-specific questions only for missing or ambiguous details such as:
 * what should be captured as raw source, synthesized wiki pages, references, decisions, or logs
 * privacy or safety boundaries
 * update cadence and rules for future agents
-* which maintenance rules apply: project, docs, decisions, changelog, research, bugs, schemas, summary, or agents; run okn prompt rules --list for descriptions when available
+* which optional maintenance rules apply in addition to project and writing: iso-plain-language, docs, decisions, changelog, research, bugs, schemas, summary, or agents; run okn prompt rules --list for descriptions when available
 
 ## Output
 

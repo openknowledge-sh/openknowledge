@@ -118,6 +118,7 @@ func buildSetupTask(options setupCLIOptions, activation *setupActivationPlan) (s
 			Out:    options.wiki,
 			About:  options.about,
 			Depth:  options.depth,
+			Rules:  ruleIDs,
 		})
 	}
 	if err != nil {
@@ -270,8 +271,6 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 		if options.about != "" || options.depth != 0 {
 			return options, fmt.Errorf("--about and --depth require --from")
 		}
-	} else if strings.TrimSpace(options.rules) != "" {
-		return options, fmt.Errorf("--rules cannot be combined with --from")
 	}
 	if _, err := parseRuleIDs(options.rules); err != nil {
 		return options, err
@@ -339,7 +338,7 @@ func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
 			plan.options.wiki = wiki
 		}
 	}
-	if plan.options.source == "" && strings.TrimSpace(plan.options.rules) == "" {
+	if strings.TrimSpace(plan.options.rules) == "" {
 		rules, err := setupMaintenanceRules(reader)
 		if err != nil {
 			return plan, err
@@ -528,6 +527,8 @@ func setupMaintenanceRules(reader *bufio.Reader) ([]string, error) {
 		label string
 	}{
 		{id: "project", label: "Project changes"},
+		{id: "writing", label: "Clear, concise writing"},
+		{id: "iso-plain-language", label: "ISO 24495-1 plain-language principles"},
 		{id: "docs", label: "Documentation"},
 		{id: "decisions", label: "Decisions"},
 		{id: "changelog", label: "Changelog"},
@@ -541,14 +542,14 @@ func setupMaintenanceRules(reader *bufio.Reader) ([]string, error) {
 	for index, rule := range rules {
 		fmt.Fprintf(os.Stdout, "  %d. %s\n", index+1, rule.label)
 	}
-	fmt.Fprint(os.Stdout, "Select comma-separated numbers [let the agent recommend]: ")
+	fmt.Fprint(os.Stdout, "Select comma-separated numbers [1,2]: ")
 	answer, err := reader.ReadString('\n')
 	answer = strings.TrimSpace(answer)
 	if err != nil && answer == "" {
 		return nil, fmt.Errorf("read setup maintenance rules: %w", err)
 	}
 	if answer == "" {
-		return nil, nil
+		return []string{"project", "writing"}, nil
 	}
 	seen := map[string]bool{}
 	var selected []string
@@ -633,6 +634,7 @@ Flags:
   --from         Repository, folder, or website source.
   --about        Optional source-to-wiki goal. Requires --from.
   --depth        Non-negative traversal hint. Requires --from.
-  --rules        Comma-separated maintenance rules. Incompatible with --from.
+  --rules        Comma-separated maintenance rules. Works with ordinary and
+                 --from setup. Defaults to project,writing.
 `
 }

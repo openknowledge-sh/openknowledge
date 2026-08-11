@@ -139,7 +139,7 @@ func TestParseASTMarkdownBuildsCommonBlockNodes(t *testing.T) {
 	for _, block := range markdown.Blocks {
 		kinds = append(kinds, block.Kind)
 	}
-	expectedKinds := []string{"blockquote", "thematic-break", "html-comment", "agent-footer", "list", "table"}
+	expectedKinds := []string{"blockquote", "thematic-break", "html-comment", "agent-footer"}
 	if strings.Join(kinds, ",") != strings.Join(expectedKinds, ",") {
 		t.Fatalf("unexpected block kinds: %#v", kinds)
 	}
@@ -148,14 +148,21 @@ func TestParseASTMarkdownBuildsCommonBlockNodes(t *testing.T) {
 	if quote.LineStart != 10 || quote.LineEnd != 11 || len(quote.Children) != 2 || len(quote.Links) != 1 {
 		t.Fatalf("unexpected blockquote AST: %#v", quote)
 	}
-	list := markdown.Blocks[4]
+	footer := markdown.Blocks[3]
+	if footer.Annotation == nil || footer.Annotation.Capability != "agent-context" || footer.LineEnd != 24 {
+		t.Fatalf("unexpected legacy footer annotation: %#v", footer)
+	}
+	if len(footer.Children) != 2 {
+		t.Fatalf("expected legacy footer content through end-of-file, got %#v", footer.Children)
+	}
+	list := footer.Children[0]
 	if list.List == nil || list.List.Ordered || len(list.List.Items) != 2 {
 		t.Fatalf("unexpected list AST: %#v", list)
 	}
 	if list.List.Items[0].Text != "Read [List](list.md) continuation text." || list.List.Items[0].LineStart != 18 || list.List.Items[0].LineEnd != 19 {
 		t.Fatalf("unexpected wrapped list item AST: %#v", list.List.Items[0])
 	}
-	table := markdown.Blocks[5]
+	table := footer.Children[1]
 	if table.Table == nil || strings.Join(table.Table.Header, ",") != "Name,Link" || len(table.Table.Rows) != 1 {
 		t.Fatalf("unexpected table AST: %#v", table)
 	}
@@ -163,12 +170,65 @@ func TestParseASTMarkdownBuildsCommonBlockNodes(t *testing.T) {
 		t.Fatalf("unexpected table alignments: %#v", table.Table.Alignments)
 	}
 
-	if len(markdown.Links) != 3 {
-		t.Fatalf("expected links from quote, list, and table blocks, got %#v", markdown.Links)
+	if len(markdown.Links) != 1 || markdown.Links[0].Label != "Quote" {
+		t.Fatalf("expected annotation links to stay out of the reader graph, got %#v", markdown.Links)
 	}
-	for index, label := range []string{"Quote", "List", "Table"} {
-		if markdown.Links[index].Label != label {
-			t.Fatalf("expected link %d label %q, got %#v", index, label, markdown.Links[index])
+}
+
+func TestParseASTMarkdownBuildsBoundedAgentContextAnnotation(t *testing.T) {
+	markdown := ParseASTMarkdown(strings.Join([]string{
+		"# Page",
+		"",
+		"<!-- okf-annotation: agent-context -->",
+		"## Maintenance notes",
+		"See [Source](source.md).",
+		"<!-- /okf-annotation -->",
+		"",
+		"Reader content.",
+	}, "\n"), 5)
+
+	if len(markdown.Diagnostics) != 0 {
+		t.Fatalf("expected a valid annotation, got %#v", markdown.Diagnostics)
+	}
+	if len(markdown.Blocks) != 3 || markdown.Blocks[1].Kind != "annotation" {
+		t.Fatalf("unexpected annotation blocks: %#v", markdown.Blocks)
+	}
+	annotation := markdown.Blocks[1]
+	if annotation.LineStart != 7 || annotation.LineEnd != 10 || annotation.Annotation == nil || annotation.Annotation.Capability != "agent-context" {
+		t.Fatalf("unexpected annotation metadata: %#v", annotation)
+	}
+	if len(annotation.Children) != 2 || annotation.Children[0].Kind != "heading" || annotation.Children[1].Kind != "paragraph" {
+		t.Fatalf("expected parsed annotation children, got %#v", annotation.Children)
+	}
+	if len(markdown.Links) != 0 || len(markdown.Headings) != 1 {
+		t.Fatalf("expected annotation structure to stay out of reader indexes, got links=%#v headings=%#v", markdown.Links, markdown.Headings)
+	}
+	if text := astMarkdownReaderText(markdown); strings.Contains(text, "Maintenance notes") || !strings.Contains(text, "Reader content") {
+		t.Fatalf("unexpected reader text %q", text)
+	}
+}
+
+func TestParseASTMarkdownDiagnosesInvalidAnnotations(t *testing.T) {
+	markdown := ParseASTMarkdown(strings.Join([]string{
+		"<!-- okf-annotation: unknown -->",
+		"<!-- /okf-annotation -->",
+		"<!-- okf-annotation: agent-context -->",
+		"<!-- okf-annotation: agent-context -->",
+	}, "\n"), 10)
+
+	messages := make([]string, 0, len(markdown.Diagnostics))
+	for _, diagnostic := range markdown.Diagnostics {
+		messages = append(messages, diagnostic.Message)
+	}
+	joined := strings.Join(messages, "\n")
+	for _, expected := range []string{
+		"unknown OKF annotation capability",
+		"closing marker has no matching opening marker",
+		"OKF annotations cannot be nested",
+		"OKF annotation is missing closing marker",
+	} {
+		if !strings.Contains(joined, expected) {
+			t.Fatalf("expected diagnostic containing %q, got %#v", expected, markdown.Diagnostics)
 		}
 	}
 }

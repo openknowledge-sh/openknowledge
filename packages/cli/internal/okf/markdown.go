@@ -16,6 +16,8 @@ var footnoteDefinition = regexp.MustCompile(`^\[\^([^\]]+)\]:`)
 var orderedListItem = regexp.MustCompile(`^\d+[\.)]\s+`)
 
 const agentMaintenanceFooterMarker = "<!-- okf-footer: agent-maintenance -->"
+const agentContextAnnotationStart = "<!-- okf-annotation: agent-context -->"
+const annotationEndMarker = "<!-- /okf-annotation -->"
 
 type LinkResolver func(currentRel string, href string) string
 
@@ -37,15 +39,22 @@ func RenderASTMarkdown(markdown ASTMarkdown, currentRel string, resolve LinkReso
 
 func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resolve LinkResolver, footnotes map[string]string) string {
 	var builder strings.Builder
-	inAgentFooter := false
 
 	for index, block := range blocks {
 		switch block.Kind {
 		case "agent-footer":
-			if !inAgentFooter {
-				builder.WriteString(`<div class="ok-agent-footer">` + "\n")
-				inAgentFooter = true
+			builder.WriteString(`<aside class="ok-agent-context ok-agent-footer" data-okf-annotation="agent-context">` + "\n")
+			builder.WriteString("<details>\n<summary>Agent context</summary>\n")
+			builder.WriteString(renderASTMarkdownBlocks(block.Children, currentRel, resolve, footnotes))
+			builder.WriteString("</details>\n</aside>\n")
+		case "annotation":
+			if block.Annotation == nil || block.Annotation.Capability != "agent-context" {
+				continue
 			}
+			builder.WriteString(`<aside class="ok-agent-context" data-okf-annotation="agent-context">` + "\n")
+			builder.WriteString("<details>\n<summary>Agent context</summary>\n")
+			builder.WriteString(renderASTMarkdownBlocks(block.Children, currentRel, resolve, footnotes))
+			builder.WriteString("</details>\n</aside>\n")
 		case "html-comment":
 			continue
 		case "thematic-break":
@@ -90,9 +99,6 @@ func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resol
 		}
 	}
 
-	if inAgentFooter {
-		builder.WriteString("</div>\n")
-	}
 	return builder.String()
 }
 

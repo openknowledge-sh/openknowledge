@@ -434,6 +434,26 @@ func TestNewProjectCreatesValidBundle(t *testing.T) {
 			t.Fatalf("expected %s to exist: %v", name, err)
 		}
 	}
+	configContent, err := os.ReadFile(filepath.Join(target, ValidationConfigFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(configContent), `enabled = ["project", "writing"]`) {
+		t.Fatalf("expected scaffold defaults in %s:\n%s", ValidationConfigFile, configContent)
+	}
+	agentContent, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"## Configured Maintenance Rules",
+		"### Writing",
+		"Start with the reader's task or required answer.",
+	} {
+		if !strings.Contains(string(agentContent), expected) {
+			t.Fatalf("expected scaffold agent rules to include %q:\n%s", expected, agentContent)
+		}
+	}
 	for _, name := range []string{
 		"concepts",
 		"projects",

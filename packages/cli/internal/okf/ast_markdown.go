@@ -89,14 +89,50 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 			continue
 		}
 
-		if isAgentMaintenanceFooterMarker(trimmed) {
+		if capability, isStart := astMarkdownAnnotationStart(trimmed); isStart {
 			flushParagraph(index - 1)
+			if capability != "agent-context" {
+				markdown.Diagnostics = append(markdown.Diagnostics, ASTDiagnostic{
+					Line:    lineNumber,
+					Message: "unknown OKF annotation capability " + strconv.Quote(capability),
+				})
+				appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
+					Kind:      "html-comment",
+					LineStart: lineNumber,
+					LineEnd:   lineNumber,
+					Text:      trimmed,
+				})
+				continue
+			}
+
+			block, diagnostics, next := astMarkdownAnnotationBlock(lines, index, bodyLine, false)
+			appendASTMarkdownBlock(&markdown, block)
+			markdown.Diagnostics = append(markdown.Diagnostics, diagnostics...)
+			index = next - 1
+			continue
+		}
+
+		if trimmed == annotationEndMarker {
+			flushParagraph(index - 1)
+			markdown.Diagnostics = append(markdown.Diagnostics, ASTDiagnostic{
+				Line:    lineNumber,
+				Message: "OKF annotation closing marker has no matching opening marker",
+			})
 			appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
-				Kind:      "agent-footer",
+				Kind:      "html-comment",
 				LineStart: lineNumber,
 				LineEnd:   lineNumber,
 				Text:      trimmed,
 			})
+			continue
+		}
+
+		if isAgentMaintenanceFooterMarker(trimmed) {
+			flushParagraph(index - 1)
+			block, diagnostics, next := astMarkdownAnnotationBlock(lines, index, bodyLine, true)
+			appendASTMarkdownBlock(&markdown, block)
+			markdown.Diagnostics = append(markdown.Diagnostics, diagnostics...)
+			index = next - 1
 			continue
 		}
 
@@ -190,6 +226,99 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 	flushParagraph(len(lines) - 1)
 	markdown.Sections = astMarkdownSections(markdown.Blocks)
 	return markdown
+}
+
+func astMarkdownAnnotationStart(line string) (string, bool) {
+	const prefix = "<!-- okf-annotation:"
+	if !strings.HasPrefix(line, prefix) || !strings.HasSuffix(line, "-->") {
+		return "", false
+	}
+	capability := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, prefix), "-->"))
+	return capability, true
+}
+
+func astMarkdownAnnotationBlock(lines []string, start int, bodyLine int, legacy bool) (ASTMarkdownBlock, []ASTDiagnostic, int) {
+	end := len(lines)
+	lineEnd := bodyLine + len(lines) - 1
+	var diagnostics []ASTDiagnostic
+
+	if !legacy {
+		foundEnd := false
+		for index := start + 1; index < len(lines); index++ {
+			trimmed := strings.TrimSpace(lines[index])
+			if _, nested := astMarkdownAnnotationStart(trimmed); nested {
+				diagnostics = append(diagnostics, ASTDiagnostic{
+					Line:    bodyLine + index,
+					Message: "OKF annotations cannot be nested",
+				})
+			}
+			if trimmed == annotationEndMarker {
+				end = index
+				lineEnd = bodyLine + index
+				foundEnd = true
+				break
+			}
+		}
+		if !foundEnd {
+			diagnostics = append(diagnostics, ASTDiagnostic{
+				Line:    bodyLine + start,
+				Message: "OKF annotation is missing closing marker " + strconv.Quote(annotationEndMarker),
+			})
+		}
+	}
+
+	inner := ParseASTMarkdown(strings.Join(lines[start+1:end], "\n"), bodyLine+start+1)
+	diagnostics = append(diagnostics, inner.Diagnostics...)
+	kind := "annotation"
+	if legacy {
+		kind = "agent-footer"
+	}
+	return ASTMarkdownBlock{
+		Kind:       kind,
+		LineStart:  bodyLine + start,
+		LineEnd:    lineEnd,
+		Annotation: &ASTMarkdownAnnotation{Capability: "agent-context"},
+		Children:   inner.Blocks,
+	}, diagnostics, min(end+1, len(lines))
+}
+
+func astMarkdownReaderText(markdown ASTMarkdown) string {
+	var lines []string
+	var appendBlocks func([]ASTMarkdownBlock)
+	appendBlocks = func(blocks []ASTMarkdownBlock) {
+		for _, block := range blocks {
+			switch block.Kind {
+			case "annotation", "agent-footer", "html-comment":
+				continue
+			case "blockquote":
+				appendBlocks(block.Children)
+			default:
+				if text := strings.TrimSpace(block.Text); text != "" {
+					lines = append(lines, text)
+				}
+			}
+		}
+	}
+	appendBlocks(markdown.Blocks)
+	return strings.Join(lines, "\n")
+}
+
+func astMarkdownReaderBody(body string, bodyLine int, blocks []ASTMarkdownBlock) string {
+	if bodyLine <= 0 {
+		bodyLine = 1
+	}
+	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
+	for _, block := range blocks {
+		switch block.Kind {
+		case "annotation", "agent-footer", "html-comment":
+			start := max(block.LineStart-bodyLine, 0)
+			end := min(block.LineEnd-bodyLine, len(lines)-1)
+			for index := start; index <= end; index++ {
+				lines[index] = ""
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func appendASTMarkdownBlock(markdown *ASTMarkdown, block ASTMarkdownBlock) {

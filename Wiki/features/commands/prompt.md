@@ -19,6 +19,7 @@ current agent task and source-to-wiki workflow.
 okn prompt rules --list
 okn prompt rules docs,changelog --path Wiki
 okn prompt rules apply docs,changelog --path Wiki --file AGENTS.md
+okn prompt review content Wiki --scope changed
 okn prompt review rules Wiki
 ```
 
