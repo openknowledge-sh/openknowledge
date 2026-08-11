@@ -119,9 +119,14 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   const page = await context.newPage();
   const errors = collectPageErrors(page);
   const telemetry = [];
+  const googleTagRequests = [];
   await page.route("**/api/telemetry", async (route) => {
     telemetry.push(JSON.parse(route.request().postData() || "{}"));
     await route.fulfill({ status: 204, body: "" });
+  });
+  await page.route("https://www.googletagmanager.com/gtag/js**", async (route) => {
+    googleTagRequests.push(route.request().url());
+    await route.fulfill({ status: 200, contentType: "text/javascript", body: "" });
   });
   await page.route("https://api.github.com/**", (route) => route.fulfill({
     status: 200,
@@ -133,12 +138,34 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   }));
 
   await page.goto(landingURL, { waitUntil: "networkidle" });
-  assert.equal(telemetry.length, 0, "website telemetry must wait for consent");
-  const analyticsNotice = page.getByRole("complementary", { name: "Anonymous website analytics" });
+  assert.equal(telemetry.length, 0, "first-party website telemetry must wait for consent");
+  assert.equal(googleTagRequests.length, 1, "advanced consent mode must load the Google tag before consent");
+  const initialGoogleCommands = await googleTagCommands(page);
+  const defaultConsentIndex = initialGoogleCommands.findIndex(([command, action]) => command === "consent" && action === "default");
+  const configIndex = initialGoogleCommands.findIndex(([command]) => command === "config");
+  assert.ok(defaultConsentIndex >= 0 && defaultConsentIndex < configIndex, "denied consent defaults must precede Google configuration");
+  assert.deepEqual(initialGoogleCommands[defaultConsentIndex][2], {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "denied",
+  });
+  assert.equal(initialGoogleCommands[configIndex][1], "G-62SWM7FC2J");
+  assert.equal(await page.evaluate(() => document.cookie.split(";").some((cookie) => cookie.trim().startsWith("_ga"))), false);
+  assert.equal(await page.evaluate(() => window.localStorage.getItem("openknowledge.analytics.id")), null);
+  const analyticsNotice = page.getByRole("complementary", { name: "Allow analytics cookies?" });
   await analyticsNotice.waitFor({ state: "visible" });
   await analyticsNotice.getByRole("button", { name: "Allow" }).click();
   await page.waitForFunction(() => window.localStorage.getItem("openknowledge.analytics.consent") === "granted");
   await page.waitForFunction(() => window.localStorage.getItem("openknowledge.analytics.id"));
+  await page.waitForFunction(() => window.dataLayer.some((entry) => entry[0] === "consent" && entry[1] === "update" && entry[2]?.analytics_storage === "granted"));
+  const grantedConsent = (await googleTagCommands(page)).findLast(([command, action]) => command === "consent" && action === "update");
+  assert.deepEqual(grantedConsent[2], {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "granted",
+  });
   await page.waitForTimeout(10);
   assert.equal(telemetry.length, 1);
   assert.equal(telemetry[0].events[0].event_name, "web_page_viewed");
@@ -166,6 +193,7 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   assert.equal(telemetry.length, 2);
   assert.equal(telemetry[1].events[0].event_name, "setup_prompt_copied");
   assert.equal(telemetry[1].events[0].interaction, "setup_prompt");
+  assert.ok((await googleTagCommands(page)).some(([command, eventName]) => command === "event" && eventName === "setup_prompt_copied"));
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   assert.match(clipboard, /curl -fsSL https:\/\/openknowledge\.sh\/install\?source=homepage \| bash/);
   assert.match(clipboard, /okn version/);
@@ -186,7 +214,43 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   assert.equal(await closingGitHub.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
   assert.equal(await closingGitHub.locator("svg").count(), 1);
   assert.equal(await page.locator("details").count(), 0);
+  await page.getByRole("button", { name: "Analytics preferences" }).click();
+  await analyticsNotice.waitFor({ state: "visible" });
+  assert.equal(await page.evaluate(() => window.localStorage.getItem("openknowledge.analytics.consent")), null);
+  assert.equal(await page.evaluate(() => window.localStorage.getItem("openknowledge.analytics.id")), null);
+  const revokedConsent = (await googleTagCommands(page)).findLast(([command, action]) => command === "consent" && action === "update");
+  assert.equal(revokedConsent[2].analytics_storage, "denied");
   assert.equal(errors.length, 0, `landing page browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("landing page keeps Google Analytics cookieless after a declined cookie choice", async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const telemetry = [];
+  await page.route("**/api/telemetry", async (route) => {
+    telemetry.push(route.request().postData());
+    await route.fulfill({ status: 204, body: "" });
+  });
+  await page.route("https://www.googletagmanager.com/gtag/js**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/javascript",
+    body: "",
+  }));
+
+  await page.goto(landingURL, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "No cookies" }).click();
+  await page.waitForFunction(() => window.localStorage.getItem("openknowledge.analytics.consent") === "denied");
+  const deniedConsent = (await googleTagCommands(page)).findLast(([command, action]) => command === "consent" && action === "update");
+  assert.deepEqual(deniedConsent[2], {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "denied",
+  });
+  assert.equal(await page.evaluate(() => window.localStorage.getItem("openknowledge.analytics.id")), null);
+  assert.equal(await page.evaluate(() => document.cookie.split(";").some((cookie) => cookie.trim().startsWith("_ga"))), false);
+  assert.equal(telemetry.length, 0, "declining cookies must keep first-party telemetry disabled");
   await context.close();
 });
 
@@ -449,8 +513,17 @@ test("getting started keeps completed commands visible and reusable", async () =
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: landingURL });
   const page = await context.newPage();
   const errors = collectPageErrors(page);
+  await page.route("https://www.googletagmanager.com/gtag/js**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/javascript",
+    body: "",
+  }));
 
   await page.goto(new URL("getting-started/", landingURL).href, { waitUntil: "networkidle" });
+  const gettingStartedCommands = await googleTagCommands(page);
+  const gettingStartedDefaultIndex = gettingStartedCommands.findIndex(([command, action]) => command === "consent" && action === "default");
+  const gettingStartedConfigIndex = gettingStartedCommands.findIndex(([command]) => command === "config");
+  assert.ok(gettingStartedDefaultIndex >= 0 && gettingStartedDefaultIndex < gettingStartedConfigIndex);
   const commands = page.locator("[data-copy-command]");
   assert.equal(await commands.count(), 5);
   assert.equal(await page.locator(".guide-command-number").count(), 0);
@@ -1168,6 +1241,10 @@ function collectPageErrors(page) {
   });
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   return errors;
+}
+
+async function googleTagCommands(page) {
+  return page.evaluate(() => (window.dataLayer || []).map((entry) => Array.from(entry)));
 }
 
 async function stubReleaseAPI(page) {

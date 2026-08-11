@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-08-09T00:00:00Z
+timestamp: 2026-08-11T00:00:00Z
 ---
 
 # CLI Operations
@@ -102,7 +102,8 @@ It publishes JSON schemas under `dist/schemas/cli/`.
 By default, the exporter uses the current Go source.
 Set `OPENKNOWLEDGE_BIN` to test a specified binary.
 
-The landing page uses a first-party telemetry client after website consent.
+The landing and getting-started pages use Google Advanced Consent Mode v2.
+They also use a first-party telemetry client after website consent.
 The build does not inject product analytics into exported wiki pages.
 Use these variables for trusted custom head content:
 
@@ -142,6 +143,33 @@ The upstream may also be the root ingestion host; the relay normalizes a root
 URL to `/batch/`. A custom path, query, fragment, or URL-embedded credentials is
 rejected.
 
+### Google Analytics consent mode
+
+`packages/web/src/analytics.js` configures Google Analytics measurement ID
+`G-62SWM7FC2J`. It queues the denied Consent Mode v2 default before the Google
+tag configuration.
+
+The default state sets these values to `denied`:
+
+- `analytics_storage`
+- `ad_storage`
+- `ad_user_data`
+- `ad_personalization`
+
+The Google tag loads in the default state and sends cookieless measurement
+pings. Select **Allow** to set only `analytics_storage` to `granted`.
+Select **No cookies** to restore the denied state and delete `_ga` cookies.
+
+Use Google Tag Assistant and the browser developer tools for production checks:
+
+1. Open the landing page in a new browser profile.
+2. Confirm that the consent default occurs before the Google tag configuration.
+3. Confirm that no `_ga` cookie exists before consent.
+4. Select **Allow** and confirm that `analytics_storage` changes to `granted`.
+5. Confirm that all advertising consent values remain `denied`.
+6. Select **Analytics preferences** and confirm that `_ga` cookies are deleted.
+7. Open `/wiki/` and confirm that it does not load the Google tag.
+
 ### PostHog and Railway setup
 
 1. Create or select a PostHog EU Cloud project. In its project settings, copy
@@ -151,9 +179,9 @@ rejected.
    API key and do not expose the token through a `VITE_` variable.
 3. Redeploy the service so the Node server reads the variables. No repository
    or Railway configuration-file change is required.
-4. In PostHog, open **Activity** or **Live events**. Visit the deployed homepage,
-   accept analytics, and copy the setup prompt. Confirm `web_page_viewed` and
-   `setup_prompt_copied` arrive with `$process_person_profile = false`.
+4. In PostHog, open **Activity** or **Live events**. Visit the deployed homepage.
+   Allow analytics cookies, and copy the setup prompt. Confirm `web_page_viewed`
+   and `setup_prompt_copied` arrive with `$process_person_profile = false`.
 5. Follow the displayed install path and confirm
    `install_redirect_requested`. Then run `okn telemetry status` and a normal
    CLI command. Confirm CLI events arrive without paths, arguments, content,

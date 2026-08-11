@@ -1,9 +1,9 @@
 ---
 type: Feature Documentation
 title: Product Telemetry and Privacy
-description: Describes anonymous CLI and website telemetry, data limits, and opt-out controls.
+description: Describes bounded CLI and website telemetry, data limits, and privacy controls.
 tags: [openknowledge, telemetry, analytics, privacy]
-timestamp: 2026-08-08T00:00:00Z
+timestamp: 2026-08-11T00:00:00Z
 ---
 
 # Product Telemetry and Privacy
@@ -16,11 +16,20 @@ sends the first event. Telemetry commands do not send events. JSON error mode
 waits for a prior telemetry disclosure. Installer preflight and continuous
 integration do not send telemetry.
 
-Website analytics require explicit consent. The website records no analytics
+Google Analytics uses Advanced Consent Mode v2 on the landing and getting-started
+pages. Before a visitor chooses, `analytics_storage` is `denied`. Google receives
+cookieless measurement pings and does not read or write Analytics cookies.
+
+Select **Allow** to set `analytics_storage` to `granted`. Google Analytics can
+then use first-party Analytics cookies. `ad_storage`, `ad_user_data`, and
+`ad_personalization` remain `denied` in both states.
+
+The first-party website relay requires explicit consent. It records no website
 event before consent.
 
 Use **Analytics preferences** in the website footer to change the website
-choice. A decline deletes the random browser ID.
+choice. **No cookies** deletes the random browser ID and Analytics cookies.
+Cookieless Google Analytics measurement continues.
 
 ## CLI controls
 
@@ -52,8 +61,13 @@ CLI events can include only these fields:
 - A coarse duration bucket
 - First command, successful setup, first meaningful use, and daily activity
 
-Website events can include a random browser ID after consent. They can record a
-landing-page view or a successful setup-prompt copy.
+First-party website events can include a random browser ID after consent. They
+can record a landing-page view or a successful setup-prompt copy.
+
+Google cookieless pings can include the page URL, user agent, screen resolution,
+and IP address. Google states that Google Analytics does not store or log the
+IP address. See the
+[Consent Mode reference](https://support.google.com/analytics/answer/13802165).
 
 The `/install` redirect records an aggregate install attempt. It stores only a
 fixed source label and a normalized client family, such as `curl` or `browser`.
@@ -66,7 +80,7 @@ observed CLI run. Setup and meaningful-use events require successful commands.
 
 ## Excluded data
 
-Telemetry events do not contain:
+Open Knowledge first-party telemetry envelopes do not contain:
 
 - Command arguments, paths, file names, URLs, queries, or repository names
 - Knowledge content, command output, error messages, or agent transcripts
@@ -76,6 +90,9 @@ Telemetry events do not contain:
 The hosting platform processes network connections. The first-party relay does
 not add request IP addresses or raw user agents to events or upstream requests.
 
+These exclusions do not apply to direct Google Analytics requests. Google
+controls its processing under its service terms and configured data controls.
+
 ## Delivery
 
 The CLI sends one bounded JSON envelope after a command finishes. Delivery uses
@@ -84,8 +101,12 @@ a short timeout. A delivery failure does not change output or exit status.
 The first-party relay accepts only documented fields and values. It rejects
 extra content. The relay converts accepted envelopes to PostHog's batch capture
 format only when an operator configures a PostHog ingestion endpoint and project
-token. The project token stays on the server; browser and CLI clients send only
-to the Open Knowledge relay.
+token. The project token stays on the server. First-party website and CLI
+clients send only to the Open Knowledge relay.
+
+The website also sends Google Analytics requests directly to Google. Consent
+Mode attaches the current storage and advertising consent states to those
+requests.
 
 Every PostHog event sets `$process_person_profile` to `false`. The relay uses a
 surface-prefixed random ID as `distinct_id`: the random installation ID for CLI
@@ -114,7 +135,7 @@ does not change product telemetry.
 >
 > - `packages/cli/internal/telemetry/`
 > - `packages/cli/cmd/openknowledge/telemetry_command.go`
-> - `packages/web/src/analytics.ts`
+> - `packages/web/src/analytics.js`
 > - `packages/web/scripts/server.mjs`
 >
 > **Update notes**

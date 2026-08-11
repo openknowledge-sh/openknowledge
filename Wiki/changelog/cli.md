@@ -87,6 +87,14 @@ page records release-level changes.
 
 ### Website
 
+- The landing and getting-started pages now use Google Advanced Consent Mode
+  v2. Google receives cookieless measurements while `analytics_storage` is
+  `denied`. Selecting **Allow** enables Analytics cookies. Advertising storage,
+  user data, and personalization remain denied.
+- Source: `packages/web/src/analytics.js`, `packages/web/index.html`,
+  `packages/web/getting-started/index.html`, and
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `Wiki/features/telemetry.md` and `Wiki/features/operations.md`.
 - The three examples cover project context, release memory, and research
   synthesis. Each example includes validation, search, export, and tests.
 - `pnpm test:demos` verifies all three knowledge bases against the current CLI.

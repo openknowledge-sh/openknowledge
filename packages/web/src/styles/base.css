@@ -1192,9 +1192,14 @@ h1 > span,
   line-height: 1.25;
 }
 
+.analytics-consent-copy span,
 .analytics-consent-copy a {
   color: var(--muted);
   font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.analytics-consent-copy a {
   text-underline-offset: 0.18em;
 }
 
