@@ -220,6 +220,10 @@
       if (currentPath) {
         params.set("exclude", currentPath);
       }
+      const currentKnowledgeBase = search.dataset.knowledgeBase || document.body.dataset.activeKnowledgeBase || "";
+      if (currentKnowledgeBase) {
+        params.set("excludeKnowledgeBase", currentKnowledgeBase);
+      }
       try {
         const response = await fetch(searchURL + "?" + params.toString(), { signal: controller.signal });
         if (!response.ok) throw new Error("tag search request failed");
@@ -364,6 +368,23 @@
 
       const titleRow = document.createElement("span");
       titleRow.className = "search-result-title-row";
+      if (item.knowledgeBase) {
+        link.dataset.knowledgeBase = item.knowledgeBase;
+        const origin = document.createElement("span");
+        origin.className = "search-result-knowledge-base";
+        const marker = document.createElement("span");
+        marker.className = "search-result-knowledge-base-marker";
+        marker.setAttribute("aria-hidden", "true");
+        const knowledgeBaseAPI = window.OpenKnowledgeKnowledgeBases;
+        if (knowledgeBaseAPI?.color) {
+          marker.style.backgroundColor = knowledgeBaseAPI.color(item.knowledgeBase);
+          origin.style.color = knowledgeBaseAPI.color(item.knowledgeBase);
+        }
+        const label = document.createElement("span");
+        label.textContent = item.knowledgeBase;
+        origin.append(marker, label);
+        titleRow.append(origin);
+      }
       const title = document.createElement("span");
       title.className = "search-result-title";
       const displayTitle = searchResultTitle(item);
@@ -396,7 +417,7 @@
       const accessibleCount = config.showMatchCounts !== false && query && item.matchCount
         ? item.matchCount + " match" + (item.matchCount === 1 ? "" : "es")
         : "";
-      link.setAttribute("aria-label", [displayTitle, item.path, accessibleCount].filter(Boolean).join(", "));
+      link.setAttribute("aria-label", [displayTitle, item.path, item.knowledgeBase, accessibleCount].filter(Boolean).join(", "));
 
       results.append(link);
     });
@@ -446,12 +467,13 @@
     const byPath = new Map();
     items.forEach((item, index) => {
       const path = item.path || "__result-" + index;
-      let group = byPath.get(path);
+      const key = String(item.knowledgeBase || "") + "\u0000" + path;
+      let group = byPath.get(key);
       if (!group) {
         group = Object.assign({}, item, {
           matchCount: 0,
         });
-        byPath.set(path, group);
+        byPath.set(key, group);
         groups.push(group);
       }
       group.matchCount += 1;
@@ -533,13 +555,16 @@
     const links = Array.from(document.querySelectorAll("[data-tree-path]"));
     for (const link of links) {
       const path = link.dataset.treePath || "";
-      if (!path || seen.has(path)) {
+      const knowledgeBase = link.dataset.knowledgeBase || "";
+      const key = knowledgeBase + "\u0000" + path;
+      if (!path || seen.has(key)) {
         continue;
       }
-      seen.add(path);
+      seen.add(key);
       const title = link.querySelector(".tree-file-name")?.textContent?.trim() || path;
       items.push({
         path,
+        knowledgeBase,
         title,
         url: link.getAttribute("href") || link.href,
       });

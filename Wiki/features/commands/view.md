@@ -9,7 +9,8 @@ timestamp: 2026-08-09T00:00:00Z
 # `openknowledge view`
 
 Start the local web viewer. Specify a path or registry key to open one
-knowledge base. Omit the target to open the registry workspace selector.
+knowledge base. Omit the target to open all connected knowledge bases in one
+registry workspace.
 
 ## Usage
 
@@ -50,9 +51,14 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Select **Fit** to fit the complete diagram in the viewport.
   Select **100%** to center the diagram at its original scale.
   Press Escape to close the dialog.
-- The sidebar has separate **Documents**, **Graph**, and **Settings** items.
-  **Documents** shows the file tree. **Graph** shows the graph workspace.
-  **Settings** opens the viewer preferences.
+- The sidebar has separate **Documents**, **Graph**, and **Knowledge bases**
+  items. **Documents** shows the active file tree. **Graph** shows the graph
+  workspace. **Knowledge bases** lists every connected knowledge base and its
+  file tree in registry mode. Use the collapse icon to close all expanded
+  trees. Use the plus icon to connect another local folder. **Settings** opens
+  the viewer preferences from the sidebar footer.
+  Select the shortcut badge in the viewer header to open or close the file
+  explorer.
 - Open-beside mode is the default. The link behavior control can select the
   current panel mode.
   The browser stores this selection. Hold Shift during activation to use the
@@ -62,6 +68,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   first grid column at `25vw` by default. You can resize it within its minimum
   and maximum limits. The viewer header, note workspace, and horizontal scroll
   rail remain in the second grid column.
+  With multiple panels open, drag the bottom horizontal scroll thumb to move
+  the document stack directly.
 - On viewports up to 680 px, sidebar open and close actions have no motion.
   Note stack navigation has no View Transition or fallback panel entrance
   effect. A sidebar link closes the sidebar and shows its destination
@@ -70,6 +78,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   [`okn search`](search.md). It also uses the same one-level link
   expansion. Results group section matches by document. They can link to and
   highlight the matching text. Search excerpts strip common Markdown markup.
+  The search control is on the right side of the viewer header.
+  Registry mode searches all connected knowledge bases. Each result shows its
+  source knowledge base.
   The viewer adds folder context to `Index` titles.
   The search panel shows progress, result counts, no-result messages,
   and errors. Select **Retry** after an error. Use the arrow keys to select a
@@ -78,6 +89,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - Each note uses a compact header. The full-width **Frontmatter** disclosure is
   immediately below the header and starts collapsed. Select **Frontmatter** to
   expand the full typed YAML table.
+  When the registry workspace contains multiple knowledge bases, the header
+  prefixes the path breadcrumb with the source knowledge-base name. The prefix
+  uses the same breadcrumb style and slash separator.
   The viewer also provides tag filters, sortable tables, and directory
   breadcrumbs. The **Documents** view expands the active file branch.
   Directory rows can collapse, and the explorer has a **Collapse all** action.
@@ -103,6 +117,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Drag a node to move it. Use the fit control to show the complete graph.
   Filter notes by title or path. The **Color nodes by folder** control applies
   theme-aware colors. Hovered and selected nodes keep their folder colors.
+  Registry mode combines the graphs from all connected knowledge bases. It
+  does not add links between knowledge bases. File-name labels use the source
+  knowledge-base color. The file nodes keep their current graph colors.
   Display controls adjust arrows, labels, node size, and link thickness.
   Force controls adjust center, repel, and link forces.
   Select **Pause** to stop graph motion. Select **Resume** to start motion.
@@ -116,6 +133,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Markdown.
   The **Horizontal stack** switch is enabled by default in the **Document**
   section. Disable it to replace the current document when following a link.
+- The browser assigns a color to each connected knowledge base. Use the color
+  control beside its name to change the color. The browser saves this choice
+  locally and reuses it in search results and graph labels.
 - Direct paths and writable local connections provide local editor links.
   Static exports use configured repository source links.
 - The local viewer serves the same Vite-built JavaScript and CSS bundle as
@@ -154,6 +174,12 @@ In registry mode, the viewer rebuilds routes after the validated registry
 snapshot changes. It refreshes content-hashed search indexes after source
 edits. A registry or fingerprint failure returns an error. The viewer does not
 serve stale or partly trusted state.
+
+The registry workspace can connect an existing local knowledge base. The
+connection is read-only unless you enable editor links. If the selected folder
+is not a knowledge base, the viewer shows the `okn setup` command that creates
+one. Direct-path and static-export views do not provide the registry connection
+control.
 
 Theme and source-link configuration comes from
 [`.openknowledge.toml`](/features/configuration.md). For deployment, use the

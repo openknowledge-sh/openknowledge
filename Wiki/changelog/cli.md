@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-09T00:00:00Z
+timestamp: 2026-08-11T00:00:00Z
 ---
 
 # CLI Changelog
@@ -33,12 +33,25 @@ page records release-level changes.
   Each file name and path stays on one line. Typed results add highlighted
   excerpts and match counts.
 - The viewer sidebar now has separate **Documents**, **Graph**, and
-  **Settings** items. The **Documents** view contains the file tree. The sidebar
-  omits the duplicate identity header and close button.
+  **Knowledge bases** items. Registry mode lists every connected knowledge
+  base and its file tree. Icon controls collapse all trees or connect another
+  local folder. The sidebar omits the duplicate identity header and close
+  button. **Settings** remains in the sidebar footer.
   The Graph icon also remains available in the top bar. Select it again to
   return to the open documents.
+- Registry search now covers all connected knowledge bases. Search results show
+  the source knowledge-base name. When multiple knowledge bases are connected,
+  note headers add the source name as a standard inline breadcrumb segment.
+- Each knowledge base receives a browser-local color. Users can change it from
+  the sidebar. The combined registry graph uses these colors for file-name
+  labels and does not create links between knowledge bases.
+- The registry workspace can connect an existing local knowledge base. A
+  folder without a knowledge base returns an `okn setup` command. Connections
+  are read-only unless the user enables editor links.
 - The link display mode moved from the top bar to a **Horizontal stack** switch
   under **Settings** → **Document**. It is enabled by default.
+- The bottom horizontal scroll thumb now moves the document stack directly
+  during a drag. The stack stays aligned with the pointer.
 - The canvas knowledge graph now provides pan, zoom, node drag, filters,
   display controls, force controls, and saved folder colors. Compact icon-only
   viewport controls sit in the canvas's lower-left corner. A settings icon
@@ -51,6 +64,12 @@ page records release-level changes.
 - **Fit**, **Reset graph**, **Pause**, and **Resume** control the graph view.
 - Long brand names in viewer headers now truncate with an ellipsis when space
   is limited.
+- The viewer header now uses the file-explorer shortcut badge to open and close
+  the sidebar. The badge replaces the separate icon and uses blue hover and
+  active states.
+- The viewer header now aligns search to the right instead of the center.
+- The viewer footer now uses the linked OpenKnowledge logo instead of a text
+  attribution.
 - Source: `packages/cli/cmd/openknowledge/viewer_templates.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`,
   `packages/web/scripts/dev-viewer.mjs`,

@@ -115,22 +115,13 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
 </head>
-<body class="viewer-document is-stack-mode">
+<body class="viewer-document is-stack-mode"{{if .KnowledgeBase}} data-active-knowledge-base="{{.KnowledgeBase}}"{{end}}>
   <header>
     <div class="header-left">
-      <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Open file explorer" aria-expanded="false" title="File explorer">
-        <svg class="sidebar-toggle-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3.5" y="4.5" width="17" height="15" rx="2"></rect>
-          <path d="M9 4.5v15"></path>
-          <path d="M6 8h.01"></path>
-          <path d="M6 11h.01"></path>
-          <path d="M6 14h.01"></path>
-        </svg>
-      </button>
-      <kbd class="sidebar-shortcut" data-sidebar-shortcut aria-hidden="true">⌘⌥S</kbd>
+      <button class="sidebar-shortcut" data-sidebar-shortcut type="button" data-sidebar-toggle aria-label="Open file explorer" aria-expanded="false" title="File explorer">⌘⌥S</button>
       <a class="brand" href="{{.HomeURL}}">{{.BrandName}}</a>
     </div>
-    <section class="search header-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}" data-primary-search>
+    <section class="search header-search" role="search" aria-label="Search files" data-search-url="{{.SearchURL}}"{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}"{{end}} data-primary-search>
       <label class="sr-only" for="viewer-search">Search</label>
       <div class="search-field">
         <svg class="search-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -302,22 +293,72 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </button>
       <span data-sidebar-graph-slot></span>
     </nav>
-    <div class="file-sidebar-section-head">
-      <span>Knowledge base</span>
-      <span data-sidebar-tree-actions></span>
+    <div class="knowledge-bases-navigation">
+      <button class="sidebar-navigation-item knowledge-bases-toggle" type="button" data-knowledge-bases-toggle aria-controls="knowledge-base-list" aria-expanded="true">
+        <svg class="sidebar-navigation-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <ellipse cx="12" cy="5.5" rx="7.5" ry="3"></ellipse>
+          <path d="M4.5 5.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6M4.5 11.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6"></path>
+        </svg>
+        <span class="sidebar-navigation-label">Knowledge bases</span>
+      </button>
+      <div class="file-sidebar-actions" data-sidebar-tree-actions>
+        <button class="file-sidebar-icon-action" type="button" data-sidebar-collapse aria-label="Collapse all" title="Collapse all">
+          <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5-5 5 5M7 14l5 5 5-5"></path></svg>
+        </button>
+        {{if .Frame.CanConnect}}
+        <button class="file-sidebar-icon-action" type="button" data-knowledge-base-connect aria-label="Connect knowledge base" title="Connect knowledge base">
+          <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        </button>
+        {{end}}
+      </div>
     </div>
-    <div id="file-sidebar-tree" class="file-sidebar-tree knowledge-tree" role="tree" aria-label="Documents">
-      {{range .Tree}}
-        {{if .Directory}}
-          <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
-        {{else}}
-          <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" style="--indent: {{.Indent}}px">
-            <span class="tree-file-name">{{.Name}}</span>
-            {{if .System}}<span class="tree-file-system">system</span>{{end}}
-          </a>
+    <div id="knowledge-base-list" class="knowledge-base-list">
+      {{if .Frame.Workspaces}}
+        {{range .Frame.Workspaces}}
+        {{$workspace := .}}
+        <section class="knowledge-base-group{{if .Active}} is-active{{end}}" data-knowledge-base="{{.Name}}" data-knowledge-base-name="{{.Name}}">
+          <div class="knowledge-base-head">
+            <button class="knowledge-base-disclosure" type="button" data-knowledge-base-disclosure aria-expanded="{{if .Active}}true{{else}}false{{end}}" aria-controls="knowledge-base-tree-{{.Name}}">
+              <span class="knowledge-base-marker" aria-hidden="true"></span>
+              <span class="knowledge-base-name">{{.Name}}</span>
+              <svg class="knowledge-base-chevron control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+            </button>
+            <label class="knowledge-base-color" title="Change color for {{.Name}}">
+              <span class="sr-only">Color for {{.Name}}</span>
+              <input type="color" data-knowledge-base-color aria-label="Color for {{.Name}}">
+            </label>
+          </div>
+          <div id="knowledge-base-tree-{{.Name}}" class="file-sidebar-tree knowledge-tree" role="tree" aria-label="{{.Name}} documents"{{if not .Active}} hidden{{end}}>
+            {{range .Tree}}
+              {{if .Directory}}
+                <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
+              {{else}}
+                <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" data-knowledge-base="{{$workspace.Name}}" style="--indent: {{.Indent}}px">
+                  <span class="tree-file-name">{{.Name}}</span>
+                  {{if .System}}<span class="tree-file-system">system</span>{{end}}
+                </a>
+              {{end}}
+            {{else}}
+              {{if .Error}}<p class="knowledge-base-error">{{.Error}}</p>{{else}}<p class="empty">No Markdown files found.</p>{{end}}
+            {{end}}
+          </div>
+        </section>
         {{end}}
       {{else}}
-        <p class="empty">No Markdown files found.</p>
+        <div id="file-sidebar-tree" class="file-sidebar-tree knowledge-tree" role="tree" aria-label="Documents"{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}" data-knowledge-base-name="{{.KnowledgeBase}}"{{end}}>
+          {{range .Tree}}
+            {{if .Directory}}
+              <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
+            {{else}}
+              <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}"{{if $.KnowledgeBase}} data-knowledge-base="{{$.KnowledgeBase}}"{{end}} style="--indent: {{.Indent}}px">
+                <span class="tree-file-name">{{.Name}}</span>
+                {{if .System}}<span class="tree-file-system">system</span>{{end}}
+              </a>
+            {{end}}
+          {{else}}
+            <p class="empty">No Markdown files found.</p>
+          {{end}}
+        </div>
       {{end}}
     </div>
     <div class="file-sidebar-footer">
@@ -325,7 +366,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     </div>
     <button class="file-sidebar-resize" type="button" data-sidebar-resize-handle role="separator" aria-label="Resize file explorer" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="560" aria-valuenow="280" title="Resize file explorer"></button>
   </aside>
-  <main id="note-workspace" class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}">
+  <main id="note-workspace" class="note-workspace" data-note-workspace data-note-root="{{.Root}}" data-link-prefix="{{.LinkPrefix}}"{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}"{{end}}>
     <section id="knowledge-graph" class="knowledge-empty" data-empty-state aria-label="Knowledge graph" hidden>
       <div class="knowledge-empty-inner">
         <aside class="knowledge-empty-pane knowledge-graph-sidebar" data-knowledge-graph-sidebar aria-label="Knowledge graph details"></aside>
@@ -333,9 +374,10 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </div>
     </section>
     <section class="note-stack" data-note-stack aria-label="Open notes">
-      <article class="document note-panel is-active-panel" data-note-path="{{.Path}}" data-note-title="{{.Title}}" tabindex="-1">
+      <article class="document note-panel is-active-panel" data-note-path="{{.Path}}" data-note-title="{{.Title}}"{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}"{{end}} tabindex="-1">
         <div class="note-chrome">
           <nav class="note-path note-breadcrumbs" data-note-breadcrumbs data-note-path-value="{{.Path}}" aria-label="Note path">
+            {{if gt (len .Frame.Workspaces) 1}}<span class="note-breadcrumb-label">{{.KnowledgeBase}}</span><span class="note-breadcrumb-separator" aria-hidden="true">/</span>{{end}}
             <a href="{{.FileURL}}" data-direct-link="true">{{.Path}}</a>
           </nav>
           <div class="note-actions">
@@ -380,7 +422,39 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       <button class="workspace-scroll-thumb" type="button" data-workspace-scroll-thumb aria-label="Scroll notes horizontally" aria-controls="note-workspace" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" role="scrollbar"></button>
     </div>
   </div>
-  <a class="powered-by-openknowledge" href="https://openknowledge.sh" target="_blank" rel="noreferrer">Powered by OpenKnowledge.sh</a>
+  {{if .Frame.CanConnect}}
+  <dialog class="knowledge-base-dialog" data-knowledge-base-dialog aria-labelledby="knowledge-base-dialog-title">
+    <form class="knowledge-base-form" data-knowledge-base-form>
+      <div class="knowledge-base-dialog-head">
+        <h2 id="knowledge-base-dialog-title">Connect a knowledge base</h2>
+        <button class="knowledge-base-dialog-close" type="button" data-knowledge-base-dialog-close aria-label="Close connect dialog">
+          <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <p>Enter a local folder path. The viewer adds an existing knowledge base to this sidebar.</p>
+      <label class="knowledge-base-field">
+        <span>Folder path</span>
+        <input type="text" name="path" autocomplete="off" spellcheck="false" placeholder="/Users/you/project/Wiki" required>
+      </label>
+      <label class="knowledge-base-field">
+        <span>Name <small>optional</small></span>
+        <input type="text" name="name" autocomplete="off" spellcheck="false" placeholder="project-docs">
+      </label>
+      <label class="knowledge-base-access">
+        <input type="checkbox" name="writeAccess">
+        <span><strong>Allow editor links</strong><small>Keep this off for read-only access.</small></span>
+      </label>
+      <div class="knowledge-base-form-status" data-knowledge-base-form-status aria-live="polite"></div>
+      <div class="knowledge-base-dialog-actions">
+        <button class="knowledge-base-cancel" type="button" data-knowledge-base-dialog-close>Cancel</button>
+        <button class="knowledge-base-submit" type="submit">Connect</button>
+      </div>
+    </form>
+  </dialog>
+  {{end}}
+  <a class="powered-by-openknowledge" href="https://openknowledge.sh" target="_blank" rel="noreferrer" aria-label="Powered by OpenKnowledge.sh" data-tooltip="Powered by OpenKnowledge.sh">
+    <span class="sr-only">Powered by OpenKnowledge.sh</span>
+  </a>
   {{if .Scripts.Data}}<script src="{{.Scripts.Data}}"></script>{{else}}
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>

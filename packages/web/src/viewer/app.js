@@ -8,6 +8,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
   const sidebarResizeHandle = document.querySelector("[data-sidebar-resize-handle]");
   const documentsViewToggle = document.querySelector("[data-documents-view-toggle]");
+  const knowledgeBasesToggle = document.querySelector("[data-knowledge-bases-toggle]");
+  const knowledgeBaseList = document.querySelector("#knowledge-base-list");
+  const knowledgeBaseDialog = document.querySelector("[data-knowledge-base-dialog]");
+  const knowledgeBaseForm = document.querySelector("[data-knowledge-base-form]");
   const settings = document.querySelector("[data-viewer-settings]");
   const settingsTrigger = document.querySelector("[data-viewer-settings-trigger]");
   const settingsMenu = document.querySelector("[data-viewer-settings-menu]");
@@ -37,10 +41,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const frontmatterStorageKey = "openknowledge.viewer.frontmatter";
   const accessibilityStorageKey = "openknowledge.viewer.accessibility";
   const navigationModeStorageKey = "openknowledge.viewer.navigationMode";
+  const knowledgeBaseColorStorageKey = "openknowledge.viewer.knowledgeBaseColors";
   const defaultNavigationMode = "beside";
   let navigationMode = defaultNavigationMode;
   let graphViewRequested = false;
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
+  const currentKnowledgeBase = String(workspace.dataset.knowledgeBase || document.body.dataset.activeKnowledgeBase || "").trim();
   const viewerStorageScope = graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + viewerStorageScope;
   const sidebarWidthStorageKey = "openknowledge.viewer.sidebarWidth." + viewerStorageScope;
@@ -55,6 +61,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const knowledgeGraph = readKnowledgeGraph();
   const themePresets = ["default", "night", "paper", "ocean", "rose", "custom"];
   const defaultThemePreset = "default";
+  const knowledgeBasePalette = ["#0a4a9c", "#9a4d0f", "#08745d", "#8a3f75", "#5e55a5", "#a0353f", "#316b24", "#8b5f00"];
   const accessibilityFonts = {
     system: 'Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif',
     readable: 'Verdana, Tahoma, Arial, sans-serif',
@@ -101,6 +108,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   let mermaidRenderID = 0;
   let mermaidRequestID = 0;
   let mermaidThemeTimer = 0;
+  let workspaceRailFrame = 0;
   const panelCloseShortcut = {
     id: "viewer.panel.close",
     code: "KeyW",
@@ -219,6 +227,76 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       // Cookies are best-effort; localStorage still covers same-origin exports.
     }
   }
+
+  function knowledgeBaseNames() {
+    const names = [];
+    document.querySelectorAll("[data-knowledge-base-name]").forEach(function (element) {
+      const name = String(element.dataset.knowledgeBaseName || "").trim();
+      if (name && !names.includes(name)) {
+        names.push(name);
+      }
+    });
+    if (currentKnowledgeBase && !names.includes(currentKnowledgeBase)) {
+      names.unshift(currentKnowledgeBase);
+    }
+    return names;
+  }
+
+  function readKnowledgeBaseColorOverrides() {
+    const stored = readStoredJSON(knowledgeBaseColorStorageKey);
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+      return {};
+    }
+    const colors = {};
+    Object.keys(stored).forEach(function (name) {
+      if (isHexColor(stored[name])) {
+        colors[name] = stored[name].toLowerCase();
+      }
+    });
+    return colors;
+  }
+
+  let knowledgeBaseColorOverrides = readKnowledgeBaseColorOverrides();
+
+  function knowledgeBaseColor(name) {
+    const normalizedName = String(name || "").trim();
+    if (knowledgeBaseColorOverrides[normalizedName]) {
+      return knowledgeBaseColorOverrides[normalizedName];
+    }
+    const names = knowledgeBaseNames();
+    const index = Math.max(0, names.indexOf(normalizedName));
+    return knowledgeBasePalette[index % knowledgeBasePalette.length];
+  }
+
+  function saveKnowledgeBaseColors() {
+    const serialized = JSON.stringify(knowledgeBaseColorOverrides);
+    try {
+      window.localStorage.setItem(knowledgeBaseColorStorageKey, serialized);
+    } catch {
+      // Browser storage can be disabled in private contexts.
+    }
+    writeCookie(knowledgeBaseColorStorageKey, serialized);
+  }
+
+  function applyKnowledgeBaseColors() {
+    document.querySelectorAll("[data-knowledge-base]").forEach(function (element) {
+      const name = String(element.dataset.knowledgeBase || "").trim();
+      if (name) {
+        element.style.setProperty("--knowledge-base-color", knowledgeBaseColor(name));
+      }
+    });
+    document.querySelectorAll("[data-knowledge-base-name]").forEach(function (element) {
+      const name = String(element.dataset.knowledgeBaseName || "").trim();
+      const input = element.querySelector("[data-knowledge-base-color]");
+      if (input && name) {
+        input.value = knowledgeBaseColor(name);
+      }
+    });
+  }
+
+  window.OpenKnowledgeKnowledgeBases = {
+    color: knowledgeBaseColor,
+  };
 
   function normalizeNavigationMode(value) {
     return value === "beside" || value === "replace" ? value : defaultNavigationMode;
@@ -698,9 +776,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     if (sidebarToggle) {
       sidebarToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      sidebarToggle.setAttribute("aria-label", open ? "Close file explorer" : "Open file explorer");
     }
     if (open) {
-      syncKnowledgeTrees(activePanel()?.dataset.notePath || currentStack()[0] || "", true);
+      syncKnowledgeTrees(activePanel()?.dataset.notePath || currentStack()[0] || "", true, activePanel()?.dataset.knowledgeBase);
     }
   }
 
@@ -796,7 +875,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       }
     });
     document.querySelectorAll("[data-tree-path]").forEach(function (link) {
-      if (link.dataset.treePath) {
+      if (link.dataset.treePath && (!currentKnowledgeBase || !link.dataset.knowledgeBase || link.dataset.knowledgeBase === currentKnowledgeBase)) {
         paths.add(link.dataset.treePath);
       }
     });
@@ -856,6 +935,125 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     ensureSidebarCollapseControl();
   }
 
+  function prepareKnowledgeBases() {
+    applyKnowledgeBaseColors();
+    if (knowledgeBasesToggle && knowledgeBaseList) {
+      knowledgeBasesToggle.addEventListener("click", function () {
+        const expanded = knowledgeBasesToggle.getAttribute("aria-expanded") !== "false";
+        knowledgeBasesToggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+        knowledgeBaseList.hidden = expanded;
+      });
+    }
+    document.querySelectorAll("[data-knowledge-base-disclosure]").forEach(function (disclosure) {
+      disclosure.addEventListener("click", function () {
+        const expanded = disclosure.getAttribute("aria-expanded") === "true";
+        disclosure.setAttribute("aria-expanded", expanded ? "false" : "true");
+        const tree = document.getElementById(disclosure.getAttribute("aria-controls"));
+        if (tree) {
+          tree.hidden = expanded;
+        }
+      });
+    });
+    document.querySelectorAll("[data-knowledge-base-color]").forEach(function (input) {
+      input.addEventListener("input", function () {
+        const group = input.closest("[data-knowledge-base-name]");
+        const name = String(group?.dataset.knowledgeBaseName || "").trim();
+        if (!name || !isHexColor(input.value)) {
+          return;
+        }
+        knowledgeBaseColorOverrides[name] = input.value.toLowerCase();
+        saveKnowledgeBaseColors();
+        applyKnowledgeBaseColors();
+        window.dispatchEvent(new CustomEvent("openknowledge:knowledge-base-color"));
+      });
+    });
+    bindKnowledgeBaseDialog();
+  }
+
+  function bindKnowledgeBaseDialog() {
+    const trigger = document.querySelector("[data-knowledge-base-connect]");
+    if (!trigger || !knowledgeBaseDialog || !knowledgeBaseForm) {
+      return;
+    }
+    const status = knowledgeBaseForm.querySelector("[data-knowledge-base-form-status]");
+    const submit = knowledgeBaseForm.querySelector("[type='submit']");
+    const pathInput = knowledgeBaseForm.elements.namedItem("path");
+    trigger.addEventListener("click", function () {
+      knowledgeBaseForm.reset();
+      renderKnowledgeBaseFormStatus(status, "", "");
+      knowledgeBaseDialog.showModal();
+      window.requestAnimationFrame(function () {
+        pathInput?.focus();
+      });
+    });
+    knowledgeBaseDialog.querySelectorAll("[data-knowledge-base-dialog-close]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        knowledgeBaseDialog.close();
+        trigger.focus();
+      });
+    });
+    knowledgeBaseForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (!knowledgeBaseForm.reportValidity()) {
+        return;
+      }
+      const nameInput = knowledgeBaseForm.elements.namedItem("name");
+      const writeInput = knowledgeBaseForm.elements.namedItem("writeAccess");
+      const payload = {
+        path: String(pathInput?.value || "").trim(),
+        name: String(nameInput?.value || "").trim(),
+        access: writeInput?.checked ? "write" : "read",
+      };
+      submit.disabled = true;
+      renderKnowledgeBaseFormStatus(status, "Connecting…", "");
+      try {
+        const response = await fetch("/api/knowledge-bases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json().catch(function () { return {}; });
+        if (response.ok && result.url) {
+          renderKnowledgeBaseFormStatus(status, "Connected " + (result.name || "knowledge base") + ".", "");
+          window.location.assign(result.url);
+          return;
+        }
+        if (result.status === "needs_setup" && result.command) {
+          renderKnowledgeBaseSetupStatus(status, result.message, result.command);
+          return;
+        }
+        renderKnowledgeBaseFormStatus(status, result.message || "Could not connect this folder. Check the path and try again.", "error");
+      } catch {
+        renderKnowledgeBaseFormStatus(status, "Could not reach the local viewer. Restart okn view and try again.", "error");
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+
+  function renderKnowledgeBaseFormStatus(status, message, kind) {
+    if (!status) {
+      return;
+    }
+    status.replaceChildren();
+    status.textContent = message;
+    if (kind) {
+      status.dataset.kind = kind;
+    } else {
+      delete status.dataset.kind;
+    }
+  }
+
+  function renderKnowledgeBaseSetupStatus(status, message, command) {
+    renderKnowledgeBaseFormStatus(status, "", "");
+    const text = document.createElement("span");
+    text.textContent = message || "Create the knowledge base, then connect this folder again.";
+    const code = document.createElement("code");
+    code.className = "knowledge-base-setup-command";
+    code.textContent = command;
+    status.append(text, code);
+  }
+
   function treeRowIndent(row) {
     const inline = row.style.getPropertyValue("--indent");
     const value = parseFloat(inline);
@@ -898,24 +1096,34 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       directory.title = "Expand " + directory.dataset.treeDirectoryPath;
     });
     document.querySelectorAll(".knowledge-tree").forEach(syncTreeVisibility);
+    document.querySelectorAll("[data-knowledge-base-disclosure]").forEach(function (disclosure) {
+      disclosure.setAttribute("aria-expanded", "false");
+      const tree = document.getElementById(disclosure.getAttribute("aria-controls"));
+      if (tree) {
+        tree.hidden = true;
+      }
+    });
   }
 
-  function syncKnowledgeTrees(path, scrollCurrent) {
+  function syncKnowledgeTrees(path, scrollCurrent, knowledgeBase) {
     const normalizedPath = String(path || "");
+    const normalizedKnowledgeBase = String(knowledgeBase || currentKnowledgeBase || "");
     const directoryParts = normalizedPath.split("/").slice(0, -1);
     const ancestors = new Set();
     directoryParts.forEach(function (_part, index) {
       ancestors.add(directoryParts.slice(0, index + 1).join("/"));
     });
     document.querySelectorAll(".knowledge-tree").forEach(function (tree) {
+      const treeKnowledgeBase = tree.closest("[data-knowledge-base-name]")?.dataset.knowledgeBaseName || tree.dataset.knowledgeBase || "";
+      const sameKnowledgeBase = !normalizedKnowledgeBase || !treeKnowledgeBase || treeKnowledgeBase === normalizedKnowledgeBase;
       tree.querySelectorAll("[data-tree-directory-path]").forEach(function (directory) {
-        if (ancestors.has(directory.dataset.treeDirectoryPath)) {
+        if (sameKnowledgeBase && ancestors.has(directory.dataset.treeDirectoryPath)) {
           directory.setAttribute("aria-expanded", "true");
           directory.title = "Collapse " + directory.dataset.treeDirectoryPath;
         }
       });
       tree.querySelectorAll("[data-tree-path]").forEach(function (link) {
-        const current = link.dataset.treePath === normalizedPath;
+        const current = sameKnowledgeBase && link.dataset.treePath === normalizedPath;
         link.classList.toggle("is-current-file", current);
         if (current) {
           link.setAttribute("aria-current", "page");
@@ -927,9 +1135,22 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       });
       syncTreeVisibility(tree);
     });
+    document.querySelectorAll("[data-knowledge-base-name]").forEach(function (group) {
+      const active = group.dataset.knowledgeBaseName === normalizedKnowledgeBase;
+      group.classList.toggle("is-active", active);
+      if (!active) {
+        return;
+      }
+      const disclosure = group.querySelector("[data-knowledge-base-disclosure]");
+      const tree = group.querySelector(".knowledge-tree");
+      disclosure?.setAttribute("aria-expanded", "true");
+      if (tree) {
+        tree.hidden = false;
+      }
+    });
     if (scrollCurrent && fileSidebar) {
       const current = Array.from(fileSidebar.querySelectorAll("[data-tree-path]")).find(function (link) {
-        return link.dataset.treePath === normalizedPath;
+        return link.dataset.treePath === normalizedPath && (!normalizedKnowledgeBase || !link.dataset.knowledgeBase || link.dataset.knowledgeBase === normalizedKnowledgeBase);
       });
       if (current) {
         window.requestAnimationFrame(function () {
@@ -941,17 +1162,26 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function ensureSidebarCollapseControl() {
     const actions = fileSidebar?.querySelector("[data-sidebar-tree-actions]");
-    if (!actions || actions.querySelector("[data-sidebar-collapse]")) {
+    if (!actions) {
       return;
     }
     actions.classList.add("file-sidebar-actions");
-    const collapse = document.createElement("button");
-    collapse.type = "button";
-    collapse.className = "file-sidebar-collapse";
-    collapse.dataset.sidebarCollapse = "";
-    collapse.textContent = "Collapse all";
+    let collapse = actions.querySelector("[data-sidebar-collapse]");
+    if (!collapse) {
+      collapse = document.createElement("button");
+      collapse.type = "button";
+      collapse.className = "file-sidebar-icon-action";
+      collapse.dataset.sidebarCollapse = "";
+      collapse.setAttribute("aria-label", "Collapse all");
+      collapse.title = "Collapse all";
+      collapse.append(controlIcon("collapse", "file-sidebar-collapse-icon"));
+      actions.append(collapse);
+    }
+    if (collapse.dataset.collapseBound === "true") {
+      return;
+    }
+    collapse.dataset.collapseBound = "true";
     collapse.addEventListener("click", collapseKnowledgeTrees);
-    actions.append(collapse);
   }
 
   function noteIndexPath(parts) {
@@ -961,12 +1191,15 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }) || "";
   }
 
-  function createNoteBreadcrumbs(path) {
+  function createNoteBreadcrumbs(path, knowledgeBase) {
     const normalizedPath = String(path || "index.md");
     const pathParts = normalizedPath.split("/").filter(Boolean);
     const leaf = pathParts[pathParts.length - 1] || "index.md";
     const isDirectoryIndex = /^index\.(md|markdown)$/i.test(leaf) && pathParts.length > 1;
     const displayParts = isDirectoryIndex ? pathParts.slice(0, -1) : pathParts;
+    const knowledgeBasePrefix = knowledgeBaseNames().length > 1
+      ? String(knowledgeBase || "").trim()
+      : "";
     const breadcrumbs = document.createElement("nav");
     breadcrumbs.className = "note-path note-breadcrumbs";
     breadcrumbs.dataset.noteBreadcrumbs = "";
@@ -974,6 +1207,19 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     breadcrumbs.dataset.notePathValue = normalizedPath;
     breadcrumbs.setAttribute("aria-label", "Note path");
     breadcrumbs.title = normalizedPath;
+
+    if (knowledgeBasePrefix) {
+      const prefix = document.createElement("span");
+      prefix.className = "note-breadcrumb-label";
+      prefix.textContent = knowledgeBasePrefix;
+      breadcrumbs.append(prefix);
+
+      const separator = document.createElement("span");
+      separator.className = "note-breadcrumb-separator";
+      separator.setAttribute("aria-hidden", "true");
+      separator.textContent = "/";
+      breadcrumbs.append(separator);
+    }
 
     displayParts.forEach(function (part, index) {
       if (index > 0) {
@@ -1020,7 +1266,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (!existing || existing.dataset.breadcrumbsReady === "true") {
       return;
     }
-    existing.replaceWith(createNoteBreadcrumbs(panel.dataset.notePath));
+    existing.replaceWith(createNoteBreadcrumbs(panel.dataset.notePath, panel.dataset.knowledgeBase));
   }
 
   function readKnowledgeGraph() {
@@ -1421,13 +1667,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }).map(function (node) {
       const point = positions[node.path];
       const nodeDegree = degree[node.path] || 0;
+      const sourcePath = node.sourcePath || node.path;
       return {
         node: node,
         path: node.path,
-        group: graphPathGroup(node.path),
+        group: graphPathGroup(sourcePath),
         label: graphNodeLabel(node, labelsByPath),
         fullLabel: graphNodeFullLabel(node, labelsByPath),
-        radius: node.path === "index.md" ? 10 : 4.5 + Math.min(5.5, Math.sqrt(nodeDegree) * 1.45),
+        radius: sourcePath === "index.md" ? 10 : 4.5 + Math.min(5.5, Math.sqrt(nodeDegree) * 1.45),
         degree: nodeDegree,
         baseX: point.x,
         baseY: point.y,
@@ -1452,7 +1699,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const runningListeners = [];
     let filter = "";
     let activePath = "";
-    let keyboardIndex = states.findIndex(function (state) { return state.path === "index.md"; });
+    let keyboardIndex = states.findIndex(function (state) {
+      return (state.node.sourcePath || state.path) === "index.md" && (!currentKnowledgeBase || state.node.knowledgeBase === currentKnowledgeBase);
+    });
+    if (keyboardIndex < 0) {
+      keyboardIndex = states.findIndex(function (state) { return (state.node.sourcePath || state.path) === "index.md"; });
+    }
     let lastPointer = null;
     let pointerGesture = null;
     let frame = 0;
@@ -1693,7 +1945,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         canvas.releasePointerCapture(event.pointerId);
       }
       if (shouldOpen) {
-        openTarget(activatedNode.path, true, shouldOpenBeside(false));
+        openGraphNode(activatedNode.node);
       }
     };
     canvas.addEventListener("pointerup", endPointerGesture);
@@ -1722,7 +1974,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       if (event.key === "Enter" || event.key === " ") {
         if (activePath) {
           event.preventDefault();
-          openTarget(activePath, true, shouldOpenBeside(false));
+          openGraphNode(stateByPath[activePath].node);
         }
         return;
       }
@@ -1767,6 +2019,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       if (!canvas.isConnected || !context) {
         resizeObserver?.disconnect();
         themeObserver?.disconnect();
+        window.removeEventListener("openknowledge:knowledge-base-color", invalidate);
         return;
       }
       const visible = visibleStates();
@@ -1789,6 +2042,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         resizeObserver?.observe(canvas);
         themeObserver = new MutationObserver(invalidate);
         themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-viewer-theme", "data-viewer-contrast", "style"] });
+        window.addEventListener("openknowledge:knowledge-base-color", invalidate);
         resizeCanvas();
         updateStatus();
         invalidate();
@@ -1815,6 +2069,18 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       },
       reset: resetGraph,
     };
+  }
+
+  function openGraphNode(node) {
+    if (!node) {
+      return;
+    }
+    const knowledgeBase = String(node.knowledgeBase || "").trim();
+    if (knowledgeBase && currentKnowledgeBase && knowledgeBase !== currentKnowledgeBase && node.url) {
+      window.location.assign(node.url);
+      return;
+    }
+    openTarget(node.sourcePath || node.path, true, shouldOpenBeside(false));
   }
 
   function graphCanvasPhysicsStep(states, links, stateByPath, activePath, width, height, settingsValue) {
@@ -1967,7 +2233,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         context.stroke();
       }
 
-      const labelImportance = Math.min(0.5, state.degree * 0.09) + (state.path === "index.md" ? 0.35 : 0);
+      const sourcePath = state.node.sourcePath || state.path;
+      const labelImportance = Math.min(0.5, state.degree * 0.09) + (sourcePath === "index.md" ? 0.35 : 0);
       const reveal = clamp((camera.zoom + labelImportance - (0.68 + settingsValue.labelThreshold * 0.006)) / 0.28, 0, 1);
       if (activeNode || reveal > 0.02) {
         const label = activeNode ? state.fullLabel : state.label;
@@ -1976,7 +2243,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         context.textBaseline = "middle";
         context.textAlign = "center";
         const labelY = state.y + radius + 13 + state.z * 2;
-        context.fillStyle = activeNode ? theme.labelActive : theme.label;
+        context.fillStyle = state.node.knowledgeBase ? knowledgeBaseColor(state.node.knowledgeBase) : (activeNode ? theme.labelActive : theme.label);
         context.fillText(label, state.x, labelY);
       }
       context.restore();
@@ -2106,7 +2373,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
     const groupCenters = graphGroupCenters(nodes, width, height);
     const states = nodes.map(function (node) {
-      const group = graphPathGroup(node.path);
+      const sourcePath = node.sourcePath || node.path;
+      const group = graphPathGroup(sourcePath);
       const groupCenter = groupCenters[group] || center;
       const hash = graphHash(node.path);
       const angle = ((hash % 360) / 360) * Math.PI * 2;
@@ -2115,7 +2383,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         node: node,
         group: group,
         label: graphNodeLabel(node, labelsByPath),
-        radius: node.path === "index.md" ? 16 : 10,
+        radius: sourcePath === "index.md" ? 16 : 10,
         x: groupCenter.x + Math.cos(angle) * spread,
         y: groupCenter.y + Math.sin(angle) * spread,
         vx: 0,
@@ -2170,7 +2438,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       states.forEach(function (state) {
         const groupCenter = groupCenters[state.group] || center;
         const nodeDegree = degree[state.node.path] || 0;
-        const centerPull = state.node.path === "index.md" ? 0.04 : 0.002 + Math.min(nodeDegree, 8) * 0.0008;
+        const centerPull = (state.node.sourcePath || state.node.path) === "index.md" ? 0.04 : 0.002 + Math.min(nodeDegree, 8) * 0.0008;
         const groupPull = nodeDegree > 0 ? 0.006 : 0.018;
         state.vx += (center.x - state.x) * centerPull;
         state.vy += (center.y - state.y) * centerPull;
@@ -2195,7 +2463,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function graphGroupCenters(nodes, width, height) {
     const counts = Object.create(null);
     nodes.forEach(function (node) {
-      const group = graphPathGroup(node.path);
+      const group = graphPathGroup(node.sourcePath || node.path);
       counts[group] = (counts[group] || 0) + 1;
     });
     const groups = Object.keys(counts).sort(function (a, b) {
@@ -2326,7 +2594,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function graphNodeCollisionBox(state) {
     const labelWidth = graphLabelWidth(state.label);
-    const labelTop = state.y + (state.node.path === "index.md" ? 19 : 15);
+    const labelTop = state.y + ((state.node.sourcePath || state.node.path) === "index.md" ? 19 : 15);
     const labelBottom = labelTop + 20;
     const halfWidth = Math.max(state.radius + 10, labelWidth / 2 + 11);
     return {
@@ -2399,9 +2667,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         labels[peers[0].path] = base;
         return;
       }
-      const peerPaths = peers.map(function (node) { return node.path; });
+      const peerPaths = peers.map(function (node) { return node.sourcePath || node.path; });
       peers.forEach(function (node) {
-        labels[node.path] = graphShortestUniquePathSuffix(node.path, peerPaths);
+        labels[node.path] = graphShortestUniquePathSuffix(node.sourcePath || node.path, peerPaths);
       });
     });
     return labels;
@@ -2412,7 +2680,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (title && title.toLowerCase() !== "index") {
       return title;
     }
-    return graphPathDisplayName(node.path);
+    return graphPathDisplayName(node.sourcePath || node.path);
   }
 
   function graphPathDisplayName(path) {
@@ -3141,7 +3409,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       }
     });
     updateTitle();
-    syncKnowledgeTrees(panel.dataset.notePath, false);
+    syncKnowledgeTrees(panel.dataset.notePath, false, panel.dataset.knowledgeBase);
   }
 
   function ensureActivePanel() {
@@ -3372,7 +3640,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function queueWorkspaceRailUpdate() {
-    window.requestAnimationFrame(updateWorkspaceRail);
+    if (workspaceRailFrame) {
+      return;
+    }
+    workspaceRailFrame = window.requestAnimationFrame(function () {
+      workspaceRailFrame = 0;
+      updateWorkspaceRail();
+    });
   }
 
   function updateWorkspaceRail() {
@@ -3408,15 +3682,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     scrollThumb.setAttribute("aria-valuenow", String(Math.round(workspace.scrollLeft)));
   }
 
-  function scrollWorkspaceFromRail(clientX, thumbOffset) {
-    if (!canShowWorkspaceRail()) {
+  function scrollWorkspaceFromRail(clientX, thumbOffset, geometry) {
+    if (!geometry && !canShowWorkspaceRail()) {
       return;
     }
-    const trackRect = scrollTrack.getBoundingClientRect();
-    const thumbRect = scrollThumb.getBoundingClientRect();
-    const maxThumbX = Math.max(0, trackRect.width - thumbRect.width);
-    const maxScroll = maxWorkspaceScroll();
-    const thumbX = clamp(clientX - trackRect.left - thumbOffset, 0, maxThumbX);
+    const trackRect = geometry ? null : scrollTrack.getBoundingClientRect();
+    const thumbRect = geometry ? null : scrollThumb.getBoundingClientRect();
+    const trackLeft = geometry ? geometry.trackLeft : trackRect.left;
+    const maxThumbX = geometry ? geometry.maxThumbX : Math.max(0, trackRect.width - thumbRect.width);
+    const maxScroll = geometry ? geometry.maxScroll : maxWorkspaceScroll();
+    const thumbX = clamp(clientX - trackLeft - thumbOffset, 0, maxThumbX);
     workspace.scrollLeft = maxThumbX > 0 ? (thumbX / maxThumbX) * maxScroll : 0;
   }
 
@@ -3954,7 +4229,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         }
       });
     });
-    syncKnowledgeTrees((activePanel() || all[all.length - 1])?.dataset.notePath || "", false);
+    const currentPanel = activePanel() || all[all.length - 1];
+    syncKnowledgeTrees(currentPanel?.dataset.notePath || "", false, currentPanel?.dataset.knowledgeBase);
   }
 
   function scrollToPanel(panel) {
@@ -4118,12 +4394,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     panel.className = "document note-panel" + (animate && stackMotionIsEnabled() ? " is-entering" : "");
     panel.dataset.notePath = data.path;
     panel.dataset.noteTitle = data.title || data.path;
+    const panelKnowledgeBase = String(data.knowledgeBase || currentKnowledgeBase || "").trim();
+    if (panelKnowledgeBase) {
+      panel.dataset.knowledgeBase = panelKnowledgeBase;
+    }
     panel.tabIndex = -1;
 
     const chrome = document.createElement("div");
     chrome.className = "note-chrome";
 
-    chrome.append(createNoteBreadcrumbs(data.path));
+    chrome.append(createNoteBreadcrumbs(data.path, panelKnowledgeBase));
 
     const actions = document.createElement("div");
     actions.className = "note-actions";
@@ -4810,17 +5090,22 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (!canShowWorkspaceRail() || event.button !== 0) {
       return;
     }
+    const trackRect = scrollTrack.getBoundingClientRect();
     const thumbRect = scrollThumb.getBoundingClientRect();
     railDrag = {
       pointerId: event.pointerId,
-      thumbOffset: clamp(event.clientX - thumbRect.left, 0, thumbRect.width)
+      thumbOffset: clamp(event.clientX - thumbRect.left, 0, thumbRect.width),
+      trackLeft: trackRect.left,
+      maxThumbX: Math.max(0, trackRect.width - thumbRect.width),
+      maxScroll: maxWorkspaceScroll()
     };
     scrollRail.classList.add("is-rail-dragging");
+    workspace.classList.add("is-rail-dragging");
     window.addEventListener("pointermove", updateRailDrag);
     window.addEventListener("pointerup", stopRailDrag);
     window.addEventListener("pointercancel", stopRailDrag);
     window.addEventListener("blur", cancelRailDrag);
-    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset);
+    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset, railDrag);
     event.preventDefault();
     try {
       scrollThumb.setPointerCapture(event.pointerId);
@@ -4842,7 +5127,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (!railDrag || event.pointerId !== railDrag.pointerId) {
       return;
     }
-    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset);
+    scrollWorkspaceFromRail(event.clientX, railDrag.thumbOffset, railDrag);
     event.preventDefault();
   }
 
@@ -4855,6 +5140,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     railDrag = null;
     scrollRail.classList.remove("is-rail-dragging");
+    workspace.classList.remove("is-rail-dragging");
     window.removeEventListener("pointermove", updateRailDrag);
     window.removeEventListener("pointerup", stopRailDrag);
     window.removeEventListener("pointercancel", stopRailDrag);
@@ -4921,9 +5207,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   if (scrollTrack && scrollThumb) {
     scrollTrack.addEventListener("pointerdown", startRailTrackJump);
     scrollThumb.addEventListener("pointerdown", startRailDrag);
-    scrollThumb.addEventListener("pointermove", updateRailDrag);
-    scrollThumb.addEventListener("pointerup", stopRailDrag);
-    scrollThumb.addEventListener("pointercancel", stopRailDrag);
     scrollThumb.addEventListener("keydown", scrollRailWithKeyboard);
   }
 
@@ -5057,6 +5340,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
+      const targetKnowledgeBase = String(treeLink?.dataset.knowledgeBase || "").trim();
+      if (treeLink && currentKnowledgeBase && targetKnowledgeBase && targetKnowledgeBase !== currentKnowledgeBase) {
+        if (mobileSidebar.matches) {
+          setSidebarOpen(false);
+        }
+        return;
+      }
       const targetPath = treeLink?.dataset.treePath || notePathFromHref(link.getAttribute("href") || link.href);
       if (!targetPath) {
         return;
@@ -5136,6 +5426,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   bindDocumentsView();
   bindGraphView();
   bindViewerSettings();
+  prepareKnowledgeBases();
   prepareKnowledgeTrees();
   renderKnowledgeGraph();
   panels().forEach(bindPanel);

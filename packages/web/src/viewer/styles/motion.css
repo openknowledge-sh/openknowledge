@@ -56,6 +56,9 @@ html[data-viewer-motion="reduced"] *::after { animation-duration: .001ms !import
   html[data-viewer-motion="system"] *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
 html[data-viewer-motion="full"] .note-workspace { scroll-behavior: smooth; }
+html[data-viewer-motion="full"] .note-workspace.is-space-panning,
+html[data-viewer-motion="full"] .note-workspace.is-drag-scrolling,
+html[data-viewer-motion="full"] .note-workspace.is-rail-dragging { scroll-behavior: auto; }
 html[data-viewer-motion="full"] .note-panel.is-entering { animation: note-enter .28s cubic-bezier(.22, .8, .2, 1); }
 html[data-viewer-motion="full"] .note-body a { transition: background-color .16s ease, color .16s ease; }
 @media (hover: hover) and (pointer: fine) {

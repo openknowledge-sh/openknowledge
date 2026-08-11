@@ -630,7 +630,7 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await context.close();
 });
 
-test("exported viewer keeps long responsive brands visible before the search field", async () => {
+test("exported viewer right-aligns search and keeps long responsive brands visible", async () => {
   const context = await browser.newContext({ viewport: { width: 570, height: 844 } });
   const page = await context.newPage();
 
@@ -644,18 +644,25 @@ test("exported viewer keeps long responsive brands visible before the search fie
     await page.setViewportSize({ width, height: 844 });
     const brandBox = await brand.boundingBox();
     const searchBox = await page.locator(".search.header-search").boundingBox();
+    const graphBox = await page.locator("body.viewer-document > header > .graph-view-toggle").boundingBox();
     const brandOverflow = await brand.evaluate((element) => ({
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
       textOverflow: getComputedStyle(element).textOverflow,
     }));
 
-    assert.ok(brandBox && searchBox, `the brand and search should remain visible at ${width}px`);
+    assert.ok(brandBox && searchBox && graphBox, `the header controls should remain visible at ${width}px`);
     assert.equal(brandOverflow.textOverflow, "ellipsis");
     assert.ok(brandOverflow.clientWidth >= 96, `the brand should keep a useful visible width at ${width}px`);
     assert.ok(brandOverflow.clientWidth < brandOverflow.scrollWidth, `the long brand should be truncated at ${width}px`);
     assert.ok(brandBox.x + brandBox.width <= searchBox.x, `the truncated brand should not sit beneath search at ${width}px`);
+    const searchGraphGap = graphBox.x - (searchBox.x + searchBox.width);
+    assert.ok(searchBox.x + searchBox.width / 2 > width / 2, `search should sit in the right half at ${width}px`);
+    assert.ok(searchGraphGap >= 8 && searchGraphGap <= 16, `search should align beside the graph control at ${width}px`);
   }
+  await page.setViewportSize({ width: 1280, height: 844 });
+  const desktopSearchBox = await page.locator(".search.header-search").boundingBox();
+  assert.ok(desktopSearchBox && desktopSearchBox.width <= 380, "desktop search should keep its compact width");
   await context.close();
 });
 
@@ -792,6 +799,31 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.goBack();
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 2);
   await page.locator('[data-note-path="index.md"] .note-chrome').click();
+
+  await page.locator("html").evaluate((html) => {
+    html.dataset.viewerMotion = "full";
+  });
+  const workspaceScroll = page.locator(".note-workspace");
+  const scrollTrack = page.locator(".workspace-scroll-track");
+  const scrollThumb = page.locator(".workspace-scroll-thumb");
+  const scrollTrackDragBox = await scrollTrack.boundingBox();
+  const scrollThumbDragBox = await scrollThumb.boundingBox();
+  assert.ok(scrollTrackDragBox && scrollThumbDragBox, "the horizontal scroll rail should be available for stacked notes");
+  const dragRatio = 0.62;
+  const dragStartX = scrollThumbDragBox.x + scrollThumbDragBox.width / 2;
+  const dragY = scrollThumbDragBox.y + scrollThumbDragBox.height / 2;
+  const dragTargetX = scrollTrackDragBox.x
+    + (scrollTrackDragBox.width - scrollThumbDragBox.width) * dragRatio
+    + scrollThumbDragBox.width / 2;
+  await page.mouse.move(dragStartX, dragY);
+  await page.mouse.down();
+  assert.equal(await workspaceScroll.evaluate((element) => getComputedStyle(element).scrollBehavior), "auto", "thumb dragging should disable animated workspace scrolling");
+  await page.mouse.move(dragTargetX, dragY, { steps: 4 });
+  const draggedScrollRatio = await workspaceScroll.evaluate((element) => element.scrollLeft / (element.scrollWidth - element.clientWidth));
+  assert.ok(Math.abs(draggedScrollRatio - dragRatio) < 0.03, "the workspace should directly track the dragged thumb position");
+  await page.mouse.up();
+  assert.equal(await workspaceScroll.evaluate((element) => element.classList.contains("is-rail-dragging")), false, "the workspace should leave its rail drag state after release");
+  assert.equal(await workspaceScroll.evaluate((element) => getComputedStyle(element).scrollBehavior), "smooth", "non-drag workspace scrolling should preserve the full-motion preference");
 
   if (await page.locator("body").evaluate((body) => !body.classList.contains("is-sidebar-open"))) {
     await page.getByRole("button", { name: "Open file explorer" }).click();

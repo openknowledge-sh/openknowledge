@@ -377,7 +377,7 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 		}
 		if strings.HasPrefix(rest, "api/file/") {
 			rel := strings.TrimPrefix(rest, "api/file/")
-			renderViewerFileAPI(response, request, root, rel, prefix)
+			renderViewerFileAPI(response, request, root, rel, prefix, aliasName)
 			return
 		}
 		if strings.HasPrefix(rest, "raw/") {
@@ -396,7 +396,7 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 	})
 	mux.HandleFunc("/api/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/api/file/")
-		renderViewerFileAPI(response, request, root, rel, "")
+		renderViewerFileAPI(response, request, root, rel, "", aliasName)
 	})
 	mux.HandleFunc("/raw/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/raw/")
@@ -462,6 +462,10 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 		}
 		return cache, nil
 	}
+	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
+		renderRegistryViewerSearch(response, request, entries, searchCacheForEntry)
+	})
+	mux.HandleFunc("/api/knowledge-bases", renderViewerKnowledgeBaseConnect)
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/" {
 			entry, rest, ok := parseRegistryAliasRoute(request.URL.Path, entries)
@@ -508,7 +512,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 						http.Error(response, err.Error(), http.StatusInternalServerError)
 						return
 					}
-					renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
+					renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix, entry.Name)
 					return
 				}
 				if strings.HasPrefix(rest, "raw/") {
@@ -575,7 +579,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 				http.Error(response, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix)
+			renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix, entry.Name)
 			return
 		}
 		if strings.HasPrefix(rest, "raw/") {
@@ -640,16 +644,20 @@ type viewerEntry struct {
 }
 
 type viewerWorkspace struct {
-	Name   string
-	Root   string
-	URL    string
-	Active bool
+	Name         string
+	Root         string
+	ResolvedRoot string
+	URL          string
+	Active       bool
+	Tree         []viewerTreeItem
+	Error        string
 }
 
 type viewerFrame struct {
 	Workspaces []viewerWorkspace
 	ActiveName string
 	ActiveURL  string
+	CanConnect bool
 }
 
 type viewerIndexData struct {
@@ -715,6 +723,10 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 		})
 	}
 
+	searchURL := searchURLWithPrefix(linkPrefix)
+	if len(frame.Workspaces) > 0 {
+		searchURL = "/api/search"
+	}
 	renderHTML(response, viewerIndexTemplate, viewerIndexData{
 		Frame:     frame,
 		Title:     title,
@@ -722,34 +734,35 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 		HomeURL:   viewerPrefixRoot(linkPrefix),
 		Root:      root,
 		Theme:     theme,
-		SearchURL: searchURLWithPrefix(linkPrefix),
+		SearchURL: searchURL,
 		Entries:   entries,
 		HeadHTML:  options.HeadHTML,
 	})
 }
 
 type viewerFileData struct {
-	Frame       viewerFrame
-	Title       string
-	BrandName   string
-	HomeURL     string
-	Root        string
-	Editable    bool
-	Path        string
-	FileURL     string
-	SourceURL   string
-	LinkPrefix  string
-	SearchURL   string
-	Theme       viewerThemeData
-	Frontmatter template.HTML
-	Body        template.HTML
-	Kind        string
-	Tree        []viewerTreeItem
-	EditorsJSON template.JS
-	StaticJSON  template.JS
-	GraphJSON   template.JS
-	HeadHTML    template.HTML
-	Scripts     viewerScriptURLs
+	Frame         viewerFrame
+	Title         string
+	BrandName     string
+	KnowledgeBase string
+	HomeURL       string
+	Root          string
+	Editable      bool
+	Path          string
+	FileURL       string
+	SourceURL     string
+	LinkPrefix    string
+	SearchURL     string
+	Theme         viewerThemeData
+	Frontmatter   template.HTML
+	Body          template.HTML
+	Kind          string
+	Tree          []viewerTreeItem
+	EditorsJSON   template.JS
+	StaticJSON    template.JS
+	GraphJSON     template.JS
+	HeadHTML      template.HTML
+	Scripts       viewerScriptURLs
 }
 
 type viewerScriptURLs struct {
@@ -776,11 +789,12 @@ type viewerAssetData struct {
 }
 
 type viewerFilePayload struct {
-	Title       string `json:"title"`
-	Path        string `json:"path"`
-	Kind        string `json:"kind,omitempty"`
-	Frontmatter string `json:"frontmatter,omitempty"`
-	Body        string `json:"body"`
+	Title         string `json:"title"`
+	Path          string `json:"path"`
+	KnowledgeBase string `json:"knowledgeBase,omitempty"`
+	Kind          string `json:"kind,omitempty"`
+	Frontmatter   string `json:"frontmatter,omitempty"`
+	Body          string `json:"body"`
 }
 
 type viewerStaticPayload struct {
@@ -799,9 +813,11 @@ type viewerGraphData struct {
 }
 
 type viewerGraphNode struct {
-	Path  string `json:"path"`
-	Title string `json:"title"`
-	URL   string `json:"url"`
+	Path          string `json:"path"`
+	SourcePath    string `json:"sourcePath,omitempty"`
+	KnowledgeBase string `json:"knowledgeBase,omitempty"`
+	Title         string `json:"title"`
+	URL           string `json:"url"`
 }
 
 type viewerGraphEdge struct {
@@ -864,6 +880,7 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 			}
 			data.HeadHTML = options.HeadHTML
 			data.Editable = !options.ReadOnly
+			prepareViewerFileRegistryData(&data, frame, options)
 			renderHTML(response, viewerFileTemplate, data)
 			return
 		}
@@ -882,8 +899,24 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 	}
 	data.HeadHTML = options.HeadHTML
 	data.Editable = !options.ReadOnly
+	prepareViewerFileRegistryData(&data, frame, options)
 
 	renderHTML(response, viewerFileTemplate, data)
+}
+
+func prepareViewerFileRegistryData(data *viewerFileData, frame viewerFrame, options viewerOptions) {
+	if data == nil {
+		return
+	}
+	data.KnowledgeBase = frame.ActiveName
+	if data.KnowledgeBase == "" {
+		data.KnowledgeBase = options.AliasName
+	}
+	if len(frame.Workspaces) == 0 {
+		return
+	}
+	data.SearchURL = "/api/search"
+	data.GraphJSON = registryGraphJSON(frame.Workspaces)
 }
 
 func renderViewerAsset(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string, options viewerOptions) {
@@ -1035,7 +1068,7 @@ func viewerRawPathIsPrivate(rel string) bool {
 	return false
 }
 
-func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string) {
+func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string, knowledgeBase string) {
 	if cleanRel, ok := cleanViewerRel(rel, true); ok && !isMarkdownFile(cleanRel) {
 		asset, found, err := viewerAsset(root, cleanRel, linkPrefix)
 		if !found || err != nil || (asset.Kind != "code" && asset.Kind != "text") {
@@ -1044,10 +1077,11 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 		}
 		response.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if err := json.NewEncoder(response).Encode(viewerFilePayload{
-			Title: asset.Title,
-			Path:  asset.Path,
-			Kind:  asset.Kind,
-			Body:  string(asset.Body),
+			Title:         asset.Title,
+			Path:          asset.Path,
+			KnowledgeBase: knowledgeBase,
+			Kind:          asset.Kind,
+			Body:          string(asset.Body),
 		}); err != nil {
 			http.Error(response, err.Error(), http.StatusInternalServerError)
 		}
@@ -1066,11 +1100,12 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 
 	response.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err := json.NewEncoder(response).Encode(viewerFilePayload{
-		Title:       data.Title,
-		Path:        data.Path,
-		Kind:        data.Kind,
-		Frontmatter: string(data.Frontmatter),
-		Body:        string(data.Body),
+		Title:         data.Title,
+		Path:          data.Path,
+		KnowledgeBase: knowledgeBase,
+		Kind:          data.Kind,
+		Frontmatter:   string(data.Frontmatter),
+		Body:          string(data.Body),
 	}); err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 	}
@@ -1184,6 +1219,7 @@ type viewerSearchResponse struct {
 }
 
 type viewerSearchResult struct {
+	KnowledgeBase   string   `json:"knowledgeBase,omitempty"`
 	Path            string   `json:"path"`
 	URL             string   `json:"url"`
 	ID              string   `json:"id"`
@@ -1365,9 +1401,15 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 		return
 	}
 
-	query := strings.TrimSpace(request.URL.Query().Get("q"))
-	tag := strings.TrimSpace(request.URL.Query().Get("tag"))
-	excludePath := strings.TrimSpace(request.URL.Query().Get("exclude"))
+	payload, err := viewerSearchPayload(request, searchCache, linkPrefix, "")
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeViewerSearchJSON(response, payload)
+}
+
+func viewerSearchLimit(request *http.Request) int {
 	limit := 12
 	if rawLimit := strings.TrimSpace(request.URL.Query().Get("limit")); rawLimit != "" {
 		parsed, err := strconv.Atoi(rawLimit)
@@ -1378,16 +1420,26 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 	if limit > 30 {
 		limit = 30
 	}
+	return limit
+}
+
+func viewerSearchPayload(request *http.Request, searchCache *viewerSearchCache, linkPrefix string, knowledgeBase string) (viewerSearchResponse, error) {
+	query := strings.TrimSpace(request.URL.Query().Get("q"))
+	tag := strings.TrimSpace(request.URL.Query().Get("tag"))
+	excludePath := strings.TrimSpace(request.URL.Query().Get("exclude"))
+	excludeKnowledgeBase := strings.TrimSpace(request.URL.Query().Get("excludeKnowledgeBase"))
+	limit := viewerSearchLimit(request)
+	if excludeKnowledgeBase != "" && excludeKnowledgeBase != knowledgeBase {
+		excludePath = ""
+	}
 
 	if query == "" && tag == "" {
-		writeViewerSearchJSON(response, viewerSearchResponse{Query: query})
-		return
+		return viewerSearchResponse{Query: query}, nil
 	}
 	if tag != "" {
 		files, err := searchCache.SearchTag(tag, excludePath, limit)
 		if err != nil {
-			http.Error(response, err.Error(), http.StatusInternalServerError)
-			return
+			return viewerSearchResponse{}, err
 		}
 		payload := viewerSearchResponse{
 			Query:   tag,
@@ -1399,20 +1451,20 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 				title = titleForMarkdownFile(file.Path)
 			}
 			payload.Results = append(payload.Results, viewerSearchResult{
-				Path:        file.Path,
-				URL:         fileURLWithPrefix(linkPrefix, file.Path),
-				ID:          file.ID,
-				Kind:        file.Kind,
-				Type:        file.Type,
-				Title:       title,
-				Description: file.Description,
-				Snippet:     file.Description,
-				Score:       1,
-				Matches:     []string{"tags"},
+				KnowledgeBase: knowledgeBase,
+				Path:          file.Path,
+				URL:           fileURLWithPrefix(linkPrefix, file.Path),
+				ID:            file.ID,
+				Kind:          file.Kind,
+				Type:          file.Type,
+				Title:         title,
+				Description:   file.Description,
+				Snippet:       file.Description,
+				Score:         1,
+				Matches:       []string{"tags"},
 			})
 		}
-		writeViewerSearchJSON(response, payload)
-		return
+		return payload, nil
 	}
 
 	results, err := searchCache.Search(okf.SearchOptions{
@@ -1421,8 +1473,7 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 		Fuzzy: true,
 	})
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return viewerSearchResponse{}, err
 	}
 
 	payload := viewerSearchResponse{
@@ -1432,6 +1483,7 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 	for _, result := range results {
 		resultURL := fileURLWithPrefix(linkPrefix, result.Path)
 		payload.Results = append(payload.Results, viewerSearchResult{
+			KnowledgeBase:   knowledgeBase,
 			Path:            result.Path,
 			URL:             resultURL,
 			ID:              result.ID,
@@ -1456,7 +1508,161 @@ func renderViewerSearch(response http.ResponseWriter, request *http.Request, sea
 		})
 	}
 
-	writeViewerSearchJSON(response, payload)
+	return payload, nil
+}
+
+func renderRegistryViewerSearch(response http.ResponseWriter, request *http.Request, entries []okf.RegistryEntry, cacheFor func(okf.RegistryEntry) (*viewerSearchCache, error)) {
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", http.MethodGet)
+		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	combined := viewerSearchResponse{Query: strings.TrimSpace(request.URL.Query().Get("q"))}
+	if combined.Query == "" {
+		combined.Query = strings.TrimSpace(request.URL.Query().Get("tag"))
+	}
+	var firstErr error
+	loaded := 0
+	for _, entry := range entries {
+		cache, err := cacheFor(entry)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		payload, err := viewerSearchPayload(request, cache, workspacePrefix(entry.Name), entry.Name)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		loaded++
+		combined.Results = append(combined.Results, payload.Results...)
+	}
+	if loaded == 0 && firstErr != nil {
+		http.Error(response, firstErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sort.SliceStable(combined.Results, func(left int, right int) bool {
+		if combined.Results[left].Score != combined.Results[right].Score {
+			return combined.Results[left].Score > combined.Results[right].Score
+		}
+		if combined.Results[left].KnowledgeBase != combined.Results[right].KnowledgeBase {
+			return combined.Results[left].KnowledgeBase < combined.Results[right].KnowledgeBase
+		}
+		return combined.Results[left].Path < combined.Results[right].Path
+	})
+	if limit := viewerSearchLimit(request); len(combined.Results) > limit {
+		combined.Results = combined.Results[:limit]
+	}
+	writeViewerSearchJSON(response, combined)
+}
+
+type viewerKnowledgeBaseConnectRequest struct {
+	Path   string `json:"path"`
+	Name   string `json:"name,omitempty"`
+	Access string `json:"access,omitempty"`
+}
+
+type viewerKnowledgeBaseConnectResponse struct {
+	Status  string `json:"status"`
+	Name    string `json:"name,omitempty"`
+	URL     string `json:"url,omitempty"`
+	Warning string `json:"warning,omitempty"`
+	Message string `json:"message,omitempty"`
+	Command string `json:"command,omitempty"`
+}
+
+func renderViewerKnowledgeBaseConnect(response http.ResponseWriter, request *http.Request) {
+	response.Header().Set("Cache-Control", "no-store")
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", http.MethodPost)
+		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !viewerMutationOriginAllowed(request) {
+		http.Error(response, "viewer origin does not match the request host", http.StatusForbidden)
+		return
+	}
+
+	request.Body = http.MaxBytesReader(response, request.Body, 64<<10)
+	decoder := json.NewDecoder(request.Body)
+	decoder.DisallowUnknownFields()
+	var payload viewerKnowledgeBaseConnectRequest
+	if err := decoder.Decode(&payload); err != nil {
+		http.Error(response, "invalid knowledge base request", http.StatusBadRequest)
+		return
+	}
+	payload.Path = strings.TrimSpace(payload.Path)
+	payload.Name = strings.TrimSpace(payload.Name)
+	payload.Access = strings.TrimSpace(payload.Access)
+	if payload.Path == "" {
+		http.Error(response, "folder path is required", http.StatusBadRequest)
+		return
+	}
+	if payload.Access == "" {
+		payload.Access = "read"
+	}
+
+	root, err := resolveViewerRoot(payload.Path)
+	if err != nil {
+		writeViewerConnectJSON(response, http.StatusUnprocessableEntity, viewerKnowledgeBaseConnectResponse{
+			Status:  "needs_setup",
+			Message: "The folder is not available as a local knowledge base.",
+			Command: "okn setup " + strconv.Quote(payload.Path) + " --interactive",
+		})
+		return
+	}
+	listing, err := okf.List(root)
+	if err != nil || len(listing.Entries) == 0 {
+		writeViewerConnectJSON(response, http.StatusUnprocessableEntity, viewerKnowledgeBaseConnectResponse{
+			Status:  "needs_setup",
+			Message: "This folder does not contain an Open Knowledge bundle yet.",
+			Command: "okn setup " + strconv.Quote(root) + " --interactive",
+		})
+		return
+	}
+
+	name := payload.Name
+	explicitName := name != ""
+	if name == "" {
+		name = filepath.Base(filepath.Clean(root))
+	}
+	entry, warning, err := okf.ConnectRegistryEntry(name, root, payload.Access, explicitName)
+	if err != nil {
+		http.Error(response, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	writeViewerConnectJSON(response, http.StatusCreated, viewerKnowledgeBaseConnectResponse{
+		Status:  "connected",
+		Name:    entry.Name,
+		URL:     workspaceURL(entry.Name),
+		Warning: warning,
+	})
+}
+
+func viewerMutationOriginAllowed(request *http.Request) bool {
+	origin := strings.TrimSpace(request.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return false
+	}
+	return strings.EqualFold(parsed.Host, request.Host)
+}
+
+func writeViewerConnectJSON(response http.ResponseWriter, status int, payload viewerKnowledgeBaseConnectResponse) {
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	response.WriteHeader(status)
+	if err := json.NewEncoder(response).Encode(payload); err != nil {
+		http.Error(response, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func writeViewerSearchJSON(response http.ResponseWriter, payload viewerSearchResponse) {
@@ -1519,6 +1725,7 @@ func renderRegistryIndex(response http.ResponseWriter, entries []okf.RegistryEnt
 
 func viewerOptionsForRegistryEntry(options viewerOptions, entry okf.RegistryEntry) viewerOptions {
 	options.ReadOnly = !okf.RegistryEntryCanWrite(entry)
+	options.AliasName = entry.Name
 	return options
 }
 
@@ -1591,14 +1798,69 @@ func registryEntryByName(entries []okf.RegistryEntry, name string) (okf.Registry
 func registryFrame(entries []okf.RegistryEntry, activeName string, urlFor func(string) string) viewerFrame {
 	workspaces := make([]viewerWorkspace, 0, len(entries))
 	for _, entry := range entries {
-		workspaces = append(workspaces, viewerWorkspace{
+		workspace := viewerWorkspace{
 			Name:   entry.Name,
 			Root:   entry.Path,
 			URL:    urlFor(entry.Name),
 			Active: entry.Name == activeName,
+		}
+		root, err := registryEntryRoot(entry)
+		if err != nil {
+			workspace.Error = err.Error()
+			workspaces = append(workspaces, workspace)
+			continue
+		}
+		workspace.ResolvedRoot = root
+		listing, err := okf.List(root)
+		if err != nil {
+			workspace.Error = err.Error()
+			workspaces = append(workspaces, workspace)
+			continue
+		}
+		prefix := strings.TrimRight(urlFor(entry.Name), "/")
+		workspace.Tree = viewerTreeWithURL(listing.Entries, func(path string) string {
+			return fileURLWithPrefix(prefix, path)
 		})
+		workspaces = append(workspaces, workspace)
 	}
-	return viewerFrame{Workspaces: workspaces, ActiveName: activeName, ActiveURL: urlFor(activeName)}
+	return viewerFrame{Workspaces: workspaces, ActiveName: activeName, ActiveURL: urlFor(activeName), CanConnect: true}
+}
+
+func registryGraphJSON(workspaces []viewerWorkspace) template.JS {
+	graph := viewerGraphData{}
+	for _, workspace := range workspaces {
+		if workspace.ResolvedRoot == "" {
+			continue
+		}
+		bundle, err := okf.ParseBundle(workspace.ResolvedRoot)
+		if err != nil {
+			continue
+		}
+		entries := viewerEntriesFromBundleFiles(bundle.Files)
+		local := viewerGraphFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(filePath string) string {
+			return fileURLWithPrefix(strings.TrimRight(workspace.URL, "/"), filePath)
+		})
+		identity := func(filePath string) string {
+			return workspacePrefix(workspace.Name) + "/file/" + strings.TrimPrefix(filePath, "/")
+		}
+		for _, node := range local.Nodes {
+			sourcePath := node.Path
+			node.Path = identity(sourcePath)
+			node.SourcePath = sourcePath
+			node.KnowledgeBase = workspace.Name
+			graph.Nodes = append(graph.Nodes, node)
+		}
+		for _, edge := range local.Edges {
+			edge.Source = identity(edge.Source)
+			edge.Target = identity(edge.Target)
+			graph.Edges = append(graph.Edges, edge)
+		}
+	}
+	data, err := json.Marshal(graph)
+	if err != nil {
+		return `{"nodes":[],"edges":[]}`
+	}
+	return template.JS(data)
 }
 
 func registryEntryRoot(entry okf.RegistryEntry) (string, error) {

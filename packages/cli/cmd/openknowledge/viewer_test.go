@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -212,7 +213,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer file page did not include panel close control:\n%s", page)
 	}
 	if !strings.Contains(page, `data-note-breadcrumbs data-note-path-value="index.md"`) ||
-		!strings.Contains(page, `function createNoteBreadcrumbs(path)`) ||
+		!strings.Contains(page, `function createNoteBreadcrumbs(path, knowledgeBase)`) ||
 		!strings.Contains(page, `noteIndexPath(displayParts.slice(0, index + 1))`) ||
 		!strings.Contains(page, `link.dataset.directLink = "true"`) ||
 		!strings.Contains(page, `link.setAttribute("aria-current", "page")`) {
@@ -341,9 +342,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `sidebarToggle.setAttribute("aria-keyshortcuts"`) {
 		t.Fatalf("viewer file sidebar should register a primary-alt-s keyboard shortcut:\n%s", page)
 	}
-	if !strings.Contains(page, `class="sidebar-shortcut" data-sidebar-shortcut`) ||
-		!strings.Contains(page, `document.querySelectorAll("[data-sidebar-shortcut]")`) {
-		t.Fatalf("viewer file sidebar should show a visible shortcut badge:\n%s", page)
+	if !strings.Contains(page, `<button class="sidebar-shortcut" data-sidebar-shortcut type="button" data-sidebar-toggle`) ||
+		!strings.Contains(page, `document.querySelectorAll("[data-sidebar-shortcut]")`) ||
+		!strings.Contains(page, `sidebarToggle.setAttribute("aria-label", open ? "Close file explorer" : "Open file explorer")`) ||
+		strings.Contains(page, `sidebar-toggle-icon`) {
+		t.Fatalf("viewer file sidebar should use the shortcut badge as its accessible toggle button:\n%s", page)
 	}
 	if !strings.Contains(page, `document.startViewTransition`) {
 		t.Fatalf("viewer stack changes should use View Transitions when available:\n%s", page)
@@ -366,7 +369,8 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `function collapseKnowledgeTrees()`) ||
 		!strings.Contains(page, `dataset.treeDirectoryPath`) ||
 		!strings.Contains(page, `link.setAttribute("aria-current", "page")`) ||
-		!strings.Contains(page, `collapse.textContent = "Collapse all"`) {
+		!strings.Contains(page, `data-sidebar-collapse aria-label="Collapse all"`) ||
+		!strings.Contains(page, `collapse.addEventListener("click", collapseKnowledgeTrees)`) {
 		t.Fatalf("viewer file tree should collapse directories and reveal the active file context:\n%s", page)
 	}
 	if strings.Contains(page, `tree-file-path`) || strings.Contains(page, `tree-file::before`) {
@@ -387,7 +391,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `createKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasPhysicsStep`) || !strings.Contains(page, `drawKnowledgeGraphCanvas`) || !strings.Contains(page, `graphCanvasHitTest`) || !strings.Contains(page, `requestAnimationFrame(tick)`) || !strings.Contains(page, `dataset.knowledgeGraphCanvas`) {
 		t.Fatalf("viewer knowledge graph should render as an animated canvas graph:\n%s", page)
 	}
-	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `const connected = active && (edge.source === active.path || edge.target === active.path)`) || !strings.Contains(page, `openTarget(activePath, true, shouldOpenBeside(false))`) {
+	if !strings.Contains(page, `dataset.activeGraphPath`) || !strings.Contains(page, `graphNodeFullLabel`) || !strings.Contains(page, `const connected = active && (edge.source === active.path || edge.target === active.path)`) || !strings.Contains(page, `openGraphNode(stateByPath[activePath].node)`) {
 		t.Fatalf("viewer canvas graph should separate hovered nodes and highlight connected edges:\n%s", page)
 	}
 	if !strings.Contains(page, `knowledge-graph-status`) ||
@@ -933,8 +937,8 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if !strings.Contains(index, `OpenKnowledgeStaticData`) || !strings.Contains(index, `"source":"index.md"`) || !strings.Contains(index, `"target":"guides/setup.md"`) {
 		t.Fatalf("expected exported index to include static knowledge graph:\n%s", index)
 	}
-	if !strings.Contains(index, `class="powered-by-openknowledge"`) || !strings.Contains(index, `href="https://openknowledge.sh"`) || !strings.Contains(index, `Powered by OpenKnowledge.sh`) {
-		t.Fatalf("expected exported index to include OpenKnowledge.sh attribution:\n%s", index)
+	if !strings.Contains(index, `class="powered-by-openknowledge"`) || !strings.Contains(index, `href="https://openknowledge.sh"`) || !strings.Contains(index, `aria-label="Powered by OpenKnowledge.sh"`) || !strings.Contains(index, `data-tooltip="Powered by OpenKnowledge.sh"`) {
+		t.Fatalf("expected exported index to include linked OpenKnowledge logo attribution:\n%s", index)
 	}
 	llms := readViewerExportFile(t, out, "llms.txt")
 	if !strings.Contains(llms, "# Home") || !strings.Contains(llms, "## Docs") ||
@@ -1731,6 +1735,9 @@ func TestViewerServesDirectAliasPath(t *testing.T) {
 	if !strings.Contains(page, `<a class="brand" href="/project-memory/">Home</a>`) {
 		t.Fatalf("viewer file brand should link to the alias root:\n%s", page)
 	}
+	if strings.Contains(page, `<span class="note-breadcrumb-label">project-memory</span>`) {
+		t.Fatalf("single knowledge base should not prefix the note breadcrumb:\n%s", page)
+	}
 	if !strings.Contains(page, `href="/project-memory/file/workflows/docs.md"`) {
 		t.Fatalf("viewer file did not prefix markdown links:\n%s", page)
 	}
@@ -1925,9 +1932,9 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	personal := t.TempDir()
 	work := t.TempDir()
 	writeViewerFile(t, personal, "index.md", "# Personal\n")
-	writeViewerFile(t, personal, "only-personal.md", "---\ntype: Note\n---\n\n# Personal note\n")
+	writeViewerFile(t, personal, "only-personal.md", "---\ntype: Note\n---\n\n# Personal note\n\nShared context lives here.\n")
 	writeViewerFile(t, work, "index.md", "# Work\n\nSee [Guide](notes/guide.md).\n")
-	writeViewerFile(t, work, "notes/guide.md", "---\ntype: Note\n---\n\n# Guide\n\nRun validation before publishing.\n")
+	writeViewerFile(t, work, "notes/guide.md", "---\ntype: Note\n---\n\n# Guide\n\nShared context supports validation before publishing.\n")
 
 	handler := newRegistryViewerHandler([]okf.RegistryEntry{
 		{Name: "personal", Path: personal, Access: "read"},
@@ -1961,6 +1968,42 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	if !strings.Contains(workPage, `<div class="editor-picker" data-editor-picker>`) {
 		t.Fatalf("writable registry connection should expose editor controls:\n%s", workPage)
 	}
+	for _, required := range []string{
+		`data-search-url="/api/search"`,
+		`data-knowledge-base-name="personal"`,
+		`data-knowledge-base-name="work"`,
+		`data-knowledge-base="personal"`,
+		`data-knowledge-base="work"`,
+		`data-knowledge-base-connect aria-label="Connect knowledge base"`,
+		`data-knowledge-base-dialog`,
+		`data-note-path="index.md" data-note-title="Index" data-knowledge-base="work"`,
+		`<span class="note-breadcrumb-label">work</span><span class="note-breadcrumb-separator" aria-hidden="true">/</span>`,
+		`"knowledgeBase":"personal"`,
+		`"knowledgeBase":"work"`,
+		`"sourcePath":"index.md"`,
+	} {
+		if !strings.Contains(workPage, required) {
+			t.Fatalf("registry document workspace missing %q:\n%s", required, workPage)
+		}
+	}
+	if strings.Contains(workPage, `note-knowledge-base-marker`) || strings.Contains(workPage, `class="note-knowledge-base"`) {
+		t.Fatalf("registry document breadcrumb should not use a colored knowledge-base marker:\n%s", workPage)
+	}
+
+	globalSearch := getViewerSearch(t, handler, "/api/search?q=shared&limit=12")
+	if len(globalSearch.Results) < 2 {
+		t.Fatalf("registry search should return results from both knowledge bases: %#v", globalSearch)
+	}
+	foundBases := map[string]bool{}
+	for _, result := range globalSearch.Results {
+		foundBases[result.KnowledgeBase] = true
+		if !strings.HasPrefix(result.URL, "/kb/"+result.KnowledgeBase+"/file/") {
+			t.Fatalf("registry search result URL did not preserve its knowledge base: %#v", result)
+		}
+	}
+	if !foundBases["personal"] || !foundBases["work"] {
+		t.Fatalf("registry search did not identify both knowledge bases: %#v", globalSearch)
+	}
 	personalPage := getViewerBody(t, handler, "/kb/personal/file/index.md")
 	if strings.Contains(personalPage, `<div class="editor-picker" data-editor-picker>`) || strings.Contains(personalPage, `<a class="editor-open"`) {
 		t.Fatalf("read-only registry connection must hide editor controls:\n%s", personalPage)
@@ -1983,6 +2026,51 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	aliasSearch := getViewerSearch(t, handler, "/work/api/search?q=validation")
 	if len(aliasSearch.Results) == 0 || aliasSearch.Results[0].URL != "/work/file/notes/guide.md" {
 		t.Fatalf("unexpected alias search result: %#v", aliasSearch)
+	}
+}
+
+func TestRegistryViewerConnectsLocalKnowledgeBaseAndGuidesSetup(t *testing.T) {
+	registryFile := filepath.Join(t.TempDir(), "registry.json")
+	t.Setenv(okf.RegistryFileEnv, registryFile)
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Connected\n")
+	handler := newRegistryViewerHandler(nil)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/knowledge-bases", strings.NewReader(fmt.Sprintf(`{"path":%q,"name":"connected","access":"write"}`, root)))
+	request.Host = "127.0.0.1:8080"
+	request.Header.Set("Origin", "http://127.0.0.1:8080")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected connect endpoint to return 201, got %d: %s", response.Code, response.Body.String())
+	}
+	var connected viewerKnowledgeBaseConnectResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &connected); err != nil {
+		t.Fatal(err)
+	}
+	if connected.Status != "connected" || connected.Name != "connected" || connected.URL != "/kb/connected/" {
+		t.Fatalf("unexpected connect response: %#v", connected)
+	}
+	entry, found, err := okf.ResolveRegistryEntry("connected")
+	if err != nil || !found || entry.Path != root || entry.Access != "write" {
+		t.Fatalf("viewer did not record the local connection: entry=%#v found=%v err=%v", entry, found, err)
+	}
+
+	empty := t.TempDir()
+	request = httptest.NewRequest(http.MethodPost, "/api/knowledge-bases", strings.NewReader(fmt.Sprintf(`{"path":%q}`, empty)))
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusUnprocessableEntity || !strings.Contains(response.Body.String(), `"status":"needs_setup"`) || !strings.Contains(response.Body.String(), "okn setup") {
+		t.Fatalf("expected setup guidance for an empty folder, got %d: %s", response.Code, response.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/api/knowledge-bases", strings.NewReader(fmt.Sprintf(`{"path":%q}`, root)))
+	request.Host = "127.0.0.1:8080"
+	request.Header.Set("Origin", "https://example.test")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected cross-origin registry mutation to be rejected, got %d", response.Code)
 	}
 }
 

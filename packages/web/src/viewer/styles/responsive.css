@@ -1,3 +1,6 @@
+@media (max-width: 860px) {
+  .note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 52px; }
+}
 @media (max-width: 680px) {
   header { display: block; }
   body:not(.viewer-document) header span { display: block; margin-top: 4px; overflow-wrap: anywhere; }
@@ -6,10 +9,9 @@
   body.viewer-document.is-sidebar-open { --ok-sidebar-layout-width: 100vw; }
   body.viewer-document header { display: flex; height: var(--ok-mobile-header-height); justify-content: flex-end; padding: 0 12px; }
   .file-sidebar-resize { display: none; }
-  .header-left { left: 12px; max-width: min(44%, calc(66% - 78px)); }
-  body.is-stack-mode .header-left { max-width: min(44%, calc(66% - 78px)); }
+  .header-left { left: 12px; max-width: min(44%, calc(66% - 90px)); }
+  body.is-stack-mode .header-left { max-width: min(44%, calc(66% - 90px)); }
   .header-left .brand { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
-  .sidebar-shortcut { display: none; }
   .graph-view-toggle { right: 12px; }
   .viewer-settings { right: 12px; }
   .search.header-search { width: min(38vw, 300px); min-width: 0; margin-right: 44px; }
@@ -22,9 +24,9 @@
   .note-panel.is-entering, html[data-viewer-motion="full"] .note-panel.is-entering { animation: none; }
   .note-stack { gap: 12px; padding: 8px 12px 12px; }
   .note-workspace.is-single-panel .note-stack { padding-left: 12px; padding-right: 12px; }
-  .note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 18px; }
+  .note-workspace.is-single-panel .note-stack, .note-workspace.is-multi-panel .note-stack { padding-bottom: 48px; }
   .workspace-scroll-rail { right: 12px; bottom: 8px; left: 12px; }
-  .powered-by-openknowledge { right: 12px; bottom: 28px; font-size: 8px; }
+  .powered-by-openknowledge { right: 2px; bottom: 2px; }
   body.viewer-document.is-sidebar-open > .workspace-scroll-rail,
   body.viewer-document.is-sidebar-open > .powered-by-openknowledge { display: none; }
   .knowledge-empty { overflow: auto; }
@@ -76,5 +78,5 @@
   .ok-frontmatter-value > .ok-frontmatter-map, .ok-frontmatter-list-value > .ok-frontmatter-map { padding-left: 6px; }
 }
 @media (max-width: 680px), (hover: none) and (pointer: coarse) {
-  .workspace-scroll-rail, .powered-by-openknowledge { display: none; }
+  .workspace-scroll-rail { display: none; }
 }
