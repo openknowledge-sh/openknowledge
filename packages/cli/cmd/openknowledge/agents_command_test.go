@@ -266,6 +266,7 @@ Inspect docs.
 	stateDir := filepath.Join(t.TempDir(), "state")
 	t.Setenv(agents.JobsStateDirEnv, stateDir)
 	originalStarter := startDetachedJobProcess
+	runCompleted := make(chan error, 1)
 	startDetachedJobProcess = func(_ string, args []string, _ []string) (int, error) {
 		if len(args) < 5 || args[0] != "jobs" || args[1] != "run" || args[3] != "--at" {
 			t.Fatalf("unexpected detached arguments: %#v", args)
@@ -279,7 +280,8 @@ Inspect docs.
 			return 0, err
 		}
 		go func() {
-			_, _ = agents.RunJob(job, agents.RunOptions{ScheduledAt: scheduledAt, Stdout: io.Discard, Stderr: io.Discard})
+			_, err := agents.RunJob(job, agents.RunOptions{ScheduledAt: scheduledAt, Stdout: io.Discard, Stderr: io.Discard})
+			runCompleted <- err
 		}()
 		return 4242, nil
 	}
@@ -295,14 +297,19 @@ Inspect docs.
 	if err := json.Unmarshal([]byte(output), &started); err != nil || started.SupervisorPID != 4242 || started.Run.JobID != "managed-docs" {
 		t.Fatalf("unexpected start output: %#v err=%v", started, err)
 	}
-	// RunJob performs several real Git filesystem operations after the agent
-	// command exits. Leave headroom for loaded CI and encrypted macOS volumes;
-	// the test still polls the persisted terminal state rather than sleeping.
-	deadline := time.Now().Add(20 * time.Second)
-	for !agents.IsTerminalRunStatus(started.Run.Status) && time.Now().Before(deadline) {
-		time.Sleep(50 * time.Millisecond)
-		started.Run, _ = agents.GetRunSummary(root, started.Run.RunID)
+	select {
+	case err := <-runCompleted:
+		if err != nil {
+			t.Fatalf("detached run failed: %v", err)
+		}
+	case <-time.After(time.Minute):
+		t.Fatal("timed out waiting for detached run completion")
 	}
+	completedRun, err := agents.GetRunSummary(root, started.Run.RunID)
+	if err != nil {
+		t.Fatalf("read completed run summary: %v", err)
+	}
+	started.Run = completedRun
 	if started.Run.Status != "succeeded" {
 		t.Fatalf("expected started run to succeed, got %#v", started.Run)
 	}
