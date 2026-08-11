@@ -5,6 +5,8 @@ NPM wrapper for the `openknowledge` CLI.
 Flexible knowledge bases in Markdown that your agents can create, retrieve,
 validate, and publish.
 
+Node 20 or a later version is required.
+
 ```sh
 npm install -g @openknowledge-sh/openknowledge
 openknowledge version

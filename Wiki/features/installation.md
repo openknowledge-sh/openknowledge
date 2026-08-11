@@ -3,7 +3,7 @@ type: Feature Documentation
 title: Installation
 description: Install and verify the Open Knowledge CLI.
 tags: [openknowledge, cli, installation]
-timestamp: 2026-07-28T00:00:00Z
+timestamp: 2026-08-11T00:00:00Z
 ---
 
 # Installation
@@ -47,6 +47,8 @@ The installer still verifies the archive checksum.
 
 ## npm
 
+Node 20 or a later version is required.
+
 ```sh
 npm install -g @openknowledge-sh/openknowledge
 ```
@@ -65,6 +67,8 @@ It publishes the binary atomically.
 | `OPENKNOWLEDGE_SKIP_DOWNLOAD` | unset | Set to `1` for packaging or source-workspace checks. |
 
 ## From source
+
+Node 20 or a later version is required for the JavaScript workspace commands.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -89,6 +93,8 @@ disclosure. Telemetry is enabled by default. Use
 > **Source anchors**
 >
 > - `install`
+> - `package.json`
+> - `packages/npm/package.json`
 > - `packages/npm/install.js`
 > - `packages/npm/install.test.js`
 > - `packages/cli/internal/telemetry/`

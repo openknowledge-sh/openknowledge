@@ -123,6 +123,16 @@ page records release-level changes.
 - Docs: `Wiki/index.md`, `Wiki/features/operations.md`, and
   `Wiki/changelog/cli.md`.
 
+### Compatibility
+
+- Node 20 is now the minimum version for the npm wrapper, website development,
+  and JavaScript tests. The baseline CI job verifies Node 20.
+- Source: `package.json`, `packages/npm/package.json`,
+  `packages/web/package.json`, `.github/workflows/ci.yml`, and
+  `scripts/check-versions.mjs`.
+- Docs: `packages/npm/README.md`, `Wiki/features/installation.md`,
+  `Wiki/features/operations.md`, and `Wiki/changelog/cli.md`.
+
 ### Security
 
 - Mermaid diagram rendering now uses Mermaid 11.16.1. Its dependency updates

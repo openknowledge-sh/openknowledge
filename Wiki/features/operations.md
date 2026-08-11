@@ -18,6 +18,8 @@ Wiki          canonical CLI documentation
 ```
 
 The root `package.json` owns the release version and workspace commands.
+Node 20 or a later version is required for JavaScript workspace commands and
+the npm wrapper.
 
 ## Local development
 
@@ -78,8 +80,8 @@ The workflow does these tasks:
 9. Reject tracked viewer build output.
 10. Build viewer assets before Go tests on Linux, macOS, and Windows.
 11. Run CLI tests and builds on Linux, macOS, and Windows.
-12. Verify npm and web behavior on Node 18.
-13. Verify an installed packed artifact on Node 18.
+12. Verify npm and web behavior on Node 20.
+13. Verify an installed packed artifact on Node 20.
 
 Require the `CI / verify` check in branch protection.
 

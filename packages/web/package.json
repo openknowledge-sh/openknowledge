@@ -15,7 +15,7 @@
     "start": "OPENKNOWLEDGE_WEB_ROOT=dist OPENKNOWLEDGE_WEB_EXPORT_WIKI=0 HOST=0.0.0.0 node scripts/serve.mjs"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
     "mermaid": "11.16.1"

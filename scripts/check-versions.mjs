@@ -20,6 +20,14 @@ if (!semverPattern.test(rootVersion)) {
   fail(`package.json version ${JSON.stringify(rootVersion)} is not a supported release version`);
 }
 
+const supportedNodeEngine = ">=20";
+for (const relativePath of ["package.json", "packages/npm/package.json", "packages/web/package.json"]) {
+  const nodeEngine = String(readJSON(relativePath).engines?.node || "").trim();
+  if (nodeEngine !== supportedNodeEngine) {
+    fail(`${relativePath} supports Node ${nodeEngine || "unspecified"}; expected ${supportedNodeEngine}`);
+  }
+}
+
 const requested = String(process.argv[2] || "").trim().replace(/^v/, "");
 if (requested && requested !== rootVersion) {
   fail(`requested release ${requested} does not match package.json ${rootVersion}`);
