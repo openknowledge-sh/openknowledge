@@ -196,6 +196,87 @@ Maintain the wiki.
 	}
 }
 
+func TestRunJobRunsPreflightBeforeAgentAndStopsOnFailure(t *testing.T) {
+	repo := t.TempDir()
+	runTestGit(t, repo, "init")
+	marker := filepath.Join(t.TempDir(), "agent-ran")
+	script := "#!/bin/sh\nprintf ran > '" + marker + "'\ncat >/dev/null\n"
+	installTestCodex(t, script)
+	jobPath := filepath.Join(repo, "job.md")
+	content := `---
+id: preflight-order
+agent: {runtime: codex}
+workspace: {repo: ".", base: HEAD}
+preflight:
+  commands:
+    - exit 9
+verify:
+  commands:
+    - "true"
+---
+Agent should not run.
+`
+	if err := os.WriteFile(jobPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, repo, "add", "job.md")
+	runTestGit(t, repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "jobs-state"))
+
+	job, err := ParseJobFile(jobPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := RunJob(job, RunOptions{ScheduledAt: time.Date(2026, 8, 11, 8, 0, 0, 0, time.UTC)})
+	if err == nil || record.Status != "preflight_failed" {
+		t.Fatalf("expected preflight failure, record=%#v err=%v", record, err)
+	}
+	if len(record.Preflight) != 1 || record.Preflight[0].ExitCode != 9 || record.Agent.Command != "" || len(record.Verify) != 0 {
+		t.Fatalf("expected preflight to short-circuit agent and verification: %#v", record)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("agent must not start after preflight failure: %v", err)
+	}
+}
+
+func TestRunJobSupportsAgentlessDeterministicValidation(t *testing.T) {
+	repo := t.TempDir()
+	runTestGit(t, repo, "init")
+	if err := os.Mkdir(filepath.Join(repo, "Wiki"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "Wiki", "index.md"), []byte("# Wiki\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	jobPath := filepath.Join(repo, "job.md")
+	content := `---
+id: deterministic-validation
+workspace: {repo: ".", base: HEAD}
+verify:
+  commands:
+    - test -f Wiki/index.md
+---
+`
+	if err := os.WriteFile(jobPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, repo, "add", "Wiki", "job.md")
+	runTestGit(t, repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "jobs-state"))
+
+	job, err := ParseJobFile(jobPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := RunJob(job, RunOptions{ScheduledAt: time.Date(2026, 8, 11, 9, 0, 0, 0, time.UTC)})
+	if err != nil || record.Status != "succeeded" {
+		t.Fatalf("expected deterministic validation to succeed, record=%#v err=%v", record, err)
+	}
+	if record.Agent.Command != "" || len(record.Verify) != 1 || record.Verify[0].ExitCode != 0 {
+		t.Fatalf("expected verification without an agent: %#v", record)
+	}
+}
+
 func TestBuildRunPlanKeepsScheduledRunIDAcrossRepositoryChanges(t *testing.T) {
 	repo := t.TempDir()
 	runTestGit(t, repo, "init")

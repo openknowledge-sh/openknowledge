@@ -19,6 +19,7 @@ type Job struct {
 	Agent       AgentSpec     `json:"agent"`
 	Workspace   WorkspaceSpec `json:"workspace"`
 	Sandbox     SandboxSpec   `json:"sandbox"`
+	Preflight   VerifySpec    `json:"preflight,omitempty"`
 	Verify      VerifySpec    `json:"verify,omitempty"`
 	Output      OutputSpec    `json:"output,omitempty"`
 	Concurrency Concurrency   `json:"concurrency,omitempty"`
@@ -204,10 +205,16 @@ func ValidateJob(job Job) error {
 	} else if !validJobID.MatchString(job.ID) {
 		add("id", "must contain only letters, numbers, dots, underscores, or hyphens")
 	}
-	if strings.TrimSpace(job.Agent.Runtime) == "" {
-		add("agent.runtime", "is required")
-	} else if _, err := HarnessForRuntime(job.Agent.Runtime); err != nil {
-		add("agent.runtime", "%s", err.Error())
+	hasAgent := strings.TrimSpace(job.Agent.Runtime) != ""
+	if hasAgent {
+		if _, err := HarnessForRuntime(job.Agent.Runtime); err != nil {
+			add("agent.runtime", "%s", err.Error())
+		}
+	} else if strings.TrimSpace(job.Prompt) != "" || len(job.Verify.Commands) == 0 {
+		add("agent.runtime", "is required unless the job has an empty prompt and deterministic verify.commands")
+	}
+	if !hasAgent && (job.Agent.Model != "" || job.Agent.Timeout != "" || job.Agent.CompletionSignal != "") {
+		add("agent", "model, timeout, and completion_signal require agent.runtime")
 	}
 	if job.Agent.Timeout != "" {
 		if duration, err := time.ParseDuration(job.Agent.Timeout); err != nil {
@@ -244,6 +251,13 @@ func ValidateJob(job Job) error {
 			add("verify.timeout", "must be a Go duration such as 10m or 30m")
 		} else if duration <= 0 {
 			add("verify.timeout", "must be positive")
+		}
+	}
+	if job.Preflight.Timeout != "" {
+		if duration, err := time.ParseDuration(job.Preflight.Timeout); err != nil {
+			add("preflight.timeout", "must be a Go duration such as 10m or 30m")
+		} else if duration <= 0 {
+			add("preflight.timeout", "must be positive")
 		}
 	}
 	switch job.Workspace.Strategy {
@@ -376,6 +390,10 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 	if verify := getMap(data, "verify"); verify != nil {
 		job.Verify.Commands = getStringSlice(verify, "commands")
 		job.Verify.Timeout = getString(verify, "timeout")
+	}
+	if preflight := getMap(data, "preflight"); preflight != nil {
+		job.Preflight.Commands = getStringSlice(preflight, "commands")
+		job.Preflight.Timeout = getString(preflight, "timeout")
 	}
 	if output := getMap(data, "output"); output != nil {
 		if commit, ok := getBool(output, "commit"); ok {

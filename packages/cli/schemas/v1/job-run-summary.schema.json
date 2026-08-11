@@ -13,11 +13,11 @@
     "status": {
       "enum": [
         "planned", "running", "stopping", "killing", "orphaned",
-        "succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"
+        "succeeded", "failed", "preflight_failed", "verification_failed", "skipped", "cancelled", "killed"
       ]
     },
     "recorded_status": {
-      "enum": ["planned", "running", "succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"]
+      "enum": ["planned", "running", "succeeded", "failed", "preflight_failed", "verification_failed", "skipped", "cancelled", "killed"]
     },
     "scheduled_at": {"type": "string", "format": "date-time"},
     "started_at": {"type": "string", "format": "date-time"},

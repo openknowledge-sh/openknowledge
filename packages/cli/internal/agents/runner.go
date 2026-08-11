@@ -38,6 +38,7 @@ type RunRecord struct {
 	FinishedAt    time.Time       `json:"finished_at,omitempty,omitzero"`
 	Plan          RunPlan         `json:"plan"`
 	Agent         CommandResult   `json:"agent,omitempty,omitzero"`
+	Preflight     []CommandResult `json:"preflight,omitempty"`
 	Verify        []CommandResult `json:"verify,omitempty"`
 	Error         string          `json:"error,omitempty"`
 	StatusText    string          `json:"status_text,omitempty"`
@@ -157,33 +158,58 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 	if err := createWorktree(plan); err != nil {
 		return finish("failed", err)
 	}
-
-	agentTimeout := 30 * time.Minute
-	if job.Agent.Timeout != "" {
-		parsed, err := time.ParseDuration(job.Agent.Timeout)
-		if err != nil {
+	preflightTimeout, err := time.ParseDuration(plan.PreflightTimeout)
+	if err != nil || preflightTimeout <= 0 {
+		return finish("failed", fmt.Errorf("invalid preflight timeout %q", plan.PreflightTimeout))
+	}
+	for index, command := range plan.Preflight {
+		preflightCtx, cancel := context.WithTimeout(runContext, preflightTimeout)
+		result := runPlanCommand(preflightCtx, plan, command, fmt.Sprintf("preflight-%02d", index+1), "", controller)
+		preflightTimedOut := errors.Is(preflightCtx.Err(), context.DeadlineExceeded)
+		cancel()
+		record.Preflight = append(record.Preflight, result)
+		if err := writeRunRecord(plan.RunDir, record); err != nil {
 			return finish("failed", err)
 		}
-		agentTimeout = parsed
+		if status, runErr, cancelled := cancelledRunResult(runContext, controller); cancelled {
+			return finish(status, runErr)
+		}
+		if preflightTimedOut {
+			return finish("preflight_failed", fmt.Errorf("preflight command %q timed out after %s", command.Command, preflightTimeout))
+		}
+		if result.ExitCode != 0 {
+			return finish("preflight_failed", fmt.Errorf("preflight command %q exited with %d", command.Command, result.ExitCode))
+		}
 	}
-	agentCtx, cancel := context.WithTimeout(runContext, agentTimeout)
-	record.Agent = runPlanCommand(agentCtx, plan, plan.Agent, "agent", plan.Prompt, controller)
-	agentTimedOut := errors.Is(agentCtx.Err(), context.DeadlineExceeded)
-	cancel()
-	if err := writeRunRecord(plan.RunDir, record); err != nil {
-		return finish("failed", err)
-	}
-	if status, runErr, cancelled := cancelledRunResult(runContext, controller); cancelled {
-		return finish(status, runErr)
-	}
-	if agentTimedOut {
-		return finish("failed", fmt.Errorf("agent command timed out after %s", agentTimeout))
-	}
-	if record.Agent.ExitCode != 0 {
-		return finish("failed", fmt.Errorf("agent command exited with %d", record.Agent.ExitCode))
-	}
-	if signal := job.Agent.CompletionSignal; signal != "" && !logsContain(record.Agent, signal) {
-		return finish("failed", fmt.Errorf("agent output did not contain completion signal %q", signal))
+
+	if plan.Agent.Command != "" {
+		agentTimeout := 30 * time.Minute
+		if job.Agent.Timeout != "" {
+			parsed, err := time.ParseDuration(job.Agent.Timeout)
+			if err != nil {
+				return finish("failed", err)
+			}
+			agentTimeout = parsed
+		}
+		agentCtx, cancel := context.WithTimeout(runContext, agentTimeout)
+		record.Agent = runPlanCommand(agentCtx, plan, plan.Agent, "agent", plan.Prompt, controller)
+		agentTimedOut := errors.Is(agentCtx.Err(), context.DeadlineExceeded)
+		cancel()
+		if err := writeRunRecord(plan.RunDir, record); err != nil {
+			return finish("failed", err)
+		}
+		if status, runErr, cancelled := cancelledRunResult(runContext, controller); cancelled {
+			return finish(status, runErr)
+		}
+		if agentTimedOut {
+			return finish("failed", fmt.Errorf("agent command timed out after %s", agentTimeout))
+		}
+		if record.Agent.ExitCode != 0 {
+			return finish("failed", fmt.Errorf("agent command exited with %d", record.Agent.ExitCode))
+		}
+		if signal := job.Agent.CompletionSignal; signal != "" && !logsContain(record.Agent, signal) {
+			return finish("failed", fmt.Errorf("agent output did not contain completion signal %q", signal))
+		}
 	}
 
 	verifyTimeout, err := time.ParseDuration(plan.VerifyTimeout)

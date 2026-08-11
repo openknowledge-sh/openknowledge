@@ -60,6 +60,37 @@ Inspect the repository.
 	validateAgentArtifactJSON(t, schemas[RunRecordSchemaID], recordJSON)
 }
 
+func TestAgentlessRunPlanSatisfiesPublishedSchema(t *testing.T) {
+	repo := t.TempDir()
+	runTestGit(t, repo, "init")
+	jobPath := filepath.Join(repo, "validation.md")
+	content := "---\nid: validation\nworkspace: {repo: \".\", base: HEAD}\nverify: {commands: [\"true\"]}\n---\n"
+	if err := os.WriteFile(jobPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, repo, "add", "validation.md")
+	runTestGit(t, repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "validation")
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "job-state"))
+
+	job, err := ParseJobFile(jobPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := BuildRunPlan(job, time.Date(2026, 8, 11, 10, 0, 0, 0, time.UTC), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := plan.JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas := compileAgentArtifactSchemas(t)
+	validateAgentArtifactJSON(t, schemas[RunPlanSchemaID], encoded)
+	if bytes.Contains(encoded, []byte(`"agent"`)) {
+		t.Fatalf("agentless plan must omit the agent command: %s", encoded)
+	}
+}
+
 func compileAgentArtifactSchemas(t *testing.T) map[string]*jsonschema.Schema {
 	t.Helper()
 	paths := []string{

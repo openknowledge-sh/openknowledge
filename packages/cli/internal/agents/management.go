@@ -262,7 +262,7 @@ func BuildJobStatuses(jobs []Job, now time.Time) ([]JobStatus, []RunIssue) {
 
 func IsTerminalRunStatus(status string) bool {
 	switch status {
-	case "succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed":
+	case "succeeded", "failed", "preflight_failed", "verification_failed", "skipped", "cancelled", "killed":
 		return true
 	default:
 		return false

@@ -16,6 +16,30 @@ type Template struct {
 func BuiltinTemplates() []Template {
 	return []Template{
 		{
+			ID:          "content-validation",
+			Title:       "Content Validation",
+			Description: "Run deterministic wiki validation without starting an agent.",
+			Filename:    "content-validation.md",
+			Content: `---
+id: content-validation
+enabled: true
+workspace:
+  repo: "."
+  base: HEAD
+  strategy: branch
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
+  dirty_policy: fail
+sandbox:
+  type: host
+verify:
+  commands:
+    - openknowledge validate Wiki
+output:
+  commit: false
+---
+`,
+		},
+		{
 			ID:          "docs-audit",
 			Title:       "Documentation Audit",
 			Description: "Audit README and Wiki docs against CLI behavior, then validate the wiki.",
@@ -249,6 +273,7 @@ func RenderTemplateCatalog() string {
 		builder.WriteString(fmt.Sprintf("- %s: %s\n", template.ID, template.Description))
 	}
 	builder.WriteString("\nExamples:\n")
+	builder.WriteString("  openknowledge automation jobs new content-validation --out .openknowledge/jobs/content-validation.md\n")
 	builder.WriteString("  openknowledge automation jobs new docs-audit\n")
 	builder.WriteString("  openknowledge automation jobs new docs-audit --out .openknowledge/jobs/docs-audit.md\n")
 	builder.WriteString("  openknowledge automation jobs new custom --out .openknowledge/jobs/custom.md\n")
@@ -283,6 +308,9 @@ workspace:
   dirty_policy: fail
 sandbox:
   type: host
+preflight:
+  commands:
+    - openknowledge validate Wiki
 verify:
   commands:
     - go test ./...
@@ -313,6 +341,8 @@ Field reference:
 - sandbox.image: Docker image. Required when sandbox.type is docker; may not begin with a hyphen.
 - sandbox.network: none or bridge. Docker defaults to none; bridge is an explicit network opt-in.
 - sandbox.env: Project capability names to inherit explicitly. Values stay outside the job and run plan; known harness credentials are scoped separately.
+- preflight.commands: Deterministic shell commands run in the worktree before any agent starts.
+- preflight.timeout: Positive timeout applied to each preflight command. Defaults to 15m.
 - verify.commands: Shell commands run after the harness exits in the worktree.
 - verify.timeout: Positive timeout applied to each verification command. Defaults to 15m.
 - output.commit: Boolean. Commit worktree changes after verification.
@@ -328,9 +358,11 @@ Run lifecycle:
 1. openknowledge automation jobs validate parses and schema-checks the job.
 2. openknowledge automation jobs run --dry-run prints the resolved RunPlan.
 3. openknowledge automation jobs run creates a Git worktree and branch.
-4. The selected runtime adapter launches the harness with the steered Markdown prompt.
-5. Verification commands run in the same worktree.
-6. Logs, prompt, plan, run.json, and diff.patch are written outside the Git
+4. Preflight commands run before any harness starts.
+5. The selected runtime adapter launches the harness with the steered Markdown prompt.
+   A job with no agent, an empty prompt, and verify.commands skips this step.
+6. Verification commands run in the same worktree.
+7. Logs, prompt, plan, run.json, and diff.patch are written outside the Git
    repository under the per-repository jobs state directory. Override its
    platform config default with OPENKNOWLEDGE_JOBS_STATE_DIR.
 `

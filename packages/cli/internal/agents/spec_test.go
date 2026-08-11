@@ -47,6 +47,59 @@ Review the docs.
 	}
 }
 
+func TestParseJobFileSupportsPreflightAndAgentlessValidation(t *testing.T) {
+	preflightPath := filepath.Join(t.TempDir(), "preflight.md")
+	preflightContent := `---
+id: preflight
+agent: {runtime: codex}
+preflight: {commands: ["openknowledge validate Wiki"], timeout: 5m}
+verify: {commands: ["openknowledge validate Wiki"]}
+---
+Review the wiki.
+`
+	if err := os.WriteFile(preflightPath, []byte(preflightContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	job, err := ParseJobFile(preflightPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(job.Preflight.Commands, []string{"openknowledge validate Wiki"}) || job.Preflight.Timeout != "5m" {
+		t.Fatalf("unexpected preflight: %#v", job.Preflight)
+	}
+
+	agentlessPath := filepath.Join(t.TempDir(), "validation.md")
+	agentlessContent := `---
+id: deterministic-validation
+verify:
+  commands:
+    - openknowledge validate Wiki
+---
+`
+	if err := os.WriteFile(agentlessPath, []byte(agentlessContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	agentless, err := ParseJobFile(agentlessPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if agentless.Agent.Runtime != "" || len(agentless.Verify.Commands) != 1 || strings.TrimSpace(agentless.Prompt) != "" {
+		t.Fatalf("unexpected agentless job: %#v", agentless)
+	}
+}
+
+func TestValidateJobRejectsAmbiguousAgentlessJobs(t *testing.T) {
+	for _, job := range []Job{
+		{ID: "no-work"},
+		{ID: "prompted", Prompt: "Review.", Verify: VerifySpec{Commands: []string{"true"}}},
+		{ID: "agent-options", Agent: AgentSpec{Model: "model"}, Verify: VerifySpec{Commands: []string{"true"}}},
+	} {
+		if err := ValidateJob(job); err == nil {
+			t.Fatalf("expected ambiguous agentless job to fail: %#v", job)
+		}
+	}
+}
+
 func TestDiscoverJobsLenientKeepsValidJobsBesideInvalidFiles(t *testing.T) {
 	dir := t.TempDir()
 	invalidPath := filepath.Join(dir, "00-invalid.md")

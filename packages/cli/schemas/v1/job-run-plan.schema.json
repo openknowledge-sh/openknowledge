@@ -6,7 +6,7 @@
   "required": [
     "schemaVersion", "run_id", "job_id", "job_file", "scheduled_at",
     "repo", "repo_root", "base", "base_sha", "branch", "worktree",
-    "run_dir", "prompt", "agent", "verify_timeout", "sandbox", "output",
+    "run_dir", "prompt", "verify_timeout", "sandbox", "output",
     "concurrency"
   ],
   "properties": {
@@ -24,6 +24,8 @@
     "run_dir": {"type": "string"},
     "prompt": {"type": "string"},
     "agent": {"$ref": "#/$defs/agentCommand"},
+    "preflight": {"type": "array", "items": {"$ref": "#/$defs/command"}},
+    "preflight_timeout": {"type": "string", "minLength": 1},
     "verify": {"type": "array", "items": {"$ref": "#/$defs/command"}},
     "verify_timeout": {"type": "string", "minLength": 1},
     "sandbox": {"$ref": "#/$defs/sandbox"},
@@ -77,7 +79,7 @@
       "properties": {
         "commit": {"type": "boolean"},
         "commit_message": {"type": "string"},
-        "pr": {"const": false}
+        "pr": {"type": "boolean"}
       },
       "additionalProperties": false
     },

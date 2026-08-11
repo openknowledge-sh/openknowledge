@@ -137,6 +137,7 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"Open Knowledge Job Templates",
+		"content-validation",
 		"docs-audit",
 		"wiki-health",
 		"release-check",
@@ -159,6 +160,7 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 		"schedule.cron",
 		"workspace.branch",
 		"sandbox.type",
+		"preflight.commands",
 		"verify.commands",
 		"concurrency.policy",
 	} {
@@ -188,6 +190,23 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	})
 	if code != 1 || !strings.Contains(stderr, "use --force to overwrite") {
 		t.Fatalf("expected overwrite guard, got code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestContentValidationTemplateIsAgentlessAndDeterministic(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "content-validation.md")
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runJobs([]string{"new", "content-validation", "--out", out})
+	})
+	if code != 0 {
+		t.Fatalf("jobs new content-validation: code=%d stdout=%s stderr=%s", code, output, stderr)
+	}
+	job, err := agents.ParseJobFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.ID != "content-validation" || job.Agent.Runtime != "" || len(job.Verify.Commands) != 1 || job.Verify.Commands[0] != "openknowledge validate Wiki" {
+		t.Fatalf("unexpected deterministic validation template: %#v", job)
 	}
 }
 

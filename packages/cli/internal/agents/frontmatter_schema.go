@@ -65,6 +65,13 @@ var agentJobFrontmatterSchema = map[string]jobFieldSchema{
 			"timeout":  {kind: jobStringField},
 		},
 	},
+	"preflight": {
+		kind: jobObjectField,
+		fields: map[string]jobFieldSchema{
+			"commands": {kind: jobStringListField},
+			"timeout":  {kind: jobStringField},
+		},
+	},
 	"output": {
 		kind: jobObjectField,
 		fields: map[string]jobFieldSchema{

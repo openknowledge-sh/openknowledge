@@ -9,8 +9,9 @@ This log tracks documentation-structure changes. Product history belongs in
   `iso-plain-language` rule.
 - Added the candidate content-health direction for writing rules, optional
   profiles, agent review, annotations, and portable maintenance automation.
-- Documented the shipped portable content-review identity and bounded
-  agent-context annotations.
+- Documented the shipped portable content-review identity, bounded
+  agent-context annotations, deterministic job preflight, and agentless
+  content-validation template.
 
 ## 2026-07-28
 

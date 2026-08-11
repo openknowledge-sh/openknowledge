@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+func TestPreflightFailureIsTerminal(t *testing.T) {
+	if !IsTerminalRunStatus("preflight_failed") {
+		t.Fatal("preflight failure must be a terminal run status")
+	}
+}
+
 func TestNextScheduledAtReportsEligibleSlot(t *testing.T) {
 	now := time.Date(2026, 7, 15, 10, 7, 30, 0, time.UTC)
 	tests := []struct {

@@ -25,7 +25,9 @@ okn automation jobs run .openknowledge/jobs/my-job.md
 ```
 
 The default job directory is `.openknowledge/jobs`. Install the selected Codex,
-Claude Code, or OpenCode CLI. Authenticate the CLI before you run a job.
+Claude Code, or OpenCode CLI for agentic jobs. Authenticate the CLI before you
+run an agentic job. A deterministic job can omit `agent` when its prompt is
+empty and it has at least one `verify.commands` entry.
 
 ## Commands
 
@@ -79,6 +81,9 @@ workspace:
 sandbox:
   type: host
   env: [CODEX_HOME]
+preflight:
+  commands:
+    - go run ./packages/cli/cmd/openknowledge validate Wiki
 verify:
   commands:
     - git diff --check
@@ -106,7 +111,7 @@ validation.
 | `schedule.cron` | none | Five-field cron subset or `@hourly`, `@daily`, `@weekly`. |
 | `schedule.every` | none | Positive Go duration such as `24h`. Exclusive with `cron`. |
 | `schedule.timezone` | local | IANA time zone used by the schedule. |
-| `agent.runtime` | required | `codex`, `claude`, or `opencode`. |
+| `agent.runtime` | required for agentic jobs | `codex`, `claude`, or `opencode`. Omit only for an empty-prompt job with deterministic verification commands. |
 | `agent.model` | runtime default | Harness-specific model override. |
 | `agent.timeout` | `30m` | Agent process timeout. |
 | `agent.completion_signal` | none | Text required in agent output. |
@@ -119,6 +124,8 @@ validation.
 | `sandbox.image` | required for Docker | Container image for Docker jobs. |
 | `sandbox.network` | `none` | Docker network mode: `none` or `bridge`. |
 | `sandbox.env` | empty | Environment variable names explicitly inherited by commands. |
+| `preflight.commands` | empty | Deterministic commands run before the agent starts. |
+| `preflight.timeout` | `15m` | Timeout applied to each preflight command. |
 | `verify.commands` | empty | Commands run after the agent in the same worktree. |
 | `verify.timeout` | `15m` | Timeout applied to each verification command. |
 | `output.commit` | `false` | Commit verified changes in the job worktree. |
@@ -131,6 +138,7 @@ validation.
 
 | Template | Purpose |
 | --- | --- |
+| `content-validation` | Run deterministic wiki validation without an agent. |
 | `docs-audit` | Reconcile README and Wiki command docs with the CLI. |
 | `wiki-health` | Validate a wiki and repair documentation issues. |
 | `release-check` | Run repository, documentation, and release checks. |
@@ -151,7 +159,12 @@ artifact reference.
 - A host job receives an isolated home and temporary directory. It receives
   only the runtime baseline and declared `sandbox.env` names.
 - A host job also receives recognized harness credentials. Verification
-  commands do not receive model credentials.
+  commands do not receive model credentials. Preflight commands run before the
+  agent and also receive no model credentials.
+- A failed preflight ends the run with `preflight_failed`. The harness and
+  post-agent verification do not start.
+- An agentless deterministic job skips harness construction and credential
+  selection. It runs its verification commands in the isolated worktree.
 - A Docker job mounts the worktree at `/workspace`. It removes capabilities,
   prevents privilege escalation, and limits the process count.
 - A Docker job has no network by default. Set `sandbox.network: bridge` to

@@ -24,25 +24,27 @@ type Command struct {
 }
 
 type RunPlan struct {
-	SchemaVersion string      `json:"schemaVersion"`
-	RunID         string      `json:"run_id"`
-	JobID         string      `json:"job_id"`
-	JobFile       string      `json:"job_file"`
-	ScheduledAt   time.Time   `json:"scheduled_at"`
-	Repo          string      `json:"repo"`
-	RepoRoot      string      `json:"repo_root"`
-	Base          string      `json:"base"`
-	BaseSHA       string      `json:"base_sha"`
-	Branch        string      `json:"branch"`
-	Worktree      string      `json:"worktree"`
-	RunDir        string      `json:"run_dir"`
-	Prompt        string      `json:"prompt"`
-	Agent         Command     `json:"agent"`
-	Verify        []Command   `json:"verify,omitempty"`
-	VerifyTimeout string      `json:"verify_timeout"`
-	Sandbox       SandboxSpec `json:"sandbox"`
-	Output        OutputSpec  `json:"output,omitempty"`
-	Concurrency   Concurrency `json:"concurrency,omitempty"`
+	SchemaVersion    string      `json:"schemaVersion"`
+	RunID            string      `json:"run_id"`
+	JobID            string      `json:"job_id"`
+	JobFile          string      `json:"job_file"`
+	ScheduledAt      time.Time   `json:"scheduled_at"`
+	Repo             string      `json:"repo"`
+	RepoRoot         string      `json:"repo_root"`
+	Base             string      `json:"base"`
+	BaseSHA          string      `json:"base_sha"`
+	Branch           string      `json:"branch"`
+	Worktree         string      `json:"worktree"`
+	RunDir           string      `json:"run_dir"`
+	Prompt           string      `json:"prompt"`
+	Agent            Command     `json:"agent,omitempty,omitzero"`
+	Preflight        []Command   `json:"preflight,omitempty"`
+	PreflightTimeout string      `json:"preflight_timeout"`
+	Verify           []Command   `json:"verify,omitempty"`
+	VerifyTimeout    string      `json:"verify_timeout"`
+	Sandbox          SandboxSpec `json:"sandbox"`
+	Output           OutputSpec  `json:"output,omitempty"`
+	Concurrency      Concurrency `json:"concurrency,omitempty"`
 }
 
 const RunPlanSchemaID = "https://openknowledge.sh/schemas/cli/v1/job-run-plan.schema.json"
@@ -127,43 +129,57 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	if verifyTimeout == "" {
 		verifyTimeout = "15m"
 	}
+	preflight := make([]Command, 0, len(job.Preflight.Commands))
+	for _, command := range job.Preflight.Commands {
+		preflight = append(preflight, Command{Command: command, Shell: true})
+	}
+	preflightTimeout := job.Preflight.Timeout
+	if preflightTimeout == "" {
+		preflightTimeout = "15m"
+	}
 
-	prompt := SteeredAgentPrompt(renderTemplate(job.Prompt, values), "job")
-	agentCommand, err := BuildHarnessCommand(job.Agent, false)
-	if err != nil {
-		return RunPlan{}, ValidationError{Issues: []ValidationIssue{{Field: "agent.runtime", Message: err.Error()}}}
-	}
-	definition, _ := HarnessForRuntime(job.Agent.Runtime)
-	if sandbox.Type == "host" {
-		if configured := strings.TrimSpace(os.Getenv(definition.ExecutableEnv)); configured != "" {
-			agentCommand.Command = configured
+	prompt := ""
+	agentCommand := Command{}
+	if job.Agent.Runtime != "" {
+		prompt = SteeredAgentPrompt(renderTemplate(job.Prompt, values), "job")
+		agentCommand, err = BuildHarnessCommand(job.Agent, false)
+		if err != nil {
+			return RunPlan{}, ValidationError{Issues: []ValidationIssue{{Field: "agent.runtime", Message: err.Error()}}}
 		}
-	}
-	for _, name := range definition.Credentials {
-		if _, present := os.LookupEnv(name); present {
-			agentCommand.Env = append(agentCommand.Env, name)
+		definition, _ := HarnessForRuntime(job.Agent.Runtime)
+		if sandbox.Type == "host" {
+			if configured := strings.TrimSpace(os.Getenv(definition.ExecutableEnv)); configured != "" {
+				agentCommand.Command = configured
+			}
+		}
+		for _, name := range definition.Credentials {
+			if _, present := os.LookupEnv(name); present {
+				agentCommand.Env = append(agentCommand.Env, name)
+			}
 		}
 	}
 	return RunPlan{
-		SchemaVersion: okf.MachineSchemaVersion,
-		RunID:         runID,
-		JobID:         job.ID,
-		JobFile:       job.Path,
-		ScheduledAt:   scheduledAt,
-		Repo:          absoluteRepo,
-		RepoRoot:      repoRoot,
-		Base:          base,
-		BaseSHA:       baseSHA,
-		Branch:        branch,
-		Worktree:      worktree,
-		RunDir:        runDir,
-		Prompt:        prompt,
-		Agent:         agentCommand,
-		Verify:        verify,
-		VerifyTimeout: verifyTimeout,
-		Sandbox:       sandbox,
-		Output:        job.Output,
-		Concurrency:   normalizedConcurrency(job.Concurrency),
+		SchemaVersion:    okf.MachineSchemaVersion,
+		RunID:            runID,
+		JobID:            job.ID,
+		JobFile:          job.Path,
+		ScheduledAt:      scheduledAt,
+		Repo:             absoluteRepo,
+		RepoRoot:         repoRoot,
+		Base:             base,
+		BaseSHA:          baseSHA,
+		Branch:           branch,
+		Worktree:         worktree,
+		RunDir:           runDir,
+		Prompt:           prompt,
+		Agent:            agentCommand,
+		Preflight:        preflight,
+		PreflightTimeout: preflightTimeout,
+		Verify:           verify,
+		VerifyTimeout:    verifyTimeout,
+		Sandbox:          sandbox,
+		Output:           job.Output,
+		Concurrency:      normalizedConcurrency(job.Concurrency),
 	}, nil
 }
 

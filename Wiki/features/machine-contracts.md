@@ -50,6 +50,9 @@ lifecycle and staleness, generation and verification events, structured
 sources, and optional Attested Computation data.
 Job contracts are experimental.
 They can change without a new version before version 1.0.
+Run plans can contain deterministic `preflight` commands and can omit `agent`
+for empty-prompt jobs that contain verification commands. Run records preserve
+preflight results and use `preflight_failed` when this phase stops execution.
 
 The published v1 schema distribution includes diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.

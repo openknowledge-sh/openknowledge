@@ -26,6 +26,7 @@
       "args": ["exec", "--sandbox", "workspace-write", "-"],
       "prompt_mode": "stdin"
     },
+    "preflight_timeout": "15m",
     "verify": [
       {
         "command": "go test ./...",

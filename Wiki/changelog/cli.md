@@ -54,6 +54,22 @@ page records release-level changes.
   `Wiki/features/commands/view.md`, and
   `Wiki/features/exporters/html.md`.
 
+### Job validation foundation
+
+- Jobs can run deterministic preflight commands before an agent starts. A
+  failed preflight prevents the harness and post-agent verification from
+  running.
+- Empty-prompt jobs with verification commands can omit the agent runtime. The
+  new `content-validation` template uses this form and never selects model
+  credentials.
+- Published run-plan and run-record schemas now cover preflight artifacts,
+  agentless plans, the `preflight_failed` status, and supported draft-PR output.
+- Source: `packages/cli/internal/agents/spec.go`,
+  `packages/cli/internal/agents/plan.go`,
+  `packages/cli/internal/agents/runner.go`, and
+  `packages/cli/internal/agents/templates.go`.
+- Docs: `Wiki/features/commands/jobs.md`.
+
 ### Viewer
 
 - Source and text files now open as syntax-highlighted note cards in the

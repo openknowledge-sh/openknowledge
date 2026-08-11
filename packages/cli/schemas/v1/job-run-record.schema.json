@@ -11,12 +11,13 @@
     "schemaVersion": {"const": "1"},
     "run_id": {"type": "string", "pattern": "^[a-f0-9]{24}$"},
     "job_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
-    "status": {"enum": ["planned", "running", "succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"]},
+    "status": {"enum": ["planned", "running", "succeeded", "failed", "preflight_failed", "verification_failed", "skipped", "cancelled", "killed"]},
     "scheduled_at": {"type": "string", "format": "date-time"},
     "started_at": {"type": "string", "format": "date-time"},
     "finished_at": {"type": "string", "format": "date-time"},
     "plan": {"$ref": "job-run-plan.schema.json"},
     "agent": {"$ref": "#/$defs/commandResult"},
+    "preflight": {"type": "array", "items": {"$ref": "#/$defs/commandResult"}},
     "verify": {"type": "array", "items": {"$ref": "#/$defs/commandResult"}},
     "error": {"type": "string"},
     "status_text": {"type": "string"},
@@ -26,7 +27,7 @@
     {
       "if": {
         "properties": {
-          "status": {"enum": ["succeeded", "failed", "verification_failed", "skipped", "cancelled", "killed"]}
+          "status": {"enum": ["succeeded", "failed", "preflight_failed", "verification_failed", "skipped", "cancelled", "killed"]}
         }
       },
       "then": {"required": ["finished_at"]}
