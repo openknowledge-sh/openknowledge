@@ -595,6 +595,9 @@ func maxSearchDistance(term string) int {
 }
 
 func editDistanceWithin(left string, right string, maximum int) bool {
+	if isASCIISearchText(left) && isASCIISearchText(right) {
+		return editDistanceBytesWithin(left, right, maximum)
+	}
 	leftRunes := []rune(left)
 	rightRunes := []rune(right)
 	if absInt(len(leftRunes)-len(rightRunes)) > maximum {
@@ -602,11 +605,11 @@ func editDistanceWithin(left string, right string, maximum int) bool {
 	}
 
 	previous := make([]int, len(rightRunes)+1)
+	current := make([]int, len(rightRunes)+1)
 	for index := range previous {
 		previous[index] = index
 	}
 	for i, leftRune := range leftRunes {
-		current := make([]int, len(rightRunes)+1)
 		current[0] = i + 1
 		rowMinimum := current[0]
 		for j, rightRune := range rightRunes {
@@ -626,9 +629,62 @@ func editDistanceWithin(left string, right string, maximum int) bool {
 		if rowMinimum > maximum {
 			return false
 		}
-		previous = current
+		previous, current = current, previous
 	}
 	return previous[len(rightRunes)] <= maximum
+}
+
+func editDistanceBytesWithin(left string, right string, maximum int) bool {
+	if absInt(len(left)-len(right)) > maximum {
+		return false
+	}
+	const stackColumns = 256
+	var previousStack [stackColumns]int
+	var currentStack [stackColumns]int
+	var previous []int
+	var current []int
+	if len(right)+1 <= stackColumns {
+		previous = previousStack[:len(right)+1]
+		current = currentStack[:len(right)+1]
+	} else {
+		previous = make([]int, len(right)+1)
+		current = make([]int, len(right)+1)
+	}
+	for index := range previous {
+		previous[index] = index
+	}
+	for leftIndex := range len(left) {
+		current[0] = leftIndex + 1
+		rowMinimum := current[0]
+		for rightIndex := range len(right) {
+			cost := 1
+			if left[leftIndex] == right[rightIndex] {
+				cost = 0
+			}
+			current[rightIndex+1] = minInt(
+				current[rightIndex]+1,
+				previous[rightIndex+1]+1,
+				previous[rightIndex]+cost,
+			)
+			if current[rightIndex+1] < rowMinimum {
+				rowMinimum = current[rightIndex+1]
+			}
+		}
+		if rowMinimum > maximum {
+			return false
+		}
+		previous, current = current, previous
+	}
+	return previous[len(right)] <= maximum
+}
+
+func isASCIISearchText(value string) bool {
+	for index := range len(value) {
+		if value[index] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 func minInt(values ...int) int {

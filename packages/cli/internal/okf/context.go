@@ -58,7 +58,7 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 		Sections:             sections,
 		Issues:               issues,
 		searchCorpus:         newKnowledgeSearchCorpus(sections),
-		documentSearchCorpus: newKnowledgeSearchCorpus(aggregateKnowledgeSearchSections(sections)),
+		documentSearchCorpus: newKnowledgeSearchDocumentCorpus(aggregateKnowledgeSearchSections(sections)),
 		sectionLookup:        newContextSectionLookup(sections),
 	}
 }
