@@ -8,10 +8,10 @@
     "dev": "vite",
     "dev:viewer": "node scripts/dev-viewer.mjs",
     "build": "pnpm build:viewer && vite build && node scripts/build.mjs",
-    "build:viewer": "vite build --config vite.viewer.config.js && vite build --config vite.theme.config.js",
-    "lint": "oxlint src scripts vite.config.js vite.viewer.config.js vite.theme.config.js --deny-warnings",
+    "build:viewer": "vite build --config vite.viewer.config.js && vite build --config vite.viewer-live-reload.config.js && vite build --config vite.theme.config.js",
+    "lint": "oxlint src scripts vite.config.js vite.viewer.config.js vite.viewer-live-reload.config.js vite.theme.config.js --deny-warnings",
     "test": "pnpm lint && vitest run",
-    "test:browser": "pnpm build:viewer && node --test scripts/browser.e2e.mjs",
+    "test:browser": "pnpm build:viewer && node --test scripts/browser.e2e.mjs scripts/viewer-live-reload.e2e.mjs",
     "start": "OPENKNOWLEDGE_WEB_ROOT=dist OPENKNOWLEDGE_WEB_EXPORT_WIKI=0 HOST=0.0.0.0 node scripts/serve.mjs"
   },
   "engines": {

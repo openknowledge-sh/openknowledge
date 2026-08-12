@@ -48,6 +48,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const currentKnowledgeBase = String(workspace.dataset.knowledgeBase || document.body.dataset.activeKnowledgeBase || "").trim();
   const viewerStorageScope = graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
+  const liveReloadStateKey = "openknowledge.viewer.liveReload." + viewerStorageScope;
   const panelWidthStorageKey = "openknowledge.viewer.panelWidths." + viewerStorageScope;
   const sidebarWidthStorageKey = "openknowledge.viewer.sidebarWidth." + viewerStorageScope;
   const graphSettingsStorageKey = "openknowledge.viewer.graphSettings." + viewerStorageScope;
@@ -55,6 +56,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const panelWidths = readPanelWidths();
   let sidebarWidth = readSidebarWidth();
   const staticNotes = readStaticNotes();
+  const liveReloadRestoreState = readLiveReloadState();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
   const knownNotePaths = collectKnownNotePaths();
@@ -202,6 +204,36 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return window.localStorage.getItem(key);
     } catch {
       return null;
+    }
+  }
+
+  function readLiveReloadState() {
+    let raw = "";
+    try {
+      raw = window.sessionStorage.getItem(liveReloadStateKey) || "";
+      window.sessionStorage.removeItem(liveReloadStateKey);
+    } catch {
+      return null;
+    }
+    if (!raw) {
+      return null;
+    }
+    try {
+      const state = JSON.parse(raw);
+      if (!state || state.version !== 1 || Date.now() - Number(state.createdAt || 0) > 30000) {
+        return null;
+      }
+      return state;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLiveReloadState(state) {
+    try {
+      window.sessionStorage.setItem(liveReloadStateKey, JSON.stringify(state));
+    } catch {
+      // A refresh remains useful when session storage is unavailable.
     }
   }
 
@@ -4389,6 +4421,85 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return response.json();
   }
 
+  async function liveReloadPathExists(path) {
+    const response = await fetch(apiURL(path), {
+      cache: "no-store",
+      headers: { "Accept": "application/json" }
+    });
+    if (response.status === 404) {
+      return false;
+    }
+    if (!response.ok) {
+      throw new Error("Could not verify " + path);
+    }
+    return true;
+  }
+
+  async function prepareLiveReload(revision) {
+    if (isStaticBundle()) {
+      return;
+    }
+    const stack = currentStack();
+    const activePath = activePanel()?.dataset.notePath || stack[0] || "";
+    const panelScrollTop = {};
+    panels().forEach(function (panel) {
+      if (panel.dataset.notePath) {
+        panelScrollTop[panel.dataset.notePath] = panel.scrollTop || 0;
+      }
+    });
+    const survivors = [];
+    for (const path of stack) {
+      if (await liveReloadPathExists(path)) {
+        survivors.push(path);
+      }
+    }
+    if (!survivors.length && await liveReloadPathExists("index.md")) {
+      survivors.push("index.md");
+    }
+    const nextActivePath = survivors.includes(activePath) ? activePath : survivors[0] || "";
+    saveLiveReloadState({
+      version: 1,
+      revision: String(revision || ""),
+      createdAt: Date.now(),
+      stack: survivors,
+      activePath: nextActivePath,
+      view: graphViewIsVisible() ? "graph" : "notes",
+      workspaceScrollLeft: workspace.scrollLeft || 0,
+      panelScrollTop: panelScrollTop
+    });
+    if (!survivors.length) {
+      window.location.assign((linkPrefix || "") + "/");
+      return;
+    }
+    updateHistory(survivors, false, highlightFromLocation());
+    window.location.reload();
+  }
+
+  function restoreLiveReloadSession(state) {
+    if (!state) {
+      return;
+    }
+    const matchingActive = panels().find(function (panel) {
+      return panel.dataset.notePath === state.activePath;
+    });
+    if (matchingActive) {
+      setActivePanel(matchingActive);
+    }
+    setGraphViewRequested(state.view === "graph");
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        const scrollByPath = state.panelScrollTop && typeof state.panelScrollTop === "object" ? state.panelScrollTop : {};
+        panels().forEach(function (panel) {
+          const requested = Number(scrollByPath[panel.dataset.notePath] || 0);
+          panel.scrollTop = clamp(requested, 0, Math.max(0, panel.scrollHeight - panel.clientHeight));
+        });
+        const requestedWorkspace = Number(state.workspaceScrollLeft || 0);
+        workspace.scrollLeft = clamp(requestedWorkspace, 0, maxWorkspaceScroll());
+        queueWorkspaceRailUpdate();
+      });
+    });
+  }
+
   function createPanel(data, animate) {
     const panel = document.createElement("article");
     panel.className = "document note-panel" + (animate && stackMotionIsEnabled() ? " is-entering" : "");
@@ -5419,26 +5530,34 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
   });
 
-  const requestedStack = stackFromLocation();
-  const requestedHighlight = highlightFromLocation();
-  organizeSidebarControls();
-  bindNavigationMode();
-  bindDocumentsView();
-  bindGraphView();
-  bindViewerSettings();
-  prepareKnowledgeBases();
-  prepareKnowledgeTrees();
-  renderKnowledgeGraph();
-  panels().forEach(bindPanel);
-  ensureActivePanel();
-  if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
-    window.history.replaceState({ stack: requestedStack }, "", window.location.href);
-    restoreStack(requestedStack, requestedHighlight);
-  } else {
-    window.history.replaceState({ stack: requestedStack }, "", window.location.href);
-    updateWorkspaceState();
-    updateActiveLinks();
-    updateTitle();
-    applySearchHighlight(activePanel(), requestedHighlight);
+  window.OpenKnowledgeViewerLiveReload = Object.freeze({ prepare: prepareLiveReload });
+
+  async function initializeViewer() {
+    const requestedStack = stackFromLocation();
+    const requestedHighlight = highlightFromLocation();
+    organizeSidebarControls();
+    bindNavigationMode();
+    bindDocumentsView();
+    bindGraphView();
+    bindViewerSettings();
+    prepareKnowledgeBases();
+    prepareKnowledgeTrees();
+    renderKnowledgeGraph();
+    panels().forEach(bindPanel);
+    ensureActivePanel();
+    if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
+      window.history.replaceState({ stack: requestedStack }, "", window.location.href);
+      await restoreStack(requestedStack, requestedHighlight);
+    } else {
+      window.history.replaceState({ stack: requestedStack }, "", window.location.href);
+      updateWorkspaceState();
+      updateActiveLinks();
+      updateTitle();
+      applySearchHighlight(activePanel(), requestedHighlight);
+    }
+    restoreLiveReloadSession(liveReloadRestoreState);
+    window.dispatchEvent(new CustomEvent("openknowledge:viewer-ready"));
   }
+
+  void initializeViewer();
 })();

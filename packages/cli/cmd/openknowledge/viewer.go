@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -21,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -28,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
@@ -76,6 +79,7 @@ func runView(args []string) int {
 	options := viewerOptions{HeadHTML: headInjection}
 
 	var handler http.Handler
+	var liveReloadRoots viewerLiveReloadRootSource
 	var details func()
 	aliasNames := []string{}
 	if fs.NArg() == 1 {
@@ -97,6 +101,9 @@ func runView(args []string) int {
 		}
 		options.AliasName = aliasName
 		handler = newViewerHandlerWithOptions(absolute, options)
+		liveReloadRoots = func() ([]viewerLiveReloadRoot, error) {
+			return []viewerLiveReloadRoot{{Alias: aliasName, Root: absolute}}, nil
+		}
 		details = func() {
 			fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(absolute))
 		}
@@ -110,12 +117,36 @@ func runView(args []string) int {
 			aliasNames = append(aliasNames, entry.Name)
 		}
 		handler = newReloadingRegistryViewerHandlerWithOptions(okf.RegistryEntries, options)
+		liveReloadRoots = func() ([]viewerLiveReloadRoot, error) {
+			entries, err := okf.RegistryEntries()
+			if err != nil {
+				return nil, err
+			}
+			roots := make([]viewerLiveReloadRoot, 0, len(entries))
+			for _, entry := range entries {
+				root, err := registryEntryRoot(entry)
+				if err != nil {
+					return nil, err
+				}
+				roots = append(roots, viewerLiveReloadRoot{Alias: entry.Name, Root: root})
+			}
+			return roots, nil
+		}
 		details = func() {
 			if path, err := okf.RegistryFile(); err == nil {
 				fmt.Printf("%s %s\n", terminal.muted("registry"), terminal.path(path))
 			}
 			fmt.Printf("%s %d\n", terminal.muted("knowledge bases"), len(entries))
 		}
+	}
+	serverContext, stopServer := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopServer()
+	liveReload, liveReloadErr := newViewerLiveReload(serverContext, liveReloadRoots)
+	if liveReloadErr != nil {
+		fmt.Fprintf(stderrOutput(), "warning: viewer live reload is unavailable: %v\n", liveReloadErr)
+	} else {
+		defer liveReload.Close()
+		handler = viewerLiveReloadHandler(handler, liveReload)
 	}
 	handler = secureViewerHandler(handler, accessToken)
 
@@ -151,7 +182,16 @@ func runView(args []string) int {
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}
-	if err := server.Serve(listener); err != nil {
+	go func() {
+		<-serverContext.Done()
+		if liveReload != nil {
+			_ = liveReload.Close()
+		}
+		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdown)
+	}()
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
@@ -1024,6 +1064,7 @@ func registerViewerAssets(mux *http.ServeMux) {
 	mux.HandleFunc("/"+viewerThemeScriptAsset, renderViewerBundledAsset(viewerThemeScriptAsset, "application/javascript; charset=utf-8", viewerThemeBootstrapJS))
 	mux.HandleFunc("/"+viewerStylesheetAsset, renderViewerBundledAsset(viewerStylesheetAsset, "text/css; charset=utf-8", viewerCSS))
 	mux.HandleFunc("/"+viewerAppScriptAsset, renderViewerBundledAsset(viewerAppScriptAsset, "application/javascript; charset=utf-8", viewerJS))
+	mux.HandleFunc("/"+viewerLiveReloadScriptAsset, renderViewerBundledAsset(viewerLiveReloadScriptAsset, "application/javascript; charset=utf-8", viewerLiveReloadJS))
 }
 
 func renderViewerBundledAsset(name string, contentType string, content string) http.HandlerFunc {

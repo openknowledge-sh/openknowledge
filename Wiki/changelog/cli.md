@@ -13,6 +13,21 @@ page records release-level changes.
 
 ## Unreleased
 
+### Viewer
+
+- `okn view` now watches local Markdown and asset files. It refreshes an open
+  page after an add, update, rename, move, or deletion.
+- Live reload preserves surviving document stacks, active documents, graph
+  state, and scroll positions. It removes deleted paths before refresh.
+- A content revision and authenticated Server-Sent Events stream coalesce save
+  bursts. Static HTML exports do not include the live reload client.
+- Source: `packages/cli/cmd/openknowledge/viewer_live_reload.go`,
+  `packages/cli/cmd/openknowledge/viewer_live_reload_test.go`,
+  `packages/web/src/viewer/live-reload.js`,
+  `packages/web/src/viewer/app.js`, and
+  `packages/web/scripts/viewer-live-reload.e2e.mjs`.
+- Docs: `Wiki/features/commands/view.md`.
+
 ### Rules and setup
 
 - New knowledge bases now enable the built-in `project` and `writing` rules.

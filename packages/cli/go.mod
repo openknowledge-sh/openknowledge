@@ -3,6 +3,7 @@ module github.com/openknowledge-sh/openknowledge/packages/cli
 go 1.26.5
 
 require (
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gofrs/flock v0.12.1
 	github.com/natefinch/atomic v1.0.1
 	github.com/pelletier/go-toml/v2 v2.2.4

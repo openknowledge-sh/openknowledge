@@ -7,6 +7,7 @@ test("useViteViewerAssets replaces embedded viewer assets", () => {
     <script src="/assets/openknowledge/viewer-theme.js"></script>
     <link rel="stylesheet" href="/assets/openknowledge/viewer.css">
     <script src="/assets/openknowledge/viewer.js"></script>
+    <script src="/assets/openknowledge/viewer-live-reload.js"></script>
   `;
   const result = useViteViewerAssets(html);
 
@@ -14,6 +15,7 @@ test("useViteViewerAssets replaces embedded viewer assets", () => {
   assert.match(result, /href="\/@fs\/.+\/viewer_theme\.css"/);
   assert.match(result, /href="\/src\/viewer\/styles\/index\.css"/);
   assert.match(result, /type="module" src="\/src\/viewer\/index\.js"/);
+  assert.match(result, /type="module" src="\/src\/viewer\/live-reload-entry\.js"/);
   assert.doesNotMatch(result, /assets\/openknowledge\/viewer/);
 });
 

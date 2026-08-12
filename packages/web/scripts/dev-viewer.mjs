@@ -21,6 +21,10 @@ export function useViteViewerAssets(html) {
     .replaceAll(
       `<script src="${viewerAssetPrefix}viewer.js"></script>`,
       '<script type="module" src="/src/viewer/index.js"></script>',
+    )
+    .replaceAll(
+      `<script src="${viewerAssetPrefix}viewer-live-reload.js"></script>`,
+      '<script type="module" src="/src/viewer/live-reload-entry.js"></script>',
     );
 }
 

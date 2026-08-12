@@ -141,6 +141,13 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The local viewer serves the same Vite-built JavaScript and CSS bundle as
   static exports. Local routes supply live API data. Static pages load one
   shared generated data file.
+- The local viewer watches visible Markdown and asset files. It refreshes the
+  open page after an add, update, rename, move, or deletion.
+  One save burst causes one refresh after a short delay.
+  Existing open paths, the active path, the graph view, and scroll positions
+  survive when their targets still exist.
+  The viewer removes deleted open paths before refresh.
+  Static HTML exports do not include this live reload client.
 
 | Shortcut | Action |
 | --- | --- |
@@ -162,6 +169,10 @@ requires
 The initial URL exchanges the token for an HttpOnly, SameSite cookie. It then
 redirects to a clean URL. A remote client can also send
 `Authorization: Bearer <token>`.
+
+The live reload event stream uses the same authentication. Events contain a
+content revision and optional knowledge-base aliases. They do not contain file
+contents or filesystem paths.
 
 Raw routes serve only regular non-Markdown bundle assets. They exclude
 dotfiles, `.git`, `.openknowledge.toml`, legacy `openknowledge.toml`, and symlinks. Markdown and asset
@@ -198,14 +209,18 @@ marker.
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/viewer.go`
+> - `packages/cli/cmd/openknowledge/viewer_live_reload.go`
 > - `packages/cli/cmd/openknowledge/viewer_assets.go`
 > - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/web/src/viewer/`
 > - `packages/web/vite.viewer.config.js`
+> - `packages/web/vite.viewer-live-reload.config.js`
 > - `packages/web/vite.theme.config.js`
 > - `packages/web/scripts/browser.e2e.mjs`
+> - `packages/web/scripts/viewer-live-reload.e2e.mjs`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
+> - `packages/cli/cmd/openknowledge/viewer_live_reload_test.go`
 > - `packages/cli/internal/okf/search.go`
 >
 > **Update notes**

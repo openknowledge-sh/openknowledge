@@ -56,7 +56,8 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
       </section>
     {{end}}
   </main>
-  <script src="/` + viewerAppScriptAsset + `"></script>
+	  <script src="/` + viewerAppScriptAsset + `"></script>
+	  <script src="/` + viewerLiveReloadScriptAsset + `"></script>
 </body>
 </html>`))
 
@@ -100,8 +101,9 @@ var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!do
         {{end}}
       </div>
     </article>
-  </main>
-</body>
+	  </main>
+	  <script src="/` + viewerLiveReloadScriptAsset + `"></script>
+	</body>
 </html>`))
 
 var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doctype html>
@@ -460,7 +462,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
   {{end}}
-  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script src="/` + viewerAppScriptAsset + `"></script>{{end}}
+	  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script src="/` + viewerAppScriptAsset + `"></script><script src="/` + viewerLiveReloadScriptAsset + `"></script>{{end}}
 </body>
 </html>`))
 

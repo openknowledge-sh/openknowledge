@@ -146,10 +146,11 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 }
 
 const (
-	viewerThemeScriptAsset = "assets/openknowledge/viewer-theme.js"
-	viewerStylesheetAsset  = "assets/openknowledge/viewer.css"
-	viewerDataScriptAsset  = "assets/openknowledge/viewer-data.js"
-	viewerAppScriptAsset   = "assets/openknowledge/viewer.js"
+	viewerThemeScriptAsset      = "assets/openknowledge/viewer-theme.js"
+	viewerStylesheetAsset       = "assets/openknowledge/viewer.css"
+	viewerDataScriptAsset       = "assets/openknowledge/viewer-data.js"
+	viewerAppScriptAsset        = "assets/openknowledge/viewer.js"
+	viewerLiveReloadScriptAsset = "assets/openknowledge/viewer-live-reload.js"
 )
 
 func viewerStaticScriptURLs(currentPath string) viewerScriptURLs {
