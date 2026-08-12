@@ -43,18 +43,16 @@ func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resol
 	for index, block := range blocks {
 		switch block.Kind {
 		case "agent-footer":
-			builder.WriteString(`<aside class="ok-agent-context ok-agent-footer" data-okf-annotation="agent-context">` + "\n")
-			builder.WriteString("<details>\n<summary>Agent context</summary>\n")
+			builder.WriteString(`<aside class="ok-agent-context ok-agent-footer" data-okf-annotation="agent-context" aria-label="Agent context">` + "\n")
 			builder.WriteString(renderASTMarkdownBlocks(block.Children, currentRel, resolve, footnotes))
-			builder.WriteString("</details>\n</aside>\n")
+			builder.WriteString("</aside>\n")
 		case "annotation":
 			if block.Annotation == nil || block.Annotation.Capability != "agent-context" {
 				continue
 			}
-			builder.WriteString(`<aside class="ok-agent-context" data-okf-annotation="agent-context">` + "\n")
-			builder.WriteString("<details>\n<summary>Agent context</summary>\n")
+			builder.WriteString(`<aside class="ok-agent-context" data-okf-annotation="agent-context" aria-label="Agent context">` + "\n")
 			builder.WriteString(renderASTMarkdownBlocks(block.Children, currentRel, resolve, footnotes))
-			builder.WriteString("</details>\n</aside>\n")
+			builder.WriteString("</aside>\n")
 		case "html-comment":
 			continue
 		case "thematic-break":

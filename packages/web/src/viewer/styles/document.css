@@ -164,10 +164,10 @@ blockquote p { color: var(--ok-color-muted); }
 .ok-agent-footer strong { color: inherit; }
 .ok-agent-footer a { color: var(--ok-color-muted); text-decoration-color: var(--ok-color-border); }
 .ok-agent-footer a:hover { background: transparent; color: var(--ok-color-accent); }
-.ok-agent-context { margin: 32px 0 0; padding: 14px 16px; border: 1px solid var(--ok-color-border); border-radius: 10px; color: var(--ok-color-muted); font-size: 14px; background: color-mix(in srgb, var(--ok-color-surface) 92%, var(--ok-color-border)); }
-.ok-agent-context summary { cursor: pointer; font-weight: 650; color: var(--ok-color-muted); }
-.ok-agent-context details[open] summary { margin-bottom: 12px; }
-.ok-agent-context > details > :last-child { margin-bottom: 0; }
+.ok-agent-context { margin: 20px 0; color: var(--ok-color-muted); font-size: 14px; opacity: .82; }
+.ok-agent-context p, .ok-agent-context li, .ok-agent-context blockquote, .ok-agent-context strong { color: inherit; }
+.ok-agent-context > :first-child { margin-top: 0; }
+.ok-agent-context > :last-child { margin-bottom: 0; }
 code { padding: 1px 4px; border-radius: 4px; background: var(--ok-color-code-inline-bg); font-family: var(--ok-font-mono); font-size: .9em; letter-spacing: -.012em; }
 pre, .code-block { overflow-x: auto; margin: 22px 0 26px; padding: 16px 18px; border: 1px solid var(--ok-color-border); border-radius: 10px; background: var(--ok-color-code-block-bg); color: var(--ok-color-code-block-text); font: 400 .94em/1.6 var(--ok-font-mono); box-shadow: 0 8px 24px var(--ok-color-shadow); }
 pre code, .code-block code { display: block; min-width: max-content; padding: 0; background: transparent; color: inherit; font: inherit; white-space: pre; }

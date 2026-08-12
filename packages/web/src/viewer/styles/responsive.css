@@ -69,7 +69,7 @@
 .note-panel .ok-frontmatter-chip { font-size: calc(11px * var(--ok-document-scale, 1)); }
 .note-body .ok-table { font-size: calc(14px * var(--ok-document-scale, 1)); }
 .note-body .ok-table th { font-size: calc(12px * var(--ok-document-scale, 1)); }
-.note-body .ok-agent-footer { font-size: calc(14px * var(--ok-document-scale, 1)); }
+.note-body .ok-agent-context { font-size: calc(14px * var(--ok-document-scale, 1)); }
 @media (max-width: 680px) {
   .note-body h1 { font-size: calc(28px * var(--ok-document-scale, 1)); }
 }

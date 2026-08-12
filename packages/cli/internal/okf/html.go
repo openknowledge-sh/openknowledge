@@ -195,10 +195,10 @@ blockquote p { color: inherit; }
 .ok-agent-footer blockquote p, .ok-agent-footer li { color: inherit; }
 .ok-agent-footer strong { color: inherit; }
 .ok-agent-footer a { color: var(--muted); text-decoration-color: var(--line); }
-.ok-agent-context { margin: 32px 0 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); font-size: 14px; background: color-mix(in srgb, var(--panel) 92%, var(--line)); }
-.ok-agent-context summary { cursor: pointer; font-weight: 650; color: var(--muted); }
-.ok-agent-context details[open] summary { margin-bottom: 12px; }
-.ok-agent-context > details > :last-child { margin-bottom: 0; }
+.ok-agent-context { margin: 20px 0; color: var(--muted); font-size: 14px; opacity: .82; }
+.ok-agent-context p, .ok-agent-context li, .ok-agent-context blockquote, .ok-agent-context strong { color: inherit; }
+.ok-agent-context > :first-child { margin-top: 0; }
+.ok-agent-context > :last-child { margin-bottom: 0; }
 hr { margin: 34px 0; border: 0; border-top: 1px solid var(--line); }
 table { width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 15px; }
 th, td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }

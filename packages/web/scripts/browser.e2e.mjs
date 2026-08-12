@@ -60,6 +60,10 @@ before(async () => {
     "",
     "Validate the deployment, capture evidence, and execute the rollback checklist.[^rollback-policy]",
     "",
+    "<!-- okf-annotation: agent-context -->",
+    "Agent-facing maintenance context.",
+    "<!-- /okf-annotation -->",
+    "",
     "[^rollback-policy]: Rollback policy source.",
     "",
     "```mermaid",
@@ -698,6 +702,13 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   assert.equal(await signals.count(), 1);
   assert.match(await signals.innerText(), /Human reviewed/);
   assert.match(await signals.innerText(), /Current until 2027-08-03/);
+  const agentContext = panel.locator('[data-okf-annotation="agent-context"]');
+  assert.equal(await agentContext.count(), 1);
+  assert.equal(await agentContext.locator("details, summary").count(), 0, "agent context should not use a disclosure");
+  assert.equal(await agentContext.getByText("Agent-facing maintenance context.", { exact: true }).isVisible(), true);
+  const annotationColor = await agentContext.locator("p").evaluate((paragraph) => getComputedStyle(paragraph).color);
+  const readerColor = await panel.locator(".note-body > p").first().evaluate((paragraph) => getComputedStyle(paragraph).color);
+  assert.notEqual(annotationColor, readerColor, "agent context should use a distinct text color");
   const ledger = signals.locator("[data-source-ledger]");
   assert.equal(await ledger.getAttribute("open"), null);
   const reference = page.getByRole("link", { name: "Source rollback-policy" });

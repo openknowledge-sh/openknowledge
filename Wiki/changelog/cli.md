@@ -42,7 +42,7 @@ page records release-level changes.
   identity. Changed scope includes direct local Markdown dependencies; full
   scope works outside Git.
 - Markdown now supports bounded `agent-context` annotations. The AST preserves
-  their child blocks, viewers render a separate collapsed disclosure, and
+  their child blocks, viewers show them with subdued text, and
   ordinary reader search excludes their content. Legacy maintenance footers
   remain accepted through end-of-file.
 - Source: `packages/cli/internal/okf/content_review.go`,

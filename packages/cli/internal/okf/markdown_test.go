@@ -130,8 +130,7 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 				"> - `packages/cli/main.go`",
 			}, "\n"),
 			required: []string{
-				`<aside class="ok-agent-context ok-agent-footer" data-okf-annotation="agent-context">`,
-				"<summary>Agent context</summary>",
+				`<aside class="ok-agent-context ok-agent-footer" data-okf-annotation="agent-context" aria-label="Agent context">`,
 				"<blockquote>",
 				"<strong>Source anchors</strong>",
 				"<li><code>packages/cli/main.go</code></li>",
@@ -141,6 +140,8 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 				"okf-footer: agent-maintenance",
 				"&lt;!--",
 				"<hr>",
+				"<details>",
+				"<summary>",
 			},
 		},
 		{
@@ -156,13 +157,12 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 			}, "\n"),
 			required: []string{
 				"<p>Before.</p>",
-				`<aside class="ok-agent-context" data-okf-annotation="agent-context">`,
-				"<summary>Agent context</summary>",
+				`<aside class="ok-agent-context" data-okf-annotation="agent-context" aria-label="Agent context">` + "\n<p>Maintenance note.</p>",
 				"<p>Maintenance note.</p>",
 				"</aside>",
 				"<p>After.</p>",
 			},
-			forbidden: []string{"okf-annotation:", "&lt;!--"},
+			forbidden: []string{"okf-annotation:", "&lt;!--", "<details>", "<summary>"},
 		},
 		{
 			name: "fenced code",

@@ -185,10 +185,11 @@ Theme and source-link configuration comes from
 [`.openknowledge.toml`](/features/configuration.md). For deployment, use the
 [HTML exporter](/features/exporters/html.md).
 
-Markdown `agent-context` annotations appear as collapsed **Agent context**
-disclosures. Their content remains in canonical source and the AST, but does
-not enter ordinary reader search. The viewer also accepts the legacy
-agent-maintenance footer marker.
+Markdown `agent-context` annotations remain visible in the document flow. A
+subdued text color distinguishes their content from reader content. Their
+content remains in canonical source and the AST, but does not enter ordinary
+reader search. The viewer also accepts the legacy agent-maintenance footer
+marker.
 
 ---
 

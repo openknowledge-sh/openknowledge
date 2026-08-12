@@ -145,9 +145,9 @@ In this case, the portable archive excludes the output.
 The output must not equal or contain the source root.
 
 Viewer pages rewrite local links and hide HTML comments.
-They present bounded `agent-context` annotations in a separate collapsed
-disclosure. The legacy `<!-- okf-footer: agent-maintenance -->` marker uses the
-same presentation and extends to the end of its source file.
+They keep bounded `agent-context` annotations visible and use a subdued text
+color. The legacy `<!-- okf-footer: agent-maintenance -->` marker uses the same
+presentation and extends to the end of its source file.
 When included, the portable archive contains only publishable Markdown and allowed assets.
 It excludes project configuration and `.openknowledge` job or run state.
 It also excludes Markdown with `okf_publish: false`, including private insights.
