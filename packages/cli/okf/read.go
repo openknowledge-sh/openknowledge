@@ -43,11 +43,15 @@ func ListWithVersion(root string, version string) (ListResult, error) {
 }
 
 func Search(root string, options SearchOptions) (SearchResultSet, error) {
-	return core.SearchKnowledge(root, options)
+	return SearchWithVersion(root, LatestSpecVersion, options)
 }
 
 func SearchWithVersion(root string, version string, options SearchOptions) (SearchResultSet, error) {
-	return core.SearchKnowledgeWithVersion(root, version, options)
+	index, err := BuildContextIndexWithVersion(root, version)
+	if err != nil {
+		return SearchResultSet{}, err
+	}
+	return index.Search(options), nil
 }
 
 func SearchFederatedWithVersion(targets []FederatedTarget, version string, options SearchOptions) (FederatedSearchResultSet, error) {
@@ -59,11 +63,15 @@ func SearchFederated(targets []FederatedTarget, options SearchOptions) (Federate
 }
 
 func ResolveContext(root string, options ContextOptions) (ContextResult, error) {
-	return core.ResolveContext(root, options)
+	return ResolveContextWithVersion(root, LatestSpecVersion, options)
 }
 
 func ResolveContextWithVersion(root string, version string, options ContextOptions) (ContextResult, error) {
-	return core.ResolveContextWithVersion(root, version, options)
+	index, err := BuildContextIndexWithVersion(root, version)
+	if err != nil {
+		return ContextResult{}, err
+	}
+	return index.Resolve(options)
 }
 
 func ResolveFederatedContextWithVersion(targets []FederatedTarget, version string, options ContextOptions) (FederatedContextResult, error) {

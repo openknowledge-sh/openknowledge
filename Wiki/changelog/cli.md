@@ -35,12 +35,21 @@ page records release-level changes.
 - Exact lookup no longer scans every section. Prefix lookup uses a vocabulary
   range. Fuzzy lookup can scan the vocabulary.
 - Ranking, CLI output, and machine-readable contracts do not change.
+- The public Go API now provides an immutable, revision-bound `ContextIndex`.
+  `BuildContextIndex` and `BuildContextIndexWithVersion` create the snapshot.
+- `ContextIndex.Search` and `ContextIndex.Resolve` reuse the snapshot for
+  concurrent requests. These methods do not read the source files again.
+- Existing `Search`, `SearchWithVersion`, `ResolveContext`, and
+  `ResolveContextWithVersion` remain compatible one-shot helpers.
 - Source: `packages/cli/internal/okf/context.go`,
   `packages/cli/internal/okf/search.go`,
   `packages/cli/internal/okf/search_knowledge.go`,
-  `packages/cli/internal/okf/search_inverted_index_test.go`, and
-  `packages/cli/internal/okf/search_benchmark_test.go`.
-- Docs: `Wiki/features/knowledge-architecture.md`.
+  `packages/cli/internal/okf/search_inverted_index_test.go`,
+  `packages/cli/internal/okf/search_benchmark_test.go`,
+  `packages/cli/okf/context_index.go`, `packages/cli/okf/read.go`, and
+  `packages/cli/okf/read_test.go`.
+- Docs: `Wiki/features/knowledge-architecture.md` and
+  `Wiki/features/go-api.md`.
 
 ### Rules and setup
 

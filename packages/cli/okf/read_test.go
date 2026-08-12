@@ -2,9 +2,11 @@ package okf_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/okf"
@@ -66,6 +68,132 @@ func TestPublicReadAPIExercisesCoreViews(t *testing.T) {
 	if err != nil || info.Metadata.Name != "sdk-test" {
 		t.Fatalf("unexpected public bundle info: %#v err=%v", info, err)
 	}
+}
+
+func TestPublicContextIndexReusesImmutableSnapshot(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nRead the guide.\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\ntitle: Search Guide\n---\n\n# Retrieval\n\nUse deterministic lexical search.\n")
+
+	index, err := okf.BuildContextIndexWithVersion(root, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := index.Search(okf.SearchOptions{Query: "deterministic lexical", Limit: 5, NoExpand: true})
+	if len(first.Results) != 1 || first.Results[0].Path != "guide.md" {
+		t.Fatalf("unexpected reusable index result: %#v", first)
+	}
+	context, err := index.Resolve(okf.ContextOptions{Query: "deterministic lexical", Budget: 500, Limit: 5, NoExpand: true})
+	if err != nil || len(context.Sources) != 1 || context.Revision != first.Revision {
+		t.Fatalf("expected search and context to share one revision: search=%#v context=%#v err=%v", first, context, err)
+	}
+
+	writeFile(t, root, "guide.md", "---\ntype: Guide\ntitle: Search Guide\n---\n\n# Retrieval\n\nUse replacement canary evidence.\n")
+	stale := index.Search(okf.SearchOptions{Query: "replacement canary", Limit: 5, NoExpand: true})
+	if len(stale.Results) != 0 || stale.Revision != first.Revision {
+		t.Fatalf("expected the reusable index to retain its immutable snapshot: %#v", stale)
+	}
+	fresh, err := okf.SearchWithVersion(root, "0.1", okf.SearchOptions{Query: "replacement canary", Limit: 5, NoExpand: true})
+	if err != nil || len(fresh.Results) != 1 || fresh.Revision == first.Revision {
+		t.Fatalf("expected a one-shot search to build a fresh revision: %#v err=%v", fresh, err)
+	}
+}
+
+func TestPublicContextIndexReturnsIndependentIssues(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "[Missing](missing.md)\n")
+	index, err := okf.BuildContextIndexWithVersion(root, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := index.Search(okf.SearchOptions{Query: "missing", Limit: 5})
+	second := index.Search(okf.SearchOptions{Query: "missing", Limit: 5})
+	if len(first.Issues) == 0 || len(second.Issues) == 0 {
+		t.Fatalf("expected validation issues in both results: first=%#v second=%#v", first, second)
+	}
+	first.Issues[0].Message = "caller mutation"
+	if second.Issues[0].Message == "caller mutation" {
+		t.Fatal("result issues share mutable storage")
+	}
+}
+
+func TestPublicContextIndexSupportsConcurrentSearch(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\nokf_version: \"0.1\"\n---\n\n# Home\n\nConcurrent retrieval.\n")
+	index, err := okf.BuildContextIndexWithVersion(root, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wait sync.WaitGroup
+	errors := make(chan string, 8)
+	for worker := range 8 {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for range 25 {
+				if worker%2 == 0 {
+					result := index.Search(okf.SearchOptions{Query: "concurrent retrieval", Limit: 5, NoExpand: true})
+					if len(result.Results) != 1 || result.Results[0].Path != "index.md" {
+						errors <- "unexpected concurrent search result"
+						return
+					}
+					continue
+				}
+				result, err := index.Resolve(okf.ContextOptions{Query: "concurrent retrieval", Budget: 500, Limit: 5, NoExpand: true})
+				if err != nil || len(result.Sources) != 1 || result.Sources[0].Path != "index.md" {
+					errors <- "unexpected concurrent context result"
+					return
+				}
+			}
+		}()
+	}
+	wait.Wait()
+	close(errors)
+	for message := range errors {
+		t.Fatal(message)
+	}
+}
+
+func BenchmarkPublicContextIndexSearch(b *testing.B) {
+	root := b.TempDir()
+	for documentIndex := range 100 {
+		content := "---\ntype: Guide\ntitle: Reference Guide\n---\n\n# Reference\n\nPortable knowledge retrieval.\n"
+		if documentIndex%10 == 0 {
+			content = "---\ntype: Runbook\ntitle: Deployment Guide\n---\n\n# Validation\n\nDeployment validation workflow.\n"
+		}
+		path := filepath.Join(root, "guides", fmt.Sprintf("%03d.md", documentIndex))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			b.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			b.Fatal(err)
+		}
+	}
+	index, err := okf.BuildContextIndexWithVersion(root, "0.1")
+	if err != nil {
+		b.Fatal(err)
+	}
+	options := okf.SearchOptions{Query: "deployment validation", Limit: 5, NoExpand: true}
+
+	b.Run("reused_index", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			result := index.Search(options)
+			if len(result.Results) == 0 {
+				b.Fatal("expected search results")
+			}
+		}
+	})
+	b.Run("one_shot", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			result, err := okf.SearchWithVersion(root, "0.1", options)
+			if err != nil || len(result.Results) == 0 {
+				b.Fatalf("expected search results: %#v err=%v", result, err)
+			}
+		}
+	})
 }
 
 func TestPublicConfigurationAndManifestHelpers(t *testing.T) {

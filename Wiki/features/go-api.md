@@ -3,7 +3,7 @@ type: Feature Documentation
 title: Go API
 description: Embed the read-only Open Knowledge parser, validation, retrieval, and graph core.
 tags: [openknowledge, go, api, sdk, integration]
-timestamp: 2026-07-18T00:00:00Z
+timestamp: 2026-08-12T00:00:00Z
 ---
 
 # Go API
@@ -31,6 +31,36 @@ packet, err := okf.ResolveContextWithVersion(
     okf.ContextOptions{Query: "release workflow", Budget: 1200, Limit: 8},
 )
 ```
+
+## Reusable retrieval index
+
+Build one immutable snapshot for multiple retrieval requests:
+
+```go
+index, err := okf.BuildContextIndexWithVersion("./Wiki", "0.2")
+if err != nil {
+    return err
+}
+
+results := index.Search(okf.SearchOptions{Query: "release workflow", Limit: 8})
+packet, err := index.Resolve(okf.ContextOptions{
+    Query: "release workflow",
+    Budget: 1200,
+    Limit: 8,
+})
+```
+
+`BuildContextIndex` uses `LatestSpecVersion`. `BuildContextIndexWithVersion`
+uses the selected spec version. Both functions parse, validate, and index the
+bundle once.
+
+`ContextIndex.Search` and `ContextIndex.Resolve` use the stored snapshot. These
+methods do not read the source files. Reuse one index for concurrent requests.
+Build a new index after the bundle changes.
+
+`Search`, `SearchWithVersion`, `ResolveContext`, and
+`ResolveContextWithVersion` remain compatible one-shot helpers. Each helper
+builds a new index before retrieval.
 
 ## Surface
 
@@ -84,6 +114,7 @@ Registry reads do not migrate or rewrite local storage.
 > **Source anchors**
 >
 > - `packages/cli/okf/doc.go`
+> - `packages/cli/okf/context_index.go`
 > - `packages/cli/okf/types.go`
 > - `packages/cli/okf/read.go`
 > - `packages/cli/okf/registry.go`
