@@ -1,7 +1,7 @@
 ---
 type: Feature Documentation
 title: Knowledge Architecture
-description: Canonical OKF source, shipped projections, and candidate retrieval layers.
+description: Canonical OKF source and shipped retrieval projections.
 tags: [openknowledge, architecture, retrieval, graph, search]
 timestamp: 2026-08-12T00:00:00Z
 ---
@@ -44,23 +44,6 @@ Search does not currently provide general metadata filters or embeddings.
 Search also does not provide semantic fusion, a cross-encoder reranker, or a query planner.
 It does not provide RDF queries, property-graph queries, or GraphRAG multi-hop reasoning.
 
-## Candidate sequence
-
-Evaluate each addition against a versioned relevance and latency corpus.
-Complete this evaluation before you change the default retrieval contract.
-
-1. Add typed metadata filters for the CLI, Go, MCP, viewer, and runtime.
-2. Add optional vector indexes that identify their content and model versions.
-3. Add deterministic lexical and vector fusion.
-   Add reranking only when measured quality justifies its latency and operational cost.
-4. Add a semantic graph projection with authored predicates.
-   Include stable entity IDs, provenance, and confidence.
-5. Add conditional multi-hop graph retrieval for queries that require relationship traversal.
-
-Derive all candidate layers from the Markdown corpus.
-Do not edit an embedding index as an independent knowledge base.
-Do not edit a semantic graph as an independent knowledge base.
-
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -75,5 +58,4 @@ Do not edit a semantic graph as an independent knowledge base.
 >
 > **Update notes**
 >
-> Keep shipped and candidate layers separate after a change to retrieval or
-> graph behavior.
+> Update this page after a change to shipped retrieval or graph behavior.

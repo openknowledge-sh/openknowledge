@@ -3,12 +3,14 @@
 This log tracks documentation-structure changes. Product history belongs in
 [the CLI changelog](changelog/cli.md).
 
+## 2026-08-12
+
+- Added and completed the plan for local viewer content live reload.
+
 ## 2026-08-11
 
 - Documented the implemented `writing` default and optional
   `iso-plain-language` rule.
-- Added the candidate content-health direction for writing rules, optional
-  profiles, agent review, annotations, and portable maintenance automation.
 - Documented the shipped portable content-review identity, bounded
   agent-context annotations, deterministic job preflight, and agentless
   content-validation template.
@@ -28,9 +30,8 @@ This log tracks documentation-structure changes. Product history belongs in
 
 ## 2026-07-21
 
-- Added a shipped-versus-candidate knowledge architecture reference and
-  clarified the source-of-truth hierarchy for code, CLI documentation, and OKF
-  projections.
+- Added the knowledge architecture reference and clarified the source-of-truth
+  hierarchy for code, CLI documentation, and OKF projections.
 
 ## 2026-07-18
 

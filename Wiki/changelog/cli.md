@@ -108,71 +108,32 @@ page records release-level changes.
   `packages/cli/internal/agents/templates.go`.
 - Docs: `Wiki/features/commands/jobs.md`.
 
+## v0.12.0 — 2026-08-11
+
+Version 0.12 expands the multi-knowledge-base viewer. It supports non-Git setup,
+makes HTML source archives optional, adds examples, and requires Node 20.
+
 ### Viewer
 
 - Source and text files now open as syntax-highlighted note cards in the
-  document stack. Other assets keep their raw or dedicated previews.
-- Viewer development now supports Vite hot reload through
-  `pnpm dev:viewer -- [path]`. The command keeps the Go viewer active while
-  Vite serves source CSS and JavaScript.
-- Markdown note panels now show the full-width **Frontmatter** disclosure
-  immediately below the compact header. The disclosure starts collapsed.
-  Select **Frontmatter** to expand the full typed YAML table.
-- OKF 0.2 knowledge signals now use the same two-column field-and-value rows as
-  the frontmatter table. The viewer marks inferred `unverified` trust and
-  `stable` status as **Default**.
-- Viewer search now strips common Markdown markup from excerpts and adds folder
-  context to `Index` titles. The panel shows progress, result counts, and
-  errors with **Retry**. The result panel omits persistent summary and keyboard
-  hint rows. Initial suggestions and typed results use the same wider layout.
-  Each file name and path stays on one line. Typed results add highlighted
-  excerpts and match counts.
+  document stack. Markdown cards include collapsed typed frontmatter and OKF
+  0.2 signals.
 - The viewer sidebar now has separate **Documents**, **Graph**, and
-  **Knowledge bases** items. Registry mode lists every connected knowledge
-  base and its file tree. Icon controls collapse all trees or connect another
-  local folder. The sidebar omits the duplicate identity header and close
-  button. **Settings** remains in the sidebar footer.
-  The Graph icon also remains available in the top bar. Select it again to
-  return to the open documents.
-- Registry search now covers all connected knowledge bases. Search results show
-  the source knowledge-base name. When multiple knowledge bases are connected,
-  note headers add the source name as a standard inline breadcrumb segment.
-- Each knowledge base receives a browser-local color. Users can change it from
-  the sidebar. The combined registry graph uses these colors for file-name
-  labels and does not create links between knowledge bases.
-- The registry workspace can connect an existing local knowledge base. A
-  folder without a knowledge base returns an `okn setup` command. Connections
-  are read-only unless the user enables editor links.
-- The link display mode moved from the top bar to a **Horizontal stack** switch
-  under **Settings** → **Document**. It is enabled by default.
-- The bottom horizontal scroll thumb now moves the document stack directly
-  during a drag. The stack stays aligned with the pointer.
-- The canvas knowledge graph now provides pan, zoom, node drag, filters,
-  display controls, force controls, and saved folder colors. Compact icon-only
-  viewport controls sit in the canvas's lower-left corner. A settings icon
-  toggles the graph controls in a vertically centered card on the canvas. The
-  card starts hidden.
-- The graph workspace fills the available desktop height. One collapsed
-  **Graph settings** disclosure contains all controls on small viewports.
-- The sidebar status now shows only the connection count for the selected or
-  hovered node. The canvas `aria-label` keeps the node name and Enter hint.
-- **Fit**, **Reset graph**, **Pause**, and **Resume** control the graph view.
-- Long brand names in viewer headers now truncate with an ellipsis when space
-  is limited.
-- The viewer header now uses the file-explorer shortcut badge to open and close
-  the sidebar. The badge replaces the separate icon and uses blue hover and
-  active states.
-- The viewer header now aligns search to the right instead of the center.
-- The viewer footer now uses the linked OpenKnowledge logo instead of a text
-  attribution.
+  **Knowledge bases** items. The registry workspace lists connected knowledge
+  base trees and can connect another local knowledge base.
+- Registry search now covers all connected knowledge bases and identifies each
+  result's source. Connections are read-only unless the user enables editor
+  links. A folder without a knowledge base shows its `okn setup` command.
+- The combined registry graph uses saved knowledge-base colors. It does not
+  create links between knowledge bases. New controls support pan, zoom, node
+  drag, filters, display options, force settings, and animation control.
 - Source: `packages/cli/cmd/openknowledge/viewer_templates.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_test.go`,
-  `packages/web/scripts/dev-viewer.mjs`,
   `packages/web/src/viewer/app.js`,
   `packages/web/src/viewer/search.js`,
   `packages/web/src/viewer/styles/`,
-  `packages/cli/cmd/openknowledge/viewer_theme.css`, and
-  `packages/web/scripts/browser.e2e.mjs`.
+  and `packages/web/scripts/browser.e2e.mjs`.
 - Docs: `Wiki/features/commands/view.md` and
   `Wiki/features/exporters/html.md`.
 
