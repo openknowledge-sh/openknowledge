@@ -3,7 +3,7 @@ type: Feature Documentation
 title: Knowledge Architecture
 description: Canonical OKF source, shipped projections, and candidate retrieval layers.
 tags: [openknowledge, architecture, retrieval, graph, search]
-timestamp: 2026-07-21T00:00:00Z
+timestamp: 2026-08-12T00:00:00Z
 ---
 
 # Knowledge Architecture
@@ -15,7 +15,7 @@ Indexes, graphs, exports, and runtime generations are rebuildable projections.
 ```mermaid
 flowchart LR
   OKF["OKF Markdown and YAML"] --> AST["Validated AST and metadata"]
-  AST --> Search["BM25 context index"]
+  AST --> Search["In-memory BM25 inverted index"]
   AST --> Graphs["Source and search graphs"]
   AST --> Publish["JSON, HTML, tar, MCP, runtime"]
 ```
@@ -34,6 +34,10 @@ The README is the product overview.
 | Graphs | Structural file and chunk graphs with authored link occurrences, containment, and reading order. |
 | Delivery | CLI, Go API, local/static viewer, read-only MCP, portable exports, and immutable runtime generations. |
 | Maintenance | Agent setup, insights, validation, isolated jobs, and source-controlled review. |
+
+Retrieval builds a deterministic in-memory inverted index. The index uses one
+shared sorted vocabulary and field postings. Exact lookup uses postings.
+Prefix lookup uses a vocabulary range. Fuzzy lookup can scan the vocabulary.
 
 The graph layer is not an entity-resolved semantic knowledge graph.
 Search does not currently provide general metadata filters or embeddings.
@@ -64,6 +68,7 @@ Do not edit a semantic graph as an independent knowledge base.
 > **Source anchors**
 >
 > - `packages/cli/internal/okf/context.go`
+> - `packages/cli/internal/okf/context_types.go`
 > - `packages/cli/internal/okf/search_knowledge.go`
 > - `packages/cli/internal/okf/graph.go`
 > - `packages/cli/internal/okf/ast_bundle_parse.go`

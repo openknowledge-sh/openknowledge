@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "sections": [
+    {
+      "ID": "auth#authentication",
+      "Locator": "okf+sha256://fixture/guides%2Fauth.md#auth-sha",
+      "ContentSHA256": "auth-sha",
+      "Path": "guides/auth.md",
+      "Kind": "concept",
+      "Type": "Guide",
+      "Title": "Remote Access",
+      "Description": "Configure private MCP access.",
+      "Heading": "Authentication",
+      "HeadingPath": ["MCP", "Authentication"],
+      "LineStart": 10,
+      "LineEnd": 14,
+      "Text": "Use OAuth tokens for private MCP authentication. Keep the deployment checklist nearby.",
+      "Links": [
+        {
+          "Label": "Deployment",
+          "Href": "deployment.md",
+          "Kind": "local",
+          "Line": 14,
+          "TargetPath": "guides/deployment.md",
+          "TargetID": "deployment#validation",
+          "Exists": true
+        }
+      ],
+      "EstimatedTokens": 18
+    },
+    {
+      "ID": "deployment#validation",
+      "Locator": "okf+sha256://fixture/guides%2Fdeployment.md#deployment-sha",
+      "ContentSHA256": "deployment-sha",
+      "Path": "guides/deployment.md",
+      "Kind": "concept",
+      "Type": "Runbook",
+      "Title": "Deployment Guide",
+      "Description": "Release operations.",
+      "Heading": "Release validation",
+      "HeadingPath": ["Deployment", "Release validation"],
+      "LineStart": 8,
+      "LineEnd": 11,
+      "Text": "Run the deployment validation workflow before release.",
+      "EstimatedTokens": 12
+    },
+    {
+      "ID": "notes#tokens",
+      "Locator": "okf+sha256://fixture/notes.md#notes-sha",
+      "ContentSHA256": "notes-sha",
+      "Path": "notes.md",
+      "Kind": "concept",
+      "Type": "Note",
+      "Title": "Authentication Notes",
+      "Heading": "Tokens",
+      "HeadingPath": ["Notes", "Tokens"],
+      "LineStart": 6,
+      "LineEnd": 9,
+      "Text": "Rotated credential guidance for operators.",
+      "EstimatedTokens": 10
+    }
+  ],
+  "queries": [
+    {
+      "name": "exact",
+      "query": "deployment validation",
+      "fuzzy": false,
+      "noExpand": true,
+      "expected": [
+        {
+          "path": "guides/deployment.md",
+          "id": "deployment#validation",
+          "locator": "okf+sha256://fixture/guides%2Fdeployment.md#deployment-sha",
+          "score": 271.67,
+          "matches": ["body", "filename", "heading", "headingPath", "path", "title"],
+          "snippet": "Run the deployment validation workflow before release.",
+          "highlightText": "deployment validation",
+          "relation": "direct",
+          "neighbor": false
+        },
+        {
+          "path": "guides/auth.md",
+          "id": "auth#authentication",
+          "locator": "okf+sha256://fixture/guides%2Fauth.md#auth-sha",
+          "score": 3.02,
+          "matches": ["body"],
+          "snippet": "Use OAuth tokens for private MCP authentication. Keep the deployment checklist nearby.",
+          "highlightText": "deployment",
+          "relation": "direct",
+          "neighbor": false
+        }
+      ]
+    },
+    {
+      "name": "prefix",
+      "query": "authent",
+      "fuzzy": false,
+      "noExpand": true,
+      "expected": [
+        {
+          "path": "guides/auth.md",
+          "id": "auth#authentication",
+          "locator": "okf+sha256://fixture/guides%2Fauth.md#auth-sha",
+          "score": 532.58,
+          "matches": ["body", "heading", "headingPath", "path"],
+          "snippet": "Use OAuth tokens for private MCP authentication. Keep the deployment checklist nearby.",
+          "highlightText": "authent",
+          "relation": "direct",
+          "neighbor": false
+        },
+        {
+          "path": "notes.md",
+          "id": "notes#tokens",
+          "locator": "okf+sha256://fixture/notes.md#notes-sha",
+          "score": 166.82,
+          "matches": ["title"],
+          "snippet": "Rotated credential guidance for operators.",
+          "highlightText": "Authent",
+          "relation": "direct",
+          "neighbor": false
+        }
+      ]
+    },
+    {
+      "name": "fuzzy",
+      "query": "validaton",
+      "fuzzy": true,
+      "noExpand": true,
+      "expected": [
+        {
+          "path": "guides/deployment.md",
+          "id": "deployment#validation",
+          "locator": "okf+sha256://fixture/guides%2Fdeployment.md#deployment-sha",
+          "score": 18.7,
+          "matches": ["body", "heading", "headingPath", "path"],
+          "snippet": "Run the deployment validation workflow before release.",
+          "highlightText": "validation",
+          "relation": "direct",
+          "neighbor": false
+        }
+      ]
+    },
+    {
+      "name": "phrase_graph",
+      "query": "oauth tokens",
+      "fuzzy": false,
+      "noExpand": false,
+      "expected": [
+        {
+          "path": "guides/auth.md",
+          "id": "auth#authentication",
+          "locator": "okf+sha256://fixture/guides%2Fauth.md#auth-sha",
+          "score": 87.95,
+          "matches": ["body"],
+          "snippet": "Use OAuth tokens for private MCP authentication. Keep the deployment checklist nearby.",
+          "highlightText": "OAuth tokens",
+          "relation": "direct",
+          "neighbor": false
+        },
+        {
+          "path": "guides/deployment.md",
+          "id": "deployment#validation",
+          "locator": "okf+sha256://fixture/guides%2Fdeployment.md#deployment-sha",
+          "score": 48.37,
+          "matches": ["graph"],
+          "snippet": "Run the deployment validation workflow before release.",
+          "highlightText": "",
+          "relation": "outgoing-link",
+          "neighbor": true
+        },
+        {
+          "path": "notes.md",
+          "id": "notes#tokens",
+          "locator": "okf+sha256://fixture/notes.md#notes-sha",
+          "score": 22.45,
+          "matches": ["heading", "headingPath", "path"],
+          "snippet": "Rotated credential guidance for operators.",
+          "highlightText": "",
+          "relation": "direct",
+          "neighbor": false
+        }
+      ]
+    }
+  ]
+}

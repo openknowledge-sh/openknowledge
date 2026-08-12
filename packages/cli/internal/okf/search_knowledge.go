@@ -12,18 +12,50 @@ const (
 	knowledgeSearchB  = 0.75
 )
 
+const (
+	knowledgeSearchTitleFieldID = iota
+	knowledgeSearchHeadingFieldID
+	knowledgeSearchHeadingPathFieldID
+	knowledgeSearchFilenameFieldID
+	knowledgeSearchPathFieldID
+	knowledgeSearchTypeFieldID
+	knowledgeSearchDescriptionFieldID
+	knowledgeSearchMetadataFieldID
+	knowledgeSearchBodyFieldID
+)
+
 // Knowledge search ranks ContextIndex sections instead of whole files. This is
 // the retrieval layer behind `openknowledge search`.
 type knowledgeSearchCorpus struct {
-	documents []knowledgeSearchDocument
-	docFreq   map[string]int
-	avgLength map[string]float64
+	documents   []knowledgeSearchDocument
+	documentIDs map[string]int
+	docFreq     map[string]int
+	avgLength   map[string]float64
+	termIDs     map[string]int
+	vocabulary  []string
+	postings    [][]knowledgeSearchPosting
 }
 
 type knowledgeSearchDocument struct {
-	section ContextSection
-	fields  []knowledgeSearchField
-	terms   map[string]struct{}
+	section             ContextSection
+	fields              []knowledgeSearchField
+	highlightCandidates []knowledgeSearchHighlightCandidate
+	snippetCandidates   []knowledgeSearchSnippetCandidate
+	descriptionSnippet  knowledgeSearchSnippetCandidate
+	combinedText        string
+	contextText         string
+}
+
+type knowledgeSearchHighlightCandidate struct {
+	text       string
+	normalized string
+	tokens     []searchVisibleToken
+}
+
+type knowledgeSearchSnippetCandidate struct {
+	text       string
+	normalized string
+	tokens     []string
 }
 
 type knowledgeSearchField struct {
@@ -33,6 +65,12 @@ type knowledgeSearchField struct {
 	tokens []string
 	counts map[string]int
 	length int
+}
+
+type knowledgeSearchPosting struct {
+	documentID    int
+	fieldID       uint8
+	termFrequency int
 }
 
 func SearchKnowledge(root string, options SearchOptions) (SearchResultSet, error) {
@@ -81,6 +119,34 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 }
 
 func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchResult {
+	return index.rankKnowledgeSearchPrepared(options, newKnowledgeSearchPreparedQuery)
+}
+
+type knowledgeSearchCandidateResolver func(knowledgeSearchCorpus, []string, bool) []int
+
+func (index ContextIndex) rankKnowledgeSearchWithCandidateResolver(options SearchOptions, resolveCandidates knowledgeSearchCandidateResolver) []SearchResult {
+	return index.rankKnowledgeSearchPrepared(options, func(corpus knowledgeSearchCorpus, terms []string, fuzzy bool) knowledgeSearchPreparedQuery {
+		return knowledgeSearchPreparedQuery{candidateIDs: resolveCandidates(corpus, terms, fuzzy)}
+	})
+}
+
+type knowledgeSearchQueryPreparer func(knowledgeSearchCorpus, []string, bool) knowledgeSearchPreparedQuery
+
+type knowledgeSearchPreparedQuery struct {
+	candidateIDs []int
+	fieldCount   int
+	termMatches  []knowledgeSearchTermMatches
+}
+
+type knowledgeSearchTermMatches struct {
+	exactCounts  []int
+	prefixFields []uint16
+	fuzzyFields  []uint16
+	idf          float64
+	distance     int
+}
+
+func (index ContextIndex) rankKnowledgeSearchPrepared(options SearchOptions, prepareQuery knowledgeSearchQueryPreparer) []SearchResult {
 	query := strings.TrimSpace(options.Query)
 	terms := searchTerms(query)
 	if len(terms) == 0 {
@@ -93,36 +159,37 @@ func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchRes
 	}
 	documentCorpus := index.documentSearchCorpus
 	if len(documentCorpus.documents) == 0 {
-		documentCorpus = newKnowledgeSearchCorpus(aggregateKnowledgeSearchSections(index.Sections))
+		documentCorpus = newKnowledgeSearchDocumentCorpus(aggregateKnowledgeSearchSections(index.Sections))
 	}
 	normalizedQuery := normalizeSearchText(query)
+	sectionQuery := prepareQuery(corpus, terms, options.Fuzzy)
 	var results []SearchResult
-	for _, document := range corpus.documents {
-		searchResult, ok := scoreKnowledgeSearchDocument(document, corpus, terms, normalizedQuery, options.Fuzzy)
+	for _, documentID := range sectionQuery.candidateIDs {
+		document := corpus.documents[documentID]
+		searchResult, ok := sectionQuery.scoreDocument(documentID, document, corpus, terms, normalizedQuery, options.Fuzzy, true)
 		if ok {
 			results = append(results, searchResult)
 		}
 	}
+	documentQuery := prepareQuery(documentCorpus, terms, options.Fuzzy)
 	documentScores := map[string]float64{}
-	for _, document := range documentCorpus.documents {
-		searchResult, ok := scoreKnowledgeSearchDocument(document, documentCorpus, terms, normalizedQuery, options.Fuzzy)
+	for _, documentID := range documentQuery.candidateIDs {
+		document := documentCorpus.documents[documentID]
+		searchResult, ok := documentQuery.scoreDocument(documentID, document, documentCorpus, terms, normalizedQuery, options.Fuzzy, false)
 		if ok {
-			coverage := knowledgeSearchDocumentCoverage(document, terms)
+			coverage := documentQuery.documentCoverage(documentID, document, terms)
 			documentScores[searchResult.Path] = searchResult.Score * (1 + 2*math.Pow(coverage, 3))
 		}
 	}
 	bestSectionByPath := map[string]int{}
 	bestCoverageByPath := map[string]int{}
-	sectionByID := make(map[string]ContextSection, len(index.Sections))
-	for _, section := range index.Sections {
-		sectionByID[section.ID] = section
-	}
-	for index, result := range results {
-		coverage := len(contextCoveredTerms(sectionByID[result.ID], terms))
+	for resultIndex, result := range results {
+		documentID := corpus.documentIDs[result.ID]
+		coverage := sectionQuery.contextCoverage(documentID, corpus.documents[documentID], terms)
 		existing, ok := bestSectionByPath[result.Path]
 		if !ok || coverage > bestCoverageByPath[result.Path] ||
 			(coverage == bestCoverageByPath[result.Path] && results[existing].Score < result.Score) {
-			bestSectionByPath[result.Path] = index
+			bestSectionByPath[result.Path] = resultIndex
 			bestCoverageByPath[result.Path] = coverage
 		}
 	}
@@ -152,6 +219,254 @@ func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchRes
 		return results[i].LineStart < results[j].LineStart
 	})
 	return results
+}
+
+func knowledgeSearchCandidateIDs(corpus knowledgeSearchCorpus, terms []string, fuzzy bool) []int {
+	return newKnowledgeSearchPreparedQuery(corpus, terms, fuzzy).candidateIDs
+}
+
+func newKnowledgeSearchPreparedQuery(corpus knowledgeSearchCorpus, terms []string, fuzzy bool) knowledgeSearchPreparedQuery {
+	if len(corpus.documents) == 0 || len(terms) == 0 {
+		return knowledgeSearchPreparedQuery{}
+	}
+	fieldCount := len(corpus.documents[0].fields)
+	query := knowledgeSearchPreparedQuery{
+		fieldCount:  fieldCount,
+		termMatches: make([]knowledgeSearchTermMatches, len(terms)),
+	}
+	candidates := make([]bool, len(corpus.documents))
+	for termIndex, term := range terms {
+		matches := &query.termMatches[termIndex]
+		matches.exactCounts = make([]int, len(corpus.documents)*fieldCount)
+		matches.prefixFields = make([]uint16, len(corpus.documents))
+		matches.fuzzyFields = make([]uint16, len(corpus.documents))
+		matches.idf = knowledgeSearchIDF(term, corpus)
+		matches.distance = maxSearchDistance(term)
+		if termID, ok := corpus.termIDs[term]; ok {
+			matches.markExact(candidates, corpus.postings[termID], fieldCount)
+		}
+
+		start := sort.SearchStrings(corpus.vocabulary, term)
+		for termID := start; termID < len(corpus.vocabulary); termID++ {
+			candidateTerm := corpus.vocabulary[termID]
+			if !strings.HasPrefix(candidateTerm, term) {
+				break
+			}
+			matches.markFields(candidates, corpus.postings[termID], &matches.prefixFields)
+		}
+
+		if !fuzzy {
+			continue
+		}
+		if matches.distance == 0 {
+			continue
+		}
+		termRunes := len([]rune(term))
+		for termID, candidateTerm := range corpus.vocabulary {
+			if strings.HasPrefix(candidateTerm, term) || absInt(len([]rune(candidateTerm))-termRunes) > matches.distance {
+				continue
+			}
+			if editDistanceWithin(candidateTerm, term, matches.distance) {
+				matches.markFields(candidates, corpus.postings[termID], &matches.fuzzyFields)
+			}
+		}
+	}
+
+	query.candidateIDs = make([]int, 0)
+	for documentID, candidate := range candidates {
+		if candidate {
+			query.candidateIDs = append(query.candidateIDs, documentID)
+		}
+	}
+	return query
+}
+
+func (matches *knowledgeSearchTermMatches) markExact(candidates []bool, postings []knowledgeSearchPosting, fieldCount int) {
+	for _, posting := range postings {
+		candidates[posting.documentID] = true
+		matches.exactCounts[posting.documentID*fieldCount+int(posting.fieldID)] = posting.termFrequency
+	}
+}
+
+func (matches *knowledgeSearchTermMatches) markFields(candidates []bool, postings []knowledgeSearchPosting, fields *[]uint16) {
+	for _, posting := range postings {
+		candidates[posting.documentID] = true
+		(*fields)[posting.documentID] |= uint16(1) << posting.fieldID
+	}
+}
+
+func (query knowledgeSearchPreparedQuery) scoreDocument(documentID int, document knowledgeSearchDocument, corpus knowledgeSearchCorpus, terms []string, normalizedQuery string, fuzzy bool, present bool) (SearchResult, bool) {
+	if len(query.termMatches) == 0 {
+		return scoreKnowledgeSearchDocument(document, corpus, terms, normalizedQuery, fuzzy)
+	}
+	score := 0.0
+	matchedTerms := 0
+	matches := map[string]struct{}{}
+	for fieldID, field := range document.fields {
+		if field.text == "" {
+			continue
+		}
+		if normalizedQuery != "" && strings.Contains(field.text, normalizedQuery) {
+			score += field.weight * 4
+			matches[field.name] = struct{}{}
+		}
+		fieldMatchedTerms := 0
+		for _, termMatches := range query.termMatches {
+			offset := documentID*query.fieldCount + fieldID
+			termScore := 0.0
+			if count := termMatches.exactCounts[offset]; count > 0 {
+				termScore = field.weight * knowledgeSearchBM25(float64(count), field.length, corpus.avgLength[field.name], termMatches.idf)
+			} else if termMatches.prefixFields[documentID]&(uint16(1)<<fieldID) != 0 {
+				termScore = field.weight * termMatches.idf * 0.45
+			} else if termMatches.fuzzyFields[documentID]&(uint16(1)<<fieldID) != 0 {
+				termScore = field.weight * termMatches.idf * (0.25 / float64(termMatches.distance+1))
+			}
+			if termScore == 0 {
+				continue
+			}
+			score += termScore
+			fieldMatchedTerms++
+			matches[field.name] = struct{}{}
+		}
+		matchedTerms += fieldMatchedTerms
+	}
+
+	if len(matches) == 0 || matchedTerms == 0 {
+		return SearchResult{}, false
+	}
+	coveredTerms := 0
+	for termIndex := range query.termMatches {
+		for fieldID := range document.fields {
+			offset := documentID*query.fieldCount + fieldID
+			termMatches := query.termMatches[termIndex]
+			if termMatches.exactCounts[offset] > 0 || termMatches.prefixFields[documentID]&(uint16(1)<<fieldID) != 0 || termMatches.fuzzyFields[documentID]&(uint16(1)<<fieldID) != 0 {
+				coveredTerms++
+				break
+			}
+		}
+	}
+	if coveredTerms == len(terms) {
+		score *= 1.3
+	}
+	if isIndexMarkdownSearchResult(document.section.Path) {
+		score *= 0.55
+	}
+	if !present {
+		return SearchResult{Path: document.section.Path, Score: roundSearchScore(score)}, true
+	}
+	snippet := query.snippet(documentID, document, terms)
+	highlight := query.highlight(documentID, document, normalizedQuery, terms, fuzzy)
+	return searchResultFromKnowledgeSearchDocumentWithPresentation(document, roundSearchScore(score), sortedSearchMatches(matches), false, "direct", snippet, highlight), true
+}
+
+func (matches knowledgeSearchTermMatches) fieldMatches(documentID int, fieldID int, fieldCount int) bool {
+	offset := documentID*fieldCount + fieldID
+	return matches.exactCounts[offset] > 0 ||
+		matches.prefixFields[documentID]&(uint16(1)<<fieldID) != 0 ||
+		matches.fuzzyFields[documentID]&(uint16(1)<<fieldID) != 0
+}
+
+func (query knowledgeSearchPreparedQuery) snippet(documentID int, document knowledgeSearchDocument, terms []string) string {
+	if len(query.termMatches) == 0 {
+		return firstKnowledgeSearchSnippetFromDocument(document, terms)
+	}
+	bodyCanMatch := false
+	descriptionCanMatch := false
+	for termIndex, term := range terms {
+		termMatches := query.termMatches[termIndex]
+		bodyCanMatch = bodyCanMatch || strings.Contains(document.fields[knowledgeSearchBodyFieldID].text, term) || termMatches.fuzzyFields[documentID]&(uint16(1)<<knowledgeSearchBodyFieldID) != 0
+		descriptionCanMatch = descriptionCanMatch || strings.Contains(document.fields[knowledgeSearchDescriptionFieldID].text, term) || termMatches.fuzzyFields[documentID]&(uint16(1)<<knowledgeSearchDescriptionFieldID) != 0
+	}
+	if bodyCanMatch {
+		for _, candidate := range document.snippetCandidates {
+			for _, term := range terms {
+				if knowledgeSearchSnippetMatches(candidate, term) {
+					return truncateSnippet(candidate.text, 180)
+				}
+			}
+		}
+	}
+	if descriptionCanMatch && strings.TrimSpace(document.descriptionSnippet.text) != "" {
+		for _, term := range terms {
+			if knowledgeSearchSnippetMatches(document.descriptionSnippet, term) {
+				return truncateSnippet(document.descriptionSnippet.text, 180)
+			}
+		}
+	}
+	if len(document.snippetCandidates) > 0 {
+		return truncateSnippet(document.snippetCandidates[0].text, 180)
+	}
+	return searchSnippet(newSearchDocumentFromContextSection(document.section), terms)
+}
+
+func (query knowledgeSearchPreparedQuery) highlight(documentID int, document knowledgeSearchDocument, normalizedQuery string, terms []string, fuzzy bool) string {
+	if len(query.termMatches) == 0 {
+		return knowledgeSearchHighlightText(document, normalizedQuery, terms, fuzzy)
+	}
+	if normalizedQuery != "" {
+		for _, candidate := range document.highlightCandidates {
+			if strings.Contains(candidate.normalized, normalizedQuery) {
+				return exactSearchHighlight(candidate.text, normalizedQuery)
+			}
+		}
+	}
+	visibleMatch := false
+	for _, termMatches := range query.termMatches {
+		for _, fieldID := range []int{knowledgeSearchTitleFieldID, knowledgeSearchDescriptionFieldID, knowledgeSearchBodyFieldID} {
+			if termMatches.fieldMatches(documentID, fieldID, query.fieldCount) {
+				visibleMatch = true
+				break
+			}
+		}
+		if visibleMatch {
+			break
+		}
+	}
+	if !visibleMatch {
+		return ""
+	}
+	for _, candidate := range document.highlightCandidates {
+		for _, term := range terms {
+			if text := knowledgeSearchTokenHighlight(candidate.tokens, term, fuzzy); text != "" {
+				return text
+			}
+		}
+	}
+	return ""
+}
+
+func (query knowledgeSearchPreparedQuery) documentCoverage(documentID int, document knowledgeSearchDocument, terms []string) float64 {
+	if len(terms) == 0 {
+		return 0
+	}
+	if len(query.termMatches) == 0 {
+		return knowledgeSearchDocumentCoverage(document, terms)
+	}
+	matched := 0
+	for termIndex, term := range terms {
+		termMatches := query.termMatches[termIndex]
+		if strings.Contains(document.combinedText, term) || termMatches.fuzzyFields[documentID] != 0 {
+			matched++
+		}
+	}
+	return float64(matched) / float64(len(terms))
+}
+
+func (query knowledgeSearchPreparedQuery) contextCoverage(documentID int, document knowledgeSearchDocument, terms []string) int {
+	if len(query.termMatches) == 0 {
+		return len(contextCoveredTerms(document.section, terms))
+	}
+	const contextFieldMask = uint16(1)<<knowledgeSearchHeadingFieldID |
+		uint16(1)<<knowledgeSearchHeadingPathFieldID |
+		uint16(1)<<knowledgeSearchBodyFieldID
+	matched := 0
+	for termIndex, term := range terms {
+		termMatches := query.termMatches[termIndex]
+		if strings.Contains(document.contextText, term) || termMatches.fuzzyFields[documentID]&contextFieldMask != 0 {
+			matched++
+		}
+	}
+	return matched
 }
 
 func knowledgeSearchDocumentCoverage(document knowledgeSearchDocument, terms []string) float64 {
@@ -213,13 +528,34 @@ func aggregateKnowledgeSearchSections(sections []ContextSection) []ContextSectio
 }
 
 func newKnowledgeSearchCorpus(sections []ContextSection) knowledgeSearchCorpus {
+	return newKnowledgeSearchCorpusWithPresentation(sections, true)
+}
+
+func newKnowledgeSearchDocumentCorpus(sections []ContextSection) knowledgeSearchCorpus {
+	return newKnowledgeSearchCorpusWithPresentation(sections, false)
+}
+
+func newKnowledgeSearchCorpusWithPresentation(sections []ContextSection, cachePresentation bool) knowledgeSearchCorpus {
+	sections = append([]ContextSection(nil), sections...)
+	sort.SliceStable(sections, func(i, j int) bool {
+		if sections[i].Path != sections[j].Path {
+			return sections[i].Path < sections[j].Path
+		}
+		if sections[i].LineStart != sections[j].LineStart {
+			return sections[i].LineStart < sections[j].LineStart
+		}
+		return sections[i].ID < sections[j].ID
+	})
 	corpus := knowledgeSearchCorpus{
-		documents: make([]knowledgeSearchDocument, 0, len(sections)),
-		docFreq:   map[string]int{},
-		avgLength: map[string]float64{},
+		documents:   make([]knowledgeSearchDocument, 0, len(sections)),
+		documentIDs: map[string]int{},
+		docFreq:     map[string]int{},
+		avgLength:   map[string]float64{},
+		termIDs:     map[string]int{},
 	}
 	totalLengths := map[string]int{}
 	fieldCounts := map[string]int{}
+	vocabulary := map[string]struct{}{}
 
 	for _, section := range sections {
 		// Field weights bias toward navigational signals first, then prose.
@@ -237,18 +573,35 @@ func newKnowledgeSearchCorpus(sections []ContextSection) knowledgeSearchCorpus {
 				newKnowledgeSearchField("metadata", frontmatterSearchText(section.Frontmatter), 2.2),
 				newKnowledgeSearchField("body", section.Text, 4),
 			},
-			terms: map[string]struct{}{},
 		}
+		if cachePresentation {
+			document.highlightCandidates = newKnowledgeSearchHighlightCandidates(newSearchDocumentFromContextSection(section))
+			document.snippetCandidates, document.descriptionSnippet = newKnowledgeSearchSnippetCandidates(section)
+		}
+		var combinedText strings.Builder
+		for _, field := range document.fields {
+			combinedText.WriteString(field.text)
+			combinedText.WriteByte(' ')
+		}
+		document.combinedText = combinedText.String()
+		document.contextText = normalizeSearchText(strings.Join([]string{
+			section.Heading,
+			strings.Join(section.HeadingPath, " "),
+			section.Text,
+		}, " "))
+		documentTerms := map[string]struct{}{}
 		for _, field := range document.fields {
 			totalLengths[field.name] += field.length
 			fieldCounts[field.name]++
 			for term := range field.counts {
-				document.terms[term] = struct{}{}
+				documentTerms[term] = struct{}{}
+				vocabulary[term] = struct{}{}
 			}
 		}
-		for term := range document.terms {
+		for term := range documentTerms {
 			corpus.docFreq[term]++
 		}
+		corpus.documentIDs[section.ID] = len(corpus.documents)
 		corpus.documents = append(corpus.documents, document)
 	}
 
@@ -263,6 +616,38 @@ func newKnowledgeSearchCorpus(sections []ContextSection) knowledgeSearchCorpus {
 			average = 1
 		}
 		corpus.avgLength[name] = average
+	}
+
+	corpus.vocabulary = make([]string, 0, len(vocabulary))
+	for term := range vocabulary {
+		corpus.vocabulary = append(corpus.vocabulary, term)
+	}
+	sort.Strings(corpus.vocabulary)
+	corpus.postings = make([][]knowledgeSearchPosting, len(corpus.vocabulary))
+	for termID, term := range corpus.vocabulary {
+		corpus.termIDs[term] = termID
+	}
+	for documentID, document := range corpus.documents {
+		for fieldID, field := range document.fields {
+			for term, count := range field.counts {
+				termID := corpus.termIDs[term]
+				corpus.postings[termID] = append(corpus.postings[termID], knowledgeSearchPosting{
+					documentID:    documentID,
+					fieldID:       uint8(fieldID),
+					termFrequency: count,
+				})
+			}
+		}
+	}
+	for termID := range corpus.postings {
+		sort.Slice(corpus.postings[termID], func(i, j int) bool {
+			left := corpus.postings[termID][i]
+			right := corpus.postings[termID][j]
+			if left.documentID != right.documentID {
+				return left.documentID < right.documentID
+			}
+			return left.fieldID < right.fieldID
+		})
 	}
 	return corpus
 }
@@ -319,7 +704,7 @@ func scoreKnowledgeSearchDocument(document knowledgeSearchDocument, corpus knowl
 		score *= 0.55
 	}
 
-	return searchResultFromContextSection(document.section, roundSearchScore(score), sortedSearchMatches(matches), false, "direct", terms, normalizedQuery, fuzzy), true
+	return searchResultFromKnowledgeSearchDocument(document, roundSearchScore(score), sortedSearchMatches(matches), false, "direct", terms, normalizedQuery, fuzzy), true
 }
 
 func knowledgeSearchFieldTermScore(field knowledgeSearchField, corpus knowledgeSearchCorpus, term string, fuzzy bool) (float64, bool) {
@@ -368,7 +753,16 @@ func knowledgeSearchIDF(term string, corpus knowledgeSearchCorpus) float64 {
 }
 
 func searchResultFromContextSection(section ContextSection, score float64, matches []string, neighbor bool, relation string, terms []string, normalizedQuery string, fuzzy bool) SearchResult {
-	document := newSearchDocument(
+	document := knowledgeSearchDocument{
+		section: section,
+	}
+	document.highlightCandidates = newKnowledgeSearchHighlightCandidates(newSearchDocumentFromContextSection(section))
+	document.snippetCandidates, document.descriptionSnippet = newKnowledgeSearchSnippetCandidates(section)
+	return searchResultFromKnowledgeSearchDocument(document, score, matches, neighbor, relation, terms, normalizedQuery, fuzzy)
+}
+
+func newSearchDocumentFromContextSection(section ContextSection) searchDocument {
+	return newSearchDocument(
 		section.Path,
 		section.ID,
 		section.Kind,
@@ -379,6 +773,22 @@ func searchResultFromContextSection(section ContextSection, score float64, match
 		strings.Join(section.HeadingPath, "\n"),
 		section.Frontmatter,
 	)
+}
+
+func searchResultFromKnowledgeSearchDocument(document knowledgeSearchDocument, score float64, matches []string, neighbor bool, relation string, terms []string, normalizedQuery string, fuzzy bool) SearchResult {
+	return searchResultFromKnowledgeSearchDocumentWithPresentation(
+		document,
+		score,
+		matches,
+		neighbor,
+		relation,
+		firstKnowledgeSearchSnippetFromDocument(document, terms),
+		knowledgeSearchHighlightText(document, normalizedQuery, terms, fuzzy),
+	)
+}
+
+func searchResultFromKnowledgeSearchDocumentWithPresentation(document knowledgeSearchDocument, score float64, matches []string, neighbor bool, relation string, snippet string, highlight string) SearchResult {
+	section := document.section
 	title := section.Title
 	if title == "" {
 		title = deriveTitle(section.Path)
@@ -397,8 +807,8 @@ func searchResultFromContextSection(section ContextSection, score float64, match
 		LineStart:       section.LineStart,
 		LineEnd:         section.LineEnd,
 		EstimatedTokens: section.EstimatedTokens,
-		Snippet:         firstKnowledgeSearchSnippet(section, document, terms),
-		HighlightText:   searchHighlightText(document, normalizedQuery, terms, fuzzy),
+		Snippet:         snippet,
+		HighlightText:   highlight,
 		Score:           score,
 		Matches:         matches,
 		Neighbor:        neighbor,
@@ -406,8 +816,8 @@ func searchResultFromContextSection(section ContextSection, score float64, match
 	}
 }
 
-func firstKnowledgeSearchSnippet(section ContextSection, document searchDocument, terms []string) string {
-	var fallback string
+func newKnowledgeSearchSnippetCandidates(section ContextSection) ([]knowledgeSearchSnippetCandidate, knowledgeSearchSnippetCandidate) {
+	var candidates []knowledgeSearchSnippetCandidate
 	for _, line := range strings.Split(strings.ReplaceAll(section.Text, "\r\n", "\n"), "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "#") {
 			continue
@@ -416,30 +826,105 @@ func firstKnowledgeSearchSnippet(section ContextSection, document searchDocument
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		if fallback == "" {
-			fallback = truncateSnippet(line, 180)
-		}
-		normalized := normalizeSearchText(line)
+		candidates = append(candidates, newKnowledgeSearchSnippetCandidate(line))
+	}
+	return candidates, newKnowledgeSearchSnippetCandidate(section.Description)
+}
+
+func newKnowledgeSearchSnippetCandidate(text string) knowledgeSearchSnippetCandidate {
+	normalized := normalizeSearchText(text)
+	return knowledgeSearchSnippetCandidate{text: text, normalized: normalized, tokens: strings.Fields(normalized)}
+}
+
+func firstKnowledgeSearchSnippetFromDocument(document knowledgeSearchDocument, terms []string) string {
+	for _, candidate := range document.snippetCandidates {
 		for _, term := range terms {
-			if snippetMatchesTerm(normalized, term) {
-				return truncateSnippet(line, 180)
+			if knowledgeSearchSnippetMatches(candidate, term) {
+				return truncateSnippet(candidate.text, 180)
 			}
 		}
 	}
-	if strings.TrimSpace(section.Description) != "" {
-		normalized := normalizeSearchText(section.Description)
+	if strings.TrimSpace(document.descriptionSnippet.text) != "" {
 		for _, term := range terms {
-			if snippetMatchesTerm(normalized, term) {
-				return truncateSnippet(section.Description, 180)
+			if knowledgeSearchSnippetMatches(document.descriptionSnippet, term) {
+				return truncateSnippet(document.descriptionSnippet.text, 180)
 			}
 		}
 	}
-	if fallback != "" {
-		return fallback
+	if len(document.snippetCandidates) > 0 {
+		return truncateSnippet(document.snippetCandidates[0].text, 180)
 	}
-	snippet := searchSnippet(document, terms)
+	snippet := searchSnippet(newSearchDocumentFromContextSection(document.section), terms)
 	if snippet != "" {
 		return snippet
+	}
+	return ""
+}
+
+func knowledgeSearchSnippetMatches(candidate knowledgeSearchSnippetCandidate, term string) bool {
+	if strings.Contains(candidate.normalized, term) {
+		return true
+	}
+	distance := maxSearchDistance(term)
+	if distance == 0 {
+		return false
+	}
+	termLength := len([]rune(term))
+	for _, token := range candidate.tokens {
+		if absInt(len([]rune(token))-termLength) <= distance && editDistanceWithin(token, term, distance) {
+			return true
+		}
+	}
+	return false
+}
+
+func newKnowledgeSearchHighlightCandidates(document searchDocument) []knowledgeSearchHighlightCandidate {
+	values := searchHighlightCandidates(document)
+	candidates := make([]knowledgeSearchHighlightCandidate, 0, len(values))
+	for _, value := range values {
+		normalized, _ := normalizedSearchSpans(value)
+		candidates = append(candidates, knowledgeSearchHighlightCandidate{
+			text:       value,
+			normalized: normalized,
+			tokens:     searchVisibleTokens(value),
+		})
+	}
+	return candidates
+}
+
+func knowledgeSearchHighlightText(document knowledgeSearchDocument, normalizedQuery string, terms []string, fuzzy bool) string {
+	if normalizedQuery != "" {
+		for _, candidate := range document.highlightCandidates {
+			if strings.Contains(candidate.normalized, normalizedQuery) {
+				return exactSearchHighlight(candidate.text, normalizedQuery)
+			}
+		}
+	}
+	for _, candidate := range document.highlightCandidates {
+		for _, term := range terms {
+			if text := knowledgeSearchTokenHighlight(candidate.tokens, term, fuzzy); text != "" {
+				return text
+			}
+		}
+	}
+	return ""
+}
+
+func knowledgeSearchTokenHighlight(tokens []searchVisibleToken, term string, fuzzy bool) string {
+	if len([]rune(term)) <= 1 {
+		return ""
+	}
+	for _, token := range tokens {
+		if token.normalized == term || strings.HasPrefix(token.normalized, term) {
+			return token.text
+		}
+		if !fuzzy {
+			continue
+		}
+		distance := maxSearchDistance(term)
+		if distance > 0 && absInt(len([]rune(token.normalized))-len([]rune(term))) <= distance && editDistanceWithin(token.normalized, term, distance) {
+			return token.text
+		}
 	}
 	return ""
 }

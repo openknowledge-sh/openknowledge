@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-11T00:00:00Z
+timestamp: 2026-08-12T00:00:00Z
 ---
 
 # CLI Changelog
@@ -12,6 +12,20 @@ Current behavior belongs in the [command reference](/features/commands/). This
 page records release-level changes.
 
 ## Unreleased
+
+### Retrieval
+
+- Search now uses a deterministic Go standard library in-memory inverted
+  index. The index has one sorted vocabulary and field postings.
+- Exact lookup no longer scans every section. Prefix lookup uses a vocabulary
+  range. Fuzzy lookup can scan the vocabulary.
+- Ranking, CLI output, and machine-readable contracts do not change.
+- Source: `packages/cli/internal/okf/context.go`,
+  `packages/cli/internal/okf/search.go`,
+  `packages/cli/internal/okf/search_knowledge.go`,
+  `packages/cli/internal/okf/search_inverted_index_test.go`, and
+  `packages/cli/internal/okf/search_benchmark_test.go`.
+- Docs: `Wiki/features/knowledge-architecture.md`.
 
 ### Rules and setup
 
