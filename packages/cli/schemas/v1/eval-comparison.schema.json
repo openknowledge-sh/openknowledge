@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/eval-comparison.schema.json",
+  "title": "Open Knowledge eval comparison",
+  "type": "object",
+  "required": ["schemaVersion", "dataset", "base", "proposed", "summary", "cases"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "dataset": {"$ref": "eval-report.schema.json#/properties/dataset"},
+    "base": {"$ref": "#/$defs/revision"},
+    "proposed": {"$ref": "#/$defs/revision"},
+    "summary": {
+      "type": "object",
+      "required": ["status", "gate", "total", "improved", "regressed", "unchangedPassed", "unchangedFailed", "proposedPassed", "proposedFailed"],
+      "properties": {
+        "status": {"enum": ["pass", "fail"]},
+        "gate": {"enum": ["all", "regressions"]},
+        "total": {"type": "integer", "minimum": 0},
+        "improved": {"type": "integer", "minimum": 0},
+        "regressed": {"type": "integer", "minimum": 0},
+        "unchangedPassed": {"type": "integer", "minimum": 0},
+        "unchangedFailed": {"type": "integer", "minimum": 0},
+        "proposedPassed": {"type": "integer", "minimum": 0},
+        "proposedFailed": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "question", "classification", "base", "proposed"],
+        "properties": {
+          "id": {"type": "string"},
+          "question": {"type": "string"},
+          "classification": {"enum": ["improved", "regressed", "unchanged_pass", "unchanged_fail"]},
+          "base": {"$ref": "eval-report.schema.json#/$defs/case"},
+          "proposed": {"$ref": "eval-report.schema.json#/$defs/case"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "revision": {
+      "type": "object",
+      "required": ["root", "revision", "summary"],
+      "properties": {
+        "ref": {"type": "string"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+        "root": {"type": "string"},
+        "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+        "summary": {"$ref": "eval-report.schema.json#/$defs/summary"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -182,6 +182,8 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 	outputs["job-run-plan"] = contractFixtures["job-run-plan"]
 	outputs["job-run-record"] = contractFixtures["job-run-record"]
 	outputs["cli-error"] = contractFixtures["cli-error"]
+	outputs["eval-report"] = contractFixtures["eval-report"]
+	outputs["eval-comparison"] = contractFixtures["eval-comparison"]
 
 	for name, output := range outputs {
 		if strings.HasSuffix(name, "-source") || strings.HasSuffix(name, "-search") {
@@ -307,6 +309,14 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 		"cli-error/error": {
 			output: outputs["cli-error"],
 			mutate: func(root map[string]any) { root["error"].(map[string]any)["undeclared"] = true },
+		},
+		"eval-report/case": {
+			output: outputs["eval-report"],
+			mutate: func(root map[string]any) { firstObject(root, "cases")["undeclared"] = true },
+		},
+		"eval-comparison/case": {
+			output: outputs["eval-comparison"],
+			mutate: func(root map[string]any) { firstObject(root, "cases")["undeclared"] = true },
 		},
 	}
 	for testName, test := range nested {

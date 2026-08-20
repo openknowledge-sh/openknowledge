@@ -13,6 +13,33 @@ page records release-level changes.
 
 ## Unreleased
 
+### Knowledge CI
+
+- `okn eval run` now tests deterministic retrieval evidence against strict,
+  versioned YAML datasets. Expectations cover sources, included or excluded
+  evidence, and minimum source counts.
+- Text output summarizes each case. Versioned JSON reports bind results to the
+  dataset digest and corpus revision. Markdown output creates a pull request
+  report with status, answer changes, citations, groundedness, and failed checks.
+- An explicit answer command can use retrieved source Markdown through a strict
+  JSON stdin and stdout protocol. New expectations test answer text, citation
+  sources, valid citation counts, and claim groundedness.
+- The CLI runs answer commands directly without a shell or sandbox. Retrieval
+  remains deterministic. Answer reproducibility depends on the selected command.
+- Failed expectations return exit status `1`, which supports continuous
+  integration gates.
+- `--base <git-ref>` now compares the working knowledge base with an immutable
+  Git archive snapshot. Both revisions use the same current dataset.
+- Each case is `improved`, `regressed`, `unchanged_pass`, or `unchanged_fail`.
+  The `all` gate rejects all proposed failures. The `regressions` gate rejects
+  only regressions.
+- Source: `packages/cli/cmd/openknowledge/eval_command.go`,
+  `packages/cli/internal/eval/`, `packages/cli/schemas/eval/v1/`,
+  `packages/cli/schemas/v1/eval-report.schema.json`, and
+  `packages/cli/schemas/v1/eval-comparison.schema.json`.
+- Docs: `Wiki/features/commands/eval.md` and
+  `Wiki/features/machine-contracts.md`.
+
 ### Viewer
 
 - Markdown note panels now provide browser-native text-to-speech controls for

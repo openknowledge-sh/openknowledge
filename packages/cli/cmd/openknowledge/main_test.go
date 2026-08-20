@@ -36,6 +36,7 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"Advanced and portable tools:",
 		"setup        Set up a knowledge base and its agent instructions.",
 		"search       Build source-grounded context from one or more knowledge bases.",
+		"eval         Test retrieval evidence against versioned questions.",
 		"agent        Run a local knowledge task with an agent.",
 		"automation   Run jobs, insights, runtimes, and deployments.",
 		"export       Export HTML, JSON, graph, or portable tar views.",
@@ -545,6 +546,15 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"[validation.rules]",
 				"Exit codes:",
 				"Validation found errors after configured severity overrides.",
+			},
+		},
+		"eval": {
+			help: evalRunHelpText(),
+			required: []string{
+				"openknowledge eval run <dataset> [key-or-path]",
+				"--format",
+				"--out",
+				"Exit codes:",
 			},
 		},
 		"list": {

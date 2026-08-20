@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/eval/v1/answer-request.schema.json",
+  "title": "Open Knowledge eval answer request v1",
+  "type": "object",
+  "required": ["schemaVersion", "dataset", "target", "cases"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "dataset": {
+      "type": "object",
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["root", "revision"],
+      "properties": {
+        "root": {"type": "string"},
+        "revision": {"$ref": "../../v1/common.schema.json#/$defs/retrievalRevision"}
+      },
+      "additionalProperties": false
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "question", "sources"],
+        "properties": {
+          "id": {"type": "string"},
+          "question": {"type": "string"},
+          "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["id", "path", "title", "heading", "locator", "contentSha256", "relation", "markdown"],
+      "properties": {
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "title": {"type": "string"},
+        "heading": {"type": "string"},
+        "locator": {"type": "string", "pattern": "^okf\\+sha256://[0-9a-f]{64}/"},
+        "contentSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "relation": {"type": "string"},
+        "markdown": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

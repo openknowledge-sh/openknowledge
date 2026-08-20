@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/eval-report.schema.json",
+  "title": "Open Knowledge eval report",
+  "type": "object",
+  "required": ["schemaVersion", "dataset", "target", "summary", "cases"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "dataset": {
+      "type": "object",
+      "required": ["type", "version", "id", "path", "sha256"],
+      "properties": {
+        "type": {"const": "openknowledge.eval"},
+        "version": {"const": 1},
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["root", "revision"],
+      "properties": {
+        "root": {"type": "string"},
+        "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"}
+      },
+      "additionalProperties": false
+    },
+    "summary": {"$ref": "#/$defs/summary"},
+    "cases": {"type": "array", "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "required": ["status", "total", "passed", "failed", "checks", "passedChecks"],
+      "properties": {
+        "status": {"enum": ["pass", "fail"]},
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "checks": {"type": "integer", "minimum": 0},
+        "passedChecks": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": ["id", "question", "status", "context", "metrics", "checks"],
+      "properties": {
+        "id": {"type": "string"},
+        "question": {"type": "string"},
+        "status": {"enum": ["pass", "fail"]},
+        "context": {"$ref": "#/$defs/context"},
+        "metrics": {"$ref": "#/$defs/metrics"},
+        "checks": {"type": "array", "items": {"$ref": "#/$defs/check"}},
+        "answer": {"$ref": "#/$defs/answer"}
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "required": ["budget", "limit", "noExpand", "estimatedTokens", "sources"],
+      "properties": {
+        "budget": {"type": "integer", "minimum": 1},
+        "limit": {"type": "integer", "minimum": 1},
+        "noExpand": {"type": "boolean"},
+        "estimatedTokens": {"type": "integer", "minimum": 0},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["id", "path", "title", "heading", "locator", "contentSha256", "relation", "score"],
+      "properties": {
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "title": {"type": "string"},
+        "heading": {"type": "string"},
+        "locator": {"type": "string", "pattern": "^okf\\+sha256://[0-9a-f]{64}/"},
+        "contentSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "relation": {"type": "string"},
+        "score": {"type": "number"}
+      },
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["expectedSources", "matchedSources", "sourceRecall", "checks", "passedChecks"],
+      "properties": {
+        "expectedSources": {"type": "integer", "minimum": 0},
+        "matchedSources": {"type": "integer", "minimum": 0},
+        "sourceRecall": {"type": "number", "minimum": 0, "maximum": 1},
+        "checks": {"type": "integer", "minimum": 0},
+        "passedChecks": {"type": "integer", "minimum": 0},
+        "citations": {"type": "integer", "minimum": 0},
+        "validCitations": {"type": "integer", "minimum": 0},
+        "groundedness": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "required": ["kind", "expected", "passed"],
+      "properties": {
+        "kind": {"enum": ["source", "evidence_contains", "evidence_excludes", "min_sources", "answer_contains", "answer_excludes", "citation_source", "min_citations", "min_groundedness"]},
+        "expected": {"type": "string"},
+        "actual": {"type": "string"},
+        "passed": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "answer": {
+      "type": "object",
+      "required": ["text", "claims", "citedSources", "citationCount", "validCitations", "claimCount", "groundedClaims", "groundedness"],
+      "properties": {
+        "text": {"type": "string"},
+        "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+        "citedSources": {"type": "array", "items": {"type": "string"}},
+        "citationCount": {"type": "integer", "minimum": 0},
+        "validCitations": {"type": "integer", "minimum": 0},
+        "claimCount": {"type": "integer", "minimum": 0},
+        "groundedClaims": {"type": "integer", "minimum": 0},
+        "groundedness": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "claim": {
+      "type": "object",
+      "required": ["text", "citations", "grounded"],
+      "properties": {
+        "text": {"type": "string"},
+        "citations": {"type": "array", "items": {"$ref": "#/$defs/citation"}},
+        "grounded": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "citation": {
+      "type": "object",
+      "required": ["locator", "valid"],
+      "properties": {
+        "locator": {"type": "string"},
+        "path": {"type": "string"},
+        "valid": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

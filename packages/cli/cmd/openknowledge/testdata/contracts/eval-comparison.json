@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1",
+  "dataset": {
+    "type": "openknowledge.eval",
+    "version": 1,
+    "id": "deploy",
+    "path": "/workspace/evals/deploy.yaml",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "base": {
+    "ref": "main",
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "root": "git:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:Wiki",
+    "revision": {"specVersion": "0.2", "indexSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+    "summary": {"status": "fail", "total": 1, "passed": 0, "failed": 1, "checks": 1, "passedChecks": 0}
+  },
+  "proposed": {
+    "root": "/workspace/Wiki",
+    "revision": {"specVersion": "0.2", "indexSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+    "summary": {"status": "pass", "total": 1, "passed": 1, "failed": 0, "checks": 1, "passedChecks": 1}
+  },
+  "summary": {
+    "status": "pass",
+    "gate": "all",
+    "total": 1,
+    "improved": 1,
+    "regressed": 0,
+    "unchangedPassed": 0,
+    "unchangedFailed": 0,
+    "proposedPassed": 1,
+    "proposedFailed": 0
+  },
+  "cases": [
+    {
+      "id": "rollback",
+      "question": "How do we roll back?",
+      "classification": "improved",
+      "base": {
+        "id": "rollback",
+        "question": "How do we roll back?",
+        "status": "fail",
+        "context": {"budget": 1200, "limit": 8, "noExpand": false, "estimatedTokens": 5, "sources": []},
+        "metrics": {"expectedSources": 1, "matchedSources": 0, "sourceRecall": 0, "checks": 1, "passedChecks": 0},
+        "checks": [{"kind": "source", "expected": "rollback.md", "passed": false}]
+      },
+      "proposed": {
+        "id": "rollback",
+        "question": "How do we roll back?",
+        "status": "pass",
+        "context": {
+          "budget": 1200,
+          "limit": 8,
+          "noExpand": false,
+          "estimatedTokens": 20,
+          "sources": [{
+            "id": "rollback#rollback",
+            "path": "rollback.md",
+            "title": "Rollback",
+            "heading": "Rollback",
+            "locator": "okf+sha256://dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/rollback.md#eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "contentSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "relation": "direct",
+            "score": 4.2
+          }]
+        },
+        "metrics": {"expectedSources": 1, "matchedSources": 1, "sourceRecall": 1, "checks": 1, "passedChecks": 1},
+        "checks": [{"kind": "source", "expected": "rollback.md", "actual": "rollback#rollback", "passed": true}]
+      }
+    }
+  ]
+}

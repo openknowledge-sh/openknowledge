@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/eval/v1/dataset.schema.json",
+  "title": "Open Knowledge Eval Dataset v1",
+  "type": "object",
+  "required": ["type", "version", "id", "cases"],
+  "properties": {
+    "type": {"const": "openknowledge.eval"},
+    "version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "defaults": {"$ref": "#/$defs/context"},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "context": {
+      "type": "object",
+      "properties": {
+        "budget": {"type": "integer", "minimum": 1, "maximum": 32000},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+        "no_expand": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": ["id", "question", "expect"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "question": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "context": {"$ref": "#/$defs/context"},
+        "expect": {"$ref": "#/$defs/expect"}
+      },
+      "additionalProperties": false
+    },
+    "expect": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "sources": {"$ref": "#/$defs/nonEmptyUniqueStrings"},
+        "evidence_contains": {"$ref": "#/$defs/nonEmptyUniqueStrings"},
+        "evidence_excludes": {"$ref": "#/$defs/nonEmptyUniqueStrings"},
+        "answer_contains": {"$ref": "#/$defs/nonEmptyUniqueStrings"},
+        "answer_excludes": {"$ref": "#/$defs/nonEmptyUniqueStrings"},
+        "citation_sources": {"$ref": "#/$defs/nonEmptyUniqueStrings"},
+        "min_sources": {"type": "integer", "minimum": 1, "maximum": 50},
+        "min_citations": {"type": "integer", "minimum": 1, "maximum": 50},
+        "min_groundedness": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "nonEmptyUniqueStrings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+    }
+  },
+  "additionalProperties": false
+}

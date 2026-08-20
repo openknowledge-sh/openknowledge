@@ -18,6 +18,8 @@ When present, `specVersion` identifies the independently versioned OKF document 
 | `ast.schema.json` | `ast` |
 | `bundle.schema.json` | `export json` |
 | `cli-error.schema.json` | global `--error-format json` failures |
+| `eval-comparison.schema.json` | `eval run --base <git-ref> --format json` |
+| `eval-report.schema.json` | `eval run --format json` |
 | `list.schema.json` | `list --json` |
 | `validation.schema.json` | `validate --format json`, MCP validation |
 | `graph.schema.json` | `export graph` |
@@ -54,7 +56,7 @@ Run plans can contain deterministic `preflight` commands and can omit `agent`
 for empty-prompt jobs that contain verification commands. Run records preserve
 preflight results and use `preflight_failed` when this phase stops execution.
 
-The published v1 schema distribution includes diagnostic, runtime, and Railway deployment outputs.
+The published v1 schema distribution includes eval, diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.
 The shared schema suite compiles and validates these fixtures.
 
@@ -97,13 +99,28 @@ The project publishes them at:
 https://openknowledge.sh/schemas/cli/v1/<schema>.json
 ```
 
-Two other version domains are independent:
+Other version domains are independent:
 
 | Contract | Repository | Public route |
 | --- | --- | --- |
+| Eval protocol v1 | `schemas/eval/v1/` | `/schemas/cli/eval/v1/` |
 | Portable `openknowledge.json` | `schemas/manifest/v1/` | `/schemas/cli/manifest/v1/` |
 | Registry and cache persistence | `schemas/storage/v1/` | `/schemas/cli/storage/v1/` |
 | Runtime generation manifest | `schemas/runtime/v1/` | not a CLI output contract |
+
+Eval datasets use `type: openknowledge.eval` and numeric `version: 1`.
+The dataset schema defines strict YAML-compatible questions, context settings,
+retrieval expectations, and answer expectations.
+
+`answer-request.schema.json` defines the stdin document for an answer command.
+`answer-response.schema.json` defines its stdout document. Both protocols use
+`schemaVersion: "1"` in the eval v1 domain.
+
+Eval reports use the CLI `schemaVersion: "1"` contract. They bind results to
+the dataset digest and corpus revision. Answer results contain answer text,
+claims, citation validity, cited sources, and groundedness.
+Comparison reports bind base and proposed results to their retrieval revisions.
+They also record each case classification and the selected gate.
 
 Portable manifests use a numeric `version` and a concrete `spec`.
 Local storage and runtime manifests use their own `schemaVersion` values.

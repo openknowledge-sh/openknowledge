@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/eval/v1/answer-response.schema.json",
+  "title": "Open Knowledge eval answer response v1",
+  "type": "object",
+  "required": ["schemaVersion", "answers"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["caseId", "answer", "claims"],
+        "properties": {
+          "caseId": {"type": "string"},
+          "answer": {"type": "string"},
+          "claims": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text", "citations"],
+              "properties": {
+                "text": {"type": "string", "minLength": 1},
+                "citations": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

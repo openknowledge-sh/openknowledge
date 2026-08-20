@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1",
+  "dataset": {
+    "type": "openknowledge.eval",
+    "version": 1,
+    "id": "deploy",
+    "path": "/workspace/evals/deploy.yaml",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "target": {
+    "root": "/workspace/Wiki",
+    "revision": {
+      "specVersion": "0.2",
+      "indexSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "summary": {
+    "status": "pass",
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "checks": 2,
+    "passedChecks": 2
+  },
+  "cases": [
+    {
+      "id": "rollback",
+      "question": "How do we roll back a deployment?",
+      "status": "pass",
+      "context": {
+        "budget": 1200,
+        "limit": 8,
+        "noExpand": false,
+        "estimatedTokens": 42,
+        "sources": [
+          {
+            "id": "operations/rollback#rollback",
+            "path": "operations/rollback.md",
+            "title": "Rollback Guide",
+            "heading": "Rollback",
+            "locator": "okf+sha256://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/operations%2Frollback.md#cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "contentSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "relation": "direct",
+            "score": 5.2
+          }
+        ]
+      },
+      "metrics": {
+        "expectedSources": 1,
+        "matchedSources": 1,
+        "sourceRecall": 1,
+        "checks": 2,
+        "passedChecks": 2
+      },
+      "checks": [
+        {"kind": "source", "expected": "operations/rollback.md", "actual": "operations/rollback#rollback", "passed": true},
+        {"kind": "evidence_contains", "expected": "restore the previous release", "passed": true}
+      ]
+    }
+  ]
+}

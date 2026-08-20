@@ -29,6 +29,8 @@ the source tree and from the public URL.
 | `ast.schema.json` | `openknowledge ast` |
 | `bundle.schema.json` | `openknowledge export json` |
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
+| `eval-comparison.schema.json` | `openknowledge eval run --base <git-ref> --format json` |
+| `eval-report.schema.json` | `openknowledge eval run --format json` |
 | `federated-search-context.schema.json` | `openknowledge search --all <query> --format json` |
 | `federated-search-results.schema.json` | `openknowledge search --all <query> --matches --format json` |
 | `graph.schema.json` | `openknowledge export graph` |
@@ -58,6 +60,12 @@ Portable `openknowledge.json` discovery manifests use an independent protocol
 schema under [`../manifest/v1/`](../manifest/v1/). They do not contain the CLI
 output `schemaVersion` field; their numeric `version` and concrete OKF `spec`
 identify separate compatibility dimensions.
+
+Strict eval datasets use an independent input schema under
+[`../eval/v1/`](../eval/v1/). They use `type: openknowledge.eval` and numeric
+`version: 1`. Eval reports and comparison reports use the CLI
+`schemaVersion: "1"` output contract. Eval case results can contain answer
+text, claim-level citation validity, cited sources, and groundedness metrics.
 
 CLI-owned registry and managed-cache provenance use independent persistence
 schemas under [`../storage/v1/`](../storage/v1/).

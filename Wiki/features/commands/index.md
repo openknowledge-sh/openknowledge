@@ -8,6 +8,7 @@ Use this index to select a command for your task. Run
 - [setup](setup.md): Configure a knowledge base and its agent instructions.
 - [search](search.md): Build source-grounded context.
 - [validate](validate.md): Validate OKF conformance.
+- [eval](eval.md): Test retrieval evidence against versioned questions.
 
 ## Work locally
 
