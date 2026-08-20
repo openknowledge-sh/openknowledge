@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-08-09T00:00:00Z
+timestamp: 2026-08-18T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -95,6 +95,16 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   The viewer also provides tag filters, sortable tables, and directory
   breadcrumbs. The **Documents** view expands the active file branch.
   Directory rows can collapse, and the explorer has a **Collapse all** action.
+- Markdown note headers include a **Listen** control when the browser provides
+  speech synthesis. Open Knowledge does not require an OpenAI API key, consume
+  Codex credits, or make its own speech API request. The browser selects the
+  voice; depending on the browser, operating system, and installed voice, its
+  speech service may be local or network-backed. Select the control again to
+  pause or resume, and select **Stop** to end narration. Starting another note
+  stops the current note first.
+  Narration reads the rendered reader-facing article. It skips frontmatter,
+  agent-only annotations, code blocks, Mermaid diagrams, and hidden controls.
+  Browsers without speech synthesis hide the control.
 - For OKF 0.2 concepts, the expanded frontmatter area groups derived trust,
   status, freshness, provenance, structured sources, and Attested Computation
   data. Each derived signal uses the same two-column field-and-value rows as

@@ -212,6 +212,12 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `data-close-panel`) {
 		t.Fatalf("viewer file page did not include panel close control:\n%s", page)
 	}
+	if !strings.Contains(page, `data-note-narration`) ||
+		!strings.Contains(page, `data-note-narration-stop`) ||
+		!strings.Contains(page, `function narrationText(panel)`) ||
+		!strings.Contains(page, `window.speechSynthesis.speak(utterance)`) {
+		t.Fatalf("viewer file page should expose browser-native note narration controls:\n%s", page)
+	}
 	if !strings.Contains(page, `data-note-breadcrumbs data-note-path-value="index.md"`) ||
 		!strings.Contains(page, `function createNoteBreadcrumbs(path, knowledgeBase)`) ||
 		!strings.Contains(page, `noteIndexPath(displayParts.slice(0, index + 1))`) ||

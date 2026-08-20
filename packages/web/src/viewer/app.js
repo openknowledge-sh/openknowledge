@@ -111,6 +111,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   let mermaidRequestID = 0;
   let mermaidThemeTimer = 0;
   let workspaceRailFrame = 0;
+  const narrationState = {
+    panel: null,
+    chunks: [],
+    index: 0,
+    status: "idle",
+    token: 0,
+  };
   const panelCloseShortcut = {
     id: "viewer.panel.close",
     code: "KeyW",
@@ -3051,12 +3058,267 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return svg;
     }
 
+    if (name === "volume") {
+      const speaker = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      speaker.setAttribute("d", "M11 5 6 9H3v6h3l5 4V5Z");
+      const sound = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      sound.setAttribute("d", "M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12");
+      svg.append(speaker, sound);
+      return svg;
+    }
+
+    if (name === "pause") {
+      const left = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      left.setAttribute("d", "M8 5v14");
+      const right = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      right.setAttribute("d", "M16 5v14");
+      svg.append(left, right);
+      return svg;
+    }
+
+    if (name === "play") {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", "m8 5 11 7-11 7V5Z");
+      svg.append(path);
+      return svg;
+    }
+
+    if (name === "stop") {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", "M7 7h10v10H7z");
+      svg.append(path);
+      return svg;
+    }
+
     const first = document.createElementNS("http://www.w3.org/2000/svg", "path");
     first.setAttribute("d", "M18 6 6 18");
     const second = document.createElementNS("http://www.w3.org/2000/svg", "path");
     second.setAttribute("d", "m6 6 12 12");
     svg.append(first, second);
     return svg;
+  }
+
+  function narrationIsSupported() {
+    return typeof window.speechSynthesis !== "undefined" && typeof window.SpeechSynthesisUtterance === "function";
+  }
+
+  function createNarrationControls(path) {
+    const fragment = document.createDocumentFragment();
+    const toggle = document.createElement("button");
+    toggle.className = "note-narration";
+    toggle.type = "button";
+    toggle.dataset.noteNarration = "";
+    toggle.hidden = true;
+    toggle.setAttribute("aria-label", "Listen to " + path);
+    toggle.setAttribute("aria-pressed", "false");
+    toggle.title = "Listen to this page";
+    toggle.append(controlIcon("volume", "note-narration-icon"));
+
+    const stop = document.createElement("button");
+    stop.className = "note-narration note-narration-stop";
+    stop.type = "button";
+    stop.dataset.noteNarrationStop = "";
+    stop.hidden = true;
+    stop.setAttribute("aria-label", "Stop narration of " + path);
+    stop.title = "Stop narration";
+    stop.append(controlIcon("stop", "note-narration-icon"));
+
+    const status = document.createElement("span");
+    status.className = "sr-only";
+    status.dataset.noteNarrationStatus = "";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+
+    fragment.append(toggle, stop, status);
+    return fragment;
+  }
+
+  function narrationText(panel) {
+    const body = panel.querySelector(":scope > .note-body");
+    if (!body || body.classList.contains("asset-code") || body.classList.contains("asset-text")) {
+      return "";
+    }
+    const readable = body.cloneNode(true);
+    readable.querySelectorAll([
+      "[data-frontmatter]",
+      "[data-okf-annotation]",
+      ".ok-agent-footer",
+      ".ok-agent-context",
+      ".ok-table-tools",
+      ".ok-mermaid",
+      "pre",
+      "script",
+      "style",
+      "noscript",
+      "button",
+      "input",
+      "select",
+      "textarea",
+      "[hidden]",
+      "[aria-hidden='true']",
+    ].join(",")).forEach(function (element) {
+      element.remove();
+    });
+    readable.querySelectorAll("br").forEach(function (element) {
+      element.replaceWith(document.createTextNode(". "));
+    });
+    readable.querySelectorAll("h1, h2, h3, h4, h5, h6, p, li, blockquote, dt, dd, th, td, figcaption").forEach(function (element) {
+      element.append(document.createTextNode(". "));
+    });
+    return (readable.textContent || "")
+      .replace(/\s+/g, " ")
+      .replace(/\s+([,.;:!?])/g, "$1")
+      .replace(/([.!?]){2,}/g, "$1")
+      .trim();
+  }
+
+  function narrationChunks(text) {
+    const maxLength = 1600;
+    const chunks = [];
+    let remaining = text;
+    while (remaining.length > maxLength) {
+      let splitAt = remaining.lastIndexOf(" ", maxLength);
+      if (splitAt < maxLength * 0.6) {
+        splitAt = maxLength;
+      }
+      chunks.push(remaining.slice(0, splitAt).trim());
+      remaining = remaining.slice(splitAt).trim();
+    }
+    if (remaining) {
+      chunks.push(remaining);
+    }
+    return chunks;
+  }
+
+  function announceNarration(panel, message) {
+    const status = panel?.querySelector("[data-note-narration-status]");
+    if (status) {
+      status.textContent = message;
+    }
+  }
+
+  function syncNarrationControls() {
+    panels().forEach(function (panel) {
+      const toggle = panel.querySelector("[data-note-narration]");
+      const stop = panel.querySelector("[data-note-narration-stop]");
+      if (!toggle || !stop) {
+        return;
+      }
+      const active = narrationState.panel === panel && narrationState.status !== "idle";
+      const paused = active && narrationState.status === "paused";
+      toggle.setAttribute("aria-pressed", active ? "true" : "false");
+      toggle.setAttribute("aria-label", (paused ? "Resume narration of " : active ? "Pause narration of " : "Listen to ") + panel.dataset.notePath);
+      toggle.title = paused ? "Resume narration" : active ? "Pause narration" : "Listen to this page";
+      toggle.dataset.narrationState = active ? narrationState.status : "idle";
+      toggle.replaceChildren(controlIcon(paused ? "play" : active ? "pause" : "volume", "note-narration-icon"));
+      if (!active && document.activeElement === stop) {
+        toggle.focus();
+      }
+      stop.hidden = !active;
+    });
+  }
+
+  function finishNarration(message) {
+    const panel = narrationState.panel;
+    narrationState.token += 1;
+    narrationState.panel = null;
+    narrationState.chunks = [];
+    narrationState.index = 0;
+    narrationState.status = "idle";
+    syncNarrationControls();
+    announceNarration(panel, message);
+  }
+
+  function speakNarrationChunk(token) {
+    if (token !== narrationState.token || narrationState.status === "idle") {
+      return;
+    }
+    if (narrationState.index >= narrationState.chunks.length) {
+      finishNarration("Narration finished.");
+      return;
+    }
+    const utterance = new window.SpeechSynthesisUtterance(narrationState.chunks[narrationState.index]);
+    utterance.onend = function () {
+      if (token !== narrationState.token) {
+        return;
+      }
+      narrationState.index += 1;
+      speakNarrationChunk(token);
+    };
+    utterance.onerror = function () {
+      if (token === narrationState.token) {
+        finishNarration("Narration could not continue.");
+      }
+    };
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function startNarration(panel) {
+    const text = narrationText(panel);
+    if (!text) {
+      announceNarration(panel, "This page has no reader text to narrate.");
+      return;
+    }
+    if (narrationState.panel) {
+      narrationState.token += 1;
+      window.speechSynthesis.cancel();
+    }
+    narrationState.token += 1;
+    narrationState.panel = panel;
+    narrationState.chunks = narrationChunks(text);
+    narrationState.index = 0;
+    narrationState.status = "speaking";
+    const token = narrationState.token;
+    syncNarrationControls();
+    announceNarration(panel, "Narrating " + panel.dataset.notePath + ".");
+    speakNarrationChunk(token);
+  }
+
+  function toggleNarration(panel) {
+    if (narrationState.panel !== panel || narrationState.status === "idle") {
+      startNarration(panel);
+      return;
+    }
+    if (narrationState.status === "paused") {
+      window.speechSynthesis.resume();
+      narrationState.status = "speaking";
+      announceNarration(panel, "Narration resumed.");
+    } else {
+      window.speechSynthesis.pause();
+      narrationState.status = "paused";
+      announceNarration(panel, "Narration paused.");
+    }
+    syncNarrationControls();
+  }
+
+  function stopNarration(panel, message) {
+    if (!narrationState.panel || (panel && narrationState.panel !== panel)) {
+      return;
+    }
+    narrationState.token += 1;
+    window.speechSynthesis.cancel();
+    finishNarration(message || "Narration stopped.");
+  }
+
+  function bindNarration(panel) {
+    const toggle = panel.querySelector("[data-note-narration]");
+    const stop = panel.querySelector("[data-note-narration-stop]");
+    if (!toggle || !stop || toggle.dataset.narrationBound === "true") {
+      return;
+    }
+    toggle.dataset.narrationBound = "true";
+    if (!narrationIsSupported() || !narrationText(panel)) {
+      return;
+    }
+    toggle.hidden = false;
+    toggle.addEventListener("click", function (event) {
+      event.stopPropagation();
+      toggleNarration(panel);
+    });
+    stop.addEventListener("click", function (event) {
+      event.stopPropagation();
+      stopNarration(panel);
+    });
   }
 
   function readEditorOrder() {
@@ -4524,6 +4786,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     } else if (!isStaticBundle()) {
       actions.append(createEditorPicker());
     }
+    actions.append(createNarrationControls(data.path));
 
     const closeButton = document.createElement("a");
     closeButton.className = "note-close";
@@ -4581,6 +4844,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     ensurePanelResizeHandles(panel);
     syncPanelCloseShortcut(panel);
     panel.querySelectorAll("[data-editor-picker]").forEach(bindEditorPicker);
+    bindNarration(panel);
     enhanceMermaid(panel, false);
     enhanceTables(panel);
     updateLinkBehaviorHints(panel);
@@ -4685,6 +4949,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function clearStack() {
     panels().forEach(function (panel) {
+      stopNarration(panel);
       panel.remove();
     });
     updateWorkspaceState();
@@ -4694,6 +4959,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function trimAfter(index) {
     panels().slice(index + 1).forEach(function (panel) {
+      stopNarration(panel);
       panel.remove();
     });
     updateWorkspaceState();
@@ -4744,6 +5010,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         sourceIndex = Math.max(0, all.length - 1);
       }
       all.slice(sourceIndex).forEach(function (item) {
+        stopNarration(item);
         item.remove();
       });
       appendPanel(panel);
@@ -4758,6 +5025,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     let nextPanel;
 
     await runStackTransition(function () {
+      stopNarration(panel);
       panel.remove();
 
       const remaining = panels();
@@ -5495,6 +5763,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     graphViewRequested = false;
     const paths = stackFromLocation();
     restoreStack(paths, highlightFromLocation());
+  });
+
+  window.addEventListener("beforeunload", function () {
+    stopNarration(null, "");
   });
 
   document.addEventListener("click", function (event) {

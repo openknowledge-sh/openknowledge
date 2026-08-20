@@ -23,6 +23,18 @@ body.is-panel-resizing, body.is-panel-resizing * { cursor: ew-resize !important;
 .source-open:hover { border-color: var(--ok-color-editor-trigger-focus-border); background: var(--ok-color-code-inline-bg); color: var(--ok-color-text); }
 .source-open:focus-visible { outline: 2px solid var(--ok-color-focus-ring); outline-offset: 2px; }
 .source-icon { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+.note-narration { display: inline-flex; flex: 0 0 auto; width: 32px; height: 30px; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--ok-color-editor-trigger-border); border-radius: 8px; background: var(--ok-color-editor-trigger-bg); color: var(--ok-color-editor-trigger-text); cursor: pointer; font: inherit; line-height: 1; box-shadow: 0 1px 0 var(--ok-color-editor-trigger-shadow) inset; transition: border-color .14s ease, background-color .14s ease, color .14s ease; }
+.note-narration[hidden] { display: none; }
+.note-narration:hover { border-color: var(--ok-color-editor-trigger-focus-border); background: var(--ok-color-code-inline-bg); color: var(--ok-color-text); }
+.note-narration:focus-visible { outline: 2px solid var(--ok-color-focus-ring); outline-offset: 2px; }
+.note-narration[aria-pressed="true"] { border-color: var(--ok-color-accent-border); background: var(--ok-color-accent-soft); color: var(--ok-color-accent-strong); }
+.note-narration-stop { width: 30px; border-color: transparent; background: transparent; box-shadow: none; }
+.note-narration-icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.note-narration-icon[data-icon="stop"], .note-narration-icon[data-icon="play"] { fill: currentColor; stroke: currentColor; }
+@media (pointer: coarse) {
+  .note-narration { width: 44px; height: 44px; }
+  .note-narration-stop { width: 44px; }
+}
 .editor-picker { position: relative; flex: 0 0 auto; }
 .note-panel:not(.is-active-panel) .editor-picker { display: none; }
 .editor-trigger { display: inline-flex; min-width: 58px; height: 30px; align-items: stretch; justify-content: center; overflow: hidden; border: 1px solid var(--ok-color-editor-trigger-border); border-radius: 8px; background: var(--ok-color-editor-trigger-bg); color: var(--ok-color-editor-trigger-text); line-height: 1; box-shadow: 0 1px 0 var(--ok-color-editor-trigger-shadow) inset; }

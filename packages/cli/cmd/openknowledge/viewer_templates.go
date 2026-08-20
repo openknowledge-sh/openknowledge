@@ -404,6 +404,18 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
               <div class="editor-menu" data-editor-menu role="menu" hidden></div>
             </div>
             {{end}}
+            <button class="note-narration" type="button" data-note-narration aria-label="Listen to {{.Path}}" aria-pressed="false" title="Listen to this page" hidden>
+              <svg class="note-narration-icon control-icon" data-icon="volume" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M11 5 6 9H3v6h3l5 4V5Z"></path>
+                <path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"></path>
+              </svg>
+            </button>
+            <button class="note-narration note-narration-stop" type="button" data-note-narration-stop aria-label="Stop narration of {{.Path}}" title="Stop narration" hidden>
+              <svg class="note-narration-icon control-icon" data-icon="stop" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 7h10v10H7z"></path>
+              </svg>
+            </button>
+            <span class="sr-only" data-note-narration-status role="status" aria-live="polite"></span>
             <a class="note-close" href="#" data-close-panel aria-label="Close {{.Path}}" aria-keyshortcuts="Meta+Alt+W" title="Close {{.Path}} (⌘⌥W)" role="button">
               <svg class="note-close-icon control-icon" data-icon="x" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M18 6 6 18"></path>

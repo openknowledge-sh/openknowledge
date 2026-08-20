@@ -15,6 +15,17 @@ page records release-level changes.
 
 ### Viewer
 
+- Markdown note panels now provide browser-native text-to-speech controls for
+  reader-facing content, with pause, resume, and stop states. The feature uses
+  the browser-selected voice and requires no Open Knowledge-managed API key.
+  That voice may be local or network-backed. Narration omits frontmatter,
+  agent-only annotations, code blocks, Mermaid diagrams, and hidden UI.
+- Source: `packages/cli/cmd/openknowledge/viewer_templates.go`,
+  `packages/web/src/viewer/app.js`,
+  `packages/web/src/viewer/styles/document.css`, and
+  `packages/web/scripts/browser.e2e.mjs`.
+- Docs: `Wiki/features/commands/view.md` and
+  `Wiki/features/exporters/html.md`.
 - `okn view` now watches local Markdown and asset files. It refreshes an open
   page after an add, update, rename, move, or deletion.
 - Live reload preserves surviving document stacks, active documents, graph

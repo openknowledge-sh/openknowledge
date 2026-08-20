@@ -727,6 +727,84 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   await context.close();
 });
 
+test("exported viewer narrates reader-facing note text with browser speech", async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+  await page.addInitScript(() => {
+    class MockSpeechSynthesisUtterance {
+      constructor(text) {
+        this.text = text;
+        this.lang = "";
+        this.onend = null;
+        this.onerror = null;
+      }
+    }
+    const speechSynthesis = {
+      canceled: 0,
+      paused: false,
+      utterances: [],
+      speak(utterance) {
+        this.utterances.push(utterance);
+      },
+      pause() {
+        this.paused = true;
+      },
+      resume() {
+        this.paused = false;
+      },
+      cancel() {
+        this.canceled += 1;
+        this.paused = false;
+      },
+    };
+    Object.defineProperty(window, "SpeechSynthesisUtterance", { configurable: true, value: MockSpeechSynthesisUtterance });
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, value: speechSynthesis });
+  });
+
+  await page.goto(new URL("guides/rollback.html", viewerURL).href, { waitUntil: "networkidle" });
+  const panel = page.locator('[data-note-path="guides/rollback.md"]');
+  const listen = panel.locator("[data-note-narration]");
+  assert.equal(await listen.isVisible(), true, "Markdown pages should expose narration when browser speech is available");
+  assert.equal(await listen.getAttribute("aria-label"), "Listen to guides/rollback.md");
+
+  await listen.click();
+  assert.equal(await listen.getAttribute("aria-pressed"), "true");
+  assert.equal(await listen.getAttribute("aria-label"), "Pause narration of guides/rollback.md");
+  const spoken = await page.evaluate(() => window.speechSynthesis.utterances.map((utterance) => utterance.text).join(" "));
+  assert.match(spoken, /Rollback Guide/);
+  assert.match(spoken, /Validate the deployment/);
+  assert.doesNotMatch(spoken, /Agent-facing maintenance context/);
+  assert.doesNotMatch(spoken, /sequenceDiagram/);
+
+  await listen.click();
+  assert.equal(await listen.getAttribute("aria-label"), "Resume narration of guides/rollback.md");
+  assert.equal(await page.evaluate(() => window.speechSynthesis.paused), true);
+  await listen.click();
+  assert.equal(await listen.getAttribute("aria-label"), "Pause narration of guides/rollback.md");
+  assert.equal(await page.evaluate(() => window.speechSynthesis.paused), false);
+
+  const stop = panel.getByRole("button", { name: "Stop narration of guides/rollback.md" });
+  assert.equal(await stop.isVisible(), true);
+  await stop.click();
+  assert.equal(await listen.getAttribute("aria-pressed"), "false");
+  assert.equal(await listen.getAttribute("aria-label"), "Listen to guides/rollback.md");
+  assert.equal(await stop.isVisible(), false);
+  assert.equal(await listen.evaluate((element) => document.activeElement === element), true, "stopping should return keyboard focus before hiding Stop");
+
+  await listen.click();
+  await page.evaluate(() => window.speechSynthesis.utterances.at(-1).onerror({ error: "interrupted" }));
+  assert.equal(await listen.getAttribute("aria-pressed"), "false", "a browser speech interruption should reset narration state");
+  assert.equal(await stop.isVisible(), false);
+
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: "rollback guide" }).click();
+  const dynamicPanel = page.locator('[data-note-path="guides/rollback.md"]');
+  assert.equal(await dynamicPanel.getByRole("button", { name: "Listen to guides/rollback.md" }).isVisible(), true, "dynamically opened Markdown pages should expose narration");
+  assert.equal(errors.length, 0, `viewer narration browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
 test("exported viewer keeps note navigation, explorer context, and settings discoverable", async () => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
   const page = await context.newPage();

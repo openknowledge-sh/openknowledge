@@ -3,7 +3,7 @@ type: Exporter Documentation
 title: HTML Exporter
 description: Publish an Open Knowledge bundle as a static site.
 tags: [openknowledge, cli, exporter, html]
-timestamp: 2026-08-09T00:00:00Z
+timestamp: 2026-08-18T00:00:00Z
 ---
 
 # HTML Exporter
@@ -42,7 +42,7 @@ Viewer mode includes:
 
 - static Markdown pages with **Documents**, **Graph**, and **Settings** sidebar
   items, Mermaid diagrams, search, stacked panels, metadata inspectors, table
-  controls, themes, and mobile layout
+  controls, browser-native text-to-speech, themes, and mobile layout
 - a light blue default theme that matches the Open Knowledge website
 - OKF 0.2 trust, status, freshness, provenance, structured source, and
   Attested Computation contract views
@@ -68,6 +68,15 @@ controls.
 
 Viewer mode provides the graph controls that the [`view`](../commands/view.md)
 command provides.
+
+Viewer-mode Markdown pages expose **Listen**, pause/resume, and stop controls
+when the browser supports speech synthesis. Narration uses the browser or
+operating system voice. Open Knowledge makes no speech API request and manages
+no speech credential, but the browser-selected voice may itself be local or
+network-backed. Narration skips frontmatter, agent-only annotations, code
+blocks, Mermaid diagrams, and hidden controls. The controls remain hidden for
+unsupported browsers and for source or text asset cards. Plain mode does not
+include narration controls.
 
 The shared JavaScript includes the pinned Mermaid runtime. Vite builds the
 viewer from JavaScript and CSS modules in `packages/web/src/viewer`.
