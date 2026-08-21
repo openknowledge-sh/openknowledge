@@ -33,7 +33,7 @@
     },
     "serve": {
       "type": "object",
-      "required": ["address", "poll_interval", "request_timeout", "max_concurrency", "mcp_access"],
+      "required": ["address", "poll_interval", "request_timeout", "max_concurrency", "mcp_access", "retrieval_policy"],
       "properties": {
         "address": {"type": "string"},
         "poll_interval": {"type": "string"},
@@ -41,7 +41,19 @@
         "max_concurrency": {"type": "integer", "minimum": 1},
         "mcp_access": {"type": "string"},
         "mcp_token_env": {"type": "string"},
-        "allowed_origins": {"type": "array", "items": {"type": "string"}}
+        "allowed_origins": {"type": "array", "items": {"type": "string"}},
+        "retrieval_policy": {"$ref": "#/$defs/retrievalPolicy"}
+      },
+      "additionalProperties": false
+    },
+    "retrievalPolicy": {
+      "type": "object",
+      "required": ["minimum_trust", "allow_stale", "allowed_statuses", "require_sources"],
+      "properties": {
+        "minimum_trust": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
+        "allow_stale": {"type": "boolean"},
+        "allowed_statuses": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["draft", "stable", "deprecated"]}},
+        "require_sources": {"type": "boolean"}
       },
       "additionalProperties": false
     },

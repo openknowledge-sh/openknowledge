@@ -11,7 +11,17 @@
     "poll_interval": "5s",
     "request_timeout": "15s",
     "max_concurrency": 32,
-    "mcp_access": "public"
+    "mcp_access": "public",
+    "retrieval_policy": {
+      "minimum_trust": "unverified",
+      "allow_stale": true,
+      "allowed_statuses": [
+        "draft",
+        "stable",
+        "deprecated"
+      ],
+      "require_sources": false
+    }
   },
   "worker": {
     "repo": "/workspace",

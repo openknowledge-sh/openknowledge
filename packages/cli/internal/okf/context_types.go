@@ -63,6 +63,7 @@ type ContextSection struct {
 	Title           string
 	Description     string
 	Frontmatter     map[string]string
+	FrontmatterData map[string]any
 	Heading         string
 	HeadingPath     []string
 	Anchors         []string

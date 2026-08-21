@@ -41,6 +41,7 @@ type mcpServer struct {
 	root                string
 	spec                string
 	version             string
+	resolveContext      func(okf.ContextOptions) (any, error)
 	initializeResponded bool
 	initialized         bool
 }
@@ -332,9 +333,16 @@ func (server *mcpServer) callTool(id json.RawMessage, raw json.RawMessage) *mcpR
 		if arguments.Limit == 0 {
 			arguments.Limit = 12
 		}
-		result, err := okf.ResolveContextWithVersion(server.root, server.spec, okf.ContextOptions{
+		options := okf.ContextOptions{
 			Query: arguments.Query, Budget: arguments.Budget, Limit: arguments.Limit, NoExpand: arguments.NoExpand,
-		})
+		}
+		var result any
+		var err error
+		if server.resolveContext != nil {
+			result, err = server.resolveContext(options)
+		} else {
+			result, err = okf.ResolveContextWithVersion(server.root, server.spec, options)
+		}
 		if err != nil {
 			return mcpResultResponse(id, mcpToolError(err))
 		}

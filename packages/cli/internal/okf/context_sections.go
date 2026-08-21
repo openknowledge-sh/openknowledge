@@ -25,7 +25,7 @@ func splitContextSectionsFromASTDocument(entry ListEntry, document ASTDocument) 
 
 	boundaries := contextSectionBoundaries(document.Markdown.Sections, bodyLine)
 	readerBody := astMarkdownReaderBody(document.Body, bodyLine, document.Markdown.Blocks)
-	sections := contextSectionsFromBoundaries(entry, document.Frontmatter.Values, readerBody, document.Links, bodyLine, boundaries)
+	sections := contextSectionsFromBoundaries(entry, document.Frontmatter.Values, document.Frontmatter.Data, readerBody, document.Links, bodyLine, boundaries)
 	attachContextSectionAnchors(sections, boundaries, document.Markdown.Headings)
 	return sections
 }
@@ -58,7 +58,7 @@ func contextSectionBoundaries(sections []ASTMarkdownSection, bodyLine int) []con
 	return boundaries
 }
 
-func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]string, body string, links []Link, bodyLine int, boundaries []contextSectionBoundary) []ContextSection {
+func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]string, frontmatterData map[string]any, body string, links []Link, bodyLine int, boundaries []contextSectionBoundary) []ContextSection {
 	normalized := strings.ReplaceAll(body, "\r\n", "\n")
 	lines := strings.Split(normalized, "\n")
 	if bodyLine <= 0 {
@@ -70,12 +70,12 @@ func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]strin
 		if text == "" {
 			return nil
 		}
-		return []ContextSection{newContextSection(entry, frontmatter, "#top", "Top", nil, []string{"top"}, 0, bodyLine, bodyLine+len(lines)-1, text, links)}
+		return []ContextSection{newContextSection(entry, frontmatter, frontmatterData, "#top", "Top", nil, []string{"top"}, 0, bodyLine, bodyLine+len(lines)-1, text, links)}
 	}
 
 	var sections []ContextSection
 	if top := strings.TrimSpace(strings.Join(lines[:boundaries[0].start], "\n")); top != "" {
-		sections = append(sections, newContextSection(entry, frontmatter, "#top", "Top", nil, []string{"top"}, 0, bodyLine, bodyLine+boundaries[0].start-1, top, linksInRange(links, bodyLine, bodyLine+boundaries[0].start-1)))
+		sections = append(sections, newContextSection(entry, frontmatter, frontmatterData, "#top", "Top", nil, []string{"top"}, 0, bodyLine, bodyLine+boundaries[0].start-1, top, linksInRange(links, bodyLine, bodyLine+boundaries[0].start-1)))
 	}
 
 	for index, current := range boundaries {
@@ -94,7 +94,7 @@ func contextSectionsFromBoundaries(entry ListEntry, frontmatter map[string]strin
 			anchor = "section"
 		}
 		id := entry.ID + "#" + anchor
-		sections = append(sections, newContextSection(entry, frontmatter, id, current.title, current.headingPath, []string{anchor}, current.level, lineStart, lineEnd, text, linksInRange(links, lineStart, lineEnd)))
+		sections = append(sections, newContextSection(entry, frontmatter, frontmatterData, id, current.title, current.headingPath, []string{anchor}, current.level, lineStart, lineEnd, text, linksInRange(links, lineStart, lineEnd)))
 	}
 	return sections
 }
@@ -112,7 +112,7 @@ func hasContextSectionContent(text string) bool {
 	return false
 }
 
-func newContextSection(entry ListEntry, frontmatter map[string]string, id string, heading string, headingPath []string, anchors []string, level int, lineStart int, lineEnd int, text string, links []Link) ContextSection {
+func newContextSection(entry ListEntry, frontmatter map[string]string, frontmatterData map[string]any, id string, heading string, headingPath []string, anchors []string, level int, lineStart int, lineEnd int, text string, links []Link) ContextSection {
 	if id == "#top" {
 		id = entry.ID + "#top"
 	}
@@ -128,6 +128,7 @@ func newContextSection(entry ListEntry, frontmatter map[string]string, id string
 		Title:           entry.Title,
 		Description:     entry.Description,
 		Frontmatter:     frontmatter,
+		FrontmatterData: frontmatterData,
 		Heading:         heading,
 		HeadingPath:     append([]string{}, headingPath...),
 		Anchors:         append([]string{}, anchors...),

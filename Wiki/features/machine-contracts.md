@@ -41,6 +41,8 @@ When present, `specVersion` identifies the independently versioned OKF document 
 | `agent-doctor.schema.json` | `agent doctor --json` |
 | `runtime-plan.schema.json` | `runtime plan` |
 | `runtime-build.schema.json` | `runtime build` |
+| `runtime-search.schema.json` | runtime `GET <route>/_search` |
+| `runtime-context.schema.json` | runtime MCP `openknowledge_search` |
 | `deploy-plan.schema.json` | `deploy railway --dry-run` |
 | `deploy-result.schema.json` | successful `deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
@@ -64,6 +66,14 @@ failure count.
 
 Eval result status is `pass`, `fail`, or `error`. The containing run uses
 `verification_failed` when an eval gate or eval operation fails.
+
+Runtime plans include the normalized `serve.retrieval_policy` object.
+`runtime-search.schema.json` and `runtime-context.schema.json` bind responses
+to the active generation and retrieval revision.
+
+Both retrieval contracts include the effective policy and rejected candidates.
+Selected items add trust, freshness, provenance, and selection metadata.
+Rejected reasons identify trust, staleness, status, or source policy failures.
 
 The published v1 schema distribution includes eval, diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.

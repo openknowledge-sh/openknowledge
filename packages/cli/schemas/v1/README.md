@@ -14,6 +14,8 @@ the source tree and from the public URL.
 | `agent-doctor.schema.json` | `openknowledge agent doctor --json` |
 | `runtime-plan.schema.json` | `openknowledge automation runtime plan` |
 | `runtime-build.schema.json` | `openknowledge automation runtime build` |
+| `runtime-search.schema.json` | Runtime `GET <route>/_search` response |
+| `runtime-context.schema.json` | Runtime MCP `openknowledge_search` result |
 | `deploy-plan.schema.json` | `openknowledge automation deploy railway --dry-run` |
 | `deploy-result.schema.json` | Successful `openknowledge automation deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `openknowledge automation deploy railway init` |
@@ -56,6 +58,11 @@ dataset, target, spec, gate, base SHA, and optional answer runner settings.
 Job run records can contain eval status, identity, private report paths,
 regressions, and proposed failures. These objects are part of
 `job-run-plan.schema.json` and `job-run-record.schema.json`.
+
+Runtime plans contain the normalized retrieval policy. Runtime search and
+context results identify the active generation and retrieval revision. They
+also contain policy, trust, freshness, provenance, selection, and rejection
+metadata.
 
 The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,

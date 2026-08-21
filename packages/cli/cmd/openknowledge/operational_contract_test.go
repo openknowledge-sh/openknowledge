@@ -32,6 +32,7 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 			Serve: okruntime.ServeConfig{
 				Address: "127.0.0.1:8080", PollInterval: "5s", RequestTimeout: "15s",
 				MaxConcurrency: 32, MCPAccess: "public",
+				RetrievalPolicy: okruntime.RetrievalPolicyConfig{MinimumTrust: "unverified", AllowStale: true, AllowedStatuses: []string{"draft", "stable", "deprecated"}},
 			},
 			Worker: okruntime.WorkerConfig{
 				Repo: "/workspace", Remote: "origin", ProductionBranch: "main",

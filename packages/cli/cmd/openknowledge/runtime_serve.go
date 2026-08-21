@@ -29,6 +29,7 @@ type runtimeGenerationSnapshot struct {
 	Manifest  okruntime.GenerationManifest
 	Root      string
 	Search    okf.ContextIndex
+	MCP       okf.ContextIndex
 }
 
 type runtimeSnapshotManager struct {
@@ -39,6 +40,7 @@ type runtimeSnapshotManager struct {
 	token            string
 	initErr          error
 	buildSearchIndex func(string, string) (okf.ContextIndex, error)
+	buildMCPIndex    func(string, string) (okf.ContextIndex, error)
 	mu               sync.RWMutex
 	active           map[string]runtimeGenerationSnapshot
 }
@@ -61,6 +63,7 @@ func newRuntimeSnapshotManager(config okruntime.Config) *runtimeSnapshotManager 
 		token:            token,
 		initErr:          initErr,
 		buildSearchIndex: okf.BuildContextIndexWithVersion,
+		buildMCPIndex:    okf.BuildContextIndexWithVersion,
 		active:           make(map[string]runtimeGenerationSnapshot),
 	}
 }
@@ -101,7 +104,15 @@ func (manager *runtimeSnapshotManager) refresh() []error {
 			failures = append(failures, fmt.Errorf("%s search index: %w", knowledge.ID, err))
 			continue
 		}
-		snapshot := runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: pointer, Manifest: manifest, Root: root, Search: search}
+		var mcpIndex okf.ContextIndex
+		if knowledge.MCP {
+			mcpIndex, err = manager.buildMCPIndex(runtimeProjectionRoot(root, "mcp"), manifest.Spec)
+			if err != nil {
+				failures = append(failures, fmt.Errorf("%s MCP context index: %w", knowledge.ID, err))
+				continue
+			}
+		}
+		snapshot := runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: pointer, Manifest: manifest, Root: root, Search: search, MCP: mcpIndex}
 		manager.mu.Lock()
 		manager.active[knowledge.ID] = snapshot
 		manager.mu.Unlock()
@@ -215,6 +226,7 @@ type runtimeServeHandler struct {
 	mcpToken   string
 	sessionsMu sync.Mutex
 	sessions   map[string]*runtimeMCPSession
+	now        func() time.Time
 }
 
 func runRuntimeServe(args []string) int {
@@ -311,6 +323,7 @@ func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, erro
 		semaphore: make(chan struct{}, config.Serve.MaxConcurrency),
 		mcpToken:  token,
 		sessions:  make(map[string]*runtimeMCPSession),
+		now:       time.Now,
 	}, nil
 }
 
@@ -403,8 +416,7 @@ func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, re
 		}
 		limit = value
 	}
-	result := snapshot.Search.Search(okf.SearchOptions{Query: query, Limit: limit})
-	result.Root = snapshot.Knowledge.ID
+	result := buildRuntimeSearchResponse(snapshot, handler.config.Serve.RetrievalPolicy, query, limit, handler.now())
 	response.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(response).Encode(result)
 }
@@ -455,7 +467,11 @@ func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, reque
 			http.Error(response, "session creation failed", http.StatusInternalServerError)
 			return
 		}
-		session := &runtimeMCPSession{server: &mcpServer{root: runtimeProjectionRoot(snapshot.Root, "mcp"), spec: snapshot.Manifest.Spec, version: version}, lastUsed: time.Now()}
+		server := &mcpServer{root: runtimeProjectionRoot(snapshot.Root, "mcp"), spec: snapshot.Manifest.Spec, version: version}
+		server.resolveContext = func(options okf.ContextOptions) (any, error) {
+			return buildRuntimeContextResponse(snapshot, handler.config.Serve.RetrievalPolicy, options, handler.now())
+		}
+		session := &runtimeMCPSession{server: server, lastUsed: handler.now()}
 		handler.sessionsMu.Lock()
 		handler.expireMCPSessionsLocked(time.Now().Add(-30 * time.Minute))
 		if len(handler.sessions) >= 1024 {

@@ -80,6 +80,12 @@ max_concurrency = 32
 mcp_access = "public" # public, token, or off
 mcp_token_env = "OPENKNOWLEDGE_MCP_TOKEN"
 
+[serve.retrieval_policy]
+minimum_trust = "unverified"
+allow_stale = true
+allowed_statuses = ["draft", "stable", "deprecated"]
+require_sources = false
+
 [worker]
 repository_url = "https://github.com/OWNER/REPOSITORY.git"
 production_branch = "main"
@@ -152,6 +158,56 @@ Therefore, the default JavaScript policy does not require `unsafe-inline`.
 Static viewer responses use `Cache-Control: no-cache`. A browser can store
 these responses but must validate them after a generation change.
 
+## Retrieval policy
+
+`serve.retrieval_policy` controls evidence selection for runtime search.
+The defaults preserve all previously searchable content:
+
+| Field | Default | Effect |
+| --- | --- | --- |
+| `minimum_trust` | `unverified` | Set the minimum accepted trust tier. |
+| `allow_stale` | `true` | Permit content after its `stale_after` date. |
+| `allowed_statuses` | all statuses | Permit `draft`, `stable`, and `deprecated`. |
+| `require_sources` | `false` | Require at least one structured source when true. |
+
+Trust increases from `unverified` to `machine-confirmed` to `human-reviewed`.
+The status list must be nonempty and unique. Trust tiers and statuses must use
+the listed values.
+
+The runtime applies this policy to `GET <route>/_search` and the runtime MCP
+`openknowledge_search` tool. Each candidate must pass every configured test.
+The runtime omits a candidate when any test fails.
+
+The `rejected` array records the candidate ID, locator, path, and all reasons.
+Reasons are `trust_below_minimum`, `stale`, `status_not_allowed`, and
+`sources_required`. This enforcement fails closed for each candidate.
+
+The policy is not a publication or access-control boundary. Static viewer
+files remain unchanged. MCP `resources/list` and `resources/read` keep exact
+access to the `mcp/` projection and do not apply this policy.
+
+## Runtime retrieval contracts
+
+`GET <route>/_search` returns `runtime-search.schema.json` v1. The MCP
+`openknowledge_search` tool returns `runtime-context.schema.json` v1 as
+structured content and JSON text.
+
+Both contracts include the effective policy, retrieval revision, issues, and
+rejected candidates. Their generation identity contains `name`, `commit`,
+`spec`, and `contentDigest`. The retrieval revision separately contains
+`specVersion` and `indexSha256`.
+
+Each selected result or context source contains these metadata groups:
+
+- `trust`: tier, status, and verification events
+- `freshness`: stale state, optional deadline, and evaluation time
+- `provenance`: generation identity, generation event, and structured sources
+- `selection`: rank, score, relation, matches, and selection reasons
+
+The search contract returns ranked source metadata. The context contract also
+returns source Markdown, token estimates, the requested budget, and the
+post-policy estimated token count.
+
 ## Security boundary
 
 The publisher maintains the credentialed checkout. It validates each worker
@@ -199,6 +255,7 @@ the trusted ingress.
 > - `packages/cli/cmd/openknowledge/runtime_command.go`
 > - `packages/cli/cmd/openknowledge/runtime_private_api.go`
 > - `packages/cli/cmd/openknowledge/runtime_serve.go`
+> - `packages/cli/cmd/openknowledge/runtime_retrieval.go`
 > - `packages/cli/cmd/openknowledge/runtime_worker.go`
 > - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`
 > - `packages/cli/internal/runtime/`

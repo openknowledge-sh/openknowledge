@@ -205,9 +205,94 @@ mcp = true
 	if tools.Code != http.StatusOK || !strings.Contains(tools.Body.String(), "openknowledge_search") {
 		t.Fatalf("unexpected MCP tools response %d: %s", tools.Code, tools.Body.String())
 	}
+	mcpSearch := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"openknowledge_search","arguments":{"query":"forbidden search needle"}}}`, map[string]string{"Mcp-Session-Id": session})
+	if mcpSearch.Code != http.StatusOK || !strings.Contains(mcpSearch.Body.String(), "search-hidden.md") || strings.Contains(mcpSearch.Body.String(), "mcp-hidden.md") {
+		t.Fatalf("runtime MCP search did not preserve its target projection %d: %s", mcpSearch.Code, mcpSearch.Body.String())
+	}
 	resources := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":3,"method":"resources/list","params":{}}`, map[string]string{"Mcp-Session-Id": session})
 	if resources.Code != http.StatusOK || strings.Contains(resources.Body.String(), "mcp-hidden.md") || !strings.Contains(resources.Body.String(), "search-hidden.md") {
 		t.Fatalf("unexpected MCP target projection %d: %s", resources.Code, resources.Body.String())
+	}
+}
+
+func TestRuntimeRetrievalPolicyEnrichesAndFiltersHTTPAndMCP(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Runtime policy\n")
+	writeViewerFile(t, root, "trusted.md", `---
+type: Guide
+title: Trusted policy
+status: stable
+stale_after: 2027-12-31
+verified: { by: human:reviewer, at: 2026-08-20T10:00:00Z }
+sources:
+  - id: handbook
+    resource: https://example.test/handbook
+---
+
+# Trusted policy
+
+Runtime selection policy guidance.
+`)
+	writeViewerFile(t, root, "draft.md", `---
+type: Guide
+title: Draft policy
+status: draft
+stale_after: 2026-01-01
+---
+
+# Draft policy
+
+Runtime selection policy draft.
+`)
+	index, err := okf.BuildContextIndexWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := okruntime.RetrievalPolicyConfig{MinimumTrust: okf.OKFV02TrustMachineConfirmed, AllowStale: false, AllowedStatuses: []string{"stable"}, RequireSources: true}
+	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Publish: true, MCP: true}
+	snapshot := runtimeGenerationSnapshot{
+		Knowledge: knowledge,
+		Pointer:   okruntime.ActivePointer{Generation: "generation-7"},
+		Manifest:  okruntime.GenerationManifest{Commit: "abc123", Spec: "0.2", ContentDigest: strings.Repeat("a", 64)},
+		Root:      root,
+		Search:    index,
+		MCP:       index,
+	}
+	handler := &runtimeServeHandler{
+		config:    okruntime.Config{Serve: okruntime.ServeConfig{MCPAccess: "public", RetrievalPolicy: policy}, KnowledgeBases: []okruntime.KnowledgeBaseConfig{knowledge}},
+		snapshots: &runtimeSnapshotManager{active: map[string]runtimeGenerationSnapshot{"wiki": snapshot}},
+		semaphore: make(chan struct{}, 4), sessions: make(map[string]*runtimeMCPSession),
+		now: func() time.Time { return time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC) },
+	}
+
+	search := runtimeRequest(t, handler, http.MethodGet, "/_search?q=selection+policy&limit=5", "", nil)
+	if search.Code != http.StatusOK {
+		t.Fatalf("search code=%d body=%s", search.Code, search.Body.String())
+	}
+	var searchResult runtimeSearchResponse
+	if err := json.Unmarshal(search.Body.Bytes(), &searchResult); err != nil {
+		t.Fatal(err)
+	}
+	if len(searchResult.Results) != 1 || searchResult.Results[0].Source.Path != "trusted.md" || searchResult.Results[0].Trust.Tier != okf.OKFV02TrustHumanReviewed {
+		t.Fatalf("unexpected selected results: %#v", searchResult.Results)
+	}
+	selected := searchResult.Results[0]
+	if selected.Provenance.Generation.Name != "generation-7" || len(selected.Provenance.Sources) != 1 || selected.Freshness.EvaluatedAt != "2026-08-21T12:00:00Z" || len(selected.Selection.Reasons) == 0 {
+		t.Fatalf("missing runtime retrieval metadata: %#v", selected)
+	}
+	if len(searchResult.Rejected) != 1 || searchResult.Rejected[0].Path != "draft.md" || !reflect.DeepEqual(searchResult.Rejected[0].Reasons, []string{"trust_below_minimum", "stale", "status_not_allowed", "sources_required"}) {
+		t.Fatalf("unexpected policy rejections: %#v", searchResult.Rejected)
+	}
+
+	initialize := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`, nil)
+	session := initialize.Header().Get("Mcp-Session-Id")
+	if initialize.Code != http.StatusOK || session == "" {
+		t.Fatalf("MCP initialize code=%d body=%s", initialize.Code, initialize.Body.String())
+	}
+	runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","method":"notifications/initialized"}`, map[string]string{"Mcp-Session-Id": session})
+	tool := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"openknowledge_search","arguments":{"query":"selection policy","limit":5}}}`, map[string]string{"Mcp-Session-Id": session})
+	if tool.Code != http.StatusOK || !strings.Contains(tool.Body.String(), `"knowledgeBase":"wiki"`) || !strings.Contains(tool.Body.String(), `"trust_below_minimum"`) || strings.Count(tool.Body.String(), `"path":"draft.md"`) == 0 {
+		t.Fatalf("runtime MCP did not expose the policy-aware context contract: %d %s", tool.Code, tool.Body.String())
 	}
 }
 

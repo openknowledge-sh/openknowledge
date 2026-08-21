@@ -53,13 +53,21 @@ type PublisherAPIConfig struct {
 }
 
 type ServeConfig struct {
-	Address        string   `toml:"address" json:"address"`
-	PollInterval   string   `toml:"poll_interval" json:"poll_interval"`
-	RequestTimeout string   `toml:"request_timeout" json:"request_timeout"`
-	MaxConcurrency int      `toml:"max_concurrency" json:"max_concurrency"`
-	MCPAccess      string   `toml:"mcp_access" json:"mcp_access"`
-	MCPTokenEnv    string   `toml:"mcp_token_env" json:"mcp_token_env,omitempty"`
-	AllowedOrigins []string `toml:"allowed_origins" json:"allowed_origins,omitempty"`
+	Address         string                `toml:"address" json:"address"`
+	PollInterval    string                `toml:"poll_interval" json:"poll_interval"`
+	RequestTimeout  string                `toml:"request_timeout" json:"request_timeout"`
+	MaxConcurrency  int                   `toml:"max_concurrency" json:"max_concurrency"`
+	MCPAccess       string                `toml:"mcp_access" json:"mcp_access"`
+	MCPTokenEnv     string                `toml:"mcp_token_env" json:"mcp_token_env,omitempty"`
+	AllowedOrigins  []string              `toml:"allowed_origins" json:"allowed_origins,omitempty"`
+	RetrievalPolicy RetrievalPolicyConfig `toml:"retrieval_policy" json:"retrieval_policy"`
+}
+
+type RetrievalPolicyConfig struct {
+	MinimumTrust    string   `toml:"minimum_trust" json:"minimum_trust"`
+	AllowStale      bool     `toml:"allow_stale" json:"allow_stale"`
+	AllowedStatuses []string `toml:"allowed_statuses" json:"allowed_statuses"`
+	RequireSources  bool     `toml:"require_sources" json:"require_sources"`
 }
 
 type WorkerConfig struct {
@@ -170,6 +178,11 @@ func defaultConfig() Config {
 			MaxConcurrency: 32,
 			MCPAccess:      "public",
 			MCPTokenEnv:    "OPENKNOWLEDGE_MCP_TOKEN",
+			RetrievalPolicy: RetrievalPolicyConfig{
+				MinimumTrust:    okf.OKFV02TrustUnverified,
+				AllowStale:      true,
+				AllowedStatuses: []string{"draft", "stable", "deprecated"},
+			},
 		},
 		Worker: WorkerConfig{
 			Repo:             ".",
@@ -281,6 +294,26 @@ func (config Config) Validate() error {
 	}
 	if config.Serve.MCPAccess == "token" && strings.TrimSpace(config.Serve.MCPTokenEnv) == "" {
 		return fmt.Errorf("serve.mcp_token_env is required for token access")
+	}
+	trustTiers := map[string]bool{
+		okf.OKFV02TrustUnverified: true, okf.OKFV02TrustMachineConfirmed: true, okf.OKFV02TrustHumanReviewed: true,
+	}
+	if !trustTiers[config.Serve.RetrievalPolicy.MinimumTrust] {
+		return fmt.Errorf("serve.retrieval_policy.minimum_trust must be unverified, machine-confirmed, or human-reviewed")
+	}
+	if len(config.Serve.RetrievalPolicy.AllowedStatuses) == 0 {
+		return fmt.Errorf("serve.retrieval_policy.allowed_statuses must not be empty")
+	}
+	allowedStatuses := map[string]bool{"draft": true, "stable": true, "deprecated": true}
+	seenStatuses := make(map[string]bool)
+	for index, status := range config.Serve.RetrievalPolicy.AllowedStatuses {
+		if !allowedStatuses[status] {
+			return fmt.Errorf("serve.retrieval_policy.allowed_statuses[%d] must be draft, stable, or deprecated", index)
+		}
+		if seenStatuses[status] {
+			return fmt.Errorf("serve.retrieval_policy.allowed_statuses[%d] is duplicated: %s", index, status)
+		}
+		seenStatuses[status] = true
 	}
 	for index, origin := range config.Serve.AllowedOrigins {
 		parsed, err := url.Parse(origin)

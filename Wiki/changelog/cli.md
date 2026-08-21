@@ -13,6 +13,26 @@ page records release-level changes.
 
 ## Unreleased
 
+### Runtime retrieval
+
+- `[serve.retrieval_policy]` now filters runtime evidence by minimum trust,
+  staleness, lifecycle status, and structured source presence. Defaults remain
+  permissive.
+- Runtime HTTP search and MCP `openknowledge_search` enforce the policy for
+  each candidate. Responses include rejected candidates and exact reasons.
+- New v1 runtime search and context contracts include generation identity,
+  trust, freshness, provenance, and selection metadata.
+- MCP `resources/list` and `resources/read` remain exact access methods for the
+  MCP projection. The retrieval policy does not make them access controls.
+- Source: `packages/cli/internal/runtime/config.go`,
+  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
+  `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/schemas/v1/runtime-plan.schema.json`,
+  `packages/cli/schemas/v1/runtime-search.schema.json`, and
+  `packages/cli/schemas/v1/runtime-context.schema.json`.
+- Docs: `Wiki/features/commands/runtime.md` and
+  `Wiki/features/machine-contracts.md`.
+
 ### Knowledge CI
 
 - `okn eval run` now tests deterministic retrieval evidence against strict,

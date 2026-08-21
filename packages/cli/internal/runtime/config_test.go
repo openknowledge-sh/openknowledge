@@ -32,6 +32,10 @@ mcp = true
 	if config.Serve.Address != "127.0.0.1:8080" || config.Serve.MCPAccess != "public" {
 		t.Fatalf("unexpected serve defaults: %#v", config.Serve)
 	}
+	policy := config.Serve.RetrievalPolicy
+	if policy.MinimumTrust != okf.OKFV02TrustUnverified || !policy.AllowStale || policy.RequireSources || !reflect.DeepEqual(policy.AllowedStatuses, []string{"draft", "stable", "deprecated"}) {
+		t.Fatalf("unexpected permissive retrieval policy defaults: %#v", policy)
+	}
 	if config.KnowledgeBases[0].Route != "/docs/" || config.KnowledgeBases[0].Spec != okf.LatestSpecVersion {
 		t.Fatalf("unexpected normalized knowledge base: %#v", config.KnowledgeBases[0])
 	}
@@ -166,5 +170,46 @@ publish = true
 				t.Fatalf("expected %q, got %v", test.want, err)
 			}
 		})
+	}
+}
+
+func TestParseConfigValidatesRetrievalPolicy(t *testing.T) {
+	base := `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[serve.retrieval_policy]
+minimum_trust = %q
+allow_stale = false
+allowed_statuses = %s
+require_sources = true
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`
+	config, err := ParseConfig([]byte(fmt.Sprintf(base, "machine-confirmed", `["stable"]`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Serve.RetrievalPolicy.MinimumTrust != "machine-confirmed" || config.Serve.RetrievalPolicy.AllowStale || !config.Serve.RetrievalPolicy.RequireSources {
+		t.Fatalf("unexpected retrieval policy: %#v", config.Serve.RetrievalPolicy)
+	}
+	for _, test := range []struct {
+		trust    string
+		statuses string
+		want     string
+	}{
+		{trust: "trusted", statuses: `["stable"]`, want: "minimum_trust"},
+		{trust: "unverified", statuses: `[]`, want: "must not be empty"},
+		{trust: "unverified", statuses: `["stable", "stable"]`, want: "duplicated"},
+		{trust: "unverified", statuses: `["archived"]`, want: "must be draft"},
+	} {
+		_, err := ParseConfig([]byte(fmt.Sprintf(base, test.trust, test.statuses)))
+		if err == nil || !strings.Contains(err.Error(), test.want) {
+			t.Fatalf("expected %q for trust=%q statuses=%s, got %v", test.want, test.trust, test.statuses, err)
+		}
 	}
 }

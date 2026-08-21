@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-search.schema.json",
+  "title": "Open Knowledge runtime search response v1",
+  "type": "object",
+  "required": ["schemaVersion", "knowledgeBase", "generation", "policy", "revision", "query", "limit", "results", "rejected", "issues"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "knowledgeBase": {"type": "string", "minLength": 1},
+    "generation": {"$ref": "#/$defs/generation"},
+    "policy": {"$ref": "#/$defs/policy"},
+    "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+    "query": {"type": "string", "minLength": 1},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+    "results": {"type": "array", "items": {"$ref": "#/$defs/result"}},
+    "rejected": {"type": "array", "items": {"$ref": "#/$defs/rejected"}},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "$defs": {
+    "generation": {
+      "type": "object",
+      "required": ["name", "commit", "spec", "contentDigest"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "minLength": 1},
+        "spec": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "contentDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": ["minimum_trust", "allow_stale", "allowed_statuses", "require_sources"],
+      "properties": {
+        "minimum_trust": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
+        "allow_stale": {"type": "boolean"},
+        "allowed_statuses": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["draft", "stable", "deprecated"]}},
+        "require_sources": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "trust": {
+      "type": "object",
+      "required": ["tier", "status", "verified"],
+      "properties": {
+        "tier": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
+        "status": {"type": "string"},
+        "verified": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/okf02ActorEvent"}}
+      },
+      "additionalProperties": false
+    },
+    "freshness": {
+      "type": "object",
+      "required": ["stale", "evaluatedAt"],
+      "properties": {
+        "stale": {"type": "boolean"},
+        "staleAfter": {"type": "string"},
+        "evaluatedAt": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["generation", "sources"],
+      "properties": {
+        "generation": {"$ref": "#/$defs/generation"},
+        "generated": {"$ref": "common.schema.json#/$defs/okf02ActorEvent"},
+        "sources": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/okf02Source"}}
+      },
+      "additionalProperties": false
+    },
+    "selection": {
+      "type": "object",
+      "required": ["rank", "score", "matches", "reasons"],
+      "properties": {
+        "rank": {"type": "integer", "minimum": 1},
+        "score": {"type": "number"},
+        "relation": {"enum": ["direct", "document-context", "outgoing-link", "backlink"]},
+        "matches": {"type": "array", "items": {"type": "string"}},
+        "reasons": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["source", "trust", "freshness", "provenance", "selection"],
+      "properties": {
+        "source": {"$ref": "search-results.schema.json#/$defs/result"},
+        "trust": {"$ref": "#/$defs/trust"},
+        "freshness": {"$ref": "#/$defs/freshness"},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "selection": {"$ref": "#/$defs/selection"}
+      },
+      "additionalProperties": false
+    },
+    "rejected": {
+      "type": "object",
+      "required": ["id", "locator", "path", "reasons"],
+      "properties": {
+        "id": {"type": "string"},
+        "locator": {"type": "string", "pattern": "^okf\\+sha256://[a-f0-9]{64}/.+#[a-f0-9]{64}$"},
+        "path": {"type": "string"},
+        "reasons": {"type": "array", "minItems": 1, "items": {"enum": ["trust_below_minimum", "stale", "status_not_allowed", "sources_required"]}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

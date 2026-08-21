@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-context.schema.json",
+  "title": "Open Knowledge runtime context response v1",
+  "type": "object",
+  "required": ["schemaVersion", "knowledgeBase", "generation", "policy", "revision", "query", "budget", "estimatedTokens", "limit", "sources", "rejected", "issues"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "knowledgeBase": {"type": "string", "minLength": 1},
+    "generation": {"$ref": "runtime-search.schema.json#/$defs/generation"},
+    "policy": {"$ref": "runtime-search.schema.json#/$defs/policy"},
+    "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+    "query": {"type": "string", "minLength": 1},
+    "budget": {"type": "integer", "minimum": 1, "maximum": 32000},
+    "estimatedTokens": {"type": "integer", "minimum": 0},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
+    "rejected": {"type": "array", "items": {"$ref": "runtime-search.schema.json#/$defs/rejected"}},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["source", "trust", "freshness", "provenance", "selection"],
+      "properties": {
+        "source": {"$ref": "search-context.schema.json#/$defs/source"},
+        "trust": {"$ref": "runtime-search.schema.json#/$defs/trust"},
+        "freshness": {"$ref": "runtime-search.schema.json#/$defs/freshness"},
+        "provenance": {"$ref": "runtime-search.schema.json#/$defs/provenance"},
+        "selection": {"$ref": "runtime-search.schema.json#/$defs/selection"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
