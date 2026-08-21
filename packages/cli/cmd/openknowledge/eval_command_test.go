@@ -121,7 +121,7 @@ func TestComparisonMarkdownShowsAnswerAndGroundednessChanges(t *testing.T) {
 			Proposed: knowledgeeval.CaseResult{Status: "pass", Answer: &knowledgeeval.AnswerResult{Text: "Restore the release.", ClaimCount: 1, GroundedClaims: 1, Groundedness: proposedGroundedness, CitationCount: 1, ValidCitations: 1, CitedSources: []string{"rollback.md"}}},
 		}},
 	}
-	markdown := renderEvalComparisonMarkdown(report)
+	markdown := knowledgeeval.RenderComparisonMarkdown(report)
 	for _, expected := range []string{"Answer change", "Call support.", "Restore the release.", "Groundedness: **50.0%**", "rollback.md"} {
 		if !strings.Contains(markdown, expected) {
 			t.Fatalf("comparison Markdown missing %q:\n%s", expected, markdown)

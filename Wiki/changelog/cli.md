@@ -33,11 +33,22 @@ page records release-level changes.
 - Each case is `improved`, `regressed`, `unchanged_pass`, or `unchanged_fail`.
   The `all` gate rejects all proposed failures. The `regressions` gate rejects
   only regressions.
+- Jobs now accept structured `verify.eval` settings. The runner performs a
+  native base comparison and retains private JSON and Markdown reports.
+- The built-in `knowledge-eval` job template provides an agentless native gate.
+- Eval gate failures now set `verification_failed`. Run plans and run records
+  expose resolved eval configuration and result summaries.
+- The repository includes a reusable `knowledge-eval.yml` workflow. It adds
+  Markdown to the GitHub job summary and uploads both reports for 14 days.
 - Source: `packages/cli/cmd/openknowledge/eval_command.go`,
   `packages/cli/internal/eval/`, `packages/cli/schemas/eval/v1/`,
-  `packages/cli/schemas/v1/eval-report.schema.json`, and
-  `packages/cli/schemas/v1/eval-comparison.schema.json`.
-- Docs: `Wiki/features/commands/eval.md` and
+  `packages/cli/schemas/v1/eval-report.schema.json`,
+  `packages/cli/schemas/v1/eval-comparison.schema.json`,
+  `packages/cli/internal/agents/`,
+  `packages/cli/schemas/v1/job-run-plan.schema.json`,
+  `packages/cli/schemas/v1/job-run-record.schema.json`, and
+  `.github/workflows/knowledge-eval.yml`.
+- Docs: `Wiki/features/commands/eval.md`, `Wiki/features/commands/jobs.md`, and
   `Wiki/features/machine-contracts.md`.
 
 ### Viewer

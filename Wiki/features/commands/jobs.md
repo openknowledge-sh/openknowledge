@@ -26,8 +26,8 @@ okn automation jobs run .openknowledge/jobs/my-job.md
 
 The default job directory is `.openknowledge/jobs`. Install the selected Codex,
 Claude Code, or OpenCode CLI for agentic jobs. Authenticate the CLI before you
-run an agentic job. A deterministic job can omit `agent` when its prompt is
-empty and it has at least one `verify.commands` entry.
+run an agentic job. An empty-prompt job can omit `agent` when it has
+`verify.commands` or `verify.eval`.
 
 ## Commands
 
@@ -88,6 +88,10 @@ verify:
   commands:
     - git diff --check
     - go run ./packages/cli/cmd/openknowledge validate Wiki
+  eval:
+    dataset: .openknowledge/evals/docs.yaml
+    target: Wiki
+    gate: regressions
   timeout: 15m
 output:
   commit: false
@@ -111,7 +115,7 @@ validation.
 | `schedule.cron` | none | Five-field cron subset or `@hourly`, `@daily`, `@weekly`. |
 | `schedule.every` | none | Positive Go duration such as `24h`. Exclusive with `cron`. |
 | `schedule.timezone` | local | IANA time zone used by the schedule. |
-| `agent.runtime` | required for agentic jobs | `codex`, `claude`, or `opencode`. Omit only for an empty-prompt job with deterministic verification commands. |
+| `agent.runtime` | required for agentic jobs | `codex`, `claude`, or `opencode`. Omit for an empty-prompt job with `verify.commands` or `verify.eval`. |
 | `agent.model` | runtime default | Harness-specific model override. |
 | `agent.timeout` | `30m` | Agent process timeout. |
 | `agent.completion_signal` | none | Text required in agent output. |
@@ -127,7 +131,14 @@ validation.
 | `preflight.commands` | empty | Deterministic commands run before the agent starts. |
 | `preflight.timeout` | `15m` | Timeout applied to each preflight command. |
 | `verify.commands` | empty | Commands run after the agent in the same worktree. |
-| `verify.timeout` | `15m` | Timeout applied to each verification command. |
+| `verify.timeout` | `15m` | Timeout applied to each command and the native eval. |
+| `verify.eval.dataset` | required for eval | Repository-relative eval dataset. |
+| `verify.eval.target` | `.` | Repository-relative knowledge base directory. |
+| `verify.eval.spec` | `latest` | OKF spec version. |
+| `verify.eval.gate` | `regressions` | Gate mode: `all` or `regressions`. |
+| `verify.eval.answer_command` | none | Trusted answer protocol executable. |
+| `verify.eval.answer_args` | empty | Arguments passed directly to the answer executable. |
+| `verify.eval.answer_timeout` | `2m` | Answer timeout. The maximum is `1h`. |
 | `output.commit` | `false` | Commit verified changes in the job worktree. |
 | `output.commit_message` | generated | Commit message when `output.commit` is true. |
 | `output.pr` | `false` | Request draft pull request reconciliation. Requires `output.commit: true`. |
@@ -138,6 +149,7 @@ validation.
 
 | Template | Purpose |
 | --- | --- |
+| `knowledge-eval` | Run a native eval gate against the immutable job base. |
 | `content-validation` | Run deterministic wiki validation without an agent. |
 | `docs-audit` | Reconcile README and Wiki command docs with the CLI. |
 | `wiki-health` | Validate a wiki and repair documentation issues. |
@@ -164,7 +176,25 @@ artifact reference.
 - A failed preflight ends the run with `preflight_failed`. The harness and
   post-agent verification do not start.
 - An agentless deterministic job skips harness construction and credential
-  selection. It runs its verification commands in the isolated worktree.
+  selection. It runs verification commands and native eval in the worktree.
+- Native eval runs after `verify.commands`. It compares the worktree with the
+  resolved `workspace.base` commit and uses the current dataset for both.
+- Eval dataset and target paths must stay inside the worktree. The run plan
+  records the resolved base commit SHA and all eval settings.
+- Each completed comparison writes private `eval-report.json` and
+  `eval-report.md` files in the run directory. Both files use mode `0600`.
+- A failed eval gate retains its reports and sets `verification_failed`.
+  An eval setup or runner error also sets `verification_failed`.
+- Cancellation is passed to an active answer command. The run becomes
+  `cancelled` or `killed`. Cancellation can leave no eval report.
+- An eval gate failure prevents the output commit. An observed cancellation
+  also stops the run before that commit.
+- A host answer command gets the isolated job environment and declared
+  `sandbox.env` values. It receives no automatically selected model credentials.
+- A Docker answer command uses the job container controls. Docker networking
+  remains disabled unless `sandbox.network` is `bridge`.
+- Treat an answer command as trusted code. It can read the job worktree and
+  receives retrieved source content through stdin.
 - A Docker job mounts the worktree at `/workspace`. It removes capabilities,
   prevents privilege escalation, and limits the process count.
 - A Docker job has no network by default. Set `sandbox.network: bridge` to

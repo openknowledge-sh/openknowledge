@@ -22,6 +22,10 @@ verify:
   commands:
     - go test ./packages/cli/...
     - go run ./packages/cli/cmd/openknowledge validate Wiki
+  eval:
+    dataset: .openknowledge/evals/wiki.yaml
+    target: Wiki
+    gate: regressions
 output:
   commit: false
 concurrency:

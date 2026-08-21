@@ -18,7 +18,10 @@ schedule: {every: 24h, timezone: Europe/Prague}
 agent:
   runtime: codex
   model: gpt-5
-verify: {commands: ["go test ./...", "openknowledge validate Wiki"], timeout: 10m}
+verify:
+  commands: ["go test ./...", "openknowledge validate Wiki"]
+  timeout: 10m
+  eval: {dataset: .openknowledge/evals/docs.yaml, target: Wiki, gate: regressions}
 output: {commit: true, pr: true}
 concurrency: {key: wiki-maintenance}
 ---
@@ -41,6 +44,9 @@ Review the docs.
 	}
 	if !job.Output.Commit || !job.Output.PR || job.Verify.Timeout != "10m" || job.Prompt != "\nReview the docs.\n" {
 		t.Fatalf("unexpected output or prompt: %#v", job)
+	}
+	if job.Verify.Eval == nil || job.Verify.Eval.Dataset != ".openknowledge/evals/docs.yaml" || job.Verify.Eval.Target != "Wiki" || job.Verify.Eval.Gate != "regressions" {
+		t.Fatalf("unexpected eval verification: %#v", job.Verify.Eval)
 	}
 	if job.Concurrency.Key != "wiki-maintenance" || job.Concurrency.Policy != "skip" {
 		t.Fatalf("expected default skip concurrency policy: %#v", job.Concurrency)
@@ -209,6 +215,16 @@ func TestParseJobFileEnforcesStrictFrontmatterSchema(t *testing.T) {
 			name:     "non-positive verification timeout",
 			content:  "---\nid: strict\nagent: {runtime: codex}\nverify: {commands: [], timeout: 0s}\n---\nPrompt.\n",
 			expected: "verify.timeout: must be positive",
+		},
+		{
+			name:     "eval path escape",
+			content:  "---\nid: strict\nverify: {eval: {dataset: ../secret.yaml}}\n---\n",
+			expected: "verify.eval.dataset: must stay inside the repository",
+		},
+		{
+			name:     "eval answer options without command",
+			content:  "---\nid: strict\nverify: {eval: {dataset: eval.yaml, answer_args: [model]}}\n---\n",
+			expected: "verify.eval.answer_command: is required",
 		},
 	}
 

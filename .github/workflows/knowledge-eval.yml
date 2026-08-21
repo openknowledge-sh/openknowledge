@@ -1,0 +1,94 @@
+name: Knowledge Eval
+
+on:
+  workflow_call:
+    inputs:
+      dataset:
+        description: Repository-relative Open Knowledge eval dataset.
+        required: true
+        type: string
+      target:
+        description: Repository-relative knowledge base directory.
+        required: true
+        type: string
+      base_ref:
+        description: Immutable Git base commit for regression comparison.
+        required: true
+        type: string
+      gate:
+        description: Eval gate mode, all or regressions.
+        required: false
+        default: regressions
+        type: string
+      artifact_name:
+        description: Uploaded report artifact name.
+        required: false
+        default: knowledge-eval-report
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Evaluate knowledge changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: packages/cli/go.mod
+
+      - name: Run knowledge eval gate
+        shell: bash
+        env:
+          EVAL_DATASET: ${{ inputs.dataset }}
+          EVAL_TARGET: ${{ inputs.target }}
+          EVAL_BASE_REF: ${{ inputs.base_ref }}
+          EVAL_GATE: ${{ inputs.gate }}
+        run: |
+          repository_root="$(realpath "$GITHUB_WORKSPACE")"
+          dataset_path="$(realpath "$EVAL_DATASET")"
+          target_path="$(realpath "$EVAL_TARGET")"
+          case "$dataset_path" in
+            "$repository_root"/*) ;;
+            *) echo "Eval dataset must stay inside the repository" >&2; exit 2 ;;
+          esac
+          case "$target_path" in
+            "$repository_root"|"$repository_root"/*) ;;
+            *) echo "Eval target must stay inside the repository" >&2; exit 2 ;;
+          esac
+          go build -o "$RUNNER_TEMP/okn" ./packages/cli/cmd/openknowledge
+          set +e
+          "$RUNNER_TEMP/okn" --no-telemetry eval run "$EVAL_DATASET" "$EVAL_TARGET" \
+            --base "$EVAL_BASE_REF" --gate "$EVAL_GATE" \
+            --format json --out "$RUNNER_TEMP/knowledge-eval.json"
+          json_status=$?
+          "$RUNNER_TEMP/okn" --no-telemetry eval run "$EVAL_DATASET" "$EVAL_TARGET" \
+            --base "$EVAL_BASE_REF" --gate "$EVAL_GATE" \
+            --format markdown --out "$RUNNER_TEMP/knowledge-eval.md"
+          markdown_status=$?
+          set -e
+          if [ -f "$RUNNER_TEMP/knowledge-eval.md" ]; then
+            cat "$RUNNER_TEMP/knowledge-eval.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$json_status" -ne 0 ] || [ "$markdown_status" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload knowledge eval reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: |
+            ${{ runner.temp }}/knowledge-eval.json
+            ${{ runner.temp }}/knowledge-eval.md
+          if-no-files-found: error
+          retention-days: 14

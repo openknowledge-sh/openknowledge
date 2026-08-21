@@ -28,6 +28,7 @@
     "preflight_timeout": {"type": "string", "minLength": 1},
     "verify": {"type": "array", "items": {"$ref": "#/$defs/command"}},
     "verify_timeout": {"type": "string", "minLength": 1},
+    "eval": {"$ref": "#/$defs/eval"},
     "sandbox": {"$ref": "#/$defs/sandbox"},
     "output": {"$ref": "#/$defs/output"},
     "concurrency": {"$ref": "#/$defs/concurrency"}
@@ -96,6 +97,21 @@
           "additionalProperties": false
         }
       ]
+    },
+    "eval": {
+      "type": "object",
+      "required": ["dataset", "target", "spec", "gate", "base"],
+      "properties": {
+        "dataset": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "spec": {"type": "string", "minLength": 1},
+        "gate": {"enum": ["all", "regressions"]},
+        "base": {"type": "string", "pattern": "^[a-fA-F0-9]{40,64}$"},
+        "answer_command": {"type": "string", "minLength": 1},
+        "answer_args": {"type": "array", "items": {"type": "string"}},
+        "answer_timeout": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

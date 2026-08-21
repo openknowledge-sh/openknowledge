@@ -16,6 +16,32 @@ type Template struct {
 func BuiltinTemplates() []Template {
 	return []Template{
 		{
+			ID:          "knowledge-eval",
+			Title:       "Knowledge Eval Gate",
+			Description: "Compare a versioned eval dataset with the immutable job base.",
+			Filename:    "knowledge-eval.md",
+			Content: `---
+id: knowledge-eval
+enabled: true
+workspace:
+  repo: "."
+  base: HEAD
+  strategy: branch
+  branch: "jobs/{{id}}/{{date}}-{{run_id}}"
+  dirty_policy: fail
+sandbox:
+  type: host
+verify:
+  eval:
+    dataset: .openknowledge/evals/knowledge.yaml
+    target: Wiki
+    gate: regressions
+output:
+  commit: false
+---
+`,
+		},
+		{
 			ID:          "content-validation",
 			Title:       "Content Validation",
 			Description: "Run deterministic wiki validation without starting an agent.",
@@ -274,6 +300,7 @@ func RenderTemplateCatalog() string {
 	}
 	builder.WriteString("\nExamples:\n")
 	builder.WriteString("  openknowledge automation jobs new content-validation --out .openknowledge/jobs/content-validation.md\n")
+	builder.WriteString("  openknowledge automation jobs new knowledge-eval --out .openknowledge/jobs/knowledge-eval.md\n")
 	builder.WriteString("  openknowledge automation jobs new docs-audit\n")
 	builder.WriteString("  openknowledge automation jobs new docs-audit --out .openknowledge/jobs/docs-audit.md\n")
 	builder.WriteString("  openknowledge automation jobs new custom --out .openknowledge/jobs/custom.md\n")
@@ -345,6 +372,13 @@ Field reference:
 - preflight.timeout: Positive timeout applied to each preflight command. Defaults to 15m.
 - verify.commands: Shell commands run after the harness exits in the worktree.
 - verify.timeout: Positive timeout applied to each verification command. Defaults to 15m.
+- verify.eval.dataset: Repository-relative eval dataset for a native base comparison.
+- verify.eval.target: Repository-relative knowledge root. Defaults to ".".
+- verify.eval.spec: OKF spec version. Defaults to latest.
+- verify.eval.gate: all or regressions. Defaults to regressions.
+- verify.eval.answer_command: Optional trusted answer protocol executable.
+- verify.eval.answer_args: Optional arguments passed directly to the answer executable.
+- verify.eval.answer_timeout: Optional answer timeout. Defaults to 2m; maximum 1h.
 - output.commit: Boolean. Commit worktree changes after verification.
 - output.commit_message: Optional commit message.
 - output.pr: Ask the private runtime worker to push the committed branch and open a draft GitHub pull request. Local job run records never publish credentials or raw logs.
@@ -362,7 +396,8 @@ Run lifecycle:
 5. The selected runtime adapter launches the harness with the steered Markdown prompt.
    A job with no agent, an empty prompt, and verify.commands skips this step.
 6. Verification commands run in the same worktree.
-7. Logs, prompt, plan, run.json, and diff.patch are written outside the Git
+7. Native eval verification compares the worktree with its immutable base.
+8. Logs, prompt, plan, run.json, diff.patch, and eval reports are written outside the Git
    repository under the per-repository jobs state directory. Override its
    platform config default with OPENKNOWLEDGE_JOBS_STATE_DIR.
 `

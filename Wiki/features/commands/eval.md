@@ -143,6 +143,37 @@ JSON comparison output follows `eval-comparison.schema.json`. It includes both
 revision identities, both case results, classifications, and gate totals.
 With an answer command, the CLI invokes that command once for each revision.
 
+## GitHub Actions
+
+Call the repository workflow from a pull request workflow:
+
+```yaml
+jobs:
+  knowledge-eval:
+    uses: ./.github/workflows/knowledge-eval.yml
+    with:
+      dataset: .openknowledge/evals/knowledge-ci.yaml
+      target: Wiki
+      base_ref: ${{ github.event.pull_request.base.sha }}
+      gate: regressions
+```
+
+`dataset`, `target`, and `base_ref` are required. Dataset and target values are
+repository-relative paths. Use an immutable commit SHA for `base_ref`.
+`gate` defaults to `regressions`. `artifact_name` defaults to
+`knowledge-eval-report`.
+
+The workflow builds the current CLI and runs JSON and Markdown comparisons.
+It adds the Markdown report to the GitHub job summary. It does not create a
+pull request comment.
+
+The workflow always uploads `knowledge-eval.json` and `knowledge-eval.md` when
+the files exist. The artifact retention period is 14 days. A failed gate keeps
+the reports available and fails the workflow job.
+
+The workflow has read-only repository permission and disables telemetry. It
+does not configure an answer command. Use datasets without answer expectations.
+
 | Exit status | Meaning |
 | --- | --- |
 | `0` | The selected single-run or comparison gate passed. |
@@ -162,6 +193,7 @@ With an answer command, the CLI invokes that command once for each revision.
 > - `packages/cli/schemas/eval/v1/answer-response.schema.json`
 > - `packages/cli/schemas/v1/eval-report.schema.json`
 > - `packages/cli/schemas/v1/eval-comparison.schema.json`
+> - `.github/workflows/knowledge-eval.yml`
 >
 > **Update notes**
 >

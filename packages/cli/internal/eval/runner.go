@@ -21,10 +21,12 @@ const (
 )
 
 type AnswerRunner struct {
-	Command   string
-	Args      []string
-	Directory string
-	Timeout   time.Duration
+	Context     context.Context
+	Command     string
+	Args        []string
+	Directory   string
+	Environment []string
+	Timeout     time.Duration
 }
 
 type AnswerRequest struct {
@@ -148,10 +150,17 @@ func executeAnswerRunner(runner AnswerRunner, request AnswerRequest) (AnswerResp
 	if err != nil {
 		return AnswerResponse{}, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	parent := runner.Context
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	command := exec.CommandContext(ctx, commandName, runner.Args...)
 	command.Dir = runner.Directory
+	if runner.Environment != nil {
+		command.Env = runner.Environment
+	}
 	command.Stdin = bytes.NewReader(append(content, '\n'))
 	stdout := &boundedRunnerBuffer{limit: maxAnswerOutputBytes}
 	stderr := &boundedRunnerBuffer{limit: maxAnswerErrorBytes}

@@ -12,6 +12,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
 const (
@@ -43,6 +46,19 @@ type RunRecord struct {
 	Error         string          `json:"error,omitempty"`
 	StatusText    string          `json:"status_text,omitempty"`
 	PatchPath     string          `json:"patch_path,omitempty"`
+	Eval          *EvalResult     `json:"eval,omitempty"`
+}
+
+type EvalResult struct {
+	Status         string `json:"status"`
+	Dataset        string `json:"dataset"`
+	Target         string `json:"target"`
+	Base           string `json:"base"`
+	Gate           string `json:"gate"`
+	JSONPath       string `json:"json_path,omitempty"`
+	MarkdownPath   string `json:"markdown_path,omitempty"`
+	Regressions    int    `json:"regressions"`
+	ProposedFailed int    `json:"proposed_failed"`
 }
 
 type CommandResult struct {
@@ -235,6 +251,25 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 			return finish("verification_failed", fmt.Errorf("verification command %q exited with %d", command.Command, result.ExitCode))
 		}
 	}
+	if plan.Eval != nil {
+		evalCtx, cancel := context.WithTimeout(runContext, verifyTimeout)
+		evalResult, evalErr := runPlanEval(evalCtx, plan)
+		evalTimedOut := errors.Is(evalCtx.Err(), context.DeadlineExceeded)
+		cancel()
+		record.Eval = &evalResult
+		if err := writeRunRecord(plan.RunDir, record); err != nil {
+			return finish("failed", err)
+		}
+		if status, runErr, cancelled := cancelledRunResult(runContext, controller); cancelled {
+			return finish(status, runErr)
+		}
+		if evalTimedOut {
+			return finish("verification_failed", fmt.Errorf("knowledge eval timed out after %s", verifyTimeout))
+		}
+		if evalErr != nil {
+			return finish("verification_failed", evalErr)
+		}
+	}
 
 	if plan.Output.Commit {
 		if err := commitWorktree(plan); err != nil {
@@ -242,6 +277,90 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 		}
 	}
 	return finish("succeeded", nil)
+}
+
+func runPlanEval(ctx context.Context, plan RunPlan) (EvalResult, error) {
+	configured := plan.Eval
+	result := EvalResult{
+		Status: "error", Dataset: configured.Dataset, Target: configured.Target,
+		Base: configured.Base, Gate: configured.Gate,
+	}
+	datasetPath, err := resolveEvalWorktreePath(plan.Worktree, configured.Dataset)
+	if err != nil {
+		return result, fmt.Errorf("resolve eval dataset: %w", err)
+	}
+	targetPath, err := resolveEvalWorktreePath(plan.Worktree, configured.Target)
+	if err != nil {
+		return result, fmt.Errorf("resolve eval target: %w", err)
+	}
+	loaded, err := knowledgeeval.LoadDataset(datasetPath)
+	if err != nil {
+		return result, err
+	}
+	specVersion, supported := okf.ResolveSpecVersion(configured.Spec)
+	if !supported {
+		return result, fmt.Errorf("unsupported OKF spec version: %s", configured.Spec)
+	}
+	var report knowledgeeval.ComparisonReport
+	if configured.AnswerCommand == "" {
+		report, err = knowledgeeval.Compare(targetPath, specVersion, loaded, configured.Base, configured.Gate)
+	} else {
+		timeout := time.Duration(0)
+		if configured.AnswerTimeout != "" {
+			timeout, err = time.ParseDuration(configured.AnswerTimeout)
+			if err != nil {
+				return result, err
+			}
+		}
+		runner := knowledgeeval.AnswerRunner{
+			Context: ctx, Command: configured.AnswerCommand, Args: append([]string(nil), configured.AnswerArgs...),
+			Directory: plan.Worktree, Environment: hostCommandEnvironment(plan, Command{}), Timeout: timeout,
+		}
+		if plan.Sandbox.Type == "docker" {
+			runner.Command = "docker"
+			runner.Args = dockerCommandArgs(plan, Command{Command: configured.AnswerCommand, Args: configured.AnswerArgs}, "")
+		}
+		report, err = knowledgeeval.CompareWithAnswers(targetPath, specVersion, loaded, configured.Base, configured.Gate, runner)
+	}
+	if err != nil {
+		return result, err
+	}
+	jsonContent, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return result, err
+	}
+	jsonPath := filepath.Join(plan.RunDir, "eval-report.json")
+	markdownPath := filepath.Join(plan.RunDir, "eval-report.md")
+	if err := writePrivateArtifactAtomic(jsonPath, append(jsonContent, '\n')); err != nil {
+		return result, err
+	}
+	if err := writePrivateArtifactAtomic(markdownPath, []byte(knowledgeeval.RenderComparisonMarkdown(report))); err != nil {
+		return result, err
+	}
+	result.Status = report.Summary.Status
+	result.JSONPath = jsonPath
+	result.MarkdownPath = markdownPath
+	result.Regressions = report.Summary.Regressed
+	result.ProposedFailed = report.Summary.ProposedFailed
+	if report.Summary.Status == "fail" {
+		return result, fmt.Errorf("knowledge eval gate failed: %d regressions, %d proposed failures", result.Regressions, result.ProposedFailed)
+	}
+	return result, nil
+}
+
+func resolveEvalWorktreePath(worktree string, relative string) (string, error) {
+	root, err := canonicalPath(worktree)
+	if err != nil {
+		return "", err
+	}
+	candidate, err := canonicalPath(filepath.Join(root, filepath.FromSlash(relative)))
+	if err != nil {
+		return "", err
+	}
+	if !pathInside(root, candidate) {
+		return "", fmt.Errorf("path must stay inside the job worktree")
+	}
+	return candidate, nil
 }
 
 func recordSkippedConcurrency(plan RunPlan, scheduledAt time.Time) (RunRecord, error) {

@@ -42,9 +42,21 @@ type RunPlan struct {
 	PreflightTimeout string      `json:"preflight_timeout"`
 	Verify           []Command   `json:"verify,omitempty"`
 	VerifyTimeout    string      `json:"verify_timeout"`
+	Eval             *EvalPlan   `json:"eval,omitempty"`
 	Sandbox          SandboxSpec `json:"sandbox"`
 	Output           OutputSpec  `json:"output,omitempty"`
 	Concurrency      Concurrency `json:"concurrency,omitempty"`
+}
+
+type EvalPlan struct {
+	Dataset       string   `json:"dataset"`
+	Target        string   `json:"target"`
+	Spec          string   `json:"spec"`
+	Gate          string   `json:"gate"`
+	Base          string   `json:"base"`
+	AnswerCommand string   `json:"answer_command,omitempty"`
+	AnswerArgs    []string `json:"answer_args,omitempty"`
+	AnswerTimeout string   `json:"answer_timeout,omitempty"`
 }
 
 const RunPlanSchemaID = "https://openknowledge.sh/schemas/cli/v1/job-run-plan.schema.json"
@@ -129,6 +141,26 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 	if verifyTimeout == "" {
 		verifyTimeout = "15m"
 	}
+	var evalPlan *EvalPlan
+	if configured := job.Verify.Eval; configured != nil {
+		target := strings.TrimSpace(configured.Target)
+		if target == "" {
+			target = "."
+		}
+		spec := strings.TrimSpace(configured.Spec)
+		if spec == "" {
+			spec = "latest"
+		}
+		gate := strings.ToLower(strings.TrimSpace(configured.Gate))
+		if gate == "" {
+			gate = "regressions"
+		}
+		evalPlan = &EvalPlan{
+			Dataset: strings.TrimSpace(configured.Dataset), Target: target, Spec: spec, Gate: gate, Base: baseSHA,
+			AnswerCommand: strings.TrimSpace(configured.AnswerCommand), AnswerArgs: append([]string(nil), configured.AnswerArgs...),
+			AnswerTimeout: configured.AnswerTimeout,
+		}
+	}
 	preflight := make([]Command, 0, len(job.Preflight.Commands))
 	for _, command := range job.Preflight.Commands {
 		preflight = append(preflight, Command{Command: command, Shell: true})
@@ -177,6 +209,7 @@ func BuildRunPlan(job Job, scheduledAt time.Time, executorOverride string) (RunP
 		PreflightTimeout: preflightTimeout,
 		Verify:           verify,
 		VerifyTimeout:    verifyTimeout,
+		Eval:             evalPlan,
 		Sandbox:          sandbox,
 		Output:           job.Output,
 		Concurrency:      normalizedConcurrency(job.Concurrency),

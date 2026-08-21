@@ -19,6 +19,7 @@
     "agent": {"$ref": "#/$defs/commandResult"},
     "preflight": {"type": "array", "items": {"$ref": "#/$defs/commandResult"}},
     "verify": {"type": "array", "items": {"$ref": "#/$defs/commandResult"}},
+    "eval": {"$ref": "#/$defs/evalResult"},
     "error": {"type": "string"},
     "status_text": {"type": "string"},
     "patch_path": {"type": "string"}
@@ -48,6 +49,22 @@
         "stdout_log": {"type": "string"},
         "stderr_log": {"type": "string"},
         "error": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "evalResult": {
+      "type": "object",
+      "required": ["status", "dataset", "target", "base", "gate", "regressions", "proposed_failed"],
+      "properties": {
+        "status": {"enum": ["pass", "fail", "error"]},
+        "dataset": {"type": "string"},
+        "target": {"type": "string"},
+        "base": {"type": "string", "pattern": "^[a-fA-F0-9]{40,64}$"},
+        "gate": {"enum": ["all", "regressions"]},
+        "json_path": {"type": "string"},
+        "markdown_path": {"type": "string"},
+        "regressions": {"type": "integer", "minimum": 0},
+        "proposed_failed": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": false
     }

@@ -53,8 +53,17 @@ sources, and optional Attested Computation data.
 Job contracts are experimental.
 They can change without a new version before version 1.0.
 Run plans can contain deterministic `preflight` commands and can omit `agent`
-for empty-prompt jobs that contain verification commands. Run records preserve
+for empty-prompt jobs that contain verification. Run records preserve
 preflight results and use `preflight_failed` when this phase stops execution.
+
+`job-run-plan.schema.json` can contain an `eval` object. It records the dataset,
+target, spec, gate, resolved base SHA, and optional answer runner settings.
+`job-run-record.schema.json` can contain the eval result. It records status,
+dataset, target, base SHA, gate, report paths, regression count, and proposed
+failure count.
+
+Eval result status is `pass`, `fail`, or `error`. The containing run uses
+`verification_failed` when an eval gate or eval operation fails.
 
 The published v1 schema distribution includes eval, diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.

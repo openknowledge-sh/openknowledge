@@ -14,6 +14,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  knowledge-eval:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/knowledge-eval.yml
+    with:
+      dataset: .openknowledge/evals/wiki.yaml
+      target: Wiki
+      base_ref: ${{ github.event.pull_request.base.sha }}
+      gate: regressions
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30

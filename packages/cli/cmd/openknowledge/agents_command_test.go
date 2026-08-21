@@ -137,6 +137,7 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"Open Knowledge Job Templates",
+		"knowledge-eval",
 		"content-validation",
 		"docs-audit",
 		"wiki-health",
@@ -162,6 +163,7 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 		"sandbox.type",
 		"preflight.commands",
 		"verify.commands",
+		"verify.eval.dataset",
 		"concurrency.policy",
 	} {
 		if !strings.Contains(output, expected) {
@@ -190,6 +192,23 @@ func TestJobsNewPrintsCatalogReferenceAndWritesTemplate(t *testing.T) {
 	})
 	if code != 1 || !strings.Contains(stderr, "use --force to overwrite") {
 		t.Fatalf("expected overwrite guard, got code=%d stderr=%s", code, stderr)
+	}
+}
+
+func TestKnowledgeEvalTemplateIsAgentlessAndStructured(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "knowledge-eval.md")
+	output, stderr, code := captureMainOutput(t, func() int {
+		return runJobs([]string{"new", "knowledge-eval", "--out", out})
+	})
+	if code != 0 {
+		t.Fatalf("jobs new knowledge-eval: code=%d stdout=%s stderr=%s", code, output, stderr)
+	}
+	job, err := agents.ParseJobFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Agent.Runtime != "" || job.Verify.Eval == nil || job.Verify.Eval.Dataset != ".openknowledge/evals/knowledge.yaml" || job.Verify.Eval.Target != "Wiki" {
+		t.Fatalf("unexpected knowledge eval template: %#v", job)
 	}
 }
 

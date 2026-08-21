@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
@@ -55,8 +56,19 @@ type SandboxSpec struct {
 }
 
 type VerifySpec struct {
-	Commands []string `json:"commands,omitempty"`
-	Timeout  string   `json:"timeout,omitempty"`
+	Commands []string        `json:"commands,omitempty"`
+	Timeout  string          `json:"timeout,omitempty"`
+	Eval     *EvalVerifySpec `json:"eval,omitempty"`
+}
+
+type EvalVerifySpec struct {
+	Dataset       string   `json:"dataset"`
+	Target        string   `json:"target,omitempty"`
+	Spec          string   `json:"spec,omitempty"`
+	Gate          string   `json:"gate,omitempty"`
+	AnswerCommand string   `json:"answer_command,omitempty"`
+	AnswerArgs    []string `json:"answer_args,omitempty"`
+	AnswerTimeout string   `json:"answer_timeout,omitempty"`
 }
 
 type OutputSpec struct {
@@ -210,8 +222,8 @@ func ValidateJob(job Job) error {
 		if _, err := HarnessForRuntime(job.Agent.Runtime); err != nil {
 			add("agent.runtime", "%s", err.Error())
 		}
-	} else if strings.TrimSpace(job.Prompt) != "" || len(job.Verify.Commands) == 0 {
-		add("agent.runtime", "is required unless the job has an empty prompt and deterministic verify.commands")
+	} else if strings.TrimSpace(job.Prompt) != "" || (len(job.Verify.Commands) == 0 && job.Verify.Eval == nil) {
+		add("agent.runtime", "is required unless the job has an empty prompt and deterministic verification")
 	}
 	if !hasAgent && (job.Agent.Model != "" || job.Agent.Timeout != "" || job.Agent.CompletionSignal != "") {
 		add("agent", "model, timeout, and completion_signal require agent.runtime")
@@ -251,6 +263,32 @@ func ValidateJob(job Job) error {
 			add("verify.timeout", "must be a Go duration such as 10m or 30m")
 		} else if duration <= 0 {
 			add("verify.timeout", "must be positive")
+		}
+	}
+	if evalSpec := job.Verify.Eval; evalSpec != nil {
+		validateJobRelativePath("verify.eval.dataset", evalSpec.Dataset, false, &issues)
+		validateJobRelativePath("verify.eval.target", evalSpec.Target, true, &issues)
+		if spec := strings.TrimSpace(evalSpec.Spec); spec != "" {
+			if _, supported := okf.ResolveSpecVersion(spec); !supported {
+				add("verify.eval.spec", "must be a supported OKF version or latest")
+			}
+		}
+		switch strings.ToLower(strings.TrimSpace(evalSpec.Gate)) {
+		case "", knowledgeeval.GateAll, knowledgeeval.GateRegressions:
+		default:
+			add("verify.eval.gate", "must be all or regressions")
+		}
+		if strings.TrimSpace(evalSpec.AnswerCommand) == "" && (len(evalSpec.AnswerArgs) > 0 || evalSpec.AnswerTimeout != "") {
+			add("verify.eval.answer_command", "is required with answer_args or answer_timeout")
+		}
+		if command := strings.TrimSpace(evalSpec.AnswerCommand); command != "" && (strings.HasPrefix(command, "-") || strings.ContainsAny(command, "\x00\r\n")) {
+			add("verify.eval.answer_command", "must be an executable path or name without a leading hyphen")
+		}
+		if evalSpec.AnswerTimeout != "" {
+			duration, err := time.ParseDuration(evalSpec.AnswerTimeout)
+			if err != nil || duration <= 0 || duration > time.Hour {
+				add("verify.eval.answer_timeout", "must be a positive Go duration of at most 1h")
+			}
 		}
 	}
 	if job.Preflight.Timeout != "" {
@@ -390,6 +428,17 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 	if verify := getMap(data, "verify"); verify != nil {
 		job.Verify.Commands = getStringSlice(verify, "commands")
 		job.Verify.Timeout = getString(verify, "timeout")
+		if evalSpec := getMap(verify, "eval"); evalSpec != nil {
+			job.Verify.Eval = &EvalVerifySpec{
+				Dataset:       getString(evalSpec, "dataset"),
+				Target:        getString(evalSpec, "target"),
+				Spec:          getString(evalSpec, "spec"),
+				Gate:          getString(evalSpec, "gate"),
+				AnswerCommand: getString(evalSpec, "answer_command"),
+				AnswerArgs:    getStringSlice(evalSpec, "answer_args"),
+				AnswerTimeout: getString(evalSpec, "answer_timeout"),
+			}
+		}
 	}
 	if preflight := getMap(data, "preflight"); preflight != nil {
 		job.Preflight.Commands = getStringSlice(preflight, "commands")
@@ -414,6 +463,24 @@ func jobFromFrontmatter(data map[string]any) (Job, error) {
 		}
 	}
 	return job, nil
+}
+
+func validateJobRelativePath(field string, value string, allowEmpty bool, issues *[]ValidationIssue) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if !allowEmpty {
+			*issues = append(*issues, ValidationIssue{Field: field, Message: "is required"})
+		}
+		return
+	}
+	if filepath.IsAbs(value) || strings.ContainsAny(value, "\x00\r\n") {
+		*issues = append(*issues, ValidationIssue{Field: field, Message: "must be a repository-relative path"})
+		return
+	}
+	clean := filepath.Clean(value)
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		*issues = append(*issues, ValidationIssue{Field: field, Message: "must stay inside the repository"})
+	}
 }
 
 func getMap(data map[string]any, key string) map[string]any {

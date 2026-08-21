@@ -1,0 +1,17 @@
+type: openknowledge.eval
+version: 1
+id: repository-docs
+defaults:
+  budget: 2400
+  limit: 12
+cases:
+  - id: eval-regressions
+    question: How do I compare knowledge eval results with a Git base and gate regressions?
+    expect:
+      sources: [features/commands/eval.md]
+      evidence_contains: ["--base", regressions]
+  - id: deterministic-jobs
+    question: How do deterministic maintenance jobs run verification in isolated worktrees?
+    expect:
+      sources: [features/commands/jobs.md]
+      evidence_contains: [verification, worktree]

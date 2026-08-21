@@ -51,6 +51,12 @@ compatibility rule. Its job, plan, run-record, and management schemas are the
 single current contract and may change in place without legacy copies or
 migrations until the feature is stabilized.
 
+Job run plans can contain a resolved native eval comparison. The object records
+dataset, target, spec, gate, base SHA, and optional answer runner settings.
+Job run records can contain eval status, identity, private report paths,
+regressions, and proposed failures. These objects are part of
+`job-run-plan.schema.json` and `job-run-record.schema.json`.
+
 The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,
 and verifies that undeclared top-level and nested fields are rejected. The

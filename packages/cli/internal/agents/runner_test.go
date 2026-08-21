@@ -245,7 +245,13 @@ func TestRunJobSupportsAgentlessDeterministicValidation(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(repo, "Wiki"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, "Wiki", "index.md"), []byte("# Wiki\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "Wiki", "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n\n# Wiki\n\nKnowledge evaluation.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repo, ".openknowledge", "evals"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, ".openknowledge", "evals", "docs.yaml"), []byte("type: openknowledge.eval\nversion: 1\nid: docs\ncases: [{id: home, question: Knowledge evaluation, expect: {min_sources: 1}}]\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	jobPath := filepath.Join(repo, "job.md")
@@ -255,12 +261,16 @@ workspace: {repo: ".", base: HEAD}
 verify:
   commands:
     - test -f Wiki/index.md
+  eval:
+    dataset: .openknowledge/evals/docs.yaml
+    target: Wiki
+    gate: all
 ---
 `
 	if err := os.WriteFile(jobPath, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	runTestGit(t, repo, "add", "Wiki", "job.md")
+	runTestGit(t, repo, "add", "Wiki", ".openknowledge/evals/docs.yaml", "job.md")
 	runTestGit(t, repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
 	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "jobs-state"))
 
@@ -274,6 +284,51 @@ verify:
 	}
 	if record.Agent.Command != "" || len(record.Verify) != 1 || record.Verify[0].ExitCode != 0 {
 		t.Fatalf("expected verification without an agent: %#v", record)
+	}
+	if record.Eval == nil || record.Eval.Status != "pass" || record.Eval.JSONPath == "" || record.Eval.MarkdownPath == "" {
+		t.Fatalf("expected native eval verification artifacts: %#v", record.Eval)
+	}
+	for _, path := range []string{record.Eval.JSONPath, record.Eval.MarkdownPath} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0600 {
+			t.Fatalf("expected private eval artifact %s, got %04o", path, info.Mode().Perm())
+		}
+	}
+}
+
+func TestRunJobFailsClosedWhenEvalGateFails(t *testing.T) {
+	repo := t.TempDir()
+	runTestGit(t, repo, "init")
+	if err := os.MkdirAll(filepath.Join(repo, "Wiki"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "Wiki", "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n\n# Wiki\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dataset := filepath.Join(repo, "eval.yaml")
+	if err := os.WriteFile(dataset, []byte("type: openknowledge.eval\nversion: 1\nid: failing\ncases: [{id: missing, question: absent evidence, expect: {sources: [missing.md]}}]\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	jobPath := filepath.Join(repo, "job.md")
+	if err := os.WriteFile(jobPath, []byte("---\nid: eval-failure\nworkspace: {repo: \".\", base: HEAD}\nverify: {eval: {dataset: eval.yaml, target: Wiki, gate: all}}\n---\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, repo, "add", "Wiki", "eval.yaml", "job.md")
+	runTestGit(t, repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "eval job")
+	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "jobs-state"))
+	job, err := ParseJobFile(jobPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := RunJob(job, RunOptions{ScheduledAt: time.Date(2026, 8, 11, 9, 30, 0, 0, time.UTC)})
+	if err == nil || record.Status != "verification_failed" || record.Eval == nil || record.Eval.Status != "fail" {
+		t.Fatalf("expected closed eval gate, record=%#v err=%v", record, err)
+	}
+	if _, statErr := os.Stat(record.Eval.JSONPath); statErr != nil {
+		t.Fatalf("failing gate must retain its report: %v", statErr)
 	}
 }
 

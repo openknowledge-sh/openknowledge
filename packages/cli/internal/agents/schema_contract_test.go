@@ -14,19 +14,29 @@ func TestRuntimeAgentArtifactsSatisfyPublishedSchemas(t *testing.T) {
 	installTestCodex(t, "")
 	root := t.TempDir()
 	runTestGit(t, root, "init")
+	if err := os.MkdirAll(filepath.Join(root, "Wiki"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "Wiki", "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n\n# Wiki\n\nSchema contracts.\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "eval.yaml"), []byte("type: openknowledge.eval\nversion: 1\nid: schema\ncases: [{id: contracts, question: Schema contracts, expect: {min_sources: 1}}]\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	jobPath := filepath.Join(root, "job.md")
 	jobContent := `---
 id: schema-contract
 agent: {runtime: codex}
 workspace: {repo: ".", base: HEAD}
 concurrency: {key: schema-contract}
+verify: {eval: {dataset: eval.yaml, target: Wiki, gate: all}}
 ---
 Inspect the repository.
 `
 	if err := os.WriteFile(jobPath, []byte(jobContent), 0644); err != nil {
 		t.Fatal(err)
 	}
-	runTestGit(t, root, "add", "job.md")
+	runTestGit(t, root, "add", "job.md", "eval.yaml", "Wiki")
 	runTestGit(t, root, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "job")
 	t.Setenv(JobsStateDirEnv, filepath.Join(t.TempDir(), "job-state"))
 
@@ -64,7 +74,7 @@ func TestAgentlessRunPlanSatisfiesPublishedSchema(t *testing.T) {
 	repo := t.TempDir()
 	runTestGit(t, repo, "init")
 	jobPath := filepath.Join(repo, "validation.md")
-	content := "---\nid: validation\nworkspace: {repo: \".\", base: HEAD}\nverify: {commands: [\"true\"]}\n---\n"
+	content := "---\nid: validation\nworkspace: {repo: \".\", base: HEAD}\nverify: {commands: [\"true\"], eval: {dataset: eval.yaml, target: Wiki}}\n---\n"
 	if err := os.WriteFile(jobPath, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -88,6 +98,9 @@ func TestAgentlessRunPlanSatisfiesPublishedSchema(t *testing.T) {
 	validateAgentArtifactJSON(t, schemas[RunPlanSchemaID], encoded)
 	if bytes.Contains(encoded, []byte(`"agent"`)) {
 		t.Fatalf("agentless plan must omit the agent command: %s", encoded)
+	}
+	if !bytes.Contains(encoded, []byte(`"eval"`)) {
+		t.Fatalf("eval verification plan must publish its contract: %s", encoded)
 	}
 }
 
