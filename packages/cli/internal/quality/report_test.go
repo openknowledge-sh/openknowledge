@@ -8,6 +8,7 @@ import (
 
 	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	knowledgefeedback "github.com/openknowledge-sh/openknowledge/packages/cli/internal/feedback"
+	knowledgeintervention "github.com/openknowledge-sh/openknowledge/packages/cli/internal/intervention"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
@@ -86,6 +87,77 @@ func TestBuildRejectsDuplicateUsageEvents(t *testing.T) {
 	if _, err := Build(Options{Root: root, Spec: "0.2", Usage: []knowledgeusage.Event{event, event}}); err == nil {
 		t.Fatal("expected duplicate usage event to be rejected")
 	}
+}
+
+func TestBuildMeasuresInterventionOutcomesWithoutGlobalScore(t *testing.T) {
+	root := t.TempDir()
+	writeQualityFile(t, root, "index.md", "---\ntitle: Interventions\nokf_version: \"0.2\"\n---\n\n# Interventions\n")
+	auto := qualityInterventionLifecycle("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1", "low", "auto", []string{}, "audit-finding", "finding-1", "2026-08-21T10:00:00Z", "2026-08-21T14:00:00Z")
+	auto[2].Publication = &knowledgeintervention.Publication{Generation: "release-auto", ContentDigest: qualityHex('a'), Checks: []string{"eval:critical"}, Automated: true, Verified: true}
+	auto[2].FindingOutcome = "confirmed"
+	human := qualityInterventionLifecycle("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "2", "medium", "human", []string{"github:alice"}, "manual", "request-2", "2026-08-21T10:00:00Z", "2026-08-21T20:00:00Z")
+	reviewed := human[1]
+	reviewed.ID = "44444444444444444444444444444444"
+	reviewed.At = "2026-08-21T12:00:00Z"
+	reviewed.Stage = "reviewed"
+	reviewed.Review = &knowledgeintervention.Review{Decision: "approved", DurationMinutes: 12}
+	human = []knowledgeintervention.Event{human[0], human[1], reviewed, human[2]}
+	human[3].Publication = &knowledgeintervention.Publication{Generation: "release-human", ContentDigest: qualityHex('b'), Checks: []string{"eval:critical"}, Automated: false, Verified: true}
+	dismissed := auto[0]
+	dismissed.ID = "55555555555555555555555555555555"
+	dismissed.InterventionID = "cccccccccccccccccccccccccccccccc"
+	dismissed.At = "2026-08-21T11:00:00Z"
+	dismissed.Stage = "dismissed"
+	dismissed.Source.ID = "finding-2"
+	dismissed.FindingOutcome = "false-positive"
+	dismissed.Reason = "Evidence disproved the finding."
+	detectedDismissed := dismissed
+	detectedDismissed.ID = "66666666666666666666666666666666"
+	detectedDismissed.At = "2026-08-21T09:00:00Z"
+	detectedDismissed.Stage = "detected"
+	detectedDismissed.FindingOutcome = ""
+	detectedDismissed.Reason = ""
+	events := append(append(auto, human...), detectedDismissed, dismissed)
+	report, err := Build(Options{Root: root, Spec: "0.2", Interventions: events})
+	if err != nil {
+		t.Fatal(err)
+	}
+	metrics := map[string]Metric{}
+	for _, metric := range report.Metrics {
+		metrics[metric.ID] = metric
+		if metric.ID == "global-quality-score" {
+			t.Fatal("quality report must not introduce a global score")
+		}
+	}
+	for id, expected := range map[string]float64{
+		"detection-to-published-fix":        7,
+		"human-review-minutes-per-fix":      12,
+		"audit-false-positive-rate":         50,
+		"safely-automated-maintenance-rate": 50,
+	} {
+		if metrics[id].Value == nil || *metrics[id].Value != expected {
+			t.Fatalf("unexpected %s: %#v", id, metrics[id])
+		}
+	}
+	if report.Inputs.InterventionEvents != len(events) {
+		t.Fatalf("unexpected intervention input count: %#v", report.Inputs)
+	}
+}
+
+func qualityInterventionLifecycle(interventionID, idPrefix, risk, approval string, owners []string, sourceKind, sourceID, detectedAt, publishedAt string) []knowledgeintervention.Event {
+	base := knowledgeintervention.Event{
+		Type: knowledgeintervention.EventType, Version: knowledgeintervention.EventVersion, InterventionID: interventionID,
+		KnowledgeBase: "docs", Actor: knowledgeintervention.Actor{Kind: "agent", ID: "job:maintenance"},
+		Source: knowledgeintervention.Source{Kind: sourceKind, ID: sourceID}, Route: knowledgeintervention.Route{Risk: risk, Approval: approval, Confidence: .9, Owners: owners},
+		Targets: []string{"runbook.md"}, Evidence: []string{"insight:gap"},
+	}
+	detected := base
+	detected.ID, detected.At, detected.Stage = idPrefix+"1111111111111111111111111111111", detectedAt, "detected"
+	proposed := base
+	proposed.ID, proposed.At, proposed.Stage = idPrefix+"2222222222222222222222222222222", "2026-08-21T11:00:00Z", "proposed"
+	published := base
+	published.ID, published.At, published.Stage = idPrefix+"3333333333333333333333333333333", publishedAt, "published"
+	return []knowledgeintervention.Event{detected, proposed, published}
 }
 
 func qualityUsage(id, at, generation, digest, channel, outcome string, evidence knowledgeusage.Evidence, checks []string) knowledgeusage.Event {

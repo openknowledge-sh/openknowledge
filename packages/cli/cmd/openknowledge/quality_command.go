@@ -8,28 +8,34 @@ import (
 
 	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
 	knowledgefeedback "github.com/openknowledge-sh/openknowledge/packages/cli/internal/feedback"
+	knowledgeintervention "github.com/openknowledge-sh/openknowledge/packages/cli/internal/intervention"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	knowledgequality "github.com/openknowledge-sh/openknowledge/packages/cli/internal/quality"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
 
 type qualityReportOptions struct {
-	target   string
-	spec     string
-	format   string
-	out      string
-	usage    []string
-	feedback []string
-	evals    []string
-	audits   []string
+	target        string
+	spec          string
+	format        string
+	out           string
+	usage         []string
+	feedback      []string
+	evals         []string
+	audits        []string
+	interventions []string
 }
 
 func runQuality(args []string) int {
-	if hasHelpFlag(args) || len(args) == 0 {
+	if len(args) == 0 || isHelpFlag(args[0]) {
 		fmt.Fprint(os.Stdout, qualityHelpText())
 		if len(args) == 0 {
 			return 2
 		}
 		return 0
+	}
+	if args[0] == "interventions" {
+		return runQualityInterventions(args[1:])
 	}
 	if args[0] != "report" {
 		fmt.Fprintf(stderrOutput(), "unknown quality subcommand: %s\n", args[0])
@@ -59,7 +65,12 @@ func runQuality(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
-	build := knowledgequality.Options{Root: root, Spec: options.spec, Usage: usageEvents, Feedback: feedbackEvents}
+	interventionEvents, err := knowledgeintervention.Read(options.interventions)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	build := knowledgequality.Options{Root: root, Spec: options.spec, Usage: usageEvents, Feedback: feedbackEvents, Interventions: interventionEvents}
 	for _, path := range options.evals {
 		report, comparison, err := knowledgequality.ReadEval(path)
 		if err != nil {
@@ -100,14 +111,14 @@ func parseQualityReportOptions(args []string) (qualityReportOptions, error) {
 		switch {
 		case arg == "--json":
 			options.format = "json"
-		case arg == "--format" || arg == "--out" || arg == "--spec" || arg == "--usage" || arg == "--feedback" || arg == "--eval" || arg == "--audit":
+		case arg == "--format" || arg == "--out" || arg == "--spec" || arg == "--usage" || arg == "--feedback" || arg == "--eval" || arg == "--audit" || arg == "--intervention":
 			value, next, err := nextFlagValue(args, index, arg)
 			if err != nil {
 				return qualityReportOptions{}, err
 			}
 			index = next
 			setQualityOption(&options, arg, value)
-		case strings.HasPrefix(arg, "--format=") || strings.HasPrefix(arg, "--out=") || strings.HasPrefix(arg, "--spec=") || strings.HasPrefix(arg, "--usage=") || strings.HasPrefix(arg, "--feedback=") || strings.HasPrefix(arg, "--eval=") || strings.HasPrefix(arg, "--audit="):
+		case strings.HasPrefix(arg, "--format=") || strings.HasPrefix(arg, "--out=") || strings.HasPrefix(arg, "--spec=") || strings.HasPrefix(arg, "--usage=") || strings.HasPrefix(arg, "--feedback=") || strings.HasPrefix(arg, "--eval=") || strings.HasPrefix(arg, "--audit=") || strings.HasPrefix(arg, "--intervention="):
 			name, value, _ := strings.Cut(arg, "=")
 			setQualityOption(&options, name, value)
 		case strings.HasPrefix(arg, "-"):
@@ -155,7 +166,76 @@ func setQualityOption(options *qualityReportOptions, name, value string) {
 		options.evals = append(options.evals, value)
 	case "--audit":
 		options.audits = append(options.audits, value)
+	case "--intervention":
+		options.interventions = append(options.interventions, value)
 	}
+}
+
+func runQualityInterventions(args []string) int {
+	if hasHelpFlag(args) || len(args) == 0 {
+		fmt.Fprint(os.Stdout, qualityInterventionsHelpText())
+		if len(args) == 0 {
+			return 2
+		}
+		return 0
+	}
+	if args[0] != "append" {
+		fmt.Fprintf(stderrOutput(), "unknown quality interventions subcommand: %s\n", args[0])
+		return 2
+	}
+	var logPath, eventPath string
+	for index := 1; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--log" || arg == "--event":
+			value, next, err := nextFlagValue(args, index, arg)
+			if err != nil {
+				fmt.Fprintln(stderrOutput(), err)
+				return 2
+			}
+			index = next
+			if arg == "--log" {
+				logPath = strings.TrimSpace(value)
+			} else {
+				eventPath = strings.TrimSpace(value)
+			}
+		case strings.HasPrefix(arg, "--log=") || strings.HasPrefix(arg, "--event="):
+			name, value, _ := strings.Cut(arg, "=")
+			if name == "--log" {
+				logPath = strings.TrimSpace(value)
+			} else {
+				eventPath = strings.TrimSpace(value)
+			}
+		default:
+			fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", arg)
+			return 2
+		}
+	}
+	if logPath == "" || eventPath == "" {
+		fmt.Fprintln(stderrOutput(), "quality interventions append requires --log and --event")
+		return 2
+	}
+	content, err := okf.ReadFileAtMost(eventPath, 128<<10)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	var event knowledgeintervention.Event
+	if err := okf.DecodeStrictJSON(content, &event); err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	recorder, err := knowledgeintervention.NewRecorder(logPath)
+	if err == nil {
+		err = recorder.Append(event)
+	}
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	terminal.success("Recorded intervention event")
+	fmt.Printf("%s %s\n%s %s\n", terminal.muted("intervention"), event.InterventionID, terminal.muted("stage"), event.Stage)
+	return 0
 }
 
 func readQualityUsage(paths []string) ([]knowledgeusage.Event, error) {
@@ -192,7 +272,7 @@ func printQualityReport(report knowledgequality.Report, options qualityReportOpt
 	}
 	terminal.title("Open Knowledge Quality", "usage-grounded knowledge outcomes")
 	fmt.Printf("%s %s\n", terminal.muted("target"), terminal.path(report.Bundle.Path))
-	fmt.Printf("%s %d usage / %d feedback / %d eval / %d comparison / %d audit\n\n", terminal.muted("inputs"), report.Inputs.UsageEvents, report.Inputs.FeedbackEvents, report.Inputs.EvalReports, report.Inputs.Comparisons, report.Inputs.AuditReports)
+	fmt.Printf("%s %d usage / %d feedback / %d eval / %d comparison / %d audit / %d intervention\n\n", terminal.muted("inputs"), report.Inputs.UsageEvents, report.Inputs.FeedbackEvents, report.Inputs.EvalReports, report.Inputs.Comparisons, report.Inputs.AuditReports, report.Inputs.InterventionEvents)
 	for _, metric := range report.Metrics {
 		value := "unavailable"
 		if metric.Value != nil {
@@ -234,9 +314,10 @@ func qualityHelpText() string {
 Measure knowledge outcomes from current metadata, runtime use, feedback, evals, and audits.
 
 Commands:
-  report   Build a deterministic quality and priority report.
+  report          Build a deterministic quality and priority report.
+  interventions   Append strict lifecycle events to a private audit log.
 
-Run openknowledge quality report --help for input contracts and examples.
+Run openknowledge quality report --help or quality interventions --help for details.
 `
 }
 
@@ -251,9 +332,20 @@ Flags:
   --feedback <path>    Feedback JSONL file or directory. Repeatable.
   --eval <path>        Eval report or comparison JSON. Repeatable.
   --audit <path>       Audit report JSON for the current bundle. Repeatable.
+  --intervention <path> Intervention JSONL file or directory. Repeatable.
   --spec <version>     OKF version (default latest).
   --format <format>    text, json, markdown, or html (default text).
   --json               Alias for --format json.
   --out <path>         Write JSON, Markdown, or self-contained HTML atomically.
+`
+}
+
+func qualityInterventionsHelpText() string {
+	return `openknowledge quality interventions append --log <directory> --event <event.json>
+
+Validate one strict openknowledge.intervention v1 event and append it to a
+private 0700/0600 JSONL audit log. Each intervention must begin with detected
+and follow the allowed proposed, reviewed, published, dismissed, failed, or
+rolled-back lifecycle. Quality reports consume the log with --intervention.
 `
 }

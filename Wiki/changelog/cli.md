@@ -15,8 +15,8 @@ page records release-level changes.
 
 ### Knowledge quality report
 
-- New `okn quality report` combines repeatable usage, feedback, eval, and audit
-  inputs with the current knowledge bundle.
+- New `okn quality report` combines repeatable usage, feedback, eval, audit,
+  and intervention inputs with the current knowledge bundle.
 - The report strictly binds audit and eval inputs to the current revision. It
   uses only the latest grounded feedback for each usage event.
 - Evidence-backed metrics cover healthy selected evidence, trusted answers,
@@ -26,8 +26,12 @@ page records release-level changes.
   eval coverage, use, feedback reasons, and audit findings. The report does not
   publish a global quality score.
 - Metrics without sufficient observations are explicit `unavailable` values.
-  Intervention-derived metrics remain unavailable until linked outcome events
-  exist.
+  Strict intervention lifecycles now measure detection-to-publication time,
+  review minutes, audit false positives, and safely automated maintenance.
+- New `okn quality interventions append` validates and writes private
+  append-only lifecycle events. It enforces risk routing, evidence, verified
+  publication, audit outcomes, and ordered transitions without inferring
+  missing evidence.
 - Text, JSON, and Markdown output support local review and automation. New
   `quality-report.schema.json` defines the strict machine contract.
 - New HTML output writes a self-contained offline dashboard. It provides a
@@ -35,8 +39,10 @@ page records release-level changes.
   eval changes, the complete metric ledger, and responsive print styles.
 - Source: `packages/cli/cmd/openknowledge/quality_command.go`,
   `packages/cli/internal/quality/`,
-  `packages/cli/internal/quality/html.go`, and
-  `packages/cli/schemas/v1/quality-report.schema.json`.
+  `packages/cli/internal/intervention/`,
+  `packages/cli/internal/quality/html.go`,
+  `packages/cli/schemas/v1/quality-report.schema.json`, and
+  `packages/cli/schemas/v1/intervention-event.schema.json`.
 - Docs: `Wiki/features/commands/quality.md`,
   `Wiki/features/commands/index.md`, and
   `Wiki/features/machine-contracts.md`.

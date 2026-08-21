@@ -302,6 +302,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
         <span>{{.Report.Inputs.EvalReports}} eval reports</span>
         <span>{{.Report.Inputs.Comparisons}} comparisons</span>
         <span>{{.Report.Inputs.AuditReports}} audits</span>
+        <span>{{.Report.Inputs.InterventionEvents}} intervention events</span>
         <span>{{.Measured}} measured · {{.Unavailable}} unavailable</span>
       </div>
     </section>

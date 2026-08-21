@@ -16,7 +16,8 @@
     "feedbackEvents": 1,
     "evalReports": 1,
     "comparisons": 0,
-    "auditReports": 1
+    "auditReports": 1,
+    "interventionEvents": 0
   },
   "metrics": [
     {

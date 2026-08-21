@@ -10,6 +10,7 @@ import (
 	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
 	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	knowledgefeedback "github.com/openknowledge-sh/openknowledge/packages/cli/internal/feedback"
+	knowledgeintervention "github.com/openknowledge-sh/openknowledge/packages/cli/internal/intervention"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
@@ -20,14 +21,15 @@ const (
 )
 
 type Options struct {
-	Root        string
-	Spec        string
-	Now         time.Time
-	Usage       []knowledgeusage.Event
-	Feedback    []knowledgefeedback.Event
-	Evals       []knowledgeeval.Report
-	Comparisons []knowledgeeval.ComparisonReport
-	Audits      []knowledgeaudit.Report
+	Root          string
+	Spec          string
+	Now           time.Time
+	Usage         []knowledgeusage.Event
+	Feedback      []knowledgefeedback.Event
+	Evals         []knowledgeeval.Report
+	Comparisons   []knowledgeeval.ComparisonReport
+	Audits        []knowledgeaudit.Report
+	Interventions []knowledgeintervention.Event
 }
 
 type Report struct {
@@ -55,11 +57,12 @@ type ObservationWindow struct {
 }
 
 type InputSummary struct {
-	UsageEvents    int `json:"usageEvents"`
-	FeedbackEvents int `json:"feedbackEvents"`
-	EvalReports    int `json:"evalReports"`
-	Comparisons    int `json:"comparisons"`
-	AuditReports   int `json:"auditReports"`
+	UsageEvents        int `json:"usageEvents"`
+	FeedbackEvents     int `json:"feedbackEvents"`
+	EvalReports        int `json:"evalReports"`
+	Comparisons        int `json:"comparisons"`
+	AuditReports       int `json:"auditReports"`
+	InterventionEvents int `json:"interventionEvents"`
 }
 
 type Metric struct {
@@ -170,7 +173,7 @@ func Build(options Options) (Report, error) {
 	report := Report{
 		Type: ReportType, Version: ReportVersion, EvaluatedAt: now.Format(time.RFC3339),
 		Bundle:  BundleIdentity{Path: root, Spec: spec, SHA256: digest},
-		Inputs:  InputSummary{UsageEvents: len(options.Usage), FeedbackEvents: len(options.Feedback), EvalReports: len(options.Evals), Comparisons: len(options.Comparisons), AuditReports: len(options.Audits)},
+		Inputs:  InputSummary{UsageEvents: len(options.Usage), FeedbackEvents: len(options.Feedback), EvalReports: len(options.Evals), Comparisons: len(options.Comparisons), AuditReports: len(options.Audits), InterventionEvents: len(options.Interventions)},
 		Metrics: []Metric{}, Generations: []GenerationOutcome{}, Concepts: []ConceptObservation{}, Changes: []ChangeObservation{},
 	}
 	concepts := conceptStates(listing)
@@ -324,6 +327,13 @@ func Build(options Options) (Report, error) {
 			}
 		}
 	}
+	if err := knowledgeintervention.ValidateLifecycle(options.Interventions); err != nil {
+		return Report{}, err
+	}
+	for _, event := range options.Interventions {
+		at, _ := time.Parse(time.RFC3339Nano, event.At)
+		first, last = extendWindow(first, last, at)
+	}
 	if !first.IsZero() {
 		report.Window.From = first.UTC().Format(time.RFC3339Nano)
 		report.Window.To = last.UTC().Format(time.RFC3339Nano)
@@ -331,7 +341,7 @@ func Build(options Options) (Report, error) {
 	report.Generations = generationOutcomes(generations)
 	report.Concepts = conceptObservations(concepts)
 	report.Changes = changeObservations(options.Comparisons)
-	report.Metrics = buildMetrics(options.Usage, latestFeedback, concepts, report.Generations, options.Evals, options.Comparisons, options.Audits)
+	report.Metrics = buildMetrics(options.Usage, latestFeedback, concepts, report.Generations, options.Evals, options.Comparisons, options.Audits, options.Interventions)
 	return report, nil
 }
 
@@ -551,7 +561,7 @@ func changeObservations(comparisons []knowledgeeval.ComparisonReport) []ChangeOb
 	return result
 }
 
-func buildMetrics(events []knowledgeusage.Event, feedback map[string]knowledgefeedback.Event, concepts map[string]*conceptState, generations []GenerationOutcome, reports []knowledgeeval.Report, comparisons []knowledgeeval.ComparisonReport, audits []knowledgeaudit.Report) []Metric {
+func buildMetrics(events []knowledgeusage.Event, feedback map[string]knowledgefeedback.Event, concepts map[string]*conceptState, generations []GenerationOutcome, reports []knowledgeeval.Report, comparisons []knowledgeeval.ComparisonReport, audits []knowledgeaudit.Report, interventions []knowledgeintervention.Event) []Metric {
 	var used, healthy int
 	var answers, trustedAnswers int
 	for _, event := range events {
@@ -639,14 +649,90 @@ func buildMetrics(events []knowledgeusage.Event, feedback map[string]knowledgefe
 		}
 	}
 	metrics = append(metrics, countMetric("conflicts-detected", conflicts, len(audits) > 0, "Structured claim conflicts present in the supplied audit reports."))
-	metrics = append(metrics,
-		unavailableMetric("detection-to-published-fix", "duration", "Requires a unified intervention log linking a detection to a published generation."),
-		unavailableMetric("human-review-minutes-per-fix", "minutes", "Requires review-duration events in the intervention log."),
-		unavailableMetric("audit-false-positive-rate", "percent", "Requires confirmed or dismissed finding outcomes in the intervention log."),
-		unavailableMetric("safely-automated-maintenance-rate", "percent", "Requires routed maintenance and publication outcomes in the intervention log."),
-	)
+	metrics = append(metrics, interventionMetrics(interventions)...)
 	sort.Slice(metrics, func(i, j int) bool { return metrics[i].ID < metrics[j].ID })
 	return metrics
+}
+
+func interventionMetrics(events []knowledgeintervention.Event) []Metric {
+	type lifecycle struct {
+		detected    time.Time
+		published   time.Time
+		review      *knowledgeintervention.Review
+		publication *knowledgeintervention.Publication
+		risk        string
+		approval    string
+		audit       bool
+		outcome     string
+		rolledBack  bool
+	}
+	lifecycles := map[string]*lifecycle{}
+	for _, event := range events {
+		item := lifecycles[event.InterventionID]
+		if item == nil {
+			item = &lifecycle{risk: event.Route.Risk, approval: event.Route.Approval, audit: event.Source.Kind == "audit-finding"}
+			lifecycles[event.InterventionID] = item
+		}
+		at, _ := time.Parse(time.RFC3339Nano, event.At)
+		switch event.Stage {
+		case "detected":
+			item.detected = at
+		case "reviewed":
+			if event.Review.Decision == "approved" {
+				copy := *event.Review
+				item.review = &copy
+			}
+		case "published":
+			item.published = at
+			copy := *event.Publication
+			item.publication = &copy
+		case "rolled-back":
+			item.rolledBack = true
+		}
+		if event.FindingOutcome != "" {
+			item.outcome = event.FindingOutcome
+		}
+	}
+	var elapsedHours, reviewMinutes float64
+	var published, timed, reviewed, falsePositive, classified, safeAutomated int
+	for _, item := range lifecycles {
+		if !item.published.IsZero() {
+			published++
+			if !item.detected.IsZero() {
+				elapsedHours += item.published.Sub(item.detected).Hours()
+				timed++
+			}
+			if item.review != nil {
+				reviewMinutes += item.review.DurationMinutes
+				reviewed++
+			}
+			if item.publication != nil && item.publication.Automated && item.publication.Verified && item.risk == "low" && item.approval == "auto" && !item.rolledBack {
+				safeAutomated++
+			}
+		}
+		if item.audit && item.outcome != "" {
+			classified++
+			if item.outcome == "false-positive" {
+				falsePositive++
+			}
+		}
+	}
+	result := []Metric{}
+	if timed == 0 {
+		result = append(result, unavailableMetric("detection-to-published-fix", "hours", "Requires an intervention lifecycle linking detection to verified publication."))
+	} else {
+		value := elapsedHours / float64(timed)
+		result = append(result, Metric{ID: "detection-to-published-fix", Status: "measured", Unit: "hours", Value: &value, Note: "Mean elapsed hours from detected to verified published stage for complete intervention lifecycles."})
+	}
+	if reviewed == 0 {
+		result = append(result, unavailableMetric("human-review-minutes-per-fix", "minutes", "Requires an approved review duration on a published intervention."))
+	} else {
+		value := reviewMinutes / float64(reviewed)
+		result = append(result, Metric{ID: "human-review-minutes-per-fix", Status: "measured", Unit: "minutes", Value: &value, Note: "Mean recorded human review minutes across verified published fixes with an approved review event."})
+	}
+	result = append(result, ratioMetric("audit-false-positive-rate", falsePositive, classified, "percent", "Terminal audit-finding interventions explicitly classified false-positive or confirmed."))
+	result = append(result, ratioMetric("safely-automated-maintenance-rate", safeAutomated, published, "percent", "Verified published interventions that were low-risk, auto-approved, automated, and not rolled back."))
+	return result
 }
 
 func ratioMetric(id string, numerator, denominator int, unit, note string) Metric {

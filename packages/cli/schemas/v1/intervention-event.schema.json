@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/intervention-event.schema.json",
+  "title": "Open Knowledge agentic intervention lifecycle event",
+  "type": "object",
+  "required": ["type", "version", "id", "interventionId", "at", "knowledgeBase", "stage", "actor", "source", "route", "targets", "evidence"],
+  "properties": {
+    "type": {"const": "openknowledge.intervention"},
+    "version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
+    "interventionId": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
+    "at": {"type": "string", "format": "date-time"},
+    "knowledgeBase": {"type": "string", "minLength": 1, "maxLength": 128},
+    "stage": {"enum": ["detected", "proposed", "reviewed", "published", "dismissed", "failed", "rolled-back"]},
+    "actor": {"$ref": "#/$defs/actor"},
+    "source": {"$ref": "#/$defs/source"},
+    "route": {"$ref": "#/$defs/route"},
+    "targets": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+    "evidence": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+    "review": {"$ref": "#/$defs/review"},
+    "publication": {"$ref": "#/$defs/publication"},
+    "findingOutcome": {"enum": ["confirmed", "false-positive"]},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 1024}
+  },
+  "$defs": {
+    "actor": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"enum": ["agent", "human", "system"]},
+        "id": {"type": "string", "minLength": 1, "maxLength": 256}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"enum": ["audit-finding", "runtime-gap", "feedback", "insight", "job-run", "manual"]},
+        "id": {"type": "string", "minLength": 1, "maxLength": 512}
+      },
+      "additionalProperties": false
+    },
+    "route": {
+      "type": "object",
+      "required": ["risk", "approval", "confidence", "owners"],
+      "properties": {
+        "risk": {"enum": ["low", "medium", "high"]},
+        "approval": {"enum": ["auto", "human", "expert"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "owners": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 512}}
+      },
+      "allOf": [
+        {"if": {"properties": {"risk": {"const": "low"}}}, "then": {"properties": {"approval": {"const": "auto"}}}},
+        {"if": {"properties": {"risk": {"const": "medium"}}}, "then": {"properties": {"approval": {"const": "human"}, "owners": {"minItems": 1}}}},
+        {"if": {"properties": {"risk": {"const": "high"}}}, "then": {"properties": {"approval": {"const": "expert"}, "owners": {"minItems": 1}}}}
+      ],
+      "additionalProperties": false
+    },
+    "review": {
+      "type": "object",
+      "required": ["decision", "durationMinutes"],
+      "properties": {
+        "decision": {"enum": ["approved", "rejected", "changes-requested"]},
+        "durationMinutes": {"type": "number", "minimum": 0, "maximum": 100000}
+      },
+      "additionalProperties": false
+    },
+    "publication": {
+      "type": "object",
+      "required": ["generation", "contentDigest", "checks", "automated", "verified"],
+      "properties": {
+        "generation": {"type": "string", "minLength": 1, "maxLength": 256},
+        "contentDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "checks": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+        "automated": {"type": "boolean"},
+        "verified": {"const": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"stage": {"const": "reviewed"}}}, "then": {"required": ["review"]}, "else": {"not": {"required": ["review"]}}},
+    {"if": {"properties": {"stage": {"const": "published"}}}, "then": {"required": ["publication"]}, "else": {"not": {"required": ["publication"]}}},
+    {"if": {"properties": {"stage": {"enum": ["dismissed", "failed", "rolled-back"]}}}, "then": {"required": ["reason"]}},
+    {"if": {"properties": {"source": {"properties": {"kind": {"const": "audit-finding"}}, "required": ["kind"]}, "stage": {"enum": ["published", "dismissed"]}}, "required": ["source", "stage"]}, "then": {"required": ["findingOutcome"]}},
+    {"if": {"required": ["findingOutcome"]}, "then": {"properties": {"source": {"properties": {"kind": {"const": "audit-finding"}}}}}},
+    {"if": {"required": ["findingOutcome"]}, "then": {"properties": {"stage": {"enum": ["published", "dismissed"]}}}},
+    {"if": {"properties": {"publication": {"properties": {"automated": {"const": true}}, "required": ["automated"]}}, "required": ["publication"]}, "then": {"properties": {"route": {"properties": {"risk": {"const": "low"}, "approval": {"const": "auto"}}}}}}
+  ],
+  "additionalProperties": false
+}

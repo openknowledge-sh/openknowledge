@@ -10,7 +10,7 @@ func RenderMarkdown(report Report) string {
 	output.WriteString("# Open Knowledge quality report\n\n")
 	fmt.Fprintf(&output, "- Evaluated: `%s`\n", report.EvaluatedAt)
 	fmt.Fprintf(&output, "- Bundle: `%s` (OKF %s)\n", report.Bundle.Path, report.Bundle.Spec)
-	fmt.Fprintf(&output, "- Inputs: %d usage, %d feedback, %d eval reports, %d comparisons, %d audits\n\n", report.Inputs.UsageEvents, report.Inputs.FeedbackEvents, report.Inputs.EvalReports, report.Inputs.Comparisons, report.Inputs.AuditReports)
+	fmt.Fprintf(&output, "- Inputs: %d usage, %d feedback, %d eval reports, %d comparisons, %d audits, %d interventions\n\n", report.Inputs.UsageEvents, report.Inputs.FeedbackEvents, report.Inputs.EvalReports, report.Inputs.Comparisons, report.Inputs.AuditReports, report.Inputs.InterventionEvents)
 	output.WriteString("## Metrics\n\n")
 	output.WriteString("| Metric | Status | Value | Evidence |\n| --- | --- | ---: | --- |\n")
 	for _, metric := range report.Metrics {

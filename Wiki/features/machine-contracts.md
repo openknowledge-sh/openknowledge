@@ -24,6 +24,7 @@ Audit contracts and private usage events use a type and numeric version.
 | `eval-comparison.schema.json` | `eval run --base <git-ref> --format json` |
 | `eval-report.schema.json` | `eval run --format json` |
 | `quality-report.schema.json` | `quality report --format json` |
+| `intervention-event.schema.json` | `quality interventions append`, private intervention JSONL |
 | `list.schema.json` | `list --json` |
 | `validation.schema.json` | `validate --format json`, MCP validation |
 | `graph.schema.json` | `export graph` |
@@ -178,6 +179,21 @@ Feedback sentiment is `positive` or `negative`. Positive events have no
 reasons. Negative events have one to six unique reasons from the schema enum.
 
 `quality-report.schema.json` defines `openknowledge.quality-report` version 1.
+Its input summary includes intervention events. Intervention-backed timing,
+review, audit outcome, and safe-automation metrics are measured only when the
+required lifecycle stages are present.
+
+`intervention-event.schema.json` defines `openknowledge.intervention` version
+1. Each event binds a stable intervention ID to its time, knowledge base,
+actor, source, fixed risk route, targets, and evidence. Stages are `detected`,
+`proposed`, `reviewed`, `published`, `dismissed`, `failed`, and `rolled-back`.
+
+Reviewed events add decision and duration. Published events add a generation,
+content digest, non-empty successful checks, automated flag, and required
+verification. Automated publication is restricted to `low/auto` routing.
+Terminal audit-finding events can classify their result as `confirmed` or
+`false-positive`. The CLI additionally validates ordered cross-event
+lifecycle transitions, which a per-event JSON Schema cannot express.
 It binds an evaluation time to the current bundle path, specification, and
 SHA-256. It also records the observation window and input counts.
 

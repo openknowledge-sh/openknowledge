@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	knowledgeintervention "github.com/openknowledge-sh/openknowledge/packages/cli/internal/intervention"
 	knowledgequality "github.com/openknowledge-sh/openknowledge/packages/cli/internal/quality"
 )
 
@@ -72,8 +73,8 @@ func TestQualityReportConsumesCurrentEvalContract(t *testing.T) {
 }
 
 func TestParseQualityReportOptionsAcceptsRepeatableInputs(t *testing.T) {
-	options, err := parseQualityReportOptions([]string{"Wiki", "--usage", "one", "--usage=two", "--feedback", "feedback", "--eval=eval.json", "--audit", "audit.json", "--format", "markdown", "--out", "quality.md"})
-	if err != nil || options.target != "Wiki" || len(options.usage) != 2 || len(options.feedback) != 1 || len(options.evals) != 1 || len(options.audits) != 1 || options.format != "markdown" {
+	options, err := parseQualityReportOptions([]string{"Wiki", "--usage", "one", "--usage=two", "--feedback", "feedback", "--eval=eval.json", "--audit", "audit.json", "--intervention", "interventions", "--format", "markdown", "--out", "quality.md"})
+	if err != nil || options.target != "Wiki" || len(options.usage) != 2 || len(options.feedback) != 1 || len(options.evals) != 1 || len(options.audits) != 1 || len(options.interventions) != 1 || options.format != "markdown" {
 		t.Fatalf("unexpected quality options: %#v err=%v", options, err)
 	}
 	for _, invalid := range [][]string{{"one", "two"}, {"--format", "html"}, {"--out", "quality.json"}, {"--unknown"}} {
@@ -107,5 +108,35 @@ func TestQualityReportWritesSelfContainedHTML(t *testing.T) {
 	}
 	if !strings.Contains(string(content), "Knowledge quality ledger") || !strings.Contains(string(content), "runbook.md") {
 		t.Fatalf("unexpected HTML dashboard:\n%s", content)
+	}
+}
+
+func TestQualityInterventionsAppendValidatesAndPersistsEvent(t *testing.T) {
+	event := knowledgeintervention.Event{
+		Type: knowledgeintervention.EventType, Version: knowledgeintervention.EventVersion,
+		ID: "11111111111111111111111111111111", InterventionID: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", At: "2026-08-21T10:00:00Z",
+		KnowledgeBase: "docs", Stage: "detected", Actor: knowledgeintervention.Actor{Kind: "agent", ID: "job:audit"},
+		Source:  knowledgeintervention.Source{Kind: "audit-finding", ID: "finding-1"},
+		Route:   knowledgeintervention.Route{Risk: "medium", Approval: "human", Confidence: .8, Owners: []string{"github:alice"}},
+		Targets: []string{"runbook.md"}, Evidence: []string{"audit-report:finding-1"},
+	}
+	content, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventPath := filepath.Join(t.TempDir(), "event.json")
+	if err := os.WriteFile(eventPath, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(t.TempDir(), "interventions")
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runQuality([]string{"interventions", "append", "--log", logPath, "--event", eventPath})
+	})
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Recorded intervention event") {
+		t.Fatalf("append failed: code=%d stderr=%q stdout=%q", code, stderr, stdout)
+	}
+	events, err := knowledgeintervention.Read([]string{logPath})
+	if err != nil || len(events) != 1 || events[0].InterventionID != event.InterventionID {
+		t.Fatalf("unexpected intervention log: %#v err=%v", events, err)
 	}
 }

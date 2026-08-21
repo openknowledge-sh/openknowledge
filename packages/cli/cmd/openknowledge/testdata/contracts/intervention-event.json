@@ -1,0 +1,39 @@
+{
+  "type": "openknowledge.intervention",
+  "version": 1,
+  "id": "11111111111111111111111111111111",
+  "interventionId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "at": "2026-08-21T12:00:00Z",
+  "knowledgeBase": "docs",
+  "stage": "published",
+  "actor": {
+    "kind": "agent",
+    "id": "job:maintenance"
+  },
+  "source": {
+    "kind": "audit-finding",
+    "id": "finding-1"
+  },
+  "route": {
+    "risk": "low",
+    "approval": "auto",
+    "confidence": 0.96,
+    "owners": []
+  },
+  "targets": [
+    "runbook.md"
+  ],
+  "evidence": [
+    "audit-report:finding-1"
+  ],
+  "publication": {
+    "generation": "release-2",
+    "contentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "checks": [
+      "Knowledge Eval"
+    ],
+    "automated": true,
+    "verified": true
+  },
+  "findingOutcome": "confirmed"
+}

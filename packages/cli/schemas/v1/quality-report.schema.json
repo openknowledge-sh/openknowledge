@@ -44,13 +44,14 @@
     },
     "inputs": {
       "type": "object",
-      "required": ["usageEvents", "feedbackEvents", "evalReports", "comparisons", "auditReports"],
+      "required": ["usageEvents", "feedbackEvents", "evalReports", "comparisons", "auditReports", "interventionEvents"],
       "properties": {
         "usageEvents": {"type": "integer", "minimum": 0},
         "feedbackEvents": {"type": "integer", "minimum": 0},
         "evalReports": {"type": "integer", "minimum": 0},
         "comparisons": {"type": "integer", "minimum": 0},
-        "auditReports": {"type": "integer", "minimum": 0}
+        "auditReports": {"type": "integer", "minimum": 0},
+        "interventionEvents": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": false
     },
@@ -60,7 +61,7 @@
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,127}$"},
         "status": {"enum": ["measured", "unavailable"]},
-        "unit": {"enum": ["percent", "percentage-points", "count", "duration", "minutes"]},
+        "unit": {"enum": ["percent", "percentage-points", "count", "duration", "hours", "minutes"]},
         "value": {"type": "number"},
         "previous": {"type": "number"},
         "change": {"type": "number"},
