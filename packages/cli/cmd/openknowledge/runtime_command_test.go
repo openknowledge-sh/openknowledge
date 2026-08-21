@@ -586,6 +586,85 @@ func TestRuntimeAccessProfilesAuthorizeAndRouteRetrieval(t *testing.T) {
 	if changedProfile.Code != http.StatusForbidden {
 		t.Fatalf("profile-switched session was accepted: %d %s", changedProfile.Code, changedProfile.Body.String())
 	}
+	handler.preview = true
+	preview := runtimeRequest(t, handler, http.MethodGet, "/_search?q=customer", "", supportHeaders)
+	if preview.Header().Get("X-OpenKnowledge-Preview") != "true" || preview.Header().Get("X-OpenKnowledge-Generation") != "generation-1" {
+		t.Fatalf("preview generation headers are missing: %#v", preview.Header())
+	}
+}
+
+func TestRuntimeReleaseCommandsStagePreviewPinAndRollback(t *testing.T) {
+	root := t.TempDir()
+	enablePublicArtifactTest(t, filepath.Join(root, "Wiki"))
+	writeViewerFile(t, root, "Wiki/index.md", "# First release\n\nAlpha knowledge.\n")
+	configPath := filepath.Join(root, "runtime.toml")
+	writeViewerFile(t, root, "runtime.toml", `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+mcp = true
+`)
+	build := func(commit string, extra ...string) runtimeBuildResult {
+		args := []string{"--config", configPath, "--commit", commit}
+		args = append(args, extra...)
+		stdout, stderr, code := captureMainOutput(t, func() int { return runRuntimeBuild(args) })
+		if code != 0 {
+			t.Fatalf("build %s failed: code=%d stderr=%s", commit, code, stderr)
+		}
+		var result runtimeBuildResult
+		if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	first := build("first")
+	writeViewerFile(t, root, "Wiki/index.md", "# Second release\n\nBeta knowledge.\n")
+	second := build("second", "--stage")
+	if !second.Staged || second.Published != nil || second.Generation == first.Generation {
+		t.Fatalf("unexpected staged build: first=%#v second=%#v", first, second)
+	}
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runRuntimeReleases([]string{"--config", configPath})
+	})
+	var releases runtimeReleasesResult
+	if code != 0 || json.Unmarshal([]byte(stdout), &releases) != nil || len(releases.Releases) != 2 || releases.ActiveGeneration != first.Generation {
+		t.Fatalf("unexpected releases: code=%d stderr=%s result=%#v", code, stderr, releases)
+	}
+	stdout, stderr, code = captureMainOutput(t, func() int {
+		return runRuntimePreview([]string{"--config", configPath, "--generation", second.Generation, "--check"})
+	})
+	var preview runtimeReleaseActionResult
+	if code != 0 || json.Unmarshal([]byte(stdout), &preview) != nil || preview.Action != "preview" || preview.Generation != second.Generation {
+		t.Fatalf("unexpected preview check: code=%d stderr=%s result=%#v", code, stderr, preview)
+	}
+	config, err := okruntime.LoadConfig(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := okruntime.FilesystemStore{Root: config.ArtifactStore.Path}
+	if active, _, err := store.Active("wiki"); err != nil || active.Generation != first.Generation {
+		t.Fatalf("preview changed production pin: %#v err=%v", active, err)
+	}
+	stdout, stderr, code = captureMainOutput(t, func() int {
+		return runRuntimePin([]string{"--config", configPath, "--generation", second.Generation})
+	})
+	var pinned runtimeReleaseActionResult
+	if code != 0 || json.Unmarshal([]byte(stdout), &pinned) != nil || pinned.Action != "pin" || pinned.PreviousGeneration != first.Generation || pinned.Generation != second.Generation {
+		t.Fatalf("unexpected pin: code=%d stderr=%s result=%#v", code, stderr, pinned)
+	}
+	stdout, stderr, code = captureMainOutput(t, func() int {
+		return runRuntimeRollback([]string{"--config", configPath})
+	})
+	var rolledBack runtimeReleaseActionResult
+	if code != 0 || json.Unmarshal([]byte(stdout), &rolledBack) != nil || rolledBack.Action != "rollback" || rolledBack.PreviousGeneration != second.Generation || rolledBack.Generation != first.Generation {
+		t.Fatalf("unexpected rollback: code=%d stderr=%s result=%#v", code, stderr, rolledBack)
+	}
 }
 
 func TestRuntimeAccessProfilesReplaceLegacyMCPToken(t *testing.T) {

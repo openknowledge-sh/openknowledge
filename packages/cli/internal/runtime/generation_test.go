@@ -46,6 +46,55 @@ func TestGenerationManifestAndFilesystemPromotionAreContentBound(t *testing.T) {
 	}
 }
 
+func TestFilesystemStoreStagesPinsListsAndRollsBackGenerations(t *testing.T) {
+	store := FilesystemStore{Root: filepath.Join(t.TempDir(), "artifacts")}
+	makeGeneration := func(commit string, body string) GenerationManifest {
+		root := t.TempDir()
+		writeRuntimeTestFile(t, root, "public/index.html", body)
+		writeRuntimeTestFile(t, root, "source/index.md", body)
+		writeRuntimeTestFile(t, root, "search/index.md", body)
+		manifest, err := WriteGenerationManifest(root, "wiki", commit, "0.1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := store.Stage(root); err != nil {
+			t.Fatal(err)
+		}
+		return manifest
+	}
+	first := makeGeneration("first", "first")
+	second := makeGeneration("second", "second")
+	releases, err := store.Releases("wiki")
+	if err != nil || len(releases) != 2 || releases[0].Active || releases[1].Active {
+		t.Fatalf("unexpected staged releases: %#v err=%v", releases, err)
+	}
+	firstName := GenerationName(first)
+	secondName := GenerationName(second)
+	if pointer, _, err := store.Pin("wiki", firstName); err != nil || pointer.Generation != firstName || pointer.PreviousGeneration != "" {
+		t.Fatalf("unexpected first pin: %#v err=%v", pointer, err)
+	}
+	if pointer, _, err := store.Pin("wiki", secondName); err != nil || pointer.Generation != secondName || pointer.PreviousGeneration != firstName {
+		t.Fatalf("unexpected second pin: %#v err=%v", pointer, err)
+	}
+	pointer, _, err := store.Rollback("wiki", "")
+	if err != nil || pointer.Generation != firstName || pointer.PreviousGeneration != secondName {
+		t.Fatalf("unexpected implicit rollback: %#v err=%v", pointer, err)
+	}
+	releases, err = store.Releases("wiki")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := ""
+	for _, release := range releases {
+		if release.Active {
+			active = release.Name
+		}
+	}
+	if active != firstName {
+		t.Fatalf("active release after rollback = %q, want %q", active, firstName)
+	}
+}
+
 func TestGenerationRejectsFilesOutsidePublicContract(t *testing.T) {
 	generation := t.TempDir()
 	writeRuntimeTestFile(t, generation, "public/index.html", "ok")

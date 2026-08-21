@@ -29,6 +29,7 @@
         "commit": {"type": "string", "minLength": 1},
         "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "output": {"type": "string", "minLength": 1},
+        "staged": {"type": "boolean", "const": true},
         "published": {
           "type": "object",
           "required": ["type", "version", "knowledgeBaseId", "generation", "contentDigest"],
@@ -37,11 +38,13 @@
             "version": {"type": "integer", "minimum": 1},
             "knowledgeBaseId": {"type": "string", "minLength": 1},
             "generation": {"type": "string", "minLength": 1},
-            "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "previousGeneration": {"type": "string", "minLength": 1}
           },
           "additionalProperties": false
         }
       },
+      "not": {"required": ["staged", "published"]},
       "additionalProperties": false
     }
   }

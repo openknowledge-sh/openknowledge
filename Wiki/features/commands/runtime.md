@@ -33,6 +33,11 @@ okn automation runtime plan --config runtime.toml
 okn automation runtime build --config runtime.toml [--id <id>] [--commit <sha>]
 okn automation runtime build --config runtime.toml --id wiki --out ./generation
 okn automation runtime build --config runtime.toml --no-publish
+okn automation runtime build --config runtime.toml --id wiki --stage
+okn automation runtime releases --config runtime.toml [--id <id>]
+okn automation runtime preview --config runtime.toml --id wiki --generation <name> [--check]
+okn automation runtime pin --config runtime.toml --id wiki --generation <name>
+okn automation runtime rollback --config runtime.toml --id wiki [--generation <name>]
 okn automation runtime serve --config runtime.toml [--check]
 okn automation runtime worker --role publisher --config runtime.toml [--once]
 okn automation runtime worker --role jobs --runtime codex --config runtime.toml [--once]
@@ -41,7 +46,11 @@ okn automation runtime worker --role jobs --runtime codex --config runtime.toml 
 | Command | Behavior |
 | --- | --- |
 | `plan` | Strictly parse and normalize configuration, inspect jobs, and print required runtimes. |
-| `build` | Create a filtered immutable generation and promote it unless `--no-publish` is set. |
+| `build` | Create a filtered immutable generation. Promote it, stage it, or keep only the local output. |
+| `releases` | List verified stored generations and the production pin as JSON. |
+| `preview` | Serve or check one verified stored generation without production activation. |
+| `pin` | Atomically activate one verified stored generation. |
+| `rollback` | Atomically activate the previous pin or an explicit stored generation. |
 | `serve` | Serve active verified generations. `--check` verifies the generation and does not bind a listener. |
 | `worker --role publisher` | Reconcile production, publish generations, and process proposals. |
 | `worker --role jobs` | Run scheduled jobs for one selected harness. |
@@ -159,6 +168,10 @@ mcp/      # MCP projection
 The manifest binds the knowledge base ID, OKF spec, source commit, and sorted
 file digests. Promotion uses staging and is atomic.
 
+Production activation uses `<artifact_store>/<id>/active.json`. This pin binds
+the active generation and content digest. `previousGeneration` records the
+prior production generation.
+
 `serve` verifies the pointer, manifest, and each file. It then builds the
 search context index before it changes snapshots. Search requests reuse this
 generation index.
@@ -178,6 +191,44 @@ Therefore, the default JavaScript policy does not require `unsafe-inline`.
 
 Static viewer responses use `Cache-Control: no-cache`. A browser can store
 these responses but must validate them after a generation change.
+
+## Release control
+
+`runtime build --stage` stores a verified immutable generation without a
+change to `active.json`. The JSON build result contains `staged: true` and no
+`published` object. Do not combine `--stage` with `--no-publish`.
+
+A manual staged build contains no GitHub check names. When
+`github.required_checks` is nonempty, `runtime pin` rejects that generation.
+
+`runtime releases` prints a JSON inventory. It contains `activeGeneration`,
+`previousGeneration`, and a sorted `releases` array. Each release records its
+generation, commit, spec, digest, checks, file count, and active state.
+
+`runtime preview --generation <name>` serves one stored generation. The
+default address is `127.0.0.1:8081`. Preview does not change the production
+pin and does not write production usage events.
+
+Preview knowledge responses set `X-OpenKnowledge-Preview: true` and
+`X-OpenKnowledge-Generation: <name>`. Use `--check` to validate the stored
+generation and print its descriptor without starting a server.
+
+`runtime pin --generation <name>` validates the stored generation. The
+generation must contain exactly the configured `github.required_checks`.
+The command does not query GitHub. It then atomically writes the production
+pin.
+
+`runtime rollback` uses the active pin's `previousGeneration`. It changes the
+pin without a rebuild. Use `--generation <name>` to select another stored
+generation.
+
+An explicit rollback target must contain the currently configured required
+checks. An implicit rollback remains available when required check
+configuration changed after the previous generation was active.
+
+Release control and `build --stage` require a filesystem artifact store.
+`releases`, `preview`, `pin`, and `rollback` require `--id` when configuration
+has multiple published knowledge bases.
 
 ## Access profiles
 
@@ -420,6 +471,9 @@ the trusted ingress.
 > - `packages/cli/internal/insights/`
 > - `packages/cli/internal/agents/templates.go`
 > - `packages/cli/schemas/v1/runtime-plan.schema.json`
+> - `packages/cli/schemas/v1/runtime-build.schema.json`
+> - `packages/cli/schemas/v1/runtime-releases.schema.json`
+> - `packages/cli/schemas/v1/runtime-release-action.schema.json`
 > - `packages/cli/schemas/v1/runtime-search.schema.json`
 > - `packages/cli/schemas/v1/runtime-context.schema.json`
 > - `packages/cli/schemas/v1/usage-event.schema.json`

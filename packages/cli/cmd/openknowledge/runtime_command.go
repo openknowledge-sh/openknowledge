@@ -34,6 +34,7 @@ type runtimeBuildResult struct {
 	Commit        string                   `json:"commit"`
 	ContentDigest string                   `json:"contentDigest"`
 	Output        string                   `json:"output"`
+	Staged        bool                     `json:"staged,omitempty"`
 	Published     *okruntime.ActivePointer `json:"published,omitempty"`
 }
 
@@ -53,6 +54,14 @@ func runRuntime(args []string) int {
 		return runRuntimeBuild(args[1:])
 	case "serve":
 		return runRuntimeServe(args[1:])
+	case "releases":
+		return runRuntimeReleases(args[1:])
+	case "preview":
+		return runRuntimePreview(args[1:])
+	case "pin":
+		return runRuntimePin(args[1:])
+	case "rollback":
+		return runRuntimeRollback(args[1:])
 	case "worker":
 		return runRuntimeWorker(args[1:])
 	default:
@@ -151,11 +160,16 @@ func runRuntimeBuild(args []string) int {
 	commit := flags.String("commit", "", "source commit identity")
 	out := flags.String("out", "", "generation output directory (single knowledge base only)")
 	noPublish := flags.Bool("no-publish", false, "build without promoting to the artifact store")
+	stage := flags.Bool("stage", false, "store the generation without changing the production pin")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
 	if flags.NArg() != 0 {
 		fmt.Fprintln(stderrOutput(), "runtime build accepts no positional arguments")
+		return 2
+	}
+	if *noPublish && *stage {
+		fmt.Fprintln(stderrOutput(), "--no-publish and --stage cannot be combined")
 		return 2
 	}
 	config, err := okruntime.LoadConfig(*configPath)
@@ -183,9 +197,19 @@ func runRuntimeBuild(args []string) int {
 		if output == "" {
 			output = filepath.Join(config.Runtime.StateDir, "builds", knowledge.ID)
 		}
-		result, err := buildRuntimeKnowledgeGeneration(config, knowledge, resolvedCommit, output, !*noPublish)
+		result, err := buildRuntimeKnowledgeGeneration(config, knowledge, resolvedCommit, output, !*noPublish && !*stage)
 		if err != nil {
 			return printAgentCommandError(fmt.Errorf("build knowledge base %s: %w", knowledge.ID, err))
+		}
+		if *stage {
+			if config.ArtifactStore.Type != "filesystem" {
+				return printAgentCommandError(fmt.Errorf("runtime build can stage only to a filesystem artifact store"))
+			}
+			store := okruntime.FilesystemStore{Root: config.ArtifactStore.Path}
+			if _, _, err := store.Stage(result.Output); err != nil {
+				return printAgentCommandError(fmt.Errorf("stage knowledge base %s: %w", knowledge.ID, err))
+			}
+			result.Staged = true
 		}
 		results = append(results, result)
 	}
@@ -317,6 +341,10 @@ Usage:
   openknowledge automation runtime plan --config runtime.toml
   openknowledge automation runtime build --config runtime.toml [--id <id>] [--commit <sha>]
   openknowledge automation runtime serve --config runtime.toml
+  openknowledge automation runtime releases --config runtime.toml [--id <id>]
+  openknowledge automation runtime preview --config runtime.toml --generation <name>
+  openknowledge automation runtime pin --config runtime.toml --generation <name>
+  openknowledge automation runtime rollback --config runtime.toml [--generation <name>]
   openknowledge automation runtime worker --role publisher --config runtime.toml
   openknowledge automation runtime worker --role jobs --runtime <runtime> --config runtime.toml
 
@@ -334,6 +362,7 @@ func runtimeBuildHelpText() string {
 	return `openknowledge automation runtime build --config runtime.toml
 
 Build deterministic filtered public generations and atomically promote them to
-the configured filesystem artifact store. Use --no-publish for local inspection.
+the configured filesystem artifact store. Use --stage to store without changing
+the production pin, or --no-publish for local inspection only.
 `
 }

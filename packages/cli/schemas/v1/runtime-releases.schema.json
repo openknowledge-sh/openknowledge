@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-releases.schema.json",
+  "title": "Open Knowledge runtime releases v1",
+  "type": "object",
+  "required": ["schemaVersion", "knowledgeBase", "releases"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "knowledgeBase": {"type": "string", "minLength": 1},
+    "activeGeneration": {"type": "string", "minLength": 1},
+    "previousGeneration": {"type": "string", "minLength": 1},
+    "releases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["generation", "commit", "spec", "contentDigest", "checks", "files", "active"],
+        "properties": {
+          "generation": {"type": "string", "minLength": 1},
+          "commit": {"type": "string", "minLength": 1},
+          "spec": {"enum": ["0.1", "0.2"]},
+          "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "checks": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "files": {"type": "integer", "minimum": 1},
+          "active": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

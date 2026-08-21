@@ -78,7 +78,7 @@ var rootCommandsByName = func() map[string]rootCommand {
 var legacyAutomationCommands = []rootCommand{
 	{Name: "jobs", Subcommands: commandNames("new", "list", "status", "runs", "start", "stop", "kill", "validate", "run", "daemon"), Run: runJobs},
 	{Name: "insights", Subcommands: commandNames("create", "list", "run", "dismiss", "verify", "observe", "from-usage", "from-audit"), Run: runInsights},
-	{Name: "runtime", Subcommands: commandNames("plan", "build", "serve", "worker"), Run: runRuntime},
+	{Name: "runtime", Subcommands: commandNames("plan", "build", "serve", "releases", "preview", "pin", "rollback", "worker"), Run: runRuntime},
 	{Name: "deploy", Subcommands: commandNames("railway"), Run: runDeploy},
 }
 

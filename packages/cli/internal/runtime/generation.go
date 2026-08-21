@@ -41,11 +41,12 @@ type GenerationManifest struct {
 }
 
 type ActivePointer struct {
-	Type            string `json:"type"`
-	Version         int    `json:"version"`
-	KnowledgeBaseID string `json:"knowledgeBaseId"`
-	Generation      string `json:"generation"`
-	ContentDigest   string `json:"contentDigest"`
+	Type               string `json:"type"`
+	Version            int    `json:"version"`
+	KnowledgeBaseID    string `json:"knowledgeBaseId"`
+	Generation         string `json:"generation"`
+	ContentDigest      string `json:"contentDigest"`
+	PreviousGeneration string `json:"previousGeneration,omitempty"`
 }
 
 func WriteGenerationManifest(root string, knowledgeBaseID string, commit string, spec string) (GenerationManifest, error) {

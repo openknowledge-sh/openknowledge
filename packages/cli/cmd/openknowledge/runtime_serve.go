@@ -95,31 +95,39 @@ func (manager *runtimeSnapshotManager) refresh() []error {
 		if exists && current.Pointer.ContentDigest == pointer.ContentDigest {
 			continue
 		}
-		manifest, err := okruntime.LoadAndValidateGeneration(root)
+		snapshot, err := manager.loadSnapshot(knowledge, pointer, root)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("%s: %w", knowledge.ID, err))
 			continue
 		}
-		search, err := manager.buildSearchIndex(runtimeProjectionRoot(root, "search"), manifest.Spec)
-		if err != nil {
-			failures = append(failures, fmt.Errorf("%s search index: %w", knowledge.ID, err))
-			continue
-		}
-		var mcpIndex okf.ContextIndex
-		if knowledge.MCP {
-			mcpIndex, err = manager.buildMCPIndex(runtimeProjectionRoot(root, "mcp"), manifest.Spec)
-			if err != nil {
-				failures = append(failures, fmt.Errorf("%s MCP context index: %w", knowledge.ID, err))
-				continue
-			}
-		}
-		snapshot := runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: pointer, Manifest: manifest, Root: root, Search: search, MCP: mcpIndex}
 		manager.mu.Lock()
 		manager.active[knowledge.ID] = snapshot
 		manager.mu.Unlock()
 		runtimeInfof("runtime serve activated %s generation %s\n", knowledge.ID, pointer.Generation)
 	}
 	return failures
+}
+
+func (manager *runtimeSnapshotManager) loadSnapshot(knowledge okruntime.KnowledgeBaseConfig, pointer okruntime.ActivePointer, root string) (runtimeGenerationSnapshot, error) {
+	manifest, err := okruntime.LoadAndValidateGeneration(root)
+	if err != nil {
+		return runtimeGenerationSnapshot{}, err
+	}
+	if manifest.KnowledgeBaseID != knowledge.ID || pointer.KnowledgeBaseID != knowledge.ID || pointer.Generation != okruntime.GenerationName(manifest) || pointer.ContentDigest != manifest.ContentDigest {
+		return runtimeGenerationSnapshot{}, fmt.Errorf("generation identity does not match knowledge base %s", knowledge.ID)
+	}
+	search, err := manager.buildSearchIndex(runtimeProjectionRoot(root, "search"), manifest.Spec)
+	if err != nil {
+		return runtimeGenerationSnapshot{}, fmt.Errorf("search index: %w", err)
+	}
+	var mcpIndex okf.ContextIndex
+	if knowledge.MCP {
+		mcpIndex, err = manager.buildMCPIndex(runtimeProjectionRoot(root, "mcp"), manifest.Spec)
+		if err != nil {
+			return runtimeGenerationSnapshot{}, fmt.Errorf("MCP context index: %w", err)
+		}
+	}
+	return runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: pointer, Manifest: manifest, Root: root, Search: search, MCP: mcpIndex}, nil
 }
 
 func (manager *runtimeSnapshotManager) syncRemote(knowledge okruntime.KnowledgeBaseConfig) error {
@@ -236,6 +244,7 @@ type runtimeServeHandler struct {
 	sessions   map[string]*runtimeMCPSession
 	now        func() time.Time
 	usage      *knowledgeusage.Recorder
+	preview    bool
 }
 
 func runRuntimeServe(args []string) int {
@@ -275,16 +284,6 @@ func runRuntimeServe(args []string) int {
 	}
 
 	pollInterval, _ := time.ParseDuration(config.Serve.PollInterval)
-	requestTimeout, _ := time.ParseDuration(config.Serve.RequestTimeout)
-	server := &http.Server{
-		Addr:              config.Serve.Address,
-		Handler:           handler,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       requestTimeout,
-		WriteTimeout:      requestTimeout,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    32 << 10,
-	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {
@@ -301,17 +300,34 @@ func runRuntimeServe(args []string) int {
 			}
 		}
 	}()
+	runtimeInfof("runtime serve listening on %s\n", config.Serve.Address)
+	if err := serveRuntimeHTTP(ctx, handler, config.Serve.Address, config.Serve.RequestTimeout); err != nil {
+		return printAgentCommandError(err)
+	}
+	return 0
+}
+
+func serveRuntimeHTTP(ctx context.Context, handler http.Handler, address string, requestTimeoutValue string) error {
+	requestTimeout, _ := time.ParseDuration(requestTimeoutValue)
+	server := &http.Server{
+		Addr:              address,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       requestTimeout,
+		WriteTimeout:      requestTimeout,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    32 << 10,
+	}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
-	runtimeInfof("runtime serve listening on %s\n", config.Serve.Address)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return printAgentCommandError(err)
+		return err
 	}
-	return 0
+	return nil
 }
 
 func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, error) {
@@ -394,6 +410,10 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 	if !ok {
 		http.Error(response, "knowledge base is not ready", http.StatusServiceUnavailable)
 		return
+	}
+	response.Header().Set("X-OpenKnowledge-Generation", snapshot.Pointer.Generation)
+	if handler.preview {
+		response.Header().Set("X-OpenKnowledge-Preview", "true")
 	}
 	switch relative {
 	case "_search":

@@ -44,6 +44,8 @@ Audit contracts and private usage events use a type and numeric version.
 | `agent-doctor.schema.json` | `agent doctor --json` |
 | `runtime-plan.schema.json` | `runtime plan` |
 | `runtime-build.schema.json` | `runtime build` |
+| `runtime-releases.schema.json` | `runtime releases` |
+| `runtime-release-action.schema.json` | `runtime preview --check`, `runtime pin`, `runtime rollback` |
 | `runtime-search.schema.json` | runtime `GET <route>/_search` |
 | `runtime-context.schema.json` | runtime MCP `openknowledge_search` |
 | `usage-event.schema.json` | private runtime HTTP and MCP search events |
@@ -105,6 +107,18 @@ to the active generation and retrieval revision.
 Runtime plans also include normalized `accessProfiles`. Each profile contains
 an environment token name, published knowledge base allowlists, routing
 labels, and an optional complete retrieval policy override.
+
+Runtime build results can contain `staged: true`. A staged result has no
+`published` object. A published active pointer can contain
+`previousGeneration`.
+
+`runtime-releases.schema.json` defines the verified generation inventory. It
+records active and previous generation names plus commit, spec, digest, check,
+file count, and active status for each stored release.
+
+`runtime-release-action.schema.json` defines `preview`, `pin`, and `rollback`
+descriptors. Each descriptor binds the action, knowledge base, generation, and
+content digest. Preview descriptors also contain the listen address.
 
 Runtime search and context responses contain `access`, `decision`, and
 `refusalReasons`. Access identifies the profile and its `agents`, `teams`, and

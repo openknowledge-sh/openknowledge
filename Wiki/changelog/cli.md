@@ -83,6 +83,33 @@ page records release-level changes.
   `Wiki/features/machine-contracts.md`, and
   `Wiki/features/knowledge-architecture.md`.
 
+### Runtime release control
+
+- `runtime build --stage` now stores a verified immutable generation without
+  a change to the production pin. Build JSON marks this state with `staged`.
+- New `runtime releases` JSON output lists stored generations and the active
+  and previous production pins.
+- New `runtime preview` serves or checks a selected stored generation. Preview
+  does not change production or write production usage events.
+- New `runtime pin` atomically activates a stored generation after required
+  check validation. `runtime rollback` activates the previous pin or an
+  explicit stored generation without a rebuild.
+- The production `active.json` pointer now records `previousGeneration`.
+  Implicit rollback remains available after required check configuration
+  changes.
+- New `runtime-releases.schema.json` and
+  `runtime-release-action.schema.json` define release-control JSON output.
+- Source: `packages/cli/cmd/openknowledge/runtime_command.go`,
+  `packages/cli/cmd/openknowledge/runtime_release.go`,
+  `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/internal/runtime/store.go`,
+  `packages/cli/internal/runtime/generation.go`,
+  `packages/cli/schemas/v1/runtime-build.schema.json`,
+  `packages/cli/schemas/v1/runtime-releases.schema.json`, and
+  `packages/cli/schemas/v1/runtime-release-action.schema.json`.
+- Docs: `Wiki/features/commands/runtime.md` and
+  `Wiki/features/machine-contracts.md`.
+
 ### Runtime usage
 
 - Runtime search can now record private local usage events for HTTP and MCP

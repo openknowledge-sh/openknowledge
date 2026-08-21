@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1",
+  "action": "rollback",
+  "knowledgeBase": "docs",
+  "previousGeneration": "generation-2",
+  "generation": "generation-1",
+  "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

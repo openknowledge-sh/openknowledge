@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1",
+  "knowledgeBase": "docs",
+  "activeGeneration": "generation-2",
+  "previousGeneration": "generation-1",
+  "releases": [
+    {
+      "generation": "generation-1",
+      "commit": "first",
+      "spec": "0.2",
+      "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "checks": [
+        "Knowledge Eval"
+      ],
+      "files": 4,
+      "active": false
+    },
+    {
+      "generation": "generation-2",
+      "commit": "second",
+      "spec": "0.2",
+      "contentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "checks": [
+        "Knowledge Eval"
+      ],
+      "files": 5,
+      "active": true
+    }
+  ]
+}

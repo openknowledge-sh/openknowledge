@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-release-action.schema.json",
+  "title": "Open Knowledge runtime release action v1",
+  "type": "object",
+  "required": ["schemaVersion", "action", "knowledgeBase", "generation", "contentDigest"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "action": {"enum": ["pin", "rollback", "preview"]},
+    "knowledgeBase": {"type": "string", "minLength": 1},
+    "previousGeneration": {"type": "string", "minLength": 1},
+    "generation": {"type": "string", "minLength": 1},
+    "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "address": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {"if": {"properties": {"action": {"const": "preview"}}}, "then": {"required": ["address"]}},
+    {"if": {"properties": {"action": {"enum": ["pin", "rollback"]}}}, "then": {"not": {"required": ["address"]}}}
+  ],
+  "additionalProperties": false
+}

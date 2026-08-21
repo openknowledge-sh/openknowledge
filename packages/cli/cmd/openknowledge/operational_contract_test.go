@@ -65,6 +65,17 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 				Generation: "generation-1", ContentDigest: strings.Repeat("a", 64),
 			},
 		},
+		"runtime-releases": runtimeReleasesResult{
+			SchemaVersion: "1", KnowledgeBase: "docs", ActiveGeneration: "generation-2", PreviousGeneration: "generation-1",
+			Releases: []runtimeRelease{
+				{Generation: "generation-1", Commit: "first", Spec: "0.2", ContentDigest: strings.Repeat("a", 64), Checks: []string{"Knowledge Eval"}, Files: 4},
+				{Generation: "generation-2", Commit: "second", Spec: "0.2", ContentDigest: strings.Repeat("b", 64), Checks: []string{"Knowledge Eval"}, Files: 5, Active: true},
+			},
+		},
+		"runtime-release-action": runtimeReleaseActionResult{
+			SchemaVersion: "1", Action: "rollback", KnowledgeBase: "docs", PreviousGeneration: "generation-2",
+			Generation: "generation-1", ContentDigest: strings.Repeat("a", 64),
+		},
 		"deploy-plan": deployPlan{
 			SchemaVersion: okf.MachineSchemaVersion,
 			Provider:      "railway",
