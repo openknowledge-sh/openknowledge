@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/audit-source-baseline.schema.json",
+  "title": "Open Knowledge audit source baseline",
+  "type": "object",
+  "required": ["type", "version", "bundleSha256", "sources"],
+  "properties": {
+    "type": {"const": "openknowledge.audit-source-baseline"},
+    "version": {"const": 1},
+    "bundleSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["document", "resource", "fingerprint", "exists"],
+        "properties": {
+          "document": {"type": "string", "minLength": 1},
+          "id": {"type": "string", "minLength": 1},
+          "resource": {"type": "string", "minLength": 1},
+          "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "exists": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

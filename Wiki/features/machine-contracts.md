@@ -8,8 +8,9 @@ timestamp: 2026-07-28T00:00:00Z
 
 # Machine-Readable Contracts
 
-Stable CLI JSON objects declare `schemaVersion: "1"`.
+Most stable CLI JSON objects declare `schemaVersion: "1"`.
 When present, `specVersion` identifies the independently versioned OKF document format.
+Audit contracts and private usage events use a type and numeric version.
 
 ## CLI output schemas
 
@@ -18,6 +19,8 @@ When present, `specVersion` identifies the independently versioned OKF document 
 | `ast.schema.json` | `ast` |
 | `bundle.schema.json` | `export json` |
 | `cli-error.schema.json` | global `--error-format json` failures |
+| `audit-report.schema.json` | `audit --format json` |
+| `audit-source-baseline.schema.json` | `audit --baseline <file> --update-baseline` |
 | `eval-comparison.schema.json` | `eval run --base <git-ref> --format json` |
 | `eval-report.schema.json` | `eval run --format json` |
 | `list.schema.json` | `list --json` |
@@ -53,6 +56,12 @@ and OKF 0.2 signal definitions. `list.schema.json` and `graph.schema.json`
 reference its `okf02` contract. This contract contains derived trust,
 lifecycle and staleness, generation and verification events, structured
 sources, and optional Attested Computation data.
+
+Audit reports use `type: openknowledge.audit-report` and numeric `version: 1`.
+Each finding records category, severity, impact, targets, and evidence. Source
+baselines use `type: openknowledge.audit-source-baseline` and numeric
+`version: 1`.
+
 Job contracts are experimental.
 They can change without a new version before version 1.0.
 Run plans can contain deterministic `preflight` commands and can omit `agent`

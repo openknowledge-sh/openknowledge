@@ -1,0 +1,14 @@
+{
+  "type": "openknowledge.audit-source-baseline",
+  "version": 1,
+  "bundleSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sources": [
+    {
+      "document": "operations/rollback.md",
+      "id": "runbook",
+      "resource": "sources/rollback.txt",
+      "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "exists": true
+    }
+  ]
+}

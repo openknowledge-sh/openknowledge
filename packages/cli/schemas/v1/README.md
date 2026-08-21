@@ -11,6 +11,8 @@ the source tree and from the public URL.
 
 | Schema | CLI output |
 | --- | --- |
+| `audit-report.schema.json` | `openknowledge audit --format json` |
+| `audit-source-baseline.schema.json` | `openknowledge audit --baseline <file> --update-baseline` |
 | `agent-doctor.schema.json` | `openknowledge agent doctor --json` |
 | `runtime-plan.schema.json` | `openknowledge automation runtime plan` |
 | `runtime-build.schema.json` | `openknowledge automation runtime build` |

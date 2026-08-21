@@ -13,6 +13,27 @@ page records release-level changes.
 
 ## Unreleased
 
+### Knowledge audit
+
+- New `okn audit` reports deterministic evidence-backed risks for staleness,
+  sources, ownership, local dependencies, duplicates, and structured claims.
+- Optional source baselines detect changed local content or remote
+  `last_modified` updates.
+- Private usage inputs add recurring unanswered-question and high-use
+  unverified findings.
+- `--fail-on` provides severity gates. Repository CI now uploads the JSON
+  report and fails on high-risk findings.
+- New `owner`, `owners`, and `claims` frontmatter extensions support audit
+  routing and structured conflict detection.
+- Source: `packages/cli/cmd/openknowledge/audit_command.go`,
+  `packages/cli/internal/audit/`,
+  `packages/cli/schemas/v1/audit-report.schema.json`,
+  `packages/cli/schemas/v1/audit-source-baseline.schema.json`, and
+  `.github/workflows/ci.yml`.
+- Docs: `Wiki/features/commands/audit.md`,
+  `Wiki/features/commands/index.md`, and
+  `Wiki/features/machine-contracts.md`.
+
 ### Publication gate
 
 - Runtime publication can now require exact GitHub check names on the

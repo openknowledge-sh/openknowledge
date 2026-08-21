@@ -1,0 +1,23 @@
+{
+  "type": "openknowledge.audit-report",
+  "version": 1,
+  "bundle": {
+    "path": "/workspace/Wiki",
+    "spec": "0.2",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "evaluatedAt": "2026-08-21T12:00:00Z",
+  "summary": {"total": 1, "high": 1, "medium": 0, "low": 0},
+  "findings": [
+    {
+      "id": "aaaaaaaaaaaaaaaaaaaa",
+      "category": "stale",
+      "severity": "high",
+      "title": "Knowledge is past its freshness deadline",
+      "impact": "Agents can select information that has not been verified within its declared lifetime.",
+      "targets": ["operations/rollback.md"],
+      "evidence": [{"path": "operations/rollback.md", "field": "stale_after", "value": "2026-01-01"}]
+    }
+  ],
+  "sources": {"current": 1, "changed": 0, "missing": 0}
+}
