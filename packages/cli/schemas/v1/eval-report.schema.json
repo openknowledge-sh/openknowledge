@@ -46,10 +46,11 @@
     },
     "case": {
       "type": "object",
-      "required": ["id", "question", "status", "context", "metrics", "checks"],
+      "required": ["id", "question", "agents", "status", "context", "metrics", "checks"],
       "properties": {
         "id": {"type": "string"},
         "question": {"type": "string"},
+        "agents": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "status": {"enum": ["pass", "fail"]},
         "context": {"$ref": "#/$defs/context"},
         "metrics": {"$ref": "#/$defs/metrics"},

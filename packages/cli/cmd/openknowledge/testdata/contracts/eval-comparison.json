@@ -30,6 +30,18 @@
     "proposedPassed": 1,
     "proposedFailed": 0
   },
+  "impact": {
+    "changedPaths": ["rollback.md"],
+    "affectedAgents": ["support-agent"],
+    "affectedQuestions": [{
+      "id": "rollback",
+      "question": "How do we roll back?",
+      "agents": ["support-agent"],
+      "paths": ["rollback.md"],
+      "reasons": ["source_changed", "retrieval_changed", "outcome_changed"]
+    }],
+    "uncoveredPaths": []
+  },
   "cases": [
     {
       "id": "rollback",
@@ -38,6 +50,7 @@
       "base": {
         "id": "rollback",
         "question": "How do we roll back?",
+        "agents": ["support-agent"],
         "status": "fail",
         "context": {"budget": 1200, "limit": 8, "noExpand": false, "estimatedTokens": 5, "sources": []},
         "metrics": {"expectedSources": 1, "matchedSources": 0, "sourceRecall": 0, "checks": 1, "passedChecks": 0},
@@ -46,6 +59,7 @@
       "proposed": {
         "id": "rollback",
         "question": "How do we roll back?",
+        "agents": ["support-agent"],
         "status": "pass",
         "context": {
           "budget": 1200,

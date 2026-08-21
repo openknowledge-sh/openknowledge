@@ -26,6 +26,7 @@
     {
       "id": "rollback",
       "question": "How do we roll back a deployment?",
+      "agents": ["support-agent"],
       "status": "pass",
       "context": {
         "budget": 1200,

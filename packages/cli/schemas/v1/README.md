@@ -94,6 +94,8 @@ Strict eval datasets use an independent input schema under
 text, claim-level citation validity, cited sources, and groundedness metrics.
 Eval checks can also assert the minimum trust tier, freshness allowance,
 allowed lifecycle statuses, and structured provenance of every selected source.
+Comparison reports include changed paths, affected questions and declared
+agents, plus changed paths that are not covered by any case.
 
 CLI-owned registry and managed-cache provenance use independent persistence
 schemas under [`../storage/v1/`](../storage/v1/).

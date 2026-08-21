@@ -43,6 +43,7 @@ type Summary struct {
 type CaseResult struct {
 	ID          string        `json:"id"`
 	Question    string        `json:"question"`
+	Agents      []string      `json:"agents"`
 	Status      string        `json:"status"`
 	Context     ContextResult `json:"context"`
 	Metrics     Metrics       `json:"metrics"`
@@ -167,6 +168,7 @@ func contextNoExpand(settings ContextSettings) bool {
 func evaluateCase(evalCase Case, settings ContextSettings, context okf.ContextResult, policies map[string]sourcePolicySignals) CaseResult {
 	result := CaseResult{
 		ID: evalCase.ID, Question: strings.TrimSpace(evalCase.Question), Status: "pass",
+		Agents: sortedEvalStrings(evalCase.Agents),
 		Context: ContextResult{
 			Budget: settings.Budget, Limit: settings.Limit, NoExpand: contextNoExpand(settings),
 			EstimatedTokens: context.EstimatedTokens, Sources: make([]Source, 0, len(context.Sources)),
@@ -224,6 +226,12 @@ func evaluateCase(evalCase Case, settings ContextSettings, context okf.ContextRe
 			result.Status = "fail"
 		}
 	}
+	return result
+}
+
+func sortedEvalStrings(values []string) []string {
+	result := append([]string{}, values...)
+	sort.Strings(result)
 	return result
 }
 

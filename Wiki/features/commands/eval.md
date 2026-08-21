@@ -36,6 +36,7 @@ defaults:
 cases:
   - id: rollback
     question: How do we restore a failed release?
+    agents: [release-agent, support-agent]
     context:
       no_expand: true
     expect:
@@ -57,6 +58,10 @@ cases:
 Each case must define at least one expectation. Case `context` values override
 the dataset defaults. Omitted values use a budget of `2400`, a limit of `12`,
 and link expansion.
+
+The optional `agents` list identifies agent consumers for impact review. It
+accepts up to 20 unique bounded IDs. Agent IDs can contain letters, numbers,
+dots, underscores, and hyphens.
 
 `sources` accepts bundle-relative paths and optional section fragments.
 Evidence checks use case-insensitive substring matching across all retrieved
@@ -166,6 +171,32 @@ failures. `--gate regressions` requires `--base`.
 JSON comparison output follows `eval-comparison.schema.json`. It includes both
 revision identities, both case results, classifications, and gate totals.
 With an answer command, the CLI invokes that command once for each revision.
+
+The comparison also contains an `impact` object:
+
+| Field | Content |
+| --- | --- |
+| `changedPaths` | Sorted bundle paths for added, removed, or content-changed regular files outside the private `.openknowledge` directory. |
+| `affectedAgents` | Unique agents from affected cases. |
+| `affectedQuestions` | Case IDs, questions, agents, linked paths, and impact reasons. |
+| `uncoveredPaths` | Changed paths that no eval case links to the change. |
+
+A case links a changed path through an expected, retrieved, or valid cited source.
+The CLI removes a section fragment before it compares a source path.
+
+An affected question has at least one of these reasons:
+
+- `source_changed`: A linked source path changed.
+- `retrieval_changed`: Retrieved source identity or content changed.
+- `outcome_changed`: The case changed between pass and fail.
+- `answer_changed`: The answer text changed.
+
+An uncovered path has no link from an eval case through these source sets.
+The impact object supports review and does not change gate status.
+
+Text comparison output shows changed path, question, agent, and uncovered path
+counts. Markdown adds the affected agent list, a question table, reasons,
+linked paths, and the uncovered path list.
 
 ## GitHub Actions
 

@@ -3,7 +3,7 @@
   "$id": "https://openknowledge.sh/schemas/cli/v1/eval-comparison.schema.json",
   "title": "Open Knowledge eval comparison",
   "type": "object",
-  "required": ["schemaVersion", "dataset", "base", "proposed", "summary", "cases"],
+  "required": ["schemaVersion", "dataset", "base", "proposed", "summary", "impact", "cases"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "dataset": {"$ref": "eval-report.schema.json#/properties/dataset"},
@@ -25,6 +25,7 @@
       },
       "additionalProperties": false
     },
+    "impact": {"$ref": "#/$defs/impact"},
     "cases": {
       "type": "array",
       "items": {
@@ -42,6 +43,31 @@
     }
   },
   "$defs": {
+    "impact": {
+      "type": "object",
+      "required": ["changedPaths", "affectedAgents", "affectedQuestions", "uncoveredPaths"],
+      "properties": {
+        "changedPaths": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "affectedAgents": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "affectedQuestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "question", "agents", "paths", "reasons"],
+            "properties": {
+              "id": {"type": "string"},
+              "question": {"type": "string"},
+              "agents": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+              "paths": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+              "reasons": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["source_changed", "retrieval_changed", "outcome_changed", "answer_changed"]}}
+            },
+            "additionalProperties": false
+          }
+        },
+        "uncoveredPaths": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
     "revision": {
       "type": "object",
       "required": ["root", "revision", "summary"],

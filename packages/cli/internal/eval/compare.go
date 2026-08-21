@@ -3,11 +3,14 @@ package eval
 import (
 	"archive/tar"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -22,7 +25,23 @@ type ComparisonReport struct {
 	Base          ComparedRevision  `json:"base"`
 	Proposed      ComparedRevision  `json:"proposed"`
 	Summary       ComparisonSummary `json:"summary"`
+	Impact        ImpactSummary     `json:"impact"`
 	Cases         []CaseComparison  `json:"cases"`
+}
+
+type ImpactSummary struct {
+	ChangedPaths      []string           `json:"changedPaths"`
+	AffectedAgents    []string           `json:"affectedAgents"`
+	AffectedQuestions []AffectedQuestion `json:"affectedQuestions"`
+	UncoveredPaths    []string           `json:"uncoveredPaths"`
+}
+
+type AffectedQuestion struct {
+	ID       string   `json:"id"`
+	Question string   `json:"question"`
+	Agents   []string `json:"agents"`
+	Paths    []string `json:"paths"`
+	Reasons  []string `json:"reasons"`
 }
 
 type ComparedRevision struct {
@@ -92,6 +111,10 @@ func compare(root string, specVersion string, loaded LoadedDataset, baseRef stri
 		return ComparisonReport{}, fmt.Errorf("evaluate base %s: %w", snapshot.reference, err)
 	}
 	base.Target.Root = snapshot.identity
+	changedPaths, err := changedKnowledgePaths(snapshot.root, root)
+	if err != nil {
+		return ComparisonReport{}, fmt.Errorf("compare knowledge files: %w", err)
+	}
 
 	report := ComparisonReport{
 		SchemaVersion: proposed.SchemaVersion,
@@ -105,7 +128,18 @@ func compare(root string, specVersion string, loaded LoadedDataset, baseRef stri
 			Revision: retrievalIdentity(proposed.Target.Revision.SpecVersion, proposed.Target.Revision.IndexSHA256), Summary: proposed.Summary,
 		},
 		Summary: ComparisonSummary{Status: "pass", Gate: gate, Total: len(proposed.Cases)},
+		Impact:  ImpactSummary{ChangedPaths: changedPaths, AffectedAgents: []string{}, AffectedQuestions: []AffectedQuestion{}, UncoveredPaths: []string{}},
 		Cases:   make([]CaseComparison, 0, len(proposed.Cases)),
+	}
+	changedSet := make(map[string]bool, len(changedPaths))
+	for _, path := range changedPaths {
+		changedSet[path] = true
+	}
+	covered := map[string]bool{}
+	affectedAgents := map[string]bool{}
+	datasetByID := make(map[string]Case, len(loaded.Dataset.Cases))
+	for _, evalCase := range loaded.Dataset.Cases {
+		datasetByID[evalCase.ID] = evalCase
 	}
 	baseByID := make(map[string]CaseResult, len(base.Cases))
 	for _, result := range base.Cases {
@@ -121,6 +155,19 @@ func compare(root string, specVersion string, loaded LoadedDataset, baseRef stri
 			ID: proposedCase.ID, Question: proposedCase.Question, Classification: classification,
 			Base: baseCase, Proposed: proposedCase,
 		})
+		evalCase, ok := datasetByID[proposedCase.ID]
+		if !ok {
+			return ComparisonReport{}, fmt.Errorf("eval dataset is missing case %s", proposedCase.ID)
+		}
+		if affected := evalCaseImpact(evalCase, baseCase, proposedCase, classification, changedSet); affected != nil {
+			report.Impact.AffectedQuestions = append(report.Impact.AffectedQuestions, *affected)
+			for _, agent := range affected.Agents {
+				affectedAgents[agent] = true
+			}
+			for _, path := range affected.Paths {
+				covered[path] = true
+			}
+		}
 		switch classification {
 		case "improved":
 			report.Summary.Improved++
@@ -137,10 +184,163 @@ func compare(root string, specVersion string, loaded LoadedDataset, baseRef stri
 			report.Summary.ProposedFailed++
 		}
 	}
+	for agent := range affectedAgents {
+		report.Impact.AffectedAgents = append(report.Impact.AffectedAgents, agent)
+	}
+	sort.Strings(report.Impact.AffectedAgents)
+	for _, path := range changedPaths {
+		if !covered[path] {
+			report.Impact.UncoveredPaths = append(report.Impact.UncoveredPaths, path)
+		}
+	}
 	if report.Summary.Regressed > 0 || (gate == GateAll && report.Summary.ProposedFailed > 0) {
 		report.Summary.Status = "fail"
 	}
 	return report, nil
+}
+
+func evalCaseImpact(evalCase Case, base CaseResult, proposed CaseResult, classification string, changed map[string]bool) *AffectedQuestion {
+	relevant := map[string]bool{}
+	for _, source := range evalCase.Expect.Sources {
+		if normalized, err := normalizeExpectedSource(source); err == nil {
+			relevant[strings.SplitN(normalized, "#", 2)[0]] = true
+		}
+	}
+	for _, result := range []CaseResult{base, proposed} {
+		for _, source := range result.Context.Sources {
+			relevant[filepath.ToSlash(source.Path)] = true
+		}
+		if result.Answer != nil {
+			for _, source := range result.Answer.CitedSources {
+				relevant[strings.SplitN(filepath.ToSlash(source), "#", 2)[0]] = true
+			}
+		}
+	}
+	var paths []string
+	for path := range relevant {
+		if changed[path] {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	var reasons []string
+	if len(paths) > 0 {
+		reasons = append(reasons, "source_changed")
+	}
+	if evalContextIdentity(base.Context) != evalContextIdentity(proposed.Context) {
+		reasons = append(reasons, "retrieval_changed")
+	}
+	if classification == "improved" || classification == "regressed" {
+		reasons = append(reasons, "outcome_changed")
+	}
+	if evalAnswerText(base.Answer) != evalAnswerText(proposed.Answer) {
+		reasons = append(reasons, "answer_changed")
+	}
+	if len(reasons) == 0 {
+		return nil
+	}
+	return &AffectedQuestion{ID: evalCase.ID, Question: strings.TrimSpace(evalCase.Question), Agents: sortedEvalStrings(evalCase.Agents), Paths: paths, Reasons: reasons}
+}
+
+func evalContextIdentity(context ContextResult) string {
+	var builder strings.Builder
+	for _, source := range context.Sources {
+		builder.WriteString(source.ID)
+		builder.WriteByte(0)
+		builder.WriteString(source.ContentSHA256)
+		builder.WriteByte(0)
+	}
+	return builder.String()
+}
+
+func evalAnswerText(answer *AnswerResult) string {
+	if answer == nil {
+		return ""
+	}
+	return answer.Text
+}
+
+func changedKnowledgePaths(baseRoot string, proposedRoot string) ([]string, error) {
+	base, err := knowledgeFileDigests(baseRoot)
+	if err != nil {
+		return nil, err
+	}
+	proposed, err := knowledgeFileDigests(proposedRoot)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var changed []string
+	for path, digest := range base {
+		seen[path] = true
+		if proposed[path] != digest {
+			changed = append(changed, path)
+		}
+	}
+	for path, digest := range proposed {
+		if !seen[path] && base[path] != digest {
+			changed = append(changed, path)
+		}
+	}
+	sort.Strings(changed)
+	return changed, nil
+}
+
+func knowledgeFileDigests(root string) (map[string]string, error) {
+	const maxFiles = 100000
+	const maxFileBytes = int64(256 << 20)
+	const maxTotalBytes = int64(2 << 30)
+	result := map[string]string{}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	root = resolvedRoot
+	files := 0
+	var total int64
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() && path != root && entry.Name() == ".openknowledge" {
+			return filepath.SkipDir
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("knowledge comparison does not follow symlink %s", path)
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		files++
+		if files > maxFiles || !info.Mode().IsRegular() || info.Size() < 0 || info.Size() > maxFileBytes || total+info.Size() > maxTotalBytes {
+			return fmt.Errorf("knowledge comparison exceeds bounded file limits")
+		}
+		total += info.Size()
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		hash := sha256.New()
+		_, copyErr := io.CopyN(hash, file, info.Size())
+		closeErr := file.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		result[filepath.ToSlash(relative)] = hex.EncodeToString(hash.Sum(nil))
+		return nil
+	})
+	return result, err
 }
 
 func runComparedRevision(root string, specVersion string, loaded LoadedDataset, runner *AnswerRunner) (Report, error) {

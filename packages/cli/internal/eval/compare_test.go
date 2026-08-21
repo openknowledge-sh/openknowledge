@@ -22,17 +22,23 @@ func TestCompareClassifiesImprovementsAndRegressions(t *testing.T) {
 	loaded := LoadedDataset{
 		Path: "/evals/deploy.yaml", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		Dataset: Dataset{Type: DatasetType, Version: DatasetVersion, ID: "deploy", Cases: []Case{{
-			ID: "rollback", Question: "How do we restore a deployment?",
+			ID: "rollback", Question: "How do we restore a deployment?", Agents: []string{"support-agent"},
 			Expect: Expectations{Sources: []string{"rollback.md"}, EvidenceContains: []string{"restore the previous release"}},
 		}}},
 	}
 	writeTestFile(t, wiki, "rollback.md", "---\ntype: Runbook\n---\n\n# Rollback\n\nRestore the previous release.\n")
+	writeTestFile(t, wiki, "assets/uncovered.txt", "unrelated asset change\n")
 	improved, err := Compare(wiki, "0.2", loaded, "HEAD", GateAll)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if improved.Base.Commit != baseCommit || improved.Summary.Improved != 1 || improved.Summary.Status != "pass" || improved.Cases[0].Classification != "improved" {
 		t.Fatalf("unexpected improvement report: %#v", improved)
+	}
+	if len(improved.Impact.AffectedQuestions) != 1 || len(improved.Impact.AffectedAgents) != 1 || improved.Impact.AffectedAgents[0] != "support-agent" ||
+		len(improved.Impact.AffectedQuestions[0].Paths) != 1 || improved.Impact.AffectedQuestions[0].Paths[0] != "rollback.md" ||
+		len(improved.Impact.UncoveredPaths) != 1 || improved.Impact.UncoveredPaths[0] != "assets/uncovered.txt" {
+		t.Fatalf("unexpected improvement impact: %#v", improved.Impact)
 	}
 
 	runGitTest(t, repo, "add", "Wiki")

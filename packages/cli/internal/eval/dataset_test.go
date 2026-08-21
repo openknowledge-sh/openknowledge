@@ -77,6 +77,25 @@ func TestValidateDatasetRejectsInvalidPolicyExpectations(t *testing.T) {
 	}
 }
 
+func TestValidateDatasetRejectsInvalidAgentConsumers(t *testing.T) {
+	err := ValidateDataset(Dataset{Type: DatasetType, Version: DatasetVersion, ID: "agents", Cases: []Case{{
+		ID: "agents", Question: "Who consumes this?", Agents: []string{"support-agent", "support-agent", "bad agent"}, Expect: Expectations{MinSources: 1},
+	}}})
+	if err == nil {
+		t.Fatal("invalid agent consumers were accepted")
+	}
+	validation := err.(ValidationError)
+	found := false
+	for _, issue := range validation.Issues {
+		if strings.Contains(issue.Field, ".agents") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing agent validation issue: %#v", validation.Issues)
+	}
+}
+
 func TestWriteNewDatasetCreatesPrivateValidFileAndRefusesOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "generated", "usage.yaml")
 	dataset := Dataset{Type: DatasetType, Version: DatasetVersion, ID: "usage", Cases: []Case{{ID: "gap", Question: "How do I rollback?", Expect: Expectations{MinSources: 1}}}}

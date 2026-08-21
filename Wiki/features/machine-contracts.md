@@ -86,6 +86,18 @@ records `expected`, optional rejected source paths in `actual`, and `passed`.
 Markdown reports include failed policy checks and include all policy checks in
 the totals.
 
+Eval dataset v1 cases can contain an optional `agents` list. Eval case results
+contain the normalized agent IDs, or an empty list when no agent is declared.
+
+`eval-comparison.schema.json` requires an `impact` object. The object contains
+`changedPaths`, `affectedAgents`, `affectedQuestions`, and `uncoveredPaths`.
+Each affected question contains its case ID, question, agents, paths, and
+impact reasons.
+
+Expected, retrieved, and valid cited sources attribute changed paths to cases.
+Changes to retrieval results, case outcomes, or answer text can also affect a
+question. An uncovered path is a changed path with no case source link.
+
 Runtime plans include the normalized `serve.retrieval_policy` object.
 `runtime-search.schema.json` and `runtime-context.schema.json` bind responses
 to the active generation and retrieval revision.

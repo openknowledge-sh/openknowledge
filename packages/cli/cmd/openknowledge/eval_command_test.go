@@ -115,6 +115,9 @@ func TestComparisonMarkdownShowsAnswerAndGroundednessChanges(t *testing.T) {
 	report := knowledgeeval.ComparisonReport{
 		Dataset: knowledgeeval.DatasetIdentity{ID: "deploy"},
 		Summary: knowledgeeval.ComparisonSummary{Status: "pass", Gate: knowledgeeval.GateRegressions, Total: 1, Improved: 1},
+		Impact: knowledgeeval.ImpactSummary{ChangedPaths: []string{"rollback.md"}, AffectedAgents: []string{"support-agent"}, AffectedQuestions: []knowledgeeval.AffectedQuestion{{
+			ID: "rollback", Question: "How do we roll back?", Agents: []string{"support-agent"}, Paths: []string{"rollback.md"}, Reasons: []string{"source_changed", "answer_changed"},
+		}}, UncoveredPaths: []string{}},
 		Cases: []knowledgeeval.CaseComparison{{
 			ID: "rollback", Question: "How do we roll back?", Classification: "improved",
 			Base:     knowledgeeval.CaseResult{Status: "fail", Answer: &knowledgeeval.AnswerResult{Text: "Call support.", ClaimCount: 2, GroundedClaims: 1, Groundedness: baseGroundedness}},
@@ -122,7 +125,7 @@ func TestComparisonMarkdownShowsAnswerAndGroundednessChanges(t *testing.T) {
 		}},
 	}
 	markdown := knowledgeeval.RenderComparisonMarkdown(report)
-	for _, expected := range []string{"Answer change", "Call support.", "Restore the release.", "Groundedness: **50.0%**", "rollback.md"} {
+	for _, expected := range []string{"Change impact", "support-agent", "source_changed", "Answer change", "Call support.", "Restore the release.", "Groundedness: **50.0%**", "rollback.md"} {
 		if !strings.Contains(markdown, expected) {
 			t.Fatalf("comparison Markdown missing %q:\n%s", expected, markdown)
 		}

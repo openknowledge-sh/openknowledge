@@ -279,6 +279,7 @@ func printEvalComparison(report knowledgeeval.ComparisonReport, options evalRunO
 	fmt.Printf("%s %s (%s)\n", terminal.muted("base"), report.Base.Ref, shortDigest(report.Base.Commit))
 	fmt.Printf("%s %s\n", terminal.muted("proposed"), terminal.path(report.Proposed.Root))
 	fmt.Printf("%s %s\n\n", terminal.muted("gate"), report.Summary.Gate)
+	fmt.Printf("%s %d changed paths / %d questions / %d agents / %d uncovered\n\n", terminal.muted("impact"), len(report.Impact.ChangedPaths), len(report.Impact.AffectedQuestions), len(report.Impact.AffectedAgents), len(report.Impact.UncoveredPaths))
 	for _, result := range report.Cases {
 		fmt.Printf("  %-15s %s\n", result.Classification, result.ID)
 	}

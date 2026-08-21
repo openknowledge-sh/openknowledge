@@ -20,6 +20,7 @@ func RenderComparisonMarkdown(report ComparisonReport) string {
 	var output strings.Builder
 	fmt.Fprintf(&output, "# Open Knowledge eval comparison: %s\n\n", markdownInline(report.Dataset.ID))
 	fmt.Fprintf(&output, "**Status:** %s · **Gate:** %s · **Improved:** %d · **Regressed:** %d · **Proposed failures:** %d\n\n", strings.ToUpper(report.Summary.Status), report.Summary.Gate, report.Summary.Improved, report.Summary.Regressed, report.Summary.ProposedFailed)
+	renderImpactMarkdown(&output, report.Impact)
 	fmt.Fprintf(&output, "| Case | Classification | Base | Proposed |\n| --- | --- | --- | --- |\n")
 	for _, result := range report.Cases {
 		fmt.Fprintf(&output, "| %s | %s | %s | %s |\n", markdownTable(result.ID), result.Classification, result.Base.Status, result.Proposed.Status)
@@ -36,6 +37,24 @@ func RenderComparisonMarkdown(report ComparisonReport) string {
 		renderChecksMarkdown(&output, result.Proposed)
 	}
 	return output.String()
+}
+
+func renderImpactMarkdown(output *strings.Builder, impact ImpactSummary) {
+	output.WriteString("## Change impact\n\n")
+	fmt.Fprintf(output, "Changed paths: **%d** · Affected questions: **%d** · Affected agents: **%d** · Uncovered paths: **%d**\n\n", len(impact.ChangedPaths), len(impact.AffectedQuestions), len(impact.AffectedAgents), len(impact.UncoveredPaths))
+	if len(impact.AffectedAgents) > 0 {
+		fmt.Fprintf(output, "Affected agents: %s\n\n", strings.Join(impact.AffectedAgents, ", "))
+	}
+	if len(impact.AffectedQuestions) > 0 {
+		output.WriteString("| Question | Agents | Reasons | Changed paths |\n| --- | --- | --- | --- |\n")
+		for _, question := range impact.AffectedQuestions {
+			fmt.Fprintf(output, "| %s | %s | %s | %s |\n", markdownTable(question.ID), markdownTable(strings.Join(question.Agents, ", ")), markdownTable(strings.Join(question.Reasons, ", ")), markdownTable(strings.Join(question.Paths, ", ")))
+		}
+		output.WriteByte('\n')
+	}
+	if len(impact.UncoveredPaths) > 0 {
+		fmt.Fprintf(output, "Uncovered changed paths: %s\n\n", strings.Join(impact.UncoveredPaths, ", "))
+	}
 }
 
 func renderCaseMarkdown(output *strings.Builder, result CaseResult) {

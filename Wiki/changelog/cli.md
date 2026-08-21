@@ -126,6 +126,13 @@ page records release-level changes.
 
 ### Knowledge CI
 
+- Eval dataset cases can now identify agent consumers with optional `agents`.
+  Base comparisons map changed paths to affected questions and agents.
+- Comparison reports now contain `changedPaths`, `affectedAgents`,
+  `affectedQuestions`, and `uncoveredPaths`. Attribution uses expected,
+  retrieved, and cited sources plus retrieval, outcome, and answer changes.
+- Text and Markdown reports summarize review impact. Uncovered paths identify
+  changed knowledge paths that have no eval case source link.
 - Eval dataset v1 now supports `minimum_trust`, `allow_stale`,
   `allowed_statuses`, and `require_sources` expectations. Each policy check
   tests all selected sources against derived OKF 0.2 metadata.

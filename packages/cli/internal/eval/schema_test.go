@@ -37,7 +37,7 @@ func TestDatasetSchemaMatchesParserContract(t *testing.T) {
 		Type: DatasetType, Version: DatasetVersion, ID: "deploy",
 		Defaults: ContextSettings{Budget: 1200, Limit: 8},
 		Cases: []Case{{
-			ID: "rollback", Question: "How do we roll back?", Context: ContextSettings{NoExpand: &noExpand},
+			ID: "rollback", Question: "How do we roll back?", Agents: []string{"support-agent"}, Context: ContextSettings{NoExpand: &noExpand},
 			Expect: Expectations{
 				Sources: []string{"operations/rollback.md"}, EvidenceContains: []string{"restore"},
 				AnswerContains: []string{"previous release"}, CitationSources: []string{"operations/rollback.md"},

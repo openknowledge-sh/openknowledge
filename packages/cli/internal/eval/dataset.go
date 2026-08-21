@@ -39,6 +39,7 @@ type ContextSettings struct {
 type Case struct {
 	ID       string          `json:"id" yaml:"id"`
 	Question string          `json:"question" yaml:"question"`
+	Agents   []string        `json:"agents,omitempty" yaml:"agents,omitempty"`
 	Context  ContextSettings `json:"context,omitempty" yaml:"context,omitempty"`
 	Expect   Expectations    `json:"expect" yaml:"expect"`
 }
@@ -172,12 +173,29 @@ func ValidateDataset(dataset Dataset) error {
 			add(prefix+".question", "must be at most 4096 bytes")
 		}
 		validateContextSettings(prefix+".context", evalCase.Context, &issues)
+		validateAgents(prefix+".agents", evalCase.Agents, &issues)
 		validateExpectations(prefix+".expect", evalCase.Expect, &issues)
 	}
 	if len(issues) > 0 {
 		return ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+func validateAgents(field string, agents []string, issues *[]ValidationIssue) {
+	if len(agents) > 20 {
+		*issues = append(*issues, ValidationIssue{Field: field, Message: "must contain at most 20 agent IDs"})
+	}
+	seen := map[string]bool{}
+	for index, agent := range agents {
+		if !datasetIDPattern.MatchString(agent) {
+			*issues = append(*issues, ValidationIssue{Field: fmt.Sprintf("%s[%d]", field, index), Message: "must be a bounded agent ID"})
+		}
+		if seen[agent] {
+			*issues = append(*issues, ValidationIssue{Field: fmt.Sprintf("%s[%d]", field, index), Message: "must be unique"})
+		}
+		seen[agent] = true
+	}
 }
 
 func validateContextSettings(field string, settings ContextSettings, issues *[]ValidationIssue) {

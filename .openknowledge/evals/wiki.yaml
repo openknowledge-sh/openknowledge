@@ -7,6 +7,7 @@ defaults:
 cases:
   - id: eval-regressions
     question: How do I compare knowledge eval results with a Git base and gate regressions?
+    agents: [docs-review-agent, knowledge-maintenance-agent]
     expect:
       sources: [features/commands/eval.md]
       evidence_contains: ["--base", regressions]
@@ -15,6 +16,7 @@ cases:
       allowed_statuses: [stable]
   - id: deterministic-jobs
     question: How do deterministic maintenance jobs run verification in isolated worktrees?
+    agents: [knowledge-maintenance-agent, runtime-operator-agent]
     expect:
       sources: [features/commands/jobs.md]
       evidence_contains: [verification, worktree]
