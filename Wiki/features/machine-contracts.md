@@ -23,6 +23,7 @@ Audit contracts and private usage events use a type and numeric version.
 | `audit-source-baseline.schema.json` | `audit --baseline <file> --update-baseline` |
 | `eval-comparison.schema.json` | `eval run --base <git-ref> --format json` |
 | `eval-report.schema.json` | `eval run --format json` |
+| `quality-report.schema.json` | `quality report --format json` |
 | `list.schema.json` | `list --json` |
 | `validation.schema.json` | `validate --format json`, MCP validation |
 | `graph.schema.json` | `export graph` |
@@ -175,6 +176,21 @@ evidence. The contract does not contain raw query text.
 
 Feedback sentiment is `positive` or `negative`. Positive events have no
 reasons. Negative events have one to six unique reasons from the schema enum.
+
+`quality-report.schema.json` defines `openknowledge.quality-report` version 1.
+It binds an evaluation time to the current bundle path, specification, and
+SHA-256. It also records the observation window and input counts.
+
+Each metric has an ID, `measured` or `unavailable` status, unit, and evidence
+note. Measured metrics contain a value. Ratio metrics can contain a numerator
+and denominator. Trend metrics can contain previous and change values.
+
+Generation records contain usage outcomes and feedback counts. Concept records
+contain current metadata, sources, `evalCoverageStatus`, eval coverage, use,
+feedback, audit findings, priority, and risk reasons. Coverage status is
+`unavailable` when no current-revision eval input was supplied. Change records
+contain base and proposed eval accuracy plus improved and regressed case
+counts.
 
 The published v1 schema distribution includes eval, diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.

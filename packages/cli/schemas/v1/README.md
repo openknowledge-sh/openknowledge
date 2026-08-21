@@ -23,6 +23,7 @@ the source tree and from the public URL.
 | `runtime-context.schema.json` | Runtime MCP `openknowledge_search` result |
 | `usage-event.schema.json` | Private runtime HTTP and MCP search event |
 | `feedback-event.schema.json` | Runtime `POST <route>/_feedback` response and private feedback event |
+| `quality-report.schema.json` | `openknowledge quality report --format json` |
 | `deploy-plan.schema.json` | `openknowledge automation deploy railway --dry-run` |
 | `deploy-result.schema.json` | Successful `openknowledge automation deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `openknowledge automation deploy railway init` |

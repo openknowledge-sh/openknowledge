@@ -32,6 +32,7 @@ var rootCommandCatalog = []rootCommand{
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 	{Name: "eval", Group: "Start here", Summary: "Test retrieval evidence against versioned questions.", Subcommands: commandNames("run"), Run: runEval},
 	{Name: "audit", Group: "Start here", Summary: "Find concrete knowledge risks with deterministic evidence.", Run: runAudit},
+	{Name: "quality", Group: "Start here", Summary: "Measure usage-grounded knowledge outcomes and priorities.", Subcommands: commandNames("report"), Run: runQuality},
 
 	{Name: "agent", Group: "Work locally", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "doctor"), Run: runAgent},
 	{Name: "get", Group: "Work locally", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},

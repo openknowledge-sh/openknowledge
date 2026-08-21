@@ -10,6 +10,7 @@ Use this index to select a command for your task. Run
 - [validate](validate.md): Validate OKF conformance.
 - [audit](audit.md): Find concrete knowledge risks and their evidence.
 - [eval](eval.md): Test retrieval evidence against versioned questions.
+- [quality](quality.md): Combine observations into quality metrics and concept priorities.
 
 ## Work locally
 

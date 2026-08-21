@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/quality-report.schema.json",
+  "title": "Open Knowledge usage-grounded quality report",
+  "type": "object",
+  "required": ["type", "version", "evaluatedAt", "bundle", "window", "inputs", "metrics", "generations", "concepts", "changes"],
+  "properties": {
+    "type": {"const": "openknowledge.quality-report"},
+    "version": {"const": 1},
+    "evaluatedAt": {"type": "string", "format": "date-time"},
+    "bundle": {"$ref": "#/$defs/bundle"},
+    "window": {"$ref": "#/$defs/window"},
+    "inputs": {"$ref": "#/$defs/inputs"},
+    "metrics": {"type": "array", "items": {"$ref": "#/$defs/metric"}},
+    "generations": {"type": "array", "items": {"$ref": "#/$defs/generation"}},
+    "concepts": {"type": "array", "items": {"$ref": "#/$defs/concept"}},
+    "changes": {"type": "array", "items": {"$ref": "#/$defs/change"}}
+  },
+  "$defs": {
+    "bundle": {
+      "type": "object",
+      "required": ["path", "spec", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "spec": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "optionalDateTime": {
+      "oneOf": [
+        {"const": ""},
+        {"type": "string", "format": "date-time"}
+      ]
+    },
+    "window": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"$ref": "#/$defs/optionalDateTime"},
+        "to": {"$ref": "#/$defs/optionalDateTime"}
+      },
+      "additionalProperties": false
+    },
+    "inputs": {
+      "type": "object",
+      "required": ["usageEvents", "feedbackEvents", "evalReports", "comparisons", "auditReports"],
+      "properties": {
+        "usageEvents": {"type": "integer", "minimum": 0},
+        "feedbackEvents": {"type": "integer", "minimum": 0},
+        "evalReports": {"type": "integer", "minimum": 0},
+        "comparisons": {"type": "integer", "minimum": 0},
+        "auditReports": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "metric": {
+      "type": "object",
+      "required": ["id", "status", "unit", "note"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,127}$"},
+        "status": {"enum": ["measured", "unavailable"]},
+        "unit": {"enum": ["percent", "percentage-points", "count", "duration", "minutes"]},
+        "value": {"type": "number"},
+        "previous": {"type": "number"},
+        "change": {"type": "number"},
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 1},
+        "note": {"type": "string", "minLength": 1, "maxLength": 1024}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "measured"}}}, "then": {"required": ["value"]}},
+        {"if": {"required": ["numerator"]}, "then": {"required": ["denominator"]}},
+        {"if": {"required": ["denominator"]}, "then": {"required": ["numerator"]}}
+      ],
+      "additionalProperties": false
+    },
+    "generation": {
+      "type": "object",
+      "required": ["name", "contentDigest", "firstSeen", "lastSeen", "usageEvents", "answered", "unanswered", "unansweredRate", "positiveFeedback", "negativeFeedback"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "contentDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "firstSeen": {"type": "string", "format": "date-time"},
+        "lastSeen": {"type": "string", "format": "date-time"},
+        "usageEvents": {"type": "integer", "minimum": 1},
+        "answered": {"type": "integer", "minimum": 0},
+        "unanswered": {"type": "integer", "minimum": 0},
+        "unansweredRate": {"type": "number", "minimum": 0, "maximum": 100},
+        "positiveFeedback": {"type": "integer", "minimum": 0},
+        "negativeFeedback": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "reasonCount": {
+      "type": "object",
+      "required": ["reason", "count"],
+      "properties": {
+        "reason": {"type": "string", "minLength": 1, "maxLength": 256},
+        "count": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "concept": {
+      "type": "object",
+      "required": ["path", "title", "trustTier", "status", "stale", "current", "trusted", "evalCoverageStatus", "evalCovered", "evalCases", "uses", "answers", "positiveFeedback", "negativeFeedback", "feedbackReasons", "auditFindings", "sources", "priority", "riskReasons"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "title": {"type": "string"},
+        "trustTier": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
+        "status": {"type": "string", "minLength": 1},
+        "stale": {"type": "boolean"},
+        "current": {"type": "boolean"},
+        "trusted": {"type": "boolean"},
+        "evalCoverageStatus": {"enum": ["measured", "unavailable"]},
+        "evalCovered": {"type": "boolean"},
+        "evalCases": {"type": "integer", "minimum": 0},
+        "uses": {"type": "integer", "minimum": 0},
+        "answers": {"type": "integer", "minimum": 0},
+        "positiveFeedback": {"type": "integer", "minimum": 0},
+        "negativeFeedback": {"type": "integer", "minimum": 0},
+        "feedbackReasons": {"type": "array", "items": {"$ref": "#/$defs/reasonCount"}},
+        "auditFindings": {"type": "array", "items": {"$ref": "#/$defs/reasonCount"}},
+        "sources": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "priority": {"enum": ["high", "medium", "low", "none"]},
+        "riskReasons": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      },
+      "additionalProperties": false
+    },
+    "change": {
+      "type": "object",
+      "required": ["dataset", "base", "proposed", "questions", "improved", "regressed", "baseAccuracy", "proposedAccuracy", "accuracyChange"],
+      "properties": {
+        "dataset": {"type": "string", "minLength": 1},
+        "base": {"type": "string"},
+        "proposed": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "questions": {"type": "integer", "minimum": 0},
+        "improved": {"type": "integer", "minimum": 0},
+        "regressed": {"type": "integer", "minimum": 0},
+        "baseAccuracy": {"type": "number", "minimum": 0, "maximum": 100},
+        "proposedAccuracy": {"type": "number", "minimum": 0, "maximum": 100},
+        "accuracyChange": {"type": "number", "minimum": -100, "maximum": 100}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,85 @@
+{
+  "type": "openknowledge.quality-report",
+  "version": 1,
+  "evaluatedAt": "2026-08-21T12:00:00Z",
+  "bundle": {
+    "path": "/workspace/Wiki",
+    "spec": "0.2",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "window": {
+    "from": "2026-08-20T10:00:00Z",
+    "to": "2026-08-21T10:00:00Z"
+  },
+  "inputs": {
+    "usageEvents": 2,
+    "feedbackEvents": 1,
+    "evalReports": 1,
+    "comparisons": 0,
+    "auditReports": 1
+  },
+  "metrics": [
+    {
+      "id": "agent-used-current-trusted-eval-covered",
+      "status": "measured",
+      "unit": "percent",
+      "value": 50,
+      "numerator": 1,
+      "denominator": 2,
+      "note": "Selected evidence occurrences that are current, trusted, and eval-covered."
+    },
+    {
+      "id": "human-review-minutes-per-fix",
+      "status": "unavailable",
+      "unit": "minutes",
+      "note": "Requires review-duration intervention events."
+    }
+  ],
+  "generations": [
+    {
+      "name": "release-1",
+      "contentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "firstSeen": "2026-08-20T10:00:00Z",
+      "lastSeen": "2026-08-21T10:00:00Z",
+      "usageEvents": 2,
+      "answered": 1,
+      "unanswered": 1,
+      "unansweredRate": 50,
+      "positiveFeedback": 0,
+      "negativeFeedback": 1
+    }
+  ],
+  "concepts": [
+    {
+      "path": "runbook.md",
+      "title": "Recovery",
+      "trustTier": "human-reviewed",
+      "status": "stable",
+      "stale": false,
+      "current": true,
+      "trusted": true,
+      "evalCoverageStatus": "measured",
+      "evalCovered": true,
+      "evalCases": 1,
+      "uses": 2,
+      "answers": 2,
+      "positiveFeedback": 0,
+      "negativeFeedback": 1,
+      "feedbackReasons": [
+        {
+          "reason": "incorrect",
+          "count": 1
+        }
+      ],
+      "auditFindings": [],
+      "sources": [
+        "https://example.test/recovery"
+      ],
+      "priority": "high",
+      "riskReasons": [
+        "feedback:incorrect:1"
+      ]
+    }
+  ],
+  "changes": []
+}

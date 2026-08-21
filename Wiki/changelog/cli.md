@@ -13,6 +13,30 @@ page records release-level changes.
 
 ## Unreleased
 
+### Knowledge quality report
+
+- New `okn quality report` combines repeatable usage, feedback, eval, and audit
+  inputs with the current knowledge bundle.
+- The report strictly binds audit and eval inputs to the current revision. It
+  uses only the latest grounded feedback for each usage event.
+- Evidence-backed metrics cover healthy selected evidence, trusted answers,
+  unanswered requests, negative feedback, generation trends, eval accuracy,
+  and structured claim conflicts.
+- Per-concept priorities combine sources, current trust and lifecycle state,
+  eval coverage, use, feedback reasons, and audit findings. The report does not
+  publish a global quality score.
+- Metrics without sufficient observations are explicit `unavailable` values.
+  Intervention-derived metrics remain unavailable until linked outcome events
+  exist.
+- Text, JSON, and Markdown output support local review and automation. New
+  `quality-report.schema.json` defines the strict machine contract.
+- Source: `packages/cli/cmd/openknowledge/quality_command.go`,
+  `packages/cli/internal/quality/`, and
+  `packages/cli/schemas/v1/quality-report.schema.json`.
+- Docs: `Wiki/features/commands/quality.md`,
+  `Wiki/features/commands/index.md`, and
+  `Wiki/features/machine-contracts.md`.
+
 ### Grounded runtime feedback
 
 - Runtime HTTP search and MCP context responses now return an opaque
