@@ -1,8 +1,9 @@
 # Open Knowledge CLI JSON schemas v1
 
 These Draft 2020-12 schemas describe versioned CLI and runtime documents.
-Most top-level output documents contain `"schemaVersion": "1"`. Private usage
-events use `type: openknowledge.usage` and numeric `version: 1`.
+Most top-level output documents contain `"schemaVersion": "1"`. Private usage,
+feedback, and intervention events use a namespaced `type` and numeric
+`version: 1`.
 
 The website build publishes this directory at
 `https://openknowledge.sh/schemas/cli/v1/`, matching every schema's `$id`.
@@ -24,6 +25,7 @@ the source tree and from the public URL.
 | `usage-event.schema.json` | Private runtime HTTP and MCP search event |
 | `feedback-event.schema.json` | Runtime `POST <route>/_feedback` response and private feedback event |
 | `quality-report.schema.json` | `openknowledge quality report --format json` |
+| `intervention-event.schema.json` | `openknowledge quality interventions append`, private intervention JSONL |
 | `deploy-plan.schema.json` | `openknowledge automation deploy railway --dry-run` |
 | `deploy-result.schema.json` | Successful `openknowledge automation deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `openknowledge automation deploy railway init` |
@@ -93,6 +95,13 @@ When usage recording is enabled, runtime retrieval responses expose an opaque
 `usageEventId`. Feedback events bind that ID to the original generation,
 query fingerprint, outcome, access route, and selected evidence without
 copying raw query text.
+
+Private intervention events form a strict agentic-maintenance lifecycle. They
+bind detection, proposal, review, verified publication, dismissal, failure,
+and rollback stages to one intervention ID, evidence set, target set, and
+risk route. Hosted maintenance records detection and proposal automatically.
+Low-risk automation reaches publication only after the exact GitHub squash
+commit becomes an active runtime generation with successful checks.
 
 The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,
