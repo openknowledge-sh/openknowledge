@@ -38,6 +38,9 @@ okn automation runtime releases --config runtime.toml [--id <id>]
 okn automation runtime preview --config runtime.toml --id wiki --generation <name> [--check]
 okn automation runtime pin --config runtime.toml --id wiki --generation <name>
 okn automation runtime rollback --config runtime.toml --id wiki [--generation <name>]
+okn automation runtime cache status --config runtime.toml [--id <id>] [--generation <name>]
+okn automation runtime cache rebuild --config runtime.toml [--id <id>] [--generation <name>]
+okn automation runtime cache prune --config runtime.toml [--id <id>] [--apply]
 okn automation runtime serve --config runtime.toml [--check]
 okn automation runtime worker --role publisher --config runtime.toml [--once]
 okn automation runtime worker --role jobs --runtime codex --config runtime.toml [--once]
@@ -51,6 +54,7 @@ okn automation runtime worker --role jobs --runtime codex --config runtime.toml 
 | `preview` | Serve or check one verified stored generation without production activation. |
 | `pin` | Atomically activate one verified stored generation. |
 | `rollback` | Atomically activate the previous pin or an explicit stored generation. |
+| `cache` | Inspect, rebuild, or prune private persistent retrieval indexes. |
 | `serve` | Serve active verified generations. `--check` verifies the generation and does not bind a listener. |
 | `worker --role publisher` | Reconcile production, publish generations, and process proposals. |
 | `worker --role jobs` | Run scheduled jobs for one selected harness. |
@@ -191,6 +195,43 @@ Therefore, the default JavaScript policy does not require `unsafe-inline`.
 
 Static viewer responses use `Cache-Control: no-cache`. A browser can store
 these responses but must validate them after a generation change.
+
+## Persistent index cache
+
+`serve` stores private search and MCP indexes under
+`<state_dir>/indexes/<id>/<generation>/`. Search uses `search.json`. An
+MCP-enabled knowledge base also uses `mcp.json`.
+
+Each cache document binds the knowledge base, generation, content digest,
+target, OKF specification, retrieval revision, and section payload. The
+runtime validates this identity and the payload digest before use. It also
+validates each section content digest and revision-bound locator.
+
+On a cache hit, the runtime reconstructs the in-memory search corpus, document
+corpus, and section lookup. It does not parse the projection again. A missing
+or invalid cache causes a rebuild from the verified immutable generation.
+This rebuild does not change the generation or its artifacts.
+
+The runtime creates cache directories with mode `0700` and cache files with
+mode `0600`. The cache is an internal optimization. Matched production and
+preview responses continue to set `X-OpenKnowledge-Generation`.
+
+`runtime cache status` validates stored cache entries. It reports `ready`,
+`missing`, or `invalid` for each search or MCP target. Use optional `--id` and
+`--generation` filters to inspect a knowledge base or stored generation.
+
+`runtime cache rebuild` recreates selected indexes from verified stored
+generations. It reports `rebuilt` entries. It supports the same optional
+`--id` and `--generation` filters.
+
+`runtime cache prune` finds cache generation directories that do not exist in
+the verified release store. It is a dry run by default. Add `--apply` to
+remove the reported directories. The command supports optional `--id`. It
+does not remove caches for stored releases.
+
+All three commands print `runtime-cache.schema.json` v1 JSON. The result has
+`schemaVersion`, `action`, `entries`, and `removed`. Prune also has `applied`.
+Entry states are `ready`, `missing`, `invalid`, and `rebuilt`.
 
 ## Release control
 
@@ -461,6 +502,7 @@ the trusted ingress.
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/runtime_command.go`
+> - `packages/cli/cmd/openknowledge/runtime_cache.go`
 > - `packages/cli/cmd/openknowledge/runtime_private_api.go`
 > - `packages/cli/cmd/openknowledge/runtime_serve.go`
 > - `packages/cli/cmd/openknowledge/runtime_retrieval.go`
@@ -468,6 +510,7 @@ the trusted ingress.
 > - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`
 > - `packages/cli/internal/runtime/`
 > - `packages/cli/internal/usage/`
+> - `packages/cli/schemas/v1/runtime-cache.schema.json`
 > - `packages/cli/internal/insights/`
 > - `packages/cli/internal/agents/templates.go`
 > - `packages/cli/schemas/v1/runtime-plan.schema.json`

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-cache.schema.json",
+  "title": "Open Knowledge runtime index cache result v1",
+  "type": "object",
+  "required": ["schemaVersion", "action", "entries", "removed"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "action": {"enum": ["status", "rebuild", "prune"]},
+    "applied": {"type": "boolean"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["knowledgeBase", "generation", "target", "state", "path"],
+        "properties": {
+          "knowledgeBase": {"type": "string", "minLength": 1},
+          "generation": {"type": "string", "minLength": 1},
+          "target": {"enum": ["search", "mcp"]},
+          "state": {"enum": ["ready", "missing", "invalid", "rebuilt"]},
+          "indexSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "sections": {"type": "integer", "minimum": 1},
+          "path": {"type": "string", "minLength": 1},
+          "error": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "removed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["knowledgeBase", "generation"],
+        "properties": {
+          "knowledgeBase": {"type": "string", "minLength": 1},
+          "generation": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"action": {"const": "prune"}}}, "then": {"required": ["applied"]}},
+    {"if": {"properties": {"action": {"enum": ["status", "rebuild"]}}}, "then": {"not": {"required": ["applied"]}}}
+  ],
+  "additionalProperties": false
+}

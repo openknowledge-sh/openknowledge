@@ -63,6 +63,29 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 	}
 }
 
+// RestoreContextIndex rebuilds the in-memory search structures around a
+// previously validated private cache payload. Callers remain responsible for
+// binding the cached revision and sections to an immutable source generation.
+func RestoreContextIndex(root string, revision RetrievalRevision, sections []ContextSection, issues []Issue) ContextIndex {
+	sections = append([]ContextSection{}, sections...)
+	issues = append([]Issue{}, issues...)
+	sort.SliceStable(sections, func(i, j int) bool {
+		if sections[i].Path != sections[j].Path {
+			return sections[i].Path < sections[j].Path
+		}
+		return sections[i].LineStart < sections[j].LineStart
+	})
+	return ContextIndex{
+		Root:                 root,
+		Revision:             revision,
+		Sections:             sections,
+		Issues:               issues,
+		searchCorpus:         newKnowledgeSearchCorpus(sections),
+		documentSearchCorpus: newKnowledgeSearchDocumentCorpus(aggregateKnowledgeSearchSections(sections)),
+		sectionLookup:        newContextSectionLookup(sections),
+	}
+}
+
 func retrievalIndexSHA256(ast ASTBundle) string {
 	documents := append([]ASTDocument(nil), ast.Documents...)
 	sort.Slice(documents, func(i, j int) bool { return documents[i].Rel < documents[j].Rel })

@@ -18,6 +18,7 @@ the source tree and from the public URL.
 | `runtime-build.schema.json` | `openknowledge automation runtime build` |
 | `runtime-releases.schema.json` | `openknowledge automation runtime releases` |
 | `runtime-release-action.schema.json` | `openknowledge automation runtime preview --check`, `pin`, and `rollback` |
+| `runtime-cache.schema.json` | `openknowledge automation runtime cache status`, `rebuild`, and `prune` |
 | `runtime-search.schema.json` | Runtime `GET <route>/_search` response |
 | `runtime-context.schema.json` | Runtime MCP `openknowledge_search` result |
 | `usage-event.schema.json` | Private runtime HTTP and MCP search event |
@@ -79,6 +80,8 @@ Runtime generation identity includes a sorted `checks` array. The generation
 Runtime builds can mark a generation as staged without changing production.
 Release inventories identify the active and immediately previous generation;
 preview, pin, and rollback actions have a separate strict result contract.
+Runtime index caches are private, generation-bound, content-digested files.
+Their management command reports strict `runtime-cache.schema.json` results.
 
 Private usage events contain generation identity, a search channel, an HMAC
 query fingerprint, a query length range, an outcome, selected evidence, and

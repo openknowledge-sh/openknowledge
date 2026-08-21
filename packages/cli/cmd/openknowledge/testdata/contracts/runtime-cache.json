@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1",
+  "action": "status",
+  "entries": [
+    {
+      "knowledgeBase": "docs",
+      "generation": "generation-1",
+      "target": "search",
+      "state": "ready",
+      "indexSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "sections": 12,
+      "path": "/state/indexes/docs/generation-1/search.json"
+    }
+  ],
+  "removed": []
+}

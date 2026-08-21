@@ -62,6 +62,8 @@ func runRuntime(args []string) int {
 		return runRuntimePin(args[1:])
 	case "rollback":
 		return runRuntimeRollback(args[1:])
+	case "cache":
+		return runRuntimeCache(args[1:])
 	case "worker":
 		return runRuntimeWorker(args[1:])
 	default:
@@ -345,6 +347,7 @@ Usage:
   openknowledge automation runtime preview --config runtime.toml --generation <name>
   openknowledge automation runtime pin --config runtime.toml --generation <name>
   openknowledge automation runtime rollback --config runtime.toml [--generation <name>]
+  openknowledge automation runtime cache status --config runtime.toml
   openknowledge automation runtime worker --role publisher --config runtime.toml
   openknowledge automation runtime worker --role jobs --runtime <runtime> --config runtime.toml
 

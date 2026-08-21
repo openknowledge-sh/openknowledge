@@ -643,6 +643,27 @@ mcp = true
 	if code != 0 || json.Unmarshal([]byte(stdout), &preview) != nil || preview.Action != "preview" || preview.Generation != second.Generation {
 		t.Fatalf("unexpected preview check: code=%d stderr=%s result=%#v", code, stderr, preview)
 	}
+	stdout, stderr, code = captureMainOutput(t, func() int {
+		return runRuntimeCache([]string{"rebuild", "--config", configPath, "--generation", second.Generation})
+	})
+	var rebuilt runtimeCacheResult
+	if code != 0 || json.Unmarshal([]byte(stdout), &rebuilt) != nil || rebuilt.Action != "rebuild" || len(rebuilt.Entries) != 2 || rebuilt.Entries[0].State != "rebuilt" || rebuilt.Entries[1].State != "rebuilt" {
+		t.Fatalf("unexpected cache rebuild: code=%d stderr=%s result=%#v", code, stderr, rebuilt)
+	}
+	stdout, stderr, code = captureMainOutput(t, func() int {
+		return runRuntimeCache([]string{"status", "--config", configPath, "--generation", second.Generation})
+	})
+	var cacheStatus runtimeCacheResult
+	if code != 0 || json.Unmarshal([]byte(stdout), &cacheStatus) != nil || len(cacheStatus.Entries) != 2 || cacheStatus.Entries[0].State != "ready" || cacheStatus.Entries[1].State != "ready" {
+		t.Fatalf("unexpected cache status: code=%d stderr=%s result=%#v", code, stderr, cacheStatus)
+	}
+	stdout, stderr, code = captureMainOutput(t, func() int {
+		return runRuntimeCache([]string{"prune", "--config", configPath})
+	})
+	var prunePreview runtimeCacheResult
+	if code != 0 || json.Unmarshal([]byte(stdout), &prunePreview) != nil || prunePreview.Applied == nil || *prunePreview.Applied || len(prunePreview.Removed) != 0 {
+		t.Fatalf("unexpected cache prune preview: code=%d stderr=%s result=%#v", code, stderr, prunePreview)
+	}
 	config, err := okruntime.LoadConfig(configPath)
 	if err != nil {
 		t.Fatal(err)
@@ -734,6 +755,18 @@ publish = true
 	}
 	if count := indexBuilds.Load(); count != 1 {
 		t.Fatalf("search index builds after first activation = %d, want 1", count)
+	}
+	cachedHandler, err := newRuntimeServeHandler(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var redundantBuilds atomic.Int32
+	cachedHandler.snapshots.buildSearchIndex = func(root string, version string) (okf.ContextIndex, error) {
+		redundantBuilds.Add(1)
+		return okf.BuildContextIndexWithVersion(root, version)
+	}
+	if failures := cachedHandler.snapshots.refresh(); len(failures) != 0 || redundantBuilds.Load() != 0 {
+		t.Fatalf("persistent index cache was not reused: failures=%v builds=%d", failures, redundantBuilds.Load())
 	}
 	before, ok := handler.snapshots.snapshot("wiki")
 	if !ok || before.Search.Revision.IndexSHA256 == "" {

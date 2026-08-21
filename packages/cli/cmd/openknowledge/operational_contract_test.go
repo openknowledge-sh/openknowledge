@@ -76,6 +76,14 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 			SchemaVersion: "1", Action: "rollback", KnowledgeBase: "docs", PreviousGeneration: "generation-2",
 			Generation: "generation-1", ContentDigest: strings.Repeat("a", 64),
 		},
+		"runtime-cache": runtimeCacheResult{
+			SchemaVersion: "1", Action: "status",
+			Entries: []runtimeCacheEntry{{
+				KnowledgeBase: "docs", Generation: "generation-1", Target: "search", State: "ready",
+				IndexSHA256: strings.Repeat("c", 64), Sections: 12, Path: "/state/indexes/docs/generation-1/search.json",
+			}},
+			Removed: []runtimeCacheRemoval{},
+		},
 		"deploy-plan": deployPlan{
 			SchemaVersion: okf.MachineSchemaVersion,
 			Provider:      "railway",

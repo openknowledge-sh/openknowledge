@@ -36,6 +36,7 @@ type runtimeGenerationSnapshot struct {
 type runtimeSnapshotManager struct {
 	config           okruntime.Config
 	store            okruntime.FilesystemStore
+	indexCache       okruntime.IndexCache
 	knowledge        []okruntime.KnowledgeBaseConfig
 	client           *http.Client
 	token            string
@@ -59,6 +60,7 @@ func newRuntimeSnapshotManager(config okruntime.Config) *runtimeSnapshotManager 
 	return &runtimeSnapshotManager{
 		config:           config,
 		store:            okruntime.FilesystemStore{Root: config.ArtifactStore.Path},
+		indexCache:       okruntime.IndexCache{Root: filepath.Join(config.Runtime.StateDir, "indexes")},
 		knowledge:        append([]okruntime.KnowledgeBaseConfig(nil), config.KnowledgeBases...),
 		client:           &http.Client{Timeout: requestTimeout},
 		token:            token,
@@ -116,18 +118,35 @@ func (manager *runtimeSnapshotManager) loadSnapshot(knowledge okruntime.Knowledg
 	if manifest.KnowledgeBaseID != knowledge.ID || pointer.KnowledgeBaseID != knowledge.ID || pointer.Generation != okruntime.GenerationName(manifest) || pointer.ContentDigest != manifest.ContentDigest {
 		return runtimeGenerationSnapshot{}, fmt.Errorf("generation identity does not match knowledge base %s", knowledge.ID)
 	}
-	search, err := manager.buildSearchIndex(runtimeProjectionRoot(root, "search"), manifest.Spec)
+	search, err := manager.loadIndex(knowledge, pointer, manifest, root, okruntime.IndexTargetSearch)
 	if err != nil {
 		return runtimeGenerationSnapshot{}, fmt.Errorf("search index: %w", err)
 	}
 	var mcpIndex okf.ContextIndex
 	if knowledge.MCP {
-		mcpIndex, err = manager.buildMCPIndex(runtimeProjectionRoot(root, "mcp"), manifest.Spec)
+		mcpIndex, err = manager.loadIndex(knowledge, pointer, manifest, root, okruntime.IndexTargetMCP)
 		if err != nil {
 			return runtimeGenerationSnapshot{}, fmt.Errorf("MCP context index: %w", err)
 		}
 	}
 	return runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: pointer, Manifest: manifest, Root: root, Search: search, MCP: mcpIndex}, nil
+}
+
+func (manager *runtimeSnapshotManager) loadIndex(knowledge okruntime.KnowledgeBaseConfig, pointer okruntime.ActivePointer, manifest okruntime.GenerationManifest, generationRoot string, target string) (okf.ContextIndex, error) {
+	projection := runtimeProjectionRoot(generationRoot, target)
+	if cached, err := manager.indexCache.Load(knowledge.ID, pointer.Generation, pointer.ContentDigest, manifest.Spec, target, projection); err == nil {
+		return cached, nil
+	}
+	build := manager.buildSearchIndex
+	if target == okruntime.IndexTargetMCP {
+		build = manager.buildMCPIndex
+	}
+	index, err := build(projection, manifest.Spec)
+	if err != nil {
+		return okf.ContextIndex{}, err
+	}
+	_, _ = manager.indexCache.Store(knowledge.ID, pointer.Generation, pointer.ContentDigest, target, index)
+	return index, nil
 }
 
 func (manager *runtimeSnapshotManager) syncRemote(knowledge okruntime.KnowledgeBaseConfig) error {

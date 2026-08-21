@@ -46,6 +46,7 @@ Audit contracts and private usage events use a type and numeric version.
 | `runtime-build.schema.json` | `runtime build` |
 | `runtime-releases.schema.json` | `runtime releases` |
 | `runtime-release-action.schema.json` | `runtime preview --check`, `runtime pin`, `runtime rollback` |
+| `runtime-cache.schema.json` | `runtime cache status`, `runtime cache rebuild`, `runtime cache prune` |
 | `runtime-search.schema.json` | runtime `GET <route>/_search` |
 | `runtime-context.schema.json` | runtime MCP `openknowledge_search` |
 | `usage-event.schema.json` | private runtime HTTP and MCP search events |
@@ -119,6 +120,16 @@ file count, and active status for each stored release.
 `runtime-release-action.schema.json` defines `preview`, `pin`, and `rollback`
 descriptors. Each descriptor binds the action, knowledge base, generation, and
 content digest. Preview descriptors also contain the listen address.
+
+`runtime-cache.schema.json` defines persistent index cache command results.
+Its `action` is `status`, `rebuild`, or `prune`. Every result contains
+`entries` and `removed` arrays. Prune results also contain `applied`.
+
+Each entry identifies the knowledge base, generation, `search` or `mcp`
+target, cache path, and state. States are `ready`, `missing`, `invalid`, and
+`rebuilt`. Valid and rebuilt entries can include the index digest and section
+count. Invalid entries can include an error. Each removal identifies one
+knowledge base and cache generation.
 
 Runtime search and context responses contain `access`, `decision`, and
 `refusalReasons`. Access identifies the profile and its `agents`, `teams`, and

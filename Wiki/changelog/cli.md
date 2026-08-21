@@ -13,6 +13,27 @@ page records release-level changes.
 
 ## Unreleased
 
+### Runtime index cache
+
+- Runtime serving now persists generation-bound search and MCP indexes under
+  the private runtime state directory.
+- Cache loading validates knowledge base, generation, content digest, target,
+  OKF specification, payload digest, and section locators. Missing or invalid
+  caches rebuild without changing immutable generation artifacts.
+- New `runtime cache status`, `runtime cache rebuild`, and
+  `runtime cache prune` commands provide strict JSON output. Prune is a dry run
+  unless `--apply` is set and keeps every generation in the release store.
+- Cache directories use mode `0700`. Cache files use mode `0600`.
+- New `runtime-cache.schema.json` defines actions, entry states, paths,
+  index metadata, and prune removals.
+- Source: `packages/cli/cmd/openknowledge/runtime_cache.go`,
+  `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/internal/runtime/index_cache.go`,
+  `packages/cli/internal/okf/context.go`, and
+  `packages/cli/schemas/v1/runtime-cache.schema.json`.
+- Docs: `Wiki/features/commands/runtime.md` and
+  `Wiki/features/machine-contracts.md`.
+
 ### Maintenance routing
 
 - Insights now carry normalized risk, approval, confidence, and owner routes.
