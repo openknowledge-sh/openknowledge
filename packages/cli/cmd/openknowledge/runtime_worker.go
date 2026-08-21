@@ -7,12 +7,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -20,6 +23,7 @@ import (
 
 	"github.com/gofrs/flock"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
@@ -31,8 +35,11 @@ var runtimeWorkerTokenCache struct {
 	expiresAt time.Time
 }
 
+var runtimeWorkerGitHubHTTPClient *http.Client
+
 var runtimeExchangeIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 var runtimeExchangeSHA1Pattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
+var runtimeGitHubReviewerPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,99}$`)
 
 const runtimeExchangeBundleMaxBytes int64 = 512 << 20
 
@@ -409,18 +416,32 @@ type runtimeGitHubPublication struct {
 	PR      int    `json:"pull_request"`
 	PRURL   string `json:"pull_request_url"`
 	Checked bool   `json:"check_published"`
+	Merged  bool   `json:"merged"`
 }
 
 type runtimeExchangeRequest struct {
-	Version      int                  `json:"version"`
-	RunID        string               `json:"run_id"`
-	JobID        string               `json:"job_id"`
-	Branch       string               `json:"branch"`
-	BaseSHA      string               `json:"base_sha"`
-	HeadSHA      string               `json:"head_sha"`
-	BundleSHA256 string               `json:"bundle_sha256"`
-	VerifyCount  int                  `json:"verify_count"`
-	Eval         *runtimeExchangeEval `json:"eval,omitempty"`
+	Version      int                         `json:"version"`
+	RunID        string                      `json:"run_id"`
+	JobID        string                      `json:"job_id"`
+	Branch       string                      `json:"branch"`
+	BaseSHA      string                      `json:"base_sha"`
+	HeadSHA      string                      `json:"head_sha"`
+	BundleSHA256 string                      `json:"bundle_sha256"`
+	VerifyCount  int                         `json:"verify_count"`
+	Eval         *runtimeExchangeEval        `json:"eval,omitempty"`
+	Maintenance  *runtimeExchangeMaintenance `json:"maintenance,omitempty"`
+}
+
+type runtimeExchangeMaintenance struct {
+	Risk          string   `json:"risk"`
+	Approval      string   `json:"approval"`
+	Confidence    float64  `json:"confidence"`
+	Owners        []string `json:"owners"`
+	Insights      []string `json:"insights"`
+	Findings      []string `json:"findings"`
+	Paths         []string `json:"paths"`
+	ExpertTargets []string `json:"expert_targets"`
+	Status        string   `json:"status"`
 }
 
 type runtimeExchangeEval struct {
@@ -566,7 +587,13 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 			failures = append(failures, err)
 			continue
 		}
-		request := runtimeExchangeRequest{Version: 1, RunID: record.RunID, JobID: record.JobID, Branch: record.Plan.Branch, BaseSHA: record.Plan.BaseSHA, HeadSHA: headSHA, BundleSHA256: bundleSHA, VerifyCount: len(record.Verify)}
+		maintenance, err := runtimeMaintenanceAttestation(ctx, record.Plan.Worktree, record.Plan.BaseSHA, headSHA)
+		if err != nil {
+			_ = os.RemoveAll(staging)
+			failures = append(failures, fmt.Errorf("agent run %s maintenance attestation: %w", record.RunID, err))
+			continue
+		}
+		request := runtimeExchangeRequest{Version: 1, RunID: record.RunID, JobID: record.JobID, Branch: record.Plan.Branch, BaseSHA: record.Plan.BaseSHA, HeadSHA: headSHA, BundleSHA256: bundleSHA, VerifyCount: len(record.Verify), Maintenance: maintenance}
 		if record.Eval != nil {
 			request.Eval = &runtimeExchangeEval{
 				Status: record.Eval.Status, Dataset: record.Eval.Dataset, Target: record.Eval.Target, Base: record.Eval.Base, Gate: record.Eval.Gate,
@@ -605,6 +632,221 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 		runtimeInfof("runtime agent worker exported run %s for private publication\n", record.RunID)
 	}
 	return errors.Join(failures...)
+}
+
+func runtimeMaintenanceAttestation(ctx context.Context, worktree string, baseSHA string, headSHA string) (*runtimeExchangeMaintenance, error) {
+	paths, err := runtimeGitChangedPaths(ctx, worktree, baseSHA, headSHA)
+	if err != nil {
+		return nil, err
+	}
+	var routed []insights.Insight
+	var insightPaths []string
+	for _, path := range paths {
+		if !strings.HasSuffix(strings.ToLower(path), ".md") || !strings.Contains("/"+filepath.ToSlash(path)+"/", "/insights/") {
+			continue
+		}
+		content, readErr := runtimeGitBlob(ctx, worktree, headSHA, path)
+		if readErr != nil {
+			return nil, fmt.Errorf("read changed insight %s from exchange head: %w", path, readErr)
+		}
+		item, parseErr := insights.ParseContent(path, content)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse changed insight %s: %w", path, parseErr)
+		}
+		if item.Status != "resolved" && item.Status != "blocked" {
+			return nil, fmt.Errorf("changed insight must be resolved or blocked: %s", path)
+		}
+		item.Path = filepath.ToSlash(path)
+		routed = append(routed, item)
+		insightPaths = append(insightPaths, filepath.ToSlash(path))
+	}
+	if len(routed) == 0 {
+		return nil, nil
+	}
+	result := &runtimeExchangeMaintenance{Confidence: 1, Paths: uniqueRuntimeStrings(insightPaths)}
+	highest := 0
+	hasResolved, hasBlocked := false, false
+	for _, item := range routed {
+		rank := map[string]int{"low": 1, "medium": 2, "high": 3}[item.Route.Risk]
+		if rank > highest {
+			highest = rank
+			result.Risk = item.Route.Risk
+			result.Approval = item.Route.Approval
+		}
+		if item.Route.Confidence < result.Confidence {
+			result.Confidence = item.Route.Confidence
+		}
+		result.Owners = append(result.Owners, item.Route.Owners...)
+		result.Insights = append(result.Insights, item.ID)
+		if item.FindingID != "" {
+			result.Findings = append(result.Findings, item.FindingID)
+		}
+		if item.Route.Approval == "expert" {
+			prefix := strings.Split(item.Path, "/insights/")[0]
+			for _, target := range item.Targets {
+				if target == "." {
+					result.ExpertTargets = append(result.ExpertTargets, prefix)
+				} else if prefix == "" {
+					result.ExpertTargets = append(result.ExpertTargets, target)
+				} else {
+					result.ExpertTargets = append(result.ExpertTargets, prefix+"/"+target)
+				}
+			}
+		}
+		hasResolved = hasResolved || item.Status == "resolved"
+		hasBlocked = hasBlocked || item.Status == "blocked"
+	}
+	result.Owners = uniqueRuntimeStrings(result.Owners)
+	result.Insights = uniqueRuntimeStrings(result.Insights)
+	result.Findings = uniqueRuntimeStrings(result.Findings)
+	result.ExpertTargets = uniqueRuntimeStrings(result.ExpertTargets)
+	switch {
+	case hasBlocked && hasResolved:
+		result.Status = "mixed"
+	case hasBlocked:
+		result.Status = "escalated"
+	default:
+		result.Status = "proposed"
+	}
+	if err := validateRuntimeExchangeMaintenance(result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func runtimeGitBlob(ctx context.Context, repository string, revision string, path string) ([]byte, error) {
+	object := revision + ":" + path
+	sizeCommand := exec.CommandContext(ctx, "git", "cat-file", "-s", object)
+	sizeCommand.Dir = repository
+	sizeOutput, err := sizeCommand.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("inspect blob: %w: %s", err, strings.TrimSpace(string(sizeOutput)))
+	}
+	size, err := strconv.ParseInt(strings.TrimSpace(string(sizeOutput)), 10, 64)
+	if err != nil || size < 0 || size > 4<<20 {
+		return nil, fmt.Errorf("changed insight is not a bounded blob")
+	}
+	showCommand := exec.CommandContext(ctx, "git", "show", object)
+	showCommand.Dir = repository
+	content, err := showCommand.Output()
+	if err != nil {
+		return nil, fmt.Errorf("read blob: %w", err)
+	}
+	if int64(len(content)) != size {
+		return nil, fmt.Errorf("changed insight blob size changed while reading")
+	}
+	return content, nil
+}
+
+func runtimeGitChangedPaths(ctx context.Context, repository string, baseSHA string, headSHA string) ([]string, error) {
+	command := exec.CommandContext(ctx, "git", "diff", "--name-only", "--diff-filter=ACMRD", "-z", baseSHA, headSHA, "--")
+	command.Dir = repository
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("inspect maintenance paths: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	parts := strings.Split(string(output), "\x00")
+	paths := make([]string, 0, len(parts))
+	for _, item := range parts {
+		if item == "" {
+			continue
+		}
+		clean := filepath.ToSlash(filepath.Clean(item))
+		if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || filepath.IsAbs(item) || strings.ContainsAny(item, "\r\n") {
+			return nil, fmt.Errorf("maintenance diff contains an unsafe path")
+		}
+		paths = append(paths, clean)
+	}
+	return uniqueRuntimeStrings(paths), nil
+}
+
+func validateRuntimeExchangeMaintenance(route *runtimeExchangeMaintenance) error {
+	if route == nil {
+		return nil
+	}
+	normalized, err := insights.NormalizeMaintenanceRoute(insights.MaintenanceRoute{
+		Risk: route.Risk, Approval: route.Approval, Confidence: route.Confidence, Owners: route.Owners,
+	})
+	if err != nil || normalized.Risk != route.Risk || normalized.Approval != route.Approval || !equalStringLists(normalized.Owners, route.Owners) {
+		if err == nil {
+			err = fmt.Errorf("maintenance route is not normalized")
+		}
+		return err
+	}
+	for _, owner := range route.Owners {
+		if suffix, present := strings.CutPrefix(owner, "github:"); present && !runtimeGitHubReviewerPattern.MatchString(suffix) {
+			return fmt.Errorf("maintenance GitHub reviewer is invalid")
+		}
+		if suffix, present := strings.CutPrefix(owner, "github-team:"); present && !runtimeGitHubReviewerPattern.MatchString(suffix) {
+			return fmt.Errorf("maintenance GitHub team reviewer is invalid")
+		}
+	}
+	if route.Status != "proposed" && route.Status != "escalated" && route.Status != "mixed" {
+		return fmt.Errorf("maintenance status must be proposed, escalated, or mixed")
+	}
+	if route.Approval == "expert" && route.Status == "proposed" {
+		return fmt.Errorf("expert maintenance must be escalated")
+	}
+	for name, values := range map[string][]string{"insights": route.Insights, "findings": route.Findings, "paths": route.Paths, "expert_targets": route.ExpertTargets} {
+		if len(values) > 100 || !sort.StringsAreSorted(values) {
+			return fmt.Errorf("maintenance %s must be a sorted bounded list", name)
+		}
+		for index, value := range values {
+			if value == "" || len(value) > 512 || strings.ContainsAny(value, "\x00\r\n") || (index > 0 && value == values[index-1]) {
+				return fmt.Errorf("maintenance %s contains an invalid value", name)
+			}
+		}
+	}
+	if len(route.Insights) == 0 || len(route.Paths) == 0 {
+		return fmt.Errorf("maintenance attestation requires insights and paths")
+	}
+	return nil
+}
+
+func validateRuntimeMaintenanceClaim(expected *runtimeExchangeMaintenance, claimed *runtimeExchangeMaintenance) error {
+	if !reflect.DeepEqual(expected, claimed) {
+		return fmt.Errorf("maintenance attestation does not match the exchanged commits")
+	}
+	return nil
+}
+
+func validateRuntimeExpertBoundary(ctx context.Context, repository string, baseSHA string, headSHA string, route *runtimeExchangeMaintenance) error {
+	if route == nil || route.Approval != "expert" {
+		return nil
+	}
+	changed, err := runtimeGitChangedPaths(ctx, repository, baseSHA, headSHA)
+	if err != nil {
+		return err
+	}
+	insightPaths := make(map[string]bool, len(route.Paths))
+	for _, path := range route.Paths {
+		insightPaths[path] = true
+	}
+	for _, path := range changed {
+		if insightPaths[path] {
+			continue
+		}
+		for _, target := range route.ExpertTargets {
+			if target == "." || path == target || strings.HasPrefix(path, strings.TrimSuffix(target, "/")+"/") {
+				return fmt.Errorf("expert-only insight changed knowledge target %s", path)
+			}
+		}
+	}
+	return nil
+}
+
+func uniqueRuntimeStrings(values []string) []string {
+	seen := map[string]bool{}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	sort.Strings(result)
+	return result
 }
 
 func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Config, checkout string, token string) error {
@@ -647,6 +889,10 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			failures = append(failures, fmt.Errorf("invalid agent exchange eval for %s: %w", request.RunID, err))
 			continue
 		}
+		if err := validateRuntimeExchangeMaintenance(request.Maintenance); err != nil {
+			failures = append(failures, fmt.Errorf("invalid agent exchange maintenance for %s: %w", request.RunID, err))
+			continue
+		}
 		bundlePath := filepath.Join(root, "branch.bundle")
 		bundleInfo, err := os.Stat(bundlePath)
 		if err != nil || !bundleInfo.Mode().IsRegular() || bundleInfo.Size() <= 0 || bundleInfo.Size() > runtimeExchangeBundleMaxBytes {
@@ -682,6 +928,19 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 		}
 		if _, err := runtimeWorkerGit(ctx, config, "", checkout, "merge-base", "--is-ancestor", request.BaseSHA, "refs/heads/"+config.Worker.ProductionBranch); err != nil {
 			failures = append(failures, fmt.Errorf("agent exchange base is not production history for %s", request.RunID))
+			continue
+		}
+		expectedMaintenance, err := runtimeMaintenanceAttestation(ctx, checkout, request.BaseSHA, head)
+		if err != nil {
+			failures = append(failures, fmt.Errorf("agent exchange maintenance reconstruction failed for %s: %w", request.RunID, err))
+			continue
+		}
+		if err := validateRuntimeMaintenanceClaim(expectedMaintenance, request.Maintenance); err != nil {
+			failures = append(failures, fmt.Errorf("agent exchange maintenance claim failed for %s: %w", request.RunID, err))
+			continue
+		}
+		if err := validateRuntimeExpertBoundary(ctx, checkout, request.BaseSHA, head, request.Maintenance); err != nil {
+			failures = append(failures, fmt.Errorf("agent exchange expert boundary failed for %s: %w", request.RunID, err))
 			continue
 		}
 		if err := validateRuntimeExchangeCommit(ctx, config, checkout, head); err != nil {
@@ -834,24 +1093,36 @@ func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, t
 	if !config.GitHub.Enabled || token == "" {
 		return runtimeGitHubPublication{}, fmt.Errorf("agent run %s requests output.pr but github integration is not enabled", request.RunID)
 	}
-	client := okruntime.GitHubClient{APIURL: config.GitHub.APIURL, Repository: config.GitHub.Repository, Token: token}
+	client := okruntime.GitHubClient{APIURL: config.GitHub.APIURL, Repository: config.GitHub.Repository, Token: token, HTTPClient: runtimeWorkerGitHubHTTPClient}
 	owner := strings.SplitN(config.GitHub.Repository, "/", 2)[0]
 	pull, err := client.FindOpenPullRequest(ctx, owner, request.Branch, config.Worker.ProductionBranch)
 	if err != nil {
 		return runtimeGitHubPublication{}, fmt.Errorf("agent run %s find pull request: %w", request.RunID, err)
 	}
 	if pull == nil {
+		draft := config.GitHub.DraftPullRequest
+		if request.Maintenance != nil && request.Maintenance.Approval == "auto" {
+			draft = false
+		}
 		created, err := client.CreateDraftPullRequest(ctx,
 			"chore(knowledge): "+request.JobID,
 			request.Branch,
 			config.Worker.ProductionBranch,
 			runtimeExchangePullRequestSummary(request),
-			config.GitHub.DraftPullRequest,
+			draft,
 		)
 		if err != nil {
 			return runtimeGitHubPublication{}, fmt.Errorf("agent run %s create pull request: %w", request.RunID, err)
 		}
 		pull = &created
+	}
+	if request.Maintenance != nil && request.Maintenance.Approval != "auto" {
+		reviewers, teams := runtimeGitHubReviewers(request.Maintenance.Owners)
+		if len(reviewers)+len(teams) > 0 {
+			if err := client.RequestReviewers(ctx, pull.Number, reviewers, teams); err != nil {
+				return runtimeGitHubPublication{}, fmt.Errorf("agent run %s request maintenance reviewers: %w", request.RunID, err)
+			}
+		}
 	}
 	checked := false
 	if config.GitHub.Checks {
@@ -866,7 +1137,31 @@ func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, t
 		}
 		checked = true
 	}
-	return runtimeGitHubPublication{RunID: request.RunID, Commit: request.HeadSHA, PR: pull.Number, PRURL: pull.HTMLURL, Checked: checked}, nil
+	publication := runtimeGitHubPublication{RunID: request.RunID, Commit: request.HeadSHA, PR: pull.Number, PRURL: pull.HTMLURL, Checked: checked}
+	if request.Maintenance != nil && request.Maintenance.Approval == "auto" && config.GitHub.AutoMergeLowRisk {
+		if _, err := client.RequireSuccessfulChecks(ctx, request.HeadSHA, config.GitHub.RequiredChecks); err != nil {
+			return runtimeGitHubPublication{}, fmt.Errorf("agent run %s low-risk auto-merge checks: %w", request.RunID, err)
+		}
+		if err := client.MergePullRequest(ctx, pull.Number, request.HeadSHA); err != nil {
+			return runtimeGitHubPublication{}, fmt.Errorf("agent run %s low-risk auto-merge: %w", request.RunID, err)
+		}
+		publication.Merged = true
+	}
+	return publication, nil
+}
+
+func runtimeGitHubReviewers(owners []string) ([]string, []string) {
+	var reviewers []string
+	var teams []string
+	for _, owner := range owners {
+		switch {
+		case strings.HasPrefix(owner, "github-team:"):
+			teams = append(teams, strings.TrimPrefix(owner, "github-team:"))
+		case strings.HasPrefix(owner, "github:"):
+			reviewers = append(reviewers, strings.TrimPrefix(owner, "github:"))
+		}
+	}
+	return uniqueRuntimeStrings(reviewers), uniqueRuntimeStrings(teams)
 }
 
 func validateRuntimeExchangeCommit(ctx context.Context, config okruntime.Config, checkout string, head string) error {
@@ -910,6 +1205,9 @@ func validateRuntimeExchangeCommit(ctx context.Context, config okruntime.Config,
 
 func runtimeExchangePullRequestSummary(request runtimeExchangeRequest) string {
 	summary := fmt.Sprintf("Automated Open Knowledge maintenance completed.\n\n- Job: `%s`\n- Run: `%s`\n- Base commit: `%s`\n- Agent verification commands reported: %d\n", request.JobID, request.RunID, request.BaseSHA, request.VerifyCount)
+	if request.Maintenance != nil {
+		summary += fmt.Sprintf("- Maintenance route: `%s` risk, `%s` approval, %.0f%% confidence\n- Owners: %s\n- Insight attestations: %d (%s)\n", request.Maintenance.Risk, request.Maintenance.Approval, request.Maintenance.Confidence*100, runtimeMarkdownInline(strings.Join(request.Maintenance.Owners, ", ")), len(request.Maintenance.Insights), request.Maintenance.Status)
+	}
 	if request.Eval != nil {
 		summary += fmt.Sprintf("- Knowledge eval `%s` reported: passed (`%s`, %d regressions, %d proposed failures)\n", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
 	}
@@ -921,8 +1219,12 @@ func runtimeExchangeCheckSummary(request runtimeExchangeRequest, pullRequestURL 
 	if request.Eval != nil {
 		eval = fmt.Sprintf(" The worker reported eval `%s` passed gate `%s` with %d regressions and %d proposed failures.", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
 	}
-	return fmt.Sprintf("Job `%s` reported %d verification commands.%s The credentialed publisher independently validated every OKF bundle and public publication contract. Draft pull request: %s. Raw execution data remains in private agent storage.",
-		request.JobID, request.VerifyCount, eval, pullRequestURL)
+	route := ""
+	if request.Maintenance != nil {
+		route = fmt.Sprintf(" Maintenance route is `%s/%s` at %.0f%% confidence for %d insight attestations.", request.Maintenance.Risk, request.Maintenance.Approval, request.Maintenance.Confidence*100, len(request.Maintenance.Insights))
+	}
+	return fmt.Sprintf("Job `%s` reported %d verification commands.%s%s The credentialed publisher independently validated every OKF bundle and public publication contract. Pull request: %s. Raw execution data remains in private agent storage.",
+		request.JobID, request.VerifyCount, eval, route, pullRequestURL)
 }
 
 func validateRuntimeExchangeEval(eval *runtimeExchangeEval) error {

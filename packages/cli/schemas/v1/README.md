@@ -63,6 +63,8 @@ regressions, and proposed failures. These objects are part of
 `job-run-plan.schema.json` and `job-run-record.schema.json`.
 
 Runtime plans contain normalized retrieval policy and usage event settings.
+Their GitHub settings also expose the low-risk auto-merge switch; validation
+requires enabled check publishing and at least one required check when it is on.
 Runtime search and context results identify the active generation and
 retrieval revision. They also contain policy, trust, freshness, provenance,
 selection, and rejection metadata.

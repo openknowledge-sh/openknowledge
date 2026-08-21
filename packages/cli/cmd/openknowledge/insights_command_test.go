@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
 	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
@@ -24,6 +26,7 @@ func TestRootInsightsCreateCapturesExplicitInsight(t *testing.T) {
 			return dispatchCLI([]string{
 				"insights", "create", "Document", "the", "rollback", "workflow",
 				"--target", "guide.md", "--evidence", "The deploy script has a rollback command.",
+				"--risk", "low", "--confidence", "0.99", "--owner", "github:reviewer",
 			})
 		})
 		if code != 0 || stderr != "" || !strings.Contains(stdout, "Created insight Wiki/insights/") {
@@ -42,10 +45,75 @@ func TestRootInsightsCreateCapturesExplicitInsight(t *testing.T) {
 				created = item
 			}
 		}
-		if created.Title != "Document the rollback workflow" || strings.Join(created.Targets, ",") != "guide.md" {
+		if created.Title != "Document the rollback workflow" || strings.Join(created.Targets, ",") != "guide.md" || created.Route.Approval != "auto" || strings.Join(created.Route.Owners, ",") != "github:reviewer" {
 			t.Fatalf("created insight = %#v", created)
 		}
 	})
+}
+
+func TestInsightsFromAuditCreatesRoutedStableProposals(t *testing.T) {
+	repo, _ := setupInsightCommandRepository(t)
+	report, _, err := knowledgeaudit.Run(knowledgeaudit.Options{
+		Root: filepath.Join(repo, "Wiki"), Spec: "0.1", Now: time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reportPath := filepath.Join(t.TempDir(), "audit.json")
+	if err := os.WriteFile(reportPath, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	withinDirectory(t, repo, func() {
+		stdout, stderr, code := captureMainOutput(t, func() int {
+			return dispatchCLI([]string{"insights", "from-audit", reportPath})
+		})
+		if code != 0 || stderr != "" || !strings.Contains(stdout, fmt.Sprintf("%d insight(s) created", len(report.Findings))) {
+			t.Fatalf("from-audit code=%d stdout=%q stderr=%q", code, stdout, stderr)
+		}
+	})
+	items, err := insights.Pending(filepath.Join(repo, "Wiki"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := 0
+	for _, item := range items {
+		if item.Kind == "knowledge-audit" {
+			found++
+			if item.FindingID == "" || item.Route.Approval == "" || item.Route.Confidence == 0 {
+				t.Fatalf("incomplete audit route: %#v", item)
+			}
+		}
+	}
+	if found != len(report.Findings) {
+		t.Fatalf("expected %d routed audit insights, got %d", len(report.Findings), found)
+	}
+}
+
+func TestInsightsRunEscalatesHighRiskWithoutAgentEdit(t *testing.T) {
+	repo, _ := setupInsightCommandRepository(t)
+	path, created, err := insights.Create(repo, insights.CreateOptions{
+		Summary: "Resolve production policy conflict", Targets: []string{"guide.md"},
+		Route: insights.MaintenanceRoute{Risk: "high", Confidence: 1, Owners: []string{"github:expert"}},
+	})
+	if err != nil || !created {
+		t.Fatalf("create high-risk insight: created=%v err=%v", created, err)
+	}
+	withinDirectory(t, repo, func() {
+		stdout, stderr, code := captureMainOutput(t, func() int {
+			return dispatchCLI([]string{"insights", "run", path})
+		})
+		if code != 0 || stderr != "" || !strings.Contains(stdout, "Escalated high-risk insight") || !strings.Contains(stdout, "github:expert") {
+			t.Fatalf("high-risk route code=%d stdout=%q stderr=%q", code, stdout, stderr)
+		}
+	})
+	item, err := insights.Parse(path)
+	if err != nil || item.Status != "pending" {
+		t.Fatalf("high-risk insight changed: %#v err=%v", item, err)
+	}
 }
 
 func TestInsightsFromUsageCreatesStableGapAndEvalCandidates(t *testing.T) {

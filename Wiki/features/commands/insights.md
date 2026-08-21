@@ -32,6 +32,7 @@ okn automation insights
 okn automation insights list Wiki
 okn automation insights create "Document the deployment rollback workflow"
 okn automation insights create "Document rollback" --target operations/deploy.md --evidence "deploy.sh exposes rollback"
+okn automation insights create "Confirm a policy" --risk medium --confidence 0.8 --owner github:docs-reviewer
 okn automation insights run <insight>
 okn automation insights run --all
 okn automation insights run <insight> --runtime claude
@@ -39,6 +40,7 @@ okn automation insights run <insight> --isolate
 okn automation insights dismiss <insight>
 okn automation insights from-usage <file-or-dir> --min-occurrences 2
 okn automation insights from-usage <file-or-dir> --eval-out .openknowledge/evals/usage-gaps.yaml
+okn automation insights from-audit audit-report.json
 okn automation jobs new insights --out .openknowledge/jobs/insights.md
 ```
 
@@ -58,6 +60,10 @@ You can repeat `--target` and `--evidence`. Without a target, the insight uses
 base. The command rejects an insights directory that uses a symlink outside
 the wiki.
 
+Use `--risk`, `--confidence`, and repeatable `--owner` flags to set a
+maintenance route. Without these flags, the route is `medium`, `human`, 0.75,
+and `unassigned`.
+
 Use the same command in a terminal or an agent skill:
 
 ```sh
@@ -65,6 +71,45 @@ okn automation insights create "<durable knowledge gap>" \
   --target "<likely wiki path>" \
   --evidence "<concise repository evidence>"
 ```
+
+## Maintenance routes
+
+Each insight contains an `okf_insight_route` mapping with `risk`, `approval`,
+`confidence`, and `owners`. Approval is derived from risk:
+
+| Risk | Approval | Confidence rule | Processing |
+| --- | --- | --- | --- |
+| `low` | `auto` | At least 0.95 | An agent can propose and verify the declared change. |
+| `medium` | `human` | At least 0.60 | A pull request requires human review. |
+| `high` | `expert` | From 0 through 1 | Automation can add current evidence and block the insight. It cannot edit a declared knowledge target. |
+
+When `risk` is absent, confidence selects the route. A value of at least 0.95
+selects low risk. A value from 0.60 through 0.94 selects medium risk. A lower
+value selects high risk. Owner values are bounded identifiers. Use
+`github:<login>` for a GitHub user and `github-team:<slug>` for a GitHub team.
+Other owner values remain metadata.
+
+Local `insights run` reports a high-risk insight to its owners and does not
+start an agent for it. The scheduled insights job can add current evidence and
+set the insight to `blocked`. Runtime exchange validation rejects an expert
+proposal that changes a declared target.
+
+## Audit findings
+
+Convert every finding in a strict audit report to a private insight:
+
+```sh
+okn automation insights from-audit <audit-report.json>
+```
+
+The command preserves the finding ID for stable deduplication. It copies the
+finding impact and evidence and reads `owner` and `owners` from target
+frontmatter. A route uses `unassigned` when no target supplies an owner.
+
+Claim conflicts, changed sources, frequently used unverified knowledge, and
+missing owners use `high/expert`. An unanswered question uses `medium/human`
+with 0.95 confidence. Other audit categories use `medium/human` with 1.0
+confidence.
 
 ## Local execution
 
@@ -135,6 +180,9 @@ Every insight file uses `type: Open Knowledge Insight` and
 * `generated.at` with the RFC 3339 creation time.
 * Stable `okf_insight_id` and kind values.
 * One or more knowledge-base-relative `okf_insight_targets`.
+* One normalized `okf_insight_route` with risk, approval, confidence, and
+  owners.
+* Optional `okf_insight_finding_id` for an audit-derived insight.
 * Human-readable `Insight` and `Evidence` sections.
 
 Validation verifies the private marker, statuses, metadata, and target format.
@@ -157,8 +205,9 @@ processes a maximum of five committed pending insights. It performs current
 research and marks successful items `resolved`.
 
 The job verifies the knowledge boundary and OKF bundle. It uses the normal jobs
-commit, branch bundle, and draft pull request flow. There is no dedicated
-insight worker or queue service.
+commit and branch bundle flow. Risk controls pull request review and optional
+low-risk auto-merge in the runtime publisher. There is no dedicated insight
+worker or queue service.
 
 
 ---
@@ -174,3 +223,4 @@ insight worker or queue service.
 > * `packages/cli/internal/usage/`
 > * `packages/cli/internal/eval/dataset.go`
 > * `packages/cli/internal/agents/templates.go`
+> * `packages/cli/cmd/openknowledge/runtime_worker.go`

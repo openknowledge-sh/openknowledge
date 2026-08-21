@@ -107,6 +107,7 @@ private_key_file = "/run/secrets/github_app_key"
 draft_pull_request = true
 checks = true
 required_checks = ["knowledge-eval / Evaluate knowledge changes", "verify"]
+auto_merge_low_risk = false
 
 [[knowledge_bases]]
 id = "wiki"
@@ -280,6 +281,31 @@ approval, branch protection, and merge remain separate GitHub steps. The
 publisher applies the required check gate only to the merged production
 commit.
 
+## Maintenance proposal routing
+
+Hosted insight proposals include a normalized maintenance route. Low risk maps
+to automatic approval and requires confidence of at least 0.95. Medium risk
+maps to human approval and requires confidence of at least 0.60. High risk
+maps to expert approval.
+
+Use `github:<login>` and `github-team:<slug>` in insight owners to request
+GitHub user and team reviewers. The publisher requests these reviewers for
+human and expert routes. Other owner identifiers remain route metadata.
+
+The publisher fails closed when an expert proposal changes a declared
+knowledge target. The proposal can contain added evidence and a blocked
+insight. It cannot contain the expert-only knowledge decision.
+
+Set `github.auto_merge_low_risk = true` to allow a low-risk automatic route to
+create a ready pull request and squash merge it. This setting requires
+`github.enabled = true`, `github.checks = true`, and nonempty
+`github.required_checks`. Every required check must have succeeded on the
+exact proposal commit.
+
+If the check gate or merge is not ready, publication stays incomplete. The
+publisher keeps the exchange bundle, reuses the open pull request, and retries
+on a later poll. Human and expert routes never use this automatic merge path.
+
 ## Security boundary
 
 The publisher maintains the credentialed checkout. It validates each worker
@@ -332,6 +358,8 @@ the trusted ingress.
 > - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`
 > - `packages/cli/internal/runtime/`
 > - `packages/cli/internal/usage/`
+> - `packages/cli/internal/insights/`
+> - `packages/cli/internal/agents/templates.go`
 > - `packages/cli/schemas/v1/usage-event.schema.json`
 > - `.github/workflows/ci.yml`
 > - `.github/workflows/knowledge-eval.yml`

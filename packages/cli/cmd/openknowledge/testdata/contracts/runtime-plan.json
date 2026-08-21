@@ -45,7 +45,8 @@
     "api_url": "https://api.github.com",
     "repository": "example/docs",
     "draft_pull_request": true,
-    "checks": true
+    "checks": true,
+    "auto_merge_low_risk": false
   },
   "knowledgeBases": [
     {

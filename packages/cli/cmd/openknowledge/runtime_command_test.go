@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,13 +54,14 @@ func TestRuntimeExchangeSummariesCarryPassingEvalAttestation(t *testing.T) {
 	request := runtimeExchangeRequest{
 		Version: 1, RunID: "run-1", JobID: "knowledge", Branch: "jobs/knowledge/run-1",
 		BaseSHA: strings.Repeat("a", 40), HeadSHA: strings.Repeat("b", 40), BundleSHA256: strings.Repeat("c", 64), VerifyCount: 2,
-		Eval: &runtimeExchangeEval{Status: "pass", Dataset: ".openknowledge/evals/wiki.yaml", Target: "Wiki", Base: strings.Repeat("a", 40), Gate: "regressions", Regressions: 0, ProposedFailed: 1},
+		Eval:        &runtimeExchangeEval{Status: "pass", Dataset: ".openknowledge/evals/wiki.yaml", Target: "Wiki", Base: strings.Repeat("a", 40), Gate: "regressions", Regressions: 0, ProposedFailed: 1},
+		Maintenance: &runtimeExchangeMaintenance{Risk: "medium", Approval: "human", Confidence: 0.8, Owners: []string{"github:reviewer"}, Insights: []string{"insight-1"}, Findings: []string{}, Paths: []string{"Wiki/insights/one.md"}, ExpertTargets: []string{}, Status: "proposed"},
 	}
 	if err := validateRuntimeExchangeEval(request.Eval); err != nil {
 		t.Fatal(err)
 	}
 	for _, summary := range []string{runtimeExchangePullRequestSummary(request), runtimeExchangeCheckSummary(request, "https://github.test/pr/1")} {
-		if !strings.Contains(summary, ".openknowledge/evals/wiki.yaml") || !strings.Contains(summary, "0 regressions") || !strings.Contains(summary, "1 proposed failures") {
+		if !strings.Contains(summary, ".openknowledge/evals/wiki.yaml") || !strings.Contains(summary, "0 regressions") || !strings.Contains(summary, "1 proposed failures") || !strings.Contains(summary, "medium") || !strings.Contains(summary, "80%") {
 			t.Fatalf("eval attestation missing from publication summary: %s", summary)
 		}
 	}
@@ -67,6 +69,170 @@ func TestRuntimeExchangeSummariesCarryPassingEvalAttestation(t *testing.T) {
 	invalid.Status = "fail"
 	if err := validateRuntimeExchangeEval(&invalid); err == nil {
 		t.Fatal("failed eval attestation was accepted")
+	}
+}
+
+func TestRuntimeMaintenanceAttestationEnforcesExpertEvidenceBoundary(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init", "-b", "main")
+	runGit(t, repo, "config", "user.email", "runtime@example.test")
+	runGit(t, repo, "config", "user.name", "Runtime Test")
+	writeMainTestFile(t, repo, "Wiki/guide.md", "---\ntype: Guide\n---\n\n# Guide\n\nCurrent.\n")
+	insight := `---
+type: Open Knowledge Insight
+title: Resolve conflict
+description: Expert decision.
+status: draft
+okf_publish: false
+okf_insight_id: expert-one
+okf_insight_kind: knowledge-audit
+generated:
+  by: process:openknowledge-cli
+  at: 2026-08-21T12:00:00Z
+okf_insight_targets: [guide.md]
+okf_insight_route:
+  risk: high
+  approval: expert
+  confidence: 1
+  owners: [github:expert]
+tags: [insight]
+---
+
+# Resolve conflict
+`
+	writeMainTestFile(t, repo, "Wiki/insights/expert.md", insight)
+	runGit(t, repo, "add", ".")
+	runGit(t, repo, "commit", "-m", "base")
+	base, err := runtimeWorkerGit(context.Background(), okruntime.Config{}, "", repo, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeMainTestFile(t, repo, "Wiki/insights/expert.md", strings.Replace(insight, "status: draft", "status: draft\nokf_insight_status: blocked", 1)+"\n## Evidence\n\n- Current systems disagree.\n")
+	runGit(t, repo, "add", ".")
+	runGit(t, repo, "commit", "-m", "escalate")
+	head, err := runtimeWorkerGit(context.Background(), okruntime.Config{}, "", repo, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	route, err := runtimeMaintenanceAttestation(context.Background(), repo, base, head)
+	if err != nil || route == nil || route.Approval != "expert" || route.Status != "escalated" || !reflect.DeepEqual(route.ExpertTargets, []string{"Wiki/guide.md"}) {
+		t.Fatalf("unexpected expert attestation: %#v err=%v", route, err)
+	}
+	if err := validateRuntimeExpertBoundary(context.Background(), repo, base, head, route); err != nil {
+		t.Fatalf("evidence-only escalation rejected: %v", err)
+	}
+	writeMainTestFile(t, repo, "Wiki/guide.md", "---\ntype: Guide\n---\n\n# Guide\n\nChanged without expert.\n")
+	runGit(t, repo, "add", ".")
+	runGit(t, repo, "commit", "-m", "unsafe target edit")
+	unsafeHead, err := runtimeWorkerGit(context.Background(), okruntime.Config{}, "", repo, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateRuntimeExpertBoundary(context.Background(), repo, base, unsafeHead, route); err == nil || !strings.Contains(err.Error(), "expert-only") {
+		t.Fatalf("expected expert target boundary rejection, got %v", err)
+	}
+}
+
+func TestRuntimeMaintenanceAttestationRejectsDeletedInsight(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init", "-b", "main")
+	runGit(t, repo, "config", "user.email", "runtime@example.test")
+	runGit(t, repo, "config", "user.name", "Runtime Test")
+	writeMainTestFile(t, repo, "Wiki/insights/pending.md", `---
+type: Open Knowledge Insight
+title: Pending
+description: Pending evidence.
+status: draft
+okf_publish: false
+okf_insight_id: pending-one
+okf_insight_kind: knowledge-audit
+generated:
+  by: process:openknowledge-cli
+  at: 2026-08-21T12:00:00Z
+okf_insight_targets: [guide.md]
+okf_insight_route:
+  risk: high
+  approval: expert
+  confidence: 1
+  owners: [github:expert]
+tags: [insight]
+---
+
+# Pending
+`)
+	runGit(t, repo, "add", ".")
+	runGit(t, repo, "commit", "-m", "base")
+	base, err := runtimeWorkerGit(context.Background(), okruntime.Config{}, "", repo, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(repo, "Wiki/insights/pending.md")); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repo, "add", ".")
+	runGit(t, repo, "commit", "-m", "delete insight")
+	head, err := runtimeWorkerGit(context.Background(), okruntime.Config{}, "", repo, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtimeMaintenanceAttestation(context.Background(), repo, base, head); err == nil || !strings.Contains(err.Error(), "read changed insight") {
+		t.Fatalf("expected deleted insight rejection, got %v", err)
+	}
+}
+
+func TestRuntimeMaintenanceClaimMustMatchCommits(t *testing.T) {
+	expected := &runtimeExchangeMaintenance{Risk: "medium", Approval: "human", Confidence: 0.8, Owners: []string{"github:reviewer"}, Insights: []string{"one"}, Findings: []string{}, Paths: []string{"Wiki/insights/one.md"}, ExpertTargets: []string{}, Status: "proposed"}
+	claimed := *expected
+	claimed.Risk = "low"
+	claimed.Approval = "auto"
+	claimed.Confidence = 0.99
+	if err := validateRuntimeMaintenanceClaim(expected, &claimed); err == nil {
+		t.Fatal("forged low-risk maintenance claim was accepted")
+	}
+	if err := validateRuntimeMaintenanceClaim(expected, expected); err != nil {
+		t.Fatalf("exact maintenance claim rejected: %v", err)
+	}
+}
+
+func TestRuntimeLowRiskRoutePublishesReadyPRAfterRequiredChecksAndMerges(t *testing.T) {
+	var draft any
+	var merged bool
+	previousClient := runtimeWorkerGitHubHTTPClient
+	runtimeWorkerGitHubHTTPClient = &http.Client{Transport: runtimeHandlerRoundTripper{handler: http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		switch {
+		case request.Method == http.MethodGet && request.URL.Path == "/repos/owner/repo/pulls":
+			_, _ = response.Write([]byte(`[]`))
+		case request.Method == http.MethodPost && request.URL.Path == "/repos/owner/repo/pulls":
+			var payload map[string]any
+			_ = json.NewDecoder(request.Body).Decode(&payload)
+			draft = payload["draft"]
+			response.WriteHeader(http.StatusCreated)
+			_, _ = response.Write([]byte(`{"number":7,"html_url":"https://github.test/pr/7"}`))
+		case request.Method == http.MethodPost && request.URL.Path == "/repos/owner/repo/check-runs":
+			response.WriteHeader(http.StatusCreated)
+			_, _ = response.Write([]byte(`{}`))
+		case request.Method == http.MethodGet && strings.Contains(request.URL.Path, "/commits/"):
+			_, _ = response.Write([]byte(fmt.Sprintf(`{"check_runs":[{"id":1,"name":"Verify","head_sha":"%s","status":"completed","conclusion":"success"}]}`, strings.Repeat("b", 40))))
+		case request.Method == http.MethodPut && request.URL.Path == "/repos/owner/repo/pulls/7/merge":
+			merged = true
+			_, _ = response.Write([]byte(`{"merged":true,"message":"merged"}`))
+		default:
+			http.Error(response, "unexpected", http.StatusNotFound)
+		}
+	})}}
+	t.Cleanup(func() { runtimeWorkerGitHubHTTPClient = previousClient })
+	config := okruntime.Config{
+		Worker: okruntime.WorkerConfig{ProductionBranch: "main"},
+		GitHub: okruntime.GitHubConfig{Enabled: true, APIURL: "https://api.github.test", Repository: "owner/repo", Checks: true, DraftPullRequest: true, RequiredChecks: []string{"Verify"}, AutoMergeLowRisk: true},
+	}
+	request := runtimeExchangeRequest{
+		Version: 1, RunID: "run-1", JobID: "job-1", Branch: "jobs/job-1", BaseSHA: strings.Repeat("a", 40), HeadSHA: strings.Repeat("b", 40), BundleSHA256: strings.Repeat("c", 64),
+		Maintenance: &runtimeExchangeMaintenance{Risk: "low", Approval: "auto", Confidence: 0.99, Owners: []string{"github:reviewer"}, Insights: []string{"one"}, Findings: []string{}, Paths: []string{"Wiki/insights/one.md"}, ExpertTargets: []string{}, Status: "proposed"},
+	}
+	publication, err := publishRuntimeGitHubRequest(context.Background(), config, "secret", request)
+	if err != nil || !publication.Merged || !publication.Checked || draft != false || !merged {
+		t.Fatalf("unexpected low-risk publication: %#v draft=%#v merged=%v err=%v", publication, draft, merged, err)
 	}
 }
 

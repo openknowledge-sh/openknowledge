@@ -83,7 +83,14 @@ to the active generation and retrieval revision.
 
 Runtime generation identity includes sorted `checks`. These names identify
 the successful GitHub checks bound into the generation `contentDigest`.
-Runtime plans include normalized `github.required_checks` names.
+Runtime plans include normalized `github.required_checks` names and the
+`github.auto_merge_low_risk` switch. Auto-merge configuration requires GitHub
+integration, check publishing, and at least one required check.
+
+The private hosted exchange can contain a bounded maintenance attestation.
+It records normalized risk, approval, confidence, owners, insight and finding
+IDs, insight paths, expert targets, and proposal status. This exchange object
+is an internal runtime boundary and is not a published CLI schema.
 
 Both retrieval contracts include the effective policy and rejected candidates.
 Selected items add trust, freshness, provenance, and selection metadata.

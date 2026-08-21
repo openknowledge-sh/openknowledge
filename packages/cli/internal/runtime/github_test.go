@@ -60,6 +60,41 @@ func TestGitHubClientRequiresLatestSuccessfulChecks(t *testing.T) {
 	}
 }
 
+func TestGitHubClientRequestsOwnersAndMergesBoundHead(t *testing.T) {
+	var endpoints []string
+	client := GitHubClient{
+		APIURL: "https://api.github.test", Repository: "owner/repo", Token: "secret",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			endpoints = append(endpoints, request.Method+" "+request.URL.Path)
+			var payload map[string]any
+			if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+				t.Fatal(err)
+			}
+			body := `{}`
+			if request.Method == http.MethodPost {
+				if len(payload["reviewers"].([]any)) != 1 || len(payload["team_reviewers"].([]any)) != 1 {
+					t.Fatalf("unexpected reviewer payload: %#v", payload)
+				}
+			} else if payload["sha"] != "abc123" || payload["merge_method"] != "squash" {
+				t.Fatalf("unexpected merge payload: %#v", payload)
+			} else {
+				body = `{"merged":true,"message":"merged"}`
+			}
+			return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
+		})},
+	}
+	if err := client.RequestReviewers(context.Background(), 42, []string{"reviewer"}, []string{"docs"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.MergePullRequest(context.Background(), 42, "abc123"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"POST /repos/owner/repo/pulls/42/requested_reviewers", "PUT /repos/owner/repo/pulls/42/merge"}
+	if strings.Join(endpoints, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected endpoints: %#v", endpoints)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (function roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {

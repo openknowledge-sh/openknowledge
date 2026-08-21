@@ -160,6 +160,35 @@ validation.
 Run `okn automation jobs new --reference` to read the embedded schema and
 artifact reference.
 
+## Insight maintenance routing
+
+The `insights` template reads `okf_insight_route` before it edits knowledge.
+It can resolve low-risk and medium-risk work after repository research and
+verification. For high-risk work, it adds current evidence, sets the insight
+to `blocked`, and does not edit a declared knowledge target.
+
+A successful hosted proposal carries a bounded maintenance attestation. It
+contains the highest risk, the corresponding approval, the lowest confidence,
+owners, insight and audit finding IDs, changed insight paths, and status. The
+publisher validates this attestation and independently enforces the expert
+target boundary.
+
+The publisher requests review for non-automatic routes. Owner
+`github:<login>` requests a user. Owner `github-team:<slug>` requests a team.
+Other owners remain visible in the pull request summary but do not create a
+GitHub review request.
+
+Low-risk work has `auto` approval only when confidence is at least 0.95. Its
+pull request is ready for review, even when `github.draft_pull_request` is
+true. When `github.auto_merge_low_risk` is true, the publisher requires every
+configured check to succeed on the exact proposal commit and then uses a
+squash merge. Configuration requires GitHub integration, check publishing,
+and at least one `github.required_checks` entry.
+
+A missing, pending, or failed required check stops the merge. The publisher
+does not write the published marker or remove the branch bundle. A later poll
+reuses the open pull request and retries the publication and check gate.
+
 ## Runtime behavior
 
 - A real run creates a new Git worktree. The default `dirty_policy: fail`

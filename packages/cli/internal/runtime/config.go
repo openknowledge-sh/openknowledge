@@ -103,6 +103,7 @@ type GitHubConfig struct {
 	DraftPullRequest bool     `toml:"draft_pull_request" json:"draft_pull_request"`
 	Checks           bool     `toml:"checks" json:"checks"`
 	RequiredChecks   []string `toml:"required_checks" json:"required_checks,omitempty"`
+	AutoMergeLowRisk bool     `toml:"auto_merge_low_risk" json:"auto_merge_low_risk"`
 }
 
 type KnowledgeBaseConfig struct {
@@ -405,6 +406,9 @@ func (config Config) Validate() error {
 		sort.Strings(config.GitHub.RequiredChecks)
 	} else if len(config.GitHub.RequiredChecks) > 0 {
 		return fmt.Errorf("github.required_checks requires github.enabled = true")
+	}
+	if config.GitHub.AutoMergeLowRisk && (!config.GitHub.Enabled || !config.GitHub.Checks || len(config.GitHub.RequiredChecks) == 0) {
+		return fmt.Errorf("github.auto_merge_low_risk requires GitHub checks and non-empty github.required_checks")
 	}
 	if len(config.KnowledgeBases) == 0 {
 		return fmt.Errorf("at least one knowledge_bases entry is required")

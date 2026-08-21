@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
 	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
@@ -24,9 +25,12 @@ type insightRunOptions struct {
 }
 
 type insightCreateOptions struct {
-	summary  string
-	targets  []string
-	evidence []string
+	summary    string
+	targets    []string
+	evidence   []string
+	owners     []string
+	risk       string
+	confidence float64
 }
 
 func runInsights(args []string) int {
@@ -64,9 +68,36 @@ func runInsights(args []string) int {
 			return runInsightsVerify(args[1:])
 		case "from-usage":
 			return runInsightsFromUsage(args[1:])
+		case "from-audit":
+			return runInsightsFromAudit(args[1:])
 		}
 	}
 	return listInsights(args)
+}
+
+func runInsightsFromAudit(args []string) int {
+	if len(args) != 1 {
+		fmt.Fprintln(stderrOutput(), "insights from-audit requires one audit report")
+		return 2
+	}
+	report, err := knowledgeaudit.ReadReport(args[0])
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	repo, config, err := integration.FindRepository(".")
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	root := filepath.Join(repo, filepath.FromSlash(config.KnowledgeBase))
+	created, existing, err := insights.CreateFromAudit(repo, root, report)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	fmt.Fprintf(os.Stdout, "Processed %d audit finding(s): %d insight(s) created, %d already present.\n", len(report.Findings), created, existing)
+	return 0
 }
 
 type insightUsageOptions struct {
@@ -129,6 +160,7 @@ func runInsightsFromUsage(args []string) int {
 		_, wasCreated, err := insights.Create(".", insights.CreateOptions{
 			Summary: summary, Evidence: evidence, Targets: []string{"."}, Now: gap.LastSeen,
 			Kind: "runtime-usage-gap", Identity: gap.KnowledgeBase + "\x00" + gap.Fingerprint,
+			Route: insights.MaintenanceRoute{Risk: "high", Confidence: 0.95, Owners: []string{"unassigned"}},
 		})
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
@@ -219,7 +251,7 @@ func listInsights(args []string) int {
 		if candidate, err := filepath.Rel(".", item.Path); err == nil {
 			rel = candidate
 		}
-		fmt.Fprintf(os.Stdout, "%s\t%s\t%s\n", item.CreatedAt.Format(time.RFC3339), rel, item.Title)
+		fmt.Fprintf(os.Stdout, "%s\t%s/%s\t%s\t%s\t%s\n", item.CreatedAt.Format(time.RFC3339), item.Route.Risk, item.Route.Approval, strings.Join(item.Route.Owners, ","), rel, item.Title)
 	}
 	return 0
 }
@@ -232,6 +264,7 @@ func runInsightsCreate(args []string) int {
 	}
 	path, created, err := insights.Create(".", insights.CreateOptions{
 		Summary: options.summary, Evidence: options.evidence, Targets: options.targets,
+		Route: insights.MaintenanceRoute{Risk: options.risk, Confidence: options.confidence, Owners: options.owners},
 	})
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
@@ -257,7 +290,7 @@ func parseInsightCreateOptions(args []string) (insightCreateOptions, error) {
 	for index := 0; index < len(args); index++ {
 		argument := args[index]
 		switch {
-		case argument == "--target" || argument == "--evidence":
+		case argument == "--target" || argument == "--evidence" || argument == "--owner" || argument == "--risk" || argument == "--confidence":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
 				return options, err
@@ -267,12 +300,32 @@ func parseInsightCreateOptions(args []string) (insightCreateOptions, error) {
 				options.targets = append(options.targets, value)
 			case "--evidence":
 				options.evidence = append(options.evidence, value)
+			case "--owner":
+				options.owners = append(options.owners, value)
+			case "--risk":
+				options.risk = value
+			case "--confidence":
+				options.confidence, err = strconv.ParseFloat(value, 64)
+				if err != nil {
+					return options, fmt.Errorf("--confidence must be a number between 0 and 1")
+				}
 			}
 			index = next
 		case strings.HasPrefix(argument, "--target="):
 			options.targets = append(options.targets, strings.TrimPrefix(argument, "--target="))
 		case strings.HasPrefix(argument, "--evidence="):
 			options.evidence = append(options.evidence, strings.TrimPrefix(argument, "--evidence="))
+		case strings.HasPrefix(argument, "--owner="):
+			options.owners = append(options.owners, strings.TrimPrefix(argument, "--owner="))
+		case strings.HasPrefix(argument, "--risk="):
+			options.risk = strings.TrimPrefix(argument, "--risk=")
+		case strings.HasPrefix(argument, "--confidence="):
+			value := strings.TrimPrefix(argument, "--confidence=")
+			var err error
+			options.confidence, err = strconv.ParseFloat(value, 64)
+			if err != nil {
+				return options, fmt.Errorf("--confidence must be a number between 0 and 1")
+			}
 		case strings.HasPrefix(argument, "-"):
 			return options, fmt.Errorf("unknown insights create option: %s", argument)
 		default:
@@ -282,6 +335,9 @@ func parseInsightCreateOptions(args []string) (insightCreateOptions, error) {
 	options.summary = strings.TrimSpace(strings.Join(positionals, " "))
 	if options.summary == "" {
 		return options, fmt.Errorf("insights create requires a summary")
+	}
+	if _, err := insights.NormalizeMaintenanceRoute(insights.MaintenanceRoute{Risk: options.risk, Confidence: options.confidence, Owners: options.owners}); err != nil {
+		return options, err
 	}
 	return options, nil
 }
@@ -312,6 +368,18 @@ func runInsightsExecution(args []string) int {
 	}
 	if len(selected) == 0 {
 		fmt.Fprintln(os.Stdout, "No pending insights.")
+		return 0
+	}
+	processable := make([]insights.Insight, 0, len(selected))
+	for _, item := range selected {
+		if item.Route.Approval == "expert" {
+			fmt.Fprintf(os.Stdout, "Escalated high-risk insight %s to %s; no automated knowledge edit was made.\n", item.ID, strings.Join(item.Route.Owners, ", "))
+			continue
+		}
+		processable = append(processable, item)
+	}
+	selected = processable
+	if len(selected) == 0 {
 		return 0
 	}
 	for _, item := range selected {
@@ -613,12 +681,14 @@ Usage:
   openknowledge automation insights list [wiki]
   openknowledge automation insights create "<insight>"
   openknowledge automation insights create "<insight>" --target <path> [--evidence <text>]
+  openknowledge automation insights create "<insight>" --risk medium --confidence 0.8 --owner github:reviewer
   openknowledge automation insights run <insight>
   openknowledge automation insights run --all
   openknowledge automation insights run <insight> --runtime <runtime> [--model <model>]
   openknowledge automation insights run <insight> --isolate
   openknowledge automation insights dismiss <insight>
   openknowledge automation insights from-usage <events> [--min-occurrences <n>] [--eval-out <path>]
+  openknowledge automation insights from-audit <audit-report.json>
 
 With no subcommand, list discovers the connected knowledge base and prints
 pending insights oldest first. Create records a private evidence-only insight

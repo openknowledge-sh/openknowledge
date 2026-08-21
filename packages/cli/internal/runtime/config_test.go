@@ -277,3 +277,32 @@ publish = true
 		}
 	}
 }
+
+func TestParseConfigRequiresChecksForLowRiskAutoMerge(t *testing.T) {
+	base := `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[github]
+enabled = true
+repository = "owner/repo"
+token_env = "GITHUB_TOKEN"
+checks = %t
+required_checks = %s
+auto_merge_low_risk = true
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`
+	if _, err := ParseConfig([]byte(fmt.Sprintf(base, true, `["Verify"]`))); err != nil {
+		t.Fatalf("valid low-risk auto merge rejected: %v", err)
+	}
+	for _, value := range []string{fmt.Sprintf(base, false, `["Verify"]`), fmt.Sprintf(base, true, `[]`)} {
+		if _, err := ParseConfig([]byte(value)); err == nil || !strings.Contains(err.Error(), "auto_merge_low_risk") {
+			t.Fatalf("expected low-risk auto merge gate, got %v", err)
+		}
+	}
+}

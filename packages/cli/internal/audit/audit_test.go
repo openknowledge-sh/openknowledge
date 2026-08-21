@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -116,6 +117,35 @@ func TestRunDetectsSourceDriftAndKeepsFindingIDsStable(t *testing.T) {
 	loaded, err := ReadBaseline(path)
 	if err != nil || !reflect.DeepEqual(loaded, baseline) {
 		t.Fatalf("baseline round trip failed: loaded=%#v err=%v", loaded, err)
+	}
+}
+
+func TestReadReportRejectsTamperedFindingIdentity(t *testing.T) {
+	root := t.TempDir()
+	writeAuditFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Index\n")
+	writeAuditFile(t, root, "guide.md", "---\ntype: Guide\n---\n\n# Guide\n")
+	report, _, err := Run(Options{Root: root, Spec: "0.2", Now: time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)})
+	if err != nil || len(report.Findings) == 0 {
+		t.Fatalf("build report: %#v err=%v", report, err)
+	}
+	path := filepath.Join(t.TempDir(), "audit.json")
+	write := func(value Report) {
+		content, marshalErr := json.Marshal(value)
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(report)
+	if loaded, err := ReadReport(path); err != nil || !reflect.DeepEqual(loaded, report) {
+		t.Fatalf("read report: loaded=%#v err=%v", loaded, err)
+	}
+	report.Findings[0].Evidence[0].Value = "tampered"
+	write(report)
+	if _, err := ReadReport(path); err == nil || !strings.Contains(err.Error(), "identity") {
+		t.Fatalf("expected tampered identity rejection, got %v", err)
 	}
 }
 

@@ -89,7 +89,7 @@
     },
     "github": {
       "type": "object",
-      "required": ["enabled", "api_url", "repository", "draft_pull_request", "checks"],
+      "required": ["enabled", "api_url", "repository", "draft_pull_request", "checks", "auto_merge_low_risk"],
       "properties": {
         "enabled": {"type": "boolean"},
         "api_url": {"type": "string"},
@@ -100,6 +100,7 @@
         "token_env": {"type": "string"},
         "draft_pull_request": {"type": "boolean"},
         "checks": {"type": "boolean"},
+        "auto_merge_low_risk": {"type": "boolean"},
         "required_checks": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}}
       },
       "additionalProperties": false

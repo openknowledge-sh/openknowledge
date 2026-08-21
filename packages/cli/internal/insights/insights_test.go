@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
@@ -118,6 +119,91 @@ func TestCreateWritesPrivateEvidenceOnlyInsightAndDeduplicates(t *testing.T) {
 	result, err := okf.Validate(wiki)
 	if err != nil || len(result.Errors) != 0 {
 		t.Fatalf("validation: %#v %v", result.Errors, err)
+	}
+}
+
+func TestMaintenanceRoutesAreConfidenceBoundAndPersisted(t *testing.T) {
+	for _, test := range []struct {
+		route MaintenanceRoute
+		want  string
+	}{
+		{MaintenanceRoute{Risk: "low", Confidence: 0.94}, "at least 0.95"},
+		{MaintenanceRoute{Risk: "medium", Confidence: 0.59}, "at least 0.6"},
+		{MaintenanceRoute{Risk: "high", Approval: "human", Confidence: 0.5}, "must be expert"},
+		{MaintenanceRoute{Risk: "unknown", Confidence: 1}, "low, medium, or high"},
+	} {
+		if _, err := NormalizeMaintenanceRoute(test.route); err == nil || !strings.Contains(err.Error(), test.want) {
+			t.Fatalf("route %#v: expected %q, got %v", test.route, test.want, err)
+		}
+	}
+	repo, _ := setupRepository(t)
+	path, created, err := Create(repo, CreateOptions{
+		Summary: "Apply a deterministic link repair", Targets: []string{"guide.md"},
+		Route: MaintenanceRoute{Risk: "low", Confidence: 0.99, Owners: []string{"github:reviewer"}},
+	})
+	if err != nil || !created {
+		t.Fatalf("create routed insight: created=%v err=%v", created, err)
+	}
+	item, err := Parse(path)
+	if err != nil || item.Route.Risk != "low" || item.Route.Approval != "auto" || item.Route.Confidence != 0.99 || strings.Join(item.Route.Owners, ",") != "github:reviewer" {
+		t.Fatalf("unexpected parsed route: %#v err=%v", item.Route, err)
+	}
+}
+
+func TestParseContentRejectsUnknownMaintenanceRouteField(t *testing.T) {
+	content := []byte(`---
+type: Open Knowledge Insight
+title: Unknown route field
+description: Reject loose route contracts.
+status: draft
+okf_publish: false
+okf_insight_id: route-field
+okf_insight_kind: explicit
+generated:
+  by: user:openknowledge-cli
+  at: 2026-08-21T12:00:00Z
+okf_insight_targets: [.]
+okf_insight_route:
+  risk: medium
+  approval: human
+  confidence: 0.8
+  owners: [unassigned]
+  surprise: true
+---
+
+# Unknown route field
+`)
+	if _, err := ParseContent("Wiki/insights/unknown.md", content); err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("expected unknown route field rejection, got %v", err)
+	}
+}
+
+func TestCreateFromAuditRoutesFindingsAndDeduplicates(t *testing.T) {
+	repo, wiki := setupRepository(t)
+	guide := filepath.Join(wiki, "guide.md")
+	if err := os.WriteFile(guide, []byte("---\ntype: Guide\nowner: github:docs-reviewer\n---\n\n# Guide\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, _, err := knowledgeaudit.Run(knowledgeaudit.Options{Root: wiki, Spec: "0.2", Now: time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, existing, err := CreateFromAudit(repo, wiki, report)
+	if err != nil || created != len(report.Findings) || existing != 0 {
+		t.Fatalf("create from audit: created=%d existing=%d findings=%d err=%v", created, existing, len(report.Findings), err)
+	}
+	created, existing, err = CreateFromAudit(repo, wiki, report)
+	if err != nil || created != 0 || existing != len(report.Findings) {
+		t.Fatalf("deduplicate from audit: created=%d existing=%d err=%v", created, existing, err)
+	}
+	items, err := Pending(wiki)
+	if err != nil || len(items) != len(report.Findings) {
+		t.Fatalf("pending audit insights: %#v err=%v", items, err)
+	}
+	for _, item := range items {
+		if item.FindingID == "" || item.Route.Approval == "" || len(item.Route.Owners) == 0 {
+			t.Fatalf("audit insight is missing route identity: %#v", item)
+		}
 	}
 }
 
@@ -291,6 +377,25 @@ func TestVerifyRunEnforcesKnowledgeBoundaryAndDeclaredTargets(t *testing.T) {
 	}
 	if err := VerifyRun(wiki); err == nil || !strings.Contains(err.Error(), "outside knowledge base") {
 		t.Fatalf("outside edit not rejected: %v", err)
+	}
+}
+
+func TestVerifyRunRejectsAutomatedHighRiskResolution(t *testing.T) {
+	repo, wiki := setupRepository(t)
+	path, created, err := Create(repo, CreateOptions{
+		Summary: "Resolve a conflicting production policy", Targets: []string{"guide.md"},
+		Route: MaintenanceRoute{Risk: "high", Confidence: 1, Owners: []string{"github:expert"}},
+	})
+	if err != nil || !created {
+		t.Fatalf("create high-risk insight: created=%v err=%v", created, err)
+	}
+	runGit(t, repo, "add", "Wiki/insights")
+	runGit(t, repo, "commit", "-m", "high risk insight")
+	if err := Resolve(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyRun(wiki); err == nil || !strings.Contains(err.Error(), "requires expert approval") {
+		t.Fatalf("expected expert approval gate, got %v", err)
 	}
 }
 

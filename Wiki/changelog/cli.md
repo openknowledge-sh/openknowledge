@@ -13,6 +13,30 @@ page records release-level changes.
 
 ## Unreleased
 
+### Maintenance routing
+
+- Insights now carry normalized risk, approval, confidence, and owner routes.
+  Low risk requires at least 0.95 confidence and permits automatic processing.
+  Medium risk requires human approval. High risk requires expert approval and
+  keeps declared knowledge targets evidence-only for automation.
+- New `okn automation insights from-audit` creates stable, deduplicated
+  insights from audit findings and routes target owners from OKF frontmatter.
+- Hosted jobs carry bounded maintenance attestations. GitHub owners can request
+  user or team review with `github:<login>` or `github-team:<slug>`.
+- Optional `github.auto_merge_low_risk` creates ready low-risk pull requests
+  and squash merges only after exact required checks succeed. Incomplete gates
+  keep the exchange proposal for a later publisher retry.
+- Source: `packages/cli/internal/insights/`,
+  `packages/cli/cmd/openknowledge/insights_command.go`,
+  `packages/cli/internal/agents/templates.go`,
+  `packages/cli/cmd/openknowledge/runtime_worker.go`,
+  `packages/cli/internal/runtime/config.go`,
+  `packages/cli/internal/runtime/github.go`, and
+  `packages/cli/schemas/v1/runtime-plan.schema.json`.
+- Docs: `Wiki/features/commands/insights.md`,
+  `Wiki/features/commands/jobs.md`, `Wiki/features/commands/runtime.md`, and
+  `Wiki/features/machine-contracts.md`.
+
 ### Knowledge audit
 
 - New `okn audit` reports deterministic evidence-backed risks for staleness,

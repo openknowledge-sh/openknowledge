@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,6 +37,8 @@ var (
 	credentialToken            = regexp.MustCompile(`\b(?:sk|ghp|github_pat)-[A-Za-z0-9_-]{10,}\b`)
 	knownSecretToken           = regexp.MustCompile(`(?i)\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|\bAIza[A-Za-z0-9_-]{20,}\b|\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b`)
 	insightKindPattern         = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
+	insightFindingPattern      = regexp.MustCompile(`^[a-f0-9]{20}$`)
+	insightOwnerPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 )
 
 type Insight struct {
@@ -49,7 +52,16 @@ type Insight struct {
 	GeneratedBy string
 	CreatedAt   time.Time
 	Targets     []string
+	Route       MaintenanceRoute
+	FindingID   string
 	Body        string
+}
+
+type MaintenanceRoute struct {
+	Risk       string   `json:"risk"`
+	Approval   string   `json:"approval"`
+	Confidence float64  `json:"confidence"`
+	Owners     []string `json:"owners"`
 }
 
 type Observation struct {
@@ -63,12 +75,14 @@ type Observation struct {
 }
 
 type CreateOptions struct {
-	Summary  string
-	Evidence []string
-	Targets  []string
-	Now      time.Time
-	Kind     string
-	Identity string
+	Summary   string
+	Evidence  []string
+	Targets   []string
+	Now       time.Time
+	Kind      string
+	Identity  string
+	Route     MaintenanceRoute
+	FindingID string
 }
 
 type TraceStats struct {
@@ -148,6 +162,14 @@ func ParseContent(path string, content []byte) (Insight, error) {
 			return Insight{}, fmt.Errorf("insight targets must be knowledge-base-relative paths")
 		}
 	}
+	insight.Route, err = parseMaintenanceRoute(document.Data["okf_insight_route"])
+	if err != nil {
+		return Insight{}, err
+	}
+	insight.FindingID = get("okf_insight_finding_id")
+	if insight.FindingID != "" && !insightFindingPattern.MatchString(insight.FindingID) {
+		return Insight{}, fmt.Errorf("okf_insight_finding_id must be a 20-character lowercase hex ID")
+	}
 	return insight, nil
 }
 
@@ -184,6 +206,9 @@ func VerifyRun(wiki string) error {
 		}
 		if previous.Status != "pending" || current.Status != "resolved" {
 			continue
+		}
+		if previous.Route.Approval == "expert" {
+			return fmt.Errorf("high-risk insight requires expert approval and cannot resolve automatically: %s", path)
 		}
 		for _, target := range current.Targets {
 			clean := filepath.ToSlash(filepath.Clean(target))
@@ -315,6 +340,14 @@ func Create(directory string, options CreateOptions) (string, bool, error) {
 		return "", false, err
 	}
 	evidence := sanitizeEvidence(options.Evidence)
+	route, err := NormalizeMaintenanceRoute(options.Route)
+	if err != nil {
+		return "", false, err
+	}
+	options.FindingID = strings.TrimSpace(options.FindingID)
+	if options.FindingID != "" && !insightFindingPattern.MatchString(options.FindingID) {
+		return "", false, fmt.Errorf("insight finding ID must be a 20-character lowercase hex ID")
+	}
 	if options.Now.IsZero() {
 		options.Now = time.Now().UTC()
 	}
@@ -325,7 +358,7 @@ func Create(directory string, options CreateOptions) (string, bool, error) {
 	if !insightKindPattern.MatchString(kind) {
 		return "", false, fmt.Errorf("insight kind is invalid")
 	}
-	identity := kind + "\x00" + summary + "\x00" + strings.Join(targets, "\x00") + "\x00" + strings.Join(evidence, "\x00")
+	identity := kind + "\x00" + summary + "\x00" + strings.Join(targets, "\x00") + "\x00" + strings.Join(evidence, "\x00") + "\x00" + routeIdentity(route)
 	if strings.TrimSpace(options.Identity) != "" {
 		identity = kind + "\x00" + strings.TrimSpace(options.Identity)
 	}
@@ -340,7 +373,7 @@ func Create(directory string, options CreateOptions) (string, bool, error) {
 	}
 	slug := strings.NewReplacer("_", "-", " ", "-").Replace(kind)
 	path := filepath.Join(directoryPath, options.Now.UTC().Format("2006-01-02")+"-"+slug+"-"+id+".md")
-	content := renderCreatedInsight(options.Now, id, targets, summary, evidence, kind)
+	content := renderCreatedInsight(options.Now, id, targets, summary, evidence, kind, route, options.FindingID)
 	if _, err := ParseContent(path, []byte(content)); err != nil {
 		return "", false, fmt.Errorf("render insight: %w", err)
 	}
@@ -666,6 +699,7 @@ func render(observation Observation, id string, targets []string, summary string
 	for _, target := range targets {
 		fmt.Fprintf(&builder, "  - %s\n", strconv.Quote(target))
 	}
+	renderMaintenanceRoute(&builder, MaintenanceRoute{Risk: "high", Approval: "expert", Confidence: 0.5, Owners: []string{"unassigned"}})
 	builder.WriteString("tags: [insight, session-observation]\n---\n\n# " + title + "\n\n## Insight\n\n" + summary + "\n\n## Evidence\n\n")
 	for _, path := range observation.ChangedPaths {
 		display := strings.NewReplacer("`", "'", "\r", " ", "\n", " ").Replace(path)
@@ -679,7 +713,7 @@ func render(observation Observation, id string, targets []string, summary string
 	return builder.String()
 }
 
-func renderCreatedInsight(now time.Time, id string, targets []string, summary string, evidence []string, kind string) string {
+func renderCreatedInsight(now time.Time, id string, targets []string, summary string, evidence []string, kind string, route MaintenanceRoute, findingID string) string {
 	title := truncateRunes(summary, 96)
 	var builder strings.Builder
 	description := "Explicitly captured knowledge maintenance insight."
@@ -690,6 +724,10 @@ func renderCreatedInsight(now time.Time, id string, targets []string, summary st
 	for _, target := range targets {
 		fmt.Fprintf(&builder, "  - %s\n", strconv.Quote(target))
 	}
+	if findingID != "" {
+		fmt.Fprintf(&builder, "okf_insight_finding_id: %s\n", findingID)
+	}
+	renderMaintenanceRoute(&builder, route)
 	builder.WriteString("tags: [insight, " + kind + "]\n---\n\n# " + title + "\n\n## Insight\n\n" + summary + "\n\n## Evidence\n\n")
 	if len(evidence) == 0 {
 		builder.WriteString("- Explicitly reported through the Open Knowledge CLI; research current repository evidence before applying it.\n")
@@ -699,6 +737,113 @@ func renderCreatedInsight(now time.Time, id string, targets []string, summary st
 		}
 	}
 	return builder.String()
+}
+
+func NormalizeMaintenanceRoute(route MaintenanceRoute) (MaintenanceRoute, error) {
+	route.Risk = strings.ToLower(strings.TrimSpace(route.Risk))
+	if route.Confidence == 0 && route.Risk == "" {
+		route.Confidence = 0.75
+	}
+	if route.Risk == "" {
+		switch {
+		case route.Confidence >= 0.95:
+			route.Risk = "low"
+		case route.Confidence >= 0.6:
+			route.Risk = "medium"
+		default:
+			route.Risk = "high"
+		}
+	}
+	approval := map[string]string{"low": "auto", "medium": "human", "high": "expert"}[route.Risk]
+	if approval == "" {
+		return MaintenanceRoute{}, fmt.Errorf("insight risk must be low, medium, or high")
+	}
+	if route.Approval != "" && strings.ToLower(strings.TrimSpace(route.Approval)) != approval {
+		return MaintenanceRoute{}, fmt.Errorf("insight approval must be %s for %s risk", approval, route.Risk)
+	}
+	route.Approval = approval
+	if math.IsNaN(route.Confidence) || math.IsInf(route.Confidence, 0) || route.Confidence < 0 || route.Confidence > 1 {
+		return MaintenanceRoute{}, fmt.Errorf("insight confidence must be between 0 and 1")
+	}
+	if route.Risk == "low" && route.Confidence < 0.95 {
+		return MaintenanceRoute{}, fmt.Errorf("low-risk insight confidence must be at least 0.95")
+	}
+	if route.Risk == "medium" && route.Confidence < 0.6 {
+		return MaintenanceRoute{}, fmt.Errorf("medium-risk insight confidence must be at least 0.6")
+	}
+	if len(route.Owners) == 0 {
+		route.Owners = []string{"unassigned"}
+	}
+	if len(route.Owners) > 20 {
+		return MaintenanceRoute{}, fmt.Errorf("insight route must contain at most 20 owners")
+	}
+	seen := map[string]bool{}
+	owners := make([]string, 0, len(route.Owners))
+	for _, owner := range route.Owners {
+		owner = strings.TrimSpace(owner)
+		if !insightOwnerPattern.MatchString(owner) {
+			return MaintenanceRoute{}, fmt.Errorf("insight owner must be a bounded identifier")
+		}
+		if !seen[owner] {
+			seen[owner] = true
+			owners = append(owners, owner)
+		}
+	}
+	sort.Strings(owners)
+	route.Owners = owners
+	return route, nil
+}
+
+func parseMaintenanceRoute(value any) (MaintenanceRoute, error) {
+	if value == nil {
+		return NormalizeMaintenanceRoute(MaintenanceRoute{Risk: "medium", Confidence: 0.75, Owners: []string{"unassigned"}})
+	}
+	data, ok := value.(map[string]any)
+	if !ok {
+		return MaintenanceRoute{}, fmt.Errorf("okf_insight_route must be a mapping")
+	}
+	for key := range data {
+		switch key {
+		case "risk", "approval", "confidence", "owners":
+		default:
+			return MaintenanceRoute{}, fmt.Errorf("okf_insight_route contains unknown field %q", key)
+		}
+	}
+	route := MaintenanceRoute{}
+	var present bool
+	if route.Risk, present = data["risk"].(string); !present || strings.TrimSpace(route.Risk) == "" {
+		return MaintenanceRoute{}, fmt.Errorf("okf_insight_route.risk must be a string")
+	}
+	if route.Approval, present = data["approval"].(string); !present || strings.TrimSpace(route.Approval) == "" {
+		return MaintenanceRoute{}, fmt.Errorf("okf_insight_route.approval must be a string")
+	}
+	switch number := data["confidence"].(type) {
+	case int:
+		route.Confidence = float64(number)
+	case int64:
+		route.Confidence = float64(number)
+	case float64:
+		route.Confidence = number
+	default:
+		return MaintenanceRoute{}, fmt.Errorf("okf_insight_route.confidence must be a number")
+	}
+	owners, err := stringList(data["owners"])
+	if err != nil {
+		return MaintenanceRoute{}, fmt.Errorf("okf_insight_route.owners must be a non-empty string list")
+	}
+	route.Owners = owners
+	return NormalizeMaintenanceRoute(route)
+}
+
+func renderMaintenanceRoute(builder *strings.Builder, route MaintenanceRoute) {
+	fmt.Fprintf(builder, "okf_insight_route:\n  risk: %s\n  approval: %s\n  confidence: %.4g\n  owners:\n", route.Risk, route.Approval, route.Confidence)
+	for _, owner := range route.Owners {
+		fmt.Fprintf(builder, "    - %s\n", strconv.Quote(owner))
+	}
+}
+
+func routeIdentity(route MaintenanceRoute) string {
+	return route.Risk + "\x00" + route.Approval + "\x00" + strconv.FormatFloat(route.Confidence, 'g', -1, 64) + "\x00" + strings.Join(route.Owners, "\x00")
 }
 
 func normalizeTargets(values []string) ([]string, error) {

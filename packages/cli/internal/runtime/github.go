@@ -156,6 +156,32 @@ func (client GitHubClient) FindOpenPullRequest(ctx context.Context, owner string
 	return &results[0], nil
 }
 
+func (client GitHubClient) RequestReviewers(ctx context.Context, number int, reviewers []string, teams []string) error {
+	if number <= 0 || len(reviewers)+len(teams) == 0 {
+		return nil
+	}
+	payload := map[string]any{"reviewers": reviewers, "team_reviewers": teams}
+	return client.request(ctx, http.MethodPost, "/repos/"+client.Repository+"/pulls/"+strconv.Itoa(number)+"/requested_reviewers", payload, nil)
+}
+
+func (client GitHubClient) MergePullRequest(ctx context.Context, number int, headSHA string) error {
+	if number <= 0 || strings.TrimSpace(headSHA) == "" {
+		return fmt.Errorf("pull request number and head SHA are required")
+	}
+	payload := map[string]any{"sha": headSHA, "merge_method": "squash"}
+	var result struct {
+		Merged  bool   `json:"merged"`
+		Message string `json:"message"`
+	}
+	if err := client.request(ctx, http.MethodPut, "/repos/"+client.Repository+"/pulls/"+strconv.Itoa(number)+"/merge", payload, &result); err != nil {
+		return err
+	}
+	if !result.Merged {
+		return fmt.Errorf("GitHub did not merge pull request %d: %s", number, strings.TrimSpace(result.Message))
+	}
+	return nil
+}
+
 func (client GitHubClient) CreateCompletedCheck(ctx context.Context, name string, headSHA string, title string, summary string, conclusion string) error {
 	payload := map[string]any{
 		"name":       name,

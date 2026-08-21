@@ -238,6 +238,58 @@ func ReadBaseline(path string) (SourceBaseline, error) {
 	return baseline, nil
 }
 
+func ReadReport(path string) (Report, error) {
+	content, err := okf.ReadFileAtMost(path, 32<<20)
+	if err != nil {
+		return Report{}, err
+	}
+	var report Report
+	if err := okf.DecodeStrictJSON(content, &report); err != nil {
+		return Report{}, err
+	}
+	if err := ValidateReport(report); err != nil {
+		return Report{}, err
+	}
+	return report, nil
+}
+
+func ValidateReport(report Report) error {
+	if report.Type != ReportType || report.Version != ContractVersion {
+		return fmt.Errorf("unsupported audit report contract")
+	}
+	if strings.TrimSpace(report.Bundle.Path) == "" || len(report.Bundle.SHA256) != 64 {
+		return fmt.Errorf("audit report bundle identity is invalid")
+	}
+	if _, ok := okf.ResolveSpecVersion(report.Bundle.Spec); !ok {
+		return fmt.Errorf("audit report spec is invalid")
+	}
+	if _, err := time.Parse(time.RFC3339, report.Evaluated); err != nil {
+		return fmt.Errorf("audit report evaluation time is invalid")
+	}
+	if report.Summary.Total != len(report.Findings) || report.Summary.High+report.Summary.Medium+report.Summary.Low != report.Summary.Total {
+		return fmt.Errorf("audit report summary does not match findings")
+	}
+	if report.Sources.Current < 0 || report.Sources.Changed < 0 || report.Sources.Missing < 0 {
+		return fmt.Errorf("audit report source summary is invalid")
+	}
+	counts := map[string]int{}
+	seen := map[string]bool{}
+	for index, finding := range report.Findings {
+		if !validCategory(finding.Category) || severityRank(finding.Severity) == 0 || strings.TrimSpace(finding.Title) == "" || len(finding.Title) > 256 || strings.TrimSpace(finding.Impact) == "" || len(finding.Impact) > 1024 || len(finding.Targets) == 0 || len(finding.Evidence) == 0 {
+			return fmt.Errorf("audit finding %d is invalid", index)
+		}
+		if finding.ID != findingIdentity(finding.Category, finding.Targets, finding.Evidence) || seen[finding.ID] {
+			return fmt.Errorf("audit finding %d identity is invalid", index)
+		}
+		seen[finding.ID] = true
+		counts[finding.Severity]++
+	}
+	if counts["high"] != report.Summary.High || counts["medium"] != report.Summary.Medium || counts["low"] != report.Summary.Low {
+		return fmt.Errorf("audit report severity counts do not match findings")
+	}
+	return nil
+}
+
 func EncodeBaseline(baseline SourceBaseline) ([]byte, error) {
 	content, err := json.MarshalIndent(baseline, "", "  ")
 	if err != nil {
@@ -257,16 +309,29 @@ func (report *Report) addMany(category string, severity string, title string, im
 		right := evidence[j].Path + "\x00" + evidence[j].Field + "\x00" + evidence[j].Value
 		return left < right
 	})
+	report.Findings = append(report.Findings, Finding{
+		ID: findingIdentity(category, targets, evidence), Category: category, Severity: severity,
+		Title: title, Impact: impact, Targets: targets, Evidence: evidence,
+	})
+}
+
+func findingIdentity(category string, targets []string, evidence []Evidence) string {
 	identity, _ := json.Marshal(struct {
 		Category string
 		Targets  []string
 		Evidence []Evidence
 	}{category, targets, evidence})
 	digest := sha256.Sum256(identity)
-	report.Findings = append(report.Findings, Finding{
-		ID: hex.EncodeToString(digest[:])[:20], Category: category, Severity: severity,
-		Title: title, Impact: impact, Targets: targets, Evidence: evidence,
-	})
+	return hex.EncodeToString(digest[:])[:20]
+}
+
+func validCategory(value string) bool {
+	switch value {
+	case "stale", "missing-source", "missing-owner", "broken-dependency", "identical-body", "duplicate-title", "claim-conflict", "missing-source-resource", "source-changed", "unanswered-question", "high-use-unverified":
+		return true
+	default:
+		return false
+	}
 }
 
 func (report *Report) finalize() {
