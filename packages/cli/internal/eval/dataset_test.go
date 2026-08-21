@@ -67,6 +67,16 @@ func TestValidateDatasetReportsAllSemanticIssues(t *testing.T) {
 	}
 }
 
+func TestValidateDatasetRejectsInvalidPolicyExpectations(t *testing.T) {
+	allowStale := false
+	err := ValidateDataset(Dataset{Type: DatasetType, Version: DatasetVersion, ID: "policy", Cases: []Case{{
+		ID: "policy", Question: "Which evidence is allowed?", Expect: Expectations{MinimumTrust: "trusted", AllowStale: &allowStale, AllowedStatuses: []string{"stable", "stable", "unknown"}},
+	}}})
+	if err == nil || !strings.Contains(err.Error(), "minimum_trust") {
+		t.Fatalf("unexpected policy validation result: %v", err)
+	}
+}
+
 func TestWriteNewDatasetCreatesPrivateValidFileAndRefusesOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "generated", "usage.yaml")
 	dataset := Dataset{Type: DatasetType, Version: DatasetVersion, ID: "usage", Cases: []Case{{ID: "gap", Question: "How do I rollback?", Expect: Expectations{MinSources: 1}}}}

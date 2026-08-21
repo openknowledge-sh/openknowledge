@@ -77,6 +77,15 @@ failure count.
 Eval result status is `pass`, `fail`, or `error`. The containing run uses
 `verification_failed` when an eval gate or eval operation fails.
 
+Eval dataset v1 policy expectations are `minimum_trust`, `allow_stale`,
+`allowed_statuses`, and `require_sources`. They test every selected source
+against derived OKF 0.2 trust, freshness, lifecycle, and provenance signals.
+
+`eval-report.schema.json` accepts these names as check kinds. Each check
+records `expected`, optional rejected source paths in `actual`, and `passed`.
+Markdown reports include failed policy checks and include all policy checks in
+the totals.
+
 Runtime plans include the normalized `serve.retrieval_policy` object.
 `runtime-search.schema.json` and `runtime-context.schema.json` bind responses
 to the active generation and retrieval revision.

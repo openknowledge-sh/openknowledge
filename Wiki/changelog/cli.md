@@ -126,6 +126,11 @@ page records release-level changes.
 
 ### Knowledge CI
 
+- Eval dataset v1 now supports `minimum_trust`, `allow_stale`,
+  `allowed_statuses`, and `require_sources` expectations. Each policy check
+  tests all selected sources against derived OKF 0.2 metadata.
+- JSON and Markdown reports include policy check results. Failed checks identify
+  the sources that violate trust, freshness, lifecycle, or provenance rules.
 - `okn eval run` now tests deterministic retrieval evidence against strict,
   versioned YAML datasets. Expectations cover sources, included or excluded
   evidence, and minimum source counts.

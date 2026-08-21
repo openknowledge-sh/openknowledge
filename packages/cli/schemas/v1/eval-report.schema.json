@@ -104,7 +104,7 @@
       "type": "object",
       "required": ["kind", "expected", "passed"],
       "properties": {
-        "kind": {"enum": ["source", "evidence_contains", "evidence_excludes", "min_sources", "answer_contains", "answer_excludes", "citation_source", "min_citations", "min_groundedness"]},
+        "kind": {"enum": ["source", "evidence_contains", "evidence_excludes", "min_sources", "minimum_trust", "allow_stale", "allowed_statuses", "require_sources", "answer_contains", "answer_excludes", "citation_source", "min_citations", "min_groundedness"]},
         "expected": {"type": "string"},
         "actual": {"type": "string"},
         "passed": {"type": "boolean"}

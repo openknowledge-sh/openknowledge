@@ -10,8 +10,14 @@ cases:
     expect:
       sources: [features/commands/eval.md]
       evidence_contains: ["--base", regressions]
+      minimum_trust: unverified
+      allow_stale: false
+      allowed_statuses: [stable]
   - id: deterministic-jobs
     question: How do deterministic maintenance jobs run verification in isolated worktrees?
     expect:
       sources: [features/commands/jobs.md]
       evidence_contains: [verification, worktree]
+      minimum_trust: unverified
+      allow_stale: false
+      allowed_statuses: [stable]

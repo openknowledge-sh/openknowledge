@@ -43,6 +43,10 @@ cases:
       evidence_contains: [Restore the previous release]
       evidence_excludes: [Delete production]
       min_sources: 1
+      minimum_trust: human-reviewed
+      allow_stale: false
+      allowed_statuses: [stable]
+      require_sources: true
       answer_contains: [Restore]
       answer_excludes: [Delete production]
       citation_sources: [operations/rollback.md]
@@ -57,6 +61,21 @@ and link expansion.
 `sources` accepts bundle-relative paths and optional section fragments.
 Evidence checks use case-insensitive substring matching across all retrieved
 source Markdown. `min_sources` tests the number of retrieved sources.
+
+Policy expectations test OKF 0.2 signals for every selected source:
+
+| Field | Check |
+| --- | --- |
+| `minimum_trust` | Require `unverified`, `machine-confirmed`, or `human-reviewed` as the minimum trust tier. |
+| `allow_stale` | Permit stale sources when `true`. Reject stale sources when `false`. |
+| `allowed_statuses` | Permit only the unique listed `draft`, `stable`, or `deprecated` statuses. |
+| `require_sources` | Require structured source provenance when `true`. |
+
+The CLI derives trust, freshness, lifecycle status, and provenance from each
+source frontmatter. Each declared field produces one aggregate check across
+the selected sources. An omitted policy field does not create a check. A
+policy check passes when retrieval selects no sources. Use `min_sources` when
+a case must also retrieve evidence.
 
 Answer checks require `--answer-command`. `answer_contains` and
 `answer_excludes` use case-insensitive substring matching. `citation_sources`
@@ -82,6 +101,9 @@ source with its exact locator.
 
 The JSON report uses `schemaVersion: "1"`. It records the dataset digest,
 target revision, retrieved source locators, case metrics, and each check.
+Policy checks use `minimum_trust`, `allow_stale`, `allowed_statuses`, and
+`require_sources` as check kinds. A failed check records the rejected source
+paths in `actual`.
 
 An answer result contains `text`, `claims`, `citedSources`, `citationCount`,
 `validCitations`, `claimCount`, `groundedClaims`, and `groundedness`. Each claim
@@ -90,6 +112,8 @@ contains `text`, `citations`, and `grounded`. Each citation records its
 
 Markdown output is a pull request report. It includes case status, answer
 changes, groundedness, citation counts, cited sources, and failed checks.
+Policy checks contribute to the check totals. Failed policy checks identify
+the field and rejected sources.
 Without `--out`, JSON and Markdown output go to stdout.
 
 ## Answer protocol

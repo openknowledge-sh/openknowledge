@@ -6,7 +6,9 @@
 
 The dataset stores questions, retrieval expectations, and optional answer
 expectations. Answer expectations include answer text, cited sources, minimum
-valid citations, and minimum groundedness.
+valid citations, and minimum groundedness. Retrieval policy expectations can
+require a trust tier, reject stale evidence, restrict lifecycle statuses, and
+require structured provenance on every selected source.
 
 `answer-request.schema.json` defines the JSON document that the CLI writes to
 an answer command stdin. It contains the dataset identity, target revision,

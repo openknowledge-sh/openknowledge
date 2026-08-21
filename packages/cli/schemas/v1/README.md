@@ -92,6 +92,8 @@ Strict eval datasets use an independent input schema under
 `version: 1`. Eval reports and comparison reports use the CLI
 `schemaVersion: "1"` output contract. Eval case results can contain answer
 text, claim-level citation validity, cited sources, and groundedness metrics.
+Eval checks can also assert the minimum trust tier, freshness allowance,
+allowed lifecycle statuses, and structured provenance of every selected source.
 
 CLI-owned registry and managed-cache provenance use independent persistence
 schemas under [`../storage/v1/`](../storage/v1/).

@@ -30,6 +30,8 @@ func TestDatasetSchemaMatchesParserContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	noExpand := true
+	allowStale := false
+	requireSources := true
 	minimumGroundedness := 0.75
 	dataset := Dataset{
 		Type: DatasetType, Version: DatasetVersion, ID: "deploy",
@@ -40,6 +42,7 @@ func TestDatasetSchemaMatchesParserContract(t *testing.T) {
 				Sources: []string{"operations/rollback.md"}, EvidenceContains: []string{"restore"},
 				AnswerContains: []string{"previous release"}, CitationSources: []string{"operations/rollback.md"},
 				MinCitations: 1, MinGroundedness: &minimumGroundedness,
+				MinimumTrust: "human-reviewed", AllowStale: &allowStale, AllowedStatuses: []string{"stable"}, RequireSources: &requireSources,
 			},
 		}},
 	}
