@@ -218,6 +218,12 @@ type runtimeMCPSession struct {
 	mu       sync.Mutex
 	server   *mcpServer
 	lastUsed time.Time
+	profile  string
+}
+
+type runtimeAccessProfile struct {
+	config okruntime.AccessProfileConfig
+	token  string
 }
 
 type runtimeServeHandler struct {
@@ -225,6 +231,7 @@ type runtimeServeHandler struct {
 	snapshots  *runtimeSnapshotManager
 	semaphore  chan struct{}
 	mcpToken   string
+	profiles   []runtimeAccessProfile
 	sessionsMu sync.Mutex
 	sessions   map[string]*runtimeMCPSession
 	now        func() time.Time
@@ -309,11 +316,24 @@ func runRuntimeServe(args []string) int {
 
 func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, error) {
 	token := ""
-	if config.Serve.MCPAccess == "token" {
+	if config.Serve.MCPAccess == "token" && len(config.AccessProfiles) == 0 {
 		token = os.Getenv(config.Serve.MCPTokenEnv)
 		if token == "" {
 			return nil, fmt.Errorf("MCP token environment variable %s is empty", config.Serve.MCPTokenEnv)
 		}
+	}
+	profiles := make([]runtimeAccessProfile, 0, len(config.AccessProfiles))
+	seenTokens := map[string]bool{}
+	for _, profile := range config.AccessProfiles {
+		profileToken := strings.TrimSpace(os.Getenv(profile.TokenEnv))
+		if len(profileToken) < 32 {
+			return nil, fmt.Errorf("access profile %s token environment variable %s must contain at least 32 bytes", profile.ID, profile.TokenEnv)
+		}
+		if seenTokens[profileToken] {
+			return nil, fmt.Errorf("access profile tokens must be unique")
+		}
+		seenTokens[profileToken] = true
+		profiles = append(profiles, runtimeAccessProfile{config: profile, token: profileToken})
 	}
 	snapshots := newRuntimeSnapshotManager(config)
 	if snapshots.initErr != nil {
@@ -333,6 +353,7 @@ func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, erro
 		snapshots: snapshots,
 		semaphore: make(chan struct{}, config.Serve.MaxConcurrency),
 		mcpToken:  token,
+		profiles:  profiles,
 		sessions:  make(map[string]*runtimeMCPSession),
 		now:       time.Now,
 		usage:     usageRecorder,
@@ -376,9 +397,21 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 	}
 	switch relative {
 	case "_search":
-		handler.serveSearch(response, request, snapshot)
+		access, policy, ok := handler.authorizeRetrieval(response, request, knowledge.ID)
+		if !ok {
+			return
+		}
+		handler.serveSearch(response, request, snapshot, access, policy)
 	case "_mcp":
-		handler.serveMCP(response, request, snapshot)
+		if !snapshot.Knowledge.MCP || handler.config.Serve.MCPAccess == "off" {
+			http.NotFound(response, request)
+			return
+		}
+		access, policy, ok := handler.authorizeRetrieval(response, request, knowledge.ID)
+		if !ok {
+			return
+		}
+		handler.serveMCP(response, request, snapshot, access, policy)
 	default:
 		prefix := strings.TrimSuffix(knowledge.Route, "/")
 		if prefix == "" {
@@ -387,6 +420,31 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 		response.Header().Set("Cache-Control", "no-cache")
 		http.StripPrefix(prefix, http.FileServer(http.Dir(filepath.Join(snapshot.Root, "public")))).ServeHTTP(response, request)
 	}
+}
+
+func (handler *runtimeServeHandler) authorizeRetrieval(response http.ResponseWriter, request *http.Request, knowledgeBase string) (runtimeAccessIdentity, okruntime.RetrievalPolicyConfig, bool) {
+	if len(handler.profiles) == 0 {
+		return publicRuntimeAccess(), handler.config.Serve.RetrievalPolicy, true
+	}
+	for _, profile := range handler.profiles {
+		if !constantTimeBearer(request.Header.Get("Authorization"), profile.token) {
+			continue
+		}
+		if !containsString(profile.config.KnowledgeBases, knowledgeBase) {
+			http.Error(response, "knowledge base is forbidden for this access profile", http.StatusForbidden)
+			return runtimeAccessIdentity{}, okruntime.RetrievalPolicyConfig{}, false
+		}
+		policy := handler.config.Serve.RetrievalPolicy
+		if profile.config.RetrievalPolicy != nil {
+			policy = *profile.config.RetrievalPolicy
+		}
+		return runtimeAccessIdentity{
+			Profile: profile.config.ID, Agents: nonNilStrings(profile.config.Agents), Teams: nonNilStrings(profile.config.Teams), UseCases: nonNilStrings(profile.config.UseCases),
+		}, policy, true
+	}
+	response.Header().Set("WWW-Authenticate", "Bearer")
+	http.Error(response, "unauthorized", http.StatusUnauthorized)
+	return runtimeAccessIdentity{}, okruntime.RetrievalPolicyConfig{}, false
 }
 
 func (handler *runtimeServeHandler) matchKnowledge(requestPath string) (okruntime.KnowledgeBaseConfig, string, bool) {
@@ -408,7 +466,7 @@ func (handler *runtimeServeHandler) matchKnowledge(requestPath string) (okruntim
 	return *matched, relative, true
 }
 
-func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, request *http.Request, snapshot runtimeGenerationSnapshot) {
+func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, request *http.Request, snapshot runtimeGenerationSnapshot, access runtimeAccessIdentity, policy okruntime.RetrievalPolicyConfig) {
 	if request.Method != http.MethodGet {
 		response.Header().Set("Allow", http.MethodGet)
 		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
@@ -429,7 +487,7 @@ func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, re
 		limit = value
 	}
 	now := handler.now()
-	result := buildRuntimeSearchResponse(snapshot, handler.config.Serve.RetrievalPolicy, query, limit, now)
+	result := buildRuntimeSearchResponseForAccess(snapshot, policy, access, query, limit, now)
 	if err := handler.recordSearchUsage(snapshot, query, result, now); err != nil {
 		runtimeInfof("runtime usage event failed: %v\n", err)
 	}
@@ -437,16 +495,12 @@ func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, re
 	_ = json.NewEncoder(response).Encode(result)
 }
 
-func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, request *http.Request, snapshot runtimeGenerationSnapshot) {
-	if !snapshot.Knowledge.MCP || handler.config.Serve.MCPAccess == "off" {
-		http.NotFound(response, request)
-		return
-	}
+func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, request *http.Request, snapshot runtimeGenerationSnapshot, access runtimeAccessIdentity, policy okruntime.RetrievalPolicyConfig) {
 	if !handler.validOrigin(request) {
 		http.Error(response, "origin is not allowed", http.StatusForbidden)
 		return
 	}
-	if handler.config.Serve.MCPAccess == "token" && !constantTimeBearer(request.Header.Get("Authorization"), handler.mcpToken) {
+	if len(handler.profiles) == 0 && handler.config.Serve.MCPAccess == "token" && !constantTimeBearer(request.Header.Get("Authorization"), handler.mcpToken) {
 		response.Header().Set("WWW-Authenticate", "Bearer")
 		http.Error(response, "unauthorized", http.StatusUnauthorized)
 		return
@@ -454,6 +508,17 @@ func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, reque
 	if request.Method == http.MethodDelete {
 		sessionID := request.Header.Get("Mcp-Session-Id")
 		handler.sessionsMu.Lock()
+		session := handler.sessions[snapshot.Knowledge.ID+":"+sessionID]
+		if session == nil {
+			handler.sessionsMu.Unlock()
+			http.Error(response, "unknown MCP session", http.StatusNotFound)
+			return
+		}
+		if session.profile != access.Profile {
+			handler.sessionsMu.Unlock()
+			http.Error(response, "MCP session access profile changed", http.StatusForbidden)
+			return
+		}
 		delete(handler.sessions, snapshot.Knowledge.ID+":"+sessionID)
 		handler.sessionsMu.Unlock()
 		response.WriteHeader(http.StatusNoContent)
@@ -486,7 +551,7 @@ func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, reque
 		server := &mcpServer{root: runtimeProjectionRoot(snapshot.Root, "mcp"), spec: snapshot.Manifest.Spec, version: version}
 		server.resolveContext = func(options okf.ContextOptions) (any, error) {
 			now := handler.now()
-			result, err := buildRuntimeContextResponse(snapshot, handler.config.Serve.RetrievalPolicy, options, now)
+			result, err := buildRuntimeContextResponseForAccess(snapshot, policy, access, options, now)
 			if err == nil {
 				if recordErr := handler.recordContextUsage(snapshot, options.Query, result, now); recordErr != nil {
 					runtimeInfof("runtime usage event failed: %v\n", recordErr)
@@ -494,7 +559,7 @@ func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, reque
 			}
 			return result, err
 		}
-		session := &runtimeMCPSession{server: server, lastUsed: handler.now()}
+		session := &runtimeMCPSession{server: server, lastUsed: handler.now(), profile: access.Profile}
 		handler.sessionsMu.Lock()
 		handler.expireMCPSessionsLocked(time.Now().Add(-30 * time.Minute))
 		if len(handler.sessions) >= 1024 {
@@ -515,6 +580,10 @@ func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, reque
 	handler.sessionsMu.Unlock()
 	if session == nil {
 		http.Error(response, "unknown MCP session", http.StatusNotFound)
+		return
+	}
+	if session.profile != access.Profile {
+		http.Error(response, "MCP session access profile changed", http.StatusForbidden)
 		return
 	}
 	session.mu.Lock()

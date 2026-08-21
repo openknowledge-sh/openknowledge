@@ -47,6 +47,65 @@ mcp = true
 	}
 }
 
+func TestParseConfigNormalizesPermissionAwareAccessProfiles(t *testing.T) {
+	config, err := ParseConfig([]byte(`
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[serve]
+mcp_access = "token"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+mcp = true
+[[access_profiles]]
+id = "support"
+token_env = "SUPPORT_KNOWLEDGE_TOKEN"
+knowledge_bases = ["wiki"]
+agents = ["support-agent"]
+teams = ["support"]
+use_cases = ["customer-support"]
+[access_profiles.retrieval_policy]
+minimum_trust = "human-reviewed"
+allow_stale = false
+allowed_statuses = ["stable"]
+require_sources = true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.AccessProfiles) != 1 || config.AccessProfiles[0].ID != "support" || config.AccessProfiles[0].RetrievalPolicy == nil || config.AccessProfiles[0].RetrievalPolicy.MinimumTrust != "human-reviewed" {
+		t.Fatalf("unexpected access profiles: %#v", config.AccessProfiles)
+	}
+	invalid := `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+[[access_profiles]]
+id = "support"
+token_env = "SUPPORT_KNOWLEDGE_TOKEN"
+knowledge_bases = ["missing"]
+agents = ["support-agent"]
+`
+	if _, err := ParseConfig([]byte(invalid)); err == nil || !strings.Contains(err.Error(), "unknown knowledge base") {
+		t.Fatalf("expected unknown access route refusal, got %v", err)
+	}
+	unpublished := strings.Replace(invalid, `knowledge_bases = ["missing"]`, `knowledge_bases = ["wiki"]`, 1)
+	unpublished = strings.Replace(unpublished, "publish = true", "publish = false", 1)
+	if _, err := ParseConfig([]byte(unpublished)); err == nil || !strings.Contains(err.Error(), "unpublished knowledge base") {
+		t.Fatalf("expected unpublished access route refusal, got %v", err)
+	}
+}
+
 func TestParseConfigDoesNotAcceptRemovedRunAgentsKey(t *testing.T) {
 	_, err := ParseConfig([]byte(`
 [runtime]

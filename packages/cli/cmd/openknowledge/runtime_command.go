@@ -23,6 +23,7 @@ type runtimePlan struct {
 	Worker           okruntime.WorkerConfig          `json:"worker"`
 	GitHub           okruntime.GitHubConfig          `json:"github"`
 	KnowledgeBases   []okruntime.KnowledgeBaseConfig `json:"knowledgeBases"`
+	AccessProfiles   []okruntime.AccessProfileConfig `json:"accessProfiles"`
 	RequiredRuntimes []string                        `json:"requiredRuntimes,omitempty"`
 }
 
@@ -93,6 +94,7 @@ func runRuntimePlan(args []string) int {
 		Worker:           config.Worker,
 		GitHub:           config.GitHub,
 		KnowledgeBases:   config.KnowledgeBases,
+		AccessProfiles:   append([]okruntime.AccessProfileConfig{}, config.AccessProfiles...),
 		RequiredRuntimes: requiredRuntimes,
 	}
 	if err := printJSON(plan); err != nil {

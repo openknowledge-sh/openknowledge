@@ -466,7 +466,7 @@ stale_after: 2026-01-01
 
 # Draft policy
 
-Runtime selection policy draft.
+Runtime selection policy draft. Quarantine zebra protocol.
 `)
 	index, err := okf.BuildContextIndexWithVersion(root, "0.2")
 	if err != nil {
@@ -513,6 +513,10 @@ Runtime selection policy draft.
 	if len(searchResult.Rejected) != 1 || searchResult.Rejected[0].Path != "draft.md" || !reflect.DeepEqual(searchResult.Rejected[0].Reasons, []string{"trust_below_minimum", "stale", "status_not_allowed", "sources_required"}) {
 		t.Fatalf("unexpected policy rejections: %#v", searchResult.Rejected)
 	}
+	refusal := buildRuntimeSearchResponse(snapshot, policy, "quarantine zebra", 5, handler.now())
+	if refusal.Decision != "refuse" || !reflect.DeepEqual(refusal.RefusalReasons, []string{"no_policy_compliant_evidence"}) || len(refusal.Results) != 0 || len(refusal.Rejected) == 0 {
+		t.Fatalf("runtime did not explicitly refuse unsupported evidence: %#v", refusal)
+	}
 
 	initialize := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`, nil)
 	session := initialize.Header().Get("Mcp-Session-Id")
@@ -530,6 +534,85 @@ Runtime selection policy draft.
 	}
 	if len(events) != 2 || events[0].Channel != "http-search" || events[1].Channel != "mcp-search" || events[0].Query != "selection policy" || !reflect.DeepEqual(events[0].Generation.Checks, []string{"Knowledge Eval"}) || len(events[0].Selected) != 1 || events[0].Selected[0].Path != "trusted.md" {
 		t.Fatalf("unexpected runtime usage events: %#v", events)
+	}
+}
+
+func TestRuntimeAccessProfilesAuthorizeAndRouteRetrieval(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n")
+	writeViewerFile(t, root, "guide.md", "---\ntype: Guide\ntitle: Support guide\n---\n\n# Support guide\n\nReset the customer account.\n")
+	index, err := okf.BuildContextIndexWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := okruntime.RetrievalPolicyConfig{MinimumTrust: "unverified", AllowStale: true, AllowedStatuses: []string{"draft", "stable", "deprecated"}}
+	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Publish: true, MCP: true}
+	snapshot := runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: okruntime.ActivePointer{Generation: "generation-1"}, Manifest: okruntime.GenerationManifest{Commit: "abc", Spec: "0.2", ContentDigest: strings.Repeat("a", 64)}, Root: root, Search: index, MCP: index}
+	support := runtimeAccessProfile{config: okruntime.AccessProfileConfig{ID: "support", KnowledgeBases: []string{"wiki"}, Agents: []string{"support-agent"}, Teams: []string{"support"}, UseCases: []string{"customer-support"}}, token: strings.Repeat("s", 32)}
+	viewer := runtimeAccessProfile{config: okruntime.AccessProfileConfig{ID: "viewer", KnowledgeBases: []string{"wiki"}, Agents: []string{"viewer-agent"}}, token: strings.Repeat("v", 32)}
+	admin := runtimeAccessProfile{config: okruntime.AccessProfileConfig{ID: "admin", KnowledgeBases: []string{"admin"}, Teams: []string{"admin"}}, token: strings.Repeat("a", 32)}
+	handler := &runtimeServeHandler{
+		config:    okruntime.Config{Serve: okruntime.ServeConfig{MCPAccess: "token", RetrievalPolicy: policy}, KnowledgeBases: []okruntime.KnowledgeBaseConfig{knowledge}},
+		snapshots: &runtimeSnapshotManager{active: map[string]runtimeGenerationSnapshot{"wiki": snapshot}}, semaphore: make(chan struct{}, 4),
+		profiles: []runtimeAccessProfile{admin, support, viewer}, sessions: make(map[string]*runtimeMCPSession), now: time.Now,
+	}
+	for name, test := range map[string]struct {
+		headers map[string]string
+		want    int
+	}{
+		"missing":   {nil, http.StatusUnauthorized},
+		"unknown":   {map[string]string{"Authorization": "Bearer " + strings.Repeat("x", 32)}, http.StatusUnauthorized},
+		"forbidden": {map[string]string{"Authorization": "Bearer " + admin.token}, http.StatusForbidden},
+	} {
+		t.Run(name, func(t *testing.T) {
+			response := runtimeRequest(t, handler, http.MethodGet, "/_search?q=customer", "", test.headers)
+			if response.Code != test.want {
+				t.Fatalf("code=%d want=%d body=%s", response.Code, test.want, response.Body.String())
+			}
+		})
+	}
+	supportHeaders := map[string]string{"Authorization": "Bearer " + support.token}
+	search := runtimeRequest(t, handler, http.MethodGet, "/_search?q=customer", "", supportHeaders)
+	var result runtimeSearchResponse
+	if search.Code != http.StatusOK || json.Unmarshal(search.Body.Bytes(), &result) != nil || result.Access.Profile != "support" || !reflect.DeepEqual(result.Access.Agents, []string{"support-agent"}) {
+		t.Fatalf("unexpected routed search: code=%d result=%#v body=%s", search.Code, result, search.Body.String())
+	}
+	initialize := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`, supportHeaders)
+	session := initialize.Header().Get("Mcp-Session-Id")
+	if initialize.Code != http.StatusOK || session == "" {
+		t.Fatalf("unexpected profile MCP initialize: %d %s", initialize.Code, initialize.Body.String())
+	}
+	changedProfile := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}`, map[string]string{"Authorization": "Bearer " + viewer.token, "Mcp-Session-Id": session})
+	if changedProfile.Code != http.StatusForbidden {
+		t.Fatalf("profile-switched session was accepted: %d %s", changedProfile.Code, changedProfile.Body.String())
+	}
+}
+
+func TestRuntimeAccessProfilesReplaceLegacyMCPToken(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("SUPPORT_KNOWLEDGE_TOKEN", strings.Repeat("s", 32))
+	config := okruntime.Config{
+		Runtime:       okruntime.RuntimeConfig{StateDir: filepath.Join(root, "state")},
+		ArtifactStore: okruntime.ArtifactStoreConfig{Type: "filesystem", Path: filepath.Join(root, "artifacts")},
+		Serve: okruntime.ServeConfig{
+			MCPAccess:      "token",
+			MCPTokenEnv:    "LEGACY_TOKEN_IS_INTENTIONALLY_UNSET",
+			MaxConcurrency: 1,
+		},
+		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "wiki", Publish: true, MCP: true}},
+		AccessProfiles: []okruntime.AccessProfileConfig{{
+			ID: "support", TokenEnv: "SUPPORT_KNOWLEDGE_TOKEN", KnowledgeBases: []string{"wiki"}, Agents: []string{"support-agent"},
+		}},
+	}
+	if _, err := newRuntimeServeHandler(config); err != nil {
+		t.Fatalf("profile-backed runtime unexpectedly required legacy MCP token: %v", err)
+	}
+	t.Setenv("SECOND_KNOWLEDGE_TOKEN", strings.Repeat("s", 32))
+	config.AccessProfiles = append(config.AccessProfiles, okruntime.AccessProfileConfig{
+		ID: "second", TokenEnv: "SECOND_KNOWLEDGE_TOKEN", KnowledgeBases: []string{"wiki"}, Teams: []string{"support"},
+	})
+	if _, err := newRuntimeServeHandler(config); err == nil || !strings.Contains(err.Error(), "must be unique") {
+		t.Fatalf("expected duplicate profile token refusal, got %v", err)
 	}
 }
 

@@ -8,6 +8,7 @@
     "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     "checks": ["Knowledge Eval", "Verify"]
   },
+  "access": {"profile": "support", "agents": ["support-agent"], "teams": ["support"], "useCases": ["customer-support"]},
   "policy": {
     "minimum_trust": "machine-confirmed",
     "allow_stale": false,
@@ -74,5 +75,7 @@
       "reasons": ["trust_below_minimum", "stale", "status_not_allowed", "sources_required"]
     }
   ],
+  "decision": "answer",
+  "refusalReasons": [],
   "issues": []
 }

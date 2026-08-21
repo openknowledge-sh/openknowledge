@@ -47,6 +47,10 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 			KnowledgeBases: []okruntime.KnowledgeBaseConfig{
 				{ID: "docs", Path: "/workspace/Wiki", Route: "/", Spec: "0.1", Publish: true},
 			},
+			AccessProfiles: []okruntime.AccessProfileConfig{{
+				ID: "support", TokenEnv: "SUPPORT_KNOWLEDGE_TOKEN", KnowledgeBases: []string{"docs"}, Agents: []string{"support-agent"}, Teams: []string{"support"}, UseCases: []string{"customer-support"},
+				RetrievalPolicy: &okruntime.RetrievalPolicyConfig{MinimumTrust: "human-reviewed", AllowedStatuses: []string{"stable"}, RequireSources: true},
+			}},
 			RequiredRuntimes: []string{"codex"},
 		},
 		"runtime-build": runtimeBuildResult{

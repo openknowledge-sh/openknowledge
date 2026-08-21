@@ -58,6 +58,32 @@
       "mcp": false
     }
   ],
+  "accessProfiles": [
+    {
+      "id": "support",
+      "token_env": "SUPPORT_KNOWLEDGE_TOKEN",
+      "knowledge_bases": [
+        "docs"
+      ],
+      "agents": [
+        "support-agent"
+      ],
+      "teams": [
+        "support"
+      ],
+      "use_cases": [
+        "customer-support"
+      ],
+      "retrieval_policy": {
+        "minimum_trust": "human-reviewed",
+        "allow_stale": false,
+        "allowed_statuses": [
+          "stable"
+        ],
+        "require_sources": true
+      }
+    }
+  ],
   "requiredRuntimes": [
     "codex"
   ]

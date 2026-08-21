@@ -29,6 +29,7 @@ type Config struct {
 	Worker         WorkerConfig          `toml:"worker" json:"worker"`
 	GitHub         GitHubConfig          `toml:"github" json:"github"`
 	KnowledgeBases []KnowledgeBaseConfig `toml:"knowledge_bases" json:"knowledge_bases"`
+	AccessProfiles []AccessProfileConfig `toml:"access_profiles" json:"access_profiles"`
 }
 
 type RuntimeConfig struct {
@@ -69,6 +70,16 @@ type RetrievalPolicyConfig struct {
 	AllowStale      bool     `toml:"allow_stale" json:"allow_stale"`
 	AllowedStatuses []string `toml:"allowed_statuses" json:"allowed_statuses"`
 	RequireSources  bool     `toml:"require_sources" json:"require_sources"`
+}
+
+type AccessProfileConfig struct {
+	ID              string                 `toml:"id" json:"id"`
+	TokenEnv        string                 `toml:"token_env" json:"token_env"`
+	KnowledgeBases  []string               `toml:"knowledge_bases" json:"knowledge_bases"`
+	Agents          []string               `toml:"agents" json:"agents"`
+	Teams           []string               `toml:"teams" json:"teams"`
+	UseCases        []string               `toml:"use_cases" json:"use_cases"`
+	RetrievalPolicy *RetrievalPolicyConfig `toml:"retrieval_policy" json:"retrieval_policy,omitempty"`
 }
 
 type UsageEventsConfig struct {
@@ -170,6 +181,7 @@ func ParseConfig(content []byte) (Config, error) {
 	if err := decoder.Decode(&config); err != nil {
 		return Config{}, err
 	}
+	config.normalizeAccessProfiles()
 	if err := config.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -178,8 +190,9 @@ func ParseConfig(content []byte) (Config, error) {
 
 func defaultConfig() Config {
 	return Config{
-		ArtifactStore: ArtifactStoreConfig{Type: "filesystem"},
-		PublisherAPI:  PublisherAPIConfig{Address: "127.0.0.1:8090"},
+		AccessProfiles: []AccessProfileConfig{},
+		ArtifactStore:  ArtifactStoreConfig{Type: "filesystem"},
+		PublisherAPI:   PublisherAPIConfig{Address: "127.0.0.1:8090"},
 		Serve: ServeConfig{
 			Address:        "127.0.0.1:8080",
 			PollInterval:   "5s",
@@ -208,6 +221,26 @@ func defaultConfig() Config {
 			Checks:           true,
 		},
 	}
+}
+
+func (config *Config) normalizeAccessProfiles() {
+	for index := range config.AccessProfiles {
+		profile := &config.AccessProfiles[index]
+		profile.KnowledgeBases = append([]string{}, profile.KnowledgeBases...)
+		profile.Agents = append([]string{}, profile.Agents...)
+		profile.Teams = append([]string{}, profile.Teams...)
+		profile.UseCases = append([]string{}, profile.UseCases...)
+		for _, values := range [][]string{profile.KnowledgeBases, profile.Agents, profile.Teams, profile.UseCases} {
+			for item := range values {
+				values[item] = strings.TrimSpace(values[item])
+			}
+			sort.Strings(values)
+		}
+		if profile.RetrievalPolicy != nil {
+			sort.Strings(profile.RetrievalPolicy.AllowedStatuses)
+		}
+	}
+	sort.Slice(config.AccessProfiles, func(i, j int) bool { return config.AccessProfiles[i].ID < config.AccessProfiles[j].ID })
 }
 
 func (config *Config) resolvePaths(base string) error {
@@ -305,25 +338,8 @@ func (config Config) Validate() error {
 	if config.Serve.MCPAccess == "token" && strings.TrimSpace(config.Serve.MCPTokenEnv) == "" {
 		return fmt.Errorf("serve.mcp_token_env is required for token access")
 	}
-	trustTiers := map[string]bool{
-		okf.OKFV02TrustUnverified: true, okf.OKFV02TrustMachineConfirmed: true, okf.OKFV02TrustHumanReviewed: true,
-	}
-	if !trustTiers[config.Serve.RetrievalPolicy.MinimumTrust] {
-		return fmt.Errorf("serve.retrieval_policy.minimum_trust must be unverified, machine-confirmed, or human-reviewed")
-	}
-	if len(config.Serve.RetrievalPolicy.AllowedStatuses) == 0 {
-		return fmt.Errorf("serve.retrieval_policy.allowed_statuses must not be empty")
-	}
-	allowedStatuses := map[string]bool{"draft": true, "stable": true, "deprecated": true}
-	seenStatuses := make(map[string]bool)
-	for index, status := range config.Serve.RetrievalPolicy.AllowedStatuses {
-		if !allowedStatuses[status] {
-			return fmt.Errorf("serve.retrieval_policy.allowed_statuses[%d] must be draft, stable, or deprecated", index)
-		}
-		if seenStatuses[status] {
-			return fmt.Errorf("serve.retrieval_policy.allowed_statuses[%d] is duplicated: %s", index, status)
-		}
-		seenStatuses[status] = true
+	if err := validateRetrievalPolicy("serve.retrieval_policy", config.Serve.RetrievalPolicy); err != nil {
+		return err
 	}
 	for index, origin := range config.Serve.AllowedOrigins {
 		parsed, err := url.Parse(origin)
@@ -414,6 +430,7 @@ func (config Config) Validate() error {
 		return fmt.Errorf("at least one knowledge_bases entry is required")
 	}
 	ids := map[string]bool{}
+	publishedIDs := map[string]bool{}
 	routes := map[string]bool{}
 	for index := range config.KnowledgeBases {
 		knowledge := &config.KnowledgeBases[index]
@@ -424,6 +441,7 @@ func (config Config) Validate() error {
 			return fmt.Errorf("knowledge_bases[%d].id is duplicated: %s", index, knowledge.ID)
 		}
 		ids[knowledge.ID] = true
+		publishedIDs[knowledge.ID] = knowledge.Publish
 		if strings.TrimSpace(knowledge.Path) == "" {
 			return fmt.Errorf("knowledge_bases[%d].path is required", index)
 		}
@@ -448,6 +466,72 @@ func (config Config) Validate() error {
 	sort.Slice(config.KnowledgeBases, func(i, j int) bool {
 		return config.KnowledgeBases[i].ID < config.KnowledgeBases[j].ID
 	})
+	profileIDs := map[string]bool{}
+	tokenEnvironments := map[string]bool{}
+	for index, profile := range config.AccessProfiles {
+		field := fmt.Sprintf("access_profiles[%d]", index)
+		if !validID(profile.ID) || profileIDs[profile.ID] {
+			return fmt.Errorf("%s.id must be a unique bounded ID", field)
+		}
+		profileIDs[profile.ID] = true
+		if !validEnvironmentName(profile.TokenEnv) || tokenEnvironments[profile.TokenEnv] {
+			return fmt.Errorf("%s.token_env must be a unique environment variable", field)
+		}
+		tokenEnvironments[profile.TokenEnv] = true
+		if len(profile.KnowledgeBases) == 0 || len(profile.KnowledgeBases) > 100 {
+			return fmt.Errorf("%s.knowledge_bases must contain between 1 and 100 IDs", field)
+		}
+		if len(profile.Agents)+len(profile.Teams)+len(profile.UseCases) == 0 {
+			return fmt.Errorf("%s must route at least one agent, team, or use case", field)
+		}
+		for name, values := range map[string][]string{"knowledge_bases": profile.KnowledgeBases, "agents": profile.Agents, "teams": profile.Teams, "use_cases": profile.UseCases} {
+			if len(values) > 100 {
+				return fmt.Errorf("%s.%s must contain at most 100 IDs", field, name)
+			}
+			seen := map[string]bool{}
+			for item, value := range values {
+				if !validID(value) || seen[value] {
+					return fmt.Errorf("%s.%s[%d] must be a unique bounded ID", field, name, item)
+				}
+				seen[value] = true
+				if name == "knowledge_bases" && !ids[value] {
+					return fmt.Errorf("%s.knowledge_bases[%d] references unknown knowledge base %s", field, item, value)
+				}
+				if name == "knowledge_bases" && !publishedIDs[value] {
+					return fmt.Errorf("%s.knowledge_bases[%d] references unpublished knowledge base %s", field, item, value)
+				}
+			}
+		}
+		if profile.RetrievalPolicy != nil {
+			if err := validateRetrievalPolicy(field+".retrieval_policy", *profile.RetrievalPolicy); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateRetrievalPolicy(field string, policy RetrievalPolicyConfig) error {
+	trustTiers := map[string]bool{
+		okf.OKFV02TrustUnverified: true, okf.OKFV02TrustMachineConfirmed: true, okf.OKFV02TrustHumanReviewed: true,
+	}
+	if !trustTiers[policy.MinimumTrust] {
+		return fmt.Errorf("%s.minimum_trust must be unverified, machine-confirmed, or human-reviewed", field)
+	}
+	if len(policy.AllowedStatuses) == 0 {
+		return fmt.Errorf("%s.allowed_statuses must not be empty", field)
+	}
+	allowedStatuses := map[string]bool{"draft": true, "stable": true, "deprecated": true}
+	seenStatuses := make(map[string]bool)
+	for index, status := range policy.AllowedStatuses {
+		if !allowedStatuses[status] {
+			return fmt.Errorf("%s.allowed_statuses[%d] must be draft, stable, or deprecated", field, index)
+		}
+		if seenStatuses[status] {
+			return fmt.Errorf("%s.allowed_statuses[%d] is duplicated: %s", field, index, status)
+		}
+		seenStatuses[status] = true
+	}
 	return nil
 }
 

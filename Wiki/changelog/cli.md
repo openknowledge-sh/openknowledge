@@ -106,6 +106,16 @@ page records release-level changes.
 
 ### Runtime retrieval
 
+- Runtime `[[access_profiles]]` now give HTTP search and MCP separate
+  environment-backed bearer tokens, published knowledge base allowlists, and
+  agent, team, or use-case routing labels.
+- A profile can replace the global retrieval policy. Configured profiles
+  replace the legacy single MCP token and bind each MCP session to one profile.
+- Runtime search and context responses now include access identity and an
+  explicit `answer` or `refuse` decision. Refusals identify missing evidence,
+  policy rejection, or insufficient MCP context budget.
+- Refusal responses contain no selected evidence. They keep rejected
+  candidates visible for review.
 - `[serve.retrieval_policy]` now filters runtime evidence by minimum trust,
   staleness, lifecycle status, and structured source presence. Defaults remain
   permissive.

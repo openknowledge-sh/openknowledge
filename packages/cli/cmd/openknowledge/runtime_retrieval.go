@@ -20,6 +20,13 @@ type runtimeGenerationIdentity struct {
 	Checks        []string `json:"checks"`
 }
 
+type runtimeAccessIdentity struct {
+	Profile  string   `json:"profile"`
+	Agents   []string `json:"agents"`
+	Teams    []string `json:"teams"`
+	UseCases []string `json:"useCases"`
+}
+
 type runtimeTrustMetadata struct {
 	Tier     string                 `json:"tier"`
 	Status   string                 `json:"status"`
@@ -70,22 +77,26 @@ type runtimeRejectedCandidate struct {
 }
 
 type runtimeSearchResponse struct {
-	SchemaVersion string                          `json:"schemaVersion"`
-	KnowledgeBase string                          `json:"knowledgeBase"`
-	Generation    runtimeGenerationIdentity       `json:"generation"`
-	Policy        okruntime.RetrievalPolicyConfig `json:"policy"`
-	Revision      okf.RetrievalRevision           `json:"revision"`
-	Query         string                          `json:"query"`
-	Limit         int                             `json:"limit"`
-	Results       []runtimeSearchResult           `json:"results"`
-	Rejected      []runtimeRejectedCandidate      `json:"rejected"`
-	Issues        []okf.Issue                     `json:"issues"`
+	SchemaVersion  string                          `json:"schemaVersion"`
+	KnowledgeBase  string                          `json:"knowledgeBase"`
+	Generation     runtimeGenerationIdentity       `json:"generation"`
+	Access         runtimeAccessIdentity           `json:"access"`
+	Policy         okruntime.RetrievalPolicyConfig `json:"policy"`
+	Revision       okf.RetrievalRevision           `json:"revision"`
+	Query          string                          `json:"query"`
+	Limit          int                             `json:"limit"`
+	Results        []runtimeSearchResult           `json:"results"`
+	Rejected       []runtimeRejectedCandidate      `json:"rejected"`
+	Decision       string                          `json:"decision"`
+	RefusalReasons []string                        `json:"refusalReasons"`
+	Issues         []okf.Issue                     `json:"issues"`
 }
 
 type runtimeContextResponse struct {
 	SchemaVersion   string                          `json:"schemaVersion"`
 	KnowledgeBase   string                          `json:"knowledgeBase"`
 	Generation      runtimeGenerationIdentity       `json:"generation"`
+	Access          runtimeAccessIdentity           `json:"access"`
 	Policy          okruntime.RetrievalPolicyConfig `json:"policy"`
 	Revision        okf.RetrievalRevision           `json:"revision"`
 	Query           string                          `json:"query"`
@@ -94,6 +105,8 @@ type runtimeContextResponse struct {
 	Limit           int                             `json:"limit"`
 	Sources         []runtimeContextSource          `json:"sources"`
 	Rejected        []runtimeRejectedCandidate      `json:"rejected"`
+	Decision        string                          `json:"decision"`
+	RefusalReasons  []string                        `json:"refusalReasons"`
 	Issues          []okf.Issue                     `json:"issues"`
 }
 
@@ -104,18 +117,25 @@ type runtimeCandidateMetadata struct {
 }
 
 func buildRuntimeSearchResponse(snapshot runtimeGenerationSnapshot, policy okruntime.RetrievalPolicyConfig, query string, limit int, now time.Time) runtimeSearchResponse {
+	return buildRuntimeSearchResponseForAccess(snapshot, policy, publicRuntimeAccess(), query, limit, now)
+}
+
+func buildRuntimeSearchResponseForAccess(snapshot runtimeGenerationSnapshot, policy okruntime.RetrievalPolicyConfig, access runtimeAccessIdentity, query string, limit int, now time.Time) runtimeSearchResponse {
 	ranked := snapshot.Search.Search(okf.SearchOptions{Query: query, Limit: mcpMaxSearchLimit})
 	response := runtimeSearchResponse{
-		SchemaVersion: runtimeRetrievalSchemaVersion,
-		KnowledgeBase: snapshot.Knowledge.ID,
-		Generation:    runtimeGeneration(snapshot),
-		Policy:        policy,
-		Revision:      ranked.Revision,
-		Query:         ranked.Query,
-		Limit:         limit,
-		Results:       []runtimeSearchResult{},
-		Rejected:      []runtimeRejectedCandidate{},
-		Issues:        nonNilIssues(ranked.Issues),
+		SchemaVersion:  runtimeRetrievalSchemaVersion,
+		KnowledgeBase:  snapshot.Knowledge.ID,
+		Generation:     runtimeGeneration(snapshot),
+		Access:         access,
+		Policy:         policy,
+		Revision:       ranked.Revision,
+		Query:          ranked.Query,
+		Limit:          limit,
+		Results:        []runtimeSearchResult{},
+		Rejected:       []runtimeRejectedCandidate{},
+		Decision:       "answer",
+		RefusalReasons: []string{},
+		Issues:         nonNilIssues(ranked.Issues),
 	}
 	sections := runtimeSectionLookup(snapshot.Search.Sections)
 	for rank, result := range ranked.Results {
@@ -133,10 +153,22 @@ func buildRuntimeSearchResponse(snapshot runtimeGenerationSnapshot, policy okrun
 			Selection: runtimeSelectionMetadata{Rank: rank + 1, Score: result.Score, Relation: result.Relation, Matches: nonNilStrings(result.Matches), Reasons: runtimeSelectionReasons(rank+1, result.Relation, result.Matches, metadata)},
 		})
 	}
+	if len(response.Results) == 0 {
+		response.Decision = "refuse"
+		if len(response.Rejected) > 0 {
+			response.RefusalReasons = []string{"no_policy_compliant_evidence"}
+		} else {
+			response.RefusalReasons = []string{"no_relevant_evidence"}
+		}
+	}
 	return response
 }
 
 func buildRuntimeContextResponse(snapshot runtimeGenerationSnapshot, policy okruntime.RetrievalPolicyConfig, options okf.ContextOptions, now time.Time) (runtimeContextResponse, error) {
+	return buildRuntimeContextResponseForAccess(snapshot, policy, publicRuntimeAccess(), options, now)
+}
+
+func buildRuntimeContextResponseForAccess(snapshot runtimeGenerationSnapshot, policy okruntime.RetrievalPolicyConfig, access runtimeAccessIdentity, options okf.ContextOptions, now time.Time) (runtimeContextResponse, error) {
 	index := snapshot.MCP
 	if index.Revision.IndexSHA256 == "" {
 		index = snapshot.Search
@@ -157,17 +189,20 @@ func buildRuntimeContextResponse(snapshot runtimeGenerationSnapshot, policy okru
 		return runtimeContextResponse{}, err
 	}
 	response := runtimeContextResponse{
-		SchemaVersion: runtimeRetrievalSchemaVersion,
-		KnowledgeBase: snapshot.Knowledge.ID,
-		Generation:    runtimeGeneration(snapshot),
-		Policy:        policy,
-		Revision:      resolved.Revision,
-		Query:         resolved.Query,
-		Budget:        requestedBudget,
-		Limit:         requestedLimit,
-		Sources:       []runtimeContextSource{},
-		Rejected:      []runtimeRejectedCandidate{},
-		Issues:        nonNilIssues(resolved.Issues),
+		SchemaVersion:  runtimeRetrievalSchemaVersion,
+		KnowledgeBase:  snapshot.Knowledge.ID,
+		Generation:     runtimeGeneration(snapshot),
+		Access:         access,
+		Policy:         policy,
+		Revision:       resolved.Revision,
+		Query:          resolved.Query,
+		Budget:         requestedBudget,
+		Limit:          requestedLimit,
+		Sources:        []runtimeContextSource{},
+		Rejected:       []runtimeRejectedCandidate{},
+		Decision:       "answer",
+		RefusalReasons: []string{},
+		Issues:         nonNilIssues(resolved.Issues),
 	}
 	sections := runtimeSectionLookup(index.Sections)
 	for rank, source := range resolved.Sources {
@@ -186,7 +221,22 @@ func buildRuntimeContextResponse(snapshot runtimeGenerationSnapshot, policy okru
 			Selection: runtimeSelectionMetadata{Rank: rank + 1, Score: source.Score, Relation: source.Relation, Matches: []string{}, Reasons: runtimeSelectionReasons(rank+1, source.Relation, nil, metadata)},
 		})
 	}
+	if len(response.Sources) == 0 {
+		response.Decision = "refuse"
+		switch {
+		case len(response.Rejected) > 0:
+			response.RefusalReasons = []string{"no_policy_compliant_evidence"}
+		case len(resolved.Sources) > 0:
+			response.RefusalReasons = []string{"insufficient_budget"}
+		default:
+			response.RefusalReasons = []string{"no_relevant_evidence"}
+		}
+	}
 	return response, nil
+}
+
+func publicRuntimeAccess() runtimeAccessIdentity {
+	return runtimeAccessIdentity{Profile: "public", Agents: []string{}, Teams: []string{}, UseCases: []string{}}
 }
 
 func runtimeGeneration(snapshot runtimeGenerationSnapshot) runtimeGenerationIdentity {

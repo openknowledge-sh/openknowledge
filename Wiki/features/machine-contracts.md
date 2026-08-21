@@ -102,6 +102,18 @@ Runtime plans include the normalized `serve.retrieval_policy` object.
 `runtime-search.schema.json` and `runtime-context.schema.json` bind responses
 to the active generation and retrieval revision.
 
+Runtime plans also include normalized `accessProfiles`. Each profile contains
+an environment token name, published knowledge base allowlists, routing
+labels, and an optional complete retrieval policy override.
+
+Runtime search and context responses contain `access`, `decision`, and
+`refusalReasons`. Access identifies the profile and its `agents`, `teams`, and
+`useCases` labels. Decision is `answer` or `refuse`.
+
+A refusal has no selected evidence. Its reason is
+`no_relevant_evidence`, `no_policy_compliant_evidence`, or
+`insufficient_budget`. The response preserves rejected candidates for review.
+
 Runtime generation identity includes sorted `checks`. These names identify
 the successful GitHub checks bound into the generation `contentDigest`.
 Runtime plans include normalized `github.required_checks` names and the

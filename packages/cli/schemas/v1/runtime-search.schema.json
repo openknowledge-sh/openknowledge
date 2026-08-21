@@ -3,20 +3,34 @@
   "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-search.schema.json",
   "title": "Open Knowledge runtime search response v1",
   "type": "object",
-  "required": ["schemaVersion", "knowledgeBase", "generation", "policy", "revision", "query", "limit", "results", "rejected", "issues"],
+  "required": ["schemaVersion", "knowledgeBase", "generation", "access", "policy", "revision", "query", "limit", "results", "rejected", "decision", "refusalReasons", "issues"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "knowledgeBase": {"type": "string", "minLength": 1},
     "generation": {"$ref": "#/$defs/generation"},
+    "access": {"$ref": "#/$defs/access"},
     "policy": {"$ref": "#/$defs/policy"},
     "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
     "query": {"type": "string", "minLength": 1},
     "limit": {"type": "integer", "minimum": 1, "maximum": 50},
     "results": {"type": "array", "items": {"$ref": "#/$defs/result"}},
     "rejected": {"type": "array", "items": {"$ref": "#/$defs/rejected"}},
+    "decision": {"enum": ["answer", "refuse"]},
+    "refusalReasons": {"type": "array", "uniqueItems": true, "items": {"enum": ["no_relevant_evidence", "no_policy_compliant_evidence", "insufficient_budget"]}},
     "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
   },
   "$defs": {
+    "access": {
+      "type": "object",
+      "required": ["profile", "agents", "teams", "useCases"],
+      "properties": {
+        "profile": {"type": "string", "minLength": 1},
+        "agents": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "teams": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "useCases": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
     "generation": {
       "type": "object",
       "required": ["name", "commit", "spec", "contentDigest", "checks"],
@@ -106,5 +120,9 @@
       "additionalProperties": false
     }
   },
+  "allOf": [
+    {"if": {"properties": {"decision": {"const": "answer"}}}, "then": {"properties": {"refusalReasons": {"maxItems": 0}}}},
+    {"if": {"properties": {"decision": {"const": "refuse"}}}, "then": {"properties": {"results": {"maxItems": 0}, "refusalReasons": {"minItems": 1}}}}
+  ],
   "additionalProperties": false
 }

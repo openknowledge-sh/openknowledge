@@ -78,7 +78,7 @@ poll_interval = "5s"
 request_timeout = "15s"
 max_concurrency = 32
 mcp_access = "public" # public, token, or off
-mcp_token_env = "OPENKNOWLEDGE_MCP_TOKEN"
+mcp_token_env = "OPENKNOWLEDGE_MCP_TOKEN" # used only without access profiles
 
 [serve.retrieval_policy]
 minimum_trust = "unverified"
@@ -115,6 +115,20 @@ path = "Wiki"
 route = "/"
 publish = true
 mcp = true
+
+[[access_profiles]]
+id = "support"
+token_env = "OPENKNOWLEDGE_SUPPORT_TOKEN"
+knowledge_bases = ["wiki"]
+agents = ["support-agent"]
+teams = ["support"]
+use_cases = ["customer-support"]
+
+[access_profiles.retrieval_policy]
+minimum_trust = "human-reviewed"
+allow_stale = false
+allowed_statuses = ["stable"]
+require_sources = true
 ```
 
 Paths are relative to `runtime.toml`. The runtime rejects unknown fields,
@@ -165,6 +179,36 @@ Therefore, the default JavaScript policy does not require `unsafe-inline`.
 Static viewer responses use `Cache-Control: no-cache`. A browser can store
 these responses but must validate them after a generation change.
 
+## Access profiles
+
+`[[access_profiles]]` defines bearer-token access for runtime retrieval. Each
+profile has a unique `id`, a unique `token_env`, and one or more published
+knowledge base IDs. Configuration rejects unpublished knowledge bases.
+
+Each profile must route at least one `agents`, `teams`, or `use_cases` label.
+Successful HTTP search and `openknowledge_search` responses return these
+labels in `access`. The response also returns the profile ID. The bearer token
+selects the profile. A request cannot select its routing labels.
+
+At startup, `serve` reads each token from its environment variable. Each
+trimmed token must contain at least 32 bytes. Resolved token values must be
+unique.
+
+When profiles exist, `GET <route>/_search` and `<route>/_mcp` require a profile
+bearer token. A valid token receives only its knowledge base allowlist. The
+static viewer remains public.
+
+Profiles replace the legacy `serve.mcp_token_env` token when profiles exist.
+Each MCP request still requires a profile token. An MCP session binds to its
+initial profile and rejects a different profile.
+
+MCP also requires `knowledge_bases.mcp = true`. The endpoint is unavailable
+when `serve.mcp_access = "off"`.
+
+The optional `[access_profiles.retrieval_policy]` table replaces the complete
+`serve.retrieval_policy` for that profile. Omit the table to use the global
+policy. A profile policy uses the same four required fields and validation.
+
 ## Retrieval policy
 
 `serve.retrieval_policy` controls evidence selection for runtime search.
@@ -199,10 +243,25 @@ access to the `mcp/` projection and do not apply this policy.
 `openknowledge_search` tool returns `runtime-context.schema.json` v1 as
 structured content and JSON text.
 
-Both contracts include the effective policy, retrieval revision, issues, and
-rejected candidates. Their generation identity contains `name`, `commit`,
-`spec`, `contentDigest`, and `checks`. The retrieval revision separately
-contains `specVersion` and `indexSha256`.
+Both contracts include the effective policy, access identity, retrieval
+revision, issues, rejected candidates, `decision`, and `refusalReasons`. Their
+generation identity contains `name`, `commit`, `spec`, `contentDigest`, and
+`checks`. The retrieval revision separately contains `specVersion` and
+`indexSha256`.
+
+`decision` is `answer` when the response selects evidence. It is `refuse` when
+the response cannot select evidence. A refusal contains no selected results or
+sources. Rejected candidates remain visible.
+
+`refusalReasons` uses these values:
+
+- `no_relevant_evidence`: Retrieval found no relevant candidate.
+- `no_policy_compliant_evidence`: The policy rejected the available candidates.
+- `insufficient_budget`: MCP found candidates, rejected none by policy, and fit none in the context budget.
+
+An answer has an empty `refusalReasons` array. The `access` object contains
+`profile`, `agents`, `teams`, and `useCases`. Without configured profiles, the
+profile is `public` and the routing arrays are empty.
 
 Each selected result or context source contains these metadata groups:
 
@@ -360,6 +419,9 @@ the trusted ingress.
 > - `packages/cli/internal/usage/`
 > - `packages/cli/internal/insights/`
 > - `packages/cli/internal/agents/templates.go`
+> - `packages/cli/schemas/v1/runtime-plan.schema.json`
+> - `packages/cli/schemas/v1/runtime-search.schema.json`
+> - `packages/cli/schemas/v1/runtime-context.schema.json`
 > - `packages/cli/schemas/v1/usage-event.schema.json`
 > - `.github/workflows/ci.yml`
 > - `.github/workflows/knowledge-eval.yml`

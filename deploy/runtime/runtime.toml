@@ -35,6 +35,21 @@ checks = true
 # required_checks = ["knowledge-eval / Evaluate knowledge changes", "verify"]
 # auto_merge_low_risk = false
 
+# Token-bound retrieval profiles restrict search and MCP by knowledge base,
+# agent, team, or use case. A profile policy overrides serve.retrieval_policy.
+# [[access_profiles]]
+# id = "support"
+# token_env = "OPENKNOWLEDGE_SUPPORT_TOKEN"
+# knowledge_bases = ["wiki"]
+# agents = ["support-agent"]
+# teams = ["support"]
+# use_cases = ["customer-support"]
+# [access_profiles.retrieval_policy]
+# minimum_trust = "human-reviewed"
+# allow_stale = false
+# allowed_statuses = ["stable"]
+# require_sources = true
+
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"

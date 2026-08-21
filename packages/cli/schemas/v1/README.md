@@ -62,12 +62,15 @@ Job run records can contain eval status, identity, private report paths,
 regressions, and proposed failures. These objects are part of
 `job-run-plan.schema.json` and `job-run-record.schema.json`.
 
-Runtime plans contain normalized retrieval policy and usage event settings.
-Their GitHub settings also expose the low-risk auto-merge switch; validation
-requires enabled check publishing and at least one required check when it is on.
-Runtime search and context results identify the active generation and
-retrieval revision. They also contain policy, trust, freshness, provenance,
-selection, and rejection metadata.
+Runtime plans contain normalized retrieval policy, usage event settings, and
+permission-aware access profiles that route knowledge bases to declared agents,
+teams, and use cases. Their GitHub settings also expose the low-risk auto-merge
+switch; validation requires enabled check publishing and at least one required
+check when it is on. Runtime search and context results identify the active
+generation, access profile, and retrieval revision. They also contain policy,
+trust, freshness, provenance, selection, and rejection metadata. The explicit
+`decision` and `refusalReasons` fields prevent consumers from treating an empty
+result as permission to answer without sufficiently trusted evidence.
 
 Runtime generation identity includes a sorted `checks` array. The generation
 `contentDigest` binds these successful GitHub check names to the generation.

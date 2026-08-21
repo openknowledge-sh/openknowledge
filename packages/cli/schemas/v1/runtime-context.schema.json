@@ -3,11 +3,12 @@
   "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-context.schema.json",
   "title": "Open Knowledge runtime context response v1",
   "type": "object",
-  "required": ["schemaVersion", "knowledgeBase", "generation", "policy", "revision", "query", "budget", "estimatedTokens", "limit", "sources", "rejected", "issues"],
+  "required": ["schemaVersion", "knowledgeBase", "generation", "access", "policy", "revision", "query", "budget", "estimatedTokens", "limit", "sources", "rejected", "decision", "refusalReasons", "issues"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "knowledgeBase": {"type": "string", "minLength": 1},
     "generation": {"$ref": "runtime-search.schema.json#/$defs/generation"},
+    "access": {"$ref": "runtime-search.schema.json#/$defs/access"},
     "policy": {"$ref": "runtime-search.schema.json#/$defs/policy"},
     "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
     "query": {"type": "string", "minLength": 1},
@@ -16,6 +17,8 @@
     "limit": {"type": "integer", "minimum": 1, "maximum": 50},
     "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
     "rejected": {"type": "array", "items": {"$ref": "runtime-search.schema.json#/$defs/rejected"}},
+    "decision": {"enum": ["answer", "refuse"]},
+    "refusalReasons": {"type": "array", "uniqueItems": true, "items": {"enum": ["no_relevant_evidence", "no_policy_compliant_evidence", "insufficient_budget"]}},
     "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
   },
   "$defs": {
@@ -32,5 +35,9 @@
       "additionalProperties": false
     }
   },
+  "allOf": [
+    {"if": {"properties": {"decision": {"const": "answer"}}}, "then": {"properties": {"refusalReasons": {"maxItems": 0}}}},
+    {"if": {"properties": {"decision": {"const": "refuse"}}}, "then": {"properties": {"sources": {"maxItems": 0}, "refusalReasons": {"minItems": 1}}}}
+  ],
   "additionalProperties": false
 }
