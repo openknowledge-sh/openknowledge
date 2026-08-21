@@ -30,8 +30,12 @@ page records release-level changes.
   exist.
 - Text, JSON, and Markdown output support local review and automation. New
   `quality-report.schema.json` defines the strict machine contract.
+- New HTML output writes a self-contained offline dashboard. It provides a
+  first-view health ledger, a filterable priority queue, generation outcomes,
+  eval changes, the complete metric ledger, and responsive print styles.
 - Source: `packages/cli/cmd/openknowledge/quality_command.go`,
-  `packages/cli/internal/quality/`, and
+  `packages/cli/internal/quality/`,
+  `packages/cli/internal/quality/html.go`, and
   `packages/cli/schemas/v1/quality-report.schema.json`.
 - Docs: `Wiki/features/commands/quality.md`,
   `Wiki/features/commands/index.md`, and

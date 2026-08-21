@@ -123,11 +123,14 @@ func parseQualityReportOptions(args []string) (qualityReportOptions, error) {
 		options.target = operands[0]
 	}
 	options.format = strings.ToLower(strings.TrimSpace(options.format))
-	if options.format != "text" && options.format != "json" && options.format != "markdown" {
+	if options.format != "text" && options.format != "json" && options.format != "markdown" && options.format != "html" {
 		return qualityReportOptions{}, fmt.Errorf("unsupported quality report format: %s", options.format)
 	}
 	if options.out != "" && options.format == "text" {
-		return qualityReportOptions{}, fmt.Errorf("--out requires --format json or markdown")
+		return qualityReportOptions{}, fmt.Errorf("--out requires --format json, markdown, or html")
+	}
+	if options.format == "html" && options.out == "" {
+		return qualityReportOptions{}, fmt.Errorf("--format html requires --out")
 	}
 	if strings.TrimSpace(options.spec) == "" {
 		return qualityReportOptions{}, fmt.Errorf("--spec requires a value")
@@ -170,6 +173,13 @@ func readQualityFeedback(paths []string) ([]knowledgefeedback.Event, error) {
 }
 
 func printQualityReport(report knowledgequality.Report, options qualityReportOptions) error {
+	if options.format == "html" {
+		content, err := knowledgequality.RenderHTML(report)
+		if err != nil {
+			return err
+		}
+		return writeQualityOutput(options.out, content)
+	}
 	if options.format == "markdown" {
 		return writeQualityOutput(options.out, []byte(knowledgequality.RenderMarkdown(report)))
 	}
@@ -242,8 +252,8 @@ Flags:
   --eval <path>        Eval report or comparison JSON. Repeatable.
   --audit <path>       Audit report JSON for the current bundle. Repeatable.
   --spec <version>     OKF version (default latest).
-  --format <format>    text, json, or markdown (default text).
+  --format <format>    text, json, markdown, or html (default text).
   --json               Alias for --format json.
-  --out <path>         Write JSON or Markdown atomically.
+  --out <path>         Write JSON, Markdown, or self-contained HTML atomically.
 `
 }

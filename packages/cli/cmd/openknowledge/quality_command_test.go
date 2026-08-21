@@ -81,4 +81,31 @@ func TestParseQualityReportOptionsAcceptsRepeatableInputs(t *testing.T) {
 			t.Fatalf("expected invalid options: %v", invalid)
 		}
 	}
+	htmlOptions, err := parseQualityReportOptions([]string{"Wiki", "--format", "html", "--out", "quality.html"})
+	if err != nil || htmlOptions.format != "html" || htmlOptions.out != "quality.html" {
+		t.Fatalf("unexpected HTML options: %#v err=%v", htmlOptions, err)
+	}
+}
+
+func TestQualityReportWritesSelfContainedHTML(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\ntitle: Quality\nokf_version: \"0.2\"\n---\n\n# Quality\n")
+	writeMainTestFile(t, root, "runbook.md", "---\ntype: Runbook\ntitle: Recovery\n---\n\n# Recovery\n")
+	out := filepath.Join(t.TempDir(), "reports", "quality.html")
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runQuality([]string{"report", root, "--format", "html", "--out", out})
+	})
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Wrote quality report") {
+		t.Fatalf("HTML report failed: code=%d stderr=%q stdout=%q", code, stderr, stdout)
+	}
+	content, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "Knowledge quality ledger") || !strings.Contains(string(content), "runbook.md") {
+		t.Fatalf("unexpected HTML dashboard:\n%s", content)
+	}
 }

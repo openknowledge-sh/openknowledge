@@ -22,6 +22,7 @@ okn quality report Wiki \
   --audit audit-report.json
 okn quality report Wiki --format markdown --out quality.md
 okn quality report Wiki --json --out quality.json
+okn quality report Wiki --format html --out quality.html
 ```
 
 The knowledge base can be a name or path. The default is `.`. The default OKF
@@ -34,8 +35,8 @@ specification is `latest`.
 | `--eval <file>` | none | Add an eval report or comparison. Repeat this option as necessary. |
 | `--audit <file>` | none | Add an audit report. Repeat this option as necessary. |
 | `--spec <version>` | `latest` | Select the OKF version. |
-| `--format text\|json\|markdown` | `text` | Select the output format. `--json` selects JSON. |
-| `--out <file>` | stdout | Write JSON or Markdown atomically. Text output cannot use this option. |
+| `--format text\|json\|markdown\|html` | `text` | Select the output format. `--json` selects JSON. |
+| `--out <file>` | stdout | Write JSON, Markdown, or HTML atomically. HTML requires this option. Text cannot use it. |
 
 ## Input binding
 
@@ -104,6 +105,20 @@ Text output shows all metrics and up to ten concrete priorities. Markdown
 shows all concrete priorities and eval comparison changes. JSON returns the
 complete `quality-report.schema.json` v1 object.
 
+## HTML dashboard
+
+`--format html` writes one self-contained offline dashboard. The file includes
+inline styles and client-side controls. It does not load external resources or
+change any metric calculation.
+
+The first view shows the bundle identity and health ledger. The actionable
+priority queue follows it. Search matches concept paths, titles, and risk
+reasons. Priority and eval coverage filters update the queue in the browser.
+
+The dashboard also shows generation outcomes, eval comparison changes, and the
+complete metric ledger. Responsive styles support narrow screens. Print
+styles remove interactive controls and prepare the ledger for print output.
+
 Exit status `1` reports invalid input data, revision mismatch, or an
 operational failure. Exit status `2` reports invalid command usage.
 
@@ -115,6 +130,7 @@ operational failure. Exit status `2` reports invalid command usage.
 >
 > - `packages/cli/cmd/openknowledge/quality_command.go`
 > - `packages/cli/internal/quality/`
+> - `packages/cli/internal/quality/html.go`
 > - `packages/cli/schemas/v1/quality-report.schema.json`
 >
 > **Update notes**
