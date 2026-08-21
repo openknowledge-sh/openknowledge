@@ -44,6 +44,31 @@ Search does not currently provide general metadata filters or embeddings.
 Search also does not provide semantic fusion, a cross-encoder reranker, or a query planner.
 It does not provide RDF queries, property-graph queries, or GraphRAG multi-hop reasoning.
 
+## Maintenance and publication loop
+
+```mermaid
+flowchart LR
+  Usage["Private usage events"] --> Insight["Stable gap insight"]
+  Insight --> Job["Isolated job"]
+  Job --> PR["Draft pull request"]
+  PR --> Eval["Eval and GitHub checks"]
+  Eval --> Approval["Approval and merge"]
+  Approval --> Gate["Production required-check gate"]
+  Gate --> Generation["Check-bound generation"]
+  Generation --> Usage
+```
+
+`insights from-usage` converts recurring retrieval gaps into stable insights.
+An isolated job can research an insight and propose a draft pull request.
+
+The worker can report a bounded passing eval summary with its proposal. The
+publisher independently validates OKF and publication rules before GitHub
+review.
+
+GitHub approval and branch protection control the merge. After merge, the
+publisher verifies required checks on the production commit. It then creates
+the runtime generation and starts the next local usage cycle.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -55,6 +80,12 @@ It does not provide RDF queries, property-graph queries, or GraphRAG multi-hop r
 > - `packages/cli/internal/okf/search_knowledge.go`
 > - `packages/cli/internal/okf/graph.go`
 > - `packages/cli/internal/okf/ast_bundle_parse.go`
+> - `packages/cli/internal/usage/`
+> - `packages/cli/internal/insights/`
+> - `packages/cli/internal/agents/`
+> - `packages/cli/internal/runtime/generation.go`
+> - `packages/cli/cmd/openknowledge/runtime_worker.go`
+> - `.github/workflows/ci.yml`
 >
 > **Update notes**
 >

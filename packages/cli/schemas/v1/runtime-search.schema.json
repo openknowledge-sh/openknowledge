@@ -19,12 +19,13 @@
   "$defs": {
     "generation": {
       "type": "object",
-      "required": ["name", "commit", "spec", "contentDigest"],
+      "required": ["name", "commit", "spec", "contentDigest", "checks"],
       "properties": {
         "name": {"type": "string", "minLength": 1},
         "commit": {"type": "string", "minLength": 1},
         "spec": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
-        "contentDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        "contentDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "checks": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}}
       },
       "additionalProperties": false
     },

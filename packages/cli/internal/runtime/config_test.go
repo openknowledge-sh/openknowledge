@@ -237,3 +237,43 @@ publish = true
 		t.Fatalf("expected explicit usage query capture refusal, got %v", err)
 	}
 }
+
+func TestParseConfigValidatesRequiredGitHubChecks(t *testing.T) {
+	base := `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[github]
+enabled = %t
+repository = "owner/repo"
+token_env = "GITHUB_TOKEN"
+required_checks = %s
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`
+	config, err := ParseConfig([]byte(fmt.Sprintf(base, true, `["Verify", "Knowledge Eval"]`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(config.GitHub.RequiredChecks, []string{"Knowledge Eval", "Verify"}) {
+		t.Fatalf("required checks were not normalized: %#v", config.GitHub.RequiredChecks)
+	}
+	for _, test := range []struct {
+		enabled bool
+		checks  string
+		want    string
+	}{
+		{enabled: false, checks: `["Verify"]`, want: "requires github.enabled"},
+		{enabled: true, checks: `["Verify", "Verify"]`, want: "duplicated"},
+		{enabled: true, checks: `[""]`, want: "non-empty"},
+	} {
+		_, err := ParseConfig([]byte(fmt.Sprintf(base, test.enabled, test.checks)))
+		if err == nil || !strings.Contains(err.Error(), test.want) {
+			t.Fatalf("expected %q, got %v", test.want, err)
+		}
+	}
+}

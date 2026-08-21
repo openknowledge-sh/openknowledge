@@ -15,12 +15,12 @@ concurrency:
 
 jobs:
   knowledge-eval:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000')
     uses: ./.github/workflows/knowledge-eval.yml
     with:
       dataset: .openknowledge/evals/wiki.yaml
       target: Wiki
-      base_ref: ${{ github.event.pull_request.base.sha }}
+      base_ref: ${{ github.event.pull_request.base.sha || github.event.before }}
       gate: regressions
 
   verify:

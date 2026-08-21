@@ -205,6 +205,14 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 		return err
 	}
 	runtimeInfof("runtime worker synchronized %s at %s\n", config.Worker.ProductionBranch, commit)
+	verifiedChecks := []string{}
+	if len(config.GitHub.RequiredChecks) > 0 {
+		client := okruntime.GitHubClient{APIURL: config.GitHub.APIURL, Repository: config.GitHub.Repository, Token: token}
+		verifiedChecks, err = client.RequireSuccessfulChecks(ctx, commit, config.GitHub.RequiredChecks)
+		if err != nil {
+			return fmt.Errorf("production commit %s is not publishable: %w", commit, err)
+		}
+	}
 	if err := publishRuntimeSourceBundle(ctx, config, checkout); err != nil {
 		return err
 	}
@@ -222,7 +230,7 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 			continue
 		}
 		out := filepath.Join(config.Runtime.StateDir, "builds", mapped.ID)
-		result, err := buildRuntimeKnowledgeGeneration(config, mapped, commit, out, true)
+		result, err := buildRuntimeKnowledgeGenerationWithChecks(config, mapped, commit, out, true, verifiedChecks)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("publish %s: %w", mapped.ID, err))
 			continue
@@ -404,14 +412,25 @@ type runtimeGitHubPublication struct {
 }
 
 type runtimeExchangeRequest struct {
-	Version      int    `json:"version"`
-	RunID        string `json:"run_id"`
-	JobID        string `json:"job_id"`
-	Branch       string `json:"branch"`
-	BaseSHA      string `json:"base_sha"`
-	HeadSHA      string `json:"head_sha"`
-	BundleSHA256 string `json:"bundle_sha256"`
-	VerifyCount  int    `json:"verify_count"`
+	Version      int                  `json:"version"`
+	RunID        string               `json:"run_id"`
+	JobID        string               `json:"job_id"`
+	Branch       string               `json:"branch"`
+	BaseSHA      string               `json:"base_sha"`
+	HeadSHA      string               `json:"head_sha"`
+	BundleSHA256 string               `json:"bundle_sha256"`
+	VerifyCount  int                  `json:"verify_count"`
+	Eval         *runtimeExchangeEval `json:"eval,omitempty"`
+}
+
+type runtimeExchangeEval struct {
+	Status         string `json:"status"`
+	Dataset        string `json:"dataset"`
+	Target         string `json:"target"`
+	Base           string `json:"base"`
+	Gate           string `json:"gate"`
+	Regressions    int    `json:"regressions"`
+	ProposedFailed int    `json:"proposed_failed"`
 }
 
 func publishRuntimeSourceBundle(ctx context.Context, config okruntime.Config, checkout string) error {
@@ -548,6 +567,12 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 			continue
 		}
 		request := runtimeExchangeRequest{Version: 1, RunID: record.RunID, JobID: record.JobID, Branch: record.Plan.Branch, BaseSHA: record.Plan.BaseSHA, HeadSHA: headSHA, BundleSHA256: bundleSHA, VerifyCount: len(record.Verify)}
+		if record.Eval != nil {
+			request.Eval = &runtimeExchangeEval{
+				Status: record.Eval.Status, Dataset: record.Eval.Dataset, Target: record.Eval.Target, Base: record.Eval.Base, Gate: record.Eval.Gate,
+				Regressions: record.Eval.Regressions, ProposedFailed: record.Eval.ProposedFailed,
+			}
+		}
 		if err := writeExchangeJSON(filepath.Join(staging, "request.json"), request); err != nil {
 			_ = os.RemoveAll(staging)
 			failures = append(failures, err)
@@ -616,6 +641,10 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			!runtimeExchangeSHA1Pattern.MatchString(request.BaseSHA) || !runtimeExchangeSHA1Pattern.MatchString(request.HeadSHA) ||
 			request.VerifyCount < 0 || request.VerifyCount > 1000 {
 			failures = append(failures, fmt.Errorf("invalid agent exchange fields for %s", entry.Name()))
+			continue
+		}
+		if err := validateRuntimeExchangeEval(request.Eval); err != nil {
+			failures = append(failures, fmt.Errorf("invalid agent exchange eval for %s: %w", request.RunID, err))
 			continue
 		}
 		bundlePath := filepath.Join(root, "branch.bundle")
@@ -880,13 +909,44 @@ func validateRuntimeExchangeCommit(ctx context.Context, config okruntime.Config,
 }
 
 func runtimeExchangePullRequestSummary(request runtimeExchangeRequest) string {
-	return fmt.Sprintf("Automated Open Knowledge maintenance completed.\n\n- Job: `%s`\n- Run: `%s`\n- Base commit: `%s`\n- Agent verification commands reported: %d\n- Publisher OKF and publication validation: passed\n\nRaw prompts, tool calls, environment metadata, and runtime logs remain private.",
-		request.JobID, request.RunID, request.BaseSHA, request.VerifyCount)
+	summary := fmt.Sprintf("Automated Open Knowledge maintenance completed.\n\n- Job: `%s`\n- Run: `%s`\n- Base commit: `%s`\n- Agent verification commands reported: %d\n", request.JobID, request.RunID, request.BaseSHA, request.VerifyCount)
+	if request.Eval != nil {
+		summary += fmt.Sprintf("- Knowledge eval `%s` reported: passed (`%s`, %d regressions, %d proposed failures)\n", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
+	}
+	return summary + "- Publisher OKF and publication validation: passed\n\nRaw prompts, tool calls, environment metadata, and runtime logs remain private."
 }
 
 func runtimeExchangeCheckSummary(request runtimeExchangeRequest, pullRequestURL string) string {
-	return fmt.Sprintf("Job `%s` reported %d verification commands and the credentialed publisher independently validated every OKF bundle and public publication contract. Draft pull request: %s. Raw execution data remains in private agent storage.",
-		request.JobID, request.VerifyCount, pullRequestURL)
+	eval := ""
+	if request.Eval != nil {
+		eval = fmt.Sprintf(" The worker reported eval `%s` passed gate `%s` with %d regressions and %d proposed failures.", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
+	}
+	return fmt.Sprintf("Job `%s` reported %d verification commands.%s The credentialed publisher independently validated every OKF bundle and public publication contract. Draft pull request: %s. Raw execution data remains in private agent storage.",
+		request.JobID, request.VerifyCount, eval, pullRequestURL)
+}
+
+func validateRuntimeExchangeEval(eval *runtimeExchangeEval) error {
+	if eval == nil {
+		return nil
+	}
+	if eval.Status != "pass" || (eval.Gate != "all" && eval.Gate != "regressions") || eval.Regressions < 0 || eval.ProposedFailed < 0 {
+		return fmt.Errorf("eval must report a valid passing gate")
+	}
+	if !runtimeExchangeSHA1Pattern.MatchString(eval.Base) {
+		return fmt.Errorf("eval base must be an immutable commit SHA")
+	}
+	for _, item := range []struct{ field, value string }{{"dataset", eval.Dataset}, {"target", eval.Target}} {
+		field, value := item.field, item.value
+		clean := filepath.ToSlash(filepath.Clean(value))
+		if value == "" || len(value) > 4096 || filepath.IsAbs(value) || clean == ".." || strings.HasPrefix(clean, "../") || strings.ContainsAny(value, "\r\n`") {
+			return fmt.Errorf("eval %s must be a safe repository-relative path", field)
+		}
+	}
+	return nil
+}
+
+func runtimeMarkdownInline(value string) string {
+	return strings.ReplaceAll(value, "`", "'")
 }
 
 func writeExchangeJSON(target string, value any) error {

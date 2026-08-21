@@ -13,10 +13,11 @@ import (
 const runtimeRetrievalSchemaVersion = "1"
 
 type runtimeGenerationIdentity struct {
-	Name          string `json:"name"`
-	Commit        string `json:"commit"`
-	Spec          string `json:"spec"`
-	ContentDigest string `json:"contentDigest"`
+	Name          string   `json:"name"`
+	Commit        string   `json:"commit"`
+	Spec          string   `json:"spec"`
+	ContentDigest string   `json:"contentDigest"`
+	Checks        []string `json:"checks"`
 }
 
 type runtimeTrustMetadata struct {
@@ -189,7 +190,7 @@ func buildRuntimeContextResponse(snapshot runtimeGenerationSnapshot, policy okru
 }
 
 func runtimeGeneration(snapshot runtimeGenerationSnapshot) runtimeGenerationIdentity {
-	return runtimeGenerationIdentity{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest}
+	return runtimeGenerationIdentity{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest, Checks: nonNilStrings(snapshot.Manifest.Checks)}
 }
 
 func runtimeSectionLookup(sections []okf.ContextSection) map[string]okf.ContextSection {
@@ -309,7 +310,7 @@ func (handler *runtimeServeHandler) recordContextUsage(snapshot runtimeGeneratio
 }
 
 func usageGeneration(snapshot runtimeGenerationSnapshot) knowledgeusage.Generation {
-	return knowledgeusage.Generation{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest}
+	return knowledgeusage.Generation{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest, Checks: nonNilStrings(snapshot.Manifest.Checks)}
 }
 
 func runtimeRejectedReasons(rejected []runtimeRejectedCandidate) []string {

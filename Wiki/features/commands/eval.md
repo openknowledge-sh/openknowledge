@@ -145,16 +145,22 @@ With an answer command, the CLI invokes that command once for each revision.
 
 ## GitHub Actions
 
-Call the repository workflow from a pull request workflow:
+Call the repository workflow for pull requests and production branch pushes:
 
 ```yaml
+on:
+  pull_request:
+  push:
+    branches: [main]
+
 jobs:
   knowledge-eval:
+    if: github.event_name == 'pull_request' || github.event.before != '0000000000000000000000000000000000000000'
     uses: ./.github/workflows/knowledge-eval.yml
     with:
       dataset: .openknowledge/evals/knowledge-ci.yaml
       target: Wiki
-      base_ref: ${{ github.event.pull_request.base.sha }}
+      base_ref: ${{ github.event.pull_request.base.sha || github.event.before }}
       gate: regressions
 ```
 
@@ -166,6 +172,14 @@ repository-relative paths. Use an immutable commit SHA for `base_ref`.
 The workflow builds the current CLI and runs JSON and Markdown comparisons.
 It adds the Markdown report to the GitHub job summary. It does not create a
 pull request comment.
+
+For a pull request, `base_ref` uses the pull request base SHA. For a push to
+`main`, it uses `github.event.before`. The push run attaches the successful
+check to the production commit.
+
+The reusable job produces the exact check name
+`knowledge-eval / Evaluate knowledge changes` in this repository. Configure
+that name in `github.required_checks` to gate runtime publication.
 
 The workflow always uploads `knowledge-eval.json` and `knowledge-eval.md` when
 the files exist. The artifact retention period is 14 days. A failed gate keeps
@@ -193,6 +207,7 @@ does not configure an answer command. Use datasets without answer expectations.
 > - `packages/cli/schemas/eval/v1/answer-response.schema.json`
 > - `packages/cli/schemas/v1/eval-report.schema.json`
 > - `packages/cli/schemas/v1/eval-comparison.schema.json`
+> - `.github/workflows/ci.yml`
 > - `.github/workflows/knowledge-eval.yml`
 >
 > **Update notes**

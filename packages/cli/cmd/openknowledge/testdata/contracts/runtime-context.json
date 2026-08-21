@@ -5,7 +5,8 @@
     "name": "generation-7",
     "commit": "0123456789abcdef0123456789abcdef01234567",
     "spec": "0.2",
-    "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "checks": ["Knowledge Eval", "Verify"]
   },
   "policy": {
     "minimum_trust": "machine-confirmed",
@@ -54,7 +55,8 @@
           "name": "generation-7",
           "commit": "0123456789abcdef0123456789abcdef01234567",
           "spec": "0.2",
-          "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "checks": ["Knowledge Eval", "Verify"]
         },
         "sources": [{"id": "runbook", "resource": "https://example.test/runbook"}]
       },

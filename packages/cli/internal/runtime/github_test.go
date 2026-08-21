@@ -40,6 +40,26 @@ func TestGitHubClientCreatesSanitizedDraftPRAndCheck(t *testing.T) {
 	}
 }
 
+func TestGitHubClientRequiresLatestSuccessfulChecks(t *testing.T) {
+	client := GitHubClient{
+		APIURL: "https://api.github.test", Repository: "owner/repo", Token: "secret",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			if request.Method != http.MethodGet || !strings.Contains(request.URL.Path, "/commits/abc123/check-runs") {
+				t.Fatalf("unexpected check request: %s %s", request.Method, request.URL.String())
+			}
+			body := `{"check_runs":[{"id":1,"name":"Knowledge Eval","head_sha":"abc123","status":"completed","conclusion":"success"},{"id":2,"name":"Verify","head_sha":"abc123","status":"completed","conclusion":"failure"},{"id":3,"name":"Verify","head_sha":"abc123","status":"completed","conclusion":"success"}]}`
+			return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
+		})},
+	}
+	verified, err := client.RequireSuccessfulChecks(context.Background(), "abc123", []string{"Knowledge Eval", "Verify"})
+	if err != nil || len(verified) != 2 {
+		t.Fatalf("unexpected required checks result %#v err=%v", verified, err)
+	}
+	if _, err := client.RequireSuccessfulChecks(context.Background(), "abc123", []string{"Missing"}); err == nil || !strings.Contains(err.Error(), "missing") {
+		t.Fatalf("expected missing check refusal, got %v", err)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (function roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {

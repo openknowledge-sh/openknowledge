@@ -183,6 +183,17 @@ artifact reference.
   records the resolved base commit SHA and all eval settings.
 - Each completed comparison writes private `eval-report.json` and
   `eval-report.md` files in the run directory. Both files use mode `0600`.
+- A hosted exchange can include a bounded passing eval summary. The summary
+  contains dataset, target, base SHA, gate, regression count, and proposed
+  failure count.
+- The draft pull request and job check show the worker-reported dataset, gate,
+  regression count, and proposed failure count. Raw eval reports remain in
+  private worker storage.
+- The publisher independently validates each OKF bundle and publication set
+  before it creates the draft pull request or job check.
+- Treat the worker eval summary as an attestation, not a publication gate. A
+  required GitHub workflow check on the production commit is the authoritative
+  runtime publication gate.
 - A failed eval gate retains its reports and sets `verification_failed`.
   An eval setup or runner error also sets `verification_failed`.
 - Cancellation is passed to an active answer command. The run becomes
@@ -222,6 +233,7 @@ are available under `https://openknowledge.sh/schemas/cli/v1/`. See
 > - `packages/cli/internal/agents/`
 > - `packages/cli/internal/agents/templates.go`
 > - `packages/cli/cmd/openknowledge/agents_command_test.go`
+> - `packages/cli/cmd/openknowledge/runtime_worker.go`
 >
 > **Update notes**
 >

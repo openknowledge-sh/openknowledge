@@ -41,10 +41,11 @@ const (
 )
 
 type Generation struct {
-	Name          string `json:"name"`
-	Commit        string `json:"commit"`
-	Spec          string `json:"spec"`
-	ContentDigest string `json:"contentDigest"`
+	Name          string   `json:"name"`
+	Commit        string   `json:"commit"`
+	Spec          string   `json:"spec"`
+	ContentDigest string   `json:"contentDigest"`
+	Checks        []string `json:"checks"`
 }
 
 type Evidence struct {
@@ -134,6 +135,9 @@ func (recorder *Recorder) Record(input RecordInput) (Event, error) {
 		return Event{}, err
 	}
 	rejections := rejectionCounts(input.Rejected)
+	generation := input.Generation
+	generation.Checks = append([]string{}, generation.Checks...)
+	sort.Strings(generation.Checks)
 	outcome := "evidence-selected"
 	if len(input.Selected) == 0 {
 		outcome = "no-evidence"
@@ -143,7 +147,7 @@ func (recorder *Recorder) Record(input RecordInput) (Event, error) {
 	}
 	event := Event{
 		Type: EventType, Version: EventVersion, ID: id, At: input.At.Format(time.RFC3339Nano),
-		KnowledgeBase: input.KnowledgeBase, Generation: input.Generation, Channel: input.Channel,
+		KnowledgeBase: input.KnowledgeBase, Generation: generation, Channel: input.Channel,
 		QueryFingerprint: fingerprint(recorder.key, query), QueryLength: queryLengthBucket(query), Outcome: outcome,
 		Selected: nonNilEvidence(input.Selected), Rejected: rejections,
 	}
@@ -315,6 +319,17 @@ func Validate(event Event) error {
 	}
 	if event.Generation.Name == "" || event.Generation.Commit == "" || !specPattern.MatchString(event.Generation.Spec) || !hex64Pattern.MatchString(event.Generation.ContentDigest) {
 		return fmt.Errorf("usage generation identity is invalid")
+	}
+	if !sort.StringsAreSorted(event.Generation.Checks) {
+		return fmt.Errorf("usage generation checks are not sorted")
+	}
+	if len(event.Generation.Checks) > 100 {
+		return fmt.Errorf("usage generation has too many checks")
+	}
+	for index, check := range event.Generation.Checks {
+		if check == "" || len(check) > 256 || strings.ContainsAny(check, "\r\n") || (index > 0 && check == event.Generation.Checks[index-1]) {
+			return fmt.Errorf("usage generation checks are invalid")
+		}
 	}
 	if event.Channel != "http-search" && event.Channel != "mcp-search" {
 		return fmt.Errorf("usage event channel is invalid")

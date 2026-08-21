@@ -93,15 +93,16 @@ type WorkerConfig struct {
 }
 
 type GitHubConfig struct {
-	Enabled          bool   `toml:"enabled" json:"enabled"`
-	APIURL           string `toml:"api_url" json:"api_url"`
-	Repository       string `toml:"repository" json:"repository"`
-	AppID            int64  `toml:"app_id" json:"app_id,omitempty"`
-	InstallationID   int64  `toml:"installation_id" json:"installation_id,omitempty"`
-	PrivateKeyFile   string `toml:"private_key_file" json:"private_key_file,omitempty"`
-	TokenEnv         string `toml:"token_env" json:"token_env,omitempty"`
-	DraftPullRequest bool   `toml:"draft_pull_request" json:"draft_pull_request"`
-	Checks           bool   `toml:"checks" json:"checks"`
+	Enabled          bool     `toml:"enabled" json:"enabled"`
+	APIURL           string   `toml:"api_url" json:"api_url"`
+	Repository       string   `toml:"repository" json:"repository"`
+	AppID            int64    `toml:"app_id" json:"app_id,omitempty"`
+	InstallationID   int64    `toml:"installation_id" json:"installation_id,omitempty"`
+	PrivateKeyFile   string   `toml:"private_key_file" json:"private_key_file,omitempty"`
+	TokenEnv         string   `toml:"token_env" json:"token_env,omitempty"`
+	DraftPullRequest bool     `toml:"draft_pull_request" json:"draft_pull_request"`
+	Checks           bool     `toml:"checks" json:"checks"`
+	RequiredChecks   []string `toml:"required_checks" json:"required_checks,omitempty"`
 }
 
 type KnowledgeBaseConfig struct {
@@ -386,6 +387,24 @@ func (config Config) Validate() error {
 		if !hasEnvironmentToken && !hasApp {
 			return fmt.Errorf("github requires token_env or app_id, installation_id, and private_key_file")
 		}
+		if len(config.GitHub.RequiredChecks) > 100 {
+			return fmt.Errorf("github.required_checks must contain at most 100 names")
+		}
+		seenChecks := make(map[string]bool)
+		for index, check := range config.GitHub.RequiredChecks {
+			check = strings.TrimSpace(check)
+			if check == "" || len(check) > 256 || strings.ContainsAny(check, "\r\n") {
+				return fmt.Errorf("github.required_checks[%d] must be a non-empty single-line check name", index)
+			}
+			if seenChecks[check] {
+				return fmt.Errorf("github.required_checks[%d] is duplicated: %s", index, check)
+			}
+			seenChecks[check] = true
+			config.GitHub.RequiredChecks[index] = check
+		}
+		sort.Strings(config.GitHub.RequiredChecks)
+	} else if len(config.GitHub.RequiredChecks) > 0 {
+		return fmt.Errorf("github.required_checks requires github.enabled = true")
 	}
 	if len(config.KnowledgeBases) == 0 {
 		return fmt.Errorf("at least one knowledge_bases entry is required")

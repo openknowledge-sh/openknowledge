@@ -49,6 +49,27 @@ func TestRuntimeInfoUsesStdout(t *testing.T) {
 	}
 }
 
+func TestRuntimeExchangeSummariesCarryPassingEvalAttestation(t *testing.T) {
+	request := runtimeExchangeRequest{
+		Version: 1, RunID: "run-1", JobID: "knowledge", Branch: "jobs/knowledge/run-1",
+		BaseSHA: strings.Repeat("a", 40), HeadSHA: strings.Repeat("b", 40), BundleSHA256: strings.Repeat("c", 64), VerifyCount: 2,
+		Eval: &runtimeExchangeEval{Status: "pass", Dataset: ".openknowledge/evals/wiki.yaml", Target: "Wiki", Base: strings.Repeat("a", 40), Gate: "regressions", Regressions: 0, ProposedFailed: 1},
+	}
+	if err := validateRuntimeExchangeEval(request.Eval); err != nil {
+		t.Fatal(err)
+	}
+	for _, summary := range []string{runtimeExchangePullRequestSummary(request), runtimeExchangeCheckSummary(request, "https://github.test/pr/1")} {
+		if !strings.Contains(summary, ".openknowledge/evals/wiki.yaml") || !strings.Contains(summary, "0 regressions") || !strings.Contains(summary, "1 proposed failures") {
+			t.Fatalf("eval attestation missing from publication summary: %s", summary)
+		}
+	}
+	invalid := *request.Eval
+	invalid.Status = "fail"
+	if err := validateRuntimeExchangeEval(&invalid); err == nil {
+		t.Fatal("failed eval attestation was accepted")
+	}
+}
+
 func TestEnsureRuntimeStateDirectorySkipsRedundantChmod(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not expose POSIX directory modes")
@@ -216,6 +237,42 @@ mcp = true
 	}
 }
 
+func TestRuntimePublicationBindsRequiredChecksIntoGeneration(t *testing.T) {
+	root := t.TempDir()
+	enablePublicArtifactTest(t, filepath.Join(root, "Wiki"))
+	writeViewerFile(t, root, "Wiki/index.md", "# Checked knowledge\n")
+	writeViewerFile(t, root, "runtime.toml", `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`)
+	config, err := okruntime.LoadConfig(filepath.Join(root, "runtime.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.GitHub.RequiredChecks = []string{"Knowledge Eval", "Verify"}
+	if _, err := buildRuntimeKnowledgeGeneration(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "unattested"), true); err == nil || !strings.Contains(err.Error(), "requires verified GitHub checks") {
+		t.Fatalf("expected unattested publication refusal, got %v", err)
+	}
+	result, err := buildRuntimeKnowledgeGenerationWithChecks(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "attested"), true, []string{"Knowledge Eval", "Verify"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := okruntime.LoadAndValidateGeneration(result.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(manifest.Checks, config.GitHub.RequiredChecks) {
+		t.Fatalf("generation did not bind required checks: %#v", manifest.Checks)
+	}
+}
+
 func TestRuntimeRetrievalPolicyEnrichesAndFiltersHTTPAndMCP(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Runtime policy\n")
@@ -259,7 +316,7 @@ Runtime selection policy draft.
 	snapshot := runtimeGenerationSnapshot{
 		Knowledge: knowledge,
 		Pointer:   okruntime.ActivePointer{Generation: "generation-7"},
-		Manifest:  okruntime.GenerationManifest{Commit: "abc123", Spec: "0.2", ContentDigest: strings.Repeat("a", 64)},
+		Manifest:  okruntime.GenerationManifest{Commit: "abc123", Spec: "0.2", ContentDigest: strings.Repeat("a", 64), Checks: []string{"Knowledge Eval"}},
 		Root:      root,
 		Search:    index,
 		MCP:       index,
@@ -284,7 +341,7 @@ Runtime selection policy draft.
 		t.Fatalf("unexpected selected results: %#v", searchResult.Results)
 	}
 	selected := searchResult.Results[0]
-	if selected.Provenance.Generation.Name != "generation-7" || len(selected.Provenance.Sources) != 1 || selected.Freshness.EvaluatedAt != "2026-08-21T12:00:00Z" || len(selected.Selection.Reasons) == 0 {
+	if selected.Provenance.Generation.Name != "generation-7" || !reflect.DeepEqual(selected.Provenance.Generation.Checks, []string{"Knowledge Eval"}) || len(selected.Provenance.Sources) != 1 || selected.Freshness.EvaluatedAt != "2026-08-21T12:00:00Z" || len(selected.Selection.Reasons) == 0 {
 		t.Fatalf("missing runtime retrieval metadata: %#v", selected)
 	}
 	if len(searchResult.Rejected) != 1 || searchResult.Rejected[0].Path != "draft.md" || !reflect.DeepEqual(searchResult.Rejected[0].Reasons, []string{"trust_below_minimum", "stale", "status_not_allowed", "sources_required"}) {
@@ -305,7 +362,7 @@ Runtime selection policy draft.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 2 || events[0].Channel != "http-search" || events[1].Channel != "mcp-search" || events[0].Query != "selection policy" || len(events[0].Selected) != 1 || events[0].Selected[0].Path != "trusted.md" {
+	if len(events) != 2 || events[0].Channel != "http-search" || events[1].Channel != "mcp-search" || events[0].Query != "selection policy" || !reflect.DeepEqual(events[0].Generation.Checks, []string{"Knowledge Eval"}) || len(events[0].Selected) != 1 || events[0].Selected[0].Path != "trusted.md" {
 		t.Fatalf("unexpected runtime usage events: %#v", events)
 	}
 }

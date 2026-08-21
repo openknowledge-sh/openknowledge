@@ -198,11 +198,18 @@ func runRuntimeBuild(args []string) int {
 }
 
 func buildRuntimeKnowledgeGeneration(config okruntime.Config, knowledge okruntime.KnowledgeBaseConfig, commit string, out string, publish bool) (runtimeBuildResult, error) {
+	return buildRuntimeKnowledgeGenerationWithChecks(config, knowledge, commit, out, publish, nil)
+}
+
+func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledge okruntime.KnowledgeBaseConfig, commit string, out string, publish bool, checks []string) (runtimeBuildResult, error) {
 	if !knowledge.Publish {
 		return runtimeBuildResult{}, fmt.Errorf("knowledge base is configured with publish = false")
 	}
 	if publish && config.ArtifactStore.Type != "filesystem" {
 		return runtimeBuildResult{}, fmt.Errorf("runtime build can promote only to a filesystem artifact store")
+	}
+	if publish && !equalStringLists(checks, config.GitHub.RequiredChecks) {
+		return runtimeBuildResult{}, fmt.Errorf("runtime publication requires verified GitHub checks: %s", strings.Join(config.GitHub.RequiredChecks, ", "))
 	}
 	absoluteOut, err := okf.WriteDirectoryAtomically(out, func(staging string) error {
 		public := filepath.Join(staging, "public")
@@ -232,7 +239,7 @@ func buildRuntimeKnowledgeGeneration(config okruntime.Config, knowledge okruntim
 				return err
 			}
 		}
-		_, err := okruntime.WriteGenerationManifest(staging, knowledge.ID, commit, knowledge.Spec)
+		_, err := okruntime.WriteGenerationManifestWithChecks(staging, knowledge.ID, commit, knowledge.Spec, checks)
 		return err
 	})
 	if err != nil {
@@ -259,6 +266,18 @@ func buildRuntimeKnowledgeGeneration(config okruntime.Config, knowledge okruntim
 		result.Published = &pointer
 	}
 	return result, nil
+}
+
+func equalStringLists(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func selectRuntimeKnowledgeBases(config okruntime.Config, id string) ([]okruntime.KnowledgeBaseConfig, error) {

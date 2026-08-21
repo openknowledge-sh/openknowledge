@@ -31,6 +31,8 @@ installation_id = 12345678
 private_key_file = "/run/secrets/github_app_key"
 draft_pull_request = true
 checks = true
+# Fail closed until these exact checks succeed on the production commit.
+# required_checks = ["knowledge-eval / Evaluate knowledge changes", "verify"]
 
 [[knowledge_bases]]
 id = "wiki"

@@ -13,6 +13,31 @@ page records release-level changes.
 
 ## Unreleased
 
+### Publication gate
+
+- Runtime publication can now require exact GitHub check names on the
+  production commit. Missing, pending, and failed checks stop publication.
+- The publisher verifies checks before it creates a production source bundle
+  or generation. Manual publication cannot bypass configured required checks.
+- Successful check names are bound into the generation content digest.
+  Retrieval contracts and private usage events return `generation.checks`.
+- Hosted job exchange can carry a bounded worker-reported passing eval summary
+  for draft pull request and job check output. Raw reports remain private.
+- Repository CI now runs knowledge eval on pull requests and `main` pushes.
+  The push comparison uses the prior production SHA.
+- Source: `packages/cli/internal/runtime/github.go`,
+  `packages/cli/internal/runtime/generation.go`,
+  `packages/cli/internal/runtime/config.go`,
+  `packages/cli/cmd/openknowledge/runtime_command.go`,
+  `packages/cli/cmd/openknowledge/runtime_worker.go`,
+  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
+  `packages/cli/internal/usage/`, `.github/workflows/ci.yml`, and
+  `.github/workflows/knowledge-eval.yml`.
+- Docs: `Wiki/features/commands/runtime.md`,
+  `Wiki/features/commands/jobs.md`, `Wiki/features/commands/eval.md`,
+  `Wiki/features/machine-contracts.md`, and
+  `Wiki/features/knowledge-architecture.md`.
+
 ### Runtime usage
 
 - Runtime search can now record private local usage events for HTTP and MCP

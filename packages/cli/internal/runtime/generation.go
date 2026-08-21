@@ -36,6 +36,7 @@ type GenerationManifest struct {
 	Commit          string           `json:"commit"`
 	Spec            string           `json:"spec"`
 	ContentDigest   string           `json:"contentDigest"`
+	Checks          []string         `json:"checks,omitempty"`
 	Files           []GenerationFile `json:"files"`
 }
 
@@ -48,7 +49,11 @@ type ActivePointer struct {
 }
 
 func WriteGenerationManifest(root string, knowledgeBaseID string, commit string, spec string) (GenerationManifest, error) {
-	manifest, err := BuildGenerationManifest(root, knowledgeBaseID, commit, spec)
+	return WriteGenerationManifestWithChecks(root, knowledgeBaseID, commit, spec, nil)
+}
+
+func WriteGenerationManifestWithChecks(root string, knowledgeBaseID string, commit string, spec string, checks []string) (GenerationManifest, error) {
+	manifest, err := BuildGenerationManifestWithChecks(root, knowledgeBaseID, commit, spec, checks)
 	if err != nil {
 		return GenerationManifest{}, err
 	}
@@ -64,11 +69,25 @@ func WriteGenerationManifest(root string, knowledgeBaseID string, commit string,
 }
 
 func BuildGenerationManifest(root string, knowledgeBaseID string, commit string, spec string) (GenerationManifest, error) {
+	return BuildGenerationManifestWithChecks(root, knowledgeBaseID, commit, spec, nil)
+}
+
+func BuildGenerationManifestWithChecks(root string, knowledgeBaseID string, commit string, spec string, checks []string) (GenerationManifest, error) {
 	if !validID(knowledgeBaseID) {
 		return GenerationManifest{}, fmt.Errorf("invalid knowledge base id: %s", knowledgeBaseID)
 	}
 	if strings.TrimSpace(commit) == "" || strings.ContainsAny(commit, "/\\") {
 		return GenerationManifest{}, fmt.Errorf("generation commit is required and must not contain path separators")
+	}
+	checks = append([]string{}, checks...)
+	if len(checks) > 100 {
+		return GenerationManifest{}, fmt.Errorf("generation checks must contain at most 100 names")
+	}
+	sort.Strings(checks)
+	for index, check := range checks {
+		if strings.TrimSpace(check) == "" || len(check) > 256 || strings.ContainsAny(check, "\r\n") || (index > 0 && check == checks[index-1]) {
+			return GenerationManifest{}, fmt.Errorf("generation checks must be unique non-empty single-line names")
+		}
 	}
 	files, err := generationFiles(root)
 	if err != nil {
@@ -83,6 +102,7 @@ func BuildGenerationManifest(root string, knowledgeBaseID string, commit string,
 		KnowledgeBaseID: knowledgeBaseID,
 		Commit:          commit,
 		Spec:            spec,
+		Checks:          checks,
 		Files:           files,
 	}
 	manifest.ContentDigest = generationContentDigest(manifest)
@@ -103,6 +123,17 @@ func LoadAndValidateGeneration(root string) (GenerationManifest, error) {
 	}
 	if !validID(manifest.KnowledgeBaseID) || strings.TrimSpace(manifest.Commit) == "" {
 		return GenerationManifest{}, fmt.Errorf("invalid generation identity")
+	}
+	if !sort.StringsAreSorted(manifest.Checks) {
+		return GenerationManifest{}, fmt.Errorf("generation checks must be sorted")
+	}
+	if len(manifest.Checks) > 100 {
+		return GenerationManifest{}, fmt.Errorf("generation checks must contain at most 100 names")
+	}
+	for index, check := range manifest.Checks {
+		if strings.TrimSpace(check) == "" || len(check) > 256 || strings.ContainsAny(check, "\r\n") || (index > 0 && check == manifest.Checks[index-1]) {
+			return GenerationManifest{}, fmt.Errorf("generation checks must be unique non-empty single-line names")
+		}
 	}
 	resolvedSpec, ok := okf.ResolveSpecVersion(manifest.Spec)
 	if !ok || manifest.Spec == "latest" || manifest.Spec != resolvedSpec {

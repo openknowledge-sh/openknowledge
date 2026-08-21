@@ -72,6 +72,10 @@ Runtime plans include the normalized `serve.retrieval_policy` object.
 `runtime-search.schema.json` and `runtime-context.schema.json` bind responses
 to the active generation and retrieval revision.
 
+Runtime generation identity includes sorted `checks`. These names identify
+the successful GitHub checks bound into the generation `contentDigest`.
+Runtime plans include normalized `github.required_checks` names.
+
 Both retrieval contracts include the effective policy and rejected candidates.
 Selected items add trust, freshness, provenance, and selection metadata.
 Rejected reasons identify trust, staleness, status, or source policy failures.
@@ -82,7 +86,8 @@ uses `type: openknowledge.usage` and numeric `version: 1`.
 
 The event records generation, channel, HMAC query fingerprint, query length,
 outcome, selected evidence, and policy rejection counts. Query text is
-optional and requires explicit runtime configuration.
+optional and requires explicit runtime configuration. Its generation identity
+uses the same `checks` array.
 
 The published v1 schema distribution includes eval, diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.

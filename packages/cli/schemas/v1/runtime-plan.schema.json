@@ -99,7 +99,8 @@
         "private_key_file": {"type": "string"},
         "token_env": {"type": "string"},
         "draft_pull_request": {"type": "boolean"},
-        "checks": {"type": "boolean"}
+        "checks": {"type": "boolean"},
+        "required_checks": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}}
       },
       "additionalProperties": false
     },

@@ -13,7 +13,7 @@ func TestGenerationManifestAndFilesystemPromotionAreContentBound(t *testing.T) {
 	writeRuntimeTestFile(t, generation, "source/index.md", "# Knowledge\n")
 	writeRuntimeTestFile(t, generation, "search/index.md", "# Searchable knowledge\n")
 	writeRuntimeTestFile(t, generation, "mcp/index.md", "# MCP knowledge\n")
-	manifest, err := WriteGenerationManifest(generation, "wiki", "abc123", "0.1")
+	manifest, err := WriteGenerationManifestWithChecks(generation, "wiki", "abc123", "0.1", []string{"Verify", "Knowledge Eval"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,6 +24,9 @@ func TestGenerationManifestAndFilesystemPromotionAreContentBound(t *testing.T) {
 	}
 	if pointer.ContentDigest != manifest.ContentDigest || pointer.Generation != GenerationName(manifest) {
 		t.Fatalf("unexpected pointer: %#v", pointer)
+	}
+	if len(manifest.Checks) != 2 || manifest.Checks[0] != "Knowledge Eval" || manifest.Checks[1] != "Verify" {
+		t.Fatalf("generation did not bind sorted successful checks: %#v", manifest.Checks)
 	}
 	if _, activeTarget, err := store.Active("wiki"); err != nil || activeTarget != target {
 		t.Fatalf("expected valid active generation, target=%q err=%v", activeTarget, err)

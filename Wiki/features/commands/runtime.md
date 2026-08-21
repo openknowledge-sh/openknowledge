@@ -106,6 +106,7 @@ installation_id = 12345678
 private_key_file = "/run/secrets/github_app_key"
 draft_pull_request = true
 checks = true
+required_checks = ["knowledge-eval / Evaluate knowledge changes", "verify"]
 
 [[knowledge_bases]]
 id = "wiki"
@@ -199,8 +200,8 @@ structured content and JSON text.
 
 Both contracts include the effective policy, retrieval revision, issues, and
 rejected candidates. Their generation identity contains `name`, `commit`,
-`spec`, and `contentDigest`. The retrieval revision separately contains
-`specVersion` and `indexSha256`.
+`spec`, `contentDigest`, and `checks`. The retrieval revision separately
+contains `specVersion` and `indexSha256`.
 
 Each selected result or context source contains these metadata groups:
 
@@ -233,6 +234,8 @@ Each event contains a keyed query fingerprint and a query length range. The
 default event does not contain query text. The contract has no user, session,
 IP address, or request header fields.
 
+The event generation identity includes the successful required check names.
+
 Set `capture_queries = true` only when query storage is acceptable. The
 runtime normalizes the query and redacts recognized credentials before it
 writes the event.
@@ -247,6 +250,35 @@ outcomes:
 Selected items contain an ID, locator, and path. Policy rejections contain
 reason counts. A usage event write failure produces a runtime diagnostic but
 does not fail the search request.
+
+## Required publication checks
+
+`github.required_checks` lists exact GitHub check-run names for the production
+commit. This setting requires `github.enabled = true`. This repository uses
+these names:
+
+- `knowledge-eval / Evaluate knowledge changes`
+- `verify`
+
+The publisher synchronizes the production branch before each publication
+pass. It requires the latest run of every configured check to target that
+commit and have a `completed` status with a `success` conclusion.
+
+The gate fails closed for a missing, pending, or failed check. The publisher
+does not create the production source bundle or a runtime generation until all
+required checks succeed.
+
+The publisher binds sorted successful check names into the generation
+`contentDigest`. Runtime search, runtime MCP context, and usage events return
+the names as `generation.checks`.
+
+Manual `runtime build` publication cannot verify GitHub checks. The command
+rejects manual publication when `github.required_checks` is not empty.
+
+The worker can still create a draft pull request and a job check. GitHub human
+approval, branch protection, and merge remain separate GitHub steps. The
+publisher applies the required check gate only to the merged production
+commit.
 
 ## Security boundary
 
@@ -301,5 +333,7 @@ the trusted ingress.
 > - `packages/cli/internal/runtime/`
 > - `packages/cli/internal/usage/`
 > - `packages/cli/schemas/v1/usage-event.schema.json`
+> - `.github/workflows/ci.yml`
+> - `.github/workflows/knowledge-eval.yml`
 > - `docker/runtime.Dockerfile`
 > - `deploy/runtime/docker-compose.yml`

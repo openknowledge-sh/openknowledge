@@ -35,6 +35,14 @@ type PullRequestResult struct {
 	HTMLURL string `json:"html_url"`
 }
 
+type CheckRun struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	HeadSHA    string `json:"head_sha"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
+}
+
 type GitHubCredential struct {
 	Token     string
 	ExpiresAt time.Time
@@ -160,6 +168,40 @@ func (client GitHubClient) CreateCompletedCheck(ctx context.Context, name string
 		},
 	}
 	return client.request(ctx, http.MethodPost, "/repos/"+client.Repository+"/check-runs", payload, nil)
+}
+
+func (client GitHubClient) RequireSuccessfulChecks(ctx context.Context, commit string, required []string) ([]string, error) {
+	if len(required) == 0 {
+		return []string{}, nil
+	}
+	var response struct {
+		CheckRuns []CheckRun `json:"check_runs"`
+	}
+	endpoint := "/repos/" + client.Repository + "/commits/" + url.PathEscape(commit) + "/check-runs?per_page=100"
+	if err := client.request(ctx, http.MethodGet, endpoint, nil, &response); err != nil {
+		return nil, err
+	}
+	latest := make(map[string]CheckRun)
+	for _, run := range response.CheckRuns {
+		if previous, exists := latest[run.Name]; !exists || run.ID > previous.ID {
+			latest[run.Name] = run
+		}
+	}
+	verified := make([]string, 0, len(required))
+	for _, name := range required {
+		run, exists := latest[name]
+		if !exists {
+			return nil, fmt.Errorf("required GitHub check is missing for %s: %s", commit, name)
+		}
+		if run.HeadSHA != "" && run.HeadSHA != commit {
+			return nil, fmt.Errorf("required GitHub check targets another commit: %s", name)
+		}
+		if run.Status != "completed" || run.Conclusion != "success" {
+			return nil, fmt.Errorf("required GitHub check has not succeeded: %s (status=%s conclusion=%s)", name, run.Status, run.Conclusion)
+		}
+		verified = append(verified, name)
+	}
+	return verified, nil
 }
 
 func (client GitHubClient) request(ctx context.Context, method string, endpoint string, payload any, target any) error {

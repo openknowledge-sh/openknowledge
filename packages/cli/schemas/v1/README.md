@@ -65,10 +65,13 @@ Runtime search and context results identify the active generation and
 retrieval revision. They also contain policy, trust, freshness, provenance,
 selection, and rejection metadata.
 
+Runtime generation identity includes a sorted `checks` array. The generation
+`contentDigest` binds these successful GitHub check names to the generation.
+
 Private usage events contain generation identity, a search channel, an HMAC
 query fingerprint, a query length range, an outcome, selected evidence, and
 policy rejection counts. Query text is optional. The runtime writes these
-strict objects as JSONL.
+strict objects as JSONL. Usage events use the same generation `checks` array.
 
 The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,
