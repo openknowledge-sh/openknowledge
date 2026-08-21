@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -91,57 +92,72 @@ func NewRecorder(root string) (*Recorder, error) {
 }
 
 func (recorder *Recorder) Append(event Event) error {
+	_, err := recorder.append(event, false)
+	return err
+}
+
+func (recorder *Recorder) AppendIfMissing(event Event) (bool, error) {
+	return recorder.append(event, true)
+}
+
+func (recorder *Recorder) append(event Event, idempotent bool) (bool, error) {
 	recorder.mu.Lock()
 	defer recorder.mu.Unlock()
 	if err := Validate(event); err != nil {
-		return err
+		return false, err
 	}
 	if err := os.MkdirAll(recorder.root, 0o700); err != nil {
-		return err
+		return false, err
 	}
 	if err := os.Chmod(recorder.root, 0o700); err != nil {
-		return err
+		return false, err
 	}
 	lock := flock.New(filepath.Join(recorder.root, ".append.lock"), flock.SetPermissions(0o600))
 	if err := lock.Lock(); err != nil {
-		return err
+		return false, err
 	}
 	defer func() { _ = lock.Unlock() }()
 	existing, err := Read([]string{recorder.root})
 	if err != nil {
-		return err
+		return false, err
 	}
 	for _, item := range existing {
 		if item.ID == event.ID {
-			return fmt.Errorf("intervention event id is duplicated: %s", event.ID)
+			if idempotent && reflect.DeepEqual(item, event) {
+				return false, nil
+			}
+			return false, fmt.Errorf("intervention event id is duplicated: %s", event.ID)
 		}
 	}
 	if err := ValidateLifecycle(append(existing, event)); err != nil {
-		return err
+		return false, err
 	}
 	content, err := json.Marshal(event)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(content) > maxEventBytes {
-		return fmt.Errorf("intervention event exceeds %d bytes", maxEventBytes)
+		return false, fmt.Errorf("intervention event exceeds %d bytes", maxEventBytes)
 	}
 	at, _ := time.Parse(time.RFC3339Nano, event.At)
 	path := filepath.Join(recorder.root, at.UTC().Format("2006-01-02")+".jsonl")
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err := file.Chmod(0o600); err != nil {
 		_ = file.Close()
-		return err
+		return false, err
 	}
 	_, writeErr := file.Write(append(content, '\n'))
 	closeErr := file.Close()
 	if writeErr != nil {
-		return writeErr
+		return false, writeErr
 	}
-	return closeErr
+	if closeErr != nil {
+		return false, closeErr
+	}
+	return true, nil
 }
 
 func Validate(event Event) error {

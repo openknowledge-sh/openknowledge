@@ -503,6 +503,29 @@ If the check gate or merge is not ready, publication stays incomplete. The
 publisher keeps the exchange bundle, reuses the open pull request, and retries
 on a later poll. Human and expert routes never use this automatic merge path.
 
+## Hosted intervention logging
+
+The credentialed publisher records each validated maintenance run under
+`<runtime.state_dir>/interventions`. It writes one intervention lifecycle per
+affected published knowledge base. Retries are idempotent.
+
+`detected` uses the earliest attested insight generation time. `proposed` uses
+the completed agent-run time. Both stages bind the job run, exact knowledge
+paths changed under that bundle, routed risk and approval, owners, insight and
+finding IDs, proposal commit, and any eval dataset attestation.
+
+A pull request or GitHub merge is not a published knowledge fix. For an
+automatic low-risk route, the publisher retains GitHub's exact squash commit
+in the private exchange marker. It adds `published` only after a later
+production pass builds and activates a generation for that same commit with
+the required successful checks. The event contains the generation and content
+digest.
+
+Human and expert routes remain at `proposed` until their review and verified
+publication outcomes are appended. Use `okn quality interventions append` for
+those explicit lifecycle events; the runtime does not infer review minutes or
+approval from an open pull request.
+
 ## Security boundary
 
 The publisher maintains the credentialed checkout. It validates each worker
@@ -558,6 +581,7 @@ the trusted ingress.
 > - `packages/cli/internal/runtime/`
 > - `packages/cli/internal/usage/`
 > - `packages/cli/internal/feedback/`
+> - `packages/cli/internal/intervention/`
 > - `packages/cli/schemas/v1/runtime-cache.schema.json`
 > - `packages/cli/schemas/v1/feedback-event.schema.json`
 > - `packages/cli/internal/insights/`

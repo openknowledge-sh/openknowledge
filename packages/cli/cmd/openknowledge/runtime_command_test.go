@@ -20,6 +20,7 @@ import (
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	knowledgefeedback "github.com/openknowledge-sh/openknowledge/packages/cli/internal/feedback"
+	knowledgeintervention "github.com/openknowledge-sh/openknowledge/packages/cli/internal/intervention"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
@@ -195,6 +196,92 @@ func TestRuntimeMaintenanceClaimMustMatchCommits(t *testing.T) {
 	}
 }
 
+func TestRuntimeHostedMaintenanceRecordsInterventionThroughPublishedGeneration(t *testing.T) {
+	repo := t.TempDir()
+	runGit(t, repo, "init", "-b", "main")
+	runGit(t, repo, "config", "user.email", "runtime@example.test")
+	runGit(t, repo, "config", "user.name", "Runtime Test")
+	writeMainTestFile(t, repo, "Wiki/index.md", "---\nokf_version: \"0.2\"\n---\n\n# Knowledge\n")
+	writeMainTestFile(t, repo, "Wiki/.openknowledge.toml", "[publish]\nenabled = true\n")
+	writeMainTestFile(t, repo, "Wiki/guide.md", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n\nOld.\n")
+	insight := `---
+type: Open Knowledge Insight
+title: Refresh guide
+description: The guide is stale.
+status: draft
+okf_publish: false
+okf_insight_id: refresh-one
+okf_insight_kind: knowledge-audit
+generated:
+  by: process:openknowledge-cli
+  at: 2020-08-21T10:00:00Z
+okf_insight_targets: [guide.md]
+okf_insight_route:
+  risk: low
+  approval: auto
+  confidence: 0.99
+  owners: []
+tags: [insight]
+---
+
+# Refresh guide
+`
+	writeMainTestFile(t, repo, "Wiki/insights/refresh.md", insight)
+	runGit(t, repo, "add", ".")
+	runGit(t, repo, "commit", "-m", "base")
+	base := runtimeGitTest(t, repo, "rev-parse", "HEAD")
+	writeMainTestFile(t, repo, "Wiki/guide.md", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n\nCurrent.\n")
+	writeMainTestFile(t, repo, "Wiki/insights/refresh.md", strings.Replace(insight, "status: draft", "status: stable", 1))
+	runGit(t, repo, "add", ".")
+	runGit(t, repo, "commit", "-m", "refresh")
+	head := runtimeGitTest(t, repo, "rev-parse", "HEAD")
+	maintenance, err := runtimeMaintenanceAttestation(context.Background(), repo, base, head)
+	if err != nil || maintenance == nil || maintenance.DetectedAt != "2020-08-21T10:00:00Z" {
+		t.Fatalf("unexpected maintenance attestation: %#v err=%v", maintenance, err)
+	}
+	state := filepath.Join(t.TempDir(), "state")
+	config := okruntime.Config{
+		Root: repo, Runtime: okruntime.RuntimeConfig{StateDir: state},
+		ArtifactStore:  okruntime.ArtifactStoreConfig{Type: "filesystem", Path: filepath.Join(state, "artifacts")},
+		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "docs", Path: filepath.Join(repo, "Wiki"), Spec: "0.2", Publish: true}},
+		GitHub:         okruntime.GitHubConfig{RequiredChecks: []string{"Verify"}},
+		Worker:         okruntime.WorkerConfig{ExchangeDir: filepath.Join(state, "exchange")},
+	}
+	productionCommit := strings.Repeat("c", 40)
+	request := runtimeExchangeRequest{
+		Version: 1, RunID: "run-refresh", JobID: "refresh", BaseSHA: base, HeadSHA: head,
+		ProposedAt: "2020-08-21T11:00:00Z", Maintenance: maintenance,
+	}
+	publication := runtimeGitHubPublication{RunID: request.RunID, Commit: productionCommit, PR: 7, PRURL: "https://github.test/owner/repo/pull/7", Checked: true, Merged: true}
+	if err := recordRuntimeInterventionProposal(context.Background(), config, repo, request); err != nil {
+		t.Fatal(err)
+	}
+	events, err := knowledgeintervention.Read([]string{filepath.Join(state, "interventions")})
+	if err != nil || len(events) != 2 || events[0].Stage != "detected" || events[1].Stage != "proposed" || !reflect.DeepEqual(events[0].Targets, []string{"guide.md", "insights/refresh.md"}) {
+		t.Fatalf("unexpected proposed intervention lifecycle: %#v err=%v", events, err)
+	}
+	result, err := buildRuntimeKnowledgeGenerationWithChecks(config, config.KnowledgeBases[0], productionCommit, filepath.Join(state, "builds", "docs"), true, []string{"Verify"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeExchangeJSON(filepath.Join(config.Worker.ExchangeDir, "runs", request.RunID, "published.json"), publication); err != nil {
+		t.Fatal(err)
+	}
+	if err := reconcileRuntimeInterventionPublication(config, "docs", productionCommit); err != nil {
+		t.Fatal(err)
+	}
+	if err := recordRuntimeInterventionProposal(context.Background(), config, repo, request); err != nil {
+		t.Fatal(err)
+	}
+	if err := reconcileRuntimeInterventionPublication(config, "docs", productionCommit); err != nil {
+		t.Fatal(err)
+	}
+	events, err = knowledgeintervention.Read([]string{filepath.Join(state, "interventions")})
+	if err != nil || len(events) != 3 || events[2].Stage != "published" || events[2].Publication == nil || events[2].Publication.Generation != result.Generation || !events[2].Publication.Automated || !events[2].Publication.Verified {
+		t.Fatalf("unexpected published intervention lifecycle: %#v err=%v", events, err)
+	}
+}
+
 func TestRuntimeLowRiskRoutePublishesReadyPRAfterRequiredChecksAndMerges(t *testing.T) {
 	var draft any
 	var merged bool
@@ -217,7 +304,7 @@ func TestRuntimeLowRiskRoutePublishesReadyPRAfterRequiredChecksAndMerges(t *test
 			_, _ = response.Write([]byte(fmt.Sprintf(`{"check_runs":[{"id":1,"name":"Verify","head_sha":"%s","status":"completed","conclusion":"success"}]}`, strings.Repeat("b", 40))))
 		case request.Method == http.MethodPut && request.URL.Path == "/repos/owner/repo/pulls/7/merge":
 			merged = true
-			_, _ = response.Write([]byte(`{"merged":true,"message":"merged"}`))
+			_, _ = response.Write([]byte(`{"merged":true,"message":"merged","sha":"cccccccccccccccccccccccccccccccccccccccc"}`))
 		default:
 			http.Error(response, "unexpected", http.StatusNotFound)
 		}
@@ -232,7 +319,7 @@ func TestRuntimeLowRiskRoutePublishesReadyPRAfterRequiredChecksAndMerges(t *test
 		Maintenance: &runtimeExchangeMaintenance{Risk: "low", Approval: "auto", Confidence: 0.99, Owners: []string{"github:reviewer"}, Insights: []string{"one"}, Findings: []string{}, Paths: []string{"Wiki/insights/one.md"}, ExpertTargets: []string{}, Status: "proposed"},
 	}
 	publication, err := publishRuntimeGitHubRequest(context.Background(), config, "secret", request)
-	if err != nil || !publication.Merged || !publication.Checked || draft != false || !merged {
+	if err != nil || !publication.Merged || publication.Commit != strings.Repeat("c", 40) || !publication.Checked || draft != false || !merged {
 		t.Fatalf("unexpected low-risk publication: %#v draft=%#v merged=%v err=%v", publication, draft, merged, err)
 	}
 }

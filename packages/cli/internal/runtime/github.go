@@ -16,12 +16,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const githubAPIVersion = "2022-11-28"
+
+var githubCommitPattern = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 type GitHubClient struct {
 	APIURL     string
@@ -164,22 +167,26 @@ func (client GitHubClient) RequestReviewers(ctx context.Context, number int, rev
 	return client.request(ctx, http.MethodPost, "/repos/"+client.Repository+"/pulls/"+strconv.Itoa(number)+"/requested_reviewers", payload, nil)
 }
 
-func (client GitHubClient) MergePullRequest(ctx context.Context, number int, headSHA string) error {
+func (client GitHubClient) MergePullRequest(ctx context.Context, number int, headSHA string) (string, error) {
 	if number <= 0 || strings.TrimSpace(headSHA) == "" {
-		return fmt.Errorf("pull request number and head SHA are required")
+		return "", fmt.Errorf("pull request number and head SHA are required")
 	}
 	payload := map[string]any{"sha": headSHA, "merge_method": "squash"}
 	var result struct {
 		Merged  bool   `json:"merged"`
 		Message string `json:"message"`
+		SHA     string `json:"sha"`
 	}
 	if err := client.request(ctx, http.MethodPut, "/repos/"+client.Repository+"/pulls/"+strconv.Itoa(number)+"/merge", payload, &result); err != nil {
-		return err
+		return "", err
 	}
 	if !result.Merged {
-		return fmt.Errorf("GitHub did not merge pull request %d: %s", number, strings.TrimSpace(result.Message))
+		return "", fmt.Errorf("GitHub did not merge pull request %d: %s", number, strings.TrimSpace(result.Message))
 	}
-	return nil
+	if !githubCommitPattern.MatchString(result.SHA) {
+		return "", fmt.Errorf("GitHub merge response for pull request %d has no valid commit SHA", number)
+	}
+	return result.SHA, nil
 }
 
 func (client GitHubClient) CreateCompletedCheck(ctx context.Context, name string, headSHA string, title string, summary string, conclusion string) error {

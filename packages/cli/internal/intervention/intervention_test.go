@@ -21,6 +21,10 @@ func TestRecorderPersistsStrictPrivateLifecycle(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	appended, err := recorder.AppendIfMissing(published)
+	if err != nil || appended {
+		t.Fatalf("idempotent append changed the log: appended=%v err=%v", appended, err)
+	}
 	events, err := Read([]string{root})
 	if err != nil || len(events) != 3 || events[2].Stage != "published" {
 		t.Fatalf("unexpected lifecycle: %#v err=%v", events, err)

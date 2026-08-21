@@ -32,6 +32,10 @@ page records release-level changes.
   append-only lifecycle events. It enforces risk routing, evidence, verified
   publication, audit outcomes, and ordered transitions without inferring
   missing evidence.
+- Hosted maintenance now records detected and proposed intervention stages per
+  affected knowledge base. Low-risk automation reaches published only after
+  the exact squash commit becomes an active generation with required checks;
+  publisher retries do not duplicate events.
 - Text, JSON, and Markdown output support local review and automation. New
   `quality-report.schema.json` defines the strict machine contract.
 - New HTML output writes a self-contained offline dashboard. It provides a

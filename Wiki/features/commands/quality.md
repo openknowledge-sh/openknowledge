@@ -123,6 +123,11 @@ classify the finding as `confirmed` or `false-positive`.
 
 The strict event contract is `intervention-event.schema.json` v1.
 
+Hosted runtime maintenance writes `detected` and `proposed` automatically for
+validated agent runs. A low-risk automatic run receives `published` only when
+the exact GitHub squash commit becomes an active, check-bound runtime
+generation. Human and expert review outcomes remain explicit append events.
+
 ## Concept priorities
 
 Each concept records sources, trust, lifecycle state, eval coverage, use,

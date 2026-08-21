@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -24,6 +26,7 @@ import (
 	"github.com/gofrs/flock"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
+	knowledgeintervention "github.com/openknowledge-sh/openknowledge/packages/cli/internal/intervention"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
@@ -234,12 +237,19 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 			continue
 		}
 		if runtimeStoreAlreadyPublishes(config, mapped.ID, commit) {
+			if err := reconcileRuntimeInterventionPublication(config, mapped.ID, commit); err != nil {
+				failures = append(failures, fmt.Errorf("publish %s intervention log: %w", mapped.ID, err))
+			}
 			continue
 		}
 		out := filepath.Join(config.Runtime.StateDir, "builds", mapped.ID)
 		result, err := buildRuntimeKnowledgeGenerationWithChecks(config, mapped, commit, out, true, verifiedChecks)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("publish %s: %w", mapped.ID, err))
+			continue
+		}
+		if err := reconcileRuntimeInterventionPublication(config, mapped.ID, commit); err != nil {
+			failures = append(failures, fmt.Errorf("publish %s intervention log: %w", mapped.ID, err))
 			continue
 		}
 		runtimeInfof("runtime worker published %s generation %s\n", mapped.ID, result.Generation)
@@ -250,6 +260,115 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 		}
 	}
 	return errors.Join(failures...)
+}
+
+func reconcileRuntimeInterventionPublication(config okruntime.Config, knowledgeBase string, commit string) error {
+	logRoot := filepath.Join(config.Runtime.StateDir, "interventions")
+	events, err := knowledgeintervention.Read([]string{logRoot})
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	mergedRuns, err := runtimeMergedInterventionRuns(config, commit)
+	if err != nil {
+		return err
+	}
+	if len(mergedRuns) == 0 {
+		return nil
+	}
+	published := map[string]bool{}
+	var proposals []knowledgeintervention.Event
+	for _, event := range events {
+		if event.Stage == "published" {
+			published[event.InterventionID] = true
+		}
+		if event.Stage == "proposed" && event.KnowledgeBase == knowledgeBase && mergedRuns[event.Source.ID] {
+			proposals = append(proposals, event)
+		}
+	}
+	if len(proposals) == 0 {
+		return nil
+	}
+	store := okruntime.FilesystemStore{Root: config.ArtifactStore.Path}
+	pointer, generationRoot, err := store.Active(knowledgeBase)
+	if err != nil {
+		return err
+	}
+	manifest, err := okruntime.LoadAndValidateGeneration(generationRoot)
+	if err != nil {
+		return err
+	}
+	if manifest.Commit != commit || pointer.ContentDigest != manifest.ContentDigest || len(manifest.Checks) == 0 {
+		return fmt.Errorf("active generation does not prove intervention commit and checks")
+	}
+	activeInfo, err := os.Stat(filepath.Join(config.ArtifactStore.Path, knowledgeBase, okruntime.ActivePointerFile))
+	if err != nil {
+		return err
+	}
+	publishedAt := activeInfo.ModTime().UTC()
+	recorder, err := knowledgeintervention.NewRecorder(logRoot)
+	if err != nil {
+		return err
+	}
+	for _, proposal := range proposals {
+		if published[proposal.InterventionID] {
+			continue
+		}
+		proposedAt, _ := time.Parse(time.RFC3339Nano, proposal.At)
+		if !publishedAt.After(proposedAt) {
+			return fmt.Errorf("active generation predates intervention proposal %s", proposal.InterventionID)
+		}
+		event := proposal
+		event.ID = runtimeInterventionIdentity(proposal.Source.ID, knowledgeBase, "published")
+		event.At = publishedAt.Format(time.RFC3339Nano)
+		event.Stage = "published"
+		event.Actor = knowledgeintervention.Actor{Kind: "system", ID: "runtime-publisher"}
+		event.Publication = &knowledgeintervention.Publication{
+			Generation: pointer.Generation, ContentDigest: manifest.ContentDigest,
+			Checks: append([]string{}, manifest.Checks...), Automated: true, Verified: true,
+		}
+		if _, err := recorder.AppendIfMissing(event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runtimeMergedInterventionRuns(config okruntime.Config, commit string) (map[string]bool, error) {
+	result := map[string]bool{}
+	runsDir := filepath.Join(config.Worker.ExchangeDir, "runs")
+	entries, err := os.ReadDir(runsDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return result, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		content, err := os.ReadFile(filepath.Join(runsDir, entry.Name(), "published.json"))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		var publication runtimeGitHubPublication
+		if err := okf.DecodeStrictJSON(content, &publication); err != nil {
+			return nil, fmt.Errorf("invalid published agent exchange %s: %w", entry.Name(), err)
+		}
+		if publication.RunID != entry.Name() || !runtimeExchangeIdentifierPattern.MatchString(publication.RunID) || !runtimeExchangeSHA1Pattern.MatchString(publication.Commit) {
+			return nil, fmt.Errorf("invalid published agent exchange identity: %s", entry.Name())
+		}
+		if publication.Merged && publication.Commit == commit {
+			result[publication.RunID] = true
+		}
+	}
+	return result, nil
 }
 
 func runtimeAgentWorkerPass(ctx context.Context, config okruntime.Config, runtimeName string) error {
@@ -428,6 +547,7 @@ type runtimeExchangeRequest struct {
 	HeadSHA      string                      `json:"head_sha"`
 	BundleSHA256 string                      `json:"bundle_sha256"`
 	VerifyCount  int                         `json:"verify_count"`
+	ProposedAt   string                      `json:"proposed_at,omitempty"`
 	Eval         *runtimeExchangeEval        `json:"eval,omitempty"`
 	Maintenance  *runtimeExchangeMaintenance `json:"maintenance,omitempty"`
 }
@@ -442,6 +562,7 @@ type runtimeExchangeMaintenance struct {
 	Paths         []string `json:"paths"`
 	ExpertTargets []string `json:"expert_targets"`
 	Status        string   `json:"status"`
+	DetectedAt    string   `json:"detected_at,omitempty"`
 }
 
 type runtimeExchangeEval struct {
@@ -593,7 +714,7 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 			failures = append(failures, fmt.Errorf("agent run %s maintenance attestation: %w", record.RunID, err))
 			continue
 		}
-		request := runtimeExchangeRequest{Version: 1, RunID: record.RunID, JobID: record.JobID, Branch: record.Plan.Branch, BaseSHA: record.Plan.BaseSHA, HeadSHA: headSHA, BundleSHA256: bundleSHA, VerifyCount: len(record.Verify), Maintenance: maintenance}
+		request := runtimeExchangeRequest{Version: 1, RunID: record.RunID, JobID: record.JobID, Branch: record.Plan.Branch, BaseSHA: record.Plan.BaseSHA, HeadSHA: headSHA, BundleSHA256: bundleSHA, VerifyCount: len(record.Verify), ProposedAt: record.FinishedAt.UTC().Format(time.RFC3339Nano), Maintenance: maintenance}
 		if record.Eval != nil {
 			request.Eval = &runtimeExchangeEval{
 				Status: record.Eval.Status, Dataset: record.Eval.Dataset, Target: record.Eval.Target, Base: record.Eval.Base, Gate: record.Eval.Gate,
@@ -695,6 +816,9 @@ func runtimeMaintenanceAttestation(ctx context.Context, worktree string, baseSHA
 		}
 		hasResolved = hasResolved || item.Status == "resolved"
 		hasBlocked = hasBlocked || item.Status == "blocked"
+		if result.DetectedAt == "" || item.CreatedAt.UTC().Format(time.RFC3339Nano) < result.DetectedAt {
+			result.DetectedAt = item.CreatedAt.UTC().Format(time.RFC3339Nano)
+		}
 	}
 	result.Owners = uniqueRuntimeStrings(result.Owners)
 	result.Insights = uniqueRuntimeStrings(result.Insights)
@@ -783,6 +907,11 @@ func validateRuntimeExchangeMaintenance(route *runtimeExchangeMaintenance) error
 	}
 	if route.Status != "proposed" && route.Status != "escalated" && route.Status != "mixed" {
 		return fmt.Errorf("maintenance status must be proposed, escalated, or mixed")
+	}
+	if route.DetectedAt != "" {
+		if _, err := time.Parse(time.RFC3339Nano, route.DetectedAt); err != nil {
+			return fmt.Errorf("maintenance detection time is invalid")
+		}
 	}
 	if route.Approval == "expert" && route.Status == "proposed" {
 		return fmt.Errorf("expert maintenance must be escalated")
@@ -885,6 +1014,20 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			failures = append(failures, fmt.Errorf("invalid agent exchange fields for %s", entry.Name()))
 			continue
 		}
+		if request.ProposedAt != "" {
+			proposedAt, timeErr := time.Parse(time.RFC3339Nano, request.ProposedAt)
+			if timeErr != nil {
+				failures = append(failures, fmt.Errorf("invalid agent exchange proposal time for %s", request.RunID))
+				continue
+			}
+			if request.Maintenance != nil && request.Maintenance.DetectedAt != "" {
+				detectedAt, _ := time.Parse(time.RFC3339Nano, request.Maintenance.DetectedAt)
+				if !detectedAt.Before(proposedAt) {
+					failures = append(failures, fmt.Errorf("agent exchange proposal precedes its detection for %s", request.RunID))
+					continue
+				}
+			}
+		}
 		if err := validateRuntimeExchangeEval(request.Eval); err != nil {
 			failures = append(failures, fmt.Errorf("invalid agent exchange eval for %s: %w", request.RunID, err))
 			continue
@@ -951,6 +1094,10 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			failures = append(failures, fmt.Errorf("agent run %s push branch: %w: %s", request.RunID, err, output))
 			continue
 		}
+		if err := recordRuntimeInterventionProposal(ctx, config, checkout, request); err != nil {
+			failures = append(failures, fmt.Errorf("agent run %s intervention log: %w", request.RunID, err))
+			continue
+		}
 		publication, err := publishRuntimeGitHubRequest(ctx, config, token, request)
 		if err != nil {
 			failures = append(failures, err)
@@ -966,6 +1113,109 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 		runtimeInfof("runtime publisher published agent run %s as draft PR #%d\n", request.RunID, publication.PR)
 	}
 	return errors.Join(failures...)
+}
+
+func recordRuntimeInterventionProposal(ctx context.Context, config okruntime.Config, checkout string, request runtimeExchangeRequest) error {
+	if request.Maintenance == nil {
+		return nil
+	}
+	if request.ProposedAt == "" || request.Maintenance.DetectedAt == "" {
+		return fmt.Errorf("maintenance exchange lacks detection or proposal time")
+	}
+	targets, err := runtimeInterventionTargets(ctx, config, checkout, request)
+	if err != nil {
+		return err
+	}
+	evidence := []string{"head-commit:" + request.HeadSHA, "job-run:" + request.RunID}
+	for _, insight := range request.Maintenance.Insights {
+		evidence = append(evidence, "insight:"+insight)
+	}
+	for _, finding := range request.Maintenance.Findings {
+		evidence = append(evidence, "audit-finding:"+finding)
+	}
+	if request.Eval != nil {
+		evidence = append(evidence, "eval:"+request.Eval.Dataset)
+	}
+	evidence = uniqueRuntimeStrings(evidence)
+	recorder, err := knowledgeintervention.NewRecorder(filepath.Join(config.Runtime.StateDir, "interventions"))
+	if err != nil {
+		return err
+	}
+	knowledgeBases := make([]string, 0, len(targets))
+	for knowledgeBase := range targets {
+		knowledgeBases = append(knowledgeBases, knowledgeBase)
+	}
+	sort.Strings(knowledgeBases)
+	for _, knowledgeBase := range knowledgeBases {
+		paths := targets[knowledgeBase]
+		interventionID := runtimeInterventionIdentity(request.RunID, knowledgeBase, "intervention")
+		base := knowledgeintervention.Event{
+			Type: knowledgeintervention.EventType, Version: knowledgeintervention.EventVersion,
+			InterventionID: interventionID, KnowledgeBase: knowledgeBase,
+			Actor:  knowledgeintervention.Actor{Kind: "agent", ID: "job:" + request.JobID},
+			Source: knowledgeintervention.Source{Kind: "job-run", ID: request.RunID},
+			Route: knowledgeintervention.Route{
+				Risk: request.Maintenance.Risk, Approval: request.Maintenance.Approval,
+				Confidence: request.Maintenance.Confidence, Owners: append([]string{}, request.Maintenance.Owners...),
+			},
+			Targets: paths, Evidence: evidence,
+		}
+		detected := base
+		detected.ID = runtimeInterventionIdentity(request.RunID, knowledgeBase, "detected")
+		detected.At, detected.Stage = request.Maintenance.DetectedAt, "detected"
+		if _, err := recorder.AppendIfMissing(detected); err != nil {
+			return err
+		}
+		proposed := base
+		proposed.ID = runtimeInterventionIdentity(request.RunID, knowledgeBase, "proposed")
+		proposed.At, proposed.Stage = request.ProposedAt, "proposed"
+		if _, err := recorder.AppendIfMissing(proposed); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runtimeInterventionTargets(ctx context.Context, config okruntime.Config, checkout string, request runtimeExchangeRequest) (map[string][]string, error) {
+	changed, err := runtimeGitChangedPaths(ctx, checkout, request.BaseSHA, request.HeadSHA)
+	if err != nil {
+		return nil, err
+	}
+	result := map[string][]string{}
+	for _, knowledge := range config.KnowledgeBases {
+		if !knowledge.Publish {
+			continue
+		}
+		prefix, err := filepath.Rel(config.Root, knowledge.Path)
+		if err != nil || prefix == ".." || strings.HasPrefix(prefix, ".."+string(filepath.Separator)) || filepath.IsAbs(prefix) {
+			return nil, fmt.Errorf("knowledge base %s cannot bind intervention paths", knowledge.ID)
+		}
+		prefix = filepath.ToSlash(filepath.Clean(prefix))
+		for _, path := range changed {
+			relative := path
+			if prefix != "." {
+				if !strings.HasPrefix(path, prefix+"/") {
+					continue
+				}
+				relative = strings.TrimPrefix(path, prefix+"/")
+			}
+			if relative != "" {
+				result[knowledge.ID] = append(result[knowledge.ID], relative)
+			}
+		}
+		if len(result[knowledge.ID]) > 0 {
+			result[knowledge.ID] = uniqueRuntimeStrings(result[knowledge.ID])
+		}
+	}
+	if len(result) == 0 {
+		return nil, fmt.Errorf("maintenance exchange changes no published knowledge base")
+	}
+	return result, nil
+}
+
+func runtimeInterventionIdentity(runID string, knowledgeBase string, stage string) string {
+	digest := sha256.Sum256([]byte("openknowledge-intervention\x00" + runID + "\x00" + knowledgeBase + "\x00" + stage))
+	return hex.EncodeToString(digest[:16])
 }
 
 func listRuntimeAgentRuns(config okruntime.Config, checkout string, runtimeName string) ([]agents.RunSummary, []agents.RunIssue, error) {
@@ -1142,10 +1392,12 @@ func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, t
 		if _, err := client.RequireSuccessfulChecks(ctx, request.HeadSHA, config.GitHub.RequiredChecks); err != nil {
 			return runtimeGitHubPublication{}, fmt.Errorf("agent run %s low-risk auto-merge checks: %w", request.RunID, err)
 		}
-		if err := client.MergePullRequest(ctx, pull.Number, request.HeadSHA); err != nil {
+		commit, err := client.MergePullRequest(ctx, pull.Number, request.HeadSHA)
+		if err != nil {
 			return runtimeGitHubPublication{}, fmt.Errorf("agent run %s low-risk auto-merge: %w", request.RunID, err)
 		}
 		publication.Merged = true
+		publication.Commit = commit
 	}
 	return publication, nil
 }

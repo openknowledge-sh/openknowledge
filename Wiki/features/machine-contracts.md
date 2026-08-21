@@ -150,8 +150,10 @@ integration, check publishing, and at least one required check.
 
 The private hosted exchange can contain a bounded maintenance attestation.
 It records normalized risk, approval, confidence, owners, insight and finding
-IDs, insight paths, expert targets, and proposal status. This exchange object
-is an internal runtime boundary and is not a published CLI schema.
+IDs, insight paths, expert targets, proposal status, and earliest detection
+time. The request also carries the completed proposal time. A merged exchange
+marker retains GitHub's exact squash commit. These exchange objects are an
+internal runtime boundary and are not published CLI schemas.
 
 Both retrieval contracts include the effective policy and rejected candidates.
 Selected items add trust, freshness, provenance, and selection metadata.
