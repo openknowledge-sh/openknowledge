@@ -50,6 +50,7 @@ Audit contracts and private usage events use a type and numeric version.
 | `runtime-search.schema.json` | runtime `GET <route>/_search` |
 | `runtime-context.schema.json` | runtime MCP `openknowledge_search` |
 | `usage-event.schema.json` | private runtime HTTP and MCP search events |
+| `feedback-event.schema.json` | runtime `POST <route>/_feedback` response and private feedback event |
 | `deploy-plan.schema.json` | `deploy railway --dry-run` |
 | `deploy-result.schema.json` | successful `deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
@@ -162,6 +163,18 @@ The event records generation, channel, HMAC query fingerprint, query length,
 outcome, selected evidence, and policy rejection counts. Query text is
 optional and requires explicit runtime configuration. Its generation identity
 uses the same `checks` array.
+
+Runtime search and context responses can contain an optional `usageEventId`.
+It is a 32-character lowercase hexadecimal ID. The runtime emits it only after
+successful private usage event persistence.
+
+`feedback-event.schema.json` defines `openknowledge.feedback` version 1. Each
+event binds its ID, time, knowledge base, generation, usage event ID, query
+fingerprint, channel, outcome, access, sentiment, reasons, and selected
+evidence. The contract does not contain raw query text.
+
+Feedback sentiment is `positive` or `negative`. Positive events have no
+reasons. Negative events have one to six unique reasons from the schema enum.
 
 The published v1 schema distribution includes eval, diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.

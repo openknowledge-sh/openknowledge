@@ -22,6 +22,7 @@ the source tree and from the public URL.
 | `runtime-search.schema.json` | Runtime `GET <route>/_search` response |
 | `runtime-context.schema.json` | Runtime MCP `openknowledge_search` result |
 | `usage-event.schema.json` | Private runtime HTTP and MCP search event |
+| `feedback-event.schema.json` | Runtime `POST <route>/_feedback` response and private feedback event |
 | `deploy-plan.schema.json` | `openknowledge automation deploy railway --dry-run` |
 | `deploy-result.schema.json` | Successful `openknowledge automation deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `openknowledge automation deploy railway init` |
@@ -87,6 +88,10 @@ Private usage events contain generation identity, a search channel, an HMAC
 query fingerprint, a query length range, an outcome, selected evidence, and
 policy rejection counts. Query text is optional. The runtime writes these
 strict objects as JSONL. Usage events use the same generation `checks` array.
+When usage recording is enabled, runtime retrieval responses expose an opaque
+`usageEventId`. Feedback events bind that ID to the original generation,
+query fingerprint, outcome, access route, and selected evidence without
+copying raw query text.
 
 The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,

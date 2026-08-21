@@ -43,6 +43,10 @@ func TestRecorderDefaultsToFingerprintOnlyAndGroupsGaps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	found, err := recorder.Find(first.ID)
+	if err != nil || found.ID != first.ID {
+		t.Fatalf("usage event lookup failed: %#v err=%v", found, err)
+	}
 	gaps := Gaps(events, 2)
 	if len(gaps) != 1 || gaps[0].Occurrences != 2 || gaps[0].Question != "" || len(gaps[0].Channels) != 2 || len(gaps[0].Rejections) != 2 || gaps[0].Rejections[0].Reason != "sources_required" || gaps[0].Rejections[0].Count != 4 {
 		t.Fatalf("unexpected gap aggregation: %#v", gaps)

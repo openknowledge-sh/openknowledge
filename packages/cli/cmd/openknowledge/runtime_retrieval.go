@@ -89,6 +89,7 @@ type runtimeSearchResponse struct {
 	Rejected       []runtimeRejectedCandidate      `json:"rejected"`
 	Decision       string                          `json:"decision"`
 	RefusalReasons []string                        `json:"refusalReasons"`
+	UsageEventID   string                          `json:"usageEventId,omitempty"`
 	Issues         []okf.Issue                     `json:"issues"`
 }
 
@@ -107,6 +108,7 @@ type runtimeContextResponse struct {
 	Rejected        []runtimeRejectedCandidate      `json:"rejected"`
 	Decision        string                          `json:"decision"`
 	RefusalReasons  []string                        `json:"refusalReasons"`
+	UsageEventID    string                          `json:"usageEventId,omitempty"`
 	Issues          []okf.Issue                     `json:"issues"`
 }
 
@@ -329,34 +331,34 @@ func nonNilIssues(values []okf.Issue) []okf.Issue {
 	return values
 }
 
-func (handler *runtimeServeHandler) recordSearchUsage(snapshot runtimeGenerationSnapshot, query string, result runtimeSearchResponse, now time.Time) error {
+func (handler *runtimeServeHandler) recordSearchUsage(snapshot runtimeGenerationSnapshot, query string, result runtimeSearchResponse, now time.Time) (string, error) {
 	if handler.usage == nil {
-		return nil
+		return "", nil
 	}
 	selected := make([]knowledgeusage.Evidence, 0, len(result.Results))
 	for _, item := range result.Results {
 		selected = append(selected, knowledgeusage.Evidence{ID: item.Source.ID, Locator: item.Source.Locator, Path: item.Source.Path})
 	}
-	_, err := handler.usage.Record(knowledgeusage.RecordInput{
+	event, err := handler.usage.Record(knowledgeusage.RecordInput{
 		At: now, KnowledgeBase: snapshot.Knowledge.ID, Generation: usageGeneration(snapshot), Channel: "http-search", Query: query,
 		Selected: selected, Rejected: runtimeRejectedReasons(result.Rejected),
 	})
-	return err
+	return event.ID, err
 }
 
-func (handler *runtimeServeHandler) recordContextUsage(snapshot runtimeGenerationSnapshot, query string, result runtimeContextResponse, now time.Time) error {
+func (handler *runtimeServeHandler) recordContextUsage(snapshot runtimeGenerationSnapshot, query string, result runtimeContextResponse, now time.Time) (string, error) {
 	if handler.usage == nil {
-		return nil
+		return "", nil
 	}
 	selected := make([]knowledgeusage.Evidence, 0, len(result.Sources))
 	for _, item := range result.Sources {
 		selected = append(selected, knowledgeusage.Evidence{ID: item.Source.ID, Locator: item.Source.Locator, Path: item.Source.Path})
 	}
-	_, err := handler.usage.Record(knowledgeusage.RecordInput{
+	event, err := handler.usage.Record(knowledgeusage.RecordInput{
 		At: now, KnowledgeBase: snapshot.Knowledge.ID, Generation: usageGeneration(snapshot), Channel: "mcp-search", Query: query,
 		Selected: selected, Rejected: runtimeRejectedReasons(result.Rejected),
 	})
-	return err
+	return event.ID, err
 }
 
 func usageGeneration(snapshot runtimeGenerationSnapshot) knowledgeusage.Generation {

@@ -185,6 +185,22 @@ func (recorder *Recorder) Record(input RecordInput) (Event, error) {
 	return event, nil
 }
 
+func (recorder *Recorder) Find(id string) (Event, error) {
+	if !hex32Pattern.MatchString(id) {
+		return Event{}, fmt.Errorf("usage event id is invalid")
+	}
+	events, err := Read([]string{recorder.root})
+	if err != nil {
+		return Event{}, err
+	}
+	for index := len(events) - 1; index >= 0; index-- {
+		if events[index].ID == id {
+			return events[index], nil
+		}
+	}
+	return Event{}, fmt.Errorf("usage event not found: %s", id)
+}
+
 func (recorder *Recorder) prepare() error {
 	if err := os.MkdirAll(recorder.root, 0o700); err != nil {
 		return err
@@ -317,19 +333,8 @@ func Validate(event Event) error {
 	if _, err := time.Parse(time.RFC3339Nano, event.At); err != nil {
 		return fmt.Errorf("usage event time is invalid")
 	}
-	if event.Generation.Name == "" || event.Generation.Commit == "" || !specPattern.MatchString(event.Generation.Spec) || !hex64Pattern.MatchString(event.Generation.ContentDigest) {
-		return fmt.Errorf("usage generation identity is invalid")
-	}
-	if !sort.StringsAreSorted(event.Generation.Checks) {
-		return fmt.Errorf("usage generation checks are not sorted")
-	}
-	if len(event.Generation.Checks) > 100 {
-		return fmt.Errorf("usage generation has too many checks")
-	}
-	for index, check := range event.Generation.Checks {
-		if check == "" || len(check) > 256 || strings.ContainsAny(check, "\r\n") || (index > 0 && check == event.Generation.Checks[index-1]) {
-			return fmt.Errorf("usage generation checks are invalid")
-		}
+	if err := ValidateGeneration(event.Generation); err != nil {
+		return err
 	}
 	if event.Channel != "http-search" && event.Channel != "mcp-search" {
 		return fmt.Errorf("usage event channel is invalid")
@@ -358,6 +363,27 @@ func Validate(event Event) error {
 	}
 	if event.Outcome == "policy-rejected" && len(event.Rejected) == 0 || event.Outcome == "no-evidence" && len(event.Rejected) > 0 {
 		return fmt.Errorf("usage outcome does not match policy rejections")
+	}
+	return nil
+}
+
+func ValidateGeneration(generation Generation) error {
+	if generation.Name == "" || generation.Commit == "" || !specPattern.MatchString(generation.Spec) || !hex64Pattern.MatchString(generation.ContentDigest) {
+		return fmt.Errorf("usage generation identity is invalid")
+	}
+	if generation.Checks == nil {
+		return fmt.Errorf("usage generation checks are invalid")
+	}
+	if !sort.StringsAreSorted(generation.Checks) {
+		return fmt.Errorf("usage generation checks are not sorted")
+	}
+	if len(generation.Checks) > 100 {
+		return fmt.Errorf("usage generation has too many checks")
+	}
+	for index, check := range generation.Checks {
+		if check == "" || len(check) > 256 || strings.ContainsAny(check, "\r\n") || (index > 0 && check == generation.Checks[index-1]) {
+			return fmt.Errorf("usage generation checks are invalid")
+		}
 	}
 	return nil
 }

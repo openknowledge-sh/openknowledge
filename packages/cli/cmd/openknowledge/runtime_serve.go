@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	knowledgefeedback "github.com/openknowledge-sh/openknowledge/packages/cli/internal/feedback"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
@@ -263,6 +264,7 @@ type runtimeServeHandler struct {
 	sessions   map[string]*runtimeMCPSession
 	now        func() time.Time
 	usage      *knowledgeusage.Recorder
+	feedback   *knowledgefeedback.Recorder
 	preview    bool
 }
 
@@ -375,10 +377,15 @@ func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, erro
 		return nil, snapshots.initErr
 	}
 	var usageRecorder *knowledgeusage.Recorder
+	var feedbackRecorder *knowledgefeedback.Recorder
 	if config.Serve.UsageEvents.Enabled {
 		retention, _ := time.ParseDuration(config.Serve.UsageEvents.Retention)
 		var err error
 		usageRecorder, err = knowledgeusage.NewRecorder(filepath.Join(config.Runtime.StateDir, "usage"), config.Serve.UsageEvents.CaptureQueries, retention)
+		if err != nil {
+			return nil, err
+		}
+		feedbackRecorder, err = knowledgefeedback.NewRecorder(filepath.Join(config.Runtime.StateDir, "feedback"), retention)
 		if err != nil {
 			return nil, err
 		}
@@ -392,6 +399,7 @@ func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, erro
 		sessions:  make(map[string]*runtimeMCPSession),
 		now:       time.Now,
 		usage:     usageRecorder,
+		feedback:  feedbackRecorder,
 	}, nil
 }
 
@@ -441,6 +449,16 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 			return
 		}
 		handler.serveSearch(response, request, snapshot, access, policy)
+	case "_feedback":
+		if handler.usage == nil || handler.feedback == nil {
+			http.NotFound(response, request)
+			return
+		}
+		access, _, ok := handler.authorizeRetrieval(response, request, knowledge.ID)
+		if !ok {
+			return
+		}
+		handler.serveFeedback(response, request, snapshot, access)
 	case "_mcp":
 		if !snapshot.Knowledge.MCP || handler.config.Serve.MCPAccess == "off" {
 			http.NotFound(response, request)
@@ -527,8 +545,11 @@ func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, re
 	}
 	now := handler.now()
 	result := buildRuntimeSearchResponseForAccess(snapshot, policy, access, query, limit, now)
-	if err := handler.recordSearchUsage(snapshot, query, result, now); err != nil {
+	usageEventID, err := handler.recordSearchUsage(snapshot, query, result, now)
+	if err != nil {
 		runtimeInfof("runtime usage event failed: %v\n", err)
+	} else {
+		result.UsageEventID = usageEventID
 	}
 	response.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(response).Encode(result)
@@ -592,8 +613,11 @@ func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, reque
 			now := handler.now()
 			result, err := buildRuntimeContextResponseForAccess(snapshot, policy, access, options, now)
 			if err == nil {
-				if recordErr := handler.recordContextUsage(snapshot, options.Query, result, now); recordErr != nil {
+				usageEventID, recordErr := handler.recordContextUsage(snapshot, options.Query, result, now)
+				if recordErr != nil {
 					runtimeInfof("runtime usage event failed: %v\n", recordErr)
+				} else {
+					result.UsageEventID = usageEventID
 				}
 			}
 			return result, err

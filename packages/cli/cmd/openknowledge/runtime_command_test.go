@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	knowledgefeedback "github.com/openknowledge-sh/openknowledge/packages/cli/internal/feedback"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
@@ -478,6 +479,11 @@ Runtime selection policy draft. Quarantine zebra protocol.
 	if err != nil {
 		t.Fatal(err)
 	}
+	feedbackRoot := filepath.Join(t.TempDir(), "feedback")
+	feedbackRecorder, err := knowledgefeedback.NewRecorder(feedbackRoot, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
 	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Publish: true, MCP: true}
 	snapshot := runtimeGenerationSnapshot{
 		Knowledge: knowledge,
@@ -492,7 +498,7 @@ Runtime selection policy draft. Quarantine zebra protocol.
 		snapshots: &runtimeSnapshotManager{active: map[string]runtimeGenerationSnapshot{"wiki": snapshot}},
 		semaphore: make(chan struct{}, 4), sessions: make(map[string]*runtimeMCPSession),
 		now:   func() time.Time { return time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC) },
-		usage: usageRecorder,
+		usage: usageRecorder, feedback: feedbackRecorder,
 	}
 
 	search := runtimeRequest(t, handler, http.MethodGet, "/_search?q=selection+policy&limit=5", "", nil)
@@ -505,6 +511,13 @@ Runtime selection policy draft. Quarantine zebra protocol.
 	}
 	if len(searchResult.Results) != 1 || searchResult.Results[0].Source.Path != "trusted.md" || searchResult.Results[0].Trust.Tier != okf.OKFV02TrustHumanReviewed {
 		t.Fatalf("unexpected selected results: %#v", searchResult.Results)
+	}
+	if len(searchResult.UsageEventID) != 32 {
+		t.Fatalf("runtime response did not expose a feedback-safe usage id: %#v", searchResult)
+	}
+	feedbackResponse := runtimeRequest(t, handler, http.MethodPost, "/_feedback", `{"usageEventId":"`+searchResult.UsageEventID+`","sentiment":"negative","reasons":["outdated"]}`, nil)
+	if feedbackResponse.Code != http.StatusCreated || !strings.Contains(feedbackResponse.Body.String(), `"path":"trusted.md"`) || !strings.Contains(feedbackResponse.Body.String(), `"sentiment":"negative"`) {
+		t.Fatalf("unexpected runtime feedback response: %d %s", feedbackResponse.Code, feedbackResponse.Body.String())
 	}
 	selected := searchResult.Results[0]
 	if selected.Provenance.Generation.Name != "generation-7" || !reflect.DeepEqual(selected.Provenance.Generation.Checks, []string{"Knowledge Eval"}) || len(selected.Provenance.Sources) != 1 || selected.Freshness.EvaluatedAt != "2026-08-21T12:00:00Z" || len(selected.Selection.Reasons) == 0 {
@@ -535,6 +548,10 @@ Runtime selection policy draft. Quarantine zebra protocol.
 	if len(events) != 2 || events[0].Channel != "http-search" || events[1].Channel != "mcp-search" || events[0].Query != "selection policy" || !reflect.DeepEqual(events[0].Generation.Checks, []string{"Knowledge Eval"}) || len(events[0].Selected) != 1 || events[0].Selected[0].Path != "trusted.md" {
 		t.Fatalf("unexpected runtime usage events: %#v", events)
 	}
+	feedbackEvents, err := knowledgefeedback.Read([]string{feedbackRoot})
+	if err != nil || len(feedbackEvents) != 1 || feedbackEvents[0].UsageEventID != events[0].ID || feedbackEvents[0].Evidence[0].Path != "trusted.md" {
+		t.Fatalf("unexpected grounded feedback events: %#v err=%v", feedbackEvents, err)
+	}
 }
 
 func TestRuntimeAccessProfilesAuthorizeAndRouteRetrieval(t *testing.T) {
@@ -555,6 +572,10 @@ func TestRuntimeAccessProfilesAuthorizeAndRouteRetrieval(t *testing.T) {
 		config:    okruntime.Config{Serve: okruntime.ServeConfig{MCPAccess: "token", RetrievalPolicy: policy}, KnowledgeBases: []okruntime.KnowledgeBaseConfig{knowledge}},
 		snapshots: &runtimeSnapshotManager{active: map[string]runtimeGenerationSnapshot{"wiki": snapshot}}, semaphore: make(chan struct{}, 4),
 		profiles: []runtimeAccessProfile{admin, support, viewer}, sessions: make(map[string]*runtimeMCPSession), now: time.Now,
+	}
+	disabledFeedback := runtimeRequest(t, handler, http.MethodPost, "/_feedback", `{}`, nil)
+	if disabledFeedback.Code != http.StatusNotFound {
+		t.Fatalf("disabled feedback endpoint exposed authentication state: %d %s", disabledFeedback.Code, disabledFeedback.Body.String())
 	}
 	for name, test := range map[string]struct {
 		headers map[string]string

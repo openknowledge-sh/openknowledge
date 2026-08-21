@@ -1,0 +1,43 @@
+{
+  "type": "openknowledge.feedback",
+  "version": 1,
+  "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "at": "2026-08-21T12:30:00Z",
+  "knowledgeBase": "docs",
+  "generation": {
+    "name": "generation-1",
+    "commit": "0123456789abcdef0123456789abcdef01234567",
+    "spec": "0.2",
+    "contentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "checks": [
+      "Knowledge Eval"
+    ]
+  },
+  "usageEventId": "cccccccccccccccccccccccccccccccc",
+  "queryFingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "channel": "http-search",
+  "outcome": "evidence-selected",
+  "access": {
+    "profile": "support",
+    "agents": [
+      "support-agent"
+    ],
+    "teams": [
+      "support"
+    ],
+    "useCases": [
+      "customer-support"
+    ]
+  },
+  "sentiment": "negative",
+  "reasons": [
+    "outdated"
+  ],
+  "evidence": [
+    {
+      "id": "guide#reset",
+      "locator": "okf+sha256://eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/guide.md#ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "path": "guide.md"
+    }
+  ]
+}

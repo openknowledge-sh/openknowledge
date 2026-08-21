@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/feedback-event.schema.json",
+  "title": "Open Knowledge private runtime feedback event v1",
+  "type": "object",
+  "required": ["type", "version", "id", "at", "knowledgeBase", "generation", "usageEventId", "queryFingerprint", "channel", "outcome", "access", "sentiment", "reasons", "evidence"],
+  "properties": {
+    "type": {"const": "openknowledge.feedback"},
+    "version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
+    "at": {"type": "string", "format": "date-time"},
+    "knowledgeBase": {"type": "string", "minLength": 1},
+    "generation": {"$ref": "runtime-search.schema.json#/$defs/generation"},
+    "usageEventId": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
+    "queryFingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "channel": {"enum": ["http-search", "mcp-search"]},
+    "outcome": {"enum": ["evidence-selected", "no-evidence", "policy-rejected"]},
+    "access": {"$ref": "runtime-search.schema.json#/$defs/access"},
+    "sentiment": {"enum": ["positive", "negative"]},
+    "reasons": {"type": "array", "maxItems": 6, "uniqueItems": true, "items": {"enum": ["incorrect", "outdated", "irrelevant", "incomplete", "unsafe", "other"]}},
+    "evidence": {"type": "array", "items": {"$ref": "usage-event.schema.json#/$defs/evidence"}}
+  },
+  "allOf": [
+    {"if": {"properties": {"sentiment": {"const": "negative"}}}, "then": {"properties": {"reasons": {"minItems": 1}}}},
+    {"if": {"properties": {"sentiment": {"const": "positive"}}}, "then": {"properties": {"reasons": {"maxItems": 0}}}}
+  ],
+  "additionalProperties": false
+}

@@ -13,6 +13,30 @@ page records release-level changes.
 
 ## Unreleased
 
+### Grounded runtime feedback
+
+- Runtime HTTP search and MCP context responses now return an opaque
+  `usageEventId` after successful private usage event persistence.
+- New `POST <route>/_feedback` records positive or reason-coded negative
+  feedback against a retained event. It uses the retrieval access profile and
+  knowledge base allowlist.
+- Feedback binds the original generation, checks, query fingerprint, channel,
+  outcome, and selected evidence. It does not copy raw query text.
+- The runtime stores private feedback JSONL under `<state_dir>/feedback` with
+  user-only directory and file modes. It applies the usage event retention
+  period to these files.
+- New `feedback-event.schema.json` defines the strict feedback v1 contract.
+  Runtime search and context schemas now allow `usageEventId`.
+- Source: `packages/cli/cmd/openknowledge/runtime_feedback.go`,
+  `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
+  `packages/cli/internal/feedback/`, `packages/cli/internal/usage/`,
+  `packages/cli/schemas/v1/feedback-event.schema.json`,
+  `packages/cli/schemas/v1/runtime-search.schema.json`, and
+  `packages/cli/schemas/v1/runtime-context.schema.json`.
+- Docs: `Wiki/features/commands/runtime.md`,
+  `Wiki/features/machine-contracts.md`, and `Wiki/features/telemetry.md`.
+
 ### Runtime index cache
 
 - Runtime serving now persists generation-bound search and MCP indexes under

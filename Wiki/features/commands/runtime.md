@@ -366,6 +366,10 @@ The search contract returns ranked source metadata. The context contract also
 returns source Markdown, token estimates, the requested budget, and the
 post-policy estimated token count.
 
+When usage recording is enabled, both contracts can contain an opaque
+`usageEventId`. The ID contains 32 lowercase hexadecimal characters. The
+runtime adds it only after successful usage event persistence.
+
 ## Private usage events
 
 `serve.usage_events` records local search outcomes for knowledge gap analysis.
@@ -402,6 +406,48 @@ outcomes:
 Selected items contain an ID, locator, and path. Policy rejections contain
 reason counts. A usage event write failure produces a runtime diagnostic but
 does not fail the search request.
+
+## Grounded feedback
+
+Use the usage event ID to submit feedback about one retrieval result:
+
+```http
+POST <route>/_feedback
+Content-Type: application/json
+
+{"usageEventId":"<32-hex-id>","sentiment":"negative","reasons":["outdated"]}
+```
+
+The endpoint is available only when `serve.usage_events.enabled = true`. It
+uses the same access profile authentication and knowledge base allowlist as
+search. Without access profiles, public runtime access applies.
+
+The endpoint accepts only `POST`. It strictly decodes a JSON body of at most
+16 KiB with `usageEventId`, `sentiment`, and `reasons`. Extra fields and
+invalid values return `400`. A body over the limit returns `413`.
+
+Use `positive` with an empty `reasons` array. Use `negative` with one to six
+unique reasons. Valid reasons are `incorrect`, `outdated`, `irrelevant`,
+`incomplete`, `unsafe`, and `other`.
+
+The runtime looks up the retained usage event. An unknown ID or an ID from
+another knowledge base returns `404`. The endpoint also returns `404` when
+usage events are disabled.
+
+The feedback event copies the original generation, checks, query fingerprint,
+channel, outcome, and selected evidence. It records the current access
+identity. It never copies the raw query. The runtime validates the complete
+bound usage event and rejects feedback dated before that event.
+
+A successful request returns `201` with a strict `feedback-event.schema.json`
+v1 event. It writes the same event to
+`<state_dir>/feedback/YYYY-MM-DD.jsonl`. The directory uses mode `0700`, and
+the file uses mode `0600`. Feedback JSONL uses the configured usage event
+retention period.
+
+The successful response sets `X-OpenKnowledge-Generation` to the original
+usage event generation. Other matched route responses keep the generation
+header for the selected runtime snapshot.
 
 ## Required publication checks
 
@@ -503,6 +549,7 @@ the trusted ingress.
 >
 > - `packages/cli/cmd/openknowledge/runtime_command.go`
 > - `packages/cli/cmd/openknowledge/runtime_cache.go`
+> - `packages/cli/cmd/openknowledge/runtime_feedback.go`
 > - `packages/cli/cmd/openknowledge/runtime_private_api.go`
 > - `packages/cli/cmd/openknowledge/runtime_serve.go`
 > - `packages/cli/cmd/openknowledge/runtime_retrieval.go`
@@ -510,7 +557,9 @@ the trusted ingress.
 > - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`
 > - `packages/cli/internal/runtime/`
 > - `packages/cli/internal/usage/`
+> - `packages/cli/internal/feedback/`
 > - `packages/cli/schemas/v1/runtime-cache.schema.json`
+> - `packages/cli/schemas/v1/feedback-event.schema.json`
 > - `packages/cli/internal/insights/`
 > - `packages/cli/internal/agents/templates.go`
 > - `packages/cli/schemas/v1/runtime-plan.schema.json`

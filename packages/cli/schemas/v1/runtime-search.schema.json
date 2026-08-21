@@ -17,6 +17,7 @@
     "rejected": {"type": "array", "items": {"$ref": "#/$defs/rejected"}},
     "decision": {"enum": ["answer", "refuse"]},
     "refusalReasons": {"type": "array", "uniqueItems": true, "items": {"enum": ["no_relevant_evidence", "no_policy_compliant_evidence", "insufficient_budget"]}},
+    "usageEventId": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
     "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
   },
   "$defs": {

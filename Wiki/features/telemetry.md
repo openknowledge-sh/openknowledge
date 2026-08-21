@@ -138,6 +138,15 @@ preferences and `okn telemetry` commands do not control these settings. See
 the [runtime command](/features/commands/runtime.md#private-usage-events) for
 the local event fields, privacy defaults, and retention setting.
 
+When runtime usage events are enabled, retrieval responses can return an
+opaque local usage event ID. `POST <route>/_feedback` uses that ID to create a
+private grounded feedback event under `<state_dir>/feedback`.
+
+Feedback events bind the original query fingerprint, generation, outcome, and
+selected evidence. They do not copy raw query text. Open Knowledge does not
+send usage or feedback events to the first-party telemetry relay. The usage
+event retention setting also controls feedback JSONL retention.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -146,6 +155,7 @@ the local event fields, privacy defaults, and retention setting.
 >
 > - `packages/cli/internal/telemetry/`
 > - `packages/cli/internal/usage/`
+> - `packages/cli/internal/feedback/`
 > - `packages/cli/cmd/openknowledge/telemetry_command.go`
 > - `packages/cli/cmd/openknowledge/runtime_serve.go`
 > - `packages/web/src/analytics.js`
