@@ -127,6 +127,17 @@ or receive a PostHog project token.
 Session observation is a separate local feature. `--observe` remains opt-in and
 does not change product telemetry.
 
+## Local runtime usage events
+
+Runtime usage events are separate from first-party product telemetry. They are
+disabled by default and stay under the configured runtime `state_dir`. The CLI
+does not send these events to the first-party telemetry relay.
+
+Runtime usage events use `[serve.usage_events]` settings. Product telemetry
+preferences and `okn telemetry` commands do not control these settings. See
+the [runtime command](/features/commands/runtime.md#private-usage-events) for
+the local event fields, privacy defaults, and retention setting.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -134,7 +145,9 @@ does not change product telemetry.
 > **Source anchors**
 >
 > - `packages/cli/internal/telemetry/`
+> - `packages/cli/internal/usage/`
 > - `packages/cli/cmd/openknowledge/telemetry_command.go`
+> - `packages/cli/cmd/openknowledge/runtime_serve.go`
 > - `packages/web/src/analytics.js`
 > - `packages/web/scripts/server.mjs`
 >

@@ -13,6 +13,27 @@ page records release-level changes.
 
 ## Unreleased
 
+### Runtime usage
+
+- Runtime search can now record private local usage events for HTTP and MCP
+  search. Recording and sanitized query capture are separate opt-in settings.
+- Events use a private HMAC key and contain no user, session, IP address, or
+  request header fields. The default event contains no query text.
+- `okn automation insights from-usage` converts recurring no-evidence and
+  policy-rejected clusters into stable private insights.
+- Captured questions can produce a private strict eval dataset. Exclusive file
+  creation prevents replacement of an existing dataset.
+- New `usage-event.schema.json` defines the local event v1 contract.
+- Source: `packages/cli/internal/runtime/config.go`,
+  `packages/cli/cmd/openknowledge/runtime_serve.go`,
+  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
+  `packages/cli/cmd/openknowledge/insights_command.go`,
+  `packages/cli/internal/usage/`, `packages/cli/internal/insights/`, and
+  `packages/cli/schemas/v1/usage-event.schema.json`.
+- Docs: `Wiki/features/commands/runtime.md`,
+  `Wiki/features/commands/insights.md`, `Wiki/features/telemetry.md`, and
+  `Wiki/features/machine-contracts.md`.
+
 ### Runtime retrieval
 
 - `[serve.retrieval_policy]` now filters runtime evidence by minimum trust,

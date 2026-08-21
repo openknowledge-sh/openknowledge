@@ -36,6 +36,9 @@ mcp = true
 	if policy.MinimumTrust != okf.OKFV02TrustUnverified || !policy.AllowStale || policy.RequireSources || !reflect.DeepEqual(policy.AllowedStatuses, []string{"draft", "stable", "deprecated"}) {
 		t.Fatalf("unexpected permissive retrieval policy defaults: %#v", policy)
 	}
+	if config.Serve.UsageEvents.Enabled || config.Serve.UsageEvents.CaptureQueries || config.Serve.UsageEvents.Retention != "720h" {
+		t.Fatalf("unexpected privacy-safe usage event defaults: %#v", config.Serve.UsageEvents)
+	}
 	if config.KnowledgeBases[0].Route != "/docs/" || config.KnowledgeBases[0].Spec != okf.LatestSpecVersion {
 		t.Fatalf("unexpected normalized knowledge base: %#v", config.KnowledgeBases[0])
 	}
@@ -211,5 +214,26 @@ publish = true
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Fatalf("expected %q for trust=%q statuses=%s, got %v", test.want, test.trust, test.statuses, err)
 		}
+	}
+}
+
+func TestParseConfigRequiresExplicitUsageQueryCapture(t *testing.T) {
+	content := `
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[serve.usage_events]
+enabled = false
+capture_queries = true
+retention = "24h"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+publish = true
+`
+	if _, err := ParseConfig([]byte(content)); err == nil || !strings.Contains(err.Error(), "capture_queries requires enabled") {
+		t.Fatalf("expected explicit usage query capture refusal, got %v", err)
 	}
 }

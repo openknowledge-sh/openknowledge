@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/usage-event.schema.json",
+  "title": "Open Knowledge private runtime usage event v1",
+  "type": "object",
+  "required": ["type", "version", "id", "at", "knowledgeBase", "generation", "channel", "queryFingerprint", "queryLength", "outcome", "selected", "rejected"],
+  "properties": {
+    "type": {"const": "openknowledge.usage"},
+    "version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
+    "at": {"type": "string", "format": "date-time"},
+    "knowledgeBase": {"type": "string", "minLength": 1},
+    "generation": {"$ref": "runtime-search.schema.json#/$defs/generation"},
+    "channel": {"enum": ["http-search", "mcp-search"]},
+    "queryFingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "query": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "queryLength": {"enum": ["1-32", "33-128", "129-512", "513-4096"]},
+    "outcome": {"enum": ["evidence-selected", "no-evidence", "policy-rejected"]},
+    "selected": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "rejected": {"type": "array", "items": {"$ref": "#/$defs/rejection"}}
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["id", "locator", "path"],
+      "properties": {
+        "id": {"type": "string"},
+        "locator": {"type": "string", "pattern": "^okf\\+sha256://[a-f0-9]{64}/.+#[a-f0-9]{64}$"},
+        "path": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "rejection": {
+      "type": "object",
+      "required": ["reason", "count"],
+      "properties": {
+        "reason": {"enum": ["trust_below_minimum", "stale", "status_not_allowed", "sources_required"]},
+        "count": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

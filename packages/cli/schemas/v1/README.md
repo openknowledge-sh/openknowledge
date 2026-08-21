@@ -1,8 +1,8 @@
 # Open Knowledge CLI JSON schemas v1
 
-These Draft 2020-12 schemas describe the versioned machine-readable output of
-the Open Knowledge CLI. Every covered top-level document contains
-`"schemaVersion": "1"`.
+These Draft 2020-12 schemas describe versioned CLI and runtime documents.
+Most top-level output documents contain `"schemaVersion": "1"`. Private usage
+events use `type: openknowledge.usage` and numeric `version: 1`.
 
 The website build publishes this directory at
 `https://openknowledge.sh/schemas/cli/v1/`, matching every schema's `$id`.
@@ -16,6 +16,7 @@ the source tree and from the public URL.
 | `runtime-build.schema.json` | `openknowledge automation runtime build` |
 | `runtime-search.schema.json` | Runtime `GET <route>/_search` response |
 | `runtime-context.schema.json` | Runtime MCP `openknowledge_search` result |
+| `usage-event.schema.json` | Private runtime HTTP and MCP search event |
 | `deploy-plan.schema.json` | `openknowledge automation deploy railway --dry-run` |
 | `deploy-result.schema.json` | Successful `openknowledge automation deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `openknowledge automation deploy railway init` |
@@ -59,10 +60,15 @@ Job run records can contain eval status, identity, private report paths,
 regressions, and proposed failures. These objects are part of
 `job-run-plan.schema.json` and `job-run-record.schema.json`.
 
-Runtime plans contain the normalized retrieval policy. Runtime search and
-context results identify the active generation and retrieval revision. They
-also contain policy, trust, freshness, provenance, selection, and rejection
-metadata.
+Runtime plans contain normalized retrieval policy and usage event settings.
+Runtime search and context results identify the active generation and
+retrieval revision. They also contain policy, trust, freshness, provenance,
+selection, and rejection metadata.
+
+Private usage events contain generation identity, a search channel, an HMAC
+query fingerprint, a query length range, an outcome, selected evidence, and
+policy rejection counts. Query text is optional. The runtime writes these
+strict objects as JSONL.
 
 The CLI test suite compiles every schema as Draft 2020-12 without network
 access, validates all golden contracts and representative non-empty outputs,

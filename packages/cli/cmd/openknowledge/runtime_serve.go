@@ -21,6 +21,7 @@ import (
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
+	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
 
 type runtimeGenerationSnapshot struct {
@@ -227,6 +228,7 @@ type runtimeServeHandler struct {
 	sessionsMu sync.Mutex
 	sessions   map[string]*runtimeMCPSession
 	now        func() time.Time
+	usage      *knowledgeusage.Recorder
 }
 
 func runRuntimeServe(args []string) int {
@@ -317,6 +319,15 @@ func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, erro
 	if snapshots.initErr != nil {
 		return nil, snapshots.initErr
 	}
+	var usageRecorder *knowledgeusage.Recorder
+	if config.Serve.UsageEvents.Enabled {
+		retention, _ := time.ParseDuration(config.Serve.UsageEvents.Retention)
+		var err error
+		usageRecorder, err = knowledgeusage.NewRecorder(filepath.Join(config.Runtime.StateDir, "usage"), config.Serve.UsageEvents.CaptureQueries, retention)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &runtimeServeHandler{
 		config:    config,
 		snapshots: snapshots,
@@ -324,6 +335,7 @@ func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, erro
 		mcpToken:  token,
 		sessions:  make(map[string]*runtimeMCPSession),
 		now:       time.Now,
+		usage:     usageRecorder,
 	}, nil
 }
 
@@ -416,7 +428,11 @@ func (handler *runtimeServeHandler) serveSearch(response http.ResponseWriter, re
 		}
 		limit = value
 	}
-	result := buildRuntimeSearchResponse(snapshot, handler.config.Serve.RetrievalPolicy, query, limit, handler.now())
+	now := handler.now()
+	result := buildRuntimeSearchResponse(snapshot, handler.config.Serve.RetrievalPolicy, query, limit, now)
+	if err := handler.recordSearchUsage(snapshot, query, result, now); err != nil {
+		runtimeInfof("runtime usage event failed: %v\n", err)
+	}
 	response.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(response).Encode(result)
 }
@@ -469,7 +485,14 @@ func (handler *runtimeServeHandler) serveMCP(response http.ResponseWriter, reque
 		}
 		server := &mcpServer{root: runtimeProjectionRoot(snapshot.Root, "mcp"), spec: snapshot.Manifest.Spec, version: version}
 		server.resolveContext = func(options okf.ContextOptions) (any, error) {
-			return buildRuntimeContextResponse(snapshot, handler.config.Serve.RetrievalPolicy, options, handler.now())
+			now := handler.now()
+			result, err := buildRuntimeContextResponse(snapshot, handler.config.Serve.RetrievalPolicy, options, now)
+			if err == nil {
+				if recordErr := handler.recordContextUsage(snapshot, options.Query, result, now); recordErr != nil {
+					runtimeInfof("runtime usage event failed: %v\n", recordErr)
+				}
+			}
+			return result, err
 		}
 		session := &runtimeMCPSession{server: server, lastUsed: handler.now()}
 		handler.sessionsMu.Lock()

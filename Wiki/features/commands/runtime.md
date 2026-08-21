@@ -86,6 +86,11 @@ allow_stale = true
 allowed_statuses = ["draft", "stable", "deprecated"]
 require_sources = false
 
+[serve.usage_events]
+enabled = false
+capture_queries = false
+retention = "720h"
+
 [worker]
 repository_url = "https://github.com/OWNER/REPOSITORY.git"
 production_branch = "main"
@@ -208,6 +213,41 @@ The search contract returns ranked source metadata. The context contract also
 returns source Markdown, token estimates, the requested budget, and the
 post-policy estimated token count.
 
+## Private usage events
+
+`serve.usage_events` records local search outcomes for knowledge gap analysis.
+All fields use privacy-safe defaults:
+
+| Field | Default | Effect |
+| --- | --- | --- |
+| `enabled` | `false` | Record HTTP and MCP search events when true. |
+| `capture_queries` | `false` | Store sanitized query text when true. This field requires `enabled = true`. |
+| `retention` | `720h` | Retain dated event files for the configured positive duration. |
+
+The runtime writes private JSONL files to
+`<state_dir>/usage/YYYY-MM-DD.jsonl`. It keeps a private HMAC key in
+`<state_dir>/usage/.fingerprint-key`. The directory and files use user-only
+permissions.
+
+Each event contains a keyed query fingerprint and a query length range. The
+default event does not contain query text. The contract has no user, session,
+IP address, or request header fields.
+
+Set `capture_queries = true` only when query storage is acceptable. The
+runtime normalizes the query and redacts recognized credentials before it
+writes the event.
+
+Events identify the `http-search` or `mcp-search` channel. They use these
+outcomes:
+
+- `evidence-selected`: The search selected at least one evidence item.
+- `no-evidence`: The search selected no evidence and had no policy rejection.
+- `policy-rejected`: The search selected no evidence and rejected candidates.
+
+Selected items contain an ID, locator, and path. Policy rejections contain
+reason counts. A usage event write failure produces a runtime diagnostic but
+does not fail the search request.
+
 ## Security boundary
 
 The publisher maintains the credentialed checkout. It validates each worker
@@ -259,5 +299,7 @@ the trusted ingress.
 > - `packages/cli/cmd/openknowledge/runtime_worker.go`
 > - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`
 > - `packages/cli/internal/runtime/`
+> - `packages/cli/internal/usage/`
+> - `packages/cli/schemas/v1/usage-event.schema.json`
 > - `docker/runtime.Dockerfile`
 > - `deploy/runtime/docker-compose.yml`

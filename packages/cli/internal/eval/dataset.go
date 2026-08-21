@@ -106,6 +106,34 @@ func LoadDataset(path string) (LoadedDataset, error) {
 	return LoadedDataset{Dataset: dataset, Path: absolute, SHA256: hex.EncodeToString(digest[:])}, nil
 }
 
+func WriteNewDataset(path string, dataset Dataset) error {
+	if err := ValidateDataset(dataset); err != nil {
+		return err
+	}
+	content, err := yaml.Marshal(dataset)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	_, writeErr := file.Write(content)
+	closeErr := file.Close()
+	if writeErr != nil {
+		_ = os.Remove(path)
+		return writeErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(path)
+		return closeErr
+	}
+	return nil
+}
+
 func ValidateDataset(dataset Dataset) error {
 	var issues []ValidationIssue
 	add := func(field string, message string) {

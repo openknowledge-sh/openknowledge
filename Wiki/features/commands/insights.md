@@ -37,6 +37,8 @@ okn automation insights run --all
 okn automation insights run <insight> --runtime claude
 okn automation insights run <insight> --isolate
 okn automation insights dismiss <insight>
+okn automation insights from-usage <file-or-dir> --min-occurrences 2
+okn automation insights from-usage <file-or-dir> --eval-out .openknowledge/evals/usage-gaps.yaml
 okn automation jobs new insights --out .openknowledge/jobs/insights.md
 ```
 
@@ -91,6 +93,35 @@ The filesystem stays available for inspection.
 validation pass. `--runtime` selects Codex, Claude Code, or OpenCode. `--model`
 sets a harness-specific model.
 
+## Runtime usage gaps
+
+Use private runtime events to create stable knowledge gap insights:
+
+```sh
+okn automation insights from-usage <file-or-dir> \
+  [--min-occurrences <n>] \
+  [--eval-out <path>]
+```
+
+The input can be one event file or a directory of `*.jsonl` files. You can
+give more than one input. The command strictly validates each v1 usage event.
+
+`--min-occurrences` defaults to `2`. The command ignores clusters below this
+count. It groups `no-evidence` and `policy-rejected` events by knowledge base
+and keyed query fingerprint.
+
+Each group has a stable `runtime-usage-gap` identity. A repeated run reuses an
+existing insight instead of creating a duplicate. The insight records counts,
+time range, channels, and policy rejection totals.
+
+`--eval-out` creates a strict eval v1 dataset. The command adds a case only
+when query capture supplied a question. Each case requires at least one
+source.
+
+The dataset uses private file permissions. The command uses exclusive file
+creation and does not replace an existing path. Without captured queries, the
+command creates insights but does not create an eval dataset.
+
 ## Markdown contract
 
 Every insight file uses `type: Open Knowledge Insight` and
@@ -140,4 +171,6 @@ insight worker or queue service.
 > * `packages/cli/internal/insights/`
 > * `packages/cli/internal/integration/`
 > * `packages/cli/internal/okf/validation_rules.go`
+> * `packages/cli/internal/usage/`
+> * `packages/cli/internal/eval/dataset.go`
 > * `packages/cli/internal/agents/templates.go`

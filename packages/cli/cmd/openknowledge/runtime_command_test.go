@@ -20,6 +20,7 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
+	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
 
 type runtimeHandlerRoundTripper struct {
@@ -249,6 +250,11 @@ Runtime selection policy draft.
 		t.Fatal(err)
 	}
 	policy := okruntime.RetrievalPolicyConfig{MinimumTrust: okf.OKFV02TrustMachineConfirmed, AllowStale: false, AllowedStatuses: []string{"stable"}, RequireSources: true}
+	usageRoot := filepath.Join(t.TempDir(), "usage")
+	usageRecorder, err := knowledgeusage.NewRecorder(usageRoot, true, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
 	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Publish: true, MCP: true}
 	snapshot := runtimeGenerationSnapshot{
 		Knowledge: knowledge,
@@ -262,7 +268,8 @@ Runtime selection policy draft.
 		config:    okruntime.Config{Serve: okruntime.ServeConfig{MCPAccess: "public", RetrievalPolicy: policy}, KnowledgeBases: []okruntime.KnowledgeBaseConfig{knowledge}},
 		snapshots: &runtimeSnapshotManager{active: map[string]runtimeGenerationSnapshot{"wiki": snapshot}},
 		semaphore: make(chan struct{}, 4), sessions: make(map[string]*runtimeMCPSession),
-		now: func() time.Time { return time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC) },
+		now:   func() time.Time { return time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC) },
+		usage: usageRecorder,
 	}
 
 	search := runtimeRequest(t, handler, http.MethodGet, "/_search?q=selection+policy&limit=5", "", nil)
@@ -293,6 +300,13 @@ Runtime selection policy draft.
 	tool := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"openknowledge_search","arguments":{"query":"selection policy","limit":5}}}`, map[string]string{"Mcp-Session-Id": session})
 	if tool.Code != http.StatusOK || !strings.Contains(tool.Body.String(), `"knowledgeBase":"wiki"`) || !strings.Contains(tool.Body.String(), `"trust_below_minimum"`) || strings.Count(tool.Body.String(), `"path":"draft.md"`) == 0 {
 		t.Fatalf("runtime MCP did not expose the policy-aware context contract: %d %s", tool.Code, tool.Body.String())
+	}
+	events, err := knowledgeusage.Read([]string{usageRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[0].Channel != "http-search" || events[1].Channel != "mcp-search" || events[0].Query != "selection policy" || len(events[0].Selected) != 1 || events[0].Selected[0].Path != "trusted.md" {
+		t.Fatalf("unexpected runtime usage events: %#v", events)
 	}
 }
 

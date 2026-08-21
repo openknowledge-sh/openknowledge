@@ -66,3 +66,24 @@ func TestValidateDatasetReportsAllSemanticIssues(t *testing.T) {
 		t.Fatalf("expected accumulated issues, got %#v", err)
 	}
 }
+
+func TestWriteNewDatasetCreatesPrivateValidFileAndRefusesOverwrite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "generated", "usage.yaml")
+	dataset := Dataset{Type: DatasetType, Version: DatasetVersion, ID: "usage", Cases: []Case{{ID: "gap", Question: "How do I rollback?", Expect: Expectations{MinSources: 1}}}}
+	if err := WriteNewDataset(path, dataset); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadDataset(path); err != nil {
+		t.Fatalf("generated dataset is not readable: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		t.Fatalf("generated usage dataset must be private, mode=%o", info.Mode().Perm())
+	}
+	if err := WriteNewDataset(path, dataset); err == nil || !os.IsExist(err) {
+		t.Fatalf("expected safe overwrite refusal, got %v", err)
+	}
+}

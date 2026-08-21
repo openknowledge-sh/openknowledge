@@ -21,6 +21,11 @@
         "deprecated"
       ],
       "require_sources": false
+    },
+    "usage_events": {
+      "enabled": false,
+      "capture_queries": false,
+      "retention": "720h"
     }
   },
   "worker": {

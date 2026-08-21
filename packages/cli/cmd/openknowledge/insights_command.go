@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
+	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
 
 type insightRunOptions struct {
@@ -59,9 +62,131 @@ func runInsights(args []string) int {
 			return runInsightObservation(args[1:])
 		case "verify":
 			return runInsightsVerify(args[1:])
+		case "from-usage":
+			return runInsightsFromUsage(args[1:])
 		}
 	}
 	return listInsights(args)
+}
+
+type insightUsageOptions struct {
+	paths              []string
+	minimumOccurrences int
+	evalOut            string
+}
+
+func runInsightsFromUsage(args []string) int {
+	options, err := parseInsightUsageOptions(args)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 2
+	}
+	events, err := knowledgeusage.Read(options.paths)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	gaps := knowledgeusage.Gaps(events, options.minimumOccurrences)
+	if len(gaps) == 0 {
+		fmt.Fprintln(os.Stdout, "No recurring runtime knowledge gaps.")
+		return 0
+	}
+	var cases []knowledgeeval.Case
+	for _, gap := range gaps {
+		if gap.Question == "" {
+			continue
+		}
+		cases = append(cases, knowledgeeval.Case{
+			ID: "usage-" + gap.ID, Question: gap.Question,
+			Expect: knowledgeeval.Expectations{MinSources: 1},
+		})
+	}
+	if options.evalOut != "" && len(cases) > 0 {
+		dataset := knowledgeeval.Dataset{Type: knowledgeeval.DatasetType, Version: knowledgeeval.DatasetVersion, ID: "runtime-usage-gaps", Cases: cases}
+		if err := knowledgeeval.WriteNewDataset(options.evalOut, dataset); err != nil {
+			fmt.Fprintf(stderrOutput(), "write eval candidates: %v\n", err)
+			return 1
+		}
+	}
+	created := 0
+	existing := 0
+	for _, gap := range gaps {
+		summary := "Investigate a recurring runtime query cluster without eligible evidence: " + gap.ID + "."
+		if gap.Question != "" {
+			summary = "Add eligible knowledge for the recurring runtime question: " + gap.Question
+		}
+		evidence := []string{
+			fmt.Sprintf("Observed %d retrievals without selected evidence for knowledge base %s between %s and %s.", gap.Occurrences, gap.KnowledgeBase, gap.FirstSeen.UTC().Format(time.RFC3339), gap.LastSeen.UTC().Format(time.RFC3339)),
+			"Privacy-safe keyed query fingerprint: " + gap.Fingerprint + ".",
+			"Channels: " + strings.Join(gap.Channels, ", ") + ".",
+		}
+		if gap.Question == "" {
+			evidence = append(evidence, "Raw query capture was disabled; research the cluster without attempting to recover the original query.")
+		}
+		for _, rejection := range gap.Rejections {
+			evidence = append(evidence, fmt.Sprintf("Policy rejection %s occurred %d time(s).", rejection.Reason, rejection.Count))
+		}
+		_, wasCreated, err := insights.Create(".", insights.CreateOptions{
+			Summary: summary, Evidence: evidence, Targets: []string{"."}, Now: gap.LastSeen,
+			Kind: "runtime-usage-gap", Identity: gap.KnowledgeBase + "\x00" + gap.Fingerprint,
+		})
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		if wasCreated {
+			created++
+		} else {
+			existing++
+		}
+	}
+	fmt.Fprintf(os.Stdout, "Processed %d gap(s): %d insight(s) created, %d already present, %d eval candidate(s).\n", len(gaps), created, existing, len(cases))
+	if options.evalOut != "" && len(cases) > 0 {
+		fmt.Fprintf(os.Stdout, "Wrote eval candidates to %s.\n", filepath.ToSlash(options.evalOut))
+	} else if len(cases) > 0 {
+		fmt.Fprintln(os.Stdout, "Use --eval-out <path> to write captured questions as an eval dataset.")
+	}
+	return 0
+}
+
+func parseInsightUsageOptions(args []string) (insightUsageOptions, error) {
+	options := insightUsageOptions{minimumOccurrences: 2}
+	for index := 0; index < len(args); index++ {
+		argument := args[index]
+		switch {
+		case argument == "--min-occurrences" || argument == "--eval-out":
+			value, next, err := nextFlagValue(args, index, argument)
+			if err != nil {
+				return options, err
+			}
+			if argument == "--eval-out" {
+				options.evalOut = value
+			} else {
+				options.minimumOccurrences, err = strconv.Atoi(value)
+				if err != nil || options.minimumOccurrences < 1 {
+					return options, fmt.Errorf("--min-occurrences must be a positive integer")
+				}
+			}
+			index = next
+		case strings.HasPrefix(argument, "--min-occurrences="):
+			value := strings.TrimPrefix(argument, "--min-occurrences=")
+			var err error
+			options.minimumOccurrences, err = strconv.Atoi(value)
+			if err != nil || options.minimumOccurrences < 1 {
+				return options, fmt.Errorf("--min-occurrences must be a positive integer")
+			}
+		case strings.HasPrefix(argument, "--eval-out="):
+			options.evalOut = strings.TrimPrefix(argument, "--eval-out=")
+		case strings.HasPrefix(argument, "-"):
+			return options, fmt.Errorf("unknown insights from-usage option: %s", argument)
+		default:
+			options.paths = append(options.paths, argument)
+		}
+	}
+	if len(options.paths) == 0 {
+		return options, fmt.Errorf("insights from-usage requires an event file or directory")
+	}
+	return options, nil
 }
 
 func listInsights(args []string) int {
@@ -493,6 +618,7 @@ Usage:
   openknowledge automation insights run <insight> --runtime <runtime> [--model <model>]
   openknowledge automation insights run <insight> --isolate
   openknowledge automation insights dismiss <insight>
+  openknowledge automation insights from-usage <events> [--min-occurrences <n>] [--eval-out <path>]
 
 With no subcommand, list discovers the connected knowledge base and prints
 pending insights oldest first. Create records a private evidence-only insight

@@ -43,6 +43,7 @@ When present, `specVersion` identifies the independently versioned OKF document 
 | `runtime-build.schema.json` | `runtime build` |
 | `runtime-search.schema.json` | runtime `GET <route>/_search` |
 | `runtime-context.schema.json` | runtime MCP `openknowledge_search` |
+| `usage-event.schema.json` | private runtime HTTP and MCP search events |
 | `deploy-plan.schema.json` | `deploy railway --dry-run` |
 | `deploy-result.schema.json` | successful `deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
@@ -74,6 +75,14 @@ to the active generation and retrieval revision.
 Both retrieval contracts include the effective policy and rejected candidates.
 Selected items add trust, freshness, provenance, and selection metadata.
 Rejected reasons identify trust, staleness, status, or source policy failures.
+
+Runtime plans also include the normalized `serve.usage_events` object.
+`usage-event.schema.json` defines strict local JSONL event records. Each event
+uses `type: openknowledge.usage` and numeric `version: 1`.
+
+The event records generation, channel, HMAC query fingerprint, query length,
+outcome, selected evidence, and policy rejection counts. Query text is
+optional and requires explicit runtime configuration.
 
 The published v1 schema distribution includes eval, diagnostic, runtime, and Railway deployment outputs.
 Golden tests marshal the current Go result types.

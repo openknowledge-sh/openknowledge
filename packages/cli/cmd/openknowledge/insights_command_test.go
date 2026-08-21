@@ -9,9 +9,12 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
+	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
 
 func TestRootInsightsCreateCapturesExplicitInsight(t *testing.T) {
@@ -43,6 +46,55 @@ func TestRootInsightsCreateCapturesExplicitInsight(t *testing.T) {
 			t.Fatalf("created insight = %#v", created)
 		}
 	})
+}
+
+func TestInsightsFromUsageCreatesStableGapAndEvalCandidates(t *testing.T) {
+	repo, _ := setupInsightCommandRepository(t)
+	eventRoot := filepath.Join(t.TempDir(), "usage")
+	recorder, err := knowledgeusage.NewRecorder(eventRoot, true, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	for index, channel := range []string{"http-search", "mcp-search"} {
+		_, err := recorder.Record(knowledgeusage.RecordInput{
+			At: now.Add(time.Duration(index) * time.Minute), KnowledgeBase: "wiki",
+			Generation: knowledgeusage.Generation{Name: "g1", Commit: "abc", Spec: "0.2", ContentDigest: strings.Repeat("a", 64)},
+			Channel:    channel, Query: "How do I rollback production?",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	evalPath := filepath.Join(repo, ".openknowledge", "evals", "usage-gaps.yaml")
+	withinDirectory(t, repo, func() {
+		stdout, stderr, code := captureMainOutput(t, func() int {
+			return dispatchCLI([]string{"insights", "from-usage", eventRoot, "--min-occurrences", "2", "--eval-out", evalPath})
+		})
+		if code != 0 || stderr != "" || !strings.Contains(stdout, "1 insight(s) created") || !strings.Contains(stdout, "1 eval candidate(s)") {
+			t.Fatalf("from-usage code=%d stdout=%q stderr=%q", code, stdout, stderr)
+		}
+	})
+	items, err := insights.Pending(filepath.Join(repo, "Wiki"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, item := range items {
+		if item.Kind == "runtime-usage-gap" {
+			found = strings.Contains(item.Body, "How do I rollback production?") && strings.Contains(item.Body, "Observed 2 retrievals without selected evidence")
+		}
+	}
+	if !found {
+		t.Fatalf("runtime usage gap insight was not created: %#v", items)
+	}
+	loaded, err := knowledgeeval.LoadDataset(evalPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Dataset.Cases) != 1 || loaded.Dataset.Cases[0].Question != "How do I rollback production?" || loaded.Dataset.Cases[0].Expect.MinSources != 1 {
+		t.Fatalf("unexpected usage eval dataset: %#v", loaded.Dataset)
+	}
 }
 
 func TestAgentInsightsRunCreatesValidatedLocalDiffAndResolvesInsight(t *testing.T) {

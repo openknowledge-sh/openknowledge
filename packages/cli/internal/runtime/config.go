@@ -61,6 +61,7 @@ type ServeConfig struct {
 	MCPTokenEnv     string                `toml:"mcp_token_env" json:"mcp_token_env,omitempty"`
 	AllowedOrigins  []string              `toml:"allowed_origins" json:"allowed_origins,omitempty"`
 	RetrievalPolicy RetrievalPolicyConfig `toml:"retrieval_policy" json:"retrieval_policy"`
+	UsageEvents     UsageEventsConfig     `toml:"usage_events" json:"usage_events"`
 }
 
 type RetrievalPolicyConfig struct {
@@ -68,6 +69,12 @@ type RetrievalPolicyConfig struct {
 	AllowStale      bool     `toml:"allow_stale" json:"allow_stale"`
 	AllowedStatuses []string `toml:"allowed_statuses" json:"allowed_statuses"`
 	RequireSources  bool     `toml:"require_sources" json:"require_sources"`
+}
+
+type UsageEventsConfig struct {
+	Enabled        bool   `toml:"enabled" json:"enabled"`
+	CaptureQueries bool   `toml:"capture_queries" json:"capture_queries"`
+	Retention      string `toml:"retention" json:"retention"`
 }
 
 type WorkerConfig struct {
@@ -183,6 +190,7 @@ func defaultConfig() Config {
 				AllowStale:      true,
 				AllowedStatuses: []string{"draft", "stable", "deprecated"},
 			},
+			UsageEvents: UsageEventsConfig{Retention: "720h"},
 		},
 		Worker: WorkerConfig{
 			Repo:             ".",
@@ -323,6 +331,12 @@ func (config Config) Validate() error {
 		if parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.String() != origin {
 			return fmt.Errorf("serve.allowed_origins[%d] must not contain credentials, path, query, or fragment", index)
 		}
+	}
+	if err := positiveDuration("serve.usage_events.retention", config.Serve.UsageEvents.Retention); err != nil {
+		return err
+	}
+	if config.Serve.UsageEvents.CaptureQueries && !config.Serve.UsageEvents.Enabled {
+		return fmt.Errorf("serve.usage_events.capture_queries requires enabled = true")
 	}
 	if strings.TrimSpace(config.Worker.Remote) == "" {
 		return fmt.Errorf("worker.remote is required")

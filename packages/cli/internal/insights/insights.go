@@ -35,6 +35,7 @@ var (
 	unsafeSecret               = regexp.MustCompile(`(?i)(api[_-]?key|token|authorization|password|secret)["' ]*[:=]["' ]*(?:bearer[ ]+)?[^,\s"']+`)
 	credentialToken            = regexp.MustCompile(`\b(?:sk|ghp|github_pat)-[A-Za-z0-9_-]{10,}\b`)
 	knownSecretToken           = regexp.MustCompile(`(?i)\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}\b|\bAIza[A-Za-z0-9_-]{20,}\b|\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b`)
+	insightKindPattern         = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 )
 
 type Insight struct {
@@ -66,6 +67,8 @@ type CreateOptions struct {
 	Evidence []string
 	Targets  []string
 	Now      time.Time
+	Kind     string
+	Identity string
 }
 
 type TraceStats struct {
@@ -315,7 +318,17 @@ func Create(directory string, options CreateOptions) (string, bool, error) {
 	if options.Now.IsZero() {
 		options.Now = time.Now().UTC()
 	}
-	identity := "explicit\x00" + summary + "\x00" + strings.Join(targets, "\x00") + "\x00" + strings.Join(evidence, "\x00")
+	kind := strings.TrimSpace(options.Kind)
+	if kind == "" {
+		kind = "explicit"
+	}
+	if !insightKindPattern.MatchString(kind) {
+		return "", false, fmt.Errorf("insight kind is invalid")
+	}
+	identity := kind + "\x00" + summary + "\x00" + strings.Join(targets, "\x00") + "\x00" + strings.Join(evidence, "\x00")
+	if strings.TrimSpace(options.Identity) != "" {
+		identity = kind + "\x00" + strings.TrimSpace(options.Identity)
+	}
 	digest := sha256.Sum256([]byte(identity))
 	id := hex.EncodeToString(digest[:])[:12]
 	directoryPath, err := integratedInbox(repo, config)
@@ -325,8 +338,9 @@ func Create(directory string, options CreateOptions) (string, bool, error) {
 	if existing, _ := filepath.Glob(filepath.Join(directoryPath, "*-"+id+".md")); len(existing) > 0 {
 		return existing[0], false, nil
 	}
-	path := filepath.Join(directoryPath, options.Now.UTC().Format("2006-01-02")+"-explicit-knowledge-"+id+".md")
-	content := renderCreatedInsight(options.Now, id, targets, summary, evidence)
+	slug := strings.NewReplacer("_", "-", " ", "-").Replace(kind)
+	path := filepath.Join(directoryPath, options.Now.UTC().Format("2006-01-02")+"-"+slug+"-"+id+".md")
+	content := renderCreatedInsight(options.Now, id, targets, summary, evidence, kind)
 	if _, err := ParseContent(path, []byte(content)); err != nil {
 		return "", false, fmt.Errorf("render insight: %w", err)
 	}
@@ -665,14 +679,18 @@ func render(observation Observation, id string, targets []string, summary string
 	return builder.String()
 }
 
-func renderCreatedInsight(now time.Time, id string, targets []string, summary string, evidence []string) string {
+func renderCreatedInsight(now time.Time, id string, targets []string, summary string, evidence []string, kind string) string {
 	title := truncateRunes(summary, 96)
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: Explicitly captured knowledge maintenance insight.\nstatus: draft\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: explicit\ngenerated:\n  by: %s\n  at: %s\nokf_insight_targets:\n", strconv.Quote(title), id, insightActor("explicit", "cli"), now.UTC().Format(time.RFC3339))
+	description := "Explicitly captured knowledge maintenance insight."
+	if kind == "runtime-usage-gap" {
+		description = "Privacy-safe runtime usage signals identified a recurring knowledge gap."
+	}
+	fmt.Fprintf(&builder, "---\ntype: Open Knowledge Insight\ntitle: %s\ndescription: %s\nstatus: draft\nokf_publish: false\nokf_insight_id: %s\nokf_insight_kind: %s\ngenerated:\n  by: %s\n  at: %s\nokf_insight_targets:\n", strconv.Quote(title), description, id, kind, insightActor(kind, "cli"), now.UTC().Format(time.RFC3339))
 	for _, target := range targets {
 		fmt.Fprintf(&builder, "  - %s\n", strconv.Quote(target))
 	}
-	builder.WriteString("tags: [insight, explicit]\n---\n\n# " + title + "\n\n## Insight\n\n" + summary + "\n\n## Evidence\n\n")
+	builder.WriteString("tags: [insight, " + kind + "]\n---\n\n# " + title + "\n\n## Insight\n\n" + summary + "\n\n## Evidence\n\n")
 	if len(evidence) == 0 {
 		builder.WriteString("- Explicitly reported through the Open Knowledge CLI; research current repository evidence before applying it.\n")
 	} else {

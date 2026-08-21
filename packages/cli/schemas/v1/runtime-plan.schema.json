@@ -33,7 +33,7 @@
     },
     "serve": {
       "type": "object",
-      "required": ["address", "poll_interval", "request_timeout", "max_concurrency", "mcp_access", "retrieval_policy"],
+      "required": ["address", "poll_interval", "request_timeout", "max_concurrency", "mcp_access", "retrieval_policy", "usage_events"],
       "properties": {
         "address": {"type": "string"},
         "poll_interval": {"type": "string"},
@@ -42,7 +42,8 @@
         "mcp_access": {"type": "string"},
         "mcp_token_env": {"type": "string"},
         "allowed_origins": {"type": "array", "items": {"type": "string"}},
-        "retrieval_policy": {"$ref": "#/$defs/retrievalPolicy"}
+        "retrieval_policy": {"$ref": "#/$defs/retrievalPolicy"},
+        "usage_events": {"$ref": "#/$defs/usageEvents"}
       },
       "additionalProperties": false
     },
@@ -54,6 +55,16 @@
         "allow_stale": {"type": "boolean"},
         "allowed_statuses": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["draft", "stable", "deprecated"]}},
         "require_sources": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "usageEvents": {
+      "type": "object",
+      "required": ["enabled", "capture_queries", "retention"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "capture_queries": {"type": "boolean"},
+        "retention": {"type": "string", "minLength": 1}
       },
       "additionalProperties": false
     },

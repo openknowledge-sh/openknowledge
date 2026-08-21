@@ -1,0 +1,22 @@
+{
+  "type": "openknowledge.usage",
+  "version": 1,
+  "id": "0123456789abcdef0123456789abcdef",
+  "at": "2026-08-21T12:00:00Z",
+  "knowledgeBase": "docs",
+  "generation": {
+    "name": "generation-7",
+    "commit": "0123456789abcdef0123456789abcdef01234567",
+    "spec": "0.2",
+    "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "channel": "mcp-search",
+  "queryFingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "queryLength": "33-128",
+  "outcome": "policy-rejected",
+  "selected": [],
+  "rejected": [
+    {"reason": "trust_below_minimum", "count": 2},
+    {"reason": "stale", "count": 1}
+  ]
+}
