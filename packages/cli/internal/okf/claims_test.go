@@ -1,0 +1,148 @@
+package okf
+
+import (
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestClaimProfileValidatesTypedClaimAndSectionBinding(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")
+	writeFile(t, root, "token-evidence.txt", "Production tokens use the declared format.")
+	writeFile(t, root, "auth.md", validTypedClaimDocument("okn:claim/token-format/2026-08-22", "JWT", "verified"))
+	bundle, err := ParseASTWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := AnalyzeClaimProfile(bundle, time.Date(2026, 8, 22, 0, 0, 0, 0, time.UTC))
+	if len(profile.Issues) != 0 {
+		t.Fatalf("unexpected issues: %#v", profile.Issues)
+	}
+	if len(profile.Claims) != 1 || profile.Claims[0].Slot != "okn:slot/token-format" || profile.Claims[0].Object.Datatype != "xsd:string" {
+		t.Fatalf("unexpected claim: %#v", profile.Claims)
+	}
+	validation, _ := ValidateASTWithOptions(bundle, ValidationOptions{})
+	index := ContextIndexFromAST(validation, bundle)
+	found := false
+	for _, section := range index.Sections {
+		projected := ClaimProfileForSection(section)
+		if projected != nil && len(projected.Claims) == 1 {
+			found = section.Heading == "Token format"
+		}
+	}
+	if !found {
+		t.Fatal("expected section-bound typed claim")
+	}
+}
+
+func TestClaimProfileRejectsLegacyShapeAndDuplicateOccurrenceID(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Index\n")
+	writeFile(t, root, "token-evidence.txt", "Production tokens use the declared format.")
+	writeFile(t, root, "legacy.md", "---\ntype: Guide\nopenknowledge_claim_profile: \"1\"\nclaims:\n  - id: auth.token-format\n    value: JWT\n---\n# Legacy\n")
+	writeFile(t, root, "one.md", validTypedClaimDocument("okn:claim/duplicate", "JWT", "proposed"))
+	writeFile(t, root, "two.md", validTypedClaimDocument("okn:claim/duplicate", "opaque", "proposed"))
+	result, err := ValidateWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := ""
+	for _, issue := range issuesWithRule(result.Errors, ClaimValidationRule) {
+		joined += issue.Message + "\n"
+	}
+	if !strings.Contains(joined, `unknown field "value"`) || !strings.Contains(joined, "not globally unique") {
+		t.Fatalf("missing strict v1 errors: %s", joined)
+	}
+}
+
+func TestClaimComparisonUsesSlotSPOAndTypedObject(t *testing.T) {
+	number, _ := NormalizeClaimObject(ClaimObject{Value: 60, Datatype: "xsd:integer"})
+	text, _ := NormalizeClaimObject(ClaimObject{Value: "60", Datatype: "xsd:string"})
+	if number == text {
+		t.Fatal("typed values must remain distinct")
+	}
+	left := Claim{ID: "okn:claim/1", Slot: "okn:slot/timeout", Subject: "okn:service/api", Predicate: "okn:timeout", Scope: map[string]ClaimObject{"okn:environment": {Value: "production", Datatype: "xsd:string"}}}
+	right := left
+	right.ID = "okn:claim/2"
+	if ClaimComparisonKey(left) != ClaimComparisonKey(right) {
+		t.Fatal("occurrence ID must not change comparison slot")
+	}
+	right.Scope = map[string]ClaimObject{"okn:environment": {Value: "staging", Datatype: "xsd:string"}}
+	if ClaimComparisonKey(left) == ClaimComparisonKey(right) {
+		t.Fatal("scope must change comparison slot")
+	}
+	a := Claim{Status: "verified", ValidTime: ClaimTimeInterval{From: "2026-01-01", Until: "2026-02-01"}}
+	b := Claim{Status: "verified", ValidTime: ClaimTimeInterval{From: "2026-02-01", Until: "2026-03-01"}}
+	if ClaimValidityOverlaps(a, b) {
+		t.Fatal("half-open adjacent intervals must not overlap")
+	}
+}
+
+func validTypedClaimDocument(id, value, status string) string {
+	return `---
+type: Authentication
+title: Authentication
+owner: team:identity
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces:
+    auth: https://example.test/auth/
+  entities:
+    - id: okn:service/auth
+      types: [okn:Service]
+  predicates:
+    - id: auth:tokenFormat
+      object_kind: literal
+      datatype: xsd:string
+      maximum_count: 1
+sources:
+  - id: identity-openapi
+    resource: token-evidence.txt
+    observe: pinned
+    sha256: bb5a64e1c45b93136f128d1a3cf3d791d138709763ee26c2653ad4065f36c384
+    role: authoritative
+claims:
+  - id: ` + id + `
+    slot: okn:slot/token-format
+    subject: okn:service/auth
+    predicate: auth:tokenFormat
+    object:
+      value: ` + value + `
+      datatype: xsd:string
+    evidence:
+      - id: okn:evidence/token-format
+        source_ref: identity-openapi
+        stance: supports
+        role: primary
+        selector:
+          type: text_quote
+          exact: Production tokens use the declared format.
+    status: ` + status + `
+    section_ref: "#claim-token-format"
+` + func() string {
+		if status == "verified" {
+			return "    verification:\n      method: human-review\n      by: human:alice\n      at: 2026-08-22T00:00:00Z\n      evidence_refs: [okn:evidence/token-format]\n"
+		}
+		return ""
+	}() + `---
+
+# Authentication
+
+<a id="claim-token-format"></a>
+
+## Token format
+
+Production tokens use the declared format.
+`
+}
+
+func issuesWithRule(issues []Issue, rule string) []Issue {
+	var result []Issue
+	for _, issue := range issues {
+		if issue.Rule == rule {
+			result = append(result, issue)
+		}
+	}
+	return result
+}

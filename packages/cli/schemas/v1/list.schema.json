@@ -22,6 +22,7 @@
           "description": {"type": "string"},
           "resource": {"type": "string"},
           "okf02": {"$ref": "common.schema.json#/$defs/okf02Signals"},
+          "claimProfile": {"$ref": "common.schema.json#/$defs/claimProfileSignals"},
           "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
         },
         "additionalProperties": false

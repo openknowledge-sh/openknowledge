@@ -19,6 +19,8 @@ func TestDeriveOKFV02SignalsTrustFreshnessAndContracts(t *testing.T) {
 		"sources": []any{map[string]any{
 			"id":            "policy-1",
 			"resource":      "https://example.test/policy",
+			"observe":       "pinned",
+			"sha256":        strings.Repeat("a", 64),
 			"title":         "Revenue policy",
 			"author":        "team:finance",
 			"usage_count":   12,
@@ -39,7 +41,7 @@ func TestDeriveOKFV02SignalsTrustFreshnessAndContracts(t *testing.T) {
 	if signals.Generated == nil || signals.Generated.By != "process:nightly" || len(signals.Verified) != 2 {
 		t.Fatalf("unexpected provenance: %#v", signals)
 	}
-	if len(signals.Sources) != 1 || signals.Sources[0].UsageWindow == nil || signals.Sources[0].UsageWindow.To != "2026-07-31" {
+	if len(signals.Sources) != 1 || signals.Sources[0].Observe != "pinned" || signals.Sources[0].SHA256 != strings.Repeat("a", 64) || signals.Sources[0].UsageWindow == nil || signals.Sources[0].UsageWindow.To != "2026-07-31" {
 		t.Fatalf("expected shared usage window on source: %#v", signals.Sources)
 	}
 	if signals.Computation == nil || signals.Computation.Path != "scripts/revenue.py" || signals.Computation.Executor == nil || len(signals.Computation.Executor.Receipt) != 2 || signals.Computation.Attester == nil {

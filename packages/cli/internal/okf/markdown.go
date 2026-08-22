@@ -55,6 +55,10 @@ func renderASTMarkdownBlocks(blocks []ASTMarkdownBlock, currentRel string, resol
 			builder.WriteString("</aside>\n")
 		case "html-comment":
 			continue
+		case "html":
+			for _, explicit := range astMarkdownExplicitIDs(block.Text, block.LineStart) {
+				builder.WriteString(`<a id="` + html.EscapeString(explicit.ID) + `"></a>` + "\n")
+			}
 		case "thematic-break":
 			if nextASTMarkdownBlockIsAgentFooter(blocks, index+1) {
 				continue

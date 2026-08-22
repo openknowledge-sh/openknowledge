@@ -7,14 +7,15 @@ type ListResult struct {
 }
 
 type ListEntry struct {
-	ID          string         `json:"id"`
-	Path        string         `json:"path"`
-	Kind        string         `json:"kind"`
-	Reserved    bool           `json:"reserved"`
-	Type        string         `json:"type,omitempty"`
-	Title       string         `json:"title,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Resource    string         `json:"resource,omitempty"`
-	OKF02       *OKFV02Signals `json:"okf02,omitempty"`
-	Issues      []Issue        `json:"issues,omitempty"`
+	ID           string               `json:"id"`
+	Path         string               `json:"path"`
+	Kind         string               `json:"kind"`
+	Reserved     bool                 `json:"reserved"`
+	Type         string               `json:"type,omitempty"`
+	Title        string               `json:"title,omitempty"`
+	Description  string               `json:"description,omitempty"`
+	Resource     string               `json:"resource,omitempty"`
+	OKF02        *OKFV02Signals       `json:"okf02,omitempty"`
+	ClaimProfile *ClaimProfileSignals `json:"claimProfile,omitempty"`
+	Issues       []Issue              `json:"issues,omitempty"`
 }

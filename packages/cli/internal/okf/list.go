@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"time"
 )
 
 func List(root string) (ListResult, error) {
@@ -43,6 +44,9 @@ func ListFromAST(bundle ASTBundle, issues []Issue) (ListResult, error) {
 		entry := listEntryFromASTSummary(SummarizeASTDocument(document, metadata))
 		if bundle.SpecVersion == "0.2" && !document.Reserved && document.FrontmatterDiagnostic == nil {
 			entry.OKF02 = DeriveOKFV02Signals(document.Frontmatter.Data)
+		}
+		if !document.Reserved && document.FrontmatterDiagnostic == nil {
+			entry.ClaimProfile = DeriveClaimProfileSignalsAt(document.Frontmatter.Data, document.Rel, time.Now())
 		}
 		entries = append(entries, attachIssues(entry, issuesByPath))
 	}

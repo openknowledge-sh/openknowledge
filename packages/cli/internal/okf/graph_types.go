@@ -16,20 +16,21 @@ type Graph struct {
 }
 
 type GraphNode struct {
-	ID          string         `json:"id"`
-	Path        string         `json:"path"`
-	Kind        string         `json:"kind"`
-	Reserved    bool           `json:"reserved,omitempty"`
-	Type        string         `json:"type,omitempty"`
-	Title       string         `json:"title,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Heading     string         `json:"heading,omitempty"`
-	HeadingPath []string       `json:"headingPath,omitempty"`
-	LineStart   int            `json:"lineStart,omitempty"`
-	LineEnd     int            `json:"lineEnd,omitempty"`
-	Resource    string         `json:"resource,omitempty"`
-	OKF02       *OKFV02Signals `json:"okf02,omitempty"`
-	Issues      []Issue        `json:"issues,omitempty"`
+	ID           string               `json:"id"`
+	Path         string               `json:"path"`
+	Kind         string               `json:"kind"`
+	Reserved     bool                 `json:"reserved,omitempty"`
+	Type         string               `json:"type,omitempty"`
+	Title        string               `json:"title,omitempty"`
+	Description  string               `json:"description,omitempty"`
+	Heading      string               `json:"heading,omitempty"`
+	HeadingPath  []string             `json:"headingPath,omitempty"`
+	LineStart    int                  `json:"lineStart,omitempty"`
+	LineEnd      int                  `json:"lineEnd,omitempty"`
+	Resource     string               `json:"resource,omitempty"`
+	OKF02        *OKFV02Signals       `json:"okf02,omitempty"`
+	ClaimProfile *ClaimProfileSignals `json:"claimProfile,omitempty"`
+	Issues       []Issue              `json:"issues,omitempty"`
 }
 
 type GraphEdge struct {

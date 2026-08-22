@@ -51,6 +51,16 @@ func buildChecks(result Result, profile validationSpecProfile) []Check {
 			Message: "Local Markdown links should resolve inside the bundle",
 		},
 		{
+			Name:    "Typed claims",
+			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"claim-profile"}, []string{"claim-profile"}),
+			Message: "Typed claims must pass ontology, evidence, lifecycle, time, relation, reference, and section binding checks",
+		},
+		{
+			Name:    "Corpus schema",
+			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"corpus-schema"}, []string{"corpus-schema"}),
+			Message: "Optional corpus schemas must enforce document types, paths, required metadata, typed links, and migration records",
+		},
+		{
 			Name:    "Rule catalog",
 			Status:  statusForErrorWarningRules(result.Errors, result.Warnings, []string{"rule-catalog"}, []string{"rule-catalog"}),
 			Message: "Custom rule documents under configured rule paths should define canonical IDs, summaries, and instruction bullets",

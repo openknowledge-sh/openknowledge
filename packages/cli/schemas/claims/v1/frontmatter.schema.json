@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/claims/v1/frontmatter.schema.json",
+  "title": "Open Knowledge typed claims v1 frontmatter fragment",
+  "type": "object",
+  "properties": {
+    "openknowledge_claim_profile": {"const": "1"},
+    "claim_ontology": {"$ref": "#/$defs/ontology"},
+    "claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/term"}},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}}
+  },
+  "$defs": {
+    "term": {"type": "string", "pattern": "^(https?://|urn:|[A-Za-z][A-Za-z0-9_-]*:)[^\\s]+$"},
+    "scalar": {"type": ["string", "number", "boolean"]},
+    "object": {
+      "type": "object",
+      "properties": {
+        "ref": {"$ref": "#/$defs/term"},
+        "value": {"$ref": "#/$defs/scalar"},
+        "datatype": {"$ref": "#/$defs/term"},
+        "language": {"type": "string", "minLength": 1},
+        "unit": {"$ref": "#/$defs/term"},
+        "quantity_kind": {"$ref": "#/$defs/term"}
+      },
+      "oneOf": [{"required": ["ref"]}, {"required": ["value"]}],
+      "additionalProperties": false
+    },
+    "selector": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["text_quote", "text_position", "fragment", "page", "media_fragment", "data_position"]},
+        "value": {"type": "string"}, "exact": {"type": "string"}, "prefix": {"type": "string"}, "suffix": {"type": "string"},
+        "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 0}, "page": {"type": "integer", "minimum": 1},
+        "conforms_to": {"$ref": "#/$defs/term"}
+      },
+	  "allOf": [
+		{"if": {"properties": {"type": {"const": "text_quote"}}}, "then": {"required": ["exact"]}},
+		{"if": {"properties": {"type": {"enum": ["text_position", "data_position"]}}}, "then": {"required": ["start", "end"]}},
+		{"if": {"properties": {"type": {"enum": ["fragment", "media_fragment"]}}}, "then": {"required": ["value"]}},
+		{"if": {"properties": {"type": {"const": "page"}}}, "then": {"required": ["page"]}}
+	  ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["id", "source_ref", "stance", "role"],
+      "properties": {
+        "id": {"$ref": "#/$defs/term"}, "source_ref": {"type": "string", "minLength": 1},
+		"stance": {"enum": ["supports", "opposes", "contextualizes"]}, "role": {"oneOf": [{"enum": ["primary", "secondary", "corroborating", "method"]}, {"$ref": "#/$defs/term"}]},
+        "selector": {"$ref": "#/$defs/selector"}, "observed_at": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object", "required": ["method", "by", "at"],
+      "properties": {"method": {"type": "string", "minLength": 1}, "by": {"$ref": "#/$defs/term"}, "at": {"type": "string"}, "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/term"}}},
+      "additionalProperties": false
+    },
+    "relations": {
+      "type": "object", "properties": {
+        "supersedes": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/term"}},
+        "contradicts": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/term"}},
+        "derived_from": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/term"}}
+	  }, "additionalProperties": false
+    },
+    "claim": {
+      "type": "object", "required": ["id", "slot", "subject", "predicate", "object", "evidence", "status"],
+      "properties": {
+        "id": {"$ref": "#/$defs/term"}, "slot": {"$ref": "#/$defs/term"}, "subject": {"$ref": "#/$defs/term"}, "predicate": {"$ref": "#/$defs/term"},
+        "object": {"$ref": "#/$defs/object"}, "scope": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/object"}},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}}, "owners": {"type": "array", "items": {"$ref": "#/$defs/term"}},
+        "status": {"enum": ["extracted", "proposed", "supported", "verified", "disputed", "rejected", "superseded", "archived"]},
+        "valid_time": {"type": "object", "properties": {"from": {"type": "string"}, "until": {"type": "string"}}, "additionalProperties": false},
+        "stale_after": {"type": "string", "format": "date"}, "verification": {"$ref": "#/$defs/verification"}, "relations": {"$ref": "#/$defs/relations"},
+		"decisions": {"type": "array", "items": {"type": "object", "required": ["action", "by", "at"], "properties": {"action": {"enum": ["rejected", "superseded", "archived"]}, "by": {"$ref": "#/$defs/term"}, "at": {"type": "string"}, "reason": {"type": "string"}}, "additionalProperties": false}},
+        "section_ref": {"type": "string", "pattern": "^#[A-Za-z0-9][A-Za-z0-9_.:-]*$"}
+	  },
+	  "allOf": [
+		{"if": {"properties": {"status": {"const": "verified"}}}, "then": {"required": ["verification"]}},
+		{"if": {"properties": {"status": {"enum": ["rejected", "superseded", "archived"]}}}, "then": {"required": ["decisions"]}}
+	  ],
+	  "additionalProperties": false
+    },
+    "ontology": {
+      "type": "object", "properties": {
+        "namespaces": {"type": "object", "additionalProperties": {"type": "string", "format": "uri"}},
+        "entities": {"type": "array", "items": {"type": "object", "required": ["id"], "properties": {"id": {"$ref": "#/$defs/term"}, "types": {"type": "array", "items": {"$ref": "#/$defs/term"}}, "pref_label": {"type": "string"}, "alt_labels": {"type": "array", "items": {"type": "string"}}, "deprecated": {"type": "boolean"}, "replaced_by": {"$ref": "#/$defs/term"}}, "allOf": [{"if": {"required": ["replaced_by"]}, "then": {"required": ["deprecated"], "properties": {"deprecated": {"const": true}}}}], "additionalProperties": false}},
+        "predicates": {"type": "array", "items": {"type": "object", "required": ["id", "object_kind"], "properties": {"id": {"$ref": "#/$defs/term"}, "subject_types": {"type": "array", "items": {"$ref": "#/$defs/term"}}, "object_kind": {"enum": ["literal", "entity", "quantity"]}, "datatype": {"$ref": "#/$defs/term"}, "quantity_kind": {"$ref": "#/$defs/term"}, "canonical_unit": {"$ref": "#/$defs/term"}, "required_scope": {"type": "array", "items": {"$ref": "#/$defs/term"}}, "maximum_count": {"type": "integer", "minimum": 1}, "pref_label": {"type": "string"}}, "additionalProperties": false}},
+        "evidence_roles": {"type": "array", "items": {"type": "object", "required": ["id"], "properties": {"id": {"$ref": "#/$defs/term"}, "pref_label": {"type": "string"}}, "additionalProperties": false}}
+      }, "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

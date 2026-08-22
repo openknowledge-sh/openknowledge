@@ -26,6 +26,8 @@ var validationSpecProfiles = map[string]validationSpecProfile{
 		Version: "0.1",
 		Rules: map[string]validationRuleDefinition{
 			"bundle-read":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},
+			"claim-profile":       {DefaultSeverity: ValidationSeverityError},
+			"corpus-schema":       {DefaultSeverity: ValidationSeverityError},
 			"concept-frontmatter": {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"concept-type":        {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"frontmatter":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},
@@ -50,6 +52,8 @@ var validationSpecProfiles = map[string]validationSpecProfile{
 		Version: "0.2",
 		Rules: map[string]validationRuleDefinition{
 			"bundle-read":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},
+			"claim-profile":       {DefaultSeverity: ValidationSeverityError},
+			"corpus-schema":       {DefaultSeverity: ValidationSeverityError},
 			"concept-frontmatter": {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"concept-type":        {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"frontmatter":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},

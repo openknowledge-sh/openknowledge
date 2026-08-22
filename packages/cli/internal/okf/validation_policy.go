@@ -20,6 +20,10 @@ const (
 type ValidationOptions struct {
 	ConfigPath string
 	Rules      map[string]string
+	// EvidenceRoot resolves generation-private evidence when a published
+	// projection does not contain the canonical .openknowledge/evidence path.
+	// It is a runtime validation input and is never loaded from project config.
+	EvidenceRoot string
 }
 
 func LoadValidationOptions(root string) (ValidationOptions, error) {
@@ -47,7 +51,10 @@ func ParseValidationOptionsConfig(content string) (ValidationOptions, error) {
 }
 
 func MergeValidationOptions(base ValidationOptions, override ValidationOptions) ValidationOptions {
-	merged := ValidationOptions{ConfigPath: base.ConfigPath}
+	merged := ValidationOptions{ConfigPath: base.ConfigPath, EvidenceRoot: base.EvidenceRoot}
+	if strings.TrimSpace(override.EvidenceRoot) != "" {
+		merged.EvidenceRoot = override.EvidenceRoot
+	}
 	for rule, severity := range base.Rules {
 		merged = withValidationRuleSeverity(merged, rule, severity)
 	}

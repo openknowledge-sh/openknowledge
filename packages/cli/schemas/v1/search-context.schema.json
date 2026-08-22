@@ -35,7 +35,8 @@
         "score": {"type": "number"},
         "estimatedTokens": {"type": "integer", "minimum": 0},
         "relation": {"enum": ["direct", "document-context", "outgoing-link", "backlink"]},
-        "markdown": {"type": "string"}
+        "markdown": {"type": "string"},
+        "claimProfile": {"$ref": "common.schema.json#/$defs/claimProfileSignals"}
       },
       "additionalProperties": false
     }

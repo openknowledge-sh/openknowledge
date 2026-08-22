@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/claims/v1/proposal.schema.json",
+  "title": "Open Knowledge typed claim proposal",
+  "type": "object",
+  "required": ["type", "version", "action", "document", "documentSha256", "claim", "reason", "confidence"],
+  "properties": {
+    "type": {"const": "openknowledge.claim-proposal"}, "version": {"const": 1}, "action": {"const": "create"},
+    "document": {"type": "string", "minLength": 1}, "documentSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "claim": {
+      "type": "object", "required": ["id", "slot", "subject", "predicate", "object", "evidence", "status"],
+      "properties": {
+        "id": {"$ref": "#/$defs/term"}, "slot": {"$ref": "#/$defs/term"}, "subject": {"$ref": "#/$defs/term"}, "predicate": {"$ref": "#/$defs/term"},
+        "object": {"$ref": "#/$defs/object"}, "scope": {"type": "object", "additionalProperties": {"$ref": "#/$defs/object"}},
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence"}}, "status": {"const": "proposed"},
+        "validTime": {"type": "object"}, "staleAfter": {"type": "string"}, "verification": {"type": "object"}, "relations": {"type": "object"}, "sectionRef": {"type": "string"}
+      }, "additionalProperties": false
+    },
+    "reason": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "confidence": {"type": "number", "exclusiveMinimum": 0, "maximum": 1, "description": "Extraction confidence only; it is not truth confidence."}
+  },
+  "$defs": {
+    "term": {"type": "string", "pattern": "^(https?://|urn:|[A-Za-z][A-Za-z0-9_-]*:)[^\\s]+$"},
+    "object": {"type": "object", "properties": {"ref": {"$ref": "#/$defs/term"}, "value": {"type": ["string", "number", "boolean"]}, "datatype": {"$ref": "#/$defs/term"}, "language": {"type": "string"}, "unit": {"$ref": "#/$defs/term"}, "quantityKind": {"$ref": "#/$defs/term"}}, "oneOf": [{"required": ["ref"]}, {"required": ["value"]}], "additionalProperties": false},
+    "selector": {"type": "object", "required": ["type"], "properties": {"type": {"enum": ["text_quote", "text_position", "fragment", "page", "media_fragment", "data_position"]}, "value": {"type": "string"}, "exact": {"type": "string", "minLength": 1}, "prefix": {"type": "string"}, "suffix": {"type": "string"}, "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 0}, "page": {"type": "integer", "minimum": 1}, "conformsTo": {"$ref": "#/$defs/term"}}, "allOf": [{"if": {"properties": {"type": {"const": "text_quote"}}}, "then": {"required": ["exact"]}}, {"if": {"properties": {"type": {"enum": ["text_position", "data_position"]}}}, "then": {"required": ["start", "end"]}}, {"if": {"properties": {"type": {"enum": ["fragment", "media_fragment"]}}}, "then": {"required": ["value"]}}, {"if": {"properties": {"type": {"const": "page"}}}, "then": {"required": ["page"]}}], "additionalProperties": false},
+    "evidence": {"type": "object", "required": ["id", "sourceRef", "stance", "role"], "properties": {"id": {"$ref": "#/$defs/term"}, "sourceRef": {"type": "string", "minLength": 1}, "stance": {"enum": ["supports", "opposes", "contextualizes"]}, "role": {"type": "string", "minLength": 1}, "selector": {"$ref": "#/$defs/selector"}, "observedAt": {"type": "string"}}, "additionalProperties": false}
+  },
+  "additionalProperties": false
+}

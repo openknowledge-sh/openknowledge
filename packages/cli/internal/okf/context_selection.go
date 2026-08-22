@@ -297,6 +297,7 @@ func contextSourceFromSearchResult(section ContextSection, result SearchResult) 
 		EstimatedTokens: section.EstimatedTokens,
 		Relation:        relation,
 		Markdown:        section.Text,
+		ClaimProfile:    claimProfileForSection(section),
 	}
 }
 

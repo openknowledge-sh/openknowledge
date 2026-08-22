@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/corpus/v1/frontmatter.schema.json",
+  "title": "OpenKnowledge corpus schema v1 frontmatter extension",
+  "type": "object",
+  "required": ["corpus_schema"],
+  "properties": {
+    "corpus_schema": { "$ref": "#/$defs/corpusSchema" },
+    "typed_links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/typedLink" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "uniqueStrings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" },
+      "uniqueItems": true
+    },
+    "documentType": {
+      "type": "object",
+      "required": ["id", "paths"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "aliases": { "$ref": "#/$defs/uniqueStrings" },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        },
+        "required": { "$ref": "#/$defs/uniqueStrings" }
+      },
+      "additionalProperties": false
+    },
+    "linkPredicate": {
+      "type": "object",
+      "required": ["id", "source_types", "target_types"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "source_types": {
+          "allOf": [{ "$ref": "#/$defs/uniqueStrings" }, { "minItems": 1 }]
+        },
+        "target_types": {
+          "allOf": [{ "$ref": "#/$defs/uniqueStrings" }, { "minItems": 1 }]
+        }
+      },
+      "additionalProperties": false
+    },
+    "migration": {
+      "type": "object",
+      "required": ["from", "to", "document"],
+      "properties": {
+        "from": { "$ref": "#/$defs/nonEmptyString" },
+        "to": { "$ref": "#/$defs/nonEmptyString" },
+        "document": { "type": "string", "pattern": "^[^/].*\\.md$" }
+      },
+      "additionalProperties": false
+    },
+    "corpusSchema": {
+      "type": "object",
+      "required": ["version", "document_types"],
+      "properties": {
+        "version": { "const": "1" },
+        "document_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/documentType" }
+        },
+        "link_predicates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/linkPredicate" }
+        },
+        "migrations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/migration" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "typedLink": {
+      "type": "object",
+      "required": ["predicate", "target"],
+      "properties": {
+        "predicate": { "$ref": "#/$defs/nonEmptyString" },
+        "target": { "$ref": "#/$defs/nonEmptyString" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

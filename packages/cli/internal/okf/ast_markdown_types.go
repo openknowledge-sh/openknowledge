@@ -1,12 +1,18 @@
 package okf
 
 type ASTMarkdown struct {
-	Blocks      []ASTMarkdownBlock     `json:"blocks,omitempty"`
-	Sections    []ASTMarkdownSection   `json:"sections,omitempty"`
-	Headings    []ASTMarkdownHeading   `json:"headings,omitempty"`
-	Links       []ASTMarkdownLink      `json:"links,omitempty"`
-	CodeBlocks  []ASTMarkdownCodeBlock `json:"codeBlocks,omitempty"`
-	Diagnostics []ASTDiagnostic        `json:"diagnostics,omitempty"`
+	Blocks      []ASTMarkdownBlock      `json:"blocks,omitempty"`
+	Sections    []ASTMarkdownSection    `json:"sections,omitempty"`
+	Headings    []ASTMarkdownHeading    `json:"headings,omitempty"`
+	Links       []ASTMarkdownLink       `json:"links,omitempty"`
+	CodeBlocks  []ASTMarkdownCodeBlock  `json:"codeBlocks,omitempty"`
+	ExplicitIDs []ASTMarkdownExplicitID `json:"explicitIds,omitempty"`
+	Diagnostics []ASTDiagnostic         `json:"diagnostics,omitempty"`
+}
+
+type ASTMarkdownExplicitID struct {
+	ID   string `json:"id"`
+	Line int    `json:"line"`
 }
 
 type ASTMarkdownBlock struct {

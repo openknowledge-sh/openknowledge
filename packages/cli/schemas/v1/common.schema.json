@@ -26,8 +26,12 @@
       "properties": {
         "id": {"type": "string"},
         "resource": {"type": "string"},
+		"observe": {"enum": ["manual", "metadata", "fetch", "pinned"]},
+		"sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "role": {"enum": ["authoritative", "supporting", "contradicting"]},
         "title": {"type": "string"},
         "author": {"type": "string"},
+		"access": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^(profile|agent|team|use_case):[^\\s]+$"}},
         "usageCount": {"type": "number", "minimum": 0},
         "lastModified": {"type": "string"},
         "usageWindow": {"$ref": "#/$defs/okf02UsageWindow"}
@@ -76,6 +80,78 @@
         "verified": {"type": "array", "items": {"$ref": "#/$defs/okf02ActorEvent"}},
         "sources": {"type": "array", "items": {"$ref": "#/$defs/okf02Source"}},
         "computation": {"$ref": "#/$defs/okf02Computation"}
+      },
+      "additionalProperties": false
+    },
+    "claimEntity": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string"},
+        "types": {"type": "array", "items": {"type": "string"}},
+        "prefLabel": {"type": "string"},
+        "altLabels": {"type": "array", "items": {"type": "string"}},
+		"deprecated": {"type": "boolean"},
+		"replacedBy": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "claimObject": {
+      "type": "object",
+      "properties": {
+        "ref": {"type": "string"},
+        "value": {"$ref": "#/$defs/typedValue"},
+        "datatype": {"type": "string"},
+        "language": {"type": "string"},
+        "unit": {"type": "string"},
+        "quantityKind": {"type": "string"}
+      },
+      "oneOf": [{"required": ["ref"]}, {"required": ["value"]}],
+      "additionalProperties": false
+    },
+    "claimSelector": {
+      "type": "object", "required": ["type"],
+      "properties": {"type": {"enum": ["text_quote", "text_position", "fragment", "page", "media_fragment", "data_position"]}, "value": {"type": "string"}, "exact": {"type": "string"}, "prefix": {"type": "string"}, "suffix": {"type": "string"}, "start": {"type": "integer"}, "end": {"type": "integer"}, "page": {"type": "integer"}, "conformsTo": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "claimEvidence": {
+      "type": "object", "required": ["id", "sourceRef", "stance", "role"],
+      "properties": {"id": {"type": "string"}, "sourceRef": {"type": "string"}, "stance": {"enum": ["supports", "opposes", "contextualizes"]}, "role": {"type": "string"}, "selector": {"$ref": "#/$defs/claimSelector"}, "observedAt": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "claim": {
+      "type": "object",
+      "required": ["id", "slot", "subject", "predicate", "object", "evidence", "owners", "status", "trustTier", "stale"],
+      "properties": {
+        "id": {"type": "string"},
+        "slot": {"type": "string"},
+        "subject": {"type": "string"},
+        "predicate": {"type": "string"},
+        "object": {"$ref": "#/$defs/claimObject"},
+        "scope": {"type": "object", "additionalProperties": {"$ref": "#/$defs/claimObject"}},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/claimEvidence"}},
+        "owners": {"type": "array", "items": {"type": "string"}},
+        "status": {"enum": ["extracted", "proposed", "supported", "verified", "disputed", "rejected", "superseded", "archived"]},
+        "trustTier": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
+        "validTime": {"type": "object", "properties": {"from": {"type": "string"}, "until": {"type": "string"}}, "additionalProperties": false},
+        "stale": {"type": "boolean"},
+        "staleAfter": {"type": "string"},
+        "verification": {"type": "object", "required": ["method", "by", "at"], "properties": {"method": {"type": "string"}, "by": {"type": "string"}, "at": {"type": "string"}, "evidenceRefs": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
+		"decisions": {"type": "array", "items": {"type": "object", "required": ["action", "by", "at"], "properties": {"action": {"enum": ["rejected", "superseded", "archived"]}, "by": {"type": "string"}, "at": {"type": "string"}, "reason": {"type": "string"}}, "additionalProperties": false}},
+        "relations": {"type": "object", "properties": {"supersedes": {"type": "array", "items": {"type": "string"}}, "contradicts": {"type": "array", "items": {"type": "string"}}, "derivedFrom": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
+        "sectionRef": {"type": "string"},
+        "declaringPath": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "claimProfileSignals": {
+      "type": "object",
+      "required": ["profile", "claims", "claimRefs"],
+      "properties": {
+        "profile": {"const": "openknowledge.claims/v1"},
+		"ontology": {"type": "object", "required": ["namespaces", "entities", "predicates", "evidenceRoles"], "properties": {"namespaces": {"type": "object", "additionalProperties": {"type": "string"}}, "entities": {"type": "object"}, "predicates": {"type": "object"}, "evidenceRoles": {"type": "object"}}, "additionalProperties": false},
+        "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+        "claimRefs": {"type": "array", "items": {"type": "string"}}
       },
       "additionalProperties": false
     },

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/claims/v1/entity-proposal.schema.json",
+  "title": "OpenKnowledge entity proposal v1",
+  "type": "object",
+  "required": ["type", "version", "action", "document", "documentSha256", "entityId", "reason", "confidence"],
+  "properties": {
+    "type": { "const": "openknowledge.entity-proposal" },
+    "version": { "const": 1 },
+    "action": { "enum": ["add_alias", "merge"] },
+    "document": { "type": "string", "minLength": 1 },
+    "documentSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "entityId": { "type": "string", "pattern": "^[^:]+:.+$" },
+    "alias": { "type": "string", "minLength": 1 },
+    "mergeFrom": { "type": "string", "pattern": "^[^:]+:.+$" },
+    "mergeDocument": { "type": "string", "minLength": 1 },
+    "mergeDocumentSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "confidence": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "action": { "const": "add_alias" } } },
+      "then": { "required": ["alias"], "not": { "required": ["mergeFrom"] } },
+      "else": { "required": ["mergeFrom", "mergeDocument", "mergeDocumentSha256"], "not": { "required": ["alias"] } }
+    }
+  ],
+  "additionalProperties": false
+}

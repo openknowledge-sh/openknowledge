@@ -813,6 +813,7 @@ func searchResultFromKnowledgeSearchDocumentWithPresentation(document knowledgeS
 		Matches:         matches,
 		Neighbor:        neighbor,
 		Relation:        relation,
+		ClaimProfile:    claimProfileForSection(section),
 	}
 }
 

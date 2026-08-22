@@ -20,22 +20,23 @@ type ContextResult struct {
 }
 
 type ContextSource struct {
-	ID              string   `json:"id"`
-	Locator         string   `json:"locator"`
-	ContentSHA256   string   `json:"contentSha256"`
-	Path            string   `json:"path"`
-	Kind            string   `json:"kind"`
-	Type            string   `json:"type,omitempty"`
-	Title           string   `json:"title"`
-	Heading         string   `json:"heading"`
-	HeadingPath     []string `json:"headingPath,omitempty"`
-	HeadingLevel    int      `json:"headingLevel,omitempty"`
-	LineStart       int      `json:"lineStart"`
-	LineEnd         int      `json:"lineEnd"`
-	Score           float64  `json:"score"`
-	EstimatedTokens int      `json:"estimatedTokens"`
-	Relation        string   `json:"relation"`
-	Markdown        string   `json:"markdown"`
+	ID              string               `json:"id"`
+	Locator         string               `json:"locator"`
+	ContentSHA256   string               `json:"contentSha256"`
+	Path            string               `json:"path"`
+	Kind            string               `json:"kind"`
+	Type            string               `json:"type,omitempty"`
+	Title           string               `json:"title"`
+	Heading         string               `json:"heading"`
+	HeadingPath     []string             `json:"headingPath,omitempty"`
+	HeadingLevel    int                  `json:"headingLevel,omitempty"`
+	LineStart       int                  `json:"lineStart"`
+	LineEnd         int                  `json:"lineEnd"`
+	Score           float64              `json:"score"`
+	EstimatedTokens int                  `json:"estimatedTokens"`
+	Relation        string               `json:"relation"`
+	Markdown        string               `json:"markdown"`
+	ClaimProfile    *ClaimProfileSignals `json:"claimProfile,omitempty"`
 }
 
 type ContextIndex struct {

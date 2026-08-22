@@ -26,7 +26,7 @@ func splitContextSectionsFromASTDocument(entry ListEntry, document ASTDocument) 
 	boundaries := contextSectionBoundaries(document.Markdown.Sections, bodyLine)
 	readerBody := astMarkdownReaderBody(document.Body, bodyLine, document.Markdown.Blocks)
 	sections := contextSectionsFromBoundaries(entry, document.Frontmatter.Values, document.Frontmatter.Data, readerBody, document.Links, bodyLine, boundaries)
-	attachContextSectionAnchors(sections, boundaries, document.Markdown.Headings)
+	attachContextSectionAnchors(sections, boundaries, document.Markdown.Headings, document.Markdown.ExplicitIDs)
 	return sections
 }
 
@@ -141,7 +141,7 @@ func newContextSection(entry ListEntry, frontmatter map[string]string, frontmatt
 	}
 }
 
-func attachContextSectionAnchors(sections []ContextSection, boundaries []contextSectionBoundary, headings []ASTMarkdownHeading) {
+func attachContextSectionAnchors(sections []ContextSection, boundaries []contextSectionBoundary, headings []ASTMarkdownHeading, explicitIDs []ASTMarkdownExplicitID) {
 	if len(sections) == 0 {
 		return
 	}
@@ -160,6 +160,31 @@ func attachContextSectionAnchors(sections []ContextSection, boundaries []context
 	// A conventional top fragment selects the first retrievable content even
 	// when the document has no pre-heading chunk.
 	add(0, "top")
+	for _, explicit := range explicitIDs {
+		assigned := false
+		for _, boundary := range boundaries {
+			if boundary.line <= explicit.Line || boundary.line-explicit.Line > 2 {
+				continue
+			}
+			for index := range sections {
+				if sections[index].LineStart >= boundary.line {
+					add(index, explicit.ID)
+					assigned = true
+					break
+				}
+			}
+			break
+		}
+		if assigned {
+			continue
+		}
+		for index := range sections {
+			if explicit.Line >= sections[index].LineStart && explicit.Line <= sections[index].LineEnd {
+				add(index, explicit.ID)
+				break
+			}
+		}
+	}
 
 	// Heading-only H1-H3 sections do not become noisy empty chunks. Preserve
 	// their anchors by assigning them to the first content-bearing descendant.

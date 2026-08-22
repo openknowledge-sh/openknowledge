@@ -159,6 +159,8 @@ func TestValidationProfilesBindEveryRuleToASpecVersion(t *testing.T) {
 	expected := map[string]map[string]validationRuleDefinition{
 		"0.1": {
 			"bundle-read":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},
+			"claim-profile":       {DefaultSeverity: ValidationSeverityError},
+			"corpus-schema":       {DefaultSeverity: ValidationSeverityError},
 			"concept-frontmatter": {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"concept-type":        {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"frontmatter":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},
@@ -176,6 +178,8 @@ func TestValidationProfilesBindEveryRuleToASpecVersion(t *testing.T) {
 		},
 		"0.2": {
 			"bundle-read":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},
+			"claim-profile":       {DefaultSeverity: ValidationSeverityError},
+			"corpus-schema":       {DefaultSeverity: ValidationSeverityError},
 			"concept-frontmatter": {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"concept-type":        {DefaultSeverity: ValidationSeverityError, Overrideable: true},
 			"frontmatter":         {DefaultSeverity: ValidationSeverityError, Overrideable: true},

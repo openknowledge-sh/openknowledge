@@ -33,8 +33,12 @@ type OKFV02ActorEvent struct {
 type OKFV02Source struct {
 	ID           string             `json:"id,omitempty"`
 	Resource     string             `json:"resource"`
+	Observe      string             `json:"observe,omitempty"`
+	SHA256       string             `json:"sha256,omitempty"`
+	Role         string             `json:"role,omitempty"`
 	Title        string             `json:"title,omitempty"`
 	Author       string             `json:"author,omitempty"`
+	Access       []string           `json:"access,omitempty"`
 	UsageCount   *float64           `json:"usageCount,omitempty"`
 	LastModified string             `json:"lastModified,omitempty"`
 	UsageWindow  *OKFV02UsageWindow `json:"usageWindow,omitempty"`
@@ -198,8 +202,12 @@ func okfV02Sources(frontmatter map[string]any) []OKFV02Source {
 		source := OKFV02Source{
 			ID:           okfV02String(data["id"]),
 			Resource:     resource,
+			Observe:      okfV02String(data["observe"]),
+			SHA256:       okfV02String(data["sha256"]),
+			Role:         okfV02String(data["role"]),
 			Title:        okfV02String(data["title"]),
 			Author:       okfV02String(data["author"]),
+			Access:       okfV02StringList(data["access"]),
 			LastModified: okfV02String(data["last_modified"]),
 			UsageWindow:  okfV02UsageWindow(data["usage_window"]),
 		}
@@ -212,6 +220,39 @@ func okfV02Sources(frontmatter map[string]any) []OKFV02Source {
 		sources = append(sources, source)
 	}
 	return sources
+}
+
+func ValidSourceAccessLabel(value string) bool {
+	value = strings.TrimSpace(value)
+	for _, prefix := range []string{"profile:", "agent:", "team:", "use_case:"} {
+		if strings.HasPrefix(value, prefix) && strings.TrimSpace(strings.TrimPrefix(value, prefix)) != "" {
+			return !strings.ContainsAny(value, " \t\r\n")
+		}
+	}
+	return false
+}
+
+func okfV02StringList(value any) []string {
+	var values []string
+	switch typed := value.(type) {
+	case string:
+		if strings.TrimSpace(typed) != "" {
+			values = append(values, strings.TrimSpace(typed))
+		}
+	case []any:
+		for _, item := range typed {
+			if text, ok := item.(string); ok && strings.TrimSpace(text) != "" {
+				values = append(values, strings.TrimSpace(text))
+			}
+		}
+	case []string:
+		for _, item := range typed {
+			if strings.TrimSpace(item) != "" {
+				values = append(values, strings.TrimSpace(item))
+			}
+		}
+	}
+	return values
 }
 
 func okfV02UsageWindow(value any) *OKFV02UsageWindow {

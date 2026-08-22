@@ -20,6 +20,14 @@ func BuildContextIndexWithVersion(root string, version string) (ContextIndex, er
 	if err != nil {
 		return ContextIndex{}, err
 	}
+	return ContextIndexFromAST(validation, ast), nil
+}
+
+func BuildContextIndexWithVersionAndEvidence(root string, version string, evidenceRoot string) (ContextIndex, error) {
+	validation, ast, err := parseAndValidateASTBundleWithOptions(root, version, ValidationOptions{EvidenceRoot: evidenceRoot})
+	if err != nil {
+		return ContextIndex{}, err
+	}
 
 	return ContextIndexFromAST(validation, ast), nil
 }

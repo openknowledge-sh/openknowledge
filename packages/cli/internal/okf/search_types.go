@@ -18,25 +18,26 @@ type SearchResultSet struct {
 }
 
 type SearchResult struct {
-	Path            string   `json:"path"`
-	ID              string   `json:"id"`
-	Locator         string   `json:"locator"`
-	ContentSHA256   string   `json:"contentSha256"`
-	Kind            string   `json:"kind"`
-	Type            string   `json:"type,omitempty"`
-	Title           string   `json:"title"`
-	Description     string   `json:"description,omitempty"`
-	Heading         string   `json:"heading,omitempty"`
-	HeadingPath     []string `json:"headingPath,omitempty"`
-	LineStart       int      `json:"lineStart,omitempty"`
-	LineEnd         int      `json:"lineEnd,omitempty"`
-	EstimatedTokens int      `json:"estimatedTokens,omitempty"`
-	Snippet         string   `json:"snippet,omitempty"`
-	HighlightText   string   `json:"highlightText,omitempty"`
-	Score           float64  `json:"score"`
-	Matches         []string `json:"matches,omitempty"`
-	Neighbor        bool     `json:"neighbor,omitempty"`
-	Relation        string   `json:"relation,omitempty"`
+	Path            string               `json:"path"`
+	ID              string               `json:"id"`
+	Locator         string               `json:"locator"`
+	ContentSHA256   string               `json:"contentSha256"`
+	Kind            string               `json:"kind"`
+	Type            string               `json:"type,omitempty"`
+	Title           string               `json:"title"`
+	Description     string               `json:"description,omitempty"`
+	Heading         string               `json:"heading,omitempty"`
+	HeadingPath     []string             `json:"headingPath,omitempty"`
+	LineStart       int                  `json:"lineStart,omitempty"`
+	LineEnd         int                  `json:"lineEnd,omitempty"`
+	EstimatedTokens int                  `json:"estimatedTokens,omitempty"`
+	Snippet         string               `json:"snippet,omitempty"`
+	HighlightText   string               `json:"highlightText,omitempty"`
+	Score           float64              `json:"score"`
+	Matches         []string             `json:"matches,omitempty"`
+	Neighbor        bool                 `json:"neighbor,omitempty"`
+	Relation        string               `json:"relation,omitempty"`
+	ClaimProfile    *ClaimProfileSignals `json:"claimProfile,omitempty"`
 	contextPriority int
 }
 

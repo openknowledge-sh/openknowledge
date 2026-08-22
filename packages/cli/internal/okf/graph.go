@@ -45,20 +45,25 @@ func GraphFromBundle(bundle Bundle) Graph {
 	for _, file := range bundle.Files {
 		paths[file.Path] = file
 		var signals *OKFV02Signals
+		var claimProfile *ClaimProfileSignals
 		if bundle.SpecVersion == "0.2" && !file.Reserved {
 			signals = DeriveOKFV02Signals(file.Frontmatter)
 		}
+		if !file.Reserved {
+			claimProfile = DeriveClaimProfileSignals(file.Frontmatter)
+		}
 		nodes = append(nodes, GraphNode{
-			ID:          file.ID,
-			Path:        file.Path,
-			Kind:        file.Kind,
-			Reserved:    file.Reserved,
-			Type:        file.Type,
-			Title:       file.Title,
-			Description: file.Description,
-			Resource:    file.Resource,
-			OKF02:       signals,
-			Issues:      file.Issues,
+			ID:           file.ID,
+			Path:         file.Path,
+			Kind:         file.Kind,
+			Reserved:     file.Reserved,
+			Type:         file.Type,
+			Title:        file.Title,
+			Description:  file.Description,
+			Resource:     file.Resource,
+			OKF02:        signals,
+			ClaimProfile: claimProfile,
+			Issues:       file.Issues,
 		})
 	}
 
@@ -90,6 +95,9 @@ func GraphFromBundle(bundle Bundle) Graph {
 		nodes = append(nodes, resourceNodes...)
 		edges = append(edges, resourceEdges...)
 	}
+	claimNodes, claimEdges := claimGraphResources(bundle.Files)
+	nodes = append(nodes, claimNodes...)
+	edges = append(edges, claimEdges...)
 
 	sort.Slice(edges, func(i, j int) bool {
 		if edges[i].Source != edges[j].Source {
@@ -119,6 +127,61 @@ func GraphFromBundle(bundle Bundle) Graph {
 		Edges:         edges,
 		Issues:        bundle.Issues,
 	}
+}
+
+func claimGraphResources(files []BundleFile) ([]GraphNode, []GraphEdge) {
+	var nodes []GraphNode
+	var edges []GraphEdge
+	declared := map[string]string{}
+	for _, file := range files {
+		if file.Reserved {
+			continue
+		}
+		signals := DeriveClaimProfileSignals(file.Frontmatter)
+		if signals == nil {
+			continue
+		}
+		for index := range signals.Claims {
+			claim := signals.Claims[index]
+			targetPath := "claim:" + claim.ID
+			if canonical, exists := declared[claim.ID]; exists {
+				targetPath = canonical
+			} else {
+				nodes = append(nodes, GraphNode{ID: claim.ID, Path: targetPath, Kind: "claim", Title: claim.Slot, Description: claim.Subject + " " + claim.Predicate})
+				declared[claim.ID] = targetPath
+			}
+			edges = append(edges, GraphEdge{Kind: "declares-claim", Source: file.Path, SourceID: file.ID, Target: targetPath, TargetID: claim.ID, Label: claim.ID})
+		}
+	}
+	for _, file := range files {
+		if file.Reserved {
+			continue
+		}
+		signals := DeriveClaimProfileSignals(file.Frontmatter)
+		if signals == nil {
+			continue
+		}
+		for _, ref := range signals.ClaimRefs {
+			targetPath, exists := declared[ref]
+			if !exists {
+				continue
+			}
+			edges = append(edges, GraphEdge{Kind: "references-claim", Source: file.Path, SourceID: file.ID, Target: targetPath, TargetID: ref, Label: ref})
+		}
+		for _, claim := range signals.Claims {
+			for kind, refs := range map[string][]string{"supersedes-claim": claim.Relations.Supersedes, "contradicts-claim": claim.Relations.Contradicts, "derived-from-claim": claim.Relations.DerivedFrom} {
+				for _, ref := range refs {
+					targetPath, exists := declared[ref]
+					if !exists {
+						continue
+					}
+					edges = append(edges, GraphEdge{Kind: kind, Source: declared[claim.ID], SourceID: claim.ID, Target: targetPath, TargetID: ref, Label: ref})
+				}
+			}
+		}
+	}
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
+	return nodes, edges
 }
 
 func okfV02GraphResources(files []BundleFile, paths map[string]BundleFile) ([]GraphNode, []GraphEdge) {

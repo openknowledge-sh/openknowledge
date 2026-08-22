@@ -1,9 +1,12 @@
 package okf
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+var astMarkdownExplicitIDPattern = regexp.MustCompile(`(?i)^<a\b[^>]*\bid\s*=\s*["']([^"']+)["'][^>]*>\s*</a>\s*$`)
 
 type astMarkdownFenceState struct {
 	marker byte
@@ -147,6 +150,18 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 			continue
 		}
 
+		if ids := astMarkdownExplicitIDs(trimmed, lineNumber); len(ids) > 0 {
+			flushParagraph(index - 1)
+			markdown.ExplicitIDs = append(markdown.ExplicitIDs, ids...)
+			appendASTMarkdownBlock(&markdown, ASTMarkdownBlock{
+				Kind:      "html",
+				LineStart: lineNumber,
+				LineEnd:   lineNumber,
+				Text:      trimmed,
+			})
+			continue
+		}
+
 		if strings.HasPrefix(trimmed, ">") {
 			flushParagraph(index - 1)
 			block, next := astMarkdownBlockquote(lines, index, bodyLine)
@@ -228,6 +243,18 @@ func ParseASTMarkdown(body string, bodyLine int) ASTMarkdown {
 	return markdown
 }
 
+func astMarkdownExplicitIDs(line string, lineNumber int) []ASTMarkdownExplicitID {
+	matches := astMarkdownExplicitIDPattern.FindAllStringSubmatch(line, -1)
+	result := make([]ASTMarkdownExplicitID, 0, len(matches))
+	for _, match := range matches {
+		if len(match) < 2 || strings.TrimSpace(match[1]) == "" {
+			continue
+		}
+		result = append(result, ASTMarkdownExplicitID{ID: strings.TrimSpace(match[1]), Line: lineNumber})
+	}
+	return result
+}
+
 func astMarkdownAnnotationStart(line string) (string, bool) {
 	const prefix = "<!-- okf-annotation:"
 	if !strings.HasPrefix(line, prefix) || !strings.HasSuffix(line, "-->") {
@@ -288,7 +315,7 @@ func astMarkdownReaderText(markdown ASTMarkdown) string {
 	appendBlocks = func(blocks []ASTMarkdownBlock) {
 		for _, block := range blocks {
 			switch block.Kind {
-			case "annotation", "agent-footer", "html-comment":
+			case "annotation", "agent-footer", "html-comment", "html":
 				continue
 			case "blockquote":
 				appendBlocks(block.Children)
@@ -310,7 +337,7 @@ func astMarkdownReaderBody(body string, bodyLine int, blocks []ASTMarkdownBlock)
 	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
 	for _, block := range blocks {
 		switch block.Kind {
-		case "annotation", "agent-footer", "html-comment":
+		case "annotation", "agent-footer", "html-comment", "html":
 			start := max(block.LineStart-bodyLine, 0)
 			end := min(block.LineEnd-bodyLine, len(lines)-1)
 			for index := start; index <= end; index++ {

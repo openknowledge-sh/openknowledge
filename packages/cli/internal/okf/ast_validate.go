@@ -1,5 +1,7 @@
 package okf
 
+import "time"
+
 func parseAndValidateASTBundle(root string, version string) (Result, ASTBundle, error) {
 	return parseAndValidateASTBundleWithOptions(root, version, ValidationOptions{})
 }
@@ -28,7 +30,9 @@ func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result
 		result.Files++
 		validateDocument(bundle.Root, document, profile, &result)
 	}
+	result.Errors = append(result.Errors, AnalyzeClaimProfileWithEvidenceRoot(bundle, time.Now(), options.EvidenceRoot).Issues...)
 	result.Errors = append(result.Errors, ValidateRuleCatalog(bundle)...)
+	result.Errors = append(result.Errors, ValidateCorpusSchema(bundle)...)
 
 	sortIssues(result.Errors)
 	sortIssues(result.Warnings)

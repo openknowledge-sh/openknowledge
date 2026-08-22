@@ -79,11 +79,62 @@ func validateOKFV02Sources(meta map[string]any, add func(string)) map[string]str
 				add(label + "." + key + " should be a non-empty string")
 			}
 		}
+		if value, exists := source["access"]; exists {
+			labels := okfV02StringList(value)
+			if len(labels) == 0 {
+				add(label + ".access should be a non-empty string or list of access labels")
+			}
+			seen := map[string]struct{}{}
+			for _, access := range labels {
+				if !ValidSourceAccessLabel(access) {
+					add(label + ".access should use profile:<id>, agent:<id>, team:<id>, or use_case:<id>")
+				}
+				if _, duplicate := seen[access]; duplicate {
+					add(label + ".access should not contain duplicate labels")
+				}
+				seen[access] = struct{}{}
+			}
+		}
+		if value, exists := source["role"]; exists {
+			role, ok := value.(string)
+			switch strings.TrimSpace(role) {
+			case "authoritative", "supporting", "contradicting":
+			default:
+				if !ok || strings.TrimSpace(role) == "" {
+					add(label + ".role should be authoritative, supporting, or contradicting")
+				} else {
+					add(fmt.Sprintf("%s.role %q should be authoritative, supporting, or contradicting", label, role))
+				}
+			}
+		}
+		if value, exists := source["authority_approved_by"]; exists {
+			approvedBy, ok := value.(string)
+			approvedBy = strings.TrimSpace(approvedBy)
+			if !ok || (!strings.HasPrefix(approvedBy, "human:") && !strings.HasPrefix(approvedBy, "github:")) {
+				add(label + ".authority_approved_by should identify human:<id> or github:<login>")
+			}
+			if role, _ := source["role"].(string); strings.TrimSpace(role) != "authoritative" {
+				add(label + ".authority_approved_by requires role authoritative")
+			}
+		}
 		if value, exists := source["usage_count"]; exists && !okfNonNegativeNumber(value) {
 			add(label + ".usage_count should be a non-negative number")
 		}
 		if value, exists := source["last_modified"]; exists && !okfDate(value) {
 			add(label + ".last_modified should use YYYY-MM-DD")
+		}
+		if value, exists := source["observe"]; exists {
+			observe, ok := value.(string)
+			observe = strings.TrimSpace(observe)
+			if !ok || (observe != "manual" && observe != "metadata" && observe != "fetch" && observe != "pinned") {
+				add(label + ".observe should be manual, metadata, fetch, or pinned")
+			}
+			if observe == "pinned" {
+				sha, _ := source["sha256"].(string)
+				if !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(strings.TrimSpace(sha)) {
+					add(label + ".sha256 should be a lowercase SHA-256 digest for pinned observation")
+				}
+			}
 		}
 		if value, exists := source["usage_window"]; exists {
 			validateOKFV02DateRange(label+".usage_window", value, add)
