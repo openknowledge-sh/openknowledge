@@ -61,6 +61,10 @@ func runSetup(args []string) int {
 			return runSetupRepair(args[1:])
 		case "observe":
 			return runSetupObserve(args[1:])
+		case "ci":
+			return runSetupCI(args[1:])
+		case "runtime":
+			return runSetupRuntime(args[1:])
 		}
 	}
 	if hasHelpFlag(args) {
@@ -617,6 +621,8 @@ Usage:
   openknowledge setup status [wiki]
   openknowledge setup repair [wiki]
   openknowledge setup observe <on|off> [repository]
+  openknowledge setup ci [wiki] [--plan] [--force]
+  openknowledge setup runtime [wiki] [--maintenance auto|github-actions|runtime] [--runtimes <list>] [--plan] [--force]
 
 With terminal input, setup starts an interactive wizard. Without terminal
 input, setup prints a complete task for an agent. Use --prompt or --interactive

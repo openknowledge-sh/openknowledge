@@ -4,8 +4,9 @@
 
 # Open Knowledge
 
-Flexible knowledge bases in Markdown that your agents can create, retrieve,
-maintain, validate, and publish.
+Git-native CI and an MCP runtime for agent knowledge. Open Knowledge finds
+stale, conflicting, and missing knowledge, prepares evidence-backed fixes,
+tests real agent answers, and serves the latest passing version.
 
 [🌐 Website](https://openknowledge.sh) |
 [📖 Documentation](https://openknowledge.sh/wiki/) |
@@ -21,23 +22,12 @@ maintain, validate, and publish.
   <a href="Wiki/index.md"><img alt="Agent-ready docs" src="https://img.shields.io/badge/docs-agent--ready-6f42c1"></a>
 </p>
 
-## From project to knowledge base
+## The knowledge lifecycle
 
 ```text
-Your project
-    │
-    ▼
- okn setup ──► your agent creates Wiki/
-                         │
-                         ▼
-                  okn validate Wiki
-                         │
-                         ▼
-                okn setup complete
-                         │
-          ┌──────────┬──────────┬──────────┐
-          ▼          ▼          ▼          ▼
-       search       view        MCP     export html
+Markdown + Git ──► audit ──► evidence-backed PR ──► answer evals
+      ▲                                                │
+      └──── rollback ◄── production MCP ◄── green merge┘
 ```
 
 ## Quick start
@@ -86,6 +76,17 @@ When the agent finishes:
 okn validate Wiki
 ```
 
+### 4. Add Knowledge CI and production MCP
+
+```sh
+okn setup ci Wiki
+okn setup runtime Wiki
+```
+
+The CI profile adds a source baseline, starter eval questions, and GitHub gates.
+The runtime profile publishes immutable passing generations. See the complete
+[Knowledge CI Golden Path](Wiki/features/golden-path.md).
+
 <details>
 <summary>Alternative npm installation</summary>
 
@@ -106,6 +107,9 @@ command to disable telemetry and save the opt-out. See
 [Product Telemetry and Privacy](Wiki/features/telemetry.md).
 
 ## Workflows
+
+Start with the [Knowledge CI Golden Path](Wiki/features/golden-path.md) for the
+complete setup, audit, repair, eval, and production MCP loop.
 
 ### Create, retrieve, and verify
 

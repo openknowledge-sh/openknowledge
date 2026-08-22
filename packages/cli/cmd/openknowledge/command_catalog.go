@@ -27,7 +27,7 @@ var commandGroups = []commandGroup{
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("skill", "complete", "status", "repair", "observe"), Run: runSetup},
+	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("skill", "complete", "status", "repair", "observe", "ci", "runtime"), Run: runSetup},
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 	{Name: "eval", Group: "Start here", Summary: "Test retrieval evidence against versioned questions.", Subcommands: commandNames("run"), Run: runEval},
