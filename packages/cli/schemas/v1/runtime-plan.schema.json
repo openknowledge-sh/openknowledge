@@ -71,7 +71,7 @@
     },
     "worker": {
       "type": "object",
-      "required": ["repo", "remote", "production_branch", "poll_interval", "run_jobs", "jobs_path", "exchange_dir"],
+      "required": ["repo", "remote", "production_branch", "poll_interval", "run_jobs", "knowledge_ci", "jobs_path", "exchange_dir"],
       "properties": {
         "repo": {"type": "string"},
         "repository_url": {"type": "string"},
@@ -79,6 +79,7 @@
         "production_branch": {"type": "string"},
         "poll_interval": {"type": "string"},
         "run_jobs": {"type": "boolean"},
+        "knowledge_ci": {"type": "boolean"},
         "jobs_path": {"type": "string"},
         "runtimes": {"type": "array", "items": {"enum": ["codex", "claude", "opencode"]}},
         "git_token_env": {"type": "string"},

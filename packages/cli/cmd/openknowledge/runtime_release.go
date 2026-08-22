@@ -132,8 +132,9 @@ func runRuntimeReleaseChange(action string, args []string) int {
 		if generationErr != nil {
 			return printAgentCommandError(generationErr)
 		}
-		if !equalStringLists(manifest.Checks, config.GitHub.RequiredChecks) {
-			return printAgentCommandError(fmt.Errorf("generation does not carry the configured required checks: %v", config.GitHub.RequiredChecks))
+		requiredChecks := runtimeRequiredPublicationChecks(config)
+		if !equalStringLists(manifest.Checks, requiredChecks) {
+			return printAgentCommandError(fmt.Errorf("generation does not carry the configured required checks: %v", requiredChecks))
 		}
 		if action == "pin" {
 			pointer, _, err = store.Pin(knowledge.ID, target)

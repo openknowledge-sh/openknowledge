@@ -187,8 +187,8 @@ func generationFiles(root string) ([]GenerationFile, error) {
 		if rel == GenerationManifestFile {
 			return nil
 		}
-		if !strings.HasPrefix(rel, "public/") && !strings.HasPrefix(rel, "source/") && !strings.HasPrefix(rel, "search/") && !strings.HasPrefix(rel, "mcp/") {
-			return fmt.Errorf("generation file is outside public/source/search/mcp roots: %s", rel)
+		if !strings.HasPrefix(rel, "public/") && !strings.HasPrefix(rel, "source/") && !strings.HasPrefix(rel, "search/") && !strings.HasPrefix(rel, "mcp/") && !strings.HasPrefix(rel, "evidence/") {
+			return fmt.Errorf("generation file is outside public/source/search/mcp/evidence roots: %s", rel)
 		}
 		digest, err := fileDigest(candidate)
 		if err != nil {

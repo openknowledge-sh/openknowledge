@@ -3,7 +3,7 @@
   "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-context.schema.json",
   "title": "Open Knowledge runtime context response v1",
   "type": "object",
-  "required": ["schemaVersion", "knowledgeBase", "generation", "access", "policy", "revision", "query", "budget", "estimatedTokens", "limit", "sources", "rejected", "decision", "refusalReasons", "issues"],
+  "required": ["schemaVersion", "knowledgeBase", "generation", "access", "policy", "revision", "query", "route", "claims", "evidenceArtifacts", "conflicts", "missingKnowledge", "permissionsApplied", "retrievedAt", "budget", "estimatedTokens", "limit", "sources", "rejected", "decision", "refusalReasons", "issues"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "knowledgeBase": {"type": "string", "minLength": 1},
@@ -12,6 +12,13 @@
     "policy": {"$ref": "runtime-search.schema.json#/$defs/policy"},
     "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
     "query": {"type": "string", "minLength": 1},
+    "route": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"enum": ["bm25", "policy_filter", "link_expansion", "claim_projection"]}},
+    "claims": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/claim"}},
+    "evidenceArtifacts": {"type": "array", "items": {"$ref": "#/$defs/evidenceArtifact"}},
+    "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}},
+    "missingKnowledge": {"type": "array", "items": {"$ref": "#/$defs/missingKnowledge"}},
+    "permissionsApplied": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^(profile|agent|team|use_case):.+$"}},
+    "retrievedAt": {"type": "string", "format": "date-time"},
     "budget": {"type": "integer", "minimum": 1, "maximum": 32000},
     "estimatedTokens": {"type": "integer", "minimum": 0},
     "limit": {"type": "integer", "minimum": 1, "maximum": 50},
@@ -23,6 +30,38 @@
     "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
   },
   "$defs": {
+    "evidenceArtifact": {
+      "type": "object",
+      "required": ["sourceId", "resource", "sha256", "access", "evidence"],
+      "properties": {
+        "sourceId": {"type": "string", "minLength": 1},
+        "resource": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "access": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^(profile|agent|team|use_case):[^\\s]+$"}},
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "common.schema.json#/$defs/claimEvidence"}}
+      },
+      "additionalProperties": false
+    },
+    "conflict": {
+      "type": "object",
+      "required": ["kind", "claimIds", "reason"],
+      "properties": {
+        "kind": {"enum": ["explicit_contradiction", "incompatible_values"]},
+        "claimIds": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "missingKnowledge": {
+      "type": "object",
+      "required": ["kind", "detail"],
+      "properties": {
+        "kind": {"enum": ["no_relevant_evidence", "no_policy_compliant_evidence", "insufficient_budget", "policy_rejected_candidates"]},
+        "count": {"type": "integer", "minimum": 1},
+        "detail": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
     "source": {
       "type": "object",
       "required": ["source", "trust", "freshness", "provenance", "selection"],
@@ -38,7 +77,7 @@
   },
   "allOf": [
     {"if": {"properties": {"decision": {"const": "answer"}}}, "then": {"properties": {"refusalReasons": {"maxItems": 0}}}},
-    {"if": {"properties": {"decision": {"const": "refuse"}}}, "then": {"properties": {"sources": {"maxItems": 0}, "refusalReasons": {"minItems": 1}}}}
+    {"if": {"properties": {"decision": {"const": "refuse"}}}, "then": {"properties": {"sources": {"maxItems": 0}, "claims": {"maxItems": 0}, "evidenceArtifacts": {"maxItems": 0}, "refusalReasons": {"minItems": 1}, "missingKnowledge": {"minItems": 1}}}}
   ],
   "additionalProperties": false
 }

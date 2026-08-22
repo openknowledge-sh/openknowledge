@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/claimops"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
@@ -236,8 +238,26 @@ func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledg
 	if publish && config.ArtifactStore.Type != "filesystem" {
 		return runtimeBuildResult{}, fmt.Errorf("runtime build can promote only to a filesystem artifact store")
 	}
-	if publish && !equalStringLists(checks, config.GitHub.RequiredChecks) {
-		return runtimeBuildResult{}, fmt.Errorf("runtime publication requires verified GitHub checks: %s", strings.Join(config.GitHub.RequiredChecks, ", "))
+	requiredPublicationChecks := runtimeRequiredPublicationChecks(config)
+	if publish && !equalStringLists(checks, requiredPublicationChecks) {
+		if !config.Worker.KnowledgeCI {
+			return runtimeBuildResult{}, fmt.Errorf("runtime publication requires verified GitHub checks: %s", strings.Join(requiredPublicationChecks, ", "))
+		}
+		return runtimeBuildResult{}, fmt.Errorf("runtime publication requires passing knowledge checks: %s", strings.Join(requiredPublicationChecks, ", "))
+	}
+	if publish && config.Runtime.RequireResolvedClaims {
+		index, err := claimops.BuildIndex(knowledge.Path, knowledge.Spec, time.Now().UTC())
+		if err != nil {
+			return runtimeBuildResult{}, fmt.Errorf("runtime release claim index: %w", err)
+		}
+		for _, occurrence := range index.Occurrences {
+			if !okf.ClaimIsActive(occurrence.Claim, time.Now().UTC()) {
+				continue
+			}
+			if occurrence.Claim.Status == "extracted" || occurrence.Claim.Status == "proposed" || occurrence.Claim.Status == "supported" || occurrence.Claim.Status == "disputed" {
+				return runtimeBuildResult{}, fmt.Errorf("runtime release contains unresolved claim %s with status %s in %s", occurrence.Claim.ID, occurrence.Claim.Status, occurrence.Path)
+			}
+		}
 	}
 	absoluteOut, err := okf.WriteDirectoryAtomically(out, func(staging string) error {
 		public := filepath.Join(staging, "public")
@@ -267,6 +287,9 @@ func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledg
 				return err
 			}
 		}
+		if _, err := claimops.MaterializeEvidenceStore(knowledge.Path, filepath.Join(staging, "evidence")); err != nil {
+			return fmt.Errorf("materialize private evidence layer: %w", err)
+		}
 		_, err := okruntime.WriteGenerationManifestWithChecks(staging, knowledge.ID, commit, knowledge.Spec, checks)
 		return err
 	})
@@ -294,6 +317,15 @@ func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledg
 		result.Published = &pointer
 	}
 	return result, nil
+}
+
+func runtimeRequiredPublicationChecks(config okruntime.Config) []string {
+	checks := append([]string{}, config.GitHub.RequiredChecks...)
+	if config.Worker.KnowledgeCI {
+		checks = append(checks, "openknowledge-runtime-ci")
+	}
+	sort.Strings(checks)
+	return checks
 }
 
 func equalStringLists(left []string, right []string) bool {

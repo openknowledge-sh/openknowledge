@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -43,6 +44,10 @@ type deployRuntimeScaffoldOptions struct {
 	ClaudeVersion        string
 	OpenCodeVersion      string
 	Force                bool
+	RunJobs              bool
+	KnowledgeCI          bool
+	GitHubRepository     string
+	RequiredChecks       []string
 }
 
 func runDeployRailwayInit(args []string) int {
@@ -137,7 +142,7 @@ func scaffoldRailwayRuntime(knowledgeInput string, options deployRuntimeScaffold
 	}
 	dockerfile := renderDeployRuntimeDockerfile(openKnowledgeVersion, runtimes, versions)
 	entrypoint := renderDeployRuntimeEntrypoint()
-	runtimeConfig := renderDeployRuntimeConfig(knowledgeID, knowledgePath)
+	runtimeConfig := renderDeployRuntimeConfig(knowledgeID, knowledgePath, options.RunJobs, options.KnowledgeCI, runtimes, options.GitHubRepository, options.RequiredChecks)
 	dockerfilePath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeDockerfile))
 	entrypointPath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeEntrypoint))
 	runtimeConfigPath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeConfig))
@@ -263,9 +268,23 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-runtime-entrypo
 `, openKnowledgeVersion, arguments.String(), install)
 }
 
-func renderDeployRuntimeConfig(knowledgeID string, knowledgePath string) string {
+func renderDeployRuntimeConfig(knowledgeID string, knowledgePath string, runJobs bool, knowledgeCI bool, runtimes []string, githubRepository string, requiredChecks []string) string {
+	runtimeList := ""
+	if len(runtimes) > 0 {
+		quoted := make([]string, 0, len(runtimes))
+		for _, runtimeName := range runtimes {
+			quoted = append(quoted, fmt.Sprintf("%q", runtimeName))
+		}
+		runtimeList = "runtimes = [" + strings.Join(quoted, ", ") + "]\n"
+	}
+	githubConfig := ""
+	if strings.TrimSpace(githubRepository) != "" {
+		checks, _ := json.Marshal(requiredChecks)
+		githubConfig = fmt.Sprintf("\n[github]\nenabled = true\nrepository = %q\ntoken_env = \"GITHUB_TOKEN\"\ndraft_pull_request = true\nchecks = true\nrequired_checks = %s\nauto_merge_low_risk = false\n", strings.TrimSpace(githubRepository), checks)
+	}
 	return fmt.Sprintf(`[runtime]
 state_dir = "/tmp/openknowledge"
+require_resolved_claims = true
 
 [artifact_store]
 type = "filesystem"
@@ -284,9 +303,11 @@ repo = "/workspace"
 remote = "origin"
 production_branch = "main"
 poll_interval = "30s"
-run_jobs = false
-jobs_path = ".openknowledge/jobs"
+run_jobs = %t
+knowledge_ci = %t
+%sjobs_path = ".openknowledge/jobs"
 exchange_dir = "/tmp/openknowledge/exchange"
+%s
 
 [[knowledge_bases]]
 id = %q
@@ -295,7 +316,7 @@ route = "/"
 spec = "latest"
 publish = true
 mcp = true
-`, knowledgeID, knowledgePath)
+`, runJobs, knowledgeCI, runtimeList, githubConfig, knowledgeID, knowledgePath)
 }
 
 func renderDeployRuntimeEntrypoint() string {

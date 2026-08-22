@@ -42,8 +42,8 @@ type runtimeSnapshotManager struct {
 	client           *http.Client
 	token            string
 	initErr          error
-	buildSearchIndex func(string, string) (okf.ContextIndex, error)
-	buildMCPIndex    func(string, string) (okf.ContextIndex, error)
+	buildSearchIndex func(string, string, string) (okf.ContextIndex, error)
+	buildMCPIndex    func(string, string, string) (okf.ContextIndex, error)
 	mu               sync.RWMutex
 	active           map[string]runtimeGenerationSnapshot
 }
@@ -66,8 +66,8 @@ func newRuntimeSnapshotManager(config okruntime.Config) *runtimeSnapshotManager 
 		client:           &http.Client{Timeout: requestTimeout},
 		token:            token,
 		initErr:          initErr,
-		buildSearchIndex: okf.BuildContextIndexWithVersion,
-		buildMCPIndex:    okf.BuildContextIndexWithVersion,
+		buildSearchIndex: okf.BuildContextIndexWithVersionAndEvidence,
+		buildMCPIndex:    okf.BuildContextIndexWithVersionAndEvidence,
 		active:           make(map[string]runtimeGenerationSnapshot),
 	}
 }
@@ -142,7 +142,7 @@ func (manager *runtimeSnapshotManager) loadIndex(knowledge okruntime.KnowledgeBa
 	if target == okruntime.IndexTargetMCP {
 		build = manager.buildMCPIndex
 	}
-	index, err := build(projection, manifest.Spec)
+	index, err := build(projection, manifest.Spec, filepath.Join(generationRoot, "evidence"))
 	if err != nil {
 		return okf.ContextIndex{}, err
 	}

@@ -141,6 +141,9 @@ func TestMachineSchemasValidateOKFV02ListAndGraphSignals(t *testing.T) {
 		Sources: []OKFV02Source{{
 			ID:          "policy",
 			Resource:    "https://example.test/policy",
+			Observe:     "pinned",
+			SHA256:      strings.Repeat("a", 64),
+			Role:        "authoritative",
 			UsageWindow: &OKFV02UsageWindow{From: "2026-08-01", To: "2026-08-03"},
 		}},
 		Computation: &OKFV02Computation{
@@ -165,6 +168,88 @@ func TestMachineSchemasValidateOKFV02ListAndGraphSignals(t *testing.T) {
 	}
 	validateMachineInstance(t, schemas, "list", machineJSONValue(t, listing))
 	validateMachineInstance(t, schemas, "graph", machineJSONValue(t, graph))
+}
+
+func TestMachineSchemasValidateSparseClaimProjection(t *testing.T) {
+	schemas := compileMachineSchemas(t)
+	authoredSchema := schemas.byID["https://openknowledge.sh/schemas/cli/claims/v1/frontmatter.schema.json"]
+	if authoredSchema == nil {
+		t.Fatal("typed claim frontmatter schema was not compiled")
+	}
+	authoredClaim := map[string]any{"id": "okn:claim/token-format/1", "slot": "okn:slot/token-format", "subject": "okn:service/auth", "predicate": "auth:tokenFormat", "object": map[string]any{"value": "JWT", "datatype": "xsd:string"}, "evidence": []any{map[string]any{"id": "okn:evidence/token-format", "source_ref": "identity-openapi", "stance": "supports", "role": "okn:primary", "selector": map[string]any{"type": "text_quote", "exact": "Tokens use JWT."}}}, "status": "proposed"}
+	authored := machineJSONValue(t, map[string]any{"openknowledge_claim_profile": "1", "claims": []any{authoredClaim}})
+	if err := authoredSchema.Validate(authored); err != nil {
+		t.Fatalf("valid typed claim frontmatter failed schema validation: %v", err)
+	}
+	invalid := cloneMachineJSONValue(t, authored).(map[string]any)
+	firstObject(invalid, "claims")["value"] = "JWT"
+	if err := authoredSchema.Validate(invalid); err == nil {
+		t.Fatal("typed claim schema accepted the removed scalar value field")
+	}
+	proposalSchema := schemas.byID["https://openknowledge.sh/schemas/cli/claims/v1/proposal.schema.json"]
+	proposal := machineJSONValue(t, map[string]any{
+		"type": "openknowledge.claim-proposal", "version": 1, "action": "create",
+		"document": "auth.md", "documentSha256": strings.Repeat("a", 64),
+		"claim":  map[string]any{"id": "okn:claim/token-format/1", "slot": "okn:slot/token-format", "subject": "okn:service/auth", "predicate": "auth:tokenFormat", "object": map[string]any{"value": "JWT", "datatype": "xsd:string"}, "evidence": []any{map[string]any{"id": "okn:evidence/token-format", "sourceRef": "identity-openapi", "stance": "supports", "role": "primary", "selector": map[string]any{"type": "text_quote", "exact": "Tokens use JWT."}}}, "status": "proposed"},
+		"reason": "The source defines the production format.", "confidence": 0.92,
+	})
+	if proposalSchema == nil {
+		t.Fatal("claim proposal schema was not compiled")
+	}
+	if err := proposalSchema.Validate(proposal); err != nil {
+		t.Fatalf("valid claim proposal failed schema validation: %v", err)
+	}
+	entityProposalSchema := schemas.byID["https://openknowledge.sh/schemas/cli/claims/v1/entity-proposal.schema.json"]
+	entityProposal := machineJSONValue(t, map[string]any{
+		"type": "openknowledge.entity-proposal", "version": 1, "action": "merge",
+		"document": "ontology.md", "documentSha256": strings.Repeat("b", 64),
+		"entityId": "okn:service/auth", "mergeFrom": "okn:service/legacy-auth", "mergeDocument": "legacy-ontology.md", "mergeDocumentSha256": strings.Repeat("c", 64),
+		"reason": "Both IDs resolve to one service.", "confidence": 0.88,
+	})
+	if entityProposalSchema == nil {
+		t.Fatal("entity proposal schema was not compiled")
+	}
+	if err := entityProposalSchema.Validate(entityProposal); err != nil {
+		t.Fatalf("valid entity proposal failed schema validation: %v", err)
+	}
+
+	outputs := representativeMachineOutputs(t)
+	profile := machineJSONValue(t, ClaimProfileSignals{
+		Profile: ClaimProfileIDV1,
+		Claims: []Claim{{
+			ID: "okn:claim/token-format/1", Slot: "okn:slot/token-format", Subject: "okn:service/auth", Predicate: "auth:tokenFormat",
+			Object: ClaimObject{Value: "JWT", Datatype: "xsd:string"}, Scope: map[string]ClaimObject{"okn:environment": {Value: "production", Datatype: "xsd:string"}},
+			Evidence: []ClaimEvidence{{ID: "okn:evidence/token-format", SourceRef: "identity-openapi", Stance: "supports", Role: "primary"}}, Owners: []string{"team:identity"},
+			Status: "verified", TrustTier: OKFV02TrustMachineConfirmed, Stale: false,
+			Verification:  &ClaimVerification{Method: "human-review", By: "human:alice", At: "2026-08-21T10:00:00Z"},
+			DeclaringPath: "guide.md",
+		}},
+		ClaimRefs: []string{},
+	}).(map[string]any)
+
+	for _, test := range []struct {
+		name  string
+		field string
+	}{
+		{name: "list", field: "entries"},
+		{name: "graph", field: "nodes"},
+		{name: "search-results", field: "results"},
+		{name: "search-context", field: "sources"},
+	} {
+		instance := machineJSONValue(t, outputs[test.name]).(map[string]any)
+		firstObject(instance, test.field)["claimProfile"] = cloneMachineJSONValue(t, profile)
+		validateMachineInstance(t, schemas, test.name, instance)
+	}
+	fixtures := machineContractFixtures(t)
+	for _, name := range []string{"runtime-search", "runtime-context"} {
+		instance := cloneMachineJSONValue(t, fixtures[name]).(map[string]any)
+		field := "results"
+		if name == "runtime-context" {
+			field = "sources"
+		}
+		firstObject(instance, field)["source"].(map[string]any)["claimProfile"] = cloneMachineJSONValue(t, profile)
+		validateMachineInstance(t, schemas, name, instance)
+	}
 }
 
 func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {

@@ -20,6 +20,13 @@
     "indexSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   },
   "query": "rollback policy",
+  "route": ["bm25", "policy_filter"],
+  "claims": [],
+  "evidenceArtifacts": [],
+  "conflicts": [],
+  "missingKnowledge": [],
+  "permissionsApplied": ["profile:support", "agent:support-agent", "team:support", "use_case:customer-support"],
+  "retrievedAt": "2026-08-21T12:00:00Z",
   "budget": 2400,
   "estimatedTokens": 42,
   "limit": 5,

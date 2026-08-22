@@ -12,8 +12,10 @@ the source tree and from the public URL.
 
 | Schema | CLI output |
 | --- | --- |
+| `artifact.schema.json` | Durable report bundle manifest under `.openknowledge/reports/<run-id>/artifact.json` |
 | `audit-report.schema.json` | `openknowledge audit --format json` |
 | `audit-source-baseline.schema.json` | `openknowledge audit --baseline <file> --update-baseline` |
+| `evidence-pin.schema.json` | `openknowledge evidence pin --json` |
 | `agent-doctor.schema.json` | `openknowledge agent doctor --json` |
 | `runtime-plan.schema.json` | `openknowledge automation runtime plan` |
 | `runtime-build.schema.json` | `openknowledge automation runtime build` |
@@ -52,6 +54,9 @@ the source tree and from the public URL.
 | `search-results.schema.json` | `openknowledge search --matches --format json` |
 | `search-context.schema.json` | `openknowledge search --format json` |
 | `validation.schema.json` | `openknowledge validate --format json` |
+| `claims-entities.schema.json` | `openknowledge claims entities find --json` |
+| `claims-entity-impact.schema.json` | `openknowledge claims entities impact --json` |
+| `claims-entity-mutation.schema.json` | `openknowledge claims entities apply --json` |
 
 Additive fields may be added to v1 outputs. Removing a field, changing its JSON
 type, or changing its meaning incompatibly requires a new schema version and a
@@ -66,7 +71,7 @@ migrations until the feature is stabilized.
 Job run plans can contain a resolved native eval comparison. The object records
 dataset, target, spec, gate, base SHA, and optional answer runner settings.
 Job run records can contain eval status, identity, private report paths,
-regressions, and proposed failures. These objects are part of
+before and proposed pass counts, regressions, and proposed failures. These objects are part of
 `job-run-plan.schema.json` and `job-run-record.schema.json`.
 
 Runtime plans contain normalized retrieval policy, usage event settings, and
@@ -80,7 +85,8 @@ trust, freshness, provenance, selection, and rejection metadata. The explicit
 result as permission to answer without sufficiently trusted evidence.
 
 Runtime generation identity includes a sorted `checks` array. The generation
-`contentDigest` binds these successful GitHub check names to the generation.
+`contentDigest` binds successful GitHub or runtime-local publication check
+names to the generation.
 Runtime builds can mark a generation as staged without changing production.
 Release inventories identify the active and immediately previous generation;
 preview, pin, and rollback actions have a separate strict result contract.
@@ -122,6 +128,13 @@ Eval checks can also assert the minimum trust tier, freshness allowance,
 allowed lifecycle statuses, and structured provenance of every selected source.
 Comparison reports include changed paths, affected questions and declared
 agents, plus changed paths that are not covered by any case.
+
+Claim command results use `claims-find.schema.json`,
+`claims-impact.schema.json`, `claims-validation.schema.json`, and
+`claims-mutation.schema.json`. Entity search, impact, and approved apply use
+the `claims-entities` and `claims-entity-*` schemas. Deterministic claim candidates use
+`claims-suggestions.schema.json`. Digest-bound authored proposals use the
+independent contracts under [`../claims/v1/`](../claims/v1/).
 
 CLI-owned registry and managed-cache provenance use independent persistence
 schemas under [`../storage/v1/`](../storage/v1/).

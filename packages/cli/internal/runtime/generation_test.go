@@ -100,7 +100,7 @@ func TestGenerationRejectsFilesOutsidePublicContract(t *testing.T) {
 	writeRuntimeTestFile(t, generation, "public/index.html", "ok")
 	writeRuntimeTestFile(t, generation, "agent-logs/raw.log", "secret")
 	if _, err := BuildGenerationManifest(generation, "wiki", "abc123", "0.1"); err == nil {
-		t.Fatal("expected private file outside public/source/search/mcp roots to be rejected")
+		t.Fatal("expected private file outside public/source/search/mcp/evidence roots to be rejected")
 	}
 }
 

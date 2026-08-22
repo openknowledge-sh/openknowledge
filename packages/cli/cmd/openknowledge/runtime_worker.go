@@ -25,6 +25,9 @@ import (
 
 	"github.com/gofrs/flock"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/agents"
+	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/claimops"
+	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
 	knowledgeintervention "github.com/openknowledge-sh/openknowledge/packages/cli/internal/intervention"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
@@ -242,8 +245,17 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 			}
 			continue
 		}
+		publicationChecks := append([]string{}, verifiedChecks...)
+		if config.Worker.KnowledgeCI {
+			if err := runtimeKnowledgeCIPass(config, checkout, mapped, commit); err != nil {
+				failures = append(failures, fmt.Errorf("knowledge CI %s: %w", mapped.ID, err))
+				continue
+			}
+			publicationChecks = append(publicationChecks, "openknowledge-runtime-ci")
+			sort.Strings(publicationChecks)
+		}
 		out := filepath.Join(config.Runtime.StateDir, "builds", mapped.ID)
-		result, err := buildRuntimeKnowledgeGenerationWithChecks(config, mapped, commit, out, true, verifiedChecks)
+		result, err := buildRuntimeKnowledgeGenerationWithChecks(config, mapped, commit, out, true, publicationChecks)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("publish %s: %w", mapped.ID, err))
 			continue
@@ -260,6 +272,168 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 		}
 	}
 	return errors.Join(failures...)
+}
+
+func runtimeKnowledgeCIPass(config okruntime.Config, checkout string, knowledge okruntime.KnowledgeBaseConfig, commit string) (resultErr error) {
+	reportDir := filepath.Join(config.Runtime.StateDir, "reports", "knowledge-ci", commit, knowledge.ID)
+	if err := os.MkdirAll(reportDir, 0o700); err != nil {
+		return err
+	}
+	index := fmt.Sprintf(`---
+type: Open Knowledge Artifact
+title: Runtime Knowledge CI
+status: stable
+---
+
+# Runtime Knowledge CI
+
+- Commit: %s
+- Knowledge base: %s
+- [Validation](validation.json)
+- [Claim lifecycle](claims-validation.json)
+- [Audit report](audit.md)
+- [Audit data](audit.json)
+- [Eval report](eval.md)
+- [Eval data](eval.json)
+`, commit, knowledge.ID)
+	if err := writeOutputFileAtomically(filepath.Join(reportDir, "index.md"), []byte(index)); err != nil {
+		return err
+	}
+	defer func() {
+		if err := finalizeRuntimeKnowledgeCIArtifact(reportDir, commit); resultErr == nil && err != nil {
+			resultErr = err
+		}
+	}()
+	validation, err := okf.ValidateWithVersion(knowledge.Path, knowledge.Spec)
+	if err != nil {
+		return err
+	}
+	if err := writeRuntimeKnowledgeCIJSON(reportDir, "validation.json", validation); err != nil {
+		return err
+	}
+	if err := okf.RequireValidBundle(validation); err != nil {
+		return err
+	}
+
+	candidate, err := claimops.BuildIndex(knowledge.Path, knowledge.Spec, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	claimsReport := claimsValidationReport{
+		SchemaVersion: okf.MachineSchemaVersion, Root: knowledge.Path, Valid: len(candidate.Issues) == 0,
+		Issues: nonNilIssues(candidate.Issues), Lifecycle: []okf.Issue{}, AuthorityChanges: []claimops.AuthorityChange{},
+	}
+	baseCommit := ""
+	store := okruntime.FilesystemStore{Root: config.ArtifactStore.Path}
+	if _, activeRoot, activeErr := store.Active(knowledge.ID); activeErr == nil {
+		manifest, manifestErr := okruntime.LoadAndValidateGeneration(activeRoot)
+		if manifestErr != nil {
+			return manifestErr
+		}
+		baseRoot := filepath.Join(activeRoot, "source")
+		base, baseErr := claimops.BuildIndex(baseRoot, knowledge.Spec, time.Now().UTC())
+		if baseErr != nil {
+			return baseErr
+		}
+		lifecycle := claimops.CompareLifecycle(base, candidate)
+		claimsReport.Against = baseRoot
+		claimsReport.Lifecycle = lifecycle.Issues
+		claimsReport.AuthorityChanges = lifecycle.AuthorityChanges
+		claimsReport.Valid = claimsReport.Valid && lifecycle.Valid
+		baseCommit = manifest.Commit
+	} else if !os.IsNotExist(activeErr) {
+		return activeErr
+	}
+	if err := writeRuntimeKnowledgeCIJSON(reportDir, "claims-validation.json", claimsReport); err != nil {
+		return err
+	}
+	if !claimsReport.Valid {
+		return fmt.Errorf("claim lifecycle gate failed")
+	}
+
+	baselinePath := filepath.Join(checkout, ".openknowledge", "audit-sources.json")
+	baseline, err := knowledgeaudit.ReadBaseline(baselinePath)
+	if err != nil {
+		return fmt.Errorf("read audit baseline: %w", err)
+	}
+	auditReport, _, err := knowledgeaudit.Run(knowledgeaudit.Options{
+		Root: knowledge.Path, Spec: knowledge.Spec, Baseline: &baseline, ObserveRemote: true,
+	})
+	if err != nil {
+		return err
+	}
+	if err := writeRuntimeKnowledgeCIJSON(reportDir, "audit.json", auditReport); err != nil {
+		return err
+	}
+	if err := writeOutputFileAtomically(filepath.Join(reportDir, "audit.md"), []byte(knowledgeaudit.RenderMarkdown(auditReport))); err != nil {
+		return err
+	}
+	if auditFails(auditReport, "high") {
+		return fmt.Errorf("audit high-severity gate failed")
+	}
+
+	datasetPath := filepath.Join(checkout, ".openknowledge", "evals", "knowledge.yaml")
+	dataset, err := knowledgeeval.LoadDataset(datasetPath)
+	if err != nil {
+		return fmt.Errorf("load runtime eval dataset: %w", err)
+	}
+	if baseCommit == "" {
+		report, evalErr := knowledgeeval.Run(knowledge.Path, knowledge.Spec, dataset)
+		if err := writeRuntimeKnowledgeCIJSON(reportDir, "eval.json", report); err != nil {
+			return err
+		}
+		if err := writeOutputFileAtomically(filepath.Join(reportDir, "eval.md"), []byte(knowledgeeval.RenderMarkdown(report))); err != nil {
+			return err
+		}
+		if evalErr != nil {
+			return evalErr
+		}
+		if report.Summary.Status != "pass" {
+			return fmt.Errorf("runtime eval gate failed")
+		}
+	} else {
+		report, evalErr := knowledgeeval.Compare(knowledge.Path, knowledge.Spec, dataset, baseCommit, knowledgeeval.GateRegressions)
+		if err := writeRuntimeKnowledgeCIJSON(reportDir, "eval.json", report); err != nil {
+			return err
+		}
+		if err := writeOutputFileAtomically(filepath.Join(reportDir, "eval.md"), []byte(knowledgeeval.RenderComparisonMarkdown(report))); err != nil {
+			return err
+		}
+		if evalErr != nil {
+			return evalErr
+		}
+		if report.Summary.Status != "pass" {
+			return fmt.Errorf("runtime eval regression gate failed")
+		}
+	}
+	return nil
+}
+
+func writeRuntimeKnowledgeCIJSON(directory string, name string, value any) error {
+	content, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeOutputFileAtomically(filepath.Join(directory, name), append(content, '\n'))
+}
+
+func finalizeRuntimeKnowledgeCIArtifact(directory string, commit string) error {
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return err
+	}
+	files := []string{}
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && entry.Name() != "artifact.json" {
+			files = append(files, entry.Name())
+		}
+	}
+	sort.Strings(files)
+	manifest := map[string]any{
+		"type": "openknowledge.artifact", "version": 1, "kind": "knowledge-ci",
+		"runId": commit, "base": commit, "createdAt": time.Now().UTC().Format(time.RFC3339), "files": files,
+	}
+	return writeRuntimeKnowledgeCIJSON(directory, "artifact.json", manifest)
 }
 
 func reconcileRuntimeInterventionPublication(config okruntime.Config, knowledgeBase string, commit string) error {
@@ -500,7 +674,7 @@ func runtimeStoreAlreadyPublishes(config okruntime.Config, knowledgeID string, c
 		return false
 	}
 	manifest, err := okruntime.LoadAndValidateGeneration(root)
-	return err == nil && manifest.Commit == commit
+	return err == nil && manifest.Commit == commit && equalStringLists(manifest.Checks, runtimeRequiredPublicationChecks(config))
 }
 
 func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout string, runtimeName string) error {
@@ -573,6 +747,35 @@ type runtimeExchangeEval struct {
 	Gate           string `json:"gate"`
 	Regressions    int    `json:"regressions"`
 	ProposedFailed int    `json:"proposed_failed"`
+	Total          int    `json:"total"`
+	BasePassed     int    `json:"base_passed"`
+	ProposedPassed int    `json:"proposed_passed"`
+}
+
+type runtimeClaimReview struct {
+	Changes     []runtimeClaimChange
+	Authorities []runtimeAuthorityChange
+}
+
+type runtimeAuthorityChange struct {
+	Knowledge  string
+	Path       string
+	SourceID   string
+	Resource   string
+	ApprovedBy string
+}
+
+type runtimeClaimChange struct {
+	Knowledge    string
+	ID           string
+	Path         string
+	BeforeValue  string
+	AfterValue   string
+	BeforeStatus string
+	AfterStatus  string
+	Sources      []string
+	Documents    int
+	Evals        int
 }
 
 func publishRuntimeSourceBundle(ctx context.Context, config okruntime.Config, checkout string) error {
@@ -718,7 +921,8 @@ func exportRuntimeAgentPullRequests(ctx context.Context, config okruntime.Config
 		if record.Eval != nil {
 			request.Eval = &runtimeExchangeEval{
 				Status: record.Eval.Status, Dataset: record.Eval.Dataset, Target: record.Eval.Target, Base: record.Eval.Base, Gate: record.Eval.Gate,
-				Regressions: record.Eval.Regressions, ProposedFailed: record.Eval.ProposedFailed,
+				Regressions: record.Eval.Regressions, ProposedFailed: record.Eval.ProposedFailed, Total: record.Eval.Total,
+				BasePassed: record.Eval.BasePassed, ProposedPassed: record.Eval.ProposedPassed,
 			}
 		}
 		if err := writeExchangeJSON(filepath.Join(staging, "request.json"), request); err != nil {
@@ -1086,7 +1290,8 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			failures = append(failures, fmt.Errorf("agent exchange expert boundary failed for %s: %w", request.RunID, err))
 			continue
 		}
-		if err := validateRuntimeExchangeCommit(ctx, config, checkout, head); err != nil {
+		claimReview, err := validateRuntimeExchangeCommit(ctx, config, checkout, request.BaseSHA, head)
+		if err != nil {
 			failures = append(failures, fmt.Errorf("agent exchange validation failed for %s: %w", request.RunID, err))
 			continue
 		}
@@ -1098,7 +1303,7 @@ func publishRuntimeExchangePullRequests(ctx context.Context, config okruntime.Co
 			failures = append(failures, fmt.Errorf("agent run %s intervention log: %w", request.RunID, err))
 			continue
 		}
-		publication, err := publishRuntimeGitHubRequest(ctx, config, token, request)
+		publication, err := publishRuntimeGitHubRequest(ctx, config, token, request, claimReview)
 		if err != nil {
 			failures = append(failures, err)
 			continue
@@ -1339,7 +1544,7 @@ func runtimeEnvironmentWithout(environment []string, names ...string) []string {
 	return result
 }
 
-func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, token string, request runtimeExchangeRequest) (runtimeGitHubPublication, error) {
+func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, token string, request runtimeExchangeRequest, claimReview runtimeClaimReview) (runtimeGitHubPublication, error) {
 	if !config.GitHub.Enabled || token == "" {
 		return runtimeGitHubPublication{}, fmt.Errorf("agent run %s requests output.pr but github integration is not enabled", request.RunID)
 	}
@@ -1351,14 +1556,14 @@ func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, t
 	}
 	if pull == nil {
 		draft := config.GitHub.DraftPullRequest
-		if request.Maintenance != nil && request.Maintenance.Approval == "auto" {
+		if request.Maintenance != nil && request.Maintenance.Approval == "auto" && !runtimeClaimReviewRequiresHuman(claimReview) {
 			draft = false
 		}
 		created, err := client.CreateDraftPullRequest(ctx,
 			"chore(knowledge): "+request.JobID,
 			request.Branch,
 			config.Worker.ProductionBranch,
-			runtimeExchangePullRequestSummary(request),
+			runtimeExchangePullRequestSummaryWithClaims(request, claimReview),
 			draft,
 		)
 		if err != nil {
@@ -1366,7 +1571,7 @@ func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, t
 		}
 		pull = &created
 	}
-	if request.Maintenance != nil && request.Maintenance.Approval != "auto" {
+	if request.Maintenance != nil && (request.Maintenance.Approval != "auto" || runtimeClaimReviewRequiresHuman(claimReview)) {
 		reviewers, teams := runtimeGitHubReviewers(request.Maintenance.Owners)
 		if len(reviewers)+len(teams) > 0 {
 			if err := client.RequestReviewers(ctx, pull.Number, reviewers, teams); err != nil {
@@ -1388,7 +1593,7 @@ func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, t
 		checked = true
 	}
 	publication := runtimeGitHubPublication{RunID: request.RunID, Commit: request.HeadSHA, PR: pull.Number, PRURL: pull.HTMLURL, Checked: checked}
-	if request.Maintenance != nil && request.Maintenance.Approval == "auto" && config.GitHub.AutoMergeLowRisk {
+	if request.Maintenance != nil && request.Maintenance.Approval == "auto" && config.GitHub.AutoMergeLowRisk && !runtimeClaimReviewRequiresHuman(claimReview) {
 		if _, err := client.RequireSuccessfulChecks(ctx, request.HeadSHA, config.GitHub.RequiredChecks); err != nil {
 			return runtimeGitHubPublication{}, fmt.Errorf("agent run %s low-risk auto-merge checks: %w", request.RunID, err)
 		}
@@ -1400,6 +1605,21 @@ func publishRuntimeGitHubRequest(ctx context.Context, config okruntime.Config, t
 		publication.Commit = commit
 	}
 	return publication, nil
+}
+
+func runtimeClaimReviewRequiresHuman(review runtimeClaimReview) bool {
+	if len(review.Authorities) > 0 {
+		return true
+	}
+	for _, change := range review.Changes {
+		if change.AfterStatus == "extracted" || change.AfterStatus == "proposed" || change.AfterStatus == "supported" || change.AfterStatus == "disputed" {
+			return true
+		}
+		if change.BeforeStatus == "verified" && (change.AfterStatus == "rejected" || change.AfterStatus == "superseded" || change.AfterStatus == "archived") {
+			return true
+		}
+	}
+	return false
 }
 
 func runtimeGitHubReviewers(owners []string) ([]string, []string) {
@@ -1416,60 +1636,226 @@ func runtimeGitHubReviewers(owners []string) ([]string, []string) {
 	return uniqueRuntimeStrings(reviewers), uniqueRuntimeStrings(teams)
 }
 
-func validateRuntimeExchangeCommit(ctx context.Context, config okruntime.Config, checkout string, head string) error {
+func validateRuntimeExchangeCommit(ctx context.Context, config okruntime.Config, checkout string, base string, head string) (runtimeClaimReview, error) {
+	review := runtimeClaimReview{Changes: []runtimeClaimChange{}, Authorities: []runtimeAuthorityChange{}}
 	parent := filepath.Join(config.Runtime.StateDir, "verification-worktrees")
 	if err := os.MkdirAll(parent, 0700); err != nil {
-		return err
+		return review, err
 	}
-	worktree, err := os.MkdirTemp(parent, ".verify-*")
+	worktree, err := addRuntimeVerificationWorktree(ctx, config, checkout, parent, ".candidate-*", head)
 	if err != nil {
-		return err
+		return review, err
 	}
-	_ = os.Remove(worktree)
-	if output, err := runtimeWorkerGit(ctx, config, "", checkout, "worktree", "add", "--detach", worktree, head); err != nil {
-		return fmt.Errorf("create verification worktree: %w: %s", err, output)
+	defer removeRuntimeVerificationWorktree(config, checkout, worktree)
+	baseWorktree, err := addRuntimeVerificationWorktree(ctx, config, checkout, parent, ".base-*", base)
+	if err != nil {
+		return review, err
 	}
-	defer func() {
-		_, _ = runtimeWorkerGit(context.Background(), config, "", checkout, "worktree", "remove", "--force", worktree)
-		_ = os.RemoveAll(worktree)
-	}()
+	defer removeRuntimeVerificationWorktree(config, checkout, baseWorktree)
+	now := time.Now().UTC()
 	for _, knowledge := range config.KnowledgeBases {
 		if !knowledge.Publish {
 			continue
 		}
 		relative, err := filepath.Rel(config.Root, knowledge.Path)
 		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-			return fmt.Errorf("knowledge base %s path is outside repository", knowledge.ID)
+			return review, fmt.Errorf("knowledge base %s path is outside repository", knowledge.ID)
 		}
 		validation, err := okf.ValidateWithVersion(filepath.Join(worktree, relative), knowledge.Spec)
 		if err != nil {
-			return err
+			return review, err
 		}
 		if err := okf.RequireValidBundle(validation); err != nil {
-			return err
+			return review, err
 		}
 		if _, err := okf.BuildPublicationSetWithVersion(filepath.Join(worktree, relative), knowledge.Spec); err != nil {
-			return fmt.Errorf("knowledge base %s publication contract: %w", knowledge.ID, err)
+			return review, fmt.Errorf("knowledge base %s publication contract: %w", knowledge.ID, err)
+		}
+		baseIndex, err := claimops.BuildIndex(filepath.Join(baseWorktree, relative), knowledge.Spec, now)
+		if err != nil {
+			return review, fmt.Errorf("knowledge base %s base claim index: %w", knowledge.ID, err)
+		}
+		candidateIndex, err := claimops.BuildIndex(filepath.Join(worktree, relative), knowledge.Spec, now)
+		if err != nil {
+			return review, fmt.Errorf("knowledge base %s candidate claim index: %w", knowledge.ID, err)
+		}
+		lifecycle := claimops.CompareLifecycle(baseIndex, candidateIndex)
+		if !lifecycle.Valid {
+			issue := lifecycle.Issues[0]
+			return review, fmt.Errorf("knowledge base %s claim lifecycle: %s: %s", knowledge.ID, issue.Path, issue.Message)
+		}
+		for _, change := range lifecycle.AuthorityChanges {
+			review.Authorities = append(review.Authorities, runtimeAuthorityChange{
+				Knowledge: knowledge.ID, Path: change.Path, SourceID: change.SourceID,
+				Resource: change.Resource, ApprovedBy: change.ApprovedBy,
+			})
+		}
+		review.Changes = append(review.Changes, runtimeClaimChanges(knowledge.ID, baseIndex, candidateIndex, defaultClaimEvalRoots(filepath.Join(worktree, relative)))...)
+	}
+	sort.Slice(review.Changes, func(i, j int) bool {
+		left, right := review.Changes[i], review.Changes[j]
+		return left.Knowledge+"\x00"+left.ID+"\x00"+left.Path < right.Knowledge+"\x00"+right.ID+"\x00"+right.Path
+	})
+	sort.Slice(review.Authorities, func(i, j int) bool {
+		left, right := review.Authorities[i], review.Authorities[j]
+		return left.Knowledge+"\x00"+left.Path+"\x00"+left.SourceID < right.Knowledge+"\x00"+right.Path+"\x00"+right.SourceID
+	})
+	return review, nil
+}
+
+func runtimeClaimChanges(knowledge string, base claimops.Index, candidate claimops.Index, evalRoots []string) []runtimeClaimChange {
+	baseByKey := runtimeClaimOccurrences(base)
+	candidateByKey := runtimeClaimOccurrences(candidate)
+	keys := make([]string, 0, len(baseByKey)+len(candidateByKey))
+	seen := map[string]bool{}
+	for key := range baseByKey {
+		seen[key] = true
+		keys = append(keys, key)
+	}
+	for key := range candidateByKey {
+		if !seen[key] {
+			keys = append(keys, key)
 		}
 	}
-	return nil
+	sort.Strings(keys)
+	var changes []runtimeClaimChange
+	for _, key := range keys {
+		before, hasBefore := baseByKey[key]
+		after, hasAfter := candidateByKey[key]
+		beforeValue, afterValue := "", ""
+		if hasBefore {
+			beforeValue, _ = okf.NormalizeClaimObject(before.Claim.Object)
+		}
+		if hasAfter {
+			afterValue, _ = okf.NormalizeClaimObject(after.Claim.Object)
+		}
+		if hasBefore && hasAfter && beforeValue == afterValue && before.Claim.Status == after.Claim.Status && reflect.DeepEqual(before.Claim.Evidence, after.Claim.Evidence) && reflect.DeepEqual(before.Claim.Relations, after.Claim.Relations) {
+			continue
+		}
+		occurrence, index := after, candidate
+		if !hasAfter {
+			occurrence, index = before, base
+		}
+		impact, _ := claimops.BuildImpact(index, occurrence.Claim.ID, evalRoots)
+		change := runtimeClaimChange{
+			Knowledge: knowledge, ID: occurrence.Claim.ID, Path: occurrence.Path,
+			BeforeValue: beforeValue, AfterValue: afterValue, Sources: runtimeClaimEvidenceSources(occurrence.Claim),
+			Documents: len(impact.Documents), Evals: len(impact.Evals),
+		}
+		if hasBefore {
+			change.BeforeStatus = before.Claim.Status
+		}
+		if hasAfter {
+			change.AfterStatus = after.Claim.Status
+		}
+		changes = append(changes, change)
+	}
+	return changes
+}
+
+func runtimeClaimOccurrences(index claimops.Index) map[string]claimops.Occurrence {
+	result := map[string]claimops.Occurrence{}
+	for _, occurrence := range index.Occurrences {
+		key := occurrence.Claim.ID
+		result[key] = occurrence
+	}
+	return result
+}
+
+func runtimeClaimEvidenceSources(claim okf.Claim) []string {
+	values := make([]string, 0, len(claim.Evidence))
+	for _, evidence := range claim.Evidence {
+		values = append(values, evidence.SourceRef)
+	}
+	sort.Strings(values)
+	return values
+}
+
+func addRuntimeVerificationWorktree(ctx context.Context, config okruntime.Config, checkout string, parent string, pattern string, commit string) (string, error) {
+	worktree, err := os.MkdirTemp(parent, pattern)
+	if err != nil {
+		return "", err
+	}
+	_ = os.Remove(worktree)
+	if output, err := runtimeWorkerGit(ctx, config, "", checkout, "worktree", "add", "--detach", worktree, commit); err != nil {
+		_ = os.RemoveAll(worktree)
+		return "", fmt.Errorf("create verification worktree for %s: %w: %s", commit, err, output)
+	}
+	return worktree, nil
+}
+
+func removeRuntimeVerificationWorktree(config okruntime.Config, checkout string, worktree string) {
+	_, _ = runtimeWorkerGit(context.Background(), config, "", checkout, "worktree", "remove", "--force", worktree)
+	_ = os.RemoveAll(worktree)
 }
 
 func runtimeExchangePullRequestSummary(request runtimeExchangeRequest) string {
+	return runtimeExchangePullRequestSummaryWithClaims(request, runtimeClaimReview{})
+}
+
+func runtimeExchangePullRequestSummaryWithClaims(request runtimeExchangeRequest, review runtimeClaimReview) string {
 	summary := fmt.Sprintf("Automated Open Knowledge maintenance completed.\n\n- Job: `%s`\n- Run: `%s`\n- Base commit: `%s`\n- Agent verification commands reported: %d\n", request.JobID, request.RunID, request.BaseSHA, request.VerifyCount)
 	if request.Maintenance != nil {
 		summary += fmt.Sprintf("- Maintenance route: `%s` risk, `%s` approval, %.0f%% confidence\n- Owners: %s\n- Insight attestations: %d (%s)\n", request.Maintenance.Risk, request.Maintenance.Approval, request.Maintenance.Confidence*100, runtimeMarkdownInline(strings.Join(request.Maintenance.Owners, ", ")), len(request.Maintenance.Insights), request.Maintenance.Status)
+		if len(request.Maintenance.Findings) > 0 {
+			summary += "\n## Evidence-backed findings\n\n"
+			for _, finding := range request.Maintenance.Findings {
+				summary += "- " + runtimeMarkdownInline(finding) + "\n"
+			}
+		}
 	}
 	if request.Eval != nil {
-		summary += fmt.Sprintf("- Knowledge eval `%s` reported: passed (`%s`, %d regressions, %d proposed failures)\n", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
+		summary += fmt.Sprintf("- Knowledge eval `%s` reported: %d/%d → %d/%d passed (`%s`, %d regressions, %d proposed failures)\n", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.BasePassed, request.Eval.Total, request.Eval.ProposedPassed, request.Eval.Total, request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
 	}
-	return summary + "- Publisher OKF and publication validation: passed\n\nRaw prompts, tool calls, environment metadata, and runtime logs remain private."
+	summary += "- Publisher OKF, publication, and claim lifecycle validation: passed\n"
+	if len(review.Changes) > 0 {
+		summary += "\n## Knowledge claims\n\n| Claim | Status | Value | Evidence | Impact |\n| --- | --- | --- | --- | --- |\n"
+		var decisions []string
+		for _, change := range review.Changes {
+			status := runtimeClaimTransition(change.BeforeStatus, change.AfterStatus)
+			value := runtimeClaimTransition(change.BeforeValue, change.AfterValue)
+			summary += fmt.Sprintf("| `%s` (`%s:%s`) | %s | %s | %s | %d docs, %d evals |\n", runtimeMarkdownInline(change.ID), runtimeMarkdownInline(change.Knowledge), runtimeMarkdownInline(change.Path), runtimeMarkdownInline(status), runtimeMarkdownInline(value), runtimeMarkdownInline(strings.Join(change.Sources, ", ")), change.Documents, change.Evals)
+			if change.AfterStatus == "disputed" {
+				decisions = append(decisions, fmt.Sprintf("- `%s`: sources disagree; an owner must decide the authoritative value.", runtimeMarkdownInline(change.ID)))
+			}
+			if change.AfterStatus == "extracted" || change.AfterStatus == "proposed" || change.AfterStatus == "supported" {
+				decisions = append(decisions, fmt.Sprintf("- `%s`: verify accepted evidence before merge.", runtimeMarkdownInline(change.ID)))
+			}
+			if change.BeforeStatus == "verified" && (change.AfterStatus == "rejected" || change.AfterStatus == "superseded" || change.AfterStatus == "archived") {
+				decisions = append(decisions, fmt.Sprintf("- `%s`: review the approved `%s` transition.", runtimeMarkdownInline(change.ID), runtimeMarkdownInline(change.AfterStatus)))
+			}
+		}
+		if len(decisions) > 0 {
+			summary += "\n## Human decision\n\n" + strings.Join(uniqueRuntimeStrings(decisions), "\n") + "\n"
+		}
+	}
+	if len(review.Authorities) > 0 {
+		summary += "\n## Source authority\n\n| Source | Document | Resource | Approval |\n| --- | --- | --- | --- |\n"
+		for _, change := range review.Authorities {
+			summary += fmt.Sprintf("| `%s` (`%s`) | `%s` | %s | `%s` |\n", runtimeMarkdownInline(change.SourceID), runtimeMarkdownInline(change.Knowledge), runtimeMarkdownInline(change.Path), runtimeMarkdownInline(change.Resource), runtimeMarkdownInline(change.ApprovedBy))
+		}
+		summary += "\n## Human decision\n\n- Review the newly granted source authority before merge.\n"
+	}
+	return summary + "\nRaw prompts, tool calls, environment metadata, and runtime logs remain private."
+}
+
+func runtimeClaimTransition(before string, after string) string {
+	if before == after {
+		return before
+	}
+	if before == "" {
+		before = "—"
+	}
+	if after == "" {
+		after = "—"
+	}
+	return before + " → " + after
 }
 
 func runtimeExchangeCheckSummary(request runtimeExchangeRequest, pullRequestURL string) string {
 	eval := ""
 	if request.Eval != nil {
-		eval = fmt.Sprintf(" The worker reported eval `%s` passed gate `%s` with %d regressions and %d proposed failures.", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
+		eval = fmt.Sprintf(" The worker reported eval `%s` improved from %d/%d to %d/%d passed, with gate `%s`, %d regressions, and %d proposed failures.", runtimeMarkdownInline(request.Eval.Dataset), request.Eval.BasePassed, request.Eval.Total, request.Eval.ProposedPassed, request.Eval.Total, request.Eval.Gate, request.Eval.Regressions, request.Eval.ProposedFailed)
 	}
 	route := ""
 	if request.Maintenance != nil {
@@ -1483,7 +1869,7 @@ func validateRuntimeExchangeEval(eval *runtimeExchangeEval) error {
 	if eval == nil {
 		return nil
 	}
-	if eval.Status != "pass" || (eval.Gate != "all" && eval.Gate != "regressions") || eval.Regressions < 0 || eval.ProposedFailed < 0 {
+	if eval.Status != "pass" || (eval.Gate != "all" && eval.Gate != "regressions") || eval.Regressions < 0 || eval.ProposedFailed < 0 || eval.Total < 0 || eval.BasePassed < 0 || eval.ProposedPassed < 0 || eval.BasePassed > eval.Total || eval.ProposedPassed > eval.Total || eval.ProposedPassed+eval.ProposedFailed != eval.Total {
 		return fmt.Errorf("eval must report a valid passing gate")
 	}
 	if !runtimeExchangeSHA1Pattern.MatchString(eval.Base) {
@@ -1500,7 +1886,8 @@ func validateRuntimeExchangeEval(eval *runtimeExchangeEval) error {
 }
 
 func runtimeMarkdownInline(value string) string {
-	return strings.ReplaceAll(value, "`", "'")
+	value = strings.NewReplacer("\r", " ", "\n", " ", "|", "\\|", "`", "'").Replace(value)
+	return strings.TrimSpace(value)
 }
 
 func writeExchangeJSON(target string, value any) error {

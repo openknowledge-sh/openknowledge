@@ -574,7 +574,7 @@ func newDeployTestRepository(t *testing.T) (string, string) {
 	writeViewerFile(t, repository, "Wiki/index.md", "# Deployable knowledge\n")
 	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge automation runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\nRUN npm install --global \"@openai/codex@${CODEX_VERSION}\" \"@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}\" \"opencode-ai@${OPENCODE_VERSION}\"\n")
 	writeViewerFile(t, repository, deployRuntimeEntrypoint, "#!/bin/sh\n")
-	writeViewerFile(t, repository, deployRuntimeConfig, renderDeployRuntimeConfig("wiki", "/workspace/Wiki"))
+	writeViewerFile(t, repository, deployRuntimeConfig, renderDeployRuntimeConfig("wiki", "/workspace/Wiki", false, false, nil, "", nil))
 	runtimeGitTest(t, repository, "init", "-b", "main")
 	runtimeGitTest(t, repository, "config", "user.name", "Deploy Test")
 	runtimeGitTest(t, repository, "config", "user.email", "deploy@example.test")

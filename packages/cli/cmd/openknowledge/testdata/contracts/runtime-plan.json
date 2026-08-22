@@ -34,6 +34,7 @@
     "production_branch": "main",
     "poll_interval": "30s",
     "run_jobs": true,
+    "knowledge_ci": false,
     "jobs_path": ".openknowledge/jobs",
     "runtimes": [
       "codex"

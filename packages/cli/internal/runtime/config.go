@@ -33,7 +33,8 @@ type Config struct {
 }
 
 type RuntimeConfig struct {
-	StateDir string `toml:"state_dir" json:"state_dir"`
+	StateDir              string `toml:"state_dir" json:"state_dir"`
+	RequireResolvedClaims bool   `toml:"require_resolved_claims" json:"require_resolved_claims"`
 }
 
 type ArtifactStoreConfig struct {
@@ -95,6 +96,7 @@ type WorkerConfig struct {
 	ProductionBranch string   `toml:"production_branch" json:"production_branch"`
 	PollInterval     string   `toml:"poll_interval" json:"poll_interval"`
 	RunJobs          bool     `toml:"run_jobs" json:"run_jobs"`
+	KnowledgeCI      bool     `toml:"knowledge_ci" json:"knowledge_ci"`
 	JobsPath         string   `toml:"jobs_path" json:"jobs_path"`
 	Runtimes         []string `toml:"runtimes" json:"runtimes,omitempty"`
 	GitTokenEnv      string   `toml:"git_token_env" json:"git_token_env,omitempty"`
@@ -190,6 +192,7 @@ func ParseConfig(content []byte) (Config, error) {
 
 func defaultConfig() Config {
 	return Config{
+		Runtime:        RuntimeConfig{RequireResolvedClaims: true},
 		AccessProfiles: []AccessProfileConfig{},
 		ArtifactStore:  ArtifactStoreConfig{Type: "filesystem"},
 		PublisherAPI:   PublisherAPIConfig{Address: "127.0.0.1:8090"},

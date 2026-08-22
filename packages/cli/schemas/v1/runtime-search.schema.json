@@ -116,7 +116,7 @@
         "id": {"type": "string"},
         "locator": {"type": "string", "pattern": "^okf\\+sha256://[a-f0-9]{64}/.+#[a-f0-9]{64}$"},
         "path": {"type": "string"},
-        "reasons": {"type": "array", "minItems": 1, "items": {"enum": ["trust_below_minimum", "stale", "status_not_allowed", "sources_required"]}}
+        "reasons": {"type": "array", "minItems": 1, "items": {"enum": ["trust_below_minimum", "stale", "status_not_allowed", "sources_required", "source_access_denied", "claim_unverified", "claim_disputed", "claim_rejected", "claim_superseded", "claim_archived", "claim_inactive"]}}
       },
       "additionalProperties": false
     }
