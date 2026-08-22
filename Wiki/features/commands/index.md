@@ -9,6 +9,8 @@ Use this index to select a command for your task. Run
 - [search](search.md): Build source-grounded context.
 - [validate](validate.md): Validate OKF conformance.
 - [audit](audit.md): Find concrete knowledge risks and their evidence.
+- [claims](claims.md): Maintain evidence-backed typed claims and lifecycle history.
+- [evidence](evidence.md): Capture immutable evidence artifacts and receipts.
 - [eval](eval.md): Test retrieval evidence against versioned questions.
 - [quality](quality.md): Combine observations into quality metrics, priorities, and an intervention audit log.
 

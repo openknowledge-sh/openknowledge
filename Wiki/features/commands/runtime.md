@@ -80,6 +80,7 @@ also go to stderr.
 ```toml
 [runtime]
 state_dir = "/var/lib/openknowledge"
+require_resolved_claims = true
 
 [artifact_store]
 type = "filesystem"
@@ -107,6 +108,8 @@ retention = "720h"
 [worker]
 repository_url = "https://github.com/OWNER/REPOSITORY.git"
 production_branch = "main"
+run_jobs = true
+knowledge_ci = false
 jobs_path = ".openknowledge/jobs"
 runtimes = ["codex", "claude", "opencode"]
 exchange_dir = "/exchange"
@@ -148,6 +151,25 @@ Paths are relative to `runtime.toml`. The runtime rejects unknown fields,
 duplicate IDs, duplicate routes, unsafe routes, and invalid durations. It also
 rejects missing adapters and incomplete authentication.
 
+`require_resolved_claims` defaults to `true`. Publication then rejects a
+knowledge base that contains an active extracted, proposed, supported, or
+disputed claim. This keeps the current green generation active until
+verification or a human decision resolves the change. Set the value to `false`
+only for an intentional partial-release policy. Retrieval still refuses
+evidence that fails claim policy.
+
+Set `worker.knowledge_ci = true` when the runtime is the lifecycle executor.
+Before each publication, the publisher runs structural validation, compares
+claim history with the active generation, audits against
+`.openknowledge/audit-sources.json`, and evaluates
+`.openknowledge/evals/knowledge.yaml`. It writes JSON and Markdown reports
+under `<state_dir>/reports/knowledge-ci/<commit>/<knowledge-id>/`. A passing
+local gate is bound into the generation as `openknowledge-runtime-ci`.
+
+With `worker.knowledge_ci = false`, configure exact GitHub
+`required_checks`. Do not require a GitHub check in runtime-only mode. The two
+setup profiles select this contract automatically.
+
 A container can read the complete TOML document from
 `env:OPENKNOWLEDGE_RUNTIME_CONFIG`. Relative paths then use
 `OPENKNOWLEDGE_RUNTIME_ROOT` or `/workspace`.
@@ -159,7 +181,8 @@ not supported.
 
 ## Published service
 
-Each generation contains a closed manifest and up to four projections:
+Each generation contains a closed manifest, up to four published projections,
+and an optional private evidence layer:
 
 ```text
 manifest.json
@@ -167,10 +190,13 @@ public/   # viewer and public source archive
 source/   # Markdown allowed by the publication gate
 search/   # search projection
 mcp/      # MCP projection
+evidence/ # private content-addressed artifacts and receipts
 ```
 
 The manifest binds the knowledge base ID, OKF spec, source commit, and sorted
-file digests. Promotion uses staging and is atomic.
+file digests, including private evidence. Promotion uses staging and is atomic.
+The static service serves only `public/`. It never maps `evidence/` to an HTTP
+route.
 
 Production activation uses `<artifact_store>/<id>/active.json`. This pin binds
 the active generation and content digest. `previousGeneration` records the
@@ -182,6 +208,21 @@ generation index.
 
 A new content digest replaces the index atomically. An invalid file or index
 build failure keeps the last valid snapshot active.
+
+Direct local `okn mcp` serves the current working tree so an agent can develop
+and test knowledge changes. The production runtime serves only the active
+verified generation. These are separate operating modes.
+
+Structured sources can contain `access` labels. An empty list is public. For
+each restricted source in a candidate document, at least one source label must
+match the active profile, agent, team, or use-case labels. Otherwise retrieval
+refuses the candidate with `source_access_denied`. This check happens after
+authentication and before a source enters HTTP search or the MCP context.
+
+MCP context includes `evidenceArtifacts` for selected pinned claim evidence.
+Each entry binds the source ID, generation-relative private resource, SHA-256,
+effective source access labels, and exact claim evidence selectors. Artifact
+bytes stay private and generation-bound.
 
 Each configured route exposes the static viewer and
 `_search?q=<query>&limit=<1..50>`. It can also expose `_mcp`.
@@ -239,8 +280,8 @@ Entry states are `ready`, `missing`, `invalid`, and `rebuilt`.
 change to `active.json`. The JSON build result contains `staged: true` and no
 `published` object. Do not combine `--stage` with `--no-publish`.
 
-A manual staged build contains no GitHub check names. When
-`github.required_checks` is nonempty, `runtime pin` rejects that generation.
+A manual staged build contains no publication check names. When GitHub checks
+or runtime Knowledge CI are required, `runtime pin` rejects that generation.
 
 `runtime releases` prints a JSON inventory. It contains `activeGeneration`,
 `previousGeneration`, and a sorted `releases` array. Each release records its
@@ -255,7 +296,8 @@ Preview knowledge responses set `X-OpenKnowledge-Preview: true` and
 generation and print its descriptor without starting a server.
 
 `runtime pin --generation <name>` validates the stored generation. The
-generation must contain exactly the configured `github.required_checks`.
+generation must contain exactly the configured GitHub checks and the
+`openknowledge-runtime-ci` attestation when local Knowledge CI is enabled.
 The command does not query GitHub. It then atomically writes the production
 pin.
 
@@ -365,6 +407,15 @@ Each selected result or context source contains these metadata groups:
 The search contract returns ranked source metadata. The context contract also
 returns source Markdown, token estimates, the requested budget, and the
 post-policy estimated token count.
+
+The context contract is a unified evidence bundle. `route` records the ordered
+deterministic stages used for the response. `claims` projects selected typed
+claim occurrences. `conflicts` records explicit contradiction edges or
+incompatible active values in the same scoped claim slot. `missingKnowledge`
+turns refusals and policy-rejected candidates into structured gaps.
+`permissionsApplied` records the effective profile, agent, team, and use-case
+labels, and `retrievedAt` records the UTC retrieval time. These values are
+derived projections; the OKF Markdown and immutable evidence remain canonical.
 
 When usage recording is enabled, both contracts can contain an opaque
 `usageEventId`. The ID contains 32 lowercase hexadecimal characters. The

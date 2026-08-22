@@ -69,6 +69,16 @@ reads the filtered `mcp/` projection.
 | --- | --- | --- |
 | `openknowledge_search` | Required `query`. Optional `budget`, `limit`, `noExpand`. | The same v1 context model as `search --format json`. |
 | `openknowledge_validate` | none | The complete v1 validation report. |
+| `openknowledge_claims_find` | Required `query`. | Ranked existing claim IDs and occurrences. |
+| `openknowledge_claims_impact` | Required `claimId`. | Sources, documents, dependencies, and eval cases. |
+| `openknowledge_claims_propose` | Document, ID, value, source, reason, confidence, and optional scope data. | A digest-bound `proposed` claim document. |
+
+The claim proposal tool does not edit the knowledge base. Apply its output
+with [`okn claims apply`](claims.md) after review.
+
+Search sources include optional typed claim metadata. A `section_ref` claim
+appears only in its bound retrieval section. Document-wide claims and
+`claim_refs` remain available in all document sections.
 
 Search defaults to 2,400 estimated tokens and 12 sources. Its maximums are
 32,000 tokens, 50 sources, and 4,096 query characters. Tool arguments are
@@ -90,6 +100,9 @@ at `<route>/_mcp`. It uses MCP sessions over HTTP. It reads only the filtered
 Access can be public, bearer-token, or disabled. The runtime validates browser
 origins. It limits bodies, sessions, concurrency, and request duration. Apply
 rate limits at the trusted ingress.
+
+Runtime retrieval rejects sections with applicable enforced claims that are
+not verified. Claim trust and freshness also contribute to policy checks.
 
 ---
 

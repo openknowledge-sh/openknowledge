@@ -21,6 +21,10 @@ okn setup Wiki --from ./repository
 okn setup Wiki --from ./repository --about "Explain release workflows"
 okn setup Wiki --from ./repository --rules project,writing,iso-plain-language
 okn setup Wiki --from https://example.com/docs --depth 2
+okn setup ci Wiki --plan
+okn setup ci Wiki
+okn setup runtime Wiki
+okn setup runtime Wiki --maintenance runtime --runtimes codex
 okn setup skill
 okn setup skill --scope global --harness codex
 okn setup skill --scope project --project ./repository --harness codex
@@ -52,6 +56,47 @@ depth.
 
 Setup has no knowledge-base type option. Maintenance rules are independent
 choices in the setup flow.
+
+### Product profiles
+
+Use two cumulative profiles after the local setup:
+
+```sh
+okn setup ci Wiki
+okn setup runtime Wiki
+```
+
+`setup ci` requires a Git repository. It adds one recommended Knowledge CI
+contract:
+
+- `.openknowledge/evals/knowledge.yaml` with starter questions;
+- `.openknowledge/audit-sources.json` with the initial source baseline;
+- `.github/workflows/openknowledge-ci.yml` with validation, base-aware claim
+  lifecycle checks, audit, answer regression checks, and durable reports.
+
+The workflow runs for pull requests, pushes to `main`, and one daily scheduled
+audit. The production push creates the exact `knowledge-ci` check that runtime
+publication requires.
+
+The command preserves existing files. Use `--plan` to inspect changes without
+writing. Use `--force` to replace generated profile files. Repeated setup is
+idempotent.
+
+`setup runtime` requires a GitHub origin. It creates the production MCP and
+viewer runtime scaffold. The generated runtime requires the `knowledge-ci`
+check, unresolved claims cannot be published, and rollback remains available.
+
+Maintenance has one executor:
+
+- `--maintenance github-actions` uses the installed CI workflow;
+- `--maintenance runtime` enables the runtime jobs worker and writes
+  `.openknowledge/jobs/knowledge-maintenance.md`. It also installs a starter
+  eval dataset and source baseline for the runtime Knowledge CI pass;
+- `--maintenance auto` uses GitHub Actions when `setup ci` is present. It uses
+  the runtime worker otherwise.
+
+Use `--runtimes codex,claude,opencode` to select agent harnesses for runtime
+maintenance. The default runtime executor uses Codex.
 
 The setup wizard selects `project` and `writing` by default. It offers
 `iso-plain-language` and the other maintenance rules as optional selections.
@@ -136,6 +181,7 @@ enable, disable, or change product telemetry.
 > **Source anchors**
 >
 > * `packages/cli/cmd/openknowledge/setup_command.go`
+> * `packages/cli/cmd/openknowledge/setup_product_command.go`
 > * `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`
 > * `packages/cli/cmd/openknowledge/setup_skill_command.go`
 > * `packages/cli/internal/integration/manage.go`

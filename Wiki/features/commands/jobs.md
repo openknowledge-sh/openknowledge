@@ -212,12 +212,16 @@ reuses the open pull request and retries the publication and check gate.
   records the resolved base commit SHA and all eval settings.
 - Each completed comparison writes private `eval-report.json` and
   `eval-report.md` files in the run directory. Both files use mode `0600`.
+- When `output.pr` is true, the job also copies the comparison into a durable
+  `.openknowledge/reports/<run-id>/` bundle in the proposed worktree. The
+  bundle contains a Markdown index, JSON and Markdown reports, and an artifact
+  manifest.
 - A hosted exchange can include a bounded passing eval summary. The summary
   contains dataset, target, base SHA, gate, regression count, and proposed
   failure count.
 - The draft pull request and job check show the worker-reported dataset, gate,
-  regression count, and proposed failure count. Raw eval reports remain in
-  private worker storage.
+  regression count, and proposed failure count. The committed report bundle
+  keeps the detailed comparison available after the worker exits.
 - The publisher independently validates each OKF bundle and publication set
   before it creates the draft pull request or job check.
 - Treat the worker eval summary as an attestation, not a publication gate. A

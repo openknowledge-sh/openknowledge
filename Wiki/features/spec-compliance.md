@@ -73,6 +73,15 @@ optional and gives most family constraints soft conformance status.
 The validator accepts fenced and indented computation blocks. The upstream
 worked examples use indented blocks even though §10.3 specifies a fenced block.
 
+## Optional Typed Claims
+
+[Typed Claims v1](/features/claim-profile.md) is an Open Knowledge extension.
+It does not change OKF v0.2 conformance. A concept activates strict profile
+validation with `openknowledge_claim_profile: "1"`.
+
+The fixed `claim-profile` rule checks strict claim shape, sources, references,
+time, and section binding. Strict field checks apply to activated concepts.
+
 ## Consumer and exporter support
 
 | Surface | Status | Behavior |

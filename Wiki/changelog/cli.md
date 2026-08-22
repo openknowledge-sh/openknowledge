@@ -13,6 +13,118 @@ page records release-level changes.
 
 ## Unreleased
 
+### Evidence bundles, corpus contracts, and answer safety
+
+- New `okn evidence pin` captures exact local or HTTP evidence bytes into a
+  content-addressed store, writes an immutable v1 receipt, updates the source
+  to `observe: pinned`, and validates the resulting selector binding.
+- Runtime MCP context now returns an ordered retrieval route, selected typed
+  claims, exact pinned evidence artifact identities and selectors, explicit
+  conflicts, structured missing-knowledge reasons, applied access labels, and
+  retrieval time in one evidence bundle.
+- Runtime generations now contain a manifest-bound private evidence layer.
+  Public, source, search, and MCP projections do not contain its bytes, and the
+  HTTP service does not expose it. Runtime selector validation resolves the
+  active projection against this exact generation layer.
+- Structured source access labels now fail closed at retrieval. A document is
+  rejected with `source_access_denied` when any restricted source does not
+  match the active profile, agent, team, or use case.
+- Eval v1 can require answer or abstain decisions, conflict disclosure, and a
+  minimum number of valid citations carrying entailment attestations. The CLI
+  validates and scores attestations but does not make a semantic entailment
+  judgment itself.
+- Optional Corpus Schema v1 adds fail-closed document type, path, required
+  metadata, typed-link, and migration validation without replacing OKF
+  Markdown/YAML as canonical state.
+- Stable claim ontology entities are searchable by ID and label. Digest-bound
+  alias and merge proposals now support impact preview and approved apply. A
+  merge rewrites claim references transactionally and retains the old ID as
+  `deprecated` with `replaced_by`.
+- New schemas define evidence pin output, evidence receipts, corpus
+  frontmatter, entity search, and entity proposals.
+- Source: `packages/cli/internal/claimops/evidence.go`,
+  `packages/cli/internal/okf/corpus_schema.go`,
+  `packages/cli/internal/claimops/entity.go`,
+  `packages/cli/internal/eval/runner.go`, and
+  `packages/cli/cmd/openknowledge/runtime_retrieval.go`.
+- Docs: `Wiki/features/commands/evidence.md`,
+  `Wiki/features/corpus-schema.md`, and the claims, eval, runtime, knowledge
+  architecture, and machine-contract pages.
+
+### Golden knowledge lifecycle
+
+- New `okn setup ci` installs a starter eval dataset, source baseline, and one
+  GitHub Actions workflow for validation, base-aware claim history, audit, and
+  answer regression gates.
+- New `okn setup runtime` installs the production MCP and viewer runtime. It
+  selects exactly one maintenance executor: GitHub Actions or runtime jobs.
+- Runtime-only maintenance generates its eval and source-baseline inputs. The
+  publisher runs local structure, claim history, audit, and eval gates, stores
+  their reports, and binds `openknowledge-runtime-ci` into passing generations.
+- Production publication now rejects active proposed or disputed claims by
+  default. The prior green generation remains active after a failed build.
+- `okn audit` adds Markdown output and opt-in remote source observation.
+  Sources can use manual, HTTP metadata, bounded fetch, or pinned SHA-256 mode.
+- New `okn audit propose` converts one saved finding into a durable routed
+  insight proposal.
+- Hosted PR jobs copy eval JSON, Markdown, a viewer index, and a strict artifact
+  manifest into `.openknowledge/reports/<run-id>/` before commit.
+- Repository CI now compares claim lifecycle and source authority against the
+  base commit.
+- One Golden Path acceptance test covers setup, source-change detection,
+  evidence pinning, proposal, claim-backed repair and verification, answer and
+  abstention evals, green publication, HTTP and MCP retrieval, feedback, a
+  second generation, and rollback.
+- Source: `packages/cli/cmd/openknowledge/setup_product_command.go`,
+  `packages/cli/cmd/openknowledge/golden_path_test.go`,
+  `packages/cli/internal/audit/audit.go`, and
+  `packages/cli/internal/agents/runner.go`.
+- Docs: `Wiki/features/golden-path.md` and the setup, audit, eval, claims,
+  runtime, and machine-contract command pages.
+
+### Typed Claims v1
+
+- Claims v1 now uses globally unique occurrence IDs and separate reusable
+  slots. Each occurrence contains a subject, predicate, and typed object.
+- A bundle ontology registry declares namespaces, entities, predicate object
+  kinds, datatypes, QUDT quantity kinds and units, cardinality, and required
+  scope dimensions.
+- Evidence is a structured list with stable IDs, source references, stances,
+  roles, observation time, and W3C Web Annotation-style selectors.
+- Evidence selectors now require a pinned source artifact and exact SHA-256.
+  Validation proves local text quotes, text positions, data positions, and
+  Markdown or HTML fragments against those bytes. It reports unavailable
+  remote bytes and unsupported resolvers as `unverifiable`, without a fetch.
+- Claim source projections preserve the observation mode and digest. Digest
+  mismatch is a fail-closed tampering error.
+- Verification records method, actor, time, and evidence references.
+  Proposal confidence is extraction confidence only.
+- Lifecycle states are extracted, proposed, supported, verified, disputed,
+  rejected, superseded, and archived. Relations explicitly record
+  supersession, contradiction, and derivation.
+- Validation rejects duplicate occurrence IDs, unknown registry terms, invalid
+  object ranges, invalid units, selector errors, missing relation targets,
+  supersession cycles, and unresolved exact occurrence references.
+- Audit compares slot, subject, predicate, typed scope, predicate cardinality,
+  overlapping validity, and normalized objects. It does not infer a winner.
+- `okn claims` and MCP accept complete structured proposals. Proposal apply
+  creates a new occurrence and never updates an existing occurrence ID.
+- New reject, supersede, and archive operations preserve reviewed history.
+- List, graph, search, context, MCP, audit, and runtime output use the same typed
+  model. The graph includes supersession, contradiction, and derivation edges.
+- Runtime policy blocks unresolved active occurrences and can serve a verified
+  successor while it preserves rejected, superseded, or archived history.
+- The unreleased scalar `id`, `value`, `source`, and `verified` claim shape was
+  removed. Claims v1 has no compatibility parser.
+- Source: `packages/cli/internal/okf/claims_*.go`,
+  `packages/cli/internal/claimops/`,
+  `packages/cli/internal/audit/audit.go`, and
+  `packages/cli/cmd/openknowledge/runtime_worker.go`.
+- Docs: `Wiki/features/claim-profile.md`,
+  `Wiki/features/commands/claims.md`,
+  `Wiki/features/commands/audit.md`, and
+  `Wiki/features/machine-contracts.md`.
+
 ### Knowledge quality report
 
 - New `okn quality report` combines repeatable usage, feedback, eval, audit,

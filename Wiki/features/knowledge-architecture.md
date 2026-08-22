@@ -29,9 +29,9 @@ The README is the product overview.
 | Layer | Current behavior |
 | --- | --- |
 | Source | Filesystem-based Markdown concepts with YAML frontmatter and authored links. |
-| Metadata | Typed values in the AST and JSON model. Selected fields contribute to lexical ranking. |
+| Metadata | Typed claim occurrences, ontology terms, provenance, relations, and optional corpus schema packs in the AST and JSON model. |
 | Retrieval | Field-weighted section BM25, deterministic boosts, one-hop link expansion, federated rank fusion, and token-budgeted context. |
-| Graphs | Structural file and chunk graphs with authored link occurrences, containment, and reading order. |
+| Graphs | Structural graphs plus typed claim declaration and dependency edges. |
 | Delivery | CLI, Go API, local/static viewer, read-only MCP, portable exports, and immutable runtime generations. |
 | Maintenance | Agent setup, insights, validation, isolated jobs, and source-controlled review. |
 
@@ -39,10 +39,17 @@ Retrieval builds a deterministic in-memory inverted index. The index uses one
 shared sorted vocabulary and field postings. Exact lookup uses postings.
 Prefix lookup uses a vocabulary range. Fuzzy lookup can scan the vocabulary.
 
-The graph layer is not an entity-resolved semantic knowledge graph.
+The graph layer contains claim occurrences and explicit declaration, reference,
+supersession, contradiction, and derivation edges. The claim registry provides
+entity and predicate identity. It does not provide general graph queries.
 Search does not currently provide general metadata filters or embeddings.
 Search also does not provide semantic fusion, a cross-encoder reranker, or a query planner.
 It does not provide RDF queries, property-graph queries, or GraphRAG multi-hop reasoning.
+
+The optional corpus schema validates allowed document types, paths, required
+metadata, typed local link predicates, and migration records. Stable claim
+entity IDs remain independent of filenames. Entity search and proposals are
+deterministic control-plane tooling; they are not an automatic entity resolver.
 
 ## Maintenance and publication loop
 
@@ -61,9 +68,16 @@ flowchart LR
 `insights from-usage` converts recurring retrieval gaps into stable insights.
 An isolated job can research an insight and propose a draft pull request.
 
-The worker can report a bounded passing eval summary with its proposal. The
-publisher independently validates OKF and publication rules before GitHub
-review.
+The worker reports bounded before and proposed eval pass counts. The
+publisher independently validates OKF, publication rules, and claim lifecycle
+history before GitHub review.
+
+The pull request lists claim changes, evidence IDs, document impact, eval
+impact, and required human decisions.
+
+An extracted, proposed, supported, or disputed claim disables low-risk
+auto-merge. Rejection, supersession, or archival of a verified claim also
+disables auto-merge.
 
 GitHub approval and branch protection control the merge. After merge, the
 publisher verifies required checks on the production commit. It then creates

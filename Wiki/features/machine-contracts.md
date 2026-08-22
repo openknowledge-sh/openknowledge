@@ -16,11 +16,13 @@ Audit contracts and private usage events use a type and numeric version.
 
 | Schema | Surface |
 | --- | --- |
+| `artifact.schema.json` | durable `.openknowledge/reports/<run-id>/artifact.json` manifest |
 | `ast.schema.json` | `ast` |
 | `bundle.schema.json` | `export json` |
 | `cli-error.schema.json` | global `--error-format json` failures |
 | `audit-report.schema.json` | `audit --format json` |
 | `audit-source-baseline.schema.json` | `audit --baseline <file> --update-baseline` |
+| `evidence-pin.schema.json` | `evidence pin --json` |
 | `eval-comparison.schema.json` | `eval run --base <git-ref> --format json` |
 | `eval-report.schema.json` | `eval run --format json` |
 | `quality-report.schema.json` | `quality report --format json` |
@@ -56,6 +58,14 @@ Audit contracts and private usage events use a type and numeric version.
 | `deploy-plan.schema.json` | `deploy railway --dry-run` |
 | `deploy-result.schema.json` | successful `deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
+| `claims-find.schema.json` | `claims find --json` |
+| `claims-impact.schema.json` | `claims impact --json` |
+| `claims-mutation.schema.json` | claim mutation `--json` output |
+| `claims-suggestions.schema.json` | `claims suggest` |
+| `claims-validation.schema.json` | `claims validate --json` |
+| `claims-entities.schema.json` | `claims entities find --json` |
+| `claims-entity-impact.schema.json` | `claims entities impact --json` |
+| `claims-entity-mutation.schema.json` | `claims entities apply --json` |
 
 `common.schema.json` contains shared issue, link, retrieval, typed-frontmatter,
 and OKF 0.2 signal definitions. `list.schema.json` and `graph.schema.json`
@@ -63,10 +73,22 @@ reference its `okf02` contract. This contract contains derived trust,
 lifecycle and staleness, generation and verification events, structured
 sources, and optional Attested Computation data.
 
+The common schema also defines optional `claimProfile` output. List, graph,
+search, context, and runtime source objects use this definition. The
+`schemas/claims/v1` directory contains the typed ontology, authored claim,
+digest-bound claim proposal, and approved entity proposal schemas.
+`schemas/evidence/v1` contains the immutable capture receipt contract.
+`schemas/corpus/v1` contains the optional authored corpus schema extension.
+
 Audit reports use `type: openknowledge.audit-report` and numeric `version: 1`.
 Each finding records category, severity, impact, targets, and evidence. Source
 baselines use `type: openknowledge.audit-source-baseline` and numeric
 `version: 1`.
+
+Durable report bundles use `type: openknowledge.artifact` and numeric
+`version: 1`. The manifest identifies the artifact kind, run, base revision,
+creation time, and included files. The first shipped kind is
+`eval-comparison`; runtime-local gate bundles use `knowledge-ci`.
 
 Job contracts are experimental.
 They can change without a new version before version 1.0.
@@ -86,6 +108,11 @@ Eval result status is `pass`, `fail`, or `error`. The containing run uses
 Eval dataset v1 policy expectations are `minimum_trust`, `allow_stale`,
 `allowed_statuses`, and `require_sources`. They test every selected source
 against derived OKF 0.2 trust, freshness, lifecycle, and provenance signals.
+
+Answer expectations can require `answer` or `abstain`, conflict disclosure,
+and a minimum number of valid citations with an `entailed` attestation. The
+CLI validates the attestation contract and locator. The trusted answer command,
+not the CLI, makes the semantic entailment judgment.
 
 `eval-report.schema.json` accepts these names as check kinds. Each check
 records `expected`, optional rejected source paths in `actual`, and `passed`.
@@ -143,7 +170,8 @@ A refusal has no selected evidence. Its reason is
 `insufficient_budget`. The response preserves rejected candidates for review.
 
 Runtime generation identity includes sorted `checks`. These names identify
-the successful GitHub checks bound into the generation `contentDigest`.
+the successful GitHub or runtime-local publication checks bound into the
+generation `contentDigest`.
 Runtime plans include normalized `github.required_checks` names and the
 `github.auto_merge_low_risk` switch. Auto-merge configuration requires GitHub
 integration, check publishing, and at least one required check.
@@ -157,7 +185,8 @@ internal runtime boundary and are not published CLI schemas.
 
 Both retrieval contracts include the effective policy and rejected candidates.
 Selected items add trust, freshness, provenance, and selection metadata.
-Rejected reasons identify trust, staleness, status, or source policy failures.
+Rejected reasons identify trust, staleness, status, source, or an unverified,
+disputed, rejected, superseded, archived, or otherwise inactive claim.
 
 Runtime plans also include the normalized `serve.usage_events` object.
 `usage-event.schema.json` defines strict local JSONL event records. Each event
@@ -261,6 +290,29 @@ Other version domains are independent:
 | Portable `openknowledge.json` | `schemas/manifest/v1/` | `/schemas/cli/manifest/v1/` |
 | Registry and cache persistence | `schemas/storage/v1/` | `/schemas/cli/storage/v1/` |
 | Runtime generation manifest | `schemas/runtime/v1/` | not a CLI output contract |
+| Typed claim frontmatter and proposals | `schemas/claims/v1/` | `/schemas/cli/claims/v1/` |
+| Immutable evidence receipts | `schemas/evidence/v1/` | `/schemas/cli/evidence/v1/` |
+| Corpus schema frontmatter | `schemas/corpus/v1/` | `/schemas/cli/corpus/v1/` |
+
+Claim command output uses `claims-find`, `claims-impact`, `claims-validation`,
+`claims-mutation`, `claims-entities`, `claims-entity-impact`, and
+`claims-entity-mutation` schemas. Claim and entity proposals use independent
+v1 contracts. A merge proposal binds both entity declaration document digests.
+Approved apply rewrites every affected claim reference and retains the old ID
+as a deprecated entity with `replaced_by`.
+Claim source projections preserve `resource`, `observe`, and `sha256`, so a
+consumer can retain the exact evidence artifact identity. Indexes and graphs
+remain derived data.
+
+`evidence pin --json` uses `evidence-pin.schema.json`. Its nested capture
+object follows the independent `openknowledge.evidence-receipt` v1 contract.
+Artifacts and receipts are content-addressed canonical evidence, not index
+state.
+
+Runtime generations include the validated private evidence store in their
+manifest. Runtime context `evidenceArtifacts` entries bind selected claim
+evidence to a source ID, private resource, digest, source access labels, and
+selectors. `source_access_denied` is a fail-closed rejection reason.
 
 Eval datasets use `type: openknowledge.eval` and numeric `version: 1`.
 The dataset schema defines strict YAML-compatible questions, context settings,
@@ -271,8 +323,9 @@ retrieval expectations, and answer expectations.
 `schemaVersion: "1"` in the eval v1 domain.
 
 Eval reports use the CLI `schemaVersion: "1"` contract. They bind results to
-the dataset digest and corpus revision. Answer results contain answer text,
-claims, citation validity, cited sources, and groundedness.
+the dataset digest and corpus revision. Answer results contain decisions,
+answer text, claims, citation validity, entailment attestations, cited sources,
+conflicts, applicability metadata, and groundedness.
 Comparison reports bind base and proposed results to their retrieval revisions.
 They also record each case classification and the selected gate.
 

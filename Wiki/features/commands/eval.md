@@ -53,6 +53,9 @@ cases:
       citation_sources: [operations/rollback.md]
       min_citations: 1
       min_groundedness: 1.0
+      answer_decision: answer
+      require_conflict_disclosure: false
+      min_entailed_citations: 1
 ```
 
 Each case must define at least one expectation. Case `context` values override
@@ -90,6 +93,16 @@ accepts bundle-relative paths and optional section fragments.
 `0` through `1`. A claim is grounded when it cites at least one retrieved
 source with its exact locator.
 
+`answer_decision` checks `answer` or `abstain`. An abstention must contain no
+claims and at least one `refusalReasons` value. `require_conflict_disclosure`
+checks whether the answer reports a nonempty `conflicts` list.
+`min_entailed_citations` counts valid cited locators whose answer response has
+an `entailed` attestation.
+
+Entailment is an attestation from the trusted answer command. The CLI validates
+the locator, status, and method and then scores the attestation. It does not
+independently prove that the cited text semantically entails the claim.
+
 ## Options and results
 
 | Option | Behavior |
@@ -110,10 +123,12 @@ Policy checks use `minimum_trust`, `allow_stale`, `allowed_statuses`, and
 `require_sources` as check kinds. A failed check records the rejected source
 paths in `actual`.
 
-An answer result contains `text`, `claims`, `citedSources`, `citationCount`,
-`validCitations`, `claimCount`, `groundedClaims`, and `groundedness`. Each claim
+An answer result contains `decision`, `text`, `claims`, `citedSources`,
+`citationCount`, `validCitations`, `entailedCitations`, `claimCount`,
+`groundedClaims`, and `groundedness`. It can also preserve refusal reasons,
+conflicts, scope, applicability time, and uncertainty. Each claim
 contains `text`, `citations`, and `grounded`. Each citation records its
-`locator`, resolved `path`, and `valid` status.
+`locator`, resolved `path`, validity, and optional entailment attestation.
 
 Markdown output is a pull request report. It includes case status, answer
 changes, groundedness, citation counts, cited sources, and failed checks.
@@ -133,7 +148,9 @@ The request uses `schemaVersion: "1"` and contains these fields:
 
 The command writes one `answer-response.schema.json` document to stdout. It
 must return one answer for each case and no other cases. Each answer contains
-`caseId`, `answer`, and `claims`. Each claim contains `text` and `citations`.
+`caseId`, `decision`, `answer`, and `claims`. Each claim contains `text` and
+`citations`. An answer may add refusal reasons, conflicts, scope,
+`applicableAt`, uncertainty, and citation entailment attestations.
 
 Each citation must equal a locator from that case request. The report marks
 other citations as invalid. Groundedness is the fraction of claims that have
@@ -239,6 +256,13 @@ that name in `github.required_checks` to gate runtime publication.
 The workflow always uploads `knowledge-eval.json` and `knowledge-eval.md` when
 the files exist. The artifact retention period is 14 days. A failed gate keeps
 the reports available and fails the workflow job.
+
+Hosted maintenance jobs that create a pull request also copy their comparison
+into `.openknowledge/reports/<run-id>/`. The directory contains `index.md`,
+`eval.md`, `eval.json`, and `artifact.json`. The index and human report are
+ordinary Markdown, so `okn view` can display them. The manifest follows the
+durable artifact v1 contract. These files are committed with the proposed
+knowledge change and remain available after an ephemeral worker exits.
 
 The workflow has read-only repository permission and disables telemetry. It
 does not configure an answer command. Use datasets without answer expectations.

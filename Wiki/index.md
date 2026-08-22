@@ -30,6 +30,9 @@ version of this OKF wiki.
 
 ## Workflows
 
+The [Knowledge CI Golden Path](features/golden-path.md) documents the complete
+setup, audit, repair, evaluation, and production MCP lifecycle.
+
 ### Create, retrieve, and verify
 
 Use [`setup`](features/commands/setup.md) to print an open-ended setup prompt.
@@ -70,6 +73,7 @@ creation. Other advanced tools are [`prompt`](features/commands/prompt.md),
 - [Tooling model](features/tooling-model.md)
 - [Export formats](features/exporters/)
 - [Machine-readable contracts](features/machine-contracts.md)
+- [Typed Claims v1](features/claim-profile.md)
 - [Go API](features/go-api.md)
 - [Maintenance rules](rules/)
 - [OKF v0.2 specification](SPEC.md)
