@@ -59,6 +59,9 @@ type EvalResult struct {
 	MarkdownPath   string `json:"markdown_path,omitempty"`
 	Regressions    int    `json:"regressions"`
 	ProposedFailed int    `json:"proposed_failed"`
+	Total          int    `json:"total"`
+	BasePassed     int    `json:"base_passed"`
+	ProposedPassed int    `json:"proposed_passed"`
 }
 
 type CommandResult struct {
@@ -270,6 +273,11 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 			return finish("verification_failed", evalErr)
 		}
 	}
+	if plan.Output.PR && record.Eval != nil {
+		if err := persistPublicEvalArtifact(plan, *record.Eval); err != nil {
+			return finish("failed", err)
+		}
+	}
 
 	if plan.Output.Commit {
 		if err := commitWorktree(plan); err != nil {
@@ -277,6 +285,52 @@ func RunJob(job Job, options RunOptions) (record RunRecord, resultErr error) {
 		}
 	}
 	return finish("succeeded", nil)
+}
+
+func persistPublicEvalArtifact(plan RunPlan, result EvalResult) error {
+	if result.JSONPath == "" || result.MarkdownPath == "" {
+		return fmt.Errorf("public eval artifact requires JSON and Markdown reports")
+	}
+	target := filepath.Join(plan.Worktree, ".openknowledge", "reports", plan.RunID)
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		return err
+	}
+	for source, name := range map[string]string{result.JSONPath: "eval.json", result.MarkdownPath: "eval.md"} {
+		content, err := os.ReadFile(source)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(target, name), content, 0o644); err != nil {
+			return err
+		}
+	}
+	manifest := map[string]any{
+		"type": "openknowledge.artifact", "version": 1, "kind": "eval-comparison",
+		"runId": plan.RunID, "base": result.Base, "createdAt": time.Now().UTC().Format(time.RFC3339),
+		"files": []string{"index.md", "eval.md", "eval.json"},
+	}
+	content, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(target, "artifact.json"), append(content, '\n'), 0o644); err != nil {
+		return err
+	}
+	index := fmt.Sprintf(`---
+type: Open Knowledge Artifact
+title: Agent answer comparison
+status: stable
+---
+
+# Agent answer comparison
+
+- Run: %s
+- Base: %s
+- Machine contract: [artifact.json](artifact.json)
+- Human report: [eval.md](eval.md)
+- Machine report: [eval.json](eval.json)
+`, plan.RunID, result.Base)
+	return os.WriteFile(filepath.Join(target, "index.md"), []byte(index), 0o644)
 }
 
 func runPlanEval(ctx context.Context, plan RunPlan) (EvalResult, error) {
@@ -342,6 +396,9 @@ func runPlanEval(ctx context.Context, plan RunPlan) (EvalResult, error) {
 	result.MarkdownPath = markdownPath
 	result.Regressions = report.Summary.Regressed
 	result.ProposedFailed = report.Summary.ProposedFailed
+	result.Total = report.Summary.Total
+	result.BasePassed = report.Summary.UnchangedPassed + report.Summary.Regressed
+	result.ProposedPassed = report.Summary.ProposedPassed
 	if report.Summary.Status == "fail" {
 		return result, fmt.Errorf("knowledge eval gate failed: %d regressions, %d proposed failures", result.Regressions, result.ProposedFailed)
 	}

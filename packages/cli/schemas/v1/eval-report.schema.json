@@ -105,7 +105,7 @@
       "type": "object",
       "required": ["kind", "expected", "passed"],
       "properties": {
-        "kind": {"enum": ["source", "evidence_contains", "evidence_excludes", "min_sources", "minimum_trust", "allow_stale", "allowed_statuses", "require_sources", "answer_contains", "answer_excludes", "citation_source", "min_citations", "min_groundedness"]},
+        "kind": {"enum": ["source", "evidence_contains", "evidence_excludes", "min_sources", "minimum_trust", "allow_stale", "allowed_statuses", "require_sources", "answer_contains", "answer_excludes", "citation_source", "min_citations", "min_groundedness", "answer_decision", "conflict_disclosure", "min_entailed_citations"]},
         "expected": {"type": "string"},
         "actual": {"type": "string"},
         "passed": {"type": "boolean"}
@@ -117,6 +117,7 @@
       "required": ["text", "claims", "citedSources", "citationCount", "validCitations", "claimCount", "groundedClaims", "groundedness"],
       "properties": {
         "text": {"type": "string"},
+        "decision": {"enum": ["answer", "abstain"]},
         "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
         "citedSources": {"type": "array", "items": {"type": "string"}},
         "citationCount": {"type": "integer", "minimum": 0},
@@ -124,6 +125,12 @@
         "claimCount": {"type": "integer", "minimum": 0},
         "groundedClaims": {"type": "integer", "minimum": 0},
         "groundedness": {"type": "number", "minimum": 0, "maximum": 1}
+		,"entailedCitations": {"type": "integer", "minimum": 0}
+		,"refusalReasons": {"type": "array", "items": {"type": "string"}}
+		,"conflicts": {"type": "array", "items": {"type": "string"}}
+		,"scope": {"type": "object", "additionalProperties": {"type": "string"}}
+		,"applicableAt": {"type": "string"}
+		,"uncertainty": {"type": "string"}
       },
       "additionalProperties": false
     },
@@ -144,6 +151,9 @@
         "locator": {"type": "string"},
         "path": {"type": "string"},
         "valid": {"type": "boolean"}
+		,"entailment": {"enum": ["entailed", "not_entailed", "unverified"]}
+		,"entailmentMethod": {"type": "string"}
+		,"entailmentReason": {"type": "string"}
       },
       "additionalProperties": false
     }

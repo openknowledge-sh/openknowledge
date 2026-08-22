@@ -50,6 +50,33 @@ func TestAnswerRunnerRejectsUnknownCasesAndInvalidCitations(t *testing.T) {
 	}
 }
 
+func TestAnswerEvaluationScoresAbstentionConflictsAndEntailmentAttestations(t *testing.T) {
+	request := AnswerRequest{SchemaVersion: AnswerProtocolVersion, Cases: []AnswerRequestCase{{ID: "unknown"}}}
+	abstention := AnswerResponse{SchemaVersion: AnswerProtocolVersion, Answers: []RunnerAnswer{{CaseID: "unknown", Decision: "abstain", Answer: "The corpus does not contain enough evidence.", Claims: []AnswerClaim{}, RefusalReasons: []string{"no_relevant_evidence"}}}}
+	answers, err := validateAnswerResponse(abstention, request)
+	if err != nil || answers["unknown"].Decision != "abstain" {
+		t.Fatalf("valid abstention failed: %#v %v", answers, err)
+	}
+	requireConflict := true
+	abstentionResult := CaseResult{Status: "pass", Checks: []Check{}, answerInput: []AnswerSource{}}
+	applyAnswer(&abstentionResult, Expectations{AnswerDecision: "abstain", RequireConflictDisclosure: &requireConflict}, RunnerAnswer{
+		CaseID: "unknown", Decision: "abstain", Answer: "Evidence conflicts and cannot support one answer.", Claims: []AnswerClaim{}, RefusalReasons: []string{"conflicting_evidence"}, Conflicts: []string{"okn:claim/one contradicts okn:claim/two"},
+	})
+	if abstentionResult.Status != "pass" || abstentionResult.Answer == nil || abstentionResult.Answer.Decision != "abstain" || len(abstentionResult.Answer.Conflicts) != 1 {
+		t.Fatalf("abstention checks failed: %#v", abstentionResult)
+	}
+
+	locator := "okf+sha256://" + strings.Repeat("a", 64) + "/doc.md#section"
+	answerResult := CaseResult{Status: "pass", Checks: []Check{}, answerInput: []AnswerSource{{ID: "doc#section", Path: "doc.md", Locator: locator}}}
+	applyAnswer(&answerResult, Expectations{AnswerDecision: "answer", MinEntailedCitations: 1}, RunnerAnswer{
+		CaseID: "known", Decision: "answer", Answer: "The policy is active.", Claims: []AnswerClaim{{Text: "The policy is active.", Citations: []string{locator}}},
+		Entailment: []CitationEntailmentAttestation{{Locator: locator, Status: "entailed", Method: "human-review", Reason: "The source states the claim directly."}},
+	})
+	if answerResult.Status != "pass" || answerResult.Answer.EntailedCitations != 1 || answerResult.Answer.Claims[0].Citations[0].Entailment != "entailed" {
+		t.Fatalf("entailment checks failed: %#v", answerResult)
+	}
+}
+
 func TestAnswerRunnerHelperProcess(t *testing.T) {
 	separator := -1
 	for index, arg := range os.Args {

@@ -54,7 +54,7 @@
     },
     "evalResult": {
       "type": "object",
-      "required": ["status", "dataset", "target", "base", "gate", "regressions", "proposed_failed"],
+      "required": ["status", "dataset", "target", "base", "gate", "regressions", "proposed_failed", "total", "base_passed", "proposed_passed"],
       "properties": {
         "status": {"enum": ["pass", "fail", "error"]},
         "dataset": {"type": "string"},
@@ -64,7 +64,10 @@
         "json_path": {"type": "string"},
         "markdown_path": {"type": "string"},
         "regressions": {"type": "integer", "minimum": 0},
-        "proposed_failed": {"type": "integer", "minimum": 0}
+        "proposed_failed": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0},
+        "base_passed": {"type": "integer", "minimum": 0},
+        "proposed_passed": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": false
     }

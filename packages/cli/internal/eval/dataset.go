@@ -45,19 +45,22 @@ type Case struct {
 }
 
 type Expectations struct {
-	Sources          []string `json:"sources,omitempty" yaml:"sources,omitempty"`
-	EvidenceContains []string `json:"evidence_contains,omitempty" yaml:"evidence_contains,omitempty"`
-	EvidenceExcludes []string `json:"evidence_excludes,omitempty" yaml:"evidence_excludes,omitempty"`
-	AnswerContains   []string `json:"answer_contains,omitempty" yaml:"answer_contains,omitempty"`
-	AnswerExcludes   []string `json:"answer_excludes,omitempty" yaml:"answer_excludes,omitempty"`
-	CitationSources  []string `json:"citation_sources,omitempty" yaml:"citation_sources,omitempty"`
-	MinSources       int      `json:"min_sources,omitempty" yaml:"min_sources,omitempty"`
-	MinCitations     int      `json:"min_citations,omitempty" yaml:"min_citations,omitempty"`
-	MinGroundedness  *float64 `json:"min_groundedness,omitempty" yaml:"min_groundedness,omitempty"`
-	MinimumTrust     string   `json:"minimum_trust,omitempty" yaml:"minimum_trust,omitempty"`
-	AllowStale       *bool    `json:"allow_stale,omitempty" yaml:"allow_stale,omitempty"`
-	AllowedStatuses  []string `json:"allowed_statuses,omitempty" yaml:"allowed_statuses,omitempty"`
-	RequireSources   *bool    `json:"require_sources,omitempty" yaml:"require_sources,omitempty"`
+	Sources                   []string `json:"sources,omitempty" yaml:"sources,omitempty"`
+	EvidenceContains          []string `json:"evidence_contains,omitempty" yaml:"evidence_contains,omitempty"`
+	EvidenceExcludes          []string `json:"evidence_excludes,omitempty" yaml:"evidence_excludes,omitempty"`
+	AnswerContains            []string `json:"answer_contains,omitempty" yaml:"answer_contains,omitempty"`
+	AnswerExcludes            []string `json:"answer_excludes,omitempty" yaml:"answer_excludes,omitempty"`
+	CitationSources           []string `json:"citation_sources,omitempty" yaml:"citation_sources,omitempty"`
+	MinSources                int      `json:"min_sources,omitempty" yaml:"min_sources,omitempty"`
+	MinCitations              int      `json:"min_citations,omitempty" yaml:"min_citations,omitempty"`
+	MinGroundedness           *float64 `json:"min_groundedness,omitempty" yaml:"min_groundedness,omitempty"`
+	AnswerDecision            string   `json:"answer_decision,omitempty" yaml:"answer_decision,omitempty"`
+	RequireConflictDisclosure *bool    `json:"require_conflict_disclosure,omitempty" yaml:"require_conflict_disclosure,omitempty"`
+	MinEntailedCitations      int      `json:"min_entailed_citations,omitempty" yaml:"min_entailed_citations,omitempty"`
+	MinimumTrust              string   `json:"minimum_trust,omitempty" yaml:"minimum_trust,omitempty"`
+	AllowStale                *bool    `json:"allow_stale,omitempty" yaml:"allow_stale,omitempty"`
+	AllowedStatuses           []string `json:"allowed_statuses,omitempty" yaml:"allowed_statuses,omitempty"`
+	RequireSources            *bool    `json:"require_sources,omitempty" yaml:"require_sources,omitempty"`
 }
 
 type LoadedDataset struct {
@@ -212,7 +215,9 @@ func validateExpectations(field string, expect Expectations, issues *[]Validatio
 		len(expect.AnswerContains) == 0 && len(expect.AnswerExcludes) == 0 && len(expect.CitationSources) == 0 &&
 		expect.MinSources == 0 && expect.MinCitations == 0 && expect.MinGroundedness == nil && expect.MinimumTrust == "" &&
 		expect.AllowStale == nil && len(expect.AllowedStatuses) == 0 && expect.RequireSources == nil {
-		*issues = append(*issues, ValidationIssue{Field: field, Message: "must define at least one expectation"})
+		if expect.AnswerDecision == "" && expect.RequireConflictDisclosure == nil && expect.MinEntailedCitations == 0 {
+			*issues = append(*issues, ValidationIssue{Field: field, Message: "must define at least one expectation"})
+		}
 	}
 	if expect.MinSources < 0 || expect.MinSources > 50 {
 		*issues = append(*issues, ValidationIssue{Field: field + ".min_sources", Message: "must be between 1 and 50 when set"})
@@ -222,6 +227,12 @@ func validateExpectations(field string, expect Expectations, issues *[]Validatio
 	}
 	if expect.MinGroundedness != nil && (*expect.MinGroundedness < 0 || *expect.MinGroundedness > 1) {
 		*issues = append(*issues, ValidationIssue{Field: field + ".min_groundedness", Message: "must be between 0 and 1"})
+	}
+	if expect.AnswerDecision != "" && expect.AnswerDecision != "answer" && expect.AnswerDecision != "abstain" {
+		*issues = append(*issues, ValidationIssue{Field: field + ".answer_decision", Message: "must be answer or abstain"})
+	}
+	if expect.MinEntailedCitations < 0 || expect.MinEntailedCitations > 50 {
+		*issues = append(*issues, ValidationIssue{Field: field + ".min_entailed_citations", Message: "must be between 1 and 50 when set"})
 	}
 	if expect.MinimumTrust != "" && expect.MinimumTrust != "unverified" && expect.MinimumTrust != "machine-confirmed" && expect.MinimumTrust != "human-reviewed" {
 		*issues = append(*issues, ValidationIssue{Field: field + ".minimum_trust", Message: "must be unverified, machine-confirmed, or human-reviewed"})

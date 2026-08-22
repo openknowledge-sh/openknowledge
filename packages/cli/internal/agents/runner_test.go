@@ -38,6 +38,51 @@ func TestDockerCommandArgsEnforceIsolationBeforeImage(t *testing.T) {
 	}
 }
 
+func TestPersistPublicEvalArtifactCreatesBrowsableBundle(t *testing.T) {
+	worktree := t.TempDir()
+	reports := t.TempDir()
+	jsonPath := filepath.Join(reports, "eval.json")
+	markdownPath := filepath.Join(reports, "eval.md")
+	if err := os.WriteFile(jsonPath, []byte("{\"schemaVersion\":\"1\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(markdownPath, []byte("# Eval\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	plan := RunPlan{RunID: "run-123", Worktree: worktree}
+	result := EvalResult{Base: "main", JSONPath: jsonPath, MarkdownPath: markdownPath}
+	if err := persistPublicEvalArtifact(plan, result); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(worktree, ".openknowledge", "reports", plan.RunID)
+	for _, name := range []string{"artifact.json", "index.md", "eval.md", "eval.json"} {
+		if _, err := os.Stat(filepath.Join(target, name)); err != nil {
+			t.Fatalf("expected durable artifact %s: %v", name, err)
+		}
+	}
+	index, err := os.ReadFile(filepath.Join(target, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(index), "[eval.md](eval.md)") || !strings.Contains(string(index), "Run: run-123") {
+		t.Fatalf("unexpected browsable artifact index:\n%s", index)
+	}
+	var manifest struct {
+		Type  string   `json:"type"`
+		Files []string `json:"files"`
+	}
+	content, err := os.ReadFile(filepath.Join(target, "artifact.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(content, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Type != "openknowledge.artifact" || !reflect.DeepEqual(manifest.Files, []string{"index.md", "eval.md", "eval.json"}) {
+		t.Fatalf("unexpected artifact manifest: %#v", manifest)
+	}
+}
+
 func TestDockerCommandArgsRequireExplicitBridgeNetwork(t *testing.T) {
 	plan := RunPlan{
 		Worktree: "/repo/worktree",

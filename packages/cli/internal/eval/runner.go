@@ -64,9 +64,16 @@ type AnswerResponse struct {
 }
 
 type RunnerAnswer struct {
-	CaseID string        `json:"caseId"`
-	Answer string        `json:"answer"`
-	Claims []AnswerClaim `json:"claims"`
+	CaseID         string                          `json:"caseId"`
+	Decision       string                          `json:"decision,omitempty"`
+	Answer         string                          `json:"answer"`
+	Claims         []AnswerClaim                   `json:"claims"`
+	RefusalReasons []string                        `json:"refusalReasons,omitempty"`
+	Conflicts      []string                        `json:"conflicts,omitempty"`
+	Scope          map[string]string               `json:"scope,omitempty"`
+	ApplicableAt   string                          `json:"applicableAt,omitempty"`
+	Uncertainty    string                          `json:"uncertainty,omitempty"`
+	Entailment     []CitationEntailmentAttestation `json:"citationEntailment,omitempty"`
 }
 
 type AnswerClaim struct {
@@ -74,15 +81,29 @@ type AnswerClaim struct {
 	Citations []string `json:"citations"`
 }
 
+type CitationEntailmentAttestation struct {
+	Locator string `json:"locator"`
+	Status  string `json:"status"`
+	Method  string `json:"method,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
 type AnswerResult struct {
-	Text           string        `json:"text"`
-	Claims         []ClaimResult `json:"claims"`
-	CitedSources   []string      `json:"citedSources"`
-	CitationCount  int           `json:"citationCount"`
-	ValidCitations int           `json:"validCitations"`
-	ClaimCount     int           `json:"claimCount"`
-	GroundedClaims int           `json:"groundedClaims"`
-	Groundedness   float64       `json:"groundedness"`
+	Decision          string            `json:"decision,omitempty"`
+	Text              string            `json:"text"`
+	Claims            []ClaimResult     `json:"claims"`
+	CitedSources      []string          `json:"citedSources"`
+	CitationCount     int               `json:"citationCount"`
+	ValidCitations    int               `json:"validCitations"`
+	ClaimCount        int               `json:"claimCount"`
+	GroundedClaims    int               `json:"groundedClaims"`
+	Groundedness      float64           `json:"groundedness"`
+	EntailedCitations int               `json:"entailedCitations,omitempty"`
+	RefusalReasons    []string          `json:"refusalReasons,omitempty"`
+	Conflicts         []string          `json:"conflicts,omitempty"`
+	Scope             map[string]string `json:"scope,omitempty"`
+	ApplicableAt      string            `json:"applicableAt,omitempty"`
+	Uncertainty       string            `json:"uncertainty,omitempty"`
 }
 
 type ClaimResult struct {
@@ -92,9 +113,12 @@ type ClaimResult struct {
 }
 
 type CitationResult struct {
-	Locator string `json:"locator"`
-	Path    string `json:"path,omitempty"`
-	Valid   bool   `json:"valid"`
+	Locator          string `json:"locator"`
+	Path             string `json:"path,omitempty"`
+	Valid            bool   `json:"valid"`
+	Entailment       string `json:"entailment,omitempty"`
+	EntailmentMethod string `json:"entailmentMethod,omitempty"`
+	EntailmentReason string `json:"entailmentReason,omitempty"`
 }
 
 func RunWithAnswers(root string, specVersion string, loaded LoadedDataset, runner AnswerRunner) (Report, error) {
@@ -219,13 +243,26 @@ func validateAnswerResponse(response AnswerResponse, request AnswerRequest) (map
 		expected[evalCase.ID] = true
 	}
 	answers := make(map[string]RunnerAnswer, len(response.Answers))
-	for index, answer := range response.Answers {
+	for _, answer := range response.Answers {
 		if !expected[answer.CaseID] {
 			return nil, fmt.Errorf("answer response contains unknown case %q", answer.CaseID)
 		}
 		if _, exists := answers[answer.CaseID]; exists {
 			return nil, fmt.Errorf("answer response repeats case %q", answer.CaseID)
 		}
+		if answer.Decision == "" {
+			answer.Decision = "answer"
+		}
+		if answer.Decision != "answer" && answer.Decision != "abstain" {
+			return nil, fmt.Errorf("answer response case %s decision must be answer or abstain", answer.CaseID)
+		}
+		if answer.Decision == "abstain" && (len(answer.Claims) != 0 || len(answer.RefusalReasons) == 0) {
+			return nil, fmt.Errorf("answer response case %s abstention requires no claims and at least one refusal reason", answer.CaseID)
+		}
+		if answer.Decision == "answer" && len(answer.RefusalReasons) != 0 {
+			return nil, fmt.Errorf("answer response case %s answer cannot contain refusal reasons", answer.CaseID)
+		}
+		citedLocators := map[string]bool{}
 		for claimIndex, claim := range answer.Claims {
 			if strings.TrimSpace(claim.Text) == "" {
 				return nil, fmt.Errorf("answer response case %s claim %d has empty text", answer.CaseID, claimIndex)
@@ -236,9 +273,29 @@ func validateAnswerResponse(response AnswerResponse, request AnswerRequest) (map
 					return nil, fmt.Errorf("answer response case %s claim %d has an empty or repeated citation", answer.CaseID, claimIndex)
 				}
 				seen[citation] = true
+				citedLocators[citation] = true
 			}
 		}
-		answers[answer.CaseID] = response.Answers[index]
+		if err := validateAnswerStrings(answer.CaseID, "refusal reason", answer.RefusalReasons); err != nil {
+			return nil, err
+		}
+		if err := validateAnswerStrings(answer.CaseID, "conflict", answer.Conflicts); err != nil {
+			return nil, err
+		}
+		seenEntailment := map[string]bool{}
+		for _, attestation := range answer.Entailment {
+			if !citedLocators[attestation.Locator] || seenEntailment[attestation.Locator] {
+				return nil, fmt.Errorf("answer response case %s entailment locator must match one unique claim citation", answer.CaseID)
+			}
+			seenEntailment[attestation.Locator] = true
+			if attestation.Status != "entailed" && attestation.Status != "not_entailed" && attestation.Status != "unverified" {
+				return nil, fmt.Errorf("answer response case %s entailment status is invalid", answer.CaseID)
+			}
+			if attestation.Status != "unverified" && strings.TrimSpace(attestation.Method) == "" {
+				return nil, fmt.Errorf("answer response case %s entailment attestation requires a method", answer.CaseID)
+			}
+		}
+		answers[answer.CaseID] = answer
 	}
 	for caseID := range expected {
 		if _, ok := answers[caseID]; !ok {
@@ -248,12 +305,32 @@ func validateAnswerResponse(response AnswerResponse, request AnswerRequest) (map
 	return answers, nil
 }
 
+func validateAnswerStrings(caseID, label string, values []string) error {
+	seen := map[string]bool{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			return fmt.Errorf("answer response case %s contains an empty or repeated %s", caseID, label)
+		}
+		seen[value] = true
+	}
+	return nil
+}
+
 func applyAnswer(result *CaseResult, expect Expectations, answer RunnerAnswer) {
 	byLocator := make(map[string]AnswerSource, len(result.answerInput))
 	for _, source := range result.answerInput {
 		byLocator[source.Locator] = source
 	}
-	answerResult := &AnswerResult{Text: answer.Answer, Claims: []ClaimResult{}, CitedSources: []string{}}
+	decision := answer.Decision
+	if decision == "" {
+		decision = "answer"
+	}
+	answerResult := &AnswerResult{Decision: decision, Text: answer.Answer, Claims: []ClaimResult{}, CitedSources: []string{}, RefusalReasons: nonNilAnswerStrings(answer.RefusalReasons), Conflicts: nonNilAnswerStrings(answer.Conflicts), Scope: answer.Scope, ApplicableAt: answer.ApplicableAt, Uncertainty: answer.Uncertainty}
+	entailment := map[string]CitationEntailmentAttestation{}
+	for _, attestation := range answer.Entailment {
+		entailment[attestation.Locator] = attestation
+	}
 	cited := map[string]bool{}
 	for _, claim := range answer.Claims {
 		claimResult := ClaimResult{Text: claim.Text, Citations: []CitationResult{}}
@@ -268,6 +345,14 @@ func applyAnswer(result *CaseResult, expect Expectations, answer RunnerAnswer) {
 				cited[source.Path] = true
 				cited[source.ID] = true
 				cited[source.Path+sourceFragment(source.ID)] = true
+			}
+			if attestation, ok := entailment[locator]; ok {
+				citation.Entailment = attestation.Status
+				citation.EntailmentMethod = attestation.Method
+				citation.EntailmentReason = attestation.Reason
+				if citation.Valid && attestation.Status == "entailed" {
+					answerResult.EntailedCitations++
+				}
 			}
 			claimResult.Citations = append(claimResult.Citations, citation)
 		}
@@ -312,7 +397,24 @@ func applyAnswer(result *CaseResult, expect Expectations, answer RunnerAnswer) {
 	if expect.MinGroundedness != nil {
 		result.Checks = append(result.Checks, Check{Kind: "min_groundedness", Expected: fmt.Sprintf("%.4f", *expect.MinGroundedness), Actual: fmt.Sprintf("%.4f", answerResult.Groundedness), Passed: answerResult.Groundedness >= *expect.MinGroundedness})
 	}
+	if expect.AnswerDecision != "" {
+		result.Checks = append(result.Checks, Check{Kind: "answer_decision", Expected: expect.AnswerDecision, Actual: answerResult.Decision, Passed: answerResult.Decision == expect.AnswerDecision})
+	}
+	if expect.RequireConflictDisclosure != nil {
+		actual := len(answerResult.Conflicts) > 0
+		result.Checks = append(result.Checks, Check{Kind: "conflict_disclosure", Expected: fmt.Sprintf("%t", *expect.RequireConflictDisclosure), Actual: fmt.Sprintf("%t", actual), Passed: actual == *expect.RequireConflictDisclosure})
+	}
+	if expect.MinEntailedCitations > 0 {
+		result.Checks = append(result.Checks, Check{Kind: "min_entailed_citations", Expected: fmt.Sprintf("%d", expect.MinEntailedCitations), Actual: fmt.Sprintf("%d", answerResult.EntailedCitations), Passed: answerResult.EntailedCitations >= expect.MinEntailedCitations})
+	}
 	recalculateCase(result)
+}
+
+func nonNilAnswerStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }
 
 func recalculateCase(result *CaseResult) {

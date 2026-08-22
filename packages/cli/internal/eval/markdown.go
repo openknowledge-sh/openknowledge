@@ -71,12 +71,23 @@ func renderAnswerMarkdown(output *strings.Builder, label string, answer *AnswerR
 		output.WriteString("_No answer runner output._\n\n")
 		return
 	}
-	for _, line := range strings.Split(answer.Text, "\n") {
-		fmt.Fprintf(output, "> %s\n", line)
+	if answer.Text != "" {
+		for _, line := range strings.Split(answer.Text, "\n") {
+			fmt.Fprintf(output, "> %s\n", line)
+		}
 	}
-	fmt.Fprintf(output, "\nGroundedness: **%.1f%%** (%d/%d claims) · Valid citations: **%d/%d**\n\n", answer.Groundedness*100, answer.GroundedClaims, answer.ClaimCount, answer.ValidCitations, answer.CitationCount)
+	fmt.Fprintf(output, "\nDecision: **%s** · Groundedness: **%.1f%%** (%d/%d claims) · Valid citations: **%d/%d** · Entailed citations: **%d**\n\n", strings.ToUpper(answer.Decision), answer.Groundedness*100, answer.GroundedClaims, answer.ClaimCount, answer.ValidCitations, answer.CitationCount, answer.EntailedCitations)
 	if len(answer.CitedSources) > 0 {
 		fmt.Fprintf(output, "Cited sources: %s\n\n", strings.Join(answer.CitedSources, ", "))
+	}
+	if len(answer.RefusalReasons) > 0 {
+		fmt.Fprintf(output, "Refusal reasons: %s\n\n", strings.Join(answer.RefusalReasons, ", "))
+	}
+	if len(answer.Conflicts) > 0 {
+		fmt.Fprintf(output, "Disclosed conflicts: %s\n\n", strings.Join(answer.Conflicts, "; "))
+	}
+	if len(answer.Scope) > 0 || answer.ApplicableAt != "" || answer.Uncertainty != "" {
+		fmt.Fprintf(output, "Applicability: scope=%s · at=%s · uncertainty=%s\n\n", markdownInline(fmt.Sprint(answer.Scope)), markdownInline(answer.ApplicableAt), markdownInline(answer.Uncertainty))
 	}
 }
 

@@ -1,0 +1,9 @@
+{
+  "type": "openknowledge.artifact",
+  "version": 1,
+  "kind": "eval-comparison",
+  "runId": "knowledge-maintenance-20260822",
+  "base": "9b2dc4c6b03d1ce71b4762a374c005a365da5b9f",
+  "createdAt": "2026-08-22T10:00:00Z",
+  "files": ["index.md", "eval.md", "eval.json"]
+}
