@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-entities.schema.json",
+  "title": "OpenKnowledge entity search",
+  "type": "object",
+  "required": ["schemaVersion", "query", "root", "matches"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "query": { "type": "string", "minLength": 1 },
+    "root": { "type": "string", "minLength": 1 },
+    "matches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["score", "reasons", "entity", "referencedBy"],
+        "properties": {
+          "score": { "type": "integer", "minimum": 1 },
+          "reasons": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+          "entity": { "$ref": "common.schema.json#/$defs/claimEntity" },
+          "referencedBy": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

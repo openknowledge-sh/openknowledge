@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1",
+  "query": "Identity API",
+  "root": "/knowledge",
+  "matches": [
+    {
+      "score": 70,
+      "reasons": ["alternate_label"],
+      "entity": {
+        "id": "okn:service/auth",
+        "types": ["okn:Service"],
+        "prefLabel": "Authentication Service",
+        "altLabels": ["Identity API"]
+      },
+      "referencedBy": ["okn:claim/token-format/1"]
+    }
+  ]
+}

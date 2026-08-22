@@ -31,7 +31,9 @@ var rootCommandCatalog = []rootCommand{
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
 	{Name: "eval", Group: "Start here", Summary: "Test retrieval evidence against versioned questions.", Subcommands: commandNames("run"), Run: runEval},
-	{Name: "audit", Group: "Start here", Summary: "Find concrete knowledge risks with deterministic evidence.", Run: runAudit},
+	{Name: "audit", Group: "Start here", Summary: "Find concrete knowledge risks with deterministic evidence.", Subcommands: commandNames("propose"), Run: runAudit},
+	{Name: "claims", Group: "Start here", Summary: "Find, propose, validate, and maintain typed claims.", Subcommands: commandNames("find", "suggest", "propose", "apply", "link", "dispute", "verify", "reject", "supersede", "archive", "approve-authority", "validate", "impact", "entities"), Run: runClaims},
+	{Name: "evidence", Group: "Start here", Summary: "Capture exact evidence artifacts and bind pinned sources.", Subcommands: commandNames("pin"), Run: runEvidence},
 	{Name: "quality", Group: "Start here", Summary: "Measure usage-grounded knowledge outcomes and priorities.", Subcommands: commandNames("report", "interventions"), Run: runQuality},
 
 	{Name: "agent", Group: "Work locally", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "doctor"), Run: runAgent},

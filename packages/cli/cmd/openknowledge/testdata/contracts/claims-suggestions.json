@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1",
+  "root": "/workspace/Wiki",
+  "suggestions": [
+    {
+      "document": "auth.md",
+      "sectionRef": "#token-expiration",
+      "heading": "Token expiration",
+      "excerpt": "Access tokens expire after sixty minutes.",
+	  "suggestedOccurrenceId": "okn:claim/knowledge/auth/token-expiration",
+      "sourceIds": ["identity-policy"],
+	  "reuseSlots": ["auth:slot/token-expiration"],
+      "status": "candidate"
+    }
+  ]
+}

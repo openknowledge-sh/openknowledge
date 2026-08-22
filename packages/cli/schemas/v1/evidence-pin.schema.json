@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/evidence-pin.schema.json",
+  "title": "Open Knowledge evidence pin result",
+  "type": "object",
+  "required": ["schemaVersion", "root", "document", "sourceId", "artifact", "sha256", "bytes", "mediaType", "receipt", "changed", "capture"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string", "minLength": 1},
+    "document": {"type": "string", "minLength": 1},
+    "sourceId": {"type": "string", "minLength": 1},
+    "artifact": {"type": "string", "pattern": "^\\.openknowledge/evidence/sha256/[a-f0-9]{64}/artifact"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "bytes": {"type": "integer", "minimum": 0},
+    "mediaType": {"type": "string", "minLength": 1},
+    "receipt": {"type": "string", "pattern": "^\\.openknowledge/evidence/sha256/[a-f0-9]{64}/receipts/[a-f0-9]{16}\\.json$"},
+    "changed": {"type": "boolean"},
+    "capture": {"$ref": "../evidence/v1/receipt.schema.json"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-entity-impact.schema.json",
+  "title": "OpenKnowledge entity proposal impact",
+  "type": "object",
+  "required": ["schemaVersion", "root", "impact"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string", "minLength": 1},
+    "impact": {"$ref": "#/$defs/impact"}
+  },
+  "$defs": {
+    "reference": {
+      "type": "object",
+      "required": ["claimId", "document", "field"],
+      "properties": {
+        "claimId": {"type": "string", "minLength": 1},
+        "document": {"type": "string", "minLength": 1},
+        "field": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "impact": {
+      "type": "object",
+      "required": ["action", "entityId", "documents", "references"],
+      "properties": {
+        "action": {"enum": ["add_alias", "merge"]},
+        "entityId": {"type": "string", "minLength": 1},
+        "mergeFrom": {"type": "string", "minLength": 1},
+        "documents": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "references": {"type": "array", "items": {"$ref": "#/$defs/reference"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/claimops"
 )
 
 func TestMCPServerEndToEndReadOnlySurface(t *testing.T) {
@@ -46,8 +48,8 @@ func TestMCPServerEndToEndReadOnlySurface(t *testing.T) {
 	}
 
 	tools := mcpTestResult(t, responses[1])["tools"].([]any)
-	if len(tools) != 2 {
-		t.Fatalf("expected search and validation tools, got %#v", tools)
+	if len(tools) != 5 {
+		t.Fatalf("expected search, validation, and claim tools, got %#v", tools)
 	}
 	for _, item := range tools {
 		tool := item.(map[string]any)
@@ -97,6 +99,54 @@ func TestMCPServerEndToEndReadOnlySurface(t *testing.T) {
 	}
 	if len(validation["errors"].([]any)) != 0 {
 		t.Fatalf("test bundle should validate: %#v", validation["errors"])
+	}
+}
+
+func TestMCPClaimToolsFindImpactAndCreateReadOnlyProposal(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")
+	writeMainTestFile(t, root, "openapi.yaml", "Production token format.\n")
+	writeMainTestFile(t, root, "auth.md", mainTypedClaimDocument("okn:claim/token-format/1", "verified", "JWT"))
+	writeMainTestFile(t, root, "runbook.md", "---\ntype: Runbook\nopenknowledge_claim_profile: \"1\"\nclaim_refs: [okn:claim/token-format/1]\n---\n\n# Runbook\n")
+	server := &mcpServer{root: root, spec: "0.2", version: "test", initializeResponded: true, initialized: true}
+
+	find := server.handle([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"openknowledge_claims_find","arguments":{"query":"token format"}}}`))
+	if find.Error != nil {
+		t.Fatalf("claim find failed: %#v", find)
+	}
+	findResult := find.Result.(map[string]any)["structuredContent"].(claimsFindReport)
+	if len(findResult.Matches) != 1 {
+		t.Fatalf("unexpected claim matches: %#v", findResult)
+	}
+
+	impact := server.handle([]byte(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"openknowledge_claims_impact","arguments":{"claimId":"okn:claim/token-format/1"}}}`))
+	if impact.Error != nil {
+		t.Fatalf("claim impact failed: %#v", impact)
+	}
+	impactResult := impact.Result.(map[string]any)["structuredContent"].(claimsImpactReport)
+	if len(impactResult.Impact.Dependents) != 1 {
+		t.Fatalf("unexpected claim impact: %#v", impactResult)
+	}
+
+	claimJSON := mainAuthoredClaimJSON("okn:claim/token-format/2", "opaque")
+	proposal := server.handle([]byte(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"openknowledge_claims_propose","arguments":{"document":"auth.md","claim":` + claimJSON + `,"reason":"Authoritative schema changed","confidence":0.9}}}`))
+	if proposal.Error != nil {
+		t.Fatalf("claim proposal failed: %#v", proposal)
+	}
+	result, ok := proposal.Result.(map[string]any)
+	if !ok {
+		t.Fatalf("claim proposal returned no tool result: %#v", proposal)
+	}
+	proposed, ok := result["structuredContent"].(claimops.Proposal)
+	if !ok {
+		t.Fatalf("claim proposal returned no structured proposal: %#v", result)
+	}
+	if proposed.Claim.Status != "proposed" || proposed.DocumentSHA256 == "" {
+		t.Fatalf("unexpected proposal: %#v", proposed)
+	}
+	content, _ := os.ReadFile(filepath.Join(root, "auth.md"))
+	if strings.Contains(string(content), "opaque") {
+		t.Fatal("read-only MCP proposal mutated the knowledge base")
 	}
 }
 

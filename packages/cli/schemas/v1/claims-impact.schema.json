@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-impact.schema.json",
+  "title": "Open Knowledge claim impact result",
+  "type": "object",
+  "required": ["schemaVersion", "root", "impact"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string", "minLength": 1},
+    "impact": {
+      "type": "object",
+        "required": ["claimId", "occurrences", "dependents", "linkedDocuments", "sharedSourceDocuments", "documents", "sources", "evals"],
+      "properties": {
+        "claimId": {"type": "string", "minLength": 1},
+        "occurrences": {"type": "array", "items": {"$ref": "claims-find.schema.json#/$defs/occurrence"}},
+        "dependents": {"type": "array", "items": {"type": "string"}},
+          "linkedDocuments": {"type": "array", "items": {"type": "string"}},
+          "sharedSourceDocuments": {"type": "array", "items": {"type": "string"}},
+          "documents": {"type": "array", "items": {"type": "string"}},
+        "sources": {"type": "array", "items": {"$ref": "claims-find.schema.json#/$defs/sourceRef"}},
+        "evals": {"type": "array", "items": {"$ref": "#/$defs/eval"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "eval": {
+      "type": "object",
+      "required": ["dataset", "caseId", "question", "agents", "paths"],
+      "properties": {
+        "dataset": {"type": "string"},
+        "caseId": {"type": "string"},
+        "question": {"type": "string"},
+        "agents": {"type": "array", "items": {"type": "string"}},
+        "paths": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -31,6 +33,8 @@ type Options struct {
 	MinimumOccurrences int
 	HighUseThreshold   int
 	Baseline           *SourceBaseline
+	ObserveRemote      bool
+	HTTPClient         *http.Client
 }
 
 type Report struct {
@@ -93,12 +97,6 @@ type SourceIdentity struct {
 	Exists      bool   `json:"exists"`
 }
 
-type claim struct {
-	ID    string
-	Value string
-	Path  string
-}
-
 func Run(options Options) (Report, SourceBaseline, error) {
 	root, err := filepath.Abs(strings.TrimSpace(options.Root))
 	if err != nil {
@@ -137,7 +135,6 @@ func Run(options Options) (Report, SourceBaseline, error) {
 
 	bodyGroups := map[string][]string{}
 	titleGroups := map[string][]string{}
-	claims := map[string][]claim{}
 	documents := map[string]okf.ASTDocument{}
 	for _, document := range ast.Documents {
 		documents[document.Rel] = document
@@ -171,41 +168,24 @@ func Run(options Options) (Report, SourceBaseline, error) {
 		if title != "" {
 			titleGroups[title] = append(titleGroups[title], document.Rel)
 		}
-		for _, item := range documentClaims(document) {
-			claims[item.ID] = append(claims[item.ID], item)
-		}
 	}
 
 	addDuplicateFindings(&report, bodyGroups, "identical-body", "Knowledge pages contain the same normalized body")
 	addDuplicateFindings(&report, titleGroups, "duplicate-title", "Knowledge pages use the same normalized title")
-	for id, values := range claims {
-		byValue := map[string][]claim{}
-		for _, value := range values {
-			byValue[normalizeText(value.Value)] = append(byValue[normalizeText(value.Value)], value)
-		}
-		if len(byValue) < 2 {
-			continue
-		}
-		var targets []string
-		var evidence []Evidence
-		for _, value := range values {
-			targets = append(targets, value.Path)
-			evidence = append(evidence, Evidence{Path: value.Path, Field: "claims." + id, Value: value.Value})
-		}
-		report.addMany("claim-conflict", "high", "Structured claims disagree", "Agents can receive incompatible answers for the same claim identity.", uniqueSorted(targets), evidence)
-	}
+	claimProfile := okf.AnalyzeClaimProfile(ast, now)
+	addProfileClaimFindings(&report, claimProfile, now)
 
-	currentSources, missingSources := sourceIdentities(root, ast.Documents)
+	currentSources, missingSources := sourceIdentities(root, ast.Documents, options.ObserveRemote, options.HTTPClient)
 	baseline.Sources = currentSources
 	report.Sources.Current = len(currentSources)
 	report.Sources.Missing = missingSources
 	for _, source := range currentSources {
 		if !source.Exists {
-			report.add("missing-source-resource", "high", "Local source resource does not exist", "The knowledge cites evidence that cannot be inspected.", []string{source.Document}, Evidence{Path: source.Document, Field: "source.resource", Value: source.Resource})
+			report.add("missing-source-resource", "high", "Source resource is unavailable", "The knowledge cites evidence that cannot be inspected.", []string{source.Document}, Evidence{Path: source.Document, Field: "source.resource", Value: source.Resource})
 		}
 	}
 	if options.Baseline != nil {
-		for _, finding := range changedSources(*options.Baseline, baseline) {
+		for _, finding := range changedSources(*options.Baseline, baseline, claimProfile) {
 			report.Findings = append(report.Findings, finding)
 			report.Sources.Changed++
 		}
@@ -213,6 +193,37 @@ func Run(options Options) (Report, SourceBaseline, error) {
 	addUsageFindings(&report, documents, options.Usage, options.MinimumOccurrences, options.HighUseThreshold, now)
 	report.finalize()
 	return report, baseline, nil
+}
+
+func RenderMarkdown(report Report) string {
+	var output strings.Builder
+	fmt.Fprintf(&output, "# Open Knowledge audit\n\n**Findings:** %d · **High:** %d · **Medium:** %d · **Low:** %d\n\n", report.Summary.Total, report.Summary.High, report.Summary.Medium, report.Summary.Low)
+	for _, finding := range report.Findings {
+		fmt.Fprintf(&output, "## %s — %s\n\n%s\n\n", strings.ToUpper(finding.Severity), finding.Title, finding.Impact)
+		fmt.Fprintf(&output, "Finding: `%s` · Category: `%s`\n\n", finding.ID, finding.Category)
+		if len(finding.Targets) > 0 {
+			output.WriteString("Targets:\n\n")
+			for _, target := range finding.Targets {
+				fmt.Fprintf(&output, "- `%s`\n", target)
+			}
+			output.WriteByte('\n')
+		}
+		if len(finding.Evidence) > 0 {
+			output.WriteString("Evidence:\n\n")
+			for _, evidence := range finding.Evidence {
+				location := evidence.Path
+				if location != "" {
+					location += ": "
+				}
+				fmt.Fprintf(&output, "- %s`%s` = `%s`\n", location, evidence.Field, strings.ReplaceAll(evidence.Value, "`", "'"))
+			}
+			output.WriteByte('\n')
+		}
+	}
+	if len(report.Findings) == 0 {
+		output.WriteString("No findings.\n")
+	}
+	return output.String()
 }
 
 func ReadBaseline(path string) (SourceBaseline, error) {
@@ -327,11 +338,105 @@ func findingIdentity(category string, targets []string, evidence []Evidence) str
 
 func validCategory(value string) bool {
 	switch value {
-	case "stale", "missing-source", "missing-owner", "broken-dependency", "identical-body", "duplicate-title", "claim-conflict", "missing-source-resource", "source-changed", "unanswered-question", "high-use-unverified":
+	case "stale", "missing-source", "missing-owner", "broken-dependency", "identical-body", "duplicate-title", "claim-conflict", "claim-duplicate", "claim-missing-evidence", "claim-invalid", "missing-source-resource", "source-changed", "unanswered-question", "high-use-unverified":
 		return true
 	default:
 		return false
 	}
+}
+
+func addProfileClaimFindings(report *Report, profile okf.ClaimProfileBundle, now time.Time) {
+	for _, issue := range profile.Issues {
+		target := issue.Path
+		if target == "" {
+			target = "."
+		}
+		report.add("claim-invalid", "high", "Typed claim is invalid", "Invalid claim semantics or references prevent deterministic trust and conflict evaluation.", []string{target}, Evidence{Path: target, Field: issue.Rule, Value: issue.Message})
+	}
+	for _, claim := range profile.Claims {
+		if len(claim.Evidence) != 0 {
+			continue
+		}
+		report.add("claim-missing-evidence", "medium", "Structured claim has no evidence reference", "A reviewer cannot verify the claim against a declared source.", claimTargets(profile, claim), Evidence{Path: claim.DeclaringPath, Field: "claims." + claim.ID + ".source", Value: "none"})
+	}
+	groups := map[string][]okf.Claim{}
+	for _, claim := range profile.Claims {
+		if !okf.ClaimIsActive(claim, now) {
+			continue
+		}
+		groups[okf.ClaimComparisonKey(claim)] = append(groups[okf.ClaimComparisonKey(claim)], claim)
+	}
+	for _, values := range groups {
+		if len(values) < 2 {
+			continue
+		}
+		predicate, declared := profile.Ontology.Predicates[values[0].Predicate]
+		if !declared || predicate.MaximumCount != 1 {
+			continue
+		}
+		sort.Slice(values, func(i, j int) bool { return values[i].ID < values[j].ID })
+		for leftIndex := 0; leftIndex < len(values); leftIndex++ {
+			left := values[leftIndex]
+			leftObject, leftErr := okf.NormalizeClaimObject(left.Object)
+			if leftErr != nil {
+				continue
+			}
+			for rightIndex := leftIndex + 1; rightIndex < len(values); rightIndex++ {
+				right := values[rightIndex]
+				if !okf.ClaimValidityOverlaps(left, right) {
+					continue
+				}
+				rightObject, rightErr := okf.NormalizeClaimObject(right.Object)
+				if rightErr != nil {
+					continue
+				}
+				targets := claimTargets(profile, left, right)
+				evidence := []Evidence{
+					{Path: left.DeclaringPath, Field: "claims." + left.ID + ".object", Value: leftObject},
+					{Path: right.DeclaringPath, Field: "claims." + right.ID + ".object", Value: rightObject},
+					{Field: "claimKey", Value: claimEvidenceKey(left)},
+				}
+				if leftObject != rightObject {
+					report.addMany("claim-conflict", "high", "Structured claims disagree", "Agents and dependent concepts can receive incompatible answers for the same slot, subject, predicate, scope, and validity interval.", targets, evidence)
+					continue
+				}
+				if leftObject == rightObject && exactClaimDuplicate(left, right) {
+					report.addMany("claim-duplicate", "medium", "Structured claim is duplicated", "Maintainers can update one occurrence while an equivalent occurrence remains unchanged.", targets, evidence)
+				}
+			}
+		}
+	}
+}
+
+func claimEvidenceKey(claim okf.Claim) string {
+	scope, _ := json.Marshal(claim.Scope)
+	return claim.Slot + " subject=" + claim.Subject + " predicate=" + claim.Predicate + " scope=" + string(scope)
+}
+
+func claimTargets(profile okf.ClaimProfileBundle, claims ...okf.Claim) []string {
+	var targets []string
+	for _, claim := range claims {
+		targets = append(targets, claim.DeclaringPath)
+		targets = append(targets, profile.Dependents[claim.ID]...)
+	}
+	return uniqueSorted(targets)
+}
+
+func exactClaimDuplicate(left okf.Claim, right okf.Claim) bool {
+	if left.ValidTime != right.ValidTime {
+		return false
+	}
+	leftSources := uniqueSorted(claimEvidenceSources(left))
+	rightSources := uniqueSorted(claimEvidenceSources(right))
+	return strings.Join(leftSources, "\x1f") == strings.Join(rightSources, "\x1f")
+}
+
+func claimEvidenceSources(claim okf.Claim) []string {
+	values := make([]string, 0, len(claim.Evidence))
+	for _, evidence := range claim.Evidence {
+		values = append(values, evidence.SourceRef)
+	}
+	return values
 }
 
 func (report *Report) finalize() {
@@ -386,27 +491,6 @@ func ownerValues(data map[string]any) []string {
 	return uniqueSorted(result)
 }
 
-func documentClaims(document okf.ASTDocument) []claim {
-	values, ok := document.Frontmatter.Data["claims"].([]any)
-	if !ok {
-		return nil
-	}
-	var result []claim
-	for _, raw := range values {
-		item, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		id, _ := item["id"].(string)
-		value, _ := item["value"].(string)
-		id, value = strings.TrimSpace(id), strings.TrimSpace(value)
-		if id != "" && value != "" {
-			result = append(result, claim{ID: id, Value: value, Path: document.Rel})
-		}
-	}
-	return result
-}
-
 func addDuplicateFindings(report *Report, groups map[string][]string, category string, title string) {
 	for _, paths := range groups {
 		paths = uniqueSorted(paths)
@@ -417,7 +501,10 @@ func addDuplicateFindings(report *Report, groups map[string][]string, category s
 	}
 }
 
-func sourceIdentities(root string, documents []okf.ASTDocument) ([]SourceIdentity, int) {
+func sourceIdentities(root string, documents []okf.ASTDocument, observeRemote bool, client *http.Client) ([]SourceIdentity, int) {
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
+	}
 	var result []SourceIdentity
 	missing := 0
 	for _, document := range documents {
@@ -433,7 +520,10 @@ func sourceIdentities(root string, documents []okf.ASTDocument) ([]SourceIdentit
 			resource, _ := item["resource"].(string)
 			id, _ := item["id"].(string)
 			modified, _ := item["last_modified"].(string)
+			observe, _ := item["observe"].(string)
+			pinnedSHA, _ := item["sha256"].(string)
 			resource, id, modified = strings.TrimSpace(resource), strings.TrimSpace(id), strings.TrimSpace(modified)
+			observe, pinnedSHA = strings.TrimSpace(observe), strings.TrimSpace(pinnedSHA)
 			if resource == "" {
 				continue
 			}
@@ -450,6 +540,20 @@ func sourceIdentities(root string, documents []okf.ASTDocument) ([]SourceIdentit
 				} else {
 					identity.Exists = false
 				}
+			} else {
+				switch observe {
+				case "pinned":
+					fingerprintInput = "pinned:" + pinnedSHA
+				case "metadata", "fetch":
+					if observeRemote {
+						fingerprint, requestErr := observeRemoteSource(client, resource, observe)
+						if requestErr != nil {
+							identity.Exists = false
+						} else {
+							fingerprintInput = fingerprint
+						}
+					}
+				}
 			}
 			if !identity.Exists {
 				missing++
@@ -463,7 +567,39 @@ func sourceIdentities(root string, documents []okf.ASTDocument) ([]SourceIdentit
 	return result, missing
 }
 
-func changedSources(previous SourceBaseline, current SourceBaseline) []Finding {
+func observeRemoteSource(client *http.Client, resource string, mode string) (string, error) {
+	method := http.MethodHead
+	if mode == "fetch" {
+		method = http.MethodGet
+	}
+	request, err := http.NewRequest(method, resource, nil)
+	if err != nil {
+		return "", err
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("remote source returned %s", response.Status)
+	}
+	if mode == "metadata" {
+		return strings.Join([]string{"metadata", response.Header.Get("ETag"), response.Header.Get("Last-Modified"), response.Header.Get("Content-Length")}, "\x00"), nil
+	}
+	limited := io.LimitReader(response.Body, (8<<20)+1)
+	content, err := io.ReadAll(limited)
+	if err != nil {
+		return "", err
+	}
+	if len(content) > 8<<20 {
+		return "", fmt.Errorf("remote source exceeds 8 MiB")
+	}
+	digest := sha256.Sum256(content)
+	return "fetch:" + hex.EncodeToString(digest[:]), nil
+}
+
+func changedSources(previous SourceBaseline, current SourceBaseline, profile okf.ClaimProfileBundle) []Finding {
 	old := map[string]SourceIdentity{}
 	for _, source := range previous.Sources {
 		old[sourceKey(source)] = source
@@ -474,12 +610,30 @@ func changedSources(previous SourceBaseline, current SourceBaseline) []Finding {
 		if !exists || before.Fingerprint == source.Fingerprint {
 			continue
 		}
-		report.add("source-changed", "high", "A source changed after the knowledge baseline", "Dependent knowledge can be invalid until an owner verifies the source change.", []string{source.Document},
+		targets := []string{source.Document}
+		if document, exists := profile.Documents[source.Document]; exists {
+			for _, claim := range document.Claims {
+				if !containsAuditValue(claimEvidenceSources(claim), source.ID) {
+					continue
+				}
+				targets = append(targets, profile.Dependents[claim.ID]...)
+			}
+		}
+		report.add("source-changed", "high", "A source changed after the knowledge baseline", "Dependent knowledge can be invalid until an owner verifies the source change.", targets,
 			Evidence{Path: source.Document, Field: "source.resource", Value: source.Resource},
 			Evidence{Path: source.Document, Field: "source.previousFingerprint", Value: before.Fingerprint},
 			Evidence{Path: source.Document, Field: "source.currentFingerprint", Value: source.Fingerprint})
 	}
 	return report.Findings
+}
+
+func containsAuditValue(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func addUsageFindings(report *Report, documents map[string]okf.ASTDocument, events []knowledgeusage.Event, minimumOccurrences int, highUseThreshold int, now time.Time) {

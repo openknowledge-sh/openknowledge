@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-validation.schema.json",
+  "title": "Open Knowledge claim validation result",
+  "type": "object",
+  "required": ["schemaVersion", "root", "valid", "issues", "lifecycleIssues", "authorityChanges"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string", "minLength": 1},
+    "against": {"type": "string", "minLength": 1},
+    "valid": {"type": "boolean"},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}},
+    "lifecycleIssues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}},
+    "authorityChanges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sourceId", "resource"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sourceId": {"type": "string", "minLength": 1},
+          "resource": {"type": "string", "minLength": 1},
+          "approvedBy": {"type": "string"}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

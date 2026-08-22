@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1",
+  "root": "/knowledge",
+  "against": "/base",
+  "valid": true,
+  "issues": [],
+  "lifecycleIssues": [],
+  "authorityChanges": []
+}

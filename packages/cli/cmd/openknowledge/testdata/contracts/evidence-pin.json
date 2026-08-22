@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1",
+  "root": "/knowledge",
+  "document": "auth.md",
+  "sourceId": "identity-openapi",
+  "artifact": ".openknowledge/evidence/sha256/8077d0c482419f60f265d9a5539c4b854601a7d9112b1d9105b7b1ad7648e49b/artifact.txt",
+  "sha256": "8077d0c482419f60f265d9a5539c4b854601a7d9112b1d9105b7b1ad7648e49b",
+  "bytes": 16,
+  "mediaType": "text/plain",
+  "receipt": ".openknowledge/evidence/sha256/8077d0c482419f60f265d9a5539c4b854601a7d9112b1d9105b7b1ad7648e49b/receipts/0123456789abcdef.json",
+  "changed": true,
+  "capture": {
+    "type": "openknowledge.evidence-receipt",
+    "version": 1,
+    "id": "okf+sha256://8077d0c482419f60f265d9a5539c4b854601a7d9112b1d9105b7b1ad7648e49b",
+    "sha256": "8077d0c482419f60f265d9a5539c4b854601a7d9112b1d9105b7b1ad7648e49b",
+    "bytes": 16,
+    "mediaType": "text/plain",
+    "artifact": ".openknowledge/evidence/sha256/8077d0c482419f60f265d9a5539c4b854601a7d9112b1d9105b7b1ad7648e49b/artifact.txt",
+    "originalResource": "https://example.test/openapi.txt",
+    "finalResource": "https://cdn.example.test/openapi.txt",
+    "capturedAt": "2026-08-22T12:00:00Z",
+    "document": "auth.md",
+    "sourceId": "identity-openapi"
+  }
+}

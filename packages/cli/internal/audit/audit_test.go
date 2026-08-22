@@ -2,6 +2,8 @@ package audit
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,13 +22,23 @@ func TestRunReportsConcreteKnowledgeRisks(t *testing.T) {
 type: Runbook
 title: Rollback policy
 owner: team:platform
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces: {deploy: https://example.test/deploy/}
+  entities: [{id: deploy:service}]
+  predicates: [{id: deploy:region, object_kind: literal, datatype: xsd:string, maximum_count: 1}]
 stale_after: 2026-01-01
 sources:
   - id: runbook
     resource: evidence.txt
 claims:
-  - id: deploy.region
-    value: eu-west-1
+  - id: deploy:claim/region/eu
+    slot: deploy:slot/region
+    subject: deploy:service
+    predicate: deploy:region
+    object: {value: eu-west-1, datatype: xsd:string}
+    evidence: [{id: deploy:evidence/region/eu, source_ref: runbook, stance: supports, role: primary}]
+    status: proposed
 ---
 
 # Rollback policy
@@ -36,12 +48,22 @@ Restore the prior release. See [missing](missing.md).
 	writeAuditFile(t, root, "second.md", `---
 type: Runbook
 title: Rollback policy
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces: {deploy: https://example.test/deploy/}
+  entities: [{id: deploy:service}]
+  predicates: [{id: deploy:region, object_kind: literal, datatype: xsd:string, maximum_count: 1}]
 sources:
   - id: missing
     resource: absent.txt
 claims:
-  - id: deploy.region
-    value: us-east-1
+  - id: deploy:claim/region/us
+    slot: deploy:slot/region
+    subject: deploy:service
+    predicate: deploy:region
+    object: {value: us-east-1, datatype: xsd:string}
+    evidence: [{id: deploy:evidence/region/us, source_ref: missing, stance: supports, role: primary}]
+    status: proposed
 ---
 
 # Rollback policy
@@ -83,11 +105,115 @@ Restore the prior release. See [missing](missing.md).
 	}
 }
 
+func TestRemoteObservationIsExplicitAndDetectsMetadataDrift(t *testing.T) {
+	etag := `"one"`
+	requests := 0
+	client := &http.Client{Transport: auditRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		header := http.Header{}
+		header.Set("ETag", etag)
+		return &http.Response{
+			StatusCode: http.StatusOK, Status: "200 OK", Header: header,
+			Body: io.NopCloser(strings.NewReader("")), Request: request,
+		}, nil
+	})}
+	root := t.TempDir()
+	writeAuditFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Index\n")
+	writeAuditFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\nsources:\n  - id: remote\n    resource: https://example.test/guide\n    observe: metadata\n---\n\n# Guide\n")
+	if _, _, err := Run(Options{Root: root, Spec: "latest"}); err != nil {
+		t.Fatal(err)
+	}
+	if requests != 0 {
+		t.Fatalf("remote source was contacted without opt-in: %d", requests)
+	}
+	_, baseline, err := Run(Options{Root: root, Spec: "latest", ObserveRemote: true, HTTPClient: client})
+	if err != nil || requests != 1 {
+		t.Fatalf("metadata observation failed: requests=%d err=%v", requests, err)
+	}
+	etag = `"two"`
+	report, _, err := Run(Options{Root: root, Spec: "latest", ObserveRemote: true, HTTPClient: client, Baseline: &baseline})
+	if err != nil || !hasCategory(report, "source-changed") {
+		t.Fatalf("remote metadata drift was not detected: %#v err=%v", report, err)
+	}
+}
+
+type auditRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (function auditRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return function(request)
+}
+
+func TestRunDetectsTypedClaimConflictAndIncludesDependents(t *testing.T) {
+	root := t.TempDir()
+	writeAuditFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Index\n")
+	claimDocument := func(value string) string {
+		return `---
+type: API Reference
+owner: team:identity
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces: {api: https://example.test/api/}
+  entities: [{id: api:users}]
+  predicates: [{id: api:path, object_kind: literal, datatype: xsd:string, maximum_count: 1}]
+sources:
+  - id: schema
+    resource: https://example.test/openapi.yaml
+    role: authoritative
+claims:
+  - id: api:claim/users/` + strings.Trim(strings.ReplaceAll(value, "/", "-"), "-") + `
+    slot: api:slot/users-path
+    subject: api:users
+    predicate: api:path
+    object: {value: ` + value + `, datatype: xsd:string}
+    evidence: [{id: api:evidence/users/` + strings.Trim(strings.ReplaceAll(value, "/", "-"), "-") + `, source_ref: schema, stance: supports, role: primary}]
+    status: supported
+---
+
+# Users
+
+The endpoint is ` + value + `.
+`
+	}
+	writeAuditFile(t, root, "first.md", claimDocument("/v1/users"))
+	writeAuditFile(t, root, "second.md", claimDocument("/v2/users"))
+	writeAuditFile(t, root, "runbook.md", `---
+type: Runbook
+owner: team:identity
+sources:
+  - id: runbook
+    resource: https://example.test/runbook
+claim_refs:
+  - api:claim/users/v1-users
+  - api:claim/users/v2-users
+openknowledge_claim_profile: "1"
+---
+
+# Runbook
+
+Call the users endpoint.
+`)
+	report, _, err := Run(Options{Root: root, Spec: "0.2", Now: time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range report.Findings {
+		if finding.Category != "claim-conflict" {
+			continue
+		}
+		if !containsAuditString(finding.Targets, "runbook.md") {
+			t.Fatalf("claim conflict did not include dependent runbook: %#v", finding)
+		}
+		return
+	}
+	t.Fatalf("missing typed claim conflict: %#v", report.Findings)
+}
+
 func TestRunDetectsSourceDriftAndKeepsFindingIDsStable(t *testing.T) {
 	root := t.TempDir()
 	writeAuditFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Index\n")
 	writeAuditFile(t, root, "source.txt", "one")
-	writeAuditFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\nsources:\n  - resource: source.txt\n---\n\n# Guide\n")
+	writeAuditFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\nopenknowledge_claim_profile: \"1\"\nclaim_ontology:\n  namespaces: {docs: https://example.test/docs/}\n  entities: [{id: docs:source}]\n  predicates: [{id: docs:version, object_kind: literal, datatype: xsd:string, maximum_count: 1}]\nsources:\n  - id: source-file\n    resource: source.txt\nclaims:\n  - id: docs:claim/source-version/1\n    slot: docs:slot/source-version\n    subject: docs:source\n    predicate: docs:version\n    object: {value: one, datatype: xsd:string}\n    evidence: [{id: docs:evidence/source-version/1, source_ref: source-file, stance: supports, role: primary}]\n    status: supported\n---\n\n# Guide\n")
+	writeAuditFile(t, root, "dependent.md", "---\ntype: Runbook\nowner: team:docs\nopenknowledge_claim_profile: \"1\"\nsources:\n  - resource: guide.md\nclaim_refs: [docs:claim/source-version/1]\n---\n\n# Dependent\n")
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	first, baseline, err := Run(Options{Root: root, Spec: "latest", Now: now})
 	if err != nil {
@@ -100,6 +226,11 @@ func TestRunDetectsSourceDriftAndKeepsFindingIDsStable(t *testing.T) {
 	}
 	if !hasCategory(second, "source-changed") || second.Sources.Changed != 1 {
 		t.Fatalf("expected source drift finding: %#v", second)
+	}
+	for _, finding := range second.Findings {
+		if finding.Category == "source-changed" && !containsAuditString(finding.Targets, "dependent.md") {
+			t.Fatalf("source drift did not include claim dependent: %#v", finding)
+		}
 	}
 	withoutDrift := filterCategory(second.Findings, "source-changed")
 	if !reflect.DeepEqual(findingIDs(first.Findings), findingIDs(withoutDrift)) {
@@ -177,6 +308,15 @@ func writeAuditFile(t *testing.T, root string, rel string, content string) {
 func hasCategory(report Report, category string) bool {
 	for _, finding := range report.Findings {
 		if finding.Category == category {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAuditString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
 			return true
 		}
 	}

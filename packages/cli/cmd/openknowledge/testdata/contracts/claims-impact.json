@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1",
+  "root": "/knowledge",
+  "impact": {
+    "claimId": "okn:claim/token-format/1",
+    "occurrences": [],
+    "dependents": ["runbook.md"],
+    "linkedDocuments": [],
+    "sharedSourceDocuments": [],
+    "documents": ["runbook.md"],
+    "sources": [],
+    "evals": []
+  }
+}

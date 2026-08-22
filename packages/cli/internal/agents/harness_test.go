@@ -15,7 +15,7 @@ func TestHarnessCommandsUseCanonicalHeadlessContracts(t *testing.T) {
 		promptMode string
 	}{
 		{runtime: RuntimeCodex, model: "gpt-test", command: "codex", args: []string{"exec", "--sandbox", "workspace-write", "--model", "gpt-test", "-"}, promptMode: PromptStdin},
-		{runtime: RuntimeClaude, model: "sonnet", command: "claude", args: []string{"--print", "--no-session-persistence", "--permission-mode", "acceptEdits", "--allowedTools", "Read,Glob,Grep,Edit,Write,Bash(openknowledge validate *),Bash(openknowledge list *),Bash(openknowledge get *),Bash(openknowledge search *),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git show*)", "--model", "sonnet"}, promptMode: PromptArgument},
+		{runtime: RuntimeClaude, model: "sonnet", command: "claude", args: []string{"--print", "--no-session-persistence", "--permission-mode", "acceptEdits", "--allowedTools", "Read,Glob,Grep,Edit,Write,Bash(openknowledge validate *),Bash(openknowledge claims *),Bash(openknowledge list *),Bash(openknowledge get *),Bash(openknowledge search *),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git show*)", "--model", "sonnet"}, promptMode: PromptArgument},
 		{runtime: RuntimeOpenCode, model: "provider/model", command: "opencode", args: []string{"run", "--auto", "--model", "provider/model"}, promptMode: PromptArgument},
 	}
 	for _, test := range tests {
@@ -33,7 +33,7 @@ func TestHarnessCommandsUseCanonicalHeadlessContracts(t *testing.T) {
 
 func TestSteeredAgentPromptSeparatesContractModeAndTask(t *testing.T) {
 	prompt := SteeredAgentPrompt("Refresh the whitepaper.", "job")
-	for _, expected := range []string{AgentProtocolVersion, "Open Knowledge Agent", "publication boundaries", "runtime owns commits", "Task:\nRefresh the whitepaper."} {
+	for _, expected := range []string{AgentProtocolVersion, "Open Knowledge Agent", "publication boundaries", "runtime owns commits", "claims find", "claims impact", "status: proposed", "Task:\nRefresh the whitepaper."} {
 		if !strings.Contains(prompt, expected) {
 			t.Fatalf("missing %q in prompt:\n%s", expected, prompt)
 		}

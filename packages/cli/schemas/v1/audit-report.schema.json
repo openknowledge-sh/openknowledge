@@ -47,7 +47,7 @@
       "required": ["id", "category", "severity", "title", "impact", "targets", "evidence"],
       "properties": {
         "id": {"type": "string", "pattern": "^[a-f0-9]{20}$"},
-        "category": {"enum": ["stale", "missing-source", "missing-owner", "broken-dependency", "identical-body", "duplicate-title", "claim-conflict", "missing-source-resource", "source-changed", "unanswered-question", "high-use-unverified"]},
+        "category": {"enum": ["stale", "missing-source", "missing-owner", "broken-dependency", "identical-body", "duplicate-title", "claim-conflict", "claim-duplicate", "claim-missing-evidence", "claim-invalid", "missing-source-resource", "source-changed", "unanswered-question", "high-use-unverified"]},
         "severity": {"enum": ["high", "medium", "low"]},
         "title": {"type": "string", "minLength": 1, "maxLength": 256},
         "impact": {"type": "string", "minLength": 1, "maxLength": 1024},

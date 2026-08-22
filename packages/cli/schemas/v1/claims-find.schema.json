@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-find.schema.json",
+  "title": "Open Knowledge claim find result",
+  "type": "object",
+  "required": ["schemaVersion", "query", "root", "matches", "issues"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "query": {"type": "string", "minLength": 1},
+    "root": {"type": "string", "minLength": 1},
+    "matches": {"type": "array", "items": {"$ref": "#/$defs/match"}},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "$defs": {
+    "sourceRef": {
+      "type": "object",
+      "required": ["id", "resource"],
+      "properties": {"id": {"type": "string"}, "resource": {"type": "string"}, "observe": {"enum": ["manual", "metadata", "fetch", "pinned"]}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "role": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "occurrence": {
+      "type": "object",
+      "required": ["path", "claim", "sources"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "title": {"type": "string"},
+        "claim": {"$ref": "common.schema.json#/$defs/claim"},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/sourceRef"}}
+      },
+      "additionalProperties": false
+    },
+    "match": {
+      "type": "object",
+      "required": ["score", "reasons", "occurrence"],
+      "properties": {
+        "score": {"type": "integer", "minimum": 0},
+        "reasons": {"type": "array", "items": {"type": "string"}},
+        "occurrence": {"$ref": "#/$defs/occurrence"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -2,12 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/insights"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
 
@@ -16,15 +21,20 @@ type auditOptions struct {
 	spec               string
 	format             string
 	out                string
+	markdownOut        string
 	usage              []string
 	baseline           string
 	updateBaseline     bool
+	observeRemote      bool
 	minimumOccurrences int
 	highUseThreshold   int
 	failOn             string
 }
 
 func runAudit(args []string) int {
+	if len(args) > 0 && args[0] == "propose" {
+		return runAuditPropose(args[1:])
+	}
 	if hasHelpFlag(args) {
 		fmt.Fprint(os.Stdout, auditHelpText())
 		return 0
@@ -59,6 +69,7 @@ func runAudit(args []string) int {
 	}
 	report, currentBaseline, err := knowledgeaudit.Run(knowledgeaudit.Options{
 		Root: root, Spec: options.spec, Usage: events, Baseline: baseline,
+		ObserveRemote:      options.observeRemote,
 		MinimumOccurrences: options.minimumOccurrences, HighUseThreshold: options.highUseThreshold,
 	})
 	if err != nil {
@@ -76,12 +87,62 @@ func runAudit(args []string) int {
 			return 1
 		}
 	}
+	if options.markdownOut != "" {
+		if err := writeOutputFileAtomically(options.markdownOut, []byte(knowledgeaudit.RenderMarkdown(report))); err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+	}
 	if err := printAuditReport(report, options); err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
 	if auditFails(report, options.failOn) {
 		return 1
+	}
+	return 0
+}
+
+func runAuditPropose(args []string) int {
+	flags := flag.NewFlagSet("audit propose", flag.ContinueOnError)
+	flags.SetOutput(stderrOutput())
+	reportPath := flags.String("report", ".openknowledge/reports/audit.json", "audit report")
+	knowledgePath := flags.String("path", "", "knowledge base path")
+	if err := parseInterspersedFlags(flags, args); err != nil {
+		return 2
+	}
+	if flags.NArg() != 1 {
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge audit propose <finding-id> [--report <audit.json>] [--path <knowledge>]")
+		return 2
+	}
+	report, err := knowledgeaudit.ReadReport(*reportPath)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	repo, config, err := integration.FindRepository(".")
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	root := filepath.Join(repo, filepath.FromSlash(config.KnowledgeBase))
+	if strings.TrimSpace(*knowledgePath) != "" {
+		root, err = okf.ResolveKnowledgeRoot(*knowledgePath)
+		if err != nil {
+			return printAgentCommandError(err)
+		}
+	}
+	path, created, err := insights.CreateAuditFinding(repo, root, report, flags.Arg(0))
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	state := "preserved"
+	if created {
+		state = "created"
+	}
+	if err := printJSON(map[string]any{
+		"schemaVersion": okf.MachineSchemaVersion, "findingId": flags.Arg(0),
+		"proposal": path, "state": state, "next": "okn automation insights run " + path,
+	}); err != nil {
+		return printAgentCommandError(err)
 	}
 	return 0
 }
@@ -96,7 +157,9 @@ func parseAuditOptions(args []string) (auditOptions, error) {
 			options.format = "json"
 		case argument == "--update-baseline":
 			options.updateBaseline = true
-		case argument == "--format" || argument == "--out" || argument == "--usage" || argument == "--baseline" || argument == "--spec" || argument == "--min-occurrences" || argument == "--high-use-threshold" || argument == "--fail-on":
+		case argument == "--observe-remote":
+			options.observeRemote = true
+		case argument == "--format" || argument == "--out" || argument == "--markdown-out" || argument == "--usage" || argument == "--baseline" || argument == "--spec" || argument == "--min-occurrences" || argument == "--high-use-threshold" || argument == "--fail-on":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
 				return options, err
@@ -105,7 +168,7 @@ func parseAuditOptions(args []string) (auditOptions, error) {
 			if err := setAuditOption(&options, argument, value); err != nil {
 				return options, err
 			}
-		case strings.HasPrefix(argument, "--format=") || strings.HasPrefix(argument, "--out=") || strings.HasPrefix(argument, "--usage=") || strings.HasPrefix(argument, "--baseline=") || strings.HasPrefix(argument, "--spec=") || strings.HasPrefix(argument, "--min-occurrences=") || strings.HasPrefix(argument, "--high-use-threshold=") || strings.HasPrefix(argument, "--fail-on="):
+		case strings.HasPrefix(argument, "--format=") || strings.HasPrefix(argument, "--out=") || strings.HasPrefix(argument, "--markdown-out=") || strings.HasPrefix(argument, "--usage=") || strings.HasPrefix(argument, "--baseline=") || strings.HasPrefix(argument, "--spec=") || strings.HasPrefix(argument, "--min-occurrences=") || strings.HasPrefix(argument, "--high-use-threshold=") || strings.HasPrefix(argument, "--fail-on="):
 			parts := strings.SplitN(argument, "=", 2)
 			if err := setAuditOption(&options, parts[0], parts[1]); err != nil {
 				return options, err
@@ -123,11 +186,18 @@ func parseAuditOptions(args []string) (auditOptions, error) {
 		options.target = operands[0]
 	}
 	options.format = strings.ToLower(strings.TrimSpace(options.format))
-	if options.format != "text" && options.format != "json" {
-		return options, fmt.Errorf("--format must be text or json")
+	if options.format != "text" && options.format != "json" && options.format != "markdown" {
+		return options, fmt.Errorf("--format must be text, json, or markdown")
 	}
-	if options.out != "" && options.format != "json" {
-		return options, fmt.Errorf("--out requires --format json")
+	if options.out != "" && options.format == "text" {
+		return options, fmt.Errorf("--out requires --format json or markdown")
+	}
+	if options.markdownOut != "" && options.out != "" {
+		markdownPath, _ := filepath.Abs(options.markdownOut)
+		outputPath, _ := filepath.Abs(options.out)
+		if markdownPath == outputPath {
+			return options, fmt.Errorf("--markdown-out and --out must use different files")
+		}
 	}
 	if options.updateBaseline && strings.TrimSpace(options.baseline) == "" {
 		return options, fmt.Errorf("--update-baseline requires --baseline")
@@ -149,6 +219,8 @@ func setAuditOption(options *auditOptions, name string, value string) error {
 		options.format = value
 	case "--out":
 		options.out = value
+	case "--markdown-out":
+		options.markdownOut = value
 	case "--usage":
 		options.usage = append(options.usage, value)
 	case "--baseline":
@@ -172,6 +244,14 @@ func setAuditOption(options *auditOptions, name string, value string) error {
 }
 
 func printAuditReport(report knowledgeaudit.Report, options auditOptions) error {
+	if options.format == "markdown" {
+		content := []byte(knowledgeaudit.RenderMarkdown(report))
+		if options.out != "" {
+			return writeOutputFileAtomically(options.out, content)
+		}
+		_, err := os.Stdout.Write(content)
+		return err
+	}
 	if options.format == "json" {
 		content, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
@@ -230,18 +310,21 @@ Usage:
   openknowledge audit [path] --usage <file-or-dir>
   openknowledge audit [path] --baseline <file> [--update-baseline]
   openknowledge audit [path] --format json [--out <file>]
+  openknowledge audit propose <finding-id> [--report <audit.json>]
 
 Options:
   --usage <path>              Add private runtime usage events. Repeatable.
   --baseline <file>           Compare content-bound source identities.
   --update-baseline           Write the current source identities after audit.
+  --observe-remote            Run configured metadata or fetch observations.
   --min-occurrences <n>       Recurring unanswered-query threshold (default 2).
   --high-use-threshold <n>    Used-unverified threshold (default 5).
   --fail-on <severity>        none, low, medium, or high (default none).
   --spec <version>            OKF version (default latest).
-  --format text|json          Output format (default text).
+  --format text|json|markdown Output format (default text).
   --json                      Alias for --format json.
-  --out <file>                Write JSON output atomically.
+  --out <file>                Write JSON or Markdown output atomically.
+  --markdown-out <file>       Also write Markdown from the same audit.
   -h, --help                  Show this help.
 `
 }

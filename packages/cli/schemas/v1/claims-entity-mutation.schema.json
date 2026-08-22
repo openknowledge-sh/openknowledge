@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-entity-mutation.schema.json",
+  "title": "OpenKnowledge approved entity mutation",
+  "type": "object",
+  "required": ["schemaVersion", "root", "mutation"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string", "minLength": 1},
+    "mutation": {
+      "type": "object",
+      "required": ["action", "entityId", "approvedBy", "changed", "impact"],
+      "properties": {
+        "action": {"enum": ["add_alias", "merge"]},
+        "entityId": {"type": "string", "minLength": 1},
+        "mergeFrom": {"type": "string", "minLength": 1},
+        "approvedBy": {"type": "string", "pattern": "^(human|github):.+$"},
+        "changed": {"type": "boolean"},
+        "impact": {"$ref": "claims-entity-impact.schema.json#/$defs/impact"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

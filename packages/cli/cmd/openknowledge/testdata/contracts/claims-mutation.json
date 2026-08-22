@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1",
+  "action": "verify",
+  "root": "/knowledge",
+  "claimId": "okn:claim/token-format/1",
+  "document": "auth.md",
+  "changed": true
+}

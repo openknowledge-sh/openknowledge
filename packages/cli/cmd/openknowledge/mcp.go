@@ -15,8 +15,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/claimops"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
@@ -242,7 +244,7 @@ func (server *mcpServer) initialize(id json.RawMessage, raw json.RawMessage) *mc
 			"title":   "Open Knowledge",
 			"version": server.version,
 		},
-		"instructions": "Read-only access to one Open Knowledge bundle. Use openknowledge_search for source-grounded context, resources/list and resources/read for exact files, and openknowledge_validate for bundle health.",
+		"instructions": "Read-only access to one Open Knowledge bundle. Search context, inspect typed claims, calculate claim impact, create digest-bound claim proposals, and validate bundle health before editing through a local Git worktree.",
 	})
 }
 
@@ -272,6 +274,75 @@ func mcpTools() []map[string]any {
 			"inputSchema": map[string]any{"type": "object", "additionalProperties": false},
 			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
 		},
+		{
+			"name":        "openknowledge_claims_find",
+			"title":       "Find Open Knowledge claims",
+			"description": "Find typed claim occurrences by occurrence ID, slot, subject, predicate, object, or evidence.",
+			"inputSchema": map[string]any{
+				"type": "object", "additionalProperties": false, "required": []string{"query"},
+				"properties": map[string]any{"query": map[string]any{"type": "string", "minLength": 1, "maxLength": mcpMaxSearchQueryLength}},
+			},
+			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		},
+		{
+			"name":        "openknowledge_claims_impact",
+			"title":       "Inspect Open Knowledge claim impact",
+			"description": "Return declaring documents, explicit dependents, evidence sources, and linked eval questions for one claim ID.",
+			"inputSchema": map[string]any{
+				"type": "object", "additionalProperties": false, "required": []string{"claimId"},
+				"properties": map[string]any{"claimId": map[string]any{"type": "string", "minLength": 3, "maxLength": 256}},
+			},
+			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		},
+		{
+			"name":        "openknowledge_claims_propose",
+			"title":       "Propose an Open Knowledge claim",
+			"description": "Create a validated digest-bound proposed claim. Selectors require exact pinned local source bytes. This tool never edits the knowledge base or fetches evidence.",
+			"inputSchema": map[string]any{
+				"type": "object", "additionalProperties": false,
+				"required": []string{"document", "claim", "reason", "confidence"},
+				"properties": map[string]any{
+					"document":   map[string]any{"type": "string", "minLength": 1, "maxLength": 4096},
+					"claim":      map[string]any{"type": "object", "additionalProperties": false, "required": []string{"id", "slot", "subject", "predicate", "object", "evidence"}, "properties": mcpAuthoredClaimProperties()},
+					"reason":     map[string]any{"type": "string", "minLength": 1, "maxLength": 4096},
+					"confidence": map[string]any{"type": "number", "exclusiveMinimum": 0, "maximum": 1, "description": "Extraction confidence, not truth confidence."},
+				},
+			},
+			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		},
+	}
+}
+
+func mcpAuthoredClaimProperties() map[string]any {
+	term := map[string]any{"type": "string", "minLength": 3, "maxLength": 2048}
+	object := map[string]any{
+		"type": "object", "additionalProperties": false,
+		"properties": map[string]any{
+			"ref": term, "value": map[string]any{"type": []string{"string", "number", "boolean"}},
+			"datatype": term, "language": map[string]any{"type": "string"}, "unit": term, "quantityKind": term,
+		},
+	}
+	selector := map[string]any{"type": "object", "additionalProperties": false, "required": []string{"type"}, "properties": map[string]any{
+		"type":  map[string]any{"type": "string", "enum": []string{"text_quote", "text_position", "fragment", "page", "media_fragment", "data_position"}},
+		"value": map[string]any{"type": "string"}, "exact": map[string]any{"type": "string"}, "prefix": map[string]any{"type": "string"}, "suffix": map[string]any{"type": "string"},
+		"start": map[string]any{"type": "integer", "minimum": 0}, "end": map[string]any{"type": "integer", "minimum": 0}, "page": map[string]any{"type": "integer", "minimum": 1}, "conformsTo": term,
+	}, "allOf": []any{
+		map[string]any{"if": map[string]any{"properties": map[string]any{"type": map[string]any{"const": "text_quote"}}}, "then": map[string]any{"required": []string{"exact"}}},
+		map[string]any{"if": map[string]any{"properties": map[string]any{"type": map[string]any{"enum": []string{"text_position", "data_position"}}}}, "then": map[string]any{"required": []string{"start", "end"}}},
+		map[string]any{"if": map[string]any{"properties": map[string]any{"type": map[string]any{"enum": []string{"fragment", "media_fragment"}}}}, "then": map[string]any{"required": []string{"value"}}},
+		map[string]any{"if": map[string]any{"properties": map[string]any{"type": map[string]any{"const": "page"}}}, "then": map[string]any{"required": []string{"page"}}},
+	}}
+	evidence := map[string]any{"type": "object", "additionalProperties": false, "required": []string{"id", "sourceRef", "stance", "role"}, "properties": map[string]any{
+		"id": term, "sourceRef": map[string]any{"type": "string", "minLength": 1}, "stance": map[string]any{"type": "string", "enum": []string{"supports", "opposes", "contextualizes"}}, "role": term,
+		"selector": selector, "observedAt": map[string]any{"type": "string"},
+	}}
+	return map[string]any{
+		"id": term, "slot": term, "subject": term, "predicate": term, "object": object,
+		"scope":      map[string]any{"type": "object", "additionalProperties": object},
+		"evidence":   map[string]any{"type": "array", "minItems": 1, "maxItems": 100, "items": evidence},
+		"status":     map[string]any{"type": "string", "const": "proposed"},
+		"validTime":  map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{"from": map[string]any{"type": "string"}, "until": map[string]any{"type": "string"}}},
+		"staleAfter": map[string]any{"type": "string"}, "relations": map[string]any{"type": "object"}, "sectionRef": map[string]any{"type": "string"},
 	}
 }
 
@@ -357,6 +428,50 @@ func (server *mcpServer) callTool(id json.RawMessage, raw json.RawMessage) *mcpR
 			return mcpResultResponse(id, mcpToolError(err))
 		}
 		return mcpResultResponse(id, mcpToolResult(result))
+	case "openknowledge_claims_find":
+		var arguments struct {
+			Query string `json:"query"`
+		}
+		if err := decodeStrictMCPObject(params.Arguments, &arguments); err != nil || strings.TrimSpace(arguments.Query) == "" || utf8.RuneCountInString(arguments.Query) > mcpMaxSearchQueryLength {
+			return mcpErrorResponse(id, -32602, "Invalid params", nil)
+		}
+		index, err := claimops.BuildIndex(server.root, server.spec, time.Now().UTC())
+		if err != nil {
+			return mcpResultResponse(id, mcpToolError(err))
+		}
+		result := claimsFindReport{SchemaVersion: okf.MachineSchemaVersion, Query: strings.TrimSpace(arguments.Query), Root: server.root, Matches: claimops.Find(index, arguments.Query), Issues: nonNilIssues(index.Issues)}
+		return mcpResultResponse(id, mcpToolResult(result))
+	case "openknowledge_claims_impact":
+		var arguments struct {
+			ClaimID string `json:"claimId"`
+		}
+		if err := decodeStrictMCPObject(params.Arguments, &arguments); err != nil || strings.TrimSpace(arguments.ClaimID) == "" || len(arguments.ClaimID) > 256 {
+			return mcpErrorResponse(id, -32602, "Invalid params", nil)
+		}
+		index, err := claimops.BuildIndex(server.root, server.spec, time.Now().UTC())
+		if err != nil {
+			return mcpResultResponse(id, mcpToolError(err))
+		}
+		impact, err := claimops.BuildImpact(index, arguments.ClaimID, defaultClaimEvalRoots(server.root))
+		if err != nil {
+			return mcpResultResponse(id, mcpToolError(err))
+		}
+		return mcpResultResponse(id, mcpToolResult(claimsImpactReport{SchemaVersion: okf.MachineSchemaVersion, Root: server.root, Impact: impact}))
+	case "openknowledge_claims_propose":
+		var arguments struct {
+			Document   string                 `json:"document"`
+			Claim      claimops.AuthoredClaim `json:"claim"`
+			Reason     string                 `json:"reason"`
+			Confidence float64                `json:"confidence"`
+		}
+		if err := decodeStrictMCPObject(params.Arguments, &arguments); err != nil {
+			return mcpErrorResponse(id, -32602, "Invalid params", map[string]any{"reason": err.Error()})
+		}
+		proposal, err := claimops.NewProposal(server.root, arguments.Document, arguments.Claim, arguments.Reason, arguments.Confidence)
+		if err != nil {
+			return mcpResultResponse(id, mcpToolError(err))
+		}
+		return mcpResultResponse(id, mcpToolResult(proposal))
 	default:
 		return mcpErrorResponse(id, -32602, "Unknown tool", map[string]any{"name": params.Name})
 	}

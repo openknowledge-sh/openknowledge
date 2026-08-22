@@ -14,7 +14,7 @@ func RouteForAuditFinding(root string, finding knowledgeaudit.Finding) (Maintena
 	risk := "medium"
 	confidence := 1.0
 	switch finding.Category {
-	case "claim-conflict", "source-changed", "high-use-unverified", "missing-owner":
+	case "claim-conflict", "claim-invalid", "source-changed", "high-use-unverified", "missing-owner":
 		risk = "high"
 	case "unanswered-question":
 		confidence = 0.95
@@ -57,6 +57,35 @@ func CreateFromAudit(directory string, knowledgeRoot string, report knowledgeaud
 		}
 	}
 	return created, existing, nil
+}
+
+func CreateAuditFinding(directory string, knowledgeRoot string, report knowledgeaudit.Report, findingID string) (string, bool, error) {
+	if err := knowledgeaudit.ValidateReport(report); err != nil {
+		return "", false, err
+	}
+	findingID = strings.TrimSpace(findingID)
+	for _, finding := range report.Findings {
+		if finding.ID != findingID {
+			continue
+		}
+		route, err := RouteForAuditFinding(knowledgeRoot, finding)
+		if err != nil {
+			return "", false, err
+		}
+		evidence := []string{"Impact: " + finding.Impact}
+		for _, item := range finding.Evidence {
+			location := item.Path
+			if location != "" {
+				location += ":"
+			}
+			evidence = append(evidence, fmt.Sprintf("%s%s=%s", location, item.Field, item.Value))
+		}
+		return Create(directory, CreateOptions{
+			Summary: finding.Title, Evidence: evidence, Targets: finding.Targets,
+			Kind: "knowledge-audit", Identity: finding.ID, FindingID: finding.ID, Route: route,
+		})
+	}
+	return "", false, fmt.Errorf("audit finding not found: %s", findingID)
 }
 
 func auditTargetOwners(root string, targets []string) ([]string, error) {

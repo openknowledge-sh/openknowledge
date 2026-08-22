@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-mutation.schema.json",
+  "title": "Open Knowledge claim mutation result",
+  "type": "object",
+  "required": ["schemaVersion", "action", "root", "claimId", "document", "changed"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "action": {"enum": ["apply", "link", "dispute", "verify", "reject", "supersede", "archive", "approve-authority"]},
+    "root": {"type": "string", "minLength": 1},
+    "claimId": {"type": "string", "minLength": 1},
+    "document": {"type": "string"},
+    "changed": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

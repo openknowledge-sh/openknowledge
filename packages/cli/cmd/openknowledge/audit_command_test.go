@@ -37,6 +37,7 @@ func TestRunAuditWritesReportAndSourceBaselineAtomically(t *testing.T) {
 	writeMainTestFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Home\n")
 	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\nsources:\n  - resource: https://example.test/guide\n    last_modified: 2026-08-01\n---\n\n# Guide\n")
 	out := filepath.Join(t.TempDir(), "audit", "report.json")
+	markdownOut := filepath.Join(filepath.Dir(out), "report.md")
 	baseline := filepath.Join(t.TempDir(), "audit", "sources.json")
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		t.Fatal(err)
@@ -45,7 +46,7 @@ func TestRunAuditWritesReportAndSourceBaselineAtomically(t *testing.T) {
 		t.Fatal(err)
 	}
 	stdout, stderr, code := captureMainOutput(t, func() int {
-		return runAudit([]string{root, "--format=json", "--out=" + out, "--baseline=" + baseline, "--update-baseline"})
+		return runAudit([]string{root, "--format=json", "--out=" + out, "--markdown-out=" + markdownOut, "--baseline=" + baseline, "--update-baseline"})
 	})
 	if code != 0 || stderr != "" || stdout != "" {
 		t.Fatalf("unexpected audit output, code=%d stdout=%q stderr=%q", code, stdout, stderr)
@@ -56,20 +57,67 @@ func TestRunAuditWritesReportAndSourceBaselineAtomically(t *testing.T) {
 			t.Fatalf("expected JSON file %s, err=%v content=%q", path, err, content)
 		}
 	}
+	markdown, err := os.ReadFile(markdownOut)
+	if err != nil || !strings.Contains(string(markdown), "# Open Knowledge audit") {
+		t.Fatalf("expected Markdown from the same audit: err=%v content=%q", err, markdown)
+	}
 	loaded, err := knowledgeaudit.ReadBaseline(baseline)
 	if err != nil || len(loaded.Sources) != 1 {
 		t.Fatalf("unexpected baseline: %#v err=%v", loaded, err)
 	}
 }
 
+func TestRunAuditWritesMarkdownAndProposesExactFinding(t *testing.T) {
+	repo := t.TempDir()
+	root := filepath.Join(repo, "Wiki")
+	writeMainTestFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Home\n")
+	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\n---\n\n# Guide\n\nSee [missing](missing.md).\n")
+	writeMainTestFile(t, repo, ".openknowledge/integration.toml", "version = 1\nknowledge_base = \"Wiki\"\ninsights = \"Wiki/insights\"\nruntime = \"codex\"\n")
+	reportPath := filepath.Join(repo, ".openknowledge", "reports", "audit.json")
+	markdownPath := filepath.Join(repo, ".openknowledge", "reports", "audit.md")
+	if err := os.MkdirAll(filepath.Dir(reportPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runAudit([]string{root, "--format", "json", "--out", reportPath})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("write audit report: code=%d stderr=%q", code, stderr)
+	}
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runAudit([]string{root, "--format", "markdown", "--out", markdownPath})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("write Markdown report: code=%d stderr=%q", code, stderr)
+	}
+	markdown, err := os.ReadFile(markdownPath)
+	if err != nil || !strings.Contains(string(markdown), "# Open Knowledge audit") || !strings.Contains(string(markdown), "Evidence:") {
+		t.Fatalf("unexpected Markdown report: err=%v\n%s", err, markdown)
+	}
+	report, err := knowledgeaudit.ReadReport(reportPath)
+	if err != nil || len(report.Findings) == 0 {
+		t.Fatalf("read audit report: %#v err=%v", report, err)
+	}
+	t.Chdir(repo)
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runAudit([]string{"propose", report.Findings[0].ID, "--report", reportPath, "--path", root})
+	})
+	if code != 0 || stderr != "" || !strings.Contains(stdout, `"state": "created"`) {
+		t.Fatalf("propose exact finding: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if entries, err := os.ReadDir(filepath.Join(root, "insights")); err != nil || len(entries) != 1 {
+		t.Fatalf("expected one durable insight proposal: entries=%v err=%v", entries, err)
+	}
+}
+
 func TestParseAuditOptionsRejectsUnsafeCombinations(t *testing.T) {
 	invalid := [][]string{
 		{"a", "b"},
-		{"--format", "markdown"},
 		{"--out", "report.json"},
 		{"--update-baseline"},
 		{"--fail-on", "critical"},
 		{"--high-use-threshold", "0"},
+		{"--format=json", "--out", "report.json", "--markdown-out", "report.json"},
 		{"--unknown"},
 	}
 	for _, args := range invalid {

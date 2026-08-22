@@ -93,7 +93,7 @@ func BuildHarnessCommand(spec AgentSpec, interactive bool) (Command, error) {
 				"--print",
 				"--no-session-persistence",
 				"--permission-mode", "acceptEdits",
-				"--allowedTools", "Read,Glob,Grep,Edit,Write,Bash(openknowledge validate *),Bash(openknowledge list *),Bash(openknowledge get *),Bash(openknowledge search *),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git show*)",
+				"--allowedTools", "Read,Glob,Grep,Edit,Write,Bash(openknowledge validate *),Bash(openknowledge claims *),Bash(openknowledge list *),Bash(openknowledge get *),Bash(openknowledge search *),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git show*)",
 			)
 		}
 		if spec.Model != "" {
@@ -124,6 +124,9 @@ func SteeredAgentPrompt(task string, mode string) string {
 	builder.WriteString("Preserve provenance and existing repository conventions.\n")
 	builder.WriteString("Respect publication boundaries. Never expose content that is not explicitly published.\n")
 	builder.WriteString("Make only changes required by the task and validate the affected knowledge base before finishing.\n")
+	builder.WriteString("For a material factual change, run openknowledge claims find before choosing ontology terms or a slot. Create a globally unique occurrence ID; never reuse an occurrence ID for a new object. Run openknowledge claims impact before finishing.\n")
+	builder.WriteString("Author subject, predicate, typed object, structured evidence selectors, and explicit relations. Keep agent-created occurrences at status: proposed. Never select truth between conflicting evidence or remove supported, verified, or disputed history.\n")
+	builder.WriteString("Use digest-bound claim proposals, supersede replaced occurrences explicitly, and run openknowledge claims validate after claim edits.\n")
 	switch mode {
 	case "local":
 		builder.WriteString("Edit the selected filesystem directly. Do not create a branch, commit, push, or pull request.\n")
