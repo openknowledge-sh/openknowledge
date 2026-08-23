@@ -59,6 +59,7 @@ Usage:
   openknowledge search <name|path> <query> --matches
   openknowledge search <name|path> <query> --no-expand
   openknowledge search <name|path> <query> --limit <count>
+  openknowledge search <name|path> <query> --filter type=Guide
   openknowledge search <name|path> <query> --spec <version>
   openknowledge search --all <query>
   openknowledge search --all <query> --matches --format json
@@ -75,14 +76,16 @@ Flags:
   --format       Output format: markdown or json. Defaults to markdown.
   --limit        Maximum context source or match count. Defaults to 12.
   --matches      Print ranked match diagnostics instead of packed context.
+  --filter       Restrict candidates by type=<value> or tag=<value>. Repeat as needed.
   --no-expand    Exclude structural document, outgoing-link, and backlink context.
   --spec         OKF spec version. Defaults to latest.
 
 Behavior:
   Search builds Markdown chunks from parsed heading sections, preserves source
-  line ranges and heading paths, scores chunks with BM25-style lexical ranking
-  across title, path, type, description, frontmatter, headings, and body text,
-  then packs original Markdown under the requested token budget. Fuzzy and
+  line ranges and heading paths. It creates BM25-style lexical and local vector candidates,
+  applies metadata filters, and reranks candidates before it packs original
+  original Markdown under the requested token budget. The local vector uses hashed word
+  and character features. It does not call an embedding service. Fuzzy and
   diacritic-insensitive matching are enabled for local CLI search.
 
   Direct evidence is packed first. By default, remaining budget can include
@@ -103,6 +106,7 @@ Examples:
   openknowledge search personal "release checklist" --budget 1200
   openknowledge search personal "MCP auth" --matches
   openknowledge search personal "MCP auth" --no-expand
+  openknowledge search Wiki "release process" --filter type=Guide --filter tag=operations
   openknowledge search personal "MCP auth" --format json
 
 Versions:

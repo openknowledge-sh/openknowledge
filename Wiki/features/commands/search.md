@@ -9,8 +9,8 @@ timestamp: 2026-07-21T00:00:00Z
 # `openknowledge search`
 
 Search one knowledge base or all connected knowledge bases. The command returns
-source-based Markdown context. Search is local, lexical, and deterministic. It
-does not call an LLM.
+source-based Markdown context. Search is local and deterministic. It does not
+call an LLM or an embedding service.
 
 ## Usage
 
@@ -19,6 +19,7 @@ okn search <key-or-path> <query>
 okn search <key-or-path> <query> --budget 1200
 okn search <key-or-path> <query> --matches
 okn search <key-or-path> <query> --format json
+okn search <key-or-path> <query> --filter type=Guide --filter tag=operations
 okn search --all <query>
 ```
 
@@ -28,6 +29,7 @@ okn search --all <query>
 | `--budget <tokens>` | `2400` | Approximate context budget. Incompatible with `--matches`. |
 | `--limit <count>` | `12` | Maximum selected sources or displayed matches. |
 | `--no-expand` | off | Exclude document, linked, and backlink context expansion. |
+| `--filter <key=value>` | none | Restrict candidates. Use `type` or `tag`. Repeat as needed. |
 | `--matches` | off | Show ranked snippets instead of a context packet. |
 | `--format <format>` | `markdown` | `markdown` or `json`. |
 | `--spec <version>` | `latest` | OKF version used to read the bundle. |
@@ -60,6 +62,9 @@ Use `--matches` to inspect ranked snippets and matched fields. JSON output uses
 
 - Search divides Markdown into content sections at H1 through H3 headings.
   Lower headings stay in their parent section.
+- BM25 and local vector retrieval create one candidate set. The local vector uses hashed word and character features. It does not use a model or network service.
+- A metadata filter runs before candidate selection. Values for one filter use OR matching. Different filters use AND matching.
+- A deterministic reranker keeps lexical evidence as the primary score. The vector score breaks close lexical ranks and supplies vector-only candidates.
 - BM25-style ranking combines section evidence with a document signal.
   Filenames, titles, headings, paths, frontmatter, metadata, and bodies affect
   the score. The section with the most query terms receives the document
@@ -99,6 +104,8 @@ guarantee. Use
 > **Source anchors**
 >
 > - `packages/cli/internal/okf/search_knowledge.go`
+> - `packages/cli/internal/okf/search_vector.go`
+> - `packages/cli/internal/okf/search_filters.go`
 > - `packages/cli/internal/okf/context.go`
 > - `packages/cli/internal/okf/context_selection.go`
 > - `packages/cli/internal/okf/federated_search.go`

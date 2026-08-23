@@ -73,6 +73,10 @@ reference its `okf02` contract. This contract contains derived trust,
 lifecycle and staleness, generation and verification events, structured
 sources, and optional Attested Computation data.
 
+Search output can contain an ordered retrieval `route`. Search match results
+can contain `lexicalScore`, `vectorScore`, and `rerankScore`. These fields are
+additive diagnostics. The local vector does not use a model or network service.
+
 The common schema also defines optional `claimProfile` output. List, graph,
 search, context, and runtime source objects use this definition. The
 `schemas/claims/v1` directory contains the typed ontology, authored claim,

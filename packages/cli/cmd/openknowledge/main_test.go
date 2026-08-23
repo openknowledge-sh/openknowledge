@@ -1262,6 +1262,13 @@ func TestParseSearchOptionsAcceptsQueryFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	filtered, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--filter", "type=Guide", "--filter=tag=operations"})
+	if err != nil || !reflect.DeepEqual(filtered.filters, okf.SearchFilters{Types: []string{"Guide"}, Tags: []string{"operations"}}) {
+		t.Fatalf("expected search filters, options=%#v err=%v", filtered, err)
+	}
+	if _, err := parseSearchOptions([]string{"./project-memory", "validation workflow", "--filter", "owner=platform"}); err == nil {
+		t.Fatal("expected unsupported search filter failure")
+	}
 	if options.target != "./project-memory" || options.query != "validation workflow" || options.limit != 5 || options.budget != 900 || !options.budgetSet || options.format != "json" || options.spec != "0.1" || options.matches || !options.noExpand {
 		t.Fatalf("unexpected search options: %#v", options)
 	}

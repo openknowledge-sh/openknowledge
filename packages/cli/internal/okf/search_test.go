@@ -261,6 +261,38 @@ func TestSearchKnowledgeRanksHeadingChunksWithBM25(t *testing.T) {
 	}
 }
 
+func TestSearchKnowledgeAddsDeterministicVectorCandidates(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "policy.md", "---\ntype: Policy\ntitle: Access Policy\n---\n\n# Authorization\n\nAuthorization controls protected access.\n")
+
+	results, err := SearchKnowledge(root, SearchOptions{Query: "authorizatiom", Limit: 5, Fuzzy: false, NoExpand: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results.Results) != 1 || results.Results[0].Path != "policy.md" {
+		t.Fatalf("expected vector candidate, got %#v", results.Results)
+	}
+	if results.Results[0].VectorScore < 0.25 || results.Results[0].RerankScore == 0 {
+		t.Fatalf("expected vector and rerank diagnostics, got %#v", results.Results[0])
+	}
+}
+
+func TestSearchKnowledgeAppliesMetadataFiltersBeforeRanking(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "guide.md", "---\ntype: Guide\ntitle: Release\ntags: [operations]\n---\n\n# Release\n\nRelease checklist.\n")
+	writeFile(t, root, "note.md", "---\ntype: Note\ntitle: Release\ntags: [internal]\n---\n\n# Release\n\nRelease checklist.\n")
+
+	results, err := SearchKnowledge(root, SearchOptions{Query: "release checklist", Limit: 1, Filters: SearchFilters{Types: []string{"Guide"}, Tags: []string{"operations"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results.Results) != 1 || results.Results[0].Path != "guide.md" {
+		t.Fatalf("expected filtered guide, got %#v", results.Results)
+	}
+}
+
 func TestSearchKnowledgeUsesWholeDocumentEvidenceForOverviewPages(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n")

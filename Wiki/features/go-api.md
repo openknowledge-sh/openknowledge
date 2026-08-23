@@ -50,6 +50,19 @@ packet, err := index.Resolve(okf.ContextOptions{
 })
 ```
 
+Set `SearchFilters` to restrict candidates before ranking:
+
+```go
+results := index.Search(okf.SearchOptions{
+    Query: "release workflow",
+    Limit: 8,
+    Filters: okf.SearchFilters{Types: []string{"Guide"}, Tags: []string{"operations"}},
+})
+```
+
+Search combines BM25 with a local deterministic vector. The vector uses hashed
+word and character features. It does not use an embedding service.
+
 `BuildContextIndex` uses `LatestSpecVersion`. `BuildContextIndexWithVersion`
 uses the selected spec version. Both functions parse, validate, and index the
 bundle once.

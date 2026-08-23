@@ -213,7 +213,8 @@ Direct local `okn mcp` serves the current working tree so an agent can develop
 and test knowledge changes. The production runtime serves only the active
 verified generation. These are separate operating modes.
 
-Structured sources can contain `access` labels. An empty list is public. For
+Structured sources can contain `access` labels. An empty list is public. The
+runtime applies these labels before it ranks and returns candidates. For
 each restricted source in a candidate document, at least one source label must
 match the active profile, agent, team, or use-case labels. Otherwise retrieval
 refuses the candidate with `source_access_denied`. This check happens after
@@ -626,6 +627,7 @@ the trusted ingress.
 > - `packages/cli/cmd/openknowledge/runtime_feedback.go`
 > - `packages/cli/cmd/openknowledge/runtime_private_api.go`
 > - `packages/cli/cmd/openknowledge/runtime_serve.go`
+> - `packages/cli/cmd/openknowledge/runtime_retrieval.go`
 > - `packages/cli/cmd/openknowledge/runtime_retrieval.go`
 > - `packages/cli/cmd/openknowledge/runtime_worker.go`
 > - `packages/cli/cmd/openknowledge/deploy_runtime_scaffold.go`

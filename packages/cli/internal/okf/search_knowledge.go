@@ -12,6 +12,16 @@ const (
 	knowledgeSearchB  = 0.75
 )
 
+func maxInt(values ...int) int {
+	maximum := 0
+	for _, value := range values {
+		if value > maximum {
+			maximum = value
+		}
+	}
+	return maximum
+}
+
 const (
 	knowledgeSearchTitleFieldID = iota
 	knowledgeSearchHeadingFieldID
@@ -34,6 +44,7 @@ type knowledgeSearchCorpus struct {
 	termIDs     map[string]int
 	vocabulary  []string
 	postings    [][]knowledgeSearchPosting
+	vectors     []knowledgeSearchVector
 }
 
 type knowledgeSearchDocument struct {
@@ -98,6 +109,7 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 		Revision:      index.Revision,
 		Query:         query,
 		Limit:         limit,
+		Route:         knowledgeSearchRoute(options),
 		Issues:        index.Issues,
 	}
 	terms := searchTerms(query)
@@ -112,10 +124,23 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 		result.Results = direct
 		result.Results = mergeKnowledgeSearchResults(result.Results, neighbors)
 	}
+	result.Results = index.filterKnowledgeSearchResults(result.Results, options)
 	if len(result.Results) > limit {
 		result.Results = result.Results[:limit]
 	}
 	return result
+}
+
+func knowledgeSearchRoute(options SearchOptions) []string {
+	route := []string{"bm25", "vector"}
+	if len(options.Filters.Types) > 0 || len(options.Filters.Tags) > 0 || options.Include != nil {
+		route = append(route, "metadata_filter")
+	}
+	route = append(route, "rerank")
+	if !options.NoExpand {
+		route = append(route, "link_expansion")
+	}
+	return route
 }
 
 func (index ContextIndex) rankKnowledgeSearch(options SearchOptions) []SearchResult {
@@ -163,17 +188,45 @@ func (index ContextIndex) rankKnowledgeSearchPrepared(options SearchOptions, pre
 	}
 	normalizedQuery := normalizeSearchText(query)
 	sectionQuery := prepareQuery(corpus, terms, options.Fuzzy)
-	var results []SearchResult
+	lexical := map[int]SearchResult{}
 	for _, documentID := range sectionQuery.candidateIDs {
+		if !searchSectionMatchesOptions(corpus.documents[documentID].section, options) {
+			continue
+		}
 		document := corpus.documents[documentID]
 		searchResult, ok := sectionQuery.scoreDocument(documentID, document, corpus, terms, normalizedQuery, options.Fuzzy, true)
 		if ok {
-			results = append(results, searchResult)
+			lexical[documentID] = searchResult
 		}
+	}
+	vectorScores := knowledgeSearchVectorScores(corpus, query, options, maxInt(50, options.Limit*5))
+	results := make([]SearchResult, 0, len(lexical)+len(vectorScores))
+	maxLexical := 0.0
+	for _, result := range lexical {
+		if result.Score > maxLexical {
+			maxLexical = result.Score
+		}
+	}
+	for documentID, result := range lexical {
+		result.LexicalScore = result.Score
+		result.VectorScore = vectorScores[documentID]
+		results = append(results, result)
+	}
+	for documentID, vectorScore := range vectorScores {
+		if _, exists := lexical[documentID]; exists {
+			continue
+		}
+		document := corpus.documents[documentID]
+		result := searchResultFromKnowledgeSearchDocument(document, roundSearchScore(vectorScore*maxFloat(1, maxLexical)*0.05), []string{"vector"}, false, "direct", terms, normalizedQuery, options.Fuzzy)
+		result.VectorScore = vectorScore
+		results = append(results, result)
 	}
 	documentQuery := prepareQuery(documentCorpus, terms, options.Fuzzy)
 	documentScores := map[string]float64{}
 	for _, documentID := range documentQuery.candidateIDs {
+		if !searchSectionMatchesOptions(documentCorpus.documents[documentID].section, options) {
+			continue
+		}
 		document := documentCorpus.documents[documentID]
 		searchResult, ok := documentQuery.scoreDocument(documentID, document, documentCorpus, terms, normalizedQuery, options.Fuzzy, false)
 		if ok {
@@ -208,10 +261,15 @@ func (index ContextIndex) rankKnowledgeSearchPrepared(options SearchOptions, pre
 		}
 		results[resultIndex].Score = roundSearchScore(results[resultIndex].Score + documentScore*boost)
 	}
+	for resultIndex := range results {
+		// Keep score stable for existing clients. RerankScore is the final
+		// hybrid ordering signal and makes the small vector contribution explicit.
+		results[resultIndex].RerankScore = roundSearchScore(results[resultIndex].Score + results[resultIndex].VectorScore*0.05)
+	}
 
 	sort.SliceStable(results, func(i, j int) bool {
-		if results[i].Score != results[j].Score {
-			return results[i].Score > results[j].Score
+		if results[i].RerankScore != results[j].RerankScore {
+			return results[i].RerankScore > results[j].RerankScore
 		}
 		if results[i].Path != results[j].Path {
 			return results[i].Path < results[j].Path
@@ -219,6 +277,70 @@ func (index ContextIndex) rankKnowledgeSearchPrepared(options SearchOptions, pre
 		return results[i].LineStart < results[j].LineStart
 	})
 	return results
+}
+
+func knowledgeSearchVectorScores(corpus knowledgeSearchCorpus, query string, options SearchOptions, limit int) map[int]float64 {
+	queryVector := newKnowledgeSearchVector(query)
+	type candidate struct {
+		id    int
+		score float64
+	}
+	candidates := make([]candidate, 0, len(corpus.documents))
+	for documentID, document := range corpus.documents {
+		if !searchSectionMatchesOptions(document.section, options) {
+			continue
+		}
+		score := knowledgeSearchVectorSimilarity(queryVector, corpus.vectors[documentID])
+		if score >= 0.25 {
+			candidates = append(candidates, candidate{id: documentID, score: score})
+		}
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].score != candidates[j].score {
+			return candidates[i].score > candidates[j].score
+		}
+		left, right := corpus.documents[candidates[i].id].section, corpus.documents[candidates[j].id].section
+		if left.Path != right.Path {
+			return left.Path < right.Path
+		}
+		return left.LineStart < right.LineStart
+	})
+	if limit > 0 && len(candidates) > limit {
+		candidates = candidates[:limit]
+	}
+	scores := make(map[int]float64, len(candidates))
+	for _, candidate := range candidates {
+		scores[candidate.id] = candidate.score
+	}
+	return scores
+}
+
+func maxFloat(left, right float64) float64 {
+	if left > right {
+		return left
+	}
+	return right
+}
+
+func (index ContextIndex) filterKnowledgeSearchResults(results []SearchResult, options SearchOptions) []SearchResult {
+	if len(options.Filters.Types) == 0 && len(options.Filters.Tags) == 0 && options.Include == nil {
+		return results
+	}
+	sections := make(map[string]ContextSection, len(index.Sections))
+	for _, section := range index.Sections {
+		sections[section.ID] = section
+	}
+	filtered := make([]SearchResult, 0, len(results))
+	for _, result := range results {
+		if section, ok := sections[result.ID]; ok && searchSectionMatchesOptions(section, options) {
+			filtered = append(filtered, result)
+		}
+	}
+	return filtered
+}
+
+func searchSectionMatchesOptions(section ContextSection, options SearchOptions) bool {
+	return searchSectionMatchesFilters(section, options.Filters) && (options.Include == nil || options.Include(section))
 }
 
 func knowledgeSearchCandidateIDs(corpus knowledgeSearchCorpus, terms []string, fuzzy bool) []int {
@@ -648,6 +770,10 @@ func newKnowledgeSearchCorpusWithPresentation(sections []ContextSection, cachePr
 			}
 			return left.fieldID < right.fieldID
 		})
+	}
+	corpus.vectors = make([]knowledgeSearchVector, len(corpus.documents))
+	for documentID, document := range corpus.documents {
+		corpus.vectors[documentID] = newKnowledgeSearchVector(document.combinedText)
 	}
 	return corpus
 }

@@ -263,6 +263,10 @@ func mcpTools() []map[string]any {
 					"budget":   map[string]any{"type": "integer", "minimum": 1, "maximum": mcpMaxSearchBudget, "default": okf.DefaultContextBudget},
 					"limit":    map[string]any{"type": "integer", "minimum": 1, "maximum": mcpMaxSearchLimit, "default": 12},
 					"noExpand": map[string]any{"type": "boolean", "default": false},
+					"filters": map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{
+						"types": map[string]any{"type": "array", "items": map[string]any{"type": "string", "minLength": 1}, "maxItems": 50},
+						"tags":  map[string]any{"type": "array", "items": map[string]any{"type": "string", "minLength": 1}, "maxItems": 50},
+					}},
 				},
 			},
 			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
@@ -390,6 +394,10 @@ func (server *mcpServer) callTool(id json.RawMessage, raw json.RawMessage) *mcpR
 			Budget   int    `json:"budget"`
 			Limit    int    `json:"limit"`
 			NoExpand bool   `json:"noExpand"`
+			Filters  struct {
+				Types []string `json:"types"`
+				Tags  []string `json:"tags"`
+			} `json:"filters"`
 		}
 		if err := decodeStrictMCPObject(params.Arguments, &arguments); err != nil {
 			return mcpErrorResponse(id, -32602, "Invalid params", map[string]any{"reason": err.Error()})
@@ -406,6 +414,7 @@ func (server *mcpServer) callTool(id json.RawMessage, raw json.RawMessage) *mcpR
 		}
 		options := okf.ContextOptions{
 			Query: arguments.Query, Budget: arguments.Budget, Limit: arguments.Limit, NoExpand: arguments.NoExpand,
+			Filters: okf.SearchFilters{Types: arguments.Filters.Types, Tags: arguments.Filters.Tags},
 		}
 		var result any
 		var err error

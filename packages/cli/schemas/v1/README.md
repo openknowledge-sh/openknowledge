@@ -84,6 +84,10 @@ trust, freshness, provenance, selection, and rejection metadata. The explicit
 `decision` and `refusalReasons` fields prevent consumers from treating an empty
 result as permission to answer without sufficiently trusted evidence.
 
+Search result and context output can include a retrieval `route`. Search
+matches can include lexical, vector, and rerank score diagnostics. These
+additive fields describe deterministic local retrieval.
+
 Runtime generation identity includes a sorted `checks` array. The generation
 `contentDigest` binds successful GitHub or runtime-local publication check
 names to the generation.

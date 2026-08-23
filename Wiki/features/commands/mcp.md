@@ -67,7 +67,7 @@ reads the filtered `mcp/` projection.
 
 | Tool | Arguments | Result |
 | --- | --- | --- |
-| `openknowledge_search` | Required `query`. Optional `budget`, `limit`, `noExpand`. | The same v1 context model as `search --format json`. |
+| `openknowledge_search` | Required `query`. Optional `budget`, `limit`, `noExpand`, and `filters`. | The same v1 context model as `search --format json`. |
 | `openknowledge_validate` | none | The complete v1 validation report. |
 | `openknowledge_claims_find` | Required `query`. | Ranked existing claim IDs and occurrences. |
 | `openknowledge_claims_impact` | Required `claimId`. | Sources, documents, dependencies, and eval cases. |
@@ -83,6 +83,9 @@ appears only in its bound retrieval section. Document-wide claims and
 Search defaults to 2,400 estimated tokens and 12 sources. Its maximums are
 32,000 tokens, 50 sources, and 4,096 query characters. Tool arguments are
 strict.
+
+`filters.types` and `filters.tags` restrict candidates before retrieval. Values
+in one list use OR matching. The two lists use AND matching.
 
 Validation findings are data. An operational failure returns `isError`.
 

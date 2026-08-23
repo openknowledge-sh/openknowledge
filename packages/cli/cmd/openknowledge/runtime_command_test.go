@@ -761,7 +761,7 @@ Runtime selection policy draft. Quarantine zebra protocol.
 	}
 	runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","method":"notifications/initialized"}`, map[string]string{"Mcp-Session-Id": session})
 	tool := runtimeRequest(t, handler, http.MethodPost, "/_mcp", `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"openknowledge_search","arguments":{"query":"selection policy","limit":5}}}`, map[string]string{"Mcp-Session-Id": session})
-	if tool.Code != http.StatusOK || !strings.Contains(tool.Body.String(), `"knowledgeBase":"wiki"`) || !strings.Contains(tool.Body.String(), `"trust_below_minimum"`) || !strings.Contains(tool.Body.String(), `"route":["bm25","policy_filter"]`) || !strings.Contains(tool.Body.String(), `"permissionsApplied":["profile:public"]`) || strings.Count(tool.Body.String(), `"path":"draft.md"`) == 0 {
+	if tool.Code != http.StatusOK || !strings.Contains(tool.Body.String(), `"knowledgeBase":"wiki"`) || !strings.Contains(tool.Body.String(), `"trust_below_minimum"`) || !strings.Contains(tool.Body.String(), `"route":["bm25","vector","policy_filter","rerank"]`) || !strings.Contains(tool.Body.String(), `"permissionsApplied":["profile:public"]`) || strings.Count(tool.Body.String(), `"path":"draft.md"`) == 0 {
 		t.Fatalf("runtime MCP did not expose the policy-aware context contract: %d %s", tool.Code, tool.Body.String())
 	}
 	events, err := knowledgeusage.Read([]string{usageRoot})
@@ -785,12 +785,12 @@ func TestRuntimeEvidenceBundleProjectsClaimsConflictsAndMissingKnowledge(t *test
 	left := okf.Claim{ID: "okn:claim/timeout/one", Slot: "okn:slot/timeout", Subject: "okn:service/api", Predicate: "okn:timeout", Object: okf.ClaimObject{Value: 30, Datatype: "xsd:integer"}, Status: "verified"}
 	right := okf.Claim{ID: "okn:claim/timeout/two", Slot: left.Slot, Subject: left.Subject, Predicate: left.Predicate, Object: okf.ClaimObject{Value: 60, Datatype: "xsd:integer"}, Status: "verified", Relations: okf.ClaimRelations{Contradicts: []string{left.ID}}}
 	response := runtimeContextResponse{
-		Route: []string{"bm25", "policy_filter"}, Decision: "answer", RefusalReasons: []string{}, Rejected: []runtimeRejectedCandidate{},
+		Route: []string{"bm25", "vector", "policy_filter", "rerank"}, Decision: "answer", RefusalReasons: []string{}, Rejected: []runtimeRejectedCandidate{},
 		Sources: []runtimeContextSource{{Source: okf.ContextSource{Relation: "outgoing-link", ClaimProfile: &okf.ClaimProfileSignals{Profile: okf.ClaimProfileIDV1, Claims: []okf.Claim{right, left}, ClaimRefs: []string{}}}}},
 		Claims:  []okf.Claim{}, Conflicts: []runtimeEvidenceConflict{}, MissingKnowledge: []runtimeMissingKnowledge{},
 	}
 	populateRuntimeEvidenceBundle(&response, now)
-	if !reflect.DeepEqual(response.Route, []string{"bm25", "policy_filter", "link_expansion", "claim_projection"}) || len(response.Claims) != 2 || response.Claims[0].ID != left.ID {
+	if !reflect.DeepEqual(response.Route, []string{"bm25", "vector", "policy_filter", "rerank", "link_expansion", "claim_projection"}) || len(response.Claims) != 2 || response.Claims[0].ID != left.ID {
 		t.Fatalf("unexpected evidence bundle claims: %#v", response)
 	}
 	if len(response.Conflicts) != 2 || response.Conflicts[0].Kind != "explicit_contradiction" || response.Conflicts[1].Kind != "incompatible_values" {

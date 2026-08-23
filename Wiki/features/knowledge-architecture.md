@@ -30,20 +30,22 @@ The README is the product overview.
 | --- | --- |
 | Source | Filesystem-based Markdown concepts with YAML frontmatter and authored links. |
 | Metadata | Typed claim occurrences, ontology terms, provenance, relations, and optional corpus schema packs in the AST and JSON model. |
-| Retrieval | Field-weighted section BM25, deterministic boosts, one-hop link expansion, federated rank fusion, and token-budgeted context. |
+| Retrieval | Field-weighted section BM25, local vector candidates, metadata filters, deterministic reranking, one-hop link expansion, federated rank fusion, and token-budgeted context. |
 | Graphs | Structural graphs plus typed claim declaration and dependency edges. |
 | Delivery | CLI, Go API, local/static viewer, read-only MCP, portable exports, and immutable runtime generations. |
 | Maintenance | Agent setup, insights, validation, isolated jobs, and source-controlled review. |
 
-Retrieval builds a deterministic in-memory inverted index. The index uses one
-shared sorted vocabulary and field postings. Exact lookup uses postings.
-Prefix lookup uses a vocabulary range. Fuzzy lookup can scan the vocabulary.
+Retrieval builds a deterministic in-memory inverted and vector index. The
+vector uses hashed word and character features. It does not use an embedding
+model or a network service. Exact lookup uses postings. Prefix lookup uses a
+vocabulary range. Fuzzy lookup can scan the vocabulary.
 
 The graph layer contains claim occurrences and explicit declaration, reference,
 supersession, contradiction, and derivation edges. The claim registry provides
 entity and predicate identity. It does not provide general graph queries.
-Search does not currently provide general metadata filters or embeddings.
-Search also does not provide semantic fusion, a cross-encoder reranker, or a query planner.
+Search supports `type` and `tag` metadata filters. It combines lexical and
+local vector candidates with a deterministic reranker. It does not provide
+model embeddings, a cross-encoder reranker, or a query planner.
 It does not provide RDF queries, property-graph queries, or GraphRAG multi-hop reasoning.
 
 The optional corpus schema validates allowed document types, paths, required

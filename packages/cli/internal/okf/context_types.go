@@ -5,6 +5,8 @@ type ContextOptions struct {
 	Budget   int
 	Limit    int
 	NoExpand bool
+	Filters  SearchFilters
+	Include  func(ContextSection) bool
 }
 
 type ContextResult struct {
@@ -15,6 +17,7 @@ type ContextResult struct {
 	Budget          int               `json:"budget"`
 	EstimatedTokens int               `json:"estimatedTokens"`
 	Limit           int               `json:"limit"`
+	Route           []string          `json:"route,omitempty"`
 	Sources         []ContextSource   `json:"sources"`
 	Issues          []Issue           `json:"issues"`
 }

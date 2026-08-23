@@ -151,7 +151,9 @@ func buildRuntimeSearchResponse(snapshot runtimeGenerationSnapshot, policy okrun
 }
 
 func buildRuntimeSearchResponseForAccess(snapshot runtimeGenerationSnapshot, policy okruntime.RetrievalPolicyConfig, access runtimeAccessIdentity, query string, limit int, now time.Time) runtimeSearchResponse {
-	ranked := snapshot.Search.Search(okf.SearchOptions{Query: query, Limit: mcpMaxSearchLimit})
+	unfiltered := snapshot.Search.Search(okf.SearchOptions{Query: query, Limit: mcpMaxSearchLimit})
+	eligible := runtimeSearchCandidateFilter(snapshot, policy, access, now)
+	ranked := snapshot.Search.Search(okf.SearchOptions{Query: query, Limit: mcpMaxSearchLimit, Include: eligible})
 	response := runtimeSearchResponse{
 		SchemaVersion:  runtimeRetrievalSchemaVersion,
 		KnowledgeBase:  snapshot.Knowledge.ID,
@@ -168,6 +170,12 @@ func buildRuntimeSearchResponseForAccess(snapshot runtimeGenerationSnapshot, pol
 		Issues:         nonNilIssues(ranked.Issues),
 	}
 	sections := runtimeSectionLookup(snapshot.Search.Sections)
+	for _, result := range unfiltered.Results {
+		section := sections[result.ID]
+		if _, rejected := runtimeMetadata(snapshot, section, policy, access, now); len(rejected) > 0 {
+			response.Rejected = append(response.Rejected, runtimeRejectedCandidate{ID: result.ID, Locator: result.Locator, Path: result.Path, Reasons: rejected})
+		}
+	}
 	for rank, result := range ranked.Results {
 		section := sections[result.ID]
 		metadata, rejected := runtimeMetadata(snapshot, section, policy, access, now)
@@ -214,6 +222,11 @@ func buildRuntimeContextResponseForAccess(snapshot runtimeGenerationSnapshot, po
 	candidates := options
 	candidates.Limit = mcpMaxSearchLimit
 	candidates.Budget = mcpMaxSearchBudget
+	unfiltered, err := index.Resolve(candidates)
+	if err != nil {
+		return runtimeContextResponse{}, err
+	}
+	candidates.Include = runtimeSearchCandidateFilter(snapshot, policy, access, now)
 	resolved, err := index.Resolve(candidates)
 	if err != nil {
 		return runtimeContextResponse{}, err
@@ -226,7 +239,7 @@ func buildRuntimeContextResponseForAccess(snapshot runtimeGenerationSnapshot, po
 		Policy:             policy,
 		Revision:           resolved.Revision,
 		Query:              resolved.Query,
-		Route:              []string{"bm25", "policy_filter"},
+		Route:              []string{"bm25", "vector", "policy_filter", "rerank"},
 		Claims:             []okf.Claim{},
 		EvidenceArtifacts:  []runtimeEvidenceArtifact{},
 		Conflicts:          []runtimeEvidenceConflict{},
@@ -242,6 +255,12 @@ func buildRuntimeContextResponseForAccess(snapshot runtimeGenerationSnapshot, po
 		Issues:             nonNilIssues(resolved.Issues),
 	}
 	sections := runtimeSectionLookup(index.Sections)
+	for _, source := range unfiltered.Sources {
+		section := sections[source.ID]
+		if _, rejected := runtimeMetadata(snapshot, section, policy, access, now); len(rejected) > 0 {
+			response.Rejected = append(response.Rejected, runtimeRejectedCandidate{ID: source.ID, Locator: source.Locator, Path: source.Path, Reasons: rejected})
+		}
+	}
 	for rank, source := range resolved.Sources {
 		section := sections[source.ID]
 		metadata, rejected := runtimeMetadata(snapshot, section, policy, access, now)
@@ -271,6 +290,13 @@ func buildRuntimeContextResponseForAccess(snapshot runtimeGenerationSnapshot, po
 	}
 	populateRuntimeEvidenceBundle(&response, now)
 	return response, nil
+}
+
+func runtimeSearchCandidateFilter(snapshot runtimeGenerationSnapshot, policy okruntime.RetrievalPolicyConfig, access runtimeAccessIdentity, now time.Time) func(okf.ContextSection) bool {
+	return func(section okf.ContextSection) bool {
+		_, rejected := runtimeMetadata(snapshot, section, policy, access, now)
+		return len(rejected) == 0
+	}
 }
 
 func populateRuntimeEvidenceBundle(response *runtimeContextResponse, now time.Time) {

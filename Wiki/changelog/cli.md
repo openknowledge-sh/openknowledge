@@ -13,6 +13,25 @@ page records release-level changes.
 
 ## Unreleased
 
+### Retrieval
+
+- Search now combines BM25 with local deterministic vector candidates. The
+  vector uses hashed word and character features and does not call an embedding
+  service.
+- New repeatable `okn search --filter type=<value>|tag=<value>` filters
+  candidates before ranking. MCP search accepts the same `types` and `tags`
+  filters.
+- Search output now identifies the retrieval route and can include lexical,
+  vector, and rerank score diagnostics. Runtime access policy now filters
+  candidates before ranking and keeps the final source check.
+- Source: `packages/cli/internal/okf/search_knowledge.go`,
+  `packages/cli/internal/okf/search_vector.go`,
+  `packages/cli/internal/okf/search_filters.go`, and
+  `packages/cli/cmd/openknowledge/runtime_retrieval.go`.
+- Docs: `Wiki/features/commands/search.md`,
+  `Wiki/features/knowledge-architecture.md`,
+  `Wiki/features/commands/mcp.md`, and `Wiki/features/commands/runtime.md`.
+
 ### Evidence bundles, corpus contracts, and answer safety
 
 - New `okn evidence pin` captures exact local or HTTP evidence bytes into a

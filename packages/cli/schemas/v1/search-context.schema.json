@@ -12,6 +12,7 @@
     "budget": {"type": "integer", "minimum": 1},
     "estimatedTokens": {"type": "integer", "minimum": 0},
     "limit": {"type": "integer", "minimum": 1},
+    "route": {"type": "array", "items": {"enum": ["bm25", "vector", "metadata_filter", "rerank", "link_expansion"]}},
     "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
     "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
   },

@@ -929,6 +929,7 @@ type searchOptions struct {
 	budgetSet bool
 	matches   bool
 	noExpand  bool
+	filters   okf.SearchFilters
 }
 
 type getSelection struct {
@@ -1034,6 +1035,7 @@ func runSearch(args []string) int {
 			Limit:    options.limit,
 			Fuzzy:    true,
 			NoExpand: options.noExpand,
+			Filters:  options.filters,
 		})
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
@@ -1051,6 +1053,7 @@ func runSearch(args []string) int {
 		Budget:   options.budget,
 		Limit:    options.limit,
 		NoExpand: options.noExpand,
+		Filters:  options.filters,
 	})
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
@@ -1076,6 +1079,7 @@ func runFederatedSearch(options searchOptions) int {
 	if options.matches {
 		result, err := okf.SearchFederatedKnowledgeWithVersion(targets, options.spec, okf.SearchOptions{
 			Query: options.query, Limit: options.limit, Fuzzy: true, NoExpand: options.noExpand,
+			Filters: options.filters,
 		})
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
@@ -1089,6 +1093,7 @@ func runFederatedSearch(options searchOptions) int {
 	}
 	result, err := okf.ResolveFederatedContextWithVersion(targets, options.spec, okf.ContextOptions{
 		Query: options.query, Budget: options.budget, Limit: options.limit, NoExpand: options.noExpand,
+		Filters: options.filters,
 	})
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
@@ -1239,6 +1244,19 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 			options.all = true
 		case arg == "--no-expand":
 			options.noExpand = true
+		case arg == "--filter":
+			value, next, err := nextFlagValue(args, index, "--filter")
+			if err != nil {
+				return searchOptions{}, err
+			}
+			if err := addSearchFilter(&options.filters, value); err != nil {
+				return searchOptions{}, err
+			}
+			index = next
+		case strings.HasPrefix(arg, "--filter="):
+			if err := addSearchFilter(&options.filters, strings.TrimPrefix(arg, "--filter=")); err != nil {
+				return searchOptions{}, err
+			}
 		case strings.HasPrefix(arg, "-"):
 			return searchOptions{}, fmt.Errorf("unknown search option: %s", arg)
 		default:
@@ -1271,6 +1289,24 @@ func parseSearchOptions(args []string) (searchOptions, error) {
 		return searchOptions{}, fmt.Errorf("--budget cannot be used with --matches")
 	}
 	return options, nil
+}
+
+func addSearchFilter(filters *okf.SearchFilters, raw string) error {
+	key, value, ok := strings.Cut(raw, "=")
+	key = strings.ToLower(strings.TrimSpace(key))
+	value = strings.TrimSpace(value)
+	if !ok || value == "" {
+		return fmt.Errorf("--filter requires key=value")
+	}
+	switch key {
+	case "type":
+		filters.Types = append(filters.Types, value)
+	case "tag", "tags":
+		filters.Tags = append(filters.Tags, value)
+	default:
+		return fmt.Errorf("--filter supports type=<value> or tag=<value>")
+	}
+	return nil
 }
 
 func printSearchContext(result okf.ContextResult, format string) error {

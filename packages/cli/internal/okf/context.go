@@ -142,6 +142,7 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 		Query:         query,
 		Budget:        budget,
 		Limit:         limit,
+		Route:         knowledgeSearchRoute(SearchOptions{Filters: options.Filters, Include: options.Include, NoExpand: options.NoExpand}),
 		Sources:       []ContextSource{},
 		Issues:        index.Issues,
 	}
@@ -149,17 +150,33 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 		return result, nil
 	}
 
-	searchOptions := SearchOptions{Query: query, Limit: limit, Fuzzy: true}
+	searchOptions := SearchOptions{Query: query, Limit: limit, Fuzzy: true, Filters: options.Filters, Include: options.Include}
 	direct := index.rankKnowledgeSearch(searchOptions)
 	seedCount := minInt(limit, len(direct))
 	var neighbors []SearchResult
 	if !options.NoExpand && seedCount > 0 {
 		direct, neighbors = index.knowledgeSearchGraphExpansion(direct[:seedCount], direct)
 	}
+	direct = index.filterContextSearchResults(direct, options)
+	neighbors = index.filterContextSearchResults(neighbors, options)
 	direct = prioritizeContextResults(index.Sections, direct, query, limit, !options.NoExpand)
 	result.Sources = packContextSources(index.Sections, direct, neighbors, budget, limit)
 	for _, source := range result.Sources {
 		result.EstimatedTokens += source.EstimatedTokens
 	}
 	return result, nil
+}
+
+func (index ContextIndex) filterContextSearchResults(results []SearchResult, options ContextOptions) []SearchResult {
+	sections := make(map[string]ContextSection, len(index.Sections))
+	for _, section := range index.Sections {
+		sections[section.ID] = section
+	}
+	filtered := make([]SearchResult, 0, len(results))
+	for _, result := range results {
+		if section, ok := sections[result.ID]; ok && searchSectionMatchesFilters(section, options.Filters) && (options.Include == nil || options.Include(section)) {
+			filtered = append(filtered, result)
+		}
+	}
+	return filtered
 }

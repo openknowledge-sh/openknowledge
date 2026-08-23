@@ -12,7 +12,7 @@
     "policy": {"$ref": "runtime-search.schema.json#/$defs/policy"},
     "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
     "query": {"type": "string", "minLength": 1},
-    "route": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"enum": ["bm25", "policy_filter", "link_expansion", "claim_projection"]}},
+    "route": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"enum": ["bm25", "vector", "policy_filter", "rerank", "link_expansion", "claim_projection"]}},
     "claims": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/claim"}},
     "evidenceArtifacts": {"type": "array", "items": {"$ref": "#/$defs/evidenceArtifact"}},
     "conflicts": {"type": "array", "items": {"$ref": "#/$defs/conflict"}},
