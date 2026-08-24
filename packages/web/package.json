@@ -21,7 +21,7 @@
     "mermaid": "11.16.1"
   },
   "devDependencies": {
-    "oxlint": "1.15.0",
+    "oxlint": "1.79.0",
     "vite": "6.4.3",
     "vitest": "3.2.6"
   }
