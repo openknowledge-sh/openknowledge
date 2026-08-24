@@ -99,6 +99,12 @@ before(async () => {
     "      datatype: xsd:string",
     "      maximum_count: 1",
     "      pref_label: token format",
+    "    - id: auth:reportsMetric",
+    "      object_kind: quantity",
+    "      datatype: xsd:decimal",
+    "      quantity_kind: https://qudt.org/vocab/quantitykind/Revenue",
+    "      canonical_unit: https://qudt.org/vocab/unit/MegaUSD",
+    "      pref_label: reports metric",
     "sources:",
     "  - id: identity-openapi",
     "    resource: token-evidence.txt",
@@ -124,6 +130,17 @@ before(async () => {
     "    owners: [team:identity]",
     "    status: proposed",
     "    section_ref: \"#claim-token-format\"",
+    "  - id: okn:claim/revenue",
+    "    slot: okn:slot/revenue",
+    "    subject: okn:service/auth",
+    "    predicate: auth:reportsMetric",
+    "    object:",
+    "      value: -139500",
+    "      datatype: xsd:decimal",
+    "      unit: https://qudt.org/vocab/unit/MegaUSD",
+    "      quantity_kind: https://qudt.org/vocab/quantitykind/Revenue",
+    "    owners: [team:identity]",
+    "    status: proposed",
     "---",
     "",
     "# Authentication",
@@ -703,24 +720,54 @@ test("exported viewer presents typed claims inline and in a responsive workspace
   const disclosure = page.locator("[data-claims-panel]");
   await disclosure.waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await disclosure.getAttribute("open"), null);
-  assert.match(await disclosure.locator(":scope > summary").innerText(), /1 statement/);
+  assert.match(await disclosure.locator(":scope > summary").innerText(), /2 statements/);
   await disclosure.locator(":scope > summary").click({ timeout: 5000 });
-  await disclosure.locator(".ok-claim-subject").waitFor({ state: "visible", timeout: 5000 });
+  await disclosure.locator(".ok-claim-subject").first().waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await page.locator("[data-claim-section-marker]").count(), 1);
 
-  await disclosure.locator(".ok-claim-details > summary").click({ timeout: 5000 });
-  await disclosure.getByRole("button", { name: "Explore this claim" }).click({ timeout: 5000 });
+  const tokenClaim = disclosure.locator('[data-claim-id="okn:claim/token-format"]');
+  await tokenClaim.locator(".ok-claim-details > summary").click({ timeout: 5000 });
+  await tokenClaim.getByRole("button", { name: "Explore this claim" }).click({ timeout: 5000 });
   const workspace = page.locator("[data-claims-workspace]");
   await workspace.waitFor({ state: "visible", timeout: 5000 });
   assert.equal(new URL(page.url()).searchParams.get("view"), "claims");
   assert.equal(new URL(page.url()).searchParams.get("claim"), "okn:claim/token-format");
-  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 1);
+  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 2);
   assert.equal(await workspace.getByRole("heading", { name: /Authentication service/ }).count(), 1);
-  await workspace.locator('[data-claims-filter="status"]').selectOption("proposed");
+  const compactLayout = await workspace.evaluate((root) => {
+    const header = root.querySelector(".claims-workspace-header");
+    const filters = root.querySelector(".claims-filters");
+    const row = root.querySelector(".claims-result");
+    const inspector = root.querySelector("[data-claims-detail]");
+    const heading = inspector?.querySelector("h2");
+    return {
+      headerHeight: header?.getBoundingClientRect().height || 0,
+      filtersHeight: filters?.getBoundingClientRect().height || 0,
+      rowHeight: row?.getBoundingClientRect().height || 0,
+      inspectorPaddingTop: Number.parseFloat(getComputedStyle(inspector).paddingTop),
+      headingFontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
+    };
+  });
+  assert.ok(compactLayout.headerHeight <= 72, `claims header should stay compact: ${JSON.stringify(compactLayout)}`);
+  assert.ok(compactLayout.filtersHeight <= 62, `claims filters should stay compact: ${JSON.stringify(compactLayout)}`);
+  assert.ok(compactLayout.headerHeight + compactLayout.filtersHeight <= 130, `claims chrome should preserve workspace height: ${JSON.stringify(compactLayout)}`);
+  assert.ok(compactLayout.rowHeight <= 64, `claims rows should stay compact: ${JSON.stringify(compactLayout)}`);
+  assert.ok(compactLayout.inspectorPaddingTop <= 32, `claims inspector should stay compact: ${JSON.stringify(compactLayout)}`);
+  assert.ok(compactLayout.headingFontSize <= 24, `claims heading should stay compact: ${JSON.stringify(compactLayout)}`);
+  const metricRow = workspace.locator('.claims-results-list [role="option"]', { hasText: "Revenue:" });
+  assert.equal(await metricRow.count(), 1);
+  assert.match(await metricRow.innerText(), /Revenue:\s+-139500 Mega USD/);
+  await metricRow.click({ timeout: 5000 });
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-metric").innerText(), "Revenue:");
+  await workspace.getByRole("button", { name: "Relationships", exact: true }).click({ timeout: 5000 });
+  await workspace.locator(".claims-neighborhood-center").waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await workspace.locator(".claims-neighborhood-center .claims-inspector-metric").innerText(), "Revenue:");
+  await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-desktop.png"), fullPage: true });
+  await workspace.getByRole("button", { name: "Browse", exact: true }).click({ timeout: 5000 });
+  await workspace.locator('[data-claims-filter="predicate"]').selectOption("auth:tokenFormat");
   assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 1);
   await workspace.getByRole("button", { name: "Relationships", exact: true }).click({ timeout: 5000 });
   await workspace.locator(".claims-neighborhood-center").waitFor({ state: "visible", timeout: 5000 });
-  await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-desktop.png"), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await workspace.getByRole("button", { name: "Browse", exact: true }).click({ timeout: 5000 });

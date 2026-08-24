@@ -57,6 +57,32 @@ func TestViewerProjectsClaimsIntoDocumentWorkspaceAndGraph(t *testing.T) {
 	}
 }
 
+func TestViewerLabelsQuantityKindAndKeepsAcronymsReadable(t *testing.T) {
+	object := viewerClaimObjectValue(okf.ClaimObject{
+		Value:        -139500,
+		Unit:         "unit:USD-million",
+		QuantityKind: "qudtqk:Revenue",
+	}, okf.ClaimOntology{})
+
+	if object.Label != "-139500 USD million" || object.QuantityKindLabel != "Revenue" {
+		t.Fatalf("expected readable metric and unit labels, got %#v", object)
+	}
+
+	panel := string(renderViewerClaimsPanel(viewerClaimsData{Claims: []viewerClaim{{
+		ID:            "okn:claim/revenue",
+		Subject:       viewerClaimTerm{ID: "okn:company/microsoft", Label: "Microsoft Corporation"},
+		Predicate:     viewerClaimTerm{ID: "okn:reportsMetric", Label: "reports metric"},
+		Object:        object,
+		Status:        "proposed",
+		DeclaringPath: "finance.md",
+	}}}, "finance.md"))
+	for _, expected := range []string{`Microsoft Corporation`, `reports metric`, `class="ok-claim-metric">Revenue:`, `-139500 USD million`, `Quantity kind`, `qudtqk:Revenue`} {
+		if !strings.Contains(panel, expected) {
+			t.Fatalf("quantity claim panel is missing %q:\n%s", expected, panel)
+		}
+	}
+}
+
 func viewerTypedClaimFixture() string {
 	return `---
 type: Authentication

@@ -59,13 +59,14 @@ type viewerClaimTerm struct {
 }
 
 type viewerClaimValue struct {
-	Label        string `json:"label"`
-	Ref          string `json:"ref,omitempty"`
-	Value        any    `json:"value,omitempty"`
-	Datatype     string `json:"datatype,omitempty"`
-	Language     string `json:"language,omitempty"`
-	Unit         string `json:"unit,omitempty"`
-	QuantityKind string `json:"quantityKind,omitempty"`
+	Label             string `json:"label"`
+	Ref               string `json:"ref,omitempty"`
+	Value             any    `json:"value,omitempty"`
+	Datatype          string `json:"datatype,omitempty"`
+	Language          string `json:"language,omitempty"`
+	Unit              string `json:"unit,omitempty"`
+	QuantityKind      string `json:"quantityKind,omitempty"`
+	QuantityKindLabel string `json:"quantityKindLabel,omitempty"`
 }
 
 type viewerClaimScope struct {
@@ -265,12 +266,15 @@ func viewerClaimFallbackLabel(id string) string {
 		label = label[index+1:]
 	}
 	var builder strings.Builder
-	for index, char := range label {
+	chars := []rune(label)
+	for index, char := range chars {
 		if char == '-' || char == '_' || char == '.' {
 			builder.WriteByte(' ')
 			continue
 		}
-		if index > 0 && unicode.IsUpper(char) {
+		if index > 0 && unicode.IsUpper(char) &&
+			(unicode.IsLower(chars[index-1]) || unicode.IsDigit(chars[index-1]) ||
+				(index+1 < len(chars) && unicode.IsUpper(chars[index-1]) && unicode.IsLower(chars[index+1]))) {
 			builder.WriteByte(' ')
 		}
 		builder.WriteRune(char)
@@ -296,7 +300,15 @@ func viewerClaimObjectValue(object okf.ClaimObject, ontology okf.ClaimOntology) 
 	return viewerClaimValue{
 		Label: label, Ref: object.Ref, Value: object.Value, Datatype: object.Datatype,
 		Language: object.Language, Unit: object.Unit, QuantityKind: object.QuantityKind,
+		QuantityKindLabel: viewerClaimOptionalLabel(object.QuantityKind),
 	}
+}
+
+func viewerClaimOptionalLabel(id string) string {
+	if strings.TrimSpace(id) == "" {
+		return ""
+	}
+	return viewerClaimFallbackLabel(id)
 }
 
 func viewerClaimLiteralLabel(value any) string {
@@ -394,8 +406,12 @@ func writeViewerClaim(builder *strings.Builder, claim viewerClaim) {
 		fmt.Fprintf(builder, ` data-claim-section-ref="%s"`, template.HTMLEscapeString(claim.SectionRef))
 	}
 	builder.WriteString(`><div class="ok-claim-statement"><div class="ok-claim-copy">`)
-	fmt.Fprintf(builder, `<span class="ok-claim-subject">%s</span><span class="ok-claim-predicate">%s</span><strong class="ok-claim-object">%s</strong>`,
-		template.HTMLEscapeString(claim.Subject.Label), template.HTMLEscapeString(claim.Predicate.Label), template.HTMLEscapeString(claim.Object.Label))
+	fmt.Fprintf(builder, `<span class="ok-claim-subject">%s</span><span class="ok-claim-predicate">%s</span>`,
+		template.HTMLEscapeString(claim.Subject.Label), template.HTMLEscapeString(claim.Predicate.Label))
+	if claim.Object.QuantityKindLabel != "" {
+		fmt.Fprintf(builder, `<span class="ok-claim-metric">%s:</span>`, template.HTMLEscapeString(claim.Object.QuantityKindLabel))
+	}
+	fmt.Fprintf(builder, `<strong class="ok-claim-object">%s</strong>`, template.HTMLEscapeString(claim.Object.Label))
 	builder.WriteString(`</div><div class="ok-claim-badges">`)
 	fmt.Fprintf(builder, `<span class="ok-claim-status" data-status="%s">%s</span>`, template.HTMLEscapeString(claim.Status), template.HTMLEscapeString(viewerClaimFallbackLabel(claim.Status)))
 	if claim.Stale {
@@ -428,6 +444,8 @@ func writeViewerClaim(builder *strings.Builder, claim viewerClaim) {
 	if claim.Object.Datatype != "" {
 		writeViewerClaimDetail(builder, "Datatype", claim.Object.Datatype)
 	}
+	writeViewerClaimDetail(builder, "Quantity kind", claim.Object.QuantityKind)
+	writeViewerClaimDetail(builder, "Unit", claim.Object.Unit)
 	if len(claim.Owners) > 0 {
 		writeViewerClaimDetail(builder, "Owners", strings.Join(claim.Owners, ", "))
 	}

@@ -427,6 +427,10 @@ page records release-level changes.
 
 ### Viewer
 
+- The **Claims** workspace now uses compact spacing in its header, filters,
+  claim rows, **Browse**, and **Relationships**.
+- Metric claims now show the quantity-kind label with the value and unit in
+  document **Claims** panels, **Browse**, and **Relationships**.
 - Markdown notes with typed claims now include a collapsed, read-only
   **Claims** panel. It shows labeled statements, status, scope, evidence, and
   occurrence relations without changing canonical YAML.

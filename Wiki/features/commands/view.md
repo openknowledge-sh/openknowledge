@@ -93,6 +93,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Each note with typed claims also has a collapsed **Claims** panel. The panel
   shows typed statements, status, scope, evidence totals, and occurrence
   relations. It uses ontology labels and keeps technical IDs in claim details.
+  For metric claims, the panel shows the quantity-kind label with the value and
+  unit.
   A `section_ref` links a claim to its Markdown section. The matching heading
   shows the claim count. Select the marker to open the first bound claim. The
   panel is read-only and does not change canonical YAML.
@@ -178,6 +180,10 @@ or validation state. Select a claim to inspect its typed value, evidence,
 provenance, time, and local relationships. This workspace is read-only.
 Select **Relationships** to inspect authored relations around the selected
 claim.
+For metric claims, **Browse** and **Relationships** show the quantity-kind label
+with the value and unit.
+The workspace uses compact spacing in its header, filters, claim rows,
+**Browse**, and **Relationships**.
 
 | Shortcut | Action |
 | --- | --- |

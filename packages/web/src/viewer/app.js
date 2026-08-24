@@ -538,9 +538,31 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function claimStatement(claim) {
-    return [claim?.subject?.label || claim?.subject?.id, claim?.predicate?.label || claim?.predicate?.id, claim?.object?.label]
+    return [
+      claim?.subject?.label || claim?.subject?.id,
+      claim?.predicate?.label || claim?.predicate?.id,
+      claimMetricLabel(claim),
+      claim?.object?.label
+    ]
       .filter(Boolean)
       .join(" — ");
+  }
+
+  function claimMetricLabel(claim) {
+    return claim?.object?.quantityKindLabel || claim?.object?.quantityKind || "";
+  }
+
+  function appendClaimStatement(parent, claim, classPrefix) {
+    const prefix = classPrefix || "";
+    parent.append(
+      createClaimsElement("span", prefix + "subject", claim?.subject?.label || claim?.subject?.id || "Unknown subject"),
+      createClaimsElement("span", prefix + "predicate", claim?.predicate?.label || claim?.predicate?.id || "Unknown predicate")
+    );
+    const metric = claimMetricLabel(claim);
+    if (metric) {
+      parent.append(createClaimsElement("span", prefix + "metric", metric + ":"));
+    }
+    parent.append(createClaimsElement("strong", prefix + "object", claim?.object?.label || "—"));
   }
 
   function claimRelationEntries(claim) {
@@ -727,11 +749,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       row.setAttribute("role", "option");
       row.setAttribute("aria-selected", claimIdentity(claim) === selectedClaimKey ? "true" : "false");
       const statement = createClaimsElement("span", "claims-result-statement");
-      statement.append(
-        createClaimsElement("span", "claims-result-subject", claim.subject?.label || claim.subject?.id || "Unknown subject"),
-        createClaimsElement("span", "claims-result-predicate", claim.predicate?.label || claim.predicate?.id || "Unknown predicate"),
-        createClaimsElement("strong", "claims-result-object", claim.object?.label || "—")
-      );
+      appendClaimStatement(statement, claim, "claims-result-");
       const meta = createClaimsElement("span", "claims-result-meta");
       appendClaimBadge(meta, claim.status, claim.status);
       if (claim.stale) {
@@ -766,11 +784,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     const heading = createClaimsElement("header", "claims-inspector-header");
     const title = createClaimsElement("h2", "claims-inspector-statement");
-    title.append(
-      createClaimsElement("span", "", claim.subject?.label || claim.subject?.id || "Unknown subject"),
-      createClaimsElement("span", "claims-inspector-predicate", claim.predicate?.label || claim.predicate?.id || "Unknown predicate"),
-      createClaimsElement("strong", "", claim.object?.label || "—")
-    );
+    appendClaimStatement(title, claim, "claims-inspector-");
     const badges = createClaimsElement("div", "claims-inspector-badges");
     appendClaimBadge(badges, claim.status, claim.status);
     appendClaimBadge(badges, claim.trustTier, "trust");
@@ -799,6 +813,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     appendClaimDefinition(definitions, "Subject", claim.subject?.id, { mono: true });
     appendClaimDefinition(definitions, "Predicate", claim.predicate?.id, { mono: true });
     appendClaimDefinition(definitions, "Datatype", claim.object?.datatype, { mono: true });
+    appendClaimDefinition(definitions, "Quantity kind", claim.object?.quantityKind, { mono: true });
+    appendClaimDefinition(definitions, "Unit", claim.object?.unit, { mono: true });
     appendClaimDefinition(definitions, "Scope", (claim.scope || []).map(function (item) {
       return (item.dimension?.label || item.dimension?.id) + ": " + (item.value?.label || "—");
     }).join("\n"), { multiline: true });
@@ -882,9 +898,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const neighborhood = createClaimsElement("div", "claims-neighborhood");
     const center = createClaimsElement("article", "claims-neighborhood-center");
     const centerStatement = createClaimsElement("div", "claims-neighborhood-statement");
-    centerStatement.append(createClaimsElement("span", "", claim.subject?.label || claim.subject?.id));
-    centerStatement.append(createClaimsElement("span", "claims-inspector-predicate", claim.predicate?.label || claim.predicate?.id));
-    centerStatement.append(createClaimsElement("strong", "", claim.object?.label || "—"));
+    appendClaimStatement(centerStatement, claim, "claims-inspector-");
     center.append(centerStatement);
     appendClaimBadge(center, claim.status, claim.status);
     neighborhood.append(center);
