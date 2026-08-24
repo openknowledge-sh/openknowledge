@@ -39,9 +39,10 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 		},
 		{
 			name:  "links with custom resolver",
-			input: "Read [Setup](guides/setup.md), [Anchor](#top), and [External](https://openknowledge.sh).",
+			input: "Read [Setup](guides/setup.md), [Titled](guide.md \"Guide title\"), [Anchor](#top), and [External](https://openknowledge.sh).",
 			required: []string{
 				`<a href="/resolved/guides/setup.md">Setup</a>`,
+				`<a href="/resolved/guide.md" title="Guide title">Titled</a>`,
 				`<a href="/resolved/#top">Anchor</a>`,
 				`<a href="/resolved/https://openknowledge.sh">External</a>`,
 			},
@@ -59,6 +60,22 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 				`](https://react.dev/reference/react/useEffect)`,
 				`href="/resolved/skip.md"`,
 			},
+		},
+		{
+			name:  "images with alt text and title",
+			input: "![Architecture **diagram**](assets/architecture.png \"System overview\")",
+			required: []string{
+				`<img class="ok-markdown-image" src="/resolved/assets/architecture.png" alt="Architecture diagram" title="System overview" loading="lazy" decoding="async">`,
+			},
+			forbidden: []string{"!<a", "<strong>diagram</strong>"},
+		},
+		{
+			name:  "linked images",
+			input: `[![Evidence coverage](assets/evidence.svg "Coverage matrix")](visualizations/evidence.md "Open evidence details")`,
+			required: []string{
+				`<a href="/resolved/visualizations/evidence.md" title="Open evidence details"><img class="ok-markdown-image" src="/resolved/assets/evidence.svg" alt="Evidence coverage" title="Coverage matrix" loading="lazy" decoding="async"></a>`,
+			},
+			forbidden: []string{`![Evidence coverage]`, `](visualizations/evidence.md)`},
 		},
 		{
 			name: "unordered and ordered lists",
@@ -244,6 +261,19 @@ func TestRenderMarkdownSupportedSyntax(t *testing.T) {
 				"</div>",
 			},
 			forbidden: []string{"| :--- |", "**Required**"},
+		},
+		{
+			name: "links and images in tables",
+			input: strings.Join([]string{
+				"| Preview | Reference |",
+				"| --- | --- |",
+				"| ![Diagram](assets/diagram.png) | [Guide](guide.md) |",
+			}, "\n"),
+			required: []string{
+				`<td><img class="ok-markdown-image" src="/resolved/assets/diagram.png" alt="Diagram" loading="lazy" decoding="async"></td>`,
+				`<td><a href="/resolved/guide.md">Guide</a></td>`,
+			},
+			forbidden: []string{"![Diagram]", "[Guide](guide.md)"},
 		},
 	}
 

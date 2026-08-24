@@ -55,6 +55,10 @@ Viewer mode includes:
   `okn connect`, unless `--no-source-archive` is set
 - allowed public assets at their bundle-relative paths
 
+Markdown images retain source-relative paths in static pages. This behavior
+supports hosted output and direct `file://` use from nested pages. Add each
+local image to `publish.assets` so the exporter copies it.
+
 Use `--no-source-archive` when the published source would make the site too
 large. A site without these files does not support remote `okn connect` from
 its site URL.

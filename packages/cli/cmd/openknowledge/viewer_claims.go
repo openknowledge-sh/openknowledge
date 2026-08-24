@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -23,6 +24,7 @@ type viewerClaimsData struct {
 	References    []viewerClaimReference      `json:"references"`
 	Entities      []viewerClaimOntologyEntity `json:"entities"`
 	Predicates    []viewerClaimOntologyTerm   `json:"predicates"`
+	Sources       []viewerClaimSource         `json:"sources"`
 	Issues        []okf.Issue                 `json:"issues"`
 }
 
@@ -35,6 +37,7 @@ type viewerClaim struct {
 	Predicate     viewerClaimTerm        `json:"predicate"`
 	Object        viewerClaimValue       `json:"object"`
 	Scope         []viewerClaimScope     `json:"scope"`
+	Projection    *viewerClaimProjection `json:"projection,omitempty"`
 	Evidence      []okf.ClaimEvidence    `json:"evidence"`
 	Owners        []string               `json:"owners"`
 	Status        string                 `json:"status"`
@@ -74,27 +77,58 @@ type viewerClaimScope struct {
 	Value     viewerClaimValue `json:"value"`
 }
 
+type viewerClaimProjection struct {
+	Metric string `json:"metric"`
+	Value  string `json:"value"`
+}
+
 type viewerClaimReference struct {
-	ClaimID string `json:"claimId"`
-	Path    string `json:"path"`
-	URL     string `json:"url"`
+	KnowledgeBase string `json:"knowledgeBase,omitempty"`
+	ClaimID       string `json:"claimId"`
+	Path          string `json:"path"`
+	URL           string `json:"url"`
 }
 
 type viewerClaimOntologyEntity struct {
-	ID         string   `json:"id"`
-	Label      string   `json:"label"`
-	Types      []string `json:"types,omitempty"`
-	AltLabels  []string `json:"altLabels,omitempty"`
-	Deprecated bool     `json:"deprecated,omitempty"`
-	ReplacedBy string   `json:"replacedBy,omitempty"`
+	Key           string   `json:"key"`
+	KnowledgeBase string   `json:"knowledgeBase,omitempty"`
+	ID            string   `json:"id"`
+	Label         string   `json:"label"`
+	Types         []string `json:"types,omitempty"`
+	AltLabels     []string `json:"altLabels,omitempty"`
+	Deprecated    bool     `json:"deprecated,omitempty"`
+	ReplacedBy    string   `json:"replacedBy,omitempty"`
 }
 
 type viewerClaimOntologyTerm struct {
-	ID         string   `json:"id"`
-	Label      string   `json:"label"`
-	ObjectKind string   `json:"objectKind,omitempty"`
-	Datatype   string   `json:"datatype,omitempty"`
-	Scope      []string `json:"requiredScope,omitempty"`
+	Key           string   `json:"key"`
+	KnowledgeBase string   `json:"knowledgeBase,omitempty"`
+	ID            string   `json:"id"`
+	Label         string   `json:"label"`
+	ObjectKind    string   `json:"objectKind,omitempty"`
+	Datatype      string   `json:"datatype,omitempty"`
+	QuantityKind  string   `json:"quantityKind,omitempty"`
+	CanonicalUnit string   `json:"canonicalUnit,omitempty"`
+	Scope         []string `json:"requiredScope,omitempty"`
+	MaximumCount  int      `json:"maximumCount,omitempty"`
+}
+
+type viewerClaimSource struct {
+	Key           string                 `json:"key"`
+	KnowledgeBase string                 `json:"knowledgeBase,omitempty"`
+	ID            string                 `json:"id"`
+	Title         string                 `json:"title,omitempty"`
+	Resource      string                 `json:"resource"`
+	Observe       string                 `json:"observe,omitempty"`
+	SHA256        string                 `json:"sha256,omitempty"`
+	Role          string                 `json:"role,omitempty"`
+	Author        string                 `json:"author,omitempty"`
+	Access        []string               `json:"access,omitempty"`
+	UsageCount    *float64               `json:"usageCount,omitempty"`
+	LastModified  string                 `json:"lastModified,omitempty"`
+	UsageWindow   *okf.OKFV02UsageWindow `json:"usageWindow,omitempty"`
+	DeclaringPath string                 `json:"declaringPath"`
+	DocumentURL   string                 `json:"documentURL"`
 }
 
 func viewerClaimsForRoot(root string, specVersion string, fileURL func(string) string) (viewerClaimsData, error) {
@@ -106,30 +140,48 @@ func viewerClaimsForRoot(root string, specVersion string, fileURL func(string) s
 }
 
 func viewerClaimsFromAST(bundle okf.ASTBundle, fileURL func(string) string) viewerClaimsData {
-	profile := okf.AnalyzeClaimProfile(bundle, time.Now())
+	now := time.Now()
+	profile := okf.AnalyzeClaimProfile(bundle, now)
 	data := viewerClaimsData{
 		SchemaVersion: viewerClaimsSchemaVersion,
 		Claims:        []viewerClaim{},
 		References:    []viewerClaimReference{},
 		Entities:      []viewerClaimOntologyEntity{},
 		Predicates:    []viewerClaimOntologyTerm{},
+		Sources:       []viewerClaimSource{},
 		Issues:        append([]okf.Issue{}, profile.Issues...),
 	}
 
 	for _, entity := range profile.Ontology.Entities {
 		data.Entities = append(data.Entities, viewerClaimOntologyEntity{
-			ID: entity.ID, Label: viewerClaimEntityLabel(entity.ID, profile.Ontology), Types: append([]string{}, entity.Types...),
+			Key: entity.ID, ID: entity.ID, Label: viewerClaimEntityLabel(entity.ID, profile.Ontology), Types: append([]string{}, entity.Types...),
 			AltLabels: append([]string{}, entity.AltLabels...), Deprecated: entity.Deprecated, ReplacedBy: entity.ReplacedBy,
 		})
 	}
 	for _, predicate := range profile.Ontology.Predicates {
 		data.Predicates = append(data.Predicates, viewerClaimOntologyTerm{
-			ID: predicate.ID, Label: viewerClaimPredicateLabel(predicate.ID, profile.Ontology), ObjectKind: predicate.ObjectKind,
-			Datatype: predicate.Datatype, Scope: append([]string{}, predicate.RequiredScope...),
+			Key: predicate.ID, ID: predicate.ID, Label: viewerClaimPredicateLabel(predicate.ID, profile.Ontology), ObjectKind: predicate.ObjectKind,
+			Datatype: predicate.Datatype, QuantityKind: predicate.QuantityKind, CanonicalUnit: predicate.CanonicalUnit,
+			Scope: append([]string{}, predicate.RequiredScope...), MaximumCount: predicate.MaximumCount,
 		})
+	}
+	for _, document := range bundle.Documents {
+		signals := okf.DeriveOKFV02SignalsAt(document.Frontmatter.Data, now)
+		for _, source := range signals.Sources {
+			if strings.TrimSpace(source.ID) == "" {
+				continue
+			}
+			data.Sources = append(data.Sources, viewerClaimSource{
+				Key: document.Rel + "\x00" + source.ID, ID: source.ID, Title: source.Title, Resource: source.Resource,
+				Observe: source.Observe, SHA256: source.SHA256, Role: source.Role, Author: source.Author,
+				Access: append([]string{}, source.Access...), UsageCount: source.UsageCount, LastModified: source.LastModified,
+				UsageWindow: source.UsageWindow, DeclaringPath: document.Rel, DocumentURL: fileURL(document.Rel),
+			})
+		}
 	}
 	sort.Slice(data.Entities, func(i, j int) bool { return data.Entities[i].ID < data.Entities[j].ID })
 	sort.Slice(data.Predicates, func(i, j int) bool { return data.Predicates[i].ID < data.Predicates[j].ID })
+	sort.Slice(data.Sources, func(i, j int) bool { return data.Sources[i].Key < data.Sources[j].Key })
 
 	for _, claim := range profile.Claims {
 		documentURL := fileURL(claim.DeclaringPath)
@@ -156,6 +208,7 @@ func viewerClaimsFromAST(bundle okf.ASTBundle, fileURL func(string) string) view
 				Value:     viewerClaimObjectValue(claim.Scope[dimension], profile.Ontology),
 			})
 		}
+		view.Projection = viewerClaimProjectionFor(view)
 		data.Claims = append(data.Claims, view)
 	}
 
@@ -176,7 +229,7 @@ func registryClaimsJSON(workspaces []viewerWorkspace) template.JS {
 	combined := viewerClaimsData{
 		SchemaVersion: viewerClaimsSchemaVersion,
 		Claims:        []viewerClaim{}, References: []viewerClaimReference{}, Entities: []viewerClaimOntologyEntity{},
-		Predicates: []viewerClaimOntologyTerm{}, Issues: []okf.Issue{},
+		Predicates: []viewerClaimOntologyTerm{}, Sources: []viewerClaimSource{}, Issues: []okf.Issue{},
 	}
 	entityKeys := map[string]bool{}
 	predicateKeys := map[string]bool{}
@@ -200,11 +253,14 @@ func registryClaimsJSON(workspaces []viewerWorkspace) template.JS {
 			combined.Claims = append(combined.Claims, claim)
 		}
 		for _, ref := range local.References {
+			ref.KnowledgeBase = workspace.Name
 			combined.References = append(combined.References, ref)
 		}
 		for _, entity := range local.Entities {
 			key := workspace.Name + "\x00" + entity.ID
 			if !entityKeys[key] {
+				entity.Key = key
+				entity.KnowledgeBase = workspace.Name
 				combined.Entities = append(combined.Entities, entity)
 				entityKeys[key] = true
 			}
@@ -212,9 +268,16 @@ func registryClaimsJSON(workspaces []viewerWorkspace) template.JS {
 		for _, predicate := range local.Predicates {
 			key := workspace.Name + "\x00" + predicate.ID
 			if !predicateKeys[key] {
+				predicate.Key = key
+				predicate.KnowledgeBase = workspace.Name
 				combined.Predicates = append(combined.Predicates, predicate)
 				predicateKeys[key] = true
 			}
+		}
+		for _, source := range local.Sources {
+			source.KnowledgeBase = workspace.Name
+			source.Key = workspace.Name + "\x00" + source.Key
+			combined.Sources = append(combined.Sources, source)
 		}
 		combined.Issues = append(combined.Issues, local.Issues...)
 	}
@@ -225,7 +288,7 @@ func registryClaimsJSON(workspaces []viewerWorkspace) template.JS {
 func viewerClaimsJSON(data viewerClaimsData) template.JS {
 	encoded, err := json.Marshal(data)
 	if err != nil {
-		return `{"schemaVersion":"1","claims":[],"references":[],"entities":[],"predicates":[],"issues":[]}`
+		return `{"schemaVersion":"1","claims":[],"references":[],"entities":[],"predicates":[],"sources":[],"issues":[]}`
 	}
 	return template.JS(encoded)
 }
@@ -329,6 +392,139 @@ func viewerClaimLiteralLabel(value any) string {
 	return fmt.Sprint(value)
 }
 
+func viewerClaimProjectionFor(claim viewerClaim) *viewerClaimProjection {
+	metricIndex := -1
+	for index, item := range claim.Scope {
+		if viewerClaimTermName(item.Dimension.ID) == "metric" {
+			metricIndex = index
+			break
+		}
+	}
+	if metricIndex < 0 || strings.TrimSpace(claim.Scope[metricIndex].Value.Label) == "" {
+		return nil
+	}
+
+	metric := strings.TrimSpace(claim.Scope[metricIndex].Value.Label)
+	return &viewerClaimProjection{
+		Metric: metric, Value: viewerClaimProjectionValue(claim.Object, metric),
+	}
+}
+
+func viewerClaimTermName(id string) string {
+	name := strings.TrimSpace(id)
+	if index := strings.LastIndexAny(name, "/#:"); index >= 0 {
+		name = name[index+1:]
+	}
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func viewerClaimProjectionValue(object viewerClaimValue, metric string) string {
+	number, positive, ok := viewerClaimFormattedNumber(object.Value)
+	if !ok {
+		return object.Label
+	}
+	showSign := positive && viewerClaimMetricIsChange(metric)
+	if currency, scale, ok := viewerClaimCurrencyUnit(object.Unit); ok {
+		sign := ""
+		if strings.HasPrefix(number, "-") {
+			sign = "-"
+			number = strings.TrimPrefix(number, "-")
+		} else if showSign {
+			sign = "+"
+		}
+		parts := []string{sign + currency, number}
+		if scale != "" {
+			parts = append(parts, scale)
+		}
+		return strings.Join(parts, " ")
+	}
+	if showSign {
+		return "+" + object.Label
+	}
+	return object.Label
+}
+
+func viewerClaimFormattedNumber(value any) (string, bool, bool) {
+	var number string
+	switch typed := value.(type) {
+	case int:
+		number = strconv.FormatInt(int64(typed), 10)
+	case int8:
+		number = strconv.FormatInt(int64(typed), 10)
+	case int16:
+		number = strconv.FormatInt(int64(typed), 10)
+	case int32:
+		number = strconv.FormatInt(int64(typed), 10)
+	case int64:
+		number = strconv.FormatInt(typed, 10)
+	case uint:
+		number = strconv.FormatUint(uint64(typed), 10)
+	case uint8:
+		number = strconv.FormatUint(uint64(typed), 10)
+	case uint16:
+		number = strconv.FormatUint(uint64(typed), 10)
+	case uint32:
+		number = strconv.FormatUint(uint64(typed), 10)
+	case uint64:
+		number = strconv.FormatUint(typed, 10)
+	case float32:
+		number = strconv.FormatFloat(float64(typed), 'f', -1, 32)
+	case float64:
+		number = strconv.FormatFloat(typed, 'f', -1, 64)
+	case json.Number:
+		number = typed.String()
+	default:
+		return "", false, false
+	}
+	numericValue, err := strconv.ParseFloat(number, 64)
+	positive := err == nil && numericValue > 0
+	return viewerClaimGroupNumber(number), positive, true
+}
+
+func viewerClaimGroupNumber(number string) string {
+	sign := ""
+	if strings.HasPrefix(number, "-") || strings.HasPrefix(number, "+") {
+		sign, number = number[:1], number[1:]
+	}
+	integer, fraction := number, ""
+	if index := strings.IndexByte(number, '.'); index >= 0 {
+		integer, fraction = number[:index], number[index:]
+	}
+	for index := len(integer) - 3; index > 0; index -= 3 {
+		integer = integer[:index] + "," + integer[index:]
+	}
+	return sign + integer + fraction
+}
+
+func viewerClaimCurrencyUnit(id string) (string, string, bool) {
+	words := strings.Fields(viewerClaimFallbackLabel(id))
+	currency := ""
+	scale := ""
+	for _, word := range words {
+		upper := strings.ToUpper(word)
+		if len(upper) == 3 && upper == word {
+			currency = upper
+		}
+		switch strings.ToLower(word) {
+		case "thousand", "kilo":
+			scale = "thousand"
+		case "million", "mega":
+			scale = "million"
+		case "billion", "giga":
+			scale = "billion"
+		case "trillion", "tera":
+			scale = "trillion"
+		}
+	}
+	return currency, scale, currency != ""
+}
+
+func viewerClaimMetricIsChange(metric string) bool {
+	metric = strings.ToLower(metric)
+	return strings.Contains(metric, "change") || strings.Contains(metric, "delta") ||
+		strings.Contains(metric, "increase") || strings.Contains(metric, "decrease")
+}
+
 func viewerClaimIssues(issues []okf.Issue, claim okf.Claim) []okf.Issue {
 	matched := []okf.Issue{}
 	needle := `claim "` + claim.ID + `"`
@@ -406,46 +602,70 @@ func writeViewerClaim(builder *strings.Builder, claim viewerClaim) {
 		fmt.Fprintf(builder, ` data-claim-section-ref="%s"`, template.HTMLEscapeString(claim.SectionRef))
 	}
 	builder.WriteString(`><div class="ok-claim-statement"><div class="ok-claim-copy">`)
-	fmt.Fprintf(builder, `<span class="ok-claim-subject">%s</span><span class="ok-claim-predicate">%s</span>`,
-		template.HTMLEscapeString(claim.Subject.Label), template.HTMLEscapeString(claim.Predicate.Label))
-	if claim.Object.QuantityKindLabel != "" {
-		fmt.Fprintf(builder, `<span class="ok-claim-metric">%s:</span>`, template.HTMLEscapeString(claim.Object.QuantityKindLabel))
+	if claim.Projection != nil {
+		fmt.Fprintf(builder, `<span class="ok-claim-subject">%s</span><span class="ok-claim-separator" aria-hidden="true">—</span><span class="ok-claim-metric">%s</span>`,
+			template.HTMLEscapeString(claim.Subject.Label), template.HTMLEscapeString(claim.Projection.Metric))
+		fmt.Fprintf(builder, `<span class="ok-claim-value-line"><strong class="ok-claim-object">%s</strong></span>`, template.HTMLEscapeString(claim.Projection.Value))
+	} else {
+		fmt.Fprintf(builder, `<span class="ok-claim-subject">%s</span><span class="ok-claim-predicate">%s</span>`,
+			template.HTMLEscapeString(claim.Subject.Label), template.HTMLEscapeString(claim.Predicate.Label))
+		if claim.Object.QuantityKindLabel != "" {
+			fmt.Fprintf(builder, `<span class="ok-claim-metric">%s:</span>`, template.HTMLEscapeString(claim.Object.QuantityKindLabel))
+		}
+		fmt.Fprintf(builder, `<strong class="ok-claim-object">%s</strong>`, template.HTMLEscapeString(claim.Object.Label))
 	}
-	fmt.Fprintf(builder, `<strong class="ok-claim-object">%s</strong>`, template.HTMLEscapeString(claim.Object.Label))
-	builder.WriteString(`</div><div class="ok-claim-badges">`)
-	fmt.Fprintf(builder, `<span class="ok-claim-status" data-status="%s">%s</span>`, template.HTMLEscapeString(claim.Status), template.HTMLEscapeString(viewerClaimFallbackLabel(claim.Status)))
-	if claim.Stale {
-		builder.WriteString(`<span class="ok-claim-status" data-status="stale">Stale</span>`)
-	}
-	if len(claim.Issues) > 0 {
-		fmt.Fprintf(builder, `<span class="ok-claim-status" data-status="invalid">%d %s</span>`, len(claim.Issues), viewerFrontmatterNoun(len(claim.Issues), "issue", "issues"))
-	}
-	builder.WriteString(`</div></div>`)
-
-	builder.WriteString(`<div class="ok-claim-summary-line">`)
-	parts := []string{}
-	if len(claim.Scope) > 0 {
-		parts = append(parts, viewerClaimScopeSummary(claim.Scope))
-	}
-	if len(claim.Evidence) > 0 {
-		parts = append(parts, fmt.Sprintf("%d evidence %s", len(claim.Evidence), viewerFrontmatterNoun(len(claim.Evidence), "record", "records")))
-	}
-	if claim.TrustTier != "" {
-		parts = append(parts, viewerClaimFallbackLabel(claim.TrustTier))
-	}
-	builder.WriteString(template.HTMLEscapeString(strings.Join(parts, " · ")))
 	builder.WriteString(`</div>`)
+	if claim.Projection == nil || len(claim.Issues) > 0 {
+		builder.WriteString(`<div class="ok-claim-badges">`)
+		if claim.Projection == nil {
+			fmt.Fprintf(builder, `<span class="ok-claim-status" data-status="%s">%s</span>`, template.HTMLEscapeString(claim.Status), template.HTMLEscapeString(viewerClaimFallbackLabel(claim.Status)))
+			if claim.Stale {
+				builder.WriteString(`<span class="ok-claim-status" data-status="stale">Stale</span>`)
+			}
+		}
+		if len(claim.Issues) > 0 {
+			fmt.Fprintf(builder, `<span class="ok-claim-status" data-status="invalid">%d %s</span>`, len(claim.Issues), viewerFrontmatterNoun(len(claim.Issues), "issue", "issues"))
+		}
+		builder.WriteString(`</div>`)
+	}
+	builder.WriteString(`</div>`)
+
+	parts := []string{}
+	if claim.Projection == nil {
+		if len(claim.Scope) > 0 {
+			parts = append(parts, viewerClaimScopeSummary(claim.Scope))
+		}
+		if len(claim.Evidence) > 0 {
+			parts = append(parts, fmt.Sprintf("%d evidence %s", len(claim.Evidence), viewerFrontmatterNoun(len(claim.Evidence), "record", "records")))
+		}
+		if claim.TrustTier != "" {
+			parts = append(parts, viewerClaimFallbackLabel(claim.TrustTier))
+		}
+	}
+	if len(parts) > 0 {
+		builder.WriteString(`<div class="ok-claim-summary-line">`)
+		builder.WriteString(template.HTMLEscapeString(strings.Join(parts, " · ")))
+		builder.WriteString(`</div>`)
+	}
 
 	builder.WriteString(`<details class="ok-claim-details"><summary>Evidence and metadata</summary><div class="ok-claim-detail-grid">`)
 	writeViewerClaimDetail(builder, "Claim ID", claim.ID)
 	writeViewerClaimDetail(builder, "Slot", claim.Slot)
 	writeViewerClaimDetail(builder, "Subject", claim.Subject.ID)
 	writeViewerClaimDetail(builder, "Predicate", claim.Predicate.ID)
+	writeViewerClaimDetail(builder, "Status", viewerClaimFallbackLabel(claim.Status))
+	writeViewerClaimDetail(builder, "Trust tier", viewerClaimFallbackLabel(claim.TrustTier))
+	if claim.Stale {
+		writeViewerClaimDetail(builder, "Freshness", "Stale")
+	}
 	if claim.Object.Datatype != "" {
 		writeViewerClaimDetail(builder, "Datatype", claim.Object.Datatype)
 	}
 	writeViewerClaimDetail(builder, "Quantity kind", claim.Object.QuantityKind)
 	writeViewerClaimDetail(builder, "Unit", claim.Object.Unit)
+	if len(claim.Scope) > 0 {
+		writeViewerClaimDetail(builder, "Scope", viewerClaimScopeSummary(claim.Scope))
+	}
 	if len(claim.Owners) > 0 {
 		writeViewerClaimDetail(builder, "Owners", strings.Join(claim.Owners, ", "))
 	}

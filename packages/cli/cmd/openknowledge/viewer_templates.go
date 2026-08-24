@@ -395,38 +395,35 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     </section>
     <section id="claims-workspace" class="claims-workspace" data-claims-workspace aria-label="Claims" hidden>
       <header class="claims-workspace-header">
-        <div>
+        <div class="claims-workspace-heading">
           <h1>Claims</h1>
           <p data-claims-summary>Browse typed statements across this knowledge base.</p>
         </div>
-        <div class="claims-mode-switch" role="group" aria-label="Claims view">
-          <button type="button" data-claims-mode="browse" aria-pressed="true">Browse</button>
-          <button type="button" data-claims-mode="relationships" aria-pressed="false">Relationships</button>
-        </div>
+        <form class="claims-filters" data-claims-filters role="search" aria-label="Filter claims">
+          <label class="claims-query"><span class="sr-only">Search claims</span><input type="search" data-claims-query placeholder="Search statements, IDs, owners, or documents" autocomplete="off" spellcheck="false"></label>
+          <label class="claims-primary-filter"><span class="sr-only">Status</span><select data-claims-filter="status"><option value="">All statuses</option></select></label>
+          <label class="claims-primary-filter"><span class="sr-only">Entity</span><select data-claims-filter="subject"><option value="">All entities</option></select></label>
+          <label class="claims-primary-filter"><span class="sr-only">Predicate</span><select data-claims-filter="predicate"><option value="">All predicates</option></select></label>
+          <details class="claims-more-filters">
+            <summary>More filters</summary>
+            <div class="claims-more-filter-panel">
+              <label class="claims-mobile-filter"><span>Status</span><select data-claims-filter="status"><option value="">All statuses</option></select></label>
+              <label class="claims-mobile-filter"><span>Entity</span><select data-claims-filter="subject"><option value="">All entities</option></select></label>
+              <label class="claims-mobile-filter"><span>Predicate</span><select data-claims-filter="predicate"><option value="">All predicates</option></select></label>
+              <label><span>Owner</span><select data-claims-filter="owner"><option value="">All owners</option></select></label>
+              <label><span>Evidence</span><select data-claims-filter="stance"><option value="">All evidence</option></select></label>
+              <label><span>Document</span><select data-claims-filter="document"><option value="">All documents</option></select></label>
+              <label><span>Validation</span><select data-claims-filter="validation"><option value="">All claims</option><option value="valid">Valid</option><option value="invalid">Needs attention</option><option value="stale">Stale</option></select></label>
+              <button type="reset" data-claims-clear>Clear filters</button>
+            </div>
+          </details>
+        </form>
       </header>
-      <form class="claims-filters" data-claims-filters role="search" aria-label="Filter claims">
-        <label class="claims-query"><span class="sr-only">Search claims</span><input type="search" data-claims-query placeholder="Search statements, IDs, owners, or documents" autocomplete="off" spellcheck="false"></label>
-        <label><span>Status</span><select data-claims-filter="status"><option value="">All statuses</option></select></label>
-        <label><span>Entity</span><select data-claims-filter="subject"><option value="">All entities</option></select></label>
-        <label><span>Predicate</span><select data-claims-filter="predicate"><option value="">All predicates</option></select></label>
-        <details class="claims-more-filters">
-          <summary>More filters</summary>
-          <div class="claims-more-filter-panel">
-            <label><span>Owner</span><select data-claims-filter="owner"><option value="">All owners</option></select></label>
-            <label><span>Evidence</span><select data-claims-filter="stance"><option value="">All evidence</option></select></label>
-            <label><span>Document</span><select data-claims-filter="document"><option value="">All documents</option></select></label>
-            <label><span>Validation</span><select data-claims-filter="validation"><option value="">All claims</option><option value="valid">Valid</option><option value="invalid">Needs attention</option><option value="stale">Stale</option></select></label>
-            <button type="reset" data-claims-clear>Clear filters</button>
-          </div>
-        </details>
-      </form>
       <div class="claims-workspace-body">
         <div class="claims-results" aria-label="Claim statements">
-          <div class="claims-results-head"><span data-claims-result-count></span><span>Statement</span></div>
           <div class="claims-results-list" data-claims-list role="listbox" aria-label="Claims"></div>
         </div>
         <article class="claims-inspector" data-claims-detail aria-live="polite"></article>
-        <section class="claims-relationships" data-claims-relationships aria-label="Claim relationships" hidden></section>
       </div>
     </section>
     <section class="note-stack" data-note-stack aria-label="Open notes">

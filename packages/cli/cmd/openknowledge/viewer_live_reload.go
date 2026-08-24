@@ -47,6 +47,12 @@ type viewerLiveReloadSubscription struct {
 	events chan viewerLiveReloadEvent
 }
 
+type viewerLiveReloadFileRevision struct {
+	size    int64
+	modTime int64
+	digest  string
+}
+
 type viewerLiveReload struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -62,6 +68,8 @@ type viewerLiveReload struct {
 	subscribers map[uint64]chan viewerLiveReloadEvent
 	nextID      uint64
 	watched     map[string]bool
+	files       map[string]viewerLiveReloadFileRevision
+	dirtyPaths  map[string]bool
 }
 
 func newViewerLiveReload(parent context.Context, roots viewerLiveReloadRootSource) (*viewerLiveReload, error) {
@@ -80,6 +88,8 @@ func newViewerLiveReload(parent context.Context, roots viewerLiveReloadRootSourc
 		subvisions:  make(map[string]string),
 		subscribers: make(map[uint64]chan viewerLiveReloadEvent),
 		watched:     make(map[string]bool),
+		files:       make(map[string]viewerLiveReloadFileRevision),
+		dirtyPaths:  make(map[string]bool),
 	}
 	if err := hub.refresh(true); err != nil {
 		_ = watcher.Close()
@@ -128,9 +138,12 @@ func (hub *viewerLiveReload) run() {
 				timer.Stop()
 			}
 			return
-		case _, ok := <-hub.watcher.Events:
+		case event, ok := <-hub.watcher.Events:
 			if !ok {
 				return
+			}
+			if strings.TrimSpace(event.Name) != "" {
+				hub.dirtyPaths[filepath.Clean(event.Name)] = true
 			}
 			schedule()
 		case err, ok := <-hub.watcher.Errors:
@@ -167,10 +180,12 @@ func (hub *viewerLiveReload) refresh(initial bool) error {
 	if err := hub.reconcileWatches(roots); err != nil {
 		return err
 	}
-	revision, subvisions, err := viewerLiveReloadRevision(roots)
+	revision, subvisions, files, _, err := viewerLiveReloadRevisionCached(roots, hub.files, hub.dirtyPaths)
 	if err != nil {
 		return err
 	}
+	hub.files = files
+	hub.dirtyPaths = make(map[string]bool)
 
 	hub.mu.Lock()
 	previous := hub.revision
@@ -250,22 +265,36 @@ func (hub *viewerLiveReload) reconcileWatches(roots []viewerLiveReloadRoot) erro
 }
 
 func viewerLiveReloadRevision(roots []viewerLiveReloadRoot) (string, map[string]string, error) {
+	revision, subvisions, _, _, err := viewerLiveReloadRevisionCached(roots, nil, nil)
+	return revision, subvisions, err
+}
+
+func viewerLiveReloadRevisionCached(roots []viewerLiveReloadRoot, previous map[string]viewerLiveReloadFileRevision, dirtyPaths map[string]bool) (string, map[string]string, map[string]viewerLiveReloadFileRevision, int, error) {
 	global := sha256.New()
 	subvisions := make(map[string]string, len(roots))
+	next := make(map[string]viewerLiveReloadFileRevision)
+	filesRead := 0
 	for _, root := range roots {
-		digest, err := viewerLiveReloadRootRevision(root.Root)
+		digest, read, err := viewerLiveReloadRootRevisionCached(root.Root, previous, next, dirtyPaths)
 		if err != nil {
-			return "", nil, err
+			return "", nil, nil, filesRead, err
 		}
+		filesRead += read
 		identity := sha256.Sum256([]byte(root.Root))
 		_, _ = fmt.Fprintf(global, "%s\x00%x\x00%s\x00", root.Alias, identity, digest)
 		subvisions[root.Alias] = digest + ":" + hex.EncodeToString(identity[:])
 	}
-	return hex.EncodeToString(global.Sum(nil)), subvisions, nil
+	return hex.EncodeToString(global.Sum(nil)), subvisions, next, filesRead, nil
 }
 
 func viewerLiveReloadRootRevision(root string) (string, error) {
+	digest, _, err := viewerLiveReloadRootRevisionCached(root, nil, make(map[string]viewerLiveReloadFileRevision), nil)
+	return digest, err
+}
+
+func viewerLiveReloadRootRevisionCached(root string, previous map[string]viewerLiveReloadFileRevision, next map[string]viewerLiveReloadFileRevision, dirtyPaths map[string]bool) (string, int, error) {
 	hash := sha256.New()
+	filesRead := 0
 	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -292,33 +321,46 @@ func viewerLiveReloadRootRevision(root string) (string, error) {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
+		current = filepath.Clean(current)
 		rel, err := filepath.Rel(root, current)
 		if err != nil {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
+		state, cached := previous[current]
+		if !cached || state.size != info.Size() || state.modTime != info.ModTime().UnixNano() || dirtyPaths[current] {
+			fileHash := sha256.New()
+			file, err := os.Open(current)
+			if err != nil {
+				return err
+			}
+			reader := bufio.NewReader(file)
+			_, copyErr := io.Copy(fileHash, reader)
+			closeErr := file.Close()
+			if copyErr != nil {
+				return copyErr
+			}
+			if closeErr != nil {
+				return closeErr
+			}
+			state = viewerLiveReloadFileRevision{
+				size:    info.Size(),
+				modTime: info.ModTime().UnixNano(),
+				digest:  hex.EncodeToString(fileHash.Sum(nil)),
+			}
+			filesRead++
+		}
+		next[current] = state
 		_, _ = io.WriteString(hash, rel)
 		_, _ = io.WriteString(hash, "\x00file\x00")
-		file, err := os.Open(current)
-		if err != nil {
-			return err
-		}
-		reader := bufio.NewReader(file)
-		_, copyErr := io.Copy(hash, reader)
-		closeErr := file.Close()
-		if copyErr != nil {
-			return copyErr
-		}
-		if closeErr != nil {
-			return closeErr
-		}
+		_, _ = io.WriteString(hash, state.digest)
 		_, _ = io.WriteString(hash, "\x00")
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return "", filesRead, err
 	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return hex.EncodeToString(hash.Sum(nil)), filesRead, nil
 }
 
 func viewerLiveReloadIgnoredName(name string, directory bool) bool {

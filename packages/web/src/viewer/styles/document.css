@@ -154,7 +154,10 @@ body.is-frontmatter-hidden .ok-frontmatter { display: none; }
 .document h1 { margin: 0 0 20px; color: var(--ok-color-text); font-size: 30px; font-weight: 700; letter-spacing: -.03em; line-height: 1.16; }
 .document h2 { margin: 40px 0 13px; padding-top: 0; border-top: 0; color: var(--ok-color-text); font-size: 21px; font-weight: 680; letter-spacing: -.018em; line-height: 1.25; }
 .document h3 { margin: 28px 0 10px; color: var(--ok-color-text); font-size: 17px; font-weight: 680; letter-spacing: -.012em; line-height: 1.3; }
-.document h1 code, .document h2 code, .document h3 code { padding: 0; border-radius: 0; background: transparent; color: inherit; font-family: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; }
+.document h4 { margin: 24px 0 9px; color: var(--ok-color-text); font-size: 15.5px; font-weight: 700; line-height: 1.35; }
+.document h5 { margin: 22px 0 8px; color: var(--ok-color-text); font-size: 14px; font-weight: 700; line-height: 1.4; }
+.document h6 { margin: 20px 0 8px; color: var(--ok-color-muted); font-size: 13px; font-weight: 700; letter-spacing: .01em; line-height: 1.4; }
+.document h1 code, .document h2 code, .document h3 code, .document h4 code, .document h5 code, .document h6 code { padding: 0; border-radius: 0; background: transparent; color: inherit; font-family: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; }
 .document p { margin: 0 0 16px; }
 .document ul, .document ol { margin: 10px 0 20px; padding-left: 22px; }
 .document li { padding-left: 2px; line-height: 1.48; }
@@ -166,6 +169,8 @@ a:focus-visible { outline: 2px solid var(--ok-color-focus-ring); outline-offset:
 .note-body a { border-radius: 4px; transition: background-color .16s ease, color .16s ease; }
 .note-body a:hover, .note-body a.is-active-note { background: var(--ok-color-accent-soft); }
 .note-body a.is-active-note { color: var(--ok-color-accent-strong); }
+.ok-markdown-image { display: block; width: auto; max-width: 100%; height: auto; max-height: min(68vh, 720px); margin: 22px auto 26px; border-radius: 8px; object-fit: contain; }
+.ok-table .ok-markdown-image { max-width: min(180px, 100%); max-height: 120px; margin: 0; border-radius: 5px; }
 .ok-search-highlight { border-radius: 4px; background: rgba(245, 158, 11, .34); box-shadow: 0 0 0 2px rgba(245, 158, 11, .44); color: inherit; }
 strong { color: var(--ok-color-text); font-weight: 700; }
 blockquote { margin: 20px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--ok-color-border); color: var(--ok-color-muted); }

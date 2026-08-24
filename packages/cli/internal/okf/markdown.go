@@ -10,7 +10,6 @@ import (
 	"strings"
 )
 
-var inlineLink = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 var inlineFootnote = regexp.MustCompile(`\[\^([^\]]+)\]`)
 var footnoteDefinition = regexp.MustCompile(`^\[\^([^\]]+)\]:`)
 var orderedListItem = regexp.MustCompile(`^\d+[\.)]\s+`)
@@ -237,22 +236,59 @@ func renderInline(text string, currentRel string, resolve LinkResolver, footnote
 
 	var builder strings.Builder
 	last := 0
-	for _, match := range inlineLink.FindAllStringSubmatchIndex(text, -1) {
-		if insideInlineCodeSpan(text, match[0]) {
+	for _, match := range markdownInlineLinkMatches(text) {
+		if insideInlineCodeSpan(text, match.Start) {
 			continue
 		}
-		builder.WriteString(renderInlineText(text[last:match[0]], footnotes))
-		label := text[match[2]:match[3]]
-		href := text[match[4]:match[5]]
-		builder.WriteString(`<a href="`)
-		builder.WriteString(html.EscapeString(resolve(currentRel, href)))
-		builder.WriteString(`">`)
-		builder.WriteString(renderInlineText(label, footnotes))
-		builder.WriteString("</a>")
-		last = match[1]
+		builder.WriteString(renderInlineText(text[last:match.Start], footnotes))
+		if match.LinkedImage != nil {
+			writeMarkdownLinkStart(&builder, match, currentRel, resolve)
+			writeMarkdownImage(&builder, *match.LinkedImage, currentRel, resolve)
+			builder.WriteString("</a>")
+		} else if match.Image {
+			writeMarkdownImage(&builder, match, currentRel, resolve)
+		} else {
+			writeMarkdownLinkStart(&builder, match, currentRel, resolve)
+			builder.WriteString(renderInlineText(match.Label, footnotes))
+			builder.WriteString("</a>")
+		}
+		last = match.End
 	}
 	builder.WriteString(renderInlineText(text[last:], footnotes))
 	return builder.String()
+}
+
+func writeMarkdownLinkStart(builder *strings.Builder, match markdownInlineLinkMatch, currentRel string, resolve LinkResolver) {
+	builder.WriteString(`<a href="`)
+	builder.WriteString(html.EscapeString(resolve(currentRel, match.Href)))
+	builder.WriteString(`"`)
+	if match.HasTitle {
+		builder.WriteString(` title="`)
+		builder.WriteString(html.EscapeString(match.Title))
+		builder.WriteString(`"`)
+	}
+	builder.WriteString(`>`)
+}
+
+func writeMarkdownImage(builder *strings.Builder, match markdownInlineLinkMatch, currentRel string, resolve LinkResolver) {
+	builder.WriteString(`<img class="ok-markdown-image" src="`)
+	builder.WriteString(html.EscapeString(resolve(currentRel, match.Href)))
+	builder.WriteString(`" alt="`)
+	builder.WriteString(html.EscapeString(markdownImageAltText(match.Label)))
+	builder.WriteString(`"`)
+	if match.HasTitle {
+		builder.WriteString(` title="`)
+		builder.WriteString(html.EscapeString(match.Title))
+		builder.WriteString(`"`)
+	}
+	builder.WriteString(` loading="lazy" decoding="async">`)
+}
+
+func markdownImageAltText(text string) string {
+	text = strings.ReplaceAll(text, "`", "")
+	text = strings.ReplaceAll(text, "**", "")
+	text = strings.ReplaceAll(text, "*", "")
+	return strings.TrimSpace(text)
 }
 
 func renderInlineText(text string, footnotes map[string]string) string {

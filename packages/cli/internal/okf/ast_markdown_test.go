@@ -66,6 +66,32 @@ func TestParseASTMarkdownBuildsStructuralMarkdownTree(t *testing.T) {
 	}
 }
 
+func TestParseASTMarkdownKeepsImageTitleOutOfTheTarget(t *testing.T) {
+	markdown := ParseASTMarkdown(`![Architecture](assets/architecture.png "System overview")`, 7)
+	if len(markdown.Links) != 1 {
+		t.Fatalf("expected one image link, got %#v", markdown.Links)
+	}
+	image := markdown.Links[0]
+	if !image.Image || image.Label != "Architecture" || image.Href != "assets/architecture.png" || image.Line != 7 {
+		t.Fatalf("unexpected image link: %#v", image)
+	}
+}
+
+func TestParseASTMarkdownCapturesLinkedImageAndDestination(t *testing.T) {
+	markdown := ParseASTMarkdown(`[![Evidence coverage](assets/evidence.svg)](visualizations/evidence.md)`, 9)
+	if len(markdown.Links) != 2 {
+		t.Fatalf("expected destination link and nested image, got %#v", markdown.Links)
+	}
+	destination := markdown.Links[0]
+	if destination.Image || destination.Label != "Evidence coverage" || destination.Href != "visualizations/evidence.md" || destination.Line != 9 {
+		t.Fatalf("unexpected linked-image destination: %#v", destination)
+	}
+	image := markdown.Links[1]
+	if !image.Image || image.Label != "Evidence coverage" || image.Href != "assets/evidence.svg" || image.Line != 9 {
+		t.Fatalf("unexpected nested image: %#v", image)
+	}
+}
+
 func TestParseASTMarkdownBuildsNestedSections(t *testing.T) {
 	markdown := ParseASTMarkdown(strings.Join([]string{
 		"Opening paragraph.",

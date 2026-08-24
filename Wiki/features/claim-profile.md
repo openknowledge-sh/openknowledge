@@ -242,10 +242,39 @@ Use [`okn claims`](/features/commands/claims.md) for deterministic operations.
 ## Viewer representation
 
 The viewer keeps YAML frontmatter as the canonical claim representation. A
-collapsed **Claims** panel gives each document a read-only semantic view.
+collapsed **Claims** panel gives each document a read-only semantic view, and
+the Claims workspace provides a knowledge-base-wide view.
 
-The panel uses ontology labels for the subject, predicate, and object. Claim
-details show status, scope, evidence, provenance, time, and occurrence
+The panel uses ontology labels for the subject, predicate, object, and scope.
+For a scoped metric, the compact summary uses the value of the scope dimension
+whose local name is `metric`. The summary shows only the subject, metric, and
+formatted quantity. The Claims workspace keeps the other scope values,
+lifecycle metadata, evidence, and provenance visible in **Evidence and
+metadata**. Quantity kind remains technical metadata.
+
+Authored incoming and outgoing relations appear in a collapsed
+**Relationships** section below the selected claim. The section is omitted
+when the claim has no authored relations.
+
+Labeled subjects, object references, metric identities, predicates, and
+evidence sources are contextual links inside the selected claim. They replace
+the detail pane with a read-only inspector and keep the claim list in place:
+
+- entity inspectors show types, aliases, deprecation and replacement metadata,
+  and every claim that uses the entity as a subject, object, or scope value;
+- predicate inspectors show object and cardinality constraints, datatype or
+  quantity constraints, required scope, and every claim using the predicate;
+- source inspectors show the declared resource, observation mode, authority,
+  digest, access metadata, evidence use, and a link to the declaring document.
+
+The selected claim also gets a collapsed **History** section when its slot has
+multiple occurrences. A collapsed **Impact** section appears when another
+document references the claim or another claim uses the same declared source
+resource. Empty History, Impact, and Relationships sections are omitted. These
+are viewer projections of canonical ontology, source, claim-reference, slot,
+and relation data; they do not create new persisted objects.
+
+Claim details show status, scope, evidence, provenance, time, and occurrence
 relations. A `section_ref` adds a claim count to the matching Markdown heading.
 
 The **Claims** workspace supports bundle-wide claim review and filters. The

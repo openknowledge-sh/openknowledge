@@ -67,6 +67,47 @@ func TestViewerLiveReloadRevisionTracksVisibleFileOperations(t *testing.T) {
 	}
 }
 
+func TestViewerLiveReloadReusesUnchangedFileDigests(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n")
+	writeViewerFile(t, root, "assets/large.svg", strings.Repeat("x", 1024*1024))
+	roots := []viewerLiveReloadRoot{{Alias: "docs", Root: root}}
+
+	initial, _, files, filesRead, err := viewerLiveReloadRevisionCached(roots, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filesRead != 2 {
+		t.Fatalf("initial revision should read two files, got %d", filesRead)
+	}
+	unchanged, _, files, filesRead, err := viewerLiveReloadRevisionCached(roots, files, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged != initial || filesRead != 0 {
+		t.Fatalf("unchanged revision should reuse file digests: initial=%s unchanged=%s reads=%d", initial, unchanged, filesRead)
+	}
+
+	path := filepath.Join(root, "index.md")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("# Else\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	changed, _, _, filesRead, err := viewerLiveReloadRevisionCached(roots, files, map[string]bool{path: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed == unchanged || filesRead != 1 {
+		t.Fatalf("dirty same-metadata file should refresh one digest: unchanged=%s changed=%s reads=%d", unchanged, changed, filesRead)
+	}
+}
+
 func TestViewerLiveReloadPublishesOneDebouncedRevision(t *testing.T) {
 	root := t.TempDir()
 	writeViewerFile(t, root, "index.md", "# Home\n")

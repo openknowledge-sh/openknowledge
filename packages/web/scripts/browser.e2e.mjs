@@ -25,7 +25,12 @@ before(async () => {
   const wiki = path.join(temporary, "Wiki");
   const viewer = path.join(temporary, "viewer");
   await mkdir(path.join(wiki, "guides"), { recursive: true });
-  await writeFile(path.join(wiki, ".openknowledge.toml"), "[publish]\nenabled = true\n");
+  await mkdir(path.join(wiki, "assets"), { recursive: true });
+  await writeFile(path.join(wiki, ".openknowledge.toml"), "[publish]\nenabled = true\nassets = [\"assets/**\"]\n");
+  await writeFile(
+    path.join(wiki, "assets", "architecture.png"),
+    Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+  );
   await writeFile(path.join(wiki, "index.md"), [
     "---",
     "type: Index",
@@ -62,6 +67,8 @@ before(async () => {
     "",
     "Validate the deployment, capture evidence, and execute the rollback checklist.[^rollback-policy]",
     "",
+    "[![Rollback architecture](../assets/architecture.png \"Rollback architecture\")](../index.md \"Return to handbook\")",
+    "",
     "<!-- okf-annotation: agent-context -->",
     "Agent-facing maintenance context.",
     "<!-- /okf-annotation -->",
@@ -93,6 +100,12 @@ before(async () => {
     "    - id: okn:service/auth",
     "      types: [okn:Service]",
     "      pref_label: Authentication service",
+    "    - id: auth:revenue",
+    "      pref_label: Revenue",
+    "    - id: auth:fy2026Q2",
+    "      pref_label: FY2026 Q2",
+    "    - id: auth:gaap",
+    "      pref_label: GAAP",
     "  predicates:",
     "    - id: auth:tokenFormat",
     "      object_kind: literal",
@@ -102,9 +115,24 @@ before(async () => {
     "    - id: auth:reportsMetric",
     "      object_kind: quantity",
     "      datatype: xsd:decimal",
-    "      quantity_kind: https://qudt.org/vocab/quantitykind/Revenue",
+    "      quantity_kind: https://example.test/quantity-kind/FinancialMetric",
     "      canonical_unit: https://qudt.org/vocab/unit/MegaUSD",
+    "      required_scope: [auth:metric, auth:fiscalPeriod, auth:accountingBasis]",
     "      pref_label: reports metric",
+    "    - id: auth:metric",
+    "      object_kind: entity",
+    "      pref_label: metric",
+    "    - id: auth:fiscalPeriod",
+    "      object_kind: entity",
+    "      pref_label: fiscal period",
+    "    - id: auth:accountingBasis",
+    "      object_kind: entity",
+    "      pref_label: accounting basis",
+    "    - id: auth:filingSource",
+    "      object_kind: literal",
+    "      datatype: xsd:string",
+    "      maximum_count: 1",
+    "      pref_label: filing source",
     "sources:",
     "  - id: identity-openapi",
     "    resource: token-evidence.txt",
@@ -112,6 +140,25 @@ before(async () => {
     "    sha256: bb5a64e1c45b93136f128d1a3cf3d791d138709763ee26c2653ad4065f36c384",
     "    role: authoritative",
     "claims:",
+    "  - id: okn:claim/token-format-v1",
+    "    slot: okn:slot/token-format",
+    "    subject: okn:service/auth",
+    "    predicate: auth:tokenFormat",
+    "    object:",
+    "      value: opaque",
+    "      datatype: xsd:string",
+    "    evidence:",
+    "      - id: okn:evidence/token-format-v1",
+    "        source_ref: identity-openapi",
+    "        stance: supports",
+    "        role: primary",
+    "    decisions:",
+    "      - action: superseded",
+    "        by: human:filip",
+    "        at: 2026-06-01T10:00:00Z",
+    "        reason: JWT replaced the opaque token format.",
+    "    owners: [team:identity]",
+    "    status: superseded",
     "  - id: okn:claim/token-format",
     "    slot: okn:slot/token-format",
     "    subject: okn:service/auth",
@@ -129,6 +176,8 @@ before(async () => {
     "          exact: Production tokens use the declared format.",
     "    owners: [team:identity]",
     "    status: proposed",
+    "    relations:",
+    "      supersedes: [okn:claim/token-format-v1]",
     "    section_ref: \"#claim-token-format\"",
     "  - id: okn:claim/revenue",
     "    slot: okn:slot/revenue",
@@ -138,7 +187,22 @@ before(async () => {
     "      value: -139500",
     "      datatype: xsd:decimal",
     "      unit: https://qudt.org/vocab/unit/MegaUSD",
-    "      quantity_kind: https://qudt.org/vocab/quantitykind/Revenue",
+    "      quantity_kind: https://example.test/quantity-kind/FinancialMetric",
+    "    scope:",
+    "      auth:metric: {ref: auth:revenue}",
+    "      auth:fiscalPeriod: {ref: auth:fy2026Q2}",
+    "      auth:accountingBasis: {ref: auth:gaap}",
+    "    relations:",
+    "      derived_from: [okn:claim/revenue-source]",
+    "    owners: [team:identity]",
+    "    status: proposed",
+    "  - id: okn:claim/revenue-source",
+    "    slot: okn:slot/revenue-source",
+    "    subject: okn:service/auth",
+    "    predicate: auth:filingSource",
+    "    object:",
+    "      value: Quarterly filing",
+    "      datatype: xsd:string",
     "    owners: [team:identity]",
     "    status: proposed",
     "---",
@@ -720,10 +784,18 @@ test("exported viewer presents typed claims inline and in a responsive workspace
   const disclosure = page.locator("[data-claims-panel]");
   await disclosure.waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await disclosure.getAttribute("open"), null);
-  assert.match(await disclosure.locator(":scope > summary").innerText(), /2 statements/);
+  assert.match(await disclosure.locator(":scope > summary").innerText(), /4 statements/);
   await disclosure.locator(":scope > summary").click({ timeout: 5000 });
   await disclosure.locator(".ok-claim-subject").first().waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await page.locator("[data-claim-section-marker]").count(), 1);
+
+  const revenueClaim = disclosure.locator('[data-claim-id="okn:claim/revenue"]');
+  assert.match(await revenueClaim.locator(".ok-claim-copy").innerText(), /^Authentication service\s+—\s+Revenue\s+-USD 139,500 million$/);
+  assert.equal(await revenueClaim.locator(".ok-claim-badges").count(), 0);
+  assert.equal(await revenueClaim.locator(".ok-claim-summary-line").count(), 0);
+  assert.doesNotMatch(await revenueClaim.locator(".ok-claim-statement").innerText(), /FY2026 Q2|GAAP|proposed|unverified/);
+  await revenueClaim.locator(".ok-claim-details > summary").click({ timeout: 5000 });
+  assert.match(await revenueClaim.locator(".ok-claim-detail-grid").innerText(), /Scope\s+accounting basis: GAAP, fiscal period: FY2026 Q2, metric: Revenue/i);
 
   const tokenClaim = disclosure.locator('[data-claim-id="okn:claim/token-format"]');
   await tokenClaim.locator(".ok-claim-details > summary").click({ timeout: 5000 });
@@ -732,47 +804,104 @@ test("exported viewer presents typed claims inline and in a responsive workspace
   await workspace.waitFor({ state: "visible", timeout: 5000 });
   assert.equal(new URL(page.url()).searchParams.get("view"), "claims");
   assert.equal(new URL(page.url()).searchParams.get("claim"), "okn:claim/token-format");
-  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 2);
+  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 4);
   assert.equal(await workspace.getByRole("heading", { name: /Authentication service/ }).count(), 1);
   const compactLayout = await workspace.evaluate((root) => {
     const header = root.querySelector(".claims-workspace-header");
-    const filters = root.querySelector(".claims-filters");
     const row = root.querySelector(".claims-result");
     const inspector = root.querySelector("[data-claims-detail]");
     const heading = inspector?.querySelector("h2");
+    const toolbarControls = [
+      root.querySelector(".claims-workspace-heading"),
+      root.querySelector("[data-claims-query]"),
+      ...root.querySelectorAll(".claims-primary-filter select"),
+      root.querySelector(".claims-more-filters > summary"),
+    ].filter(Boolean);
+    const centers = toolbarControls.map((element) => {
+      const box = element.getBoundingClientRect();
+      return box.top + box.height / 2;
+    });
     return {
       headerHeight: header?.getBoundingClientRect().height || 0,
-      filtersHeight: filters?.getBoundingClientRect().height || 0,
+      toolbarCenterSpread: Math.max(...centers) - Math.min(...centers),
       rowHeight: row?.getBoundingClientRect().height || 0,
       inspectorPaddingTop: Number.parseFloat(getComputedStyle(inspector).paddingTop),
       headingFontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
     };
   });
-  assert.ok(compactLayout.headerHeight <= 72, `claims header should stay compact: ${JSON.stringify(compactLayout)}`);
-  assert.ok(compactLayout.filtersHeight <= 62, `claims filters should stay compact: ${JSON.stringify(compactLayout)}`);
-  assert.ok(compactLayout.headerHeight + compactLayout.filtersHeight <= 130, `claims chrome should preserve workspace height: ${JSON.stringify(compactLayout)}`);
+  assert.ok(compactLayout.headerHeight <= 52, `claims toolbar should stay compact: ${JSON.stringify(compactLayout)}`);
+  assert.ok(compactLayout.toolbarCenterSpread <= 2, `claims toolbar controls should share one line: ${JSON.stringify(compactLayout)}`);
   assert.ok(compactLayout.rowHeight <= 64, `claims rows should stay compact: ${JSON.stringify(compactLayout)}`);
   assert.ok(compactLayout.inspectorPaddingTop <= 32, `claims inspector should stay compact: ${JSON.stringify(compactLayout)}`);
   assert.ok(compactLayout.headingFontSize <= 24, `claims heading should stay compact: ${JSON.stringify(compactLayout)}`);
-  const metricRow = workspace.locator('.claims-results-list [role="option"]', { hasText: "Revenue:" });
+  const metricRow = workspace.locator('.claims-results-list [role="option"]', { hasText: "Revenue" });
   assert.equal(await metricRow.count(), 1);
-  assert.match(await metricRow.innerText(), /Revenue:\s+-139500 Mega USD/);
+  assert.equal(await metricRow.locator(".claims-result-subject").innerText(), "Authentication service");
+  assert.equal(await metricRow.locator(".claims-result-metric").innerText(), "Revenue");
+  assert.equal(await metricRow.locator(".claims-result-value-line").innerText(), "-USD 139,500 million");
+  assert.equal(await metricRow.locator(".claims-result-meta").count(), 0);
+  assert.doesNotMatch(await metricRow.innerText(), /FY2026 Q2|GAAP|proposed|authentication\.md/);
   await metricRow.click({ timeout: 5000 });
-  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-metric").innerText(), "Revenue:");
-  await workspace.getByRole("button", { name: "Relationships", exact: true }).click({ timeout: 5000 });
-  await workspace.locator(".claims-neighborhood-center").waitFor({ state: "visible", timeout: 5000 });
-  assert.equal(await workspace.locator(".claims-neighborhood-center .claims-inspector-metric").innerText(), "Revenue:");
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-metric").innerText(), "Revenue");
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-value-line").innerText(), "-USD 139,500 million");
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-badges").count(), 0);
+  assert.doesNotMatch(await workspace.locator("[data-claims-detail] .claims-inspector-header").innerText(), /FY2026 Q2|GAAP|proposed|unverified/);
+  await workspace.locator("[data-claims-detail] .claims-inspector-metric").click({ timeout: 5000 });
+  assert.equal(await workspace.locator("[data-claims-detail] h2").innerText(), "Revenue");
+  assert.match(await workspace.locator("[data-claims-detail] .claims-context-section").innerText(), /Used by \(1\)[\s\S]*-USD 139,500 million/);
+  await workspace.locator("[data-claims-detail] .claims-context-back").click({ timeout: 5000 });
+  const inspectorMetadata = workspace.locator("[data-claims-detail] .claims-inspector-metadata");
+  assert.equal(await inspectorMetadata.evaluate((element) => element.tagName), "SECTION");
+  assert.equal(await inspectorMetadata.locator(".claims-inspector-metadata-body").isVisible(), true);
   await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-desktop.png"), fullPage: true });
-  await workspace.getByRole("button", { name: "Browse", exact: true }).click({ timeout: 5000 });
-  await workspace.locator('[data-claims-filter="predicate"]').selectOption("auth:tokenFormat");
-  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 1);
-  await workspace.getByRole("button", { name: "Relationships", exact: true }).click({ timeout: 5000 });
-  await workspace.locator(".claims-neighborhood-center").waitFor({ state: "visible", timeout: 5000 });
+  const scopeDefinition = workspace.locator("[data-claims-detail] .claims-definition", { hasText: "Scope" });
+  assert.match(await scopeDefinition.innerText(), /accounting basis: GAAP/i);
+  assert.match(await scopeDefinition.innerText(), /fiscal period: FY2026 Q2/i);
+  assert.match(await workspace.locator("[data-claims-detail] .claims-inspector-section", { hasText: "Provenance and lifecycle" }).innerText(), /Status\s+proposed[\s\S]*Trust tier\s+unverified[\s\S]*Document\s+authentication\.md/i);
+  const relationships = workspace.locator("[data-claims-detail] .claims-inspector-relationships");
+  assert.equal(await relationships.count(), 1);
+  assert.equal(await relationships.getAttribute("open"), null);
+  await relationships.locator(":scope > summary").click({ timeout: 5000 });
+  assert.equal(await relationships.locator(".claims-relationship-row").count(), 1);
+  assert.match(await relationships.locator(".claims-relationship-row").innerText(), /Derived from\s+Authentication service — filing source — Quarterly filing/i);
+  await workspace.locator('.claims-results-list [role="option"]', { hasText: "JWT" }).click({ timeout: 5000 });
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-history").count(), 1);
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-history").getAttribute("open"), null);
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-impact").count(), 1);
+  assert.equal(await workspace.locator("[data-claims-detail] .claims-inspector-impact").getAttribute("open"), null);
+
+  await workspace.locator("[data-claims-detail] .claims-inspector-subject").click({ timeout: 5000 });
+  assert.equal(await workspace.locator("[data-claims-detail] h2").innerText(), "Authentication service");
+  assert.match(await workspace.locator("[data-claims-detail] .claims-context-section").innerText(), /Used by \(4\)/);
+  await workspace.locator("[data-claims-detail] .claims-context-back").click({ timeout: 5000 });
+
+  const predicateDefinition = workspace.locator("[data-claims-detail] .claims-definition", { hasText: "Predicate" });
+  await predicateDefinition.locator("button").click({ timeout: 5000 });
+  assert.equal(await workspace.locator("[data-claims-detail] h2").innerText(), "token format");
+  assert.match(await workspace.locator("[data-claims-detail] .claims-definition-list").innerText(), /Datatype\s+xsd:string[\s\S]*Maximum count\s+1/i);
+  await workspace.locator("[data-claims-detail] .claims-context-back").click({ timeout: 5000 });
+
+  await workspace.locator("[data-claims-detail] .claims-evidence-source").click({ timeout: 5000 });
+  assert.equal(await workspace.locator("[data-claims-detail] h2").innerText(), "identity-openapi");
+  assert.match(await workspace.locator("[data-claims-detail] .claims-definition-list").innerText(), /Resource\s+token-evidence\.txt[\s\S]*Role\s+authoritative[\s\S]*Digest\s+bb5a64/i);
+  assert.match(await workspace.locator("[data-claims-detail] .claims-context-section").innerText(), /Evidence for \(2\)/);
+  await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-source-inspector.png"), fullPage: true });
+  await workspace.locator("[data-claims-detail] .claims-context-back").click({ timeout: 5000 });
+
+  await workspace.locator('.claims-primary-filter [data-claims-filter="predicate"]').selectOption("auth:tokenFormat");
+  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 2);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await workspace.getByRole("button", { name: "Browse", exact: true }).click({ timeout: 5000 });
+  const moreFilters = workspace.locator(".claims-more-filters");
+  await moreFilters.locator(":scope > summary").click({ timeout: 5000 });
+  assert.equal(await moreFilters.locator('.claims-mobile-filter [data-claims-filter="status"]').isVisible(), true);
+  assert.equal(await moreFilters.locator('.claims-mobile-filter [data-claims-filter="subject"]').isVisible(), true);
+  assert.equal(await moreFilters.locator('.claims-mobile-filter [data-claims-filter="predicate"]').isVisible(), true);
+  await moreFilters.locator('.claims-mobile-filter [data-claims-filter="predicate"]').selectOption("");
+  await moreFilters.locator(":scope > summary").click({ timeout: 5000 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
-  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 1);
+  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 4);
+  await workspace.locator('.claims-results-list [role="option"]', { hasText: "Revenue" }).click({ timeout: 5000 });
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-mobile.png"), fullPage: true });
   assert.equal(errors.length, 0, `viewer claims browser errors:\n${errors.join("\n")}`);
@@ -854,6 +983,14 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   const annotationColor = await agentContext.locator("p").evaluate((paragraph) => getComputedStyle(paragraph).color);
   const readerColor = await panel.locator(".note-body > p").first().evaluate((paragraph) => getComputedStyle(paragraph).color);
   assert.notEqual(annotationColor, readerColor, "agent context should use a distinct text color");
+  const image = panel.getByRole("img", { name: "Rollback architecture" });
+  await image.waitFor({ state: "visible" });
+  assert.equal(await image.getAttribute("src"), "../assets/architecture.png");
+  assert.equal(await image.getAttribute("title"), "Rollback architecture");
+  assert.equal(await image.getAttribute("loading"), "lazy");
+  assert.equal(await image.locator("xpath=..").getAttribute("href"), "../index.html");
+  assert.equal(await image.evaluate((element) => element.naturalWidth), 1);
+  assert.equal(await image.evaluate((element) => element.getBoundingClientRect().width <= element.closest(".note-body").getBoundingClientRect().width), true);
   const ledger = signals.locator("[data-source-ledger]");
   assert.equal(await ledger.getAttribute("open"), null);
   const reference = page.getByRole("link", { name: "Source rollback-policy" });

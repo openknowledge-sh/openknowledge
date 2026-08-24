@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-labelledby="title description">
+  <title id="title">Viewer asset route</title>
+  <desc id="description">A Markdown document resolves a relative image through a bundle asset route.</desc>
+  <rect width="720" height="300" rx="24" fill="#edf5fa"/>
+  <g fill="#fbfdff" stroke="#0a4a9c" stroke-width="3">
+    <rect x="54" y="82" width="170" height="136" rx="16"/>
+    <rect x="275" y="82" width="170" height="136" rx="16"/>
+    <rect x="496" y="82" width="170" height="136" rx="16"/>
+  </g>
+  <g fill="none" stroke="#0a4a9c" stroke-linecap="round" stroke-width="5">
+    <path d="M224 150h42"/>
+    <path d="m256 138 12 12-12 12"/>
+    <path d="M445 150h42"/>
+    <path d="m477 138 12 12-12 12"/>
+  </g>
+  <g fill="#082b63" font-family="ui-sans-serif, system-ui, sans-serif" text-anchor="middle">
+    <text x="139" y="136" font-size="22" font-weight="700">Markdown</text>
+    <text x="139" y="168" font-size="16">relative path</text>
+    <text x="360" y="136" font-size="22" font-weight="700">Viewer</text>
+    <text x="360" y="168" font-size="16">safe raw route</text>
+    <text x="581" y="136" font-size="22" font-weight="700">Asset</text>
+    <text x="581" y="168" font-size="16">image response</text>
+  </g>
+</svg>

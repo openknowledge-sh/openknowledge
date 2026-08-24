@@ -427,10 +427,45 @@ page records release-level changes.
 
 ### Viewer
 
-- The **Claims** workspace now uses compact spacing in its header, filters,
-  claim rows, **Browse**, and **Relationships**.
-- Metric claims now show the quantity-kind label with the value and unit in
-  document **Claims** panels, **Browse**, and **Relationships**.
+- The **Claims** workspace now keeps its count, search, primary filters, and
+  additional-filter control in one compact toolbar.
+- Selected claims keep **Evidence and metadata** visible. Authored incoming
+  and outgoing relations appear in an optional collapsed **Relationships**
+  section instead of a separate workspace mode.
+- Claim subjects, metric entities, object entities, predicates, and evidence
+  sources now open contextual inspectors inside the Claims workspace. The
+  inspectors show their canonical metadata and every connected claim without
+  adding permanent workspace tabs.
+- Same-slot occurrences appear in a conditional collapsed **History** section.
+  Claim references and shared-source claims appear in a conditional collapsed
+  **Impact** section; empty sections stay hidden.
+- Scoped metric claims now use the `metric` scope value as their compact
+  identity in document **Claims** panels and workspace summaries.
+  Compact surfaces show only the subject, metric, and formatted quantity.
+  Visible details retain scope, lifecycle, evidence, and source metadata.
+- Markdown images now render as responsive images instead of image-shaped
+  links. Local paths resolve from the source Markdown file through safe raw
+  routes. Static exports keep portable relative paths and copy allowed assets.
+- Image alt text, optional titles, lazy loading, table-cell bounds, and
+  sandboxed SVG media responses improve accessibility and layout resilience.
+- Images inside Markdown links now render as linked images. The viewer resolves
+  the image asset and link destination independently.
+- Local document requests now reuse parsed AST and claim data. Navigation
+  requests omit global graph, tree, and claims workspace projections. Live
+  reload also reuses unchanged file digests. Large knowledge bases open faster
+  and no longer cause continuous idle CPU use.
+- The Wiki now includes one Markdown viewer showcase for supported block,
+  inline, asset, table, footnote, annotation, and nested rendering cases.
+- Source: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/cmd/openknowledge/viewer.go`,
+  `packages/cli/cmd/openknowledge/viewer_claims.go`,
+  `packages/web/src/viewer/app.js`,
+  `packages/web/src/viewer/styles/claims.css`,
+  `packages/web/src/viewer/styles/document.css`, and viewer tests.
+- Docs: `Wiki/features/commands/view.md`,
+  `Wiki/features/claim-profile.md`,
+  `Wiki/features/exporters/html.md`, and
+  `Wiki/examples/markdown-showcase.md`.
 - Markdown notes with typed claims now include a collapsed, read-only
   **Claims** panel. It shows labeled statements, status, scope, evidence, and
   occurrence relations without changing canonical YAML.

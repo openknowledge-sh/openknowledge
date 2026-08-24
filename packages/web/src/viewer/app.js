@@ -12,7 +12,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const claimsWorkspace = document.querySelector("[data-claims-workspace]");
   const claimsList = document.querySelector("[data-claims-list]");
   const claimsDetail = document.querySelector("[data-claims-detail]");
-  const claimsRelationships = document.querySelector("[data-claims-relationships]");
   const claimsFilters = document.querySelector("[data-claims-filters]");
   const claimsQuery = document.querySelector("[data-claims-query]");
   const knowledgeBasesToggle = document.querySelector("[data-knowledge-bases-toggle]");
@@ -53,8 +52,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   let navigationMode = defaultNavigationMode;
   let graphViewRequested = false;
   let claimsViewRequested = false;
-  let claimsMode = "browse";
   let selectedClaimKey = "";
+  let claimsInspectorContext = null;
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const currentKnowledgeBase = String(workspace.dataset.knowledgeBase || document.body.dataset.activeKnowledgeBase || "").trim();
   const viewerStorageScope = graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
@@ -538,6 +537,15 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function claimStatement(claim) {
+    if (claim?.projection?.metric) {
+      return [
+        claim?.subject?.label || claim?.subject?.id,
+        claim.projection.metric,
+        claim.projection.value
+      ]
+        .filter(Boolean)
+        .join(" — ");
+    }
     return [
       claim?.subject?.label || claim?.subject?.id,
       claim?.predicate?.label || claim?.predicate?.id,
@@ -552,8 +560,109 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return claim?.object?.quantityKindLabel || claim?.object?.quantityKind || "";
   }
 
+  function sameKnowledgeBase(left, right) {
+    const knowledgeBase = function (value) {
+      return value && typeof value === "object" ? String(value.knowledgeBase || "") : String(value || "");
+    };
+    return knowledgeBase(left) === knowledgeBase(right);
+  }
+
+  function entityByID(id, knowledgeBase) {
+    return claimsData.entities.find(function (entity) {
+      return entity.id === id && sameKnowledgeBase(entity, knowledgeBase);
+    }) || null;
+  }
+
+  function predicateByID(id, knowledgeBase) {
+    return claimsData.predicates.find(function (predicate) {
+      return predicate.id === id && sameKnowledgeBase(predicate, knowledgeBase);
+    }) || null;
+  }
+
+  function sourceForEvidence(claim, evidence) {
+    return claimsData.sources.find(function (source) {
+      return source.id === evidence?.sourceRef && source.declaringPath === claim?.declaringPath && sameKnowledgeBase(source, claim);
+    }) || null;
+  }
+
+  function metricEntityForClaim(claim) {
+    const metric = (claim?.scope || []).find(function (item) {
+      const id = String(item.dimension?.id || "").toLocaleLowerCase();
+      return id.split(/[/#:]/).pop() === "metric" && item.value?.ref;
+    });
+    return metric ? entityByID(metric.value.ref, claim.knowledgeBase) : null;
+  }
+
+  function contextualTermButton(label, kind, target, claim, className) {
+    const button = createClaimsElement("button", "claims-term-button " + (className || ""), label);
+    button.type = "button";
+    button.addEventListener("click", function () {
+      claimsInspectorContext = {
+        kind: kind,
+        key: target.key,
+        originClaimKey: claimIdentity(claim)
+      };
+      renderClaimsWorkspace();
+      window.requestAnimationFrame(focusClaimsInspectorHeading);
+    });
+    return button;
+  }
+
+  function focusClaimsInspectorHeading() {
+    const heading = claimsDetail?.querySelector("h2");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus();
+    }
+  }
+
+  function appendInteractiveClaimStatement(parent, claim, classPrefix) {
+    const prefix = classPrefix || "";
+    const subject = entityByID(claim?.subject?.id, claim?.knowledgeBase);
+    const metricEntity = metricEntityForClaim(claim);
+    const predicate = predicateByID(claim?.predicate?.id, claim?.knowledgeBase);
+    const objectEntity = claim?.object?.ref ? entityByID(claim.object.ref, claim.knowledgeBase) : null;
+    parent.append(subject
+      ? contextualTermButton(claim.subject.label || claim.subject.id, "entity", subject, claim, prefix + "subject")
+      : createClaimsElement("span", prefix + "subject", claim?.subject?.label || claim?.subject?.id || "Unknown subject"));
+    if (claim?.projection?.metric) {
+      const separator = createClaimsElement("span", prefix + "separator", "—");
+      separator.setAttribute("aria-hidden", "true");
+      parent.append(separator, metricEntity
+        ? contextualTermButton(claim.projection.metric, "entity", metricEntity, claim, prefix + "metric")
+        : createClaimsElement("span", prefix + "metric", claim.projection.metric));
+      const valueLine = createClaimsElement("span", prefix + "value-line");
+      valueLine.append(createClaimsElement("strong", prefix + "object", claim.projection.value || claim?.object?.label || "—"));
+      parent.append(valueLine);
+      return;
+    }
+    parent.append(predicate
+      ? contextualTermButton(claim.predicate.label || claim.predicate.id, "predicate", predicate, claim, prefix + "predicate")
+      : createClaimsElement("span", prefix + "predicate", claim?.predicate?.label || claim?.predicate?.id || "Unknown predicate"));
+    const metric = claimMetricLabel(claim);
+    if (metric) {
+      parent.append(createClaimsElement("span", prefix + "metric", metric + ":"));
+    }
+    parent.append(objectEntity
+      ? contextualTermButton(claim.object.label || claim.object.ref, "entity", objectEntity, claim, prefix + "object")
+      : createClaimsElement("strong", prefix + "object", claim?.object?.label || "—"));
+  }
+
   function appendClaimStatement(parent, claim, classPrefix) {
     const prefix = classPrefix || "";
+    if (claim?.projection?.metric) {
+      const separator = createClaimsElement("span", prefix + "separator", "—");
+      separator.setAttribute("aria-hidden", "true");
+      parent.append(
+        createClaimsElement("span", prefix + "subject", claim?.subject?.label || claim?.subject?.id || "Unknown subject"),
+        separator,
+        createClaimsElement("span", prefix + "metric", claim.projection.metric)
+      );
+      const valueLine = createClaimsElement("span", prefix + "value-line");
+      valueLine.append(createClaimsElement("strong", prefix + "object", claim.projection.value || claim?.object?.label || "—"));
+      parent.append(valueLine);
+      return;
+    }
     parent.append(
       createClaimsElement("span", prefix + "subject", claim?.subject?.label || claim?.subject?.id || "Unknown subject"),
       createClaimsElement("span", prefix + "predicate", claim?.predicate?.label || claim?.predicate?.id || "Unknown predicate")
@@ -589,7 +698,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     };
     const entries = [];
     claimsData.claims.forEach(function (candidate) {
-      if (candidate.knowledgeBase && claim.knowledgeBase && candidate.knowledgeBase !== claim.knowledgeBase) {
+      if (String(candidate.knowledgeBase || "") !== String(claim.knowledgeBase || "")) {
         return;
       }
       const relations = candidate.relations || {};
@@ -639,6 +748,22 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     } else {
       description.textContent = Array.isArray(value) ? value.join(", ") : String(value);
     }
+    row.append(description);
+    list.append(row);
+  }
+
+  function appendClaimLinkDefinition(list, label, value, kind, target, claim, options) {
+    if (!target) {
+      appendClaimDefinition(list, label, value, options);
+      return;
+    }
+    const row = createClaimsElement("div", "claims-definition");
+    row.append(createClaimsElement("dt", "", label));
+    const description = createClaimsElement("dd");
+    if (options?.mono) {
+      description.classList.add("is-mono");
+    }
+    description.append(contextualTermButton(value, kind, target, claim));
     row.append(description);
     list.append(row);
   }
@@ -725,6 +850,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const haystack = [
       claimStatement(claim), claim.id, claim.slot, claim.subject?.id, claim.predicate?.id,
       claim.declaringPath, claim.knowledgeBase, (claim.owners || []).join(" "),
+      (claim.scope || []).map(function (item) { return [item.dimension?.id, item.dimension?.label, item.value?.ref, item.value?.label].join(" "); }).join(" "),
       (claim.evidence || []).map(function (evidence) { return [evidence.sourceRef, evidence.stance, evidence.role].join(" "); }).join(" ")
     ].join(" ").toLocaleLowerCase();
     return haystack.includes(filters.query);
@@ -750,16 +876,21 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       row.setAttribute("aria-selected", claimIdentity(claim) === selectedClaimKey ? "true" : "false");
       const statement = createClaimsElement("span", "claims-result-statement");
       appendClaimStatement(statement, claim, "claims-result-");
-      const meta = createClaimsElement("span", "claims-result-meta");
-      appendClaimBadge(meta, claim.status, claim.status);
-      if (claim.stale) {
-        appendClaimBadge(meta, "stale", "stale");
+      row.append(statement);
+      if (!claim.projection?.metric || (claim.issues || []).length > 0) {
+        const meta = createClaimsElement("span", "claims-result-meta");
+        if (!claim.projection?.metric) {
+          appendClaimBadge(meta, claim.status, claim.status);
+          if (claim.stale) {
+            appendClaimBadge(meta, "stale", "stale");
+          }
+          meta.append(createClaimsElement("span", "claims-result-path", (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath));
+        }
+        if ((claim.issues || []).length > 0) {
+          appendClaimBadge(meta, String(claim.issues.length) + " issues", "invalid");
+        }
+        row.append(meta);
       }
-      if ((claim.issues || []).length > 0) {
-        appendClaimBadge(meta, String(claim.issues.length) + " issues", "invalid");
-      }
-      meta.append(createClaimsElement("span", "claims-result-path", (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath));
-      row.append(statement, meta);
       row.addEventListener("click", function () {
         selectClaim(claimIdentity(claim), true);
       });
@@ -773,6 +904,205 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
   }
 
+  function claimsUsingEntity(entity) {
+    return claimsData.claims.filter(function (claim) {
+      if (!sameKnowledgeBase(claim, entity)) {
+        return false;
+      }
+      return claim.subject?.id === entity.id || claim.object?.ref === entity.id || (claim.scope || []).some(function (item) {
+        return item.value?.ref === entity.id;
+      });
+    });
+  }
+
+  function claimsUsingPredicate(predicate) {
+    return claimsData.claims.filter(function (claim) {
+      return sameKnowledgeBase(claim, predicate) && (claim.predicate?.id === predicate.id || (claim.scope || []).some(function (item) {
+        return item.dimension?.id === predicate.id;
+      }));
+    });
+  }
+
+  function claimsUsingSource(source) {
+    return claimsData.claims.filter(function (claim) {
+      return sameKnowledgeBase(claim, source) && claim.declaringPath === source.declaringPath && (claim.evidence || []).some(function (evidence) {
+        return evidence.sourceRef === source.id;
+      });
+    });
+  }
+
+  function createContextClaimList(title, claims, source) {
+    if (claims.length === 0) {
+      return null;
+    }
+    const section = createClaimsElement("section", "claims-context-section");
+    section.append(createClaimsElement("h3", "", title + " (" + claims.length + ")"));
+    const list = createClaimsElement("div", "claims-context-list");
+    claims.forEach(function (claim) {
+      const row = createClaimsElement("button", "claims-context-row");
+      row.type = "button";
+      row.append(createClaimsElement("strong", "", claimStatement(claim)));
+      const evidence = source ? (claim.evidence || []).find(function (item) { return item.sourceRef === source.id; }) : null;
+      row.append(createClaimsElement("span", "", evidence
+        ? [evidence.stance, evidence.role, claim.declaringPath].filter(Boolean).join(" · ")
+        : [claim.status, claim.declaringPath].filter(Boolean).join(" · ")));
+      row.addEventListener("click", function () {
+        selectClaim(claimIdentity(claim), true);
+        window.requestAnimationFrame(focusClaimsInspectorHeading);
+      });
+      list.append(row);
+    });
+    section.append(list);
+    return section;
+  }
+
+  function renderClaimsContextInspector(context) {
+    if (!claimsDetail || !context) {
+      return;
+    }
+    const collection = context.kind === "entity" ? claimsData.entities : context.kind === "predicate" ? claimsData.predicates : claimsData.sources;
+    const target = collection.find(function (item) { return item.key === context.key; });
+    if (!target) {
+      claimsInspectorContext = null;
+      renderClaimInspector(claimByKey(selectedClaimKey));
+      return;
+    }
+    claimsDetail.replaceChildren();
+    const back = createClaimsElement("button", "claims-context-back", "Back to claim");
+    back.type = "button";
+    back.addEventListener("click", function () {
+      claimsInspectorContext = null;
+      renderClaimsWorkspace();
+      window.requestAnimationFrame(focusClaimsInspectorHeading);
+    });
+    const header = createClaimsElement("header", "claims-context-header");
+    header.append(createClaimsElement("h2", "", target.label || target.title || target.id));
+    header.append(createClaimsElement("code", "claims-context-id", target.id));
+    const definitions = createClaimsElement("dl", "claims-definition-list claims-context-definitions");
+    let relatedClaims = [];
+    if (context.kind === "entity") {
+      appendClaimDefinition(definitions, "Types", target.types || [], { mono: true });
+      appendClaimDefinition(definitions, "Aliases", target.altLabels || []);
+      appendClaimDefinition(definitions, "Deprecated", target.deprecated ? "yes" : "no");
+      appendClaimDefinition(definitions, "Replaced by", target.replacedBy, { mono: true });
+      relatedClaims = claimsUsingEntity(target);
+    } else if (context.kind === "predicate") {
+      appendClaimDefinition(definitions, "Object kind", target.objectKind);
+      appendClaimDefinition(definitions, "Datatype", target.datatype, { mono: true });
+      appendClaimDefinition(definitions, "Quantity kind", target.quantityKind, { mono: true });
+      appendClaimDefinition(definitions, "Canonical unit", target.canonicalUnit, { mono: true });
+      appendClaimDefinition(definitions, "Required scope", target.requiredScope || [], { mono: true });
+      appendClaimDefinition(definitions, "Maximum count", target.maximumCount ? String(target.maximumCount) : "");
+      relatedClaims = claimsUsingPredicate(target);
+    } else {
+      appendClaimDefinition(definitions, "Resource", target.resource, { mono: true });
+      appendClaimDefinition(definitions, "Role", target.role);
+      appendClaimDefinition(definitions, "Observation", target.observe);
+      appendClaimDefinition(definitions, "Digest", target.sha256, { mono: true });
+      appendClaimDefinition(definitions, "Author", target.author);
+      appendClaimDefinition(definitions, "Access", target.access || []);
+      appendClaimDefinition(definitions, "Last modified", target.lastModified);
+      appendClaimDefinition(definitions, "Usage count", target.usageCount === undefined ? "" : String(target.usageCount));
+      appendClaimDefinition(definitions, "Usage window", target.usageWindow ? target.usageWindow.from + " – " + target.usageWindow.to : "");
+      relatedClaims = claimsUsingSource(target);
+    }
+    const actions = createClaimsElement("div", "claims-inspector-actions");
+    if (context.kind === "source") {
+      const documentLink = createClaimsElement("a", "claims-source-link", "Open declaring document");
+      documentLink.href = target.documentURL;
+      documentLink.dataset.claimDocumentPath = target.declaringPath;
+      if (target.knowledgeBase) {
+        documentLink.dataset.knowledgeBase = target.knowledgeBase;
+      }
+      actions.append(documentLink);
+    }
+    const related = createContextClaimList(context.kind === "source" ? "Evidence for" : "Used by", relatedClaims, context.kind === "source" ? target : null);
+    claimsDetail.append(back, header);
+    if (actions.childElementCount) {
+      claimsDetail.append(actions);
+    }
+    if (definitions.childElementCount) {
+      claimsDetail.append(definitions);
+    }
+    if (related) {
+      claimsDetail.append(related);
+    }
+  }
+
+  function createClaimHistory(claim) {
+    const occurrences = claimsData.claims.filter(function (candidate) {
+      return candidate.slot && candidate.slot === claim.slot && sameKnowledgeBase(candidate, claim);
+    });
+    if (occurrences.length < 2) {
+      return null;
+    }
+    const section = createClaimsElement("details", "claims-inspector-disclosure claims-inspector-history");
+    section.append(createClaimsElement("summary", "", "History (" + occurrences.length + ")"));
+    const list = createClaimsElement("div", "claims-relationship-list");
+    occurrences.forEach(function (occurrence) {
+      const row = createClaimsElement("button", "claims-relationship-row");
+      row.type = "button";
+      row.append(createClaimsElement("span", "claims-relationship-label", claimIdentity(occurrence) === claimIdentity(claim) ? "Current" : (occurrence.status || "Occurrence")));
+      row.append(createClaimsElement("strong", "", claimStatement(occurrence)));
+      row.addEventListener("click", function () {
+        selectClaim(claimIdentity(occurrence), true);
+        window.requestAnimationFrame(focusClaimsInspectorHeading);
+      });
+      list.append(row);
+    });
+    section.append(list);
+    return section;
+  }
+
+  function createClaimImpact(claim) {
+    const references = claimsData.references.filter(function (reference) {
+      return reference.claimId === claim.id && sameKnowledgeBase(reference, claim);
+    });
+    const sourceResources = (claim.evidence || []).map(function (evidence) {
+      return sourceForEvidence(claim, evidence)?.resource;
+    }).filter(Boolean);
+    const sharedClaims = claimsData.claims.filter(function (candidate) {
+      if (claimIdentity(candidate) === claimIdentity(claim) || !sameKnowledgeBase(candidate, claim)) {
+        return false;
+      }
+      return (candidate.evidence || []).some(function (evidence) {
+        const source = sourceForEvidence(candidate, evidence);
+        return source && sourceResources.includes(source.resource);
+      });
+    });
+    const dependentPaths = Array.from(new Set((claim.dependents || []).concat(references.map(function (reference) { return reference.path; }))));
+    if (dependentPaths.length === 0 && sharedClaims.length === 0) {
+      return null;
+    }
+    const count = dependentPaths.length + sharedClaims.length;
+    const section = createClaimsElement("details", "claims-inspector-disclosure claims-inspector-impact");
+    section.append(createClaimsElement("summary", "", "Impact (" + count + ")"));
+    const list = createClaimsElement("div", "claims-relationship-list");
+    dependentPaths.forEach(function (path) {
+      const reference = references.find(function (item) { return item.path === path; });
+      const row = createClaimsElement(reference ? "a" : "div", "claims-relationship-row");
+      row.append(createClaimsElement("span", "claims-relationship-label", "Referenced by"));
+      row.append(createClaimsElement("strong", "", path));
+      if (reference) {
+        row.href = reference.url;
+      }
+      list.append(row);
+    });
+    sharedClaims.forEach(function (candidate) {
+      const row = createClaimsElement("button", "claims-relationship-row");
+      row.type = "button";
+      row.append(createClaimsElement("span", "claims-relationship-label", "Shared source"));
+      row.append(createClaimsElement("strong", "", claimStatement(candidate)));
+      row.addEventListener("click", function () {
+        selectClaim(claimIdentity(candidate), true);
+        window.requestAnimationFrame(focusClaimsInspectorHeading);
+      });
+      list.append(row);
+    });
+    section.append(list);
+    return section;
+  }
+
   function renderClaimInspector(claim) {
     if (!claimsDetail) {
       return;
@@ -784,14 +1114,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     const heading = createClaimsElement("header", "claims-inspector-header");
     const title = createClaimsElement("h2", "claims-inspector-statement");
-    appendClaimStatement(title, claim, "claims-inspector-");
-    const badges = createClaimsElement("div", "claims-inspector-badges");
-    appendClaimBadge(badges, claim.status, claim.status);
-    appendClaimBadge(badges, claim.trustTier, "trust");
-    if (claim.stale) {
-      appendClaimBadge(badges, "stale", "stale");
+    appendInteractiveClaimStatement(title, claim, "claims-inspector-");
+    heading.append(title);
+    if (!claim.projection?.metric) {
+      const badges = createClaimsElement("div", "claims-inspector-badges");
+      appendClaimBadge(badges, claim.status, claim.status);
+      appendClaimBadge(badges, claim.trustTier, "trust");
+      if (claim.stale) {
+        appendClaimBadge(badges, "stale", "stale");
+      }
+      heading.append(badges);
     }
-    heading.append(title, badges);
 
     const actions = createClaimsElement("div", "claims-inspector-actions");
     const source = createClaimsElement("a", "claims-source-link", "Open source document");
@@ -800,18 +1133,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (claim.knowledgeBase) {
       source.dataset.knowledgeBase = claim.knowledgeBase;
     }
-    const relationshipButton = createClaimsElement("button", "claims-relationship-action", "Show relationships");
-    relationshipButton.type = "button";
-    relationshipButton.addEventListener("click", function () {
-      setClaimsMode("relationships");
-    });
-    actions.append(source, relationshipButton);
+    actions.append(source);
 
     const definitions = createClaimsElement("dl", "claims-definition-list");
     appendClaimDefinition(definitions, "Claim ID", claim.id, { mono: true });
     appendClaimDefinition(definitions, "Slot", claim.slot, { mono: true });
-    appendClaimDefinition(definitions, "Subject", claim.subject?.id, { mono: true });
-    appendClaimDefinition(definitions, "Predicate", claim.predicate?.id, { mono: true });
+    appendClaimLinkDefinition(definitions, "Subject", claim.subject?.id, "entity", entityByID(claim.subject?.id, claim.knowledgeBase), claim, { mono: true });
+    appendClaimLinkDefinition(definitions, "Predicate", claim.predicate?.id, "predicate", predicateByID(claim.predicate?.id, claim.knowledgeBase), claim, { mono: true });
     appendClaimDefinition(definitions, "Datatype", claim.object?.datatype, { mono: true });
     appendClaimDefinition(definitions, "Quantity kind", claim.object?.quantityKind, { mono: true });
     appendClaimDefinition(definitions, "Unit", claim.object?.unit, { mono: true });
@@ -833,7 +1161,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       claim.evidence.forEach(function (evidence) {
         const item = createClaimsElement("article", "claims-evidence");
         const itemHead = createClaimsElement("div", "claims-evidence-head");
-        itemHead.append(createClaimsElement("strong", "", evidence.sourceRef || evidence.id));
+        const evidenceSource = sourceForEvidence(claim, evidence);
+        itemHead.append(evidenceSource
+          ? contextualTermButton(evidenceSource.title || evidence.sourceRef || evidence.id, "source", evidenceSource, claim, "claims-evidence-source")
+          : createClaimsElement("strong", "", evidence.sourceRef || evidence.id));
         appendClaimBadge(itemHead, evidence.stance, evidence.stance);
         item.append(itemHead);
         const meta = createClaimsElement("p", "", [evidence.role, evidence.observedAt].filter(Boolean).join(" · "));
@@ -852,6 +1183,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const provenance = createClaimsElement("section", "claims-inspector-section");
     provenance.append(createClaimsElement("h3", "", "Provenance and lifecycle"));
     const provenanceList = createClaimsElement("dl", "claims-definition-list is-compact");
+    appendClaimDefinition(provenanceList, "Status", claim.status);
+    appendClaimDefinition(provenanceList, "Trust tier", claim.trustTier);
+    appendClaimDefinition(provenanceList, "Freshness", claim.stale ? "stale" : "current");
+    appendClaimDefinition(provenanceList, "Document", (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath, { mono: true });
     if (claim.verification) {
       appendClaimDefinition(provenanceList, "Verification", [claim.verification.by, claim.verification.method, claim.verification.at].filter(Boolean).join(" · "));
     }
@@ -862,6 +1197,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     appendClaimDefinition(provenanceList, "Dependents", claim.dependents || []);
     provenance.append(provenanceList);
 
+    const metadata = createClaimsElement("section", "claims-inspector-metadata");
+    metadata.append(createClaimsElement("h3", "claims-inspector-section-title", "Evidence and metadata"));
+    const metadataBody = createClaimsElement("div", "claims-inspector-metadata-body");
+    metadataBody.append(definitions);
     if ((claim.issues || []).length > 0) {
       const issues = createClaimsElement("section", "claims-inspector-section claims-issues");
       issues.append(createClaimsElement("h3", "", "Needs attention"));
@@ -870,74 +1209,68 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         list.append(createClaimsElement("li", "", issue.message));
       });
       issues.append(list);
-      claimsDetail.append(heading, actions, definitions, issues, evidenceSection, provenance);
-      return;
+      metadataBody.append(issues);
     }
-    claimsDetail.append(heading, actions, definitions, evidenceSection, provenance);
+    metadataBody.append(evidenceSection, provenance);
+    metadata.append(metadataBody);
+    claimsDetail.append(heading, actions, metadata);
+    const relationships = createClaimRelationships(claim);
+    if (relationships) {
+      claimsDetail.append(relationships);
+    }
+    const history = createClaimHistory(claim);
+    if (history) {
+      claimsDetail.append(history);
+    }
+    const impact = createClaimImpact(claim);
+    if (impact) {
+      claimsDetail.append(impact);
+    }
   }
 
   function relationClaimFor(claim, relation) {
     if (relation.key) {
       return claimByKey(relation.key);
     }
-    return claimByID(relation.id, claim?.knowledgeBase);
+    const knowledgeBase = String(claim?.knowledgeBase || "");
+    return claimsData.claims.find(function (candidate) {
+      return candidate.id === relation.id && String(candidate.knowledgeBase || "") === knowledgeBase;
+    }) || null;
   }
 
-  function renderClaimRelationships(claim) {
-    if (!claimsRelationships) {
-      return;
-    }
-    claimsRelationships.replaceChildren();
-    if (!claim) {
-      claimsRelationships.append(createClaimsElement("div", "claims-empty", "Select a claim to inspect its relationships."));
-      return;
-    }
-    const header = createClaimsElement("header", "claims-relationships-header");
-    header.append(createClaimsElement("h2", "", "Relationship neighborhood"));
-    header.append(createClaimsElement("p", "", "Only authored occurrence relations around the selected claim are shown."));
-    const neighborhood = createClaimsElement("div", "claims-neighborhood");
-    const center = createClaimsElement("article", "claims-neighborhood-center");
-    const centerStatement = createClaimsElement("div", "claims-neighborhood-statement");
-    appendClaimStatement(centerStatement, claim, "claims-inspector-");
-    center.append(centerStatement);
-    appendClaimBadge(center, claim.status, claim.status);
-    neighborhood.append(center);
-
+  function createClaimRelationships(claim) {
     const relations = incomingClaimRelations(claim).concat(claimRelationEntries(claim));
-    const relationList = createClaimsElement("div", "claims-neighborhood-relations");
+    if (relations.length === 0) {
+      return null;
+    }
+    const section = createClaimsElement("details", "claims-inspector-relationships");
+    section.append(createClaimsElement("summary", "", "Relationships (" + relations.length + ")"));
+    const relationList = createClaimsElement("div", "claims-relationship-list");
     relations.forEach(function (relation) {
       const related = relationClaimFor(claim, relation);
-      const button = createClaimsElement("button", "claims-neighborhood-relation");
-      button.type = "button";
-      button.dataset.direction = relation.direction;
-      button.append(createClaimsElement("span", "claims-neighborhood-relation-label", relation.label));
-      button.append(createClaimsElement("strong", "", related ? claimStatement(related) : relation.id));
-      button.addEventListener("click", function () {
-        if (related) {
+      const row = createClaimsElement(related ? "button" : "div", "claims-relationship-row");
+      row.dataset.direction = relation.direction;
+      row.append(createClaimsElement("span", "claims-relationship-label", relation.label));
+      row.append(createClaimsElement("strong", "", related ? claimStatement(related) : relation.id));
+      if (related) {
+        row.type = "button";
+        row.addEventListener("click", function () {
           selectClaim(claimIdentity(related), true);
-        }
-      });
-      relationList.append(button);
+          window.requestAnimationFrame(function () {
+            const nextHeading = claimsDetail?.querySelector("h2");
+            if (nextHeading) {
+              nextHeading.tabIndex = -1;
+              nextHeading.focus();
+            }
+          });
+        });
+      } else {
+        row.classList.add("is-unresolved");
+      }
+      relationList.append(row);
     });
-    if (relations.length === 0) {
-      relationList.append(createClaimsElement("p", "claims-empty-inline", "This occurrence has no authored claim relations."));
-    }
-    neighborhood.append(relationList);
-    claimsRelationships.append(header, neighborhood);
-  }
-
-  function setClaimsMode(mode) {
-    claimsMode = mode === "relationships" ? "relationships" : "browse";
-    document.querySelectorAll("[data-claims-mode]").forEach(function (button) {
-      button.setAttribute("aria-pressed", button.dataset.claimsMode === claimsMode ? "true" : "false");
-    });
-    if (claimsDetail) {
-      claimsDetail.hidden = claimsMode !== "browse";
-    }
-    if (claimsRelationships) {
-      claimsRelationships.hidden = claimsMode !== "relationships";
-    }
-    renderClaimRelationships(claimByKey(selectedClaimKey));
+    section.append(relationList);
+    return section;
   }
 
   function selectClaim(key, updateLocation) {
@@ -946,6 +1279,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
     selectedClaimKey = claimIdentity(claim);
+    claimsInspectorContext = null;
     renderClaimsWorkspace();
     if (updateLocation) {
       syncWorkspaceViewURL(true);
@@ -963,18 +1297,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     const selected = claimByKey(selectedClaimKey);
     renderClaimsList(matches);
-    renderClaimInspector(selected);
-    renderClaimRelationships(selected);
-    setClaimsMode(claimsMode);
-    const count = document.querySelector("[data-claims-result-count]");
-    if (count) {
-      count.textContent = matches.length + " of " + claimsData.claims.length;
+    if (claimsInspectorContext) {
+      renderClaimsContextInspector(claimsInspectorContext);
+    } else {
+      renderClaimInspector(selected);
     }
     const summary = document.querySelector("[data-claims-summary]");
     if (summary) {
-      const invalid = claimsData.claims.filter(function (claim) { return (claim.issues || []).length > 0; }).length;
-      const stale = claimsData.claims.filter(function (claim) { return claim.stale; }).length;
-      summary.textContent = claimsData.claims.length + " typed statements" + (invalid ? " · " + invalid + " need attention" : "") + (stale ? " · " + stale + " stale" : "");
+      summary.textContent = matches.length === claimsData.claims.length
+        ? claimsData.claims.length + " claims"
+        : matches.length + " of " + claimsData.claims.length;
     }
   }
 
@@ -986,15 +1318,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const render = function () { renderClaimsWorkspace(); };
     claimsQuery?.addEventListener("input", render);
     claimsFilters.querySelectorAll("select").forEach(function (select) {
-      select.addEventListener("change", render);
+      select.addEventListener("change", function () {
+        const key = select.dataset.claimsFilter;
+        claimsFilters.querySelectorAll('[data-claims-filter="' + key + '"]').forEach(function (peer) {
+          peer.value = select.value;
+        });
+        render();
+      });
     });
     claimsFilters.addEventListener("reset", function () {
       window.requestAnimationFrame(renderClaimsWorkspace);
-    });
-    document.querySelectorAll("[data-claims-mode]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        setClaimsMode(button.dataset.claimsMode);
-      });
     });
     renderClaimsWorkspace();
   }
@@ -1903,7 +2236,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function readClaimsData() {
-    const empty = { schemaVersion: "1", claims: [], references: [], entities: [], predicates: [], issues: [] };
+    const empty = { schemaVersion: "1", claims: [], references: [], entities: [], predicates: [], sources: [], issues: [] };
     const shared = window.OpenKnowledgeStaticData?.claims;
     if (shared && typeof shared === "object") {
       return {
@@ -1912,6 +2245,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         references: Array.isArray(shared.references) ? shared.references : [],
         entities: Array.isArray(shared.entities) ? shared.entities : [],
         predicates: Array.isArray(shared.predicates) ? shared.predicates : [],
+        sources: Array.isArray(shared.sources) ? shared.sources : [],
         issues: Array.isArray(shared.issues) ? shared.issues : []
       };
     }
@@ -1927,6 +2261,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         references: Array.isArray(parsed.references) ? parsed.references : [],
         entities: Array.isArray(parsed.entities) ? parsed.entities : [],
         predicates: Array.isArray(parsed.predicates) ? parsed.predicates : [],
+        sources: Array.isArray(parsed.sources) ? parsed.sources : [],
         issues: Array.isArray(parsed.issues) ? parsed.issues : []
       };
     } catch {

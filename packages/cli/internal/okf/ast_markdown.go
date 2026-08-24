@@ -599,17 +599,26 @@ func astMarkdownSectionNodes(nodes []*astMarkdownSectionNode) []ASTMarkdownSecti
 
 func parseASTMarkdownLinks(text string, line int) []ASTMarkdownLink {
 	var links []ASTMarkdownLink
-	for _, match := range markdownLinkDetail.FindAllStringSubmatchIndex(text, -1) {
-		label := strings.TrimSpace(text[match[4]:match[5]])
-		href := strings.TrimSpace(text[match[6]:match[7]])
-		image := match[2] >= 0 && strings.TrimSpace(text[match[2]:match[3]]) == "!"
+	for _, match := range markdownInlineLinkMatches(text) {
+		label := strings.TrimSpace(match.Label)
+		href := strings.TrimSpace(match.Href)
 		links = append(links, ASTMarkdownLink{
 			Label: label,
 			Href:  href,
 			Kind:  linkKind(href),
 			Line:  line,
-			Image: image,
+			Image: match.Image,
 		})
+		if match.LinkedImage != nil {
+			imageHref := strings.TrimSpace(match.LinkedImage.Href)
+			links = append(links, ASTMarkdownLink{
+				Label: strings.TrimSpace(match.LinkedImage.Label),
+				Href:  imageHref,
+				Kind:  linkKind(imageHref),
+				Line:  line,
+				Image: true,
+			})
+		}
 	}
 	return links
 }

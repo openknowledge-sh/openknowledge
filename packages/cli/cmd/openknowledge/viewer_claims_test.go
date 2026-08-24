@@ -24,6 +24,19 @@ func TestViewerProjectsClaimsIntoDocumentWorkspaceAndGraph(t *testing.T) {
 	if claim.Subject.Label != "Authentication service" || claim.Predicate.Label != "token format" || claim.Object.Label != "JWT" {
 		t.Fatalf("expected ontology labels and typed value in statement projection: %#v", claim)
 	}
+	if len(claims.Entities) != 1 || claims.Entities[0].Key != "okn:service/auth" {
+		t.Fatalf("expected a contextual entity projection: %#v", claims.Entities)
+	}
+	if len(claims.Predicates) != 1 || claims.Predicates[0].MaximumCount != 1 || claims.Predicates[0].Datatype != "xsd:string" {
+		t.Fatalf("expected predicate constraints in the contextual projection: %#v", claims.Predicates)
+	}
+	if len(claims.Sources) != 1 {
+		t.Fatalf("expected one contextual source projection: %#v", claims.Sources)
+	}
+	source := claims.Sources[0]
+	if source.ID != "identity-openapi" || source.Resource != "token-evidence.txt" || source.Role != "authoritative" || source.DeclaringPath != "auth.md" || source.DocumentURL != "/file/auth.md" {
+		t.Fatalf("unexpected contextual source projection: %#v", source)
+	}
 	if !strings.HasPrefix(claim.ClaimURL, "/file/auth.md?") || !strings.Contains(claim.ClaimURL, "view=claims") || !strings.Contains(claim.ClaimURL, "claim=okn%3Aclaim%2Ftoken-format") {
 		t.Fatalf("unexpected claim deep link: %s", claim.ClaimURL)
 	}
@@ -79,6 +92,62 @@ func TestViewerLabelsQuantityKindAndKeepsAcronymsReadable(t *testing.T) {
 	for _, expected := range []string{`Microsoft Corporation`, `reports metric`, `class="ok-claim-metric">Revenue:`, `-139500 USD million`, `Quantity kind`, `qudtqk:Revenue`} {
 		if !strings.Contains(panel, expected) {
 			t.Fatalf("quantity claim panel is missing %q:\n%s", expected, panel)
+		}
+	}
+}
+
+func TestViewerDistillsScopedMetricSummaryAndKeepsMetadataInDetails(t *testing.T) {
+	claim := viewerClaim{
+		ID:        "equity:claim/accounts-payable-change",
+		Subject:   viewerClaimTerm{ID: "equity:amazon", Label: "Amazon.com, Inc."},
+		Predicate: viewerClaimTerm{ID: "equity:reportsMetric", Label: "reports metric"},
+		Object: viewerClaimValue{
+			Label: "9442 USD million", Value: 9442, Unit: "unit:USD-million",
+			QuantityKind: "equity:FinancialMetric", QuantityKindLabel: "Financial Metric",
+		},
+		Scope: []viewerClaimScope{
+			{Dimension: viewerClaimTerm{ID: "equity:accounting_basis", Label: "Accounting basis"}, Value: viewerClaimValue{Ref: "equity:gaap", Label: "GAAP"}},
+			{Dimension: viewerClaimTerm{ID: "equity:metric", Label: "Metric"}, Value: viewerClaimValue{Ref: "equity:accounts-payable-change", Label: "Accounts payable change"}},
+			{Dimension: viewerClaimTerm{ID: "equity:fiscal_period", Label: "Fiscal period"}, Value: viewerClaimValue{Ref: "equity:fy2026-q2", Label: "FY2026 Q2"}},
+		},
+		Status: "proposed", TrustTier: "unverified", DeclaringPath: "finance.md",
+	}
+	claim.Projection = viewerClaimProjectionFor(claim)
+	if claim.Projection == nil {
+		t.Fatal("expected a compact metric projection")
+	}
+	if claim.Projection.Metric != "Accounts payable change" || claim.Projection.Value != "+USD 9,442 million" {
+		t.Fatalf("unexpected compact metric projection: %#v", claim.Projection)
+	}
+
+	panel := string(renderViewerClaimsPanel(viewerClaimsData{Claims: []viewerClaim{claim}}, "finance.md"))
+	articleStart := strings.Index(panel, `<article class="ok-claim"`)
+	detailsStart := strings.Index(panel, `<details class="ok-claim-details">`)
+	if articleStart < 0 || detailsStart < articleStart {
+		t.Fatalf("scoped metric panel is missing its compact or detailed region:\n%s", panel)
+	}
+	compact := panel[articleStart:detailsStart]
+	details := panel[detailsStart:]
+	for _, expected := range []string{
+		`Amazon.com, Inc.`, `class="ok-claim-separator" aria-hidden="true">—</span>`,
+		`class="ok-claim-metric">Accounts payable change</span>`,
+		`class="ok-claim-value-line"><strong class="ok-claim-object">+USD 9,442 million</strong>`,
+	} {
+		if !strings.Contains(compact, expected) {
+			t.Fatalf("scoped metric summary is missing %q:\n%s", expected, compact)
+		}
+	}
+	for _, unwanted := range []string{"FY2026 Q2", "GAAP", "proposed", "unverified", "Financial Metric", "reports metric", "ok-claim-badges", "ok-claim-summary-line"} {
+		if strings.Contains(compact, unwanted) {
+			t.Fatalf("scoped metric summary contains secondary metadata %q:\n%s", unwanted, compact)
+		}
+	}
+	for _, expected := range []string{
+		`Status</dt><dd>Proposed`, `Trust tier</dt><dd>Unverified`, `Quantity kind</dt><dd>equity:FinancialMetric`,
+		`Scope</dt><dd>Accounting basis: GAAP, Metric: Accounts payable change, Fiscal period: FY2026 Q2`,
+	} {
+		if !strings.Contains(details, expected) {
+			t.Fatalf("scoped metric details are missing %q:\n%s", expected, details)
 		}
 	}
 }

@@ -179,6 +179,8 @@ h3 { margin-top: 26px; }
 .document { max-width: 780px; }
 .document p, .document li { color: #2f3834; }
 a { color: var(--accent); text-underline-offset: 3px; }
+.ok-markdown-image { display: block; width: auto; max-width: 100%; height: auto; max-height: 720px; margin: 22px auto 26px; border-radius: 6px; object-fit: contain; }
+.ok-table .ok-markdown-image { max-width: min(180px, 100%); max-height: 120px; margin: 0; }
 code { padding: 1px 4px; border-radius: 4px; background: #edf2ef; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
 pre, .code-block { overflow-x: auto; padding: 14px; border: 1px solid var(--line); background: #111714; color: #f3f7f4; }
 pre code, .code-block code { padding: 0; background: transparent; color: inherit; }

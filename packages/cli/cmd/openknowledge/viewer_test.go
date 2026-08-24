@@ -784,6 +784,146 @@ func TestViewerOpensPDFRawAndHighlightsCodeAssets(t *testing.T) {
 	}
 }
 
+func TestViewerRendersRelativeMarkdownImagesFromRawAssets(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "guides/architecture.md", strings.Join([]string{
+		"# Architecture",
+		"",
+		"![System **overview**](../assets/architecture.png \"System overview\")",
+		"",
+		"![External diagram](https://example.com/architecture.png)",
+		"",
+		"[![Evidence coverage](../assets/architecture.png)](evidence.md \"Open evidence details\")",
+		"",
+		"| Preview | Reference |",
+		"| --- | --- |",
+		"| ![Thumbnail](../assets/architecture.png) | [Source](../assets/architecture.png) |",
+	}, "\n"))
+	writeViewerFile(t, root, "assets/architecture.png", "not-a-real-png")
+
+	handler := newViewerHandler(root)
+	page := getViewerBody(t, handler, "/file/guides/architecture.md")
+	for _, expected := range []string{
+		`<img class="ok-markdown-image" src="/raw/assets/architecture.png" alt="System overview" title="System overview" loading="lazy" decoding="async">`,
+		`<img class="ok-markdown-image" src="/raw/assets/architecture.png" alt="Thumbnail" loading="lazy" decoding="async">`,
+		`<img class="ok-markdown-image" src="https://example.com/architecture.png" alt="External diagram" loading="lazy" decoding="async">`,
+		`<a href="/file/guides/evidence.md" title="Open evidence details"><img class="ok-markdown-image" src="/raw/assets/architecture.png" alt="Evidence coverage" loading="lazy" decoding="async"></a>`,
+		`<a href="/raw/assets/architecture.png">Source</a>`,
+	} {
+		if !strings.Contains(page, expected) {
+			t.Fatalf("viewer image output should contain %q:\n%s", expected, page)
+		}
+	}
+	viewerSource := viewerSourceForAssertions(t)
+	if !strings.Contains(viewerSource, `.ok-markdown-image`) || !strings.Contains(viewerSource, `.ok-table .ok-markdown-image`) {
+		t.Fatalf("viewer stylesheet should constrain document and table images:\n%s", viewerSource)
+	}
+
+	api := getViewerJSON(t, handler, "/api/file/guides/architecture.md")
+	if !strings.Contains(api.Body, `src="/raw/assets/architecture.png"`) {
+		t.Fatalf("viewer API should render relative image URLs: %#v", api)
+	}
+
+	aliasPage := getViewerBody(t, newViewerHandlerWithAlias(root, "handbook"), "/handbook/file/guides/architecture.md")
+	if !strings.Contains(aliasPage, `src="/handbook/raw/assets/architecture.png"`) {
+		t.Fatalf("aliased viewer should prefix relative image URLs:\n%s", aliasPage)
+	}
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/raw/assets/architecture.png", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Header().Get("Content-Type"), "image/png") {
+		t.Fatalf("viewer should serve the image asset with its media type, got %d %q", recorder.Code, recorder.Header().Get("Content-Type"))
+	}
+}
+
+func TestViewerBundleCacheReusesParsedASTAndClaimsUntilMarkdownChanges(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# One\n")
+	cache := newViewerBundleCache(root)
+	loads := 0
+	claimProjections := 0
+	cache.loadSnapshot = func(root string) (viewerBundleSnapshot, error) {
+		loads++
+		return parseViewerBundleSnapshot(root)
+	}
+	cache.projectClaims = func(bundle okf.ASTBundle, fileURL func(string) string) viewerClaimsData {
+		claimProjections++
+		return viewerClaimsFromAST(bundle, fileURL)
+	}
+
+	first, _, err := cache.loadViewerData("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := cache.loadViewerData(""); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := cache.loadViewerData("/docs"); err != nil {
+		t.Fatal(err)
+	}
+	if loads != 1 || claimProjections != 2 || len(first.Files) != 1 || !strings.Contains(first.Files[0].Body, "# One") {
+		t.Fatalf("viewer should reuse one parsed AST and one claim projection per route, loads=%d projections=%d bundle=%#v", loads, claimProjections, first)
+	}
+
+	path := filepath.Join(root, "index.md")
+	if err := os.WriteFile(path, []byte("# Two\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	updated, _, err := cache.loadViewerData("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loads != 2 || claimProjections != 3 || len(updated.Files) != 1 || !strings.Contains(updated.Files[0].Body, "# Two") {
+		t.Fatalf("viewer should refresh cached Markdown and claims, loads=%d projections=%d bundle=%#v", loads, claimProjections, updated)
+	}
+}
+
+func TestViewerServesSandboxedSVGImagesWithTheirMediaType(t *testing.T) {
+	root := t.TempDir()
+	writeViewerFile(t, root, "index.md", "# Home\n\n![Diagram](assets/diagram.svg)\n")
+	writeViewerFile(t, root, "assets/diagram.svg", `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect width="10" height="10"/></svg>`)
+
+	handler := newViewerHandler(root)
+	page := getViewerBody(t, handler, "/file/index.md")
+	if !strings.Contains(page, `src="/raw/assets/diagram.svg"`) {
+		t.Fatalf("viewer should resolve the SVG image through the raw asset route:\n%s", page)
+	}
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/raw/assets/diagram.svg", nil))
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Header().Get("Content-Type"), "image/svg+xml") {
+		t.Fatalf("viewer should serve SVG image media, got %d %q", recorder.Code, recorder.Header().Get("Content-Type"))
+	}
+	if policy := recorder.Header().Get("Content-Security-Policy"); policy != "default-src 'none'; sandbox" {
+		t.Fatalf("viewer should sandbox SVG image responses, got %q", policy)
+	}
+}
+
+func TestViewerHTMLExportRendersAndCopiesRelativeMarkdownImages(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "site")
+	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/**\"]\n")
+	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Architecture](guides/architecture.md).\n")
+	writeViewerFile(t, root, "guides/architecture.md", "---\ntype: Guide\n---\n\n# Architecture\n\n![System overview](../assets/architecture.png)\n")
+	writeViewerFile(t, root, "assets/architecture.png", "not-a-real-png")
+
+	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readViewerExportFile(t, out, "guides/architecture.html")
+	if !strings.Contains(page, `<img class="ok-markdown-image" src="../assets/architecture.png" alt="System overview" loading="lazy" decoding="async">`) {
+		t.Fatalf("static viewer should keep a portable relative image URL:\n%s", page)
+	}
+	if _, err := os.Stat(filepath.Join(out, "assets", "architecture.png")); err != nil {
+		t.Fatalf("static viewer should copy the allowlisted image: %v; written=%#v", err, result.Written)
+	}
+	data := readViewerExportFile(t, out, viewerDataScriptAsset)
+	if !strings.Contains(data, `src=\"../assets/architecture.png\"`) {
+		t.Fatalf("static panel data should contain the rendered relative image URL:\n%s", data)
+	}
+}
+
 func TestViewerEditorsIncludeCommonFallbacks(t *testing.T) {
 	editors := viewerEditors()
 	byID := make(map[string]viewerEditor, len(editors))

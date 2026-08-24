@@ -14,4 +14,4 @@ enabled = ["project", "writing", "asd-ste100"]
 
 [publish]
 enabled = true
-assets = ["assets/**", "examples/*.go", "examples/*.pdf"]
+assets = ["assets/**", "examples/*.go", "examples/*.pdf", "examples/*.svg"]

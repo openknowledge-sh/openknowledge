@@ -379,11 +379,111 @@ type viewerOptions struct {
 	ReadOnly  bool
 }
 
+type viewerBundleCache struct {
+	root          string
+	mutex         sync.Mutex
+	fingerprint   string
+	snapshot      viewerBundleSnapshot
+	claimsByRoute map[string]viewerClaimsData
+	claimsDate    string
+	loadSnapshot  func(string) (viewerBundleSnapshot, error)
+	projectClaims func(okf.ASTBundle, func(string) string) viewerClaimsData
+}
+
+type viewerBundleSnapshot struct {
+	AST    okf.ASTBundle
+	Bundle okf.Bundle
+}
+
+func newViewerBundleCache(root string) *viewerBundleCache {
+	return &viewerBundleCache{
+		root:          root,
+		claimsByRoute: make(map[string]viewerClaimsData),
+		loadSnapshot:  parseViewerBundleSnapshot,
+		projectClaims: viewerClaimsFromAST,
+	}
+}
+
+func (cache *viewerBundleCache) load() (okf.Bundle, error) {
+	snapshot, err := cache.loadViewerSnapshot()
+	return snapshot.Bundle, err
+}
+
+func (cache *viewerBundleCache) loadViewerData(linkPrefix string) (okf.Bundle, viewerClaimsData, error) {
+	cache.mutex.Lock()
+	defer cache.mutex.Unlock()
+
+	snapshot, changed, err := cache.loadViewerSnapshotLocked()
+	if err != nil {
+		return okf.Bundle{}, viewerClaimsData{}, err
+	}
+
+	claimsDate := time.Now().UTC().Format(time.DateOnly)
+	if changed || cache.claimsDate != claimsDate {
+		cache.claimsByRoute = make(map[string]viewerClaimsData)
+		cache.claimsDate = claimsDate
+	}
+	key := strings.TrimRight(linkPrefix, "/")
+	claims, ok := cache.claimsByRoute[key]
+	if !ok {
+		projectClaims := cache.projectClaims
+		if projectClaims == nil {
+			projectClaims = viewerClaimsFromAST
+		}
+		claims = projectClaims(snapshot.AST, func(path string) string {
+			return fileURLWithPrefix(linkPrefix, path)
+		})
+		cache.claimsByRoute[key] = claims
+	}
+	return snapshot.Bundle, claims, nil
+}
+
+func (cache *viewerBundleCache) loadViewerSnapshot() (viewerBundleSnapshot, error) {
+	cache.mutex.Lock()
+	defer cache.mutex.Unlock()
+	snapshot, _, err := cache.loadViewerSnapshotLocked()
+	return snapshot, err
+}
+
+func (cache *viewerBundleCache) loadViewerSnapshotLocked() (viewerBundleSnapshot, bool, error) {
+	fingerprint, err := markdownMetadataFingerprint(cache.root)
+	if err != nil {
+		return viewerBundleSnapshot{}, false, err
+	}
+	if cache.fingerprint == fingerprint && cache.snapshot.Bundle.Root != "" {
+		return cache.snapshot, false, nil
+	}
+	loadSnapshot := cache.loadSnapshot
+	if loadSnapshot == nil {
+		loadSnapshot = parseViewerBundleSnapshot
+	}
+	snapshot, err := loadSnapshot(cache.root)
+	if err != nil {
+		return viewerBundleSnapshot{}, false, err
+	}
+	cache.fingerprint = fingerprint
+	cache.snapshot = snapshot
+	return snapshot, true, nil
+}
+
+func parseViewerBundleSnapshot(root string) (viewerBundleSnapshot, error) {
+	ast, err := okf.ParseAST(root)
+	if err != nil {
+		return viewerBundleSnapshot{}, err
+	}
+	bundle, err := okf.BundleFromAST(ast, nil)
+	if err != nil {
+		return viewerBundleSnapshot{}, err
+	}
+	return viewerBundleSnapshot{AST: ast, Bundle: bundle}, nil
+}
+
 func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handler {
 	mux := http.NewServeMux()
 	registerViewerAssets(mux)
 	aliasName := options.AliasName
 	searchCache := &viewerSearchCache{root: root}
+	bundleCache := newViewerBundleCache(root)
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/" {
 			if startPath := viewerStartPath(root); startPath != "/" {
@@ -417,7 +517,7 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 		}
 		if strings.HasPrefix(rest, "api/file/") {
 			rel := strings.TrimPrefix(rest, "api/file/")
-			renderViewerFileAPI(response, request, root, rel, prefix, aliasName)
+			renderViewerFileAPI(response, request, root, rel, prefix, aliasName, bundleCache)
 			return
 		}
 		if strings.HasPrefix(rest, "raw/") {
@@ -425,18 +525,18 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 			return
 		}
 		if strings.HasPrefix(rest, "file/") {
-			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), viewerFrame{}, prefix, options)
+			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), viewerFrame{}, prefix, options, bundleCache)
 			return
 		}
 		http.NotFound(response, request)
 	})
 	mux.HandleFunc("/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/file/")
-		renderViewerFile(response, request, root, rel, viewerFrame{}, "", options)
+		renderViewerFile(response, request, root, rel, viewerFrame{}, "", options, bundleCache)
 	})
 	mux.HandleFunc("/api/file/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/api/file/")
-		renderViewerFileAPI(response, request, root, rel, "", aliasName)
+		renderViewerFileAPI(response, request, root, rel, "", aliasName, bundleCache)
 	})
 	mux.HandleFunc("/raw/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/raw/")
@@ -487,6 +587,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 	mux := http.NewServeMux()
 	registerViewerAssets(mux)
 	searchCaches := make(map[string]*viewerSearchCache)
+	bundleCaches := make(map[string]*viewerBundleCache)
 	var searchCachesMutex sync.Mutex
 	searchCacheForEntry := func(entry okf.RegistryEntry) (*viewerSearchCache, error) {
 		root, err := registryEntryRoot(entry)
@@ -501,6 +602,16 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 			searchCaches[entry.Name] = cache
 		}
 		return cache, nil
+	}
+	bundleCacheForRoot := func(root string) *viewerBundleCache {
+		searchCachesMutex.Lock()
+		defer searchCachesMutex.Unlock()
+		cache := bundleCaches[root]
+		if cache == nil {
+			cache = newViewerBundleCache(root)
+			bundleCaches[root] = cache
+		}
+		return cache
 	}
 	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
 		renderRegistryViewerSearch(response, request, entries, searchCacheForEntry)
@@ -552,7 +663,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 						http.Error(response, err.Error(), http.StatusInternalServerError)
 						return
 					}
-					renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix, entry.Name)
+					renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix, entry.Name, bundleCacheForRoot(root))
 					return
 				}
 				if strings.HasPrefix(rest, "raw/") {
@@ -571,7 +682,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 						return
 					}
 					frame := registryFrame(entries, entry.Name, localAliasURL)
-					renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry))
+					renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry), bundleCacheForRoot(root))
 					return
 				}
 			}
@@ -619,7 +730,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 				http.Error(response, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix, entry.Name)
+			renderViewerFileAPI(response, request, root, strings.TrimPrefix(rest, "api/file/"), prefix, entry.Name, bundleCacheForRoot(root))
 			return
 		}
 		if strings.HasPrefix(rest, "raw/") {
@@ -638,7 +749,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 				return
 			}
 			frame := registryFrame(entries, entry.Name, workspaceURL)
-			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry))
+			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry), bundleCacheForRoot(root))
 			return
 		}
 		http.NotFound(response, request)
@@ -906,7 +1017,7 @@ type viewerTreeItem struct {
 	System    bool
 }
 
-func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, frame viewerFrame, linkPrefix string, options viewerOptions) {
+func renderViewerFile(response http.ResponseWriter, request *http.Request, root string, rel string, frame viewerFrame, linkPrefix string, options viewerOptions, bundleCache *viewerBundleCache) {
 	if cleanRel, ok := cleanViewerRel(rel, true); ok && !isMarkdownFile(cleanRel) {
 		asset, found, err := viewerAsset(root, cleanRel, linkPrefix)
 		if !found {
@@ -918,7 +1029,7 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 			return
 		}
 		if asset.Kind == "code" || asset.Kind == "text" {
-			data, err := viewerFileDataForAsset(root, asset, frame, linkPrefix)
+			data, err := viewerFileDataForAsset(root, asset, frame, linkPrefix, bundleCache)
 			if err != nil {
 				http.Error(response, err.Error(), http.StatusInternalServerError)
 				return
@@ -933,7 +1044,7 @@ func renderViewerFile(response http.ResponseWriter, request *http.Request, root 
 		return
 	}
 
-	data, ok, err := viewerFile(root, rel, frame, linkPrefix)
+	data, ok, err := viewerFileWithCache(root, rel, frame, linkPrefix, bundleCache)
 	if !ok {
 		http.NotFound(response, request)
 		return
@@ -1115,7 +1226,7 @@ func viewerRawPathIsPrivate(rel string) bool {
 	return false
 }
 
-func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string, knowledgeBase string) {
+func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string, knowledgeBase string, bundleCache *viewerBundleCache) {
 	if cleanRel, ok := cleanViewerRel(rel, true); ok && !isMarkdownFile(cleanRel) {
 		asset, found, err := viewerAsset(root, cleanRel, linkPrefix)
 		if !found || err != nil || (asset.Kind != "code" && asset.Kind != "text") {
@@ -1135,7 +1246,7 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 		return
 	}
 
-	data, ok, err := viewerFile(root, rel, viewerFrame{}, linkPrefix)
+	data, ok, err := viewerFileForAPIWithCache(root, rel, linkPrefix, bundleCache)
 	if !ok {
 		http.NotFound(response, request)
 		return
@@ -1159,8 +1270,11 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 	}
 }
 
-func viewerFileDataForAsset(root string, asset viewerAssetData, frame viewerFrame, linkPrefix string) (viewerFileData, error) {
-	bundle, err := okf.ParseBundle(root)
+func viewerFileDataForAsset(root string, asset viewerAssetData, frame viewerFrame, linkPrefix string, bundleCache *viewerBundleCache) (viewerFileData, error) {
+	if bundleCache == nil {
+		bundleCache = newViewerBundleCache(root)
+	}
+	bundle, err := bundleCache.load()
 	if err != nil {
 		return viewerFileData{}, err
 	}
@@ -1196,11 +1310,26 @@ func viewerFileDataForAsset(root string, asset viewerAssetData, frame viewerFram
 }
 
 func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (viewerFileData, bool, error) {
+	return viewerFileWithCache(root, rel, frame, linkPrefix, newViewerBundleCache(root))
+}
+
+func viewerFileWithCache(root string, rel string, frame viewerFrame, linkPrefix string, bundleCache *viewerBundleCache) (viewerFileData, bool, error) {
+	return viewerFileDataWithCache(root, rel, frame, linkPrefix, bundleCache, true)
+}
+
+func viewerFileForAPIWithCache(root string, rel string, linkPrefix string, bundleCache *viewerBundleCache) (viewerFileData, bool, error) {
+	return viewerFileDataWithCache(root, rel, viewerFrame{}, linkPrefix, bundleCache, false)
+}
+
+func viewerFileDataWithCache(root string, rel string, frame viewerFrame, linkPrefix string, bundleCache *viewerBundleCache, includeWorkspace bool) (viewerFileData, bool, error) {
 	cleanRel, ok := cleanMarkdownRel(rel)
 	if !ok {
 		return viewerFileData{}, false, nil
 	}
-	bundle, err := okf.ParseBundle(root)
+	if bundleCache == nil {
+		bundleCache = newViewerBundleCache(root)
+	}
+	bundle, claimsData, err := bundleCache.loadViewerData(linkPrefix)
 	if err != nil {
 		return viewerFileData{}, true, err
 	}
@@ -1212,41 +1341,39 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	if err != nil {
 		return viewerFileData{}, true, err
 	}
-	entries := viewerEntriesFromBundleFiles(bundle.Files)
-	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(path string) string {
-		return fileURLWithPrefix(linkPrefix, path)
-	})
-	claimsData, err := viewerClaimsForRoot(root, bundle.SpecVersion, func(path string) string {
-		return fileURLWithPrefix(linkPrefix, path)
-	})
-	if err != nil {
-		return viewerFileData{}, true, err
-	}
-	theme, err := viewerThemeForServer(root, linkPrefix)
-	if err != nil {
-		return viewerFileData{}, true, err
-	}
-
-	return viewerFileData{
+	data := viewerFileData{
 		Frame:       frame,
 		Title:       titleForMarkdownFile(cleanRel),
-		BrandName:   viewerKnowledgeBaseName(root, ""),
-		HomeURL:     viewerPrefixRoot(linkPrefix),
 		Root:        root,
 		Path:        cleanRel,
 		FileURL:     fileURLWithPrefix(linkPrefix, cleanRel),
 		SourceURL:   "",
 		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
-		SearchURL:   searchURLWithPrefix(linkPrefix),
-		Theme:       theme,
 		Frontmatter: frontmatter,
 		Claims:      renderViewerClaimsPanel(claimsData, cleanRel),
 		Body:        template.HTML(viewerRenderedBody(file, bundle.SpecVersion, viewerLinkWithPrefix(linkPrefix))),
-		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
-		EditorsJSON: viewerEditorsJSON(),
-		GraphJSON:   graphJSON,
-		ClaimsJSON:  viewerClaimsJSON(claimsData),
-	}, true, nil
+	}
+	if !includeWorkspace {
+		return data, true, nil
+	}
+
+	entries := viewerEntriesFromBundleFiles(bundle.Files)
+	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(path string) string {
+		return fileURLWithPrefix(linkPrefix, path)
+	})
+	theme, err := viewerThemeForServer(root, linkPrefix)
+	if err != nil {
+		return viewerFileData{}, true, err
+	}
+	data.BrandName = viewerKnowledgeBaseName(root, "")
+	data.HomeURL = viewerPrefixRoot(linkPrefix)
+	data.SearchURL = searchURLWithPrefix(linkPrefix)
+	data.Theme = theme
+	data.Tree = viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) })
+	data.EditorsJSON = viewerEditorsJSON()
+	data.GraphJSON = graphJSON
+	data.ClaimsJSON = viewerClaimsJSON(claimsData)
+	return data, true, nil
 }
 
 func viewerBundleFileByPath(files []okf.BundleFile, path string) (okf.BundleFile, bool) {
@@ -1449,6 +1576,48 @@ func markdownFingerprint(root string) (string, error) {
 		if written != info.Size() {
 			return fmt.Errorf("viewer search file changed while hashing: %s", current)
 		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func markdownMetadataFingerprint(root string) (string, error) {
+	hash := sha256.New()
+	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !isMarkdownFile(current) {
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symbolic links are not supported in viewer cache: %s", current)
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported viewer cache entry: %s", current)
+		}
+		rel, err := filepath.Rel(root, current)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		_ = binary.Write(hash, binary.BigEndian, uint64(len(rel)))
+		_, _ = io.WriteString(hash, rel)
+		_ = binary.Write(hash, binary.BigEndian, uint64(info.Size()))
+		_ = binary.Write(hash, binary.BigEndian, info.ModTime().UnixNano())
 		return nil
 	})
 	if err != nil {
@@ -2380,14 +2549,14 @@ func viewerAssetKind(filePath string, mediaType string) string {
 	if extension == ".pdf" || strings.HasPrefix(mediaType, "application/pdf") {
 		return "pdf"
 	}
+	if strings.HasPrefix(mediaType, "image/") {
+		return "image"
+	}
 	if isCodePreviewFile(filePath) {
 		return "code"
 	}
 	if isTextPreviewFile(filePath) || strings.HasPrefix(mediaType, "text/") {
 		return "text"
-	}
-	if strings.HasPrefix(mediaType, "image/") {
-		return "image"
 	}
 	if strings.HasPrefix(mediaType, "video/") {
 		return "video"
@@ -2411,15 +2580,19 @@ func viewerMediaType(filePath string) string {
 }
 
 func viewerSafeRawMediaType(filePath string) string {
+	mediaType := viewerMediaType(filePath)
+	if strings.HasPrefix(mediaType, "image/") {
+		return mediaType
+	}
 	if isCodePreviewFile(filePath) || isTextPreviewFile(filePath) {
 		return "text/plain; charset=utf-8"
 	}
 	extension := strings.ToLower(filepath.Ext(filePath))
 	switch extension {
-	case ".html", ".htm", ".svg", ".js", ".mjs", ".cjs":
+	case ".html", ".htm", ".js", ".mjs", ".cjs":
 		return "text/plain; charset=utf-8"
 	default:
-		return viewerMediaType(filePath)
+		return mediaType
 	}
 }
 
@@ -2457,6 +2630,9 @@ func rawURLWithPrefix(prefix string, rel string) string {
 }
 
 func viewerContentURLWithPrefix(prefix string, rel string) string {
+	if strings.HasPrefix(viewerMediaType(rel), "image/") {
+		return rawURLWithPrefix(prefix, rel)
+	}
 	if isMarkdownFile(rel) || isCodePreviewFile(rel) || isTextPreviewFile(rel) {
 		return fileURLWithPrefix(prefix, rel)
 	}
@@ -2689,10 +2865,14 @@ func titleForAssetFile(rel string) string {
 }
 
 func viewerKnowledgeBaseName(root string, fallback string) string {
-	bundle, err := okf.ParseBundle(root)
-	if err == nil {
-		if name := viewerKnowledgeBaseNameFromFiles(bundle.Files, fallback); name != "" {
-			return name
+	if indexPath, ok := safeMarkdownPath(root, "index.md"); ok {
+		if content, err := os.ReadFile(indexPath); err == nil {
+			if document, err := okf.ParseFrontmatterDocument(content); err == nil {
+				file := okf.BundleFile{Path: "index.md", Frontmatter: document.Data, Body: document.Body}
+				if name := viewerKnowledgeBaseNameFromFiles([]okf.BundleFile{file}, fallback); name != "" {
+					return name
+				}
+			}
 		}
 	}
 	if name := strings.TrimSpace(fallback); name != "" {

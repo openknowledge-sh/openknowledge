@@ -41,6 +41,10 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The viewer renders Markdown and follows local links. It renders fenced
   `mermaid` blocks as diagrams. It also shows note panels, source graphs,
   validation context, highlighted assets, and media or PDF previews.
+- Markdown images resolve relative to the source Markdown file. Local images
+  use the safe raw asset route. HTTP(S) images keep their external URL.
+  Images include alt text, optional titles, lazy loading, and bounded sizes.
+  Images in tables use a smaller cell boundary.
 - Source and text files open as standard note cards. They use the same
   breadcrumbs, panel controls, syntax highlighting, and open-beside behavior.
   Other assets keep their raw or dedicated media previews.
@@ -93,8 +97,11 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Each note with typed claims also has a collapsed **Claims** panel. The panel
   shows typed statements, status, scope, evidence totals, and occurrence
   relations. It uses ontology labels and keeps technical IDs in claim details.
-  For metric claims, the panel shows the quantity-kind label with the value and
-  unit.
+  For a scoped metric, the panel uses the `metric` scope value as the compact
+  identity. The compact statement shows only the subject, metric, and formatted
+  quantity. **Evidence and metadata** retains scope, lifecycle, time, IDs,
+  quantity kind, and evidence. These details stay visible in the Claims
+  workspace.
   A `section_ref` links a claim to its Markdown section. The matching heading
   shows the claim count. Select the marker to open the first bound claim. The
   panel is read-only and does not change canonical YAML.
@@ -165,6 +172,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The local viewer watches visible Markdown and asset files. It refreshes the
   open page after an add, update, rename, move, or deletion.
   One save burst causes one refresh after a short delay.
+  The viewer reuses parsed AST and claim data between document requests.
+  Navigation requests build only the selected document panel.
+  The watcher reuses content digests for files whose metadata did not change.
   Existing open paths, the active path, the graph view, and scroll positions
   survive when their targets still exist.
   The viewer removes deleted open paths before refresh.
@@ -175,15 +185,19 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 Select **Claims** to browse all typed claim occurrences in the active knowledge
 base. Registry mode combines claims and identifies each source knowledge base.
 
-Filter claims by status, entity, predicate, owner, evidence stance, document,
-or validation state. Select a claim to inspect its typed value, evidence,
-provenance, time, and local relationships. This workspace is read-only.
-Select **Relationships** to inspect authored relations around the selected
-claim.
-For metric claims, **Browse** and **Relationships** show the quantity-kind label
-with the value and unit.
-The workspace uses compact spacing in its header, filters, claim rows,
-**Browse**, and **Relationships**.
+The compact toolbar keeps the claim count, search, status, entity, predicate,
+and additional filters together. Filter claims by status, entity, predicate,
+owner, evidence stance, document, or validation state. Select a claim to
+inspect its typed value, evidence, provenance, and time. **Evidence and
+metadata** stays visible. This workspace is read-only.
+
+When the selected claim has authored incoming or outgoing relations, a
+collapsed **Relationships** section appears below its details. Claims without
+authored relations do not show this section.
+
+For a scoped metric, compact claim surfaces use the `metric` scope value as
+the identity and show only the subject, metric, and formatted quantity. The
+selected claim details retain scope, lifecycle, and source metadata.
 
 | Shortcut | Action |
 | --- | --- |
@@ -211,8 +225,9 @@ content revision and optional knowledge-base aliases. They do not contain file
 contents or filesystem paths.
 
 Raw routes serve only regular non-Markdown bundle assets. They exclude
-dotfiles, `.git`, `.openknowledge.toml`, legacy `openknowledge.toml`, and symlinks. Markdown and asset
-resolution cannot leave the bundle root.
+dotfiles, `.git`, `.openknowledge.toml`, legacy `openknowledge.toml`, and
+symlinks. Markdown and asset resolution cannot leave the bundle root. Raw SVG
+responses keep their image media type and use the raw route sandbox policy.
 
 The viewer inserts trusted head fragments in their original form. Use only
 content that you control.
@@ -231,6 +246,9 @@ control.
 Theme and source-link configuration comes from
 [`.openknowledge.toml`](/features/configuration.md). For deployment, use the
 [HTML exporter](/features/exporters/html.md).
+
+Use the [Markdown viewer showcase](/examples/markdown-showcase.md) to inspect
+the supported Markdown rendering contract.
 
 Markdown `agent-context` annotations remain visible in the document flow. A
 subdued text color distinguishes their content from reader content. Their
