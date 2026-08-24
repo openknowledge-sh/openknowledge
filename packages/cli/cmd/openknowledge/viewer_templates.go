@@ -118,6 +118,14 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   {{.HeadHTML}}
 </head>
 <body class="viewer-document is-stack-mode"{{if .KnowledgeBase}} data-active-knowledge-base="{{.KnowledgeBase}}"{{end}}>
+  <!--
+  THESIS: Claims become readable, inspectable knowledge without replacing canonical YAML or reducing the viewer to a dashboard of generic cards.
+  OWN-WORLD: The established cool-paper viewer gains dense statement rows, blue semantic controls, and flat evidence-led work surfaces.
+  STORY: Reviewers move from a document claim summary into a filtered bundle view, inspect evidence, then follow the source document or relationship.
+  FIRST VIEWPORT: Existing document navigation stays fixed; Claims opens a full-width master-detail workspace with filters, statements, evidence, and local relationships.
+  FORM: Confirmed semantic lens, first-ranked master-detail structure, seed claims-semantic-lens-v1.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+  -->
   <header>
     <div class="header-left">
       <button class="sidebar-shortcut" data-sidebar-shortcut type="button" data-sidebar-toggle aria-label="Open file explorer" aria-expanded="false" title="File explorer">⌘⌥S</button>
@@ -293,6 +301,16 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </svg>
         <span class="sidebar-navigation-label">Documents</span>
       </button>
+      <button class="sidebar-navigation-item" type="button" data-claims-view-toggle aria-label="Claims" aria-controls="claims-workspace" aria-pressed="false" hidden>
+        <svg class="sidebar-navigation-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="6" cy="7" r="2"></circle>
+          <circle cx="18" cy="7" r="2"></circle>
+          <circle cx="12" cy="17" r="2"></circle>
+          <path d="m7.8 8 3.1 7M16.2 8l-3.1 7M8 7h8"></path>
+        </svg>
+        <span class="sidebar-navigation-label">Claims</span>
+        <span class="sidebar-navigation-count" data-claims-navigation-count></span>
+      </button>
       <span data-sidebar-graph-slot></span>
     </nav>
     <div class="knowledge-bases-navigation">
@@ -375,6 +393,42 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         <div class="knowledge-empty-pane knowledge-empty-graph" data-knowledge-graph-view aria-label="Knowledge graph"></div>
       </div>
     </section>
+    <section id="claims-workspace" class="claims-workspace" data-claims-workspace aria-label="Claims" hidden>
+      <header class="claims-workspace-header">
+        <div>
+          <h1>Claims</h1>
+          <p data-claims-summary>Browse typed statements across this knowledge base.</p>
+        </div>
+        <div class="claims-mode-switch" role="group" aria-label="Claims view">
+          <button type="button" data-claims-mode="browse" aria-pressed="true">Browse</button>
+          <button type="button" data-claims-mode="relationships" aria-pressed="false">Relationships</button>
+        </div>
+      </header>
+      <form class="claims-filters" data-claims-filters role="search" aria-label="Filter claims">
+        <label class="claims-query"><span class="sr-only">Search claims</span><input type="search" data-claims-query placeholder="Search statements, IDs, owners, or documents" autocomplete="off" spellcheck="false"></label>
+        <label><span>Status</span><select data-claims-filter="status"><option value="">All statuses</option></select></label>
+        <label><span>Entity</span><select data-claims-filter="subject"><option value="">All entities</option></select></label>
+        <label><span>Predicate</span><select data-claims-filter="predicate"><option value="">All predicates</option></select></label>
+        <details class="claims-more-filters">
+          <summary>More filters</summary>
+          <div class="claims-more-filter-panel">
+            <label><span>Owner</span><select data-claims-filter="owner"><option value="">All owners</option></select></label>
+            <label><span>Evidence</span><select data-claims-filter="stance"><option value="">All evidence</option></select></label>
+            <label><span>Document</span><select data-claims-filter="document"><option value="">All documents</option></select></label>
+            <label><span>Validation</span><select data-claims-filter="validation"><option value="">All claims</option><option value="valid">Valid</option><option value="invalid">Needs attention</option><option value="stale">Stale</option></select></label>
+            <button type="reset" data-claims-clear>Clear filters</button>
+          </div>
+        </details>
+      </form>
+      <div class="claims-workspace-body">
+        <div class="claims-results" aria-label="Claim statements">
+          <div class="claims-results-head"><span data-claims-result-count></span><span>Statement</span></div>
+          <div class="claims-results-list" data-claims-list role="listbox" aria-label="Claims"></div>
+        </div>
+        <article class="claims-inspector" data-claims-detail aria-live="polite"></article>
+        <section class="claims-relationships" data-claims-relationships aria-label="Claim relationships" hidden></section>
+      </div>
+    </section>
     <section class="note-stack" data-note-stack aria-label="Open notes">
       <article class="document note-panel is-active-panel" data-note-path="{{.Path}}" data-note-title="{{.Title}}"{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}"{{end}} tabindex="-1">
         <div class="note-chrome">
@@ -426,6 +480,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </div>
         <div class="note-body{{if .Kind}} asset-{{.Kind}}{{end}}">
           {{.Frontmatter}}
+          {{.Claims}}
           {{.Body}}
         </div>
       </article>
@@ -472,6 +527,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   {{if .Scripts.Data}}<script src="{{.Scripts.Data}}"></script>{{else}}
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
   <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
+  <script type="application/json" data-claims-data>{{.ClaimsJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
   {{end}}
 	  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script src="/` + viewerAppScriptAsset + `"></script><script src="/` + viewerLiveReloadScriptAsset + `"></script>{{end}}

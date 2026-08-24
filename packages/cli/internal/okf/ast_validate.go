@@ -25,14 +25,24 @@ func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result
 	if err != nil {
 		return Result{}, err
 	}
-	result := Result{SchemaVersion: MachineSchemaVersion, Root: bundle.Root, SpecVersion: bundle.SpecVersion}
+	validationProfile, err := NormalizeValidationProfile(options.Profile)
+	if err != nil {
+		return Result{}, err
+	}
+	options.Profile = validationProfile
+	result := Result{SchemaVersion: MachineSchemaVersion, Root: bundle.Root, SpecVersion: bundle.SpecVersion, Profile: validationProfile}
 	for _, document := range bundle.Documents {
 		result.Files++
 		validateDocument(bundle.Root, document, profile, &result)
 	}
-	result.Errors = append(result.Errors, AnalyzeClaimProfileWithEvidenceRoot(bundle, time.Now(), options.EvidenceRoot).Issues...)
-	result.Errors = append(result.Errors, ValidateRuleCatalog(bundle)...)
-	result.Errors = append(result.Errors, ValidateCorpusSchema(bundle)...)
+	if validationProfile == ValidationProfileBundle {
+		result.Errors = append(result.Errors, AnalyzeClaimProfileWithEvidenceRoot(bundle, time.Now(), options.EvidenceRoot).Issues...)
+		result.Errors = append(result.Errors, ValidateRuleCatalog(bundle)...)
+		result.Errors = append(result.Errors, ValidateCorpusSchema(bundle)...)
+	} else {
+		result.Errors = issuesForValidationProfile(result.Errors, validationProfile)
+		result.Warnings = issuesForValidationProfile(result.Warnings, validationProfile)
+	}
 
 	sortIssues(result.Errors)
 	sortIssues(result.Warnings)
@@ -45,6 +55,16 @@ func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result
 	result.Warnings = nonNilIssues(result.Warnings)
 	result.Issues = nonNilIssues(issuesFromResult(result))
 	return result, nil
+}
+
+func issuesForValidationProfile(issues []Issue, profile string) []Issue {
+	filtered := make([]Issue, 0, len(issues))
+	for _, issue := range issues {
+		if ValidationProfileAllowsRule(profile, issue.Rule) {
+			filtered = append(filtered, issue)
+		}
+	}
+	return filtered
 }
 
 func validateDocument(root string, document ASTDocument, profile validationSpecProfile, result *Result) {

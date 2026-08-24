@@ -2165,6 +2165,7 @@ func runValidate(args []string) int {
 	fs.SetOutput(stderrOutput())
 	quiet := fs.Bool("quiet", false, "print only errors")
 	specVersion := fs.String("spec", "latest", "OKF spec version")
+	profile := fs.String("profile", okf.ValidationProfileBundle, "validation profile: bundle or okf")
 	format := fs.String("format", "text", "output format: text or json")
 	out := fs.String("out", "", "write a machine-readable JSON report to this file")
 	asJSON := fs.Bool("json", false, "print the machine-readable JSON report")
@@ -2212,17 +2213,26 @@ func runValidate(args []string) int {
 		fmt.Fprintf(stderrOutput(), "unsupported OKF spec version: %s\n", strings.TrimSpace(*specVersion))
 		return 2
 	}
+	resolvedProfile, err := okf.NormalizeValidationProfile(*profile)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 2
+	}
 
 	validationOptions, err := okf.LoadValidationOptions(root)
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
-	cliOptions := okf.ValidationOptions{}
+	cliOptions := okf.ValidationOptions{Profile: resolvedProfile}
 	for _, override := range ruleOverrides {
 		rule, severity, err := okf.ParseValidationRuleOverrideForVersion(resolvedSpecVersion, override)
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
+			return 2
+		}
+		if !okf.ValidationProfileAllowsRule(resolvedProfile, rule) {
+			fmt.Fprintf(stderrOutput(), "validation rule %q is not active in profile %s\n", rule, resolvedProfile)
 			return 2
 		}
 		if err := okf.SetValidationRuleSeverityForVersion(&cliOptions, resolvedSpecVersion, rule, severity); err != nil {
@@ -2297,12 +2307,20 @@ func printValidationResult(result okf.Result) {
 
 	fmt.Printf("%s %s\n", terminal.muted("target"), terminal.path(result.Root))
 	fmt.Printf("%s Open Knowledge Format v%s\n", terminal.muted("spec"), result.SpecVersion)
+	fmt.Printf("%s %s\n", terminal.muted("profile"), result.Profile)
 	fmt.Printf("%s %d markdown files, %d concepts, %d indexes, %d logs\n",
 		terminal.muted("scan"), result.Files, result.Concepts, result.Indexes, result.Logs)
 	fmt.Println()
 
-	terminal.section("Checks")
+	currentGroup := ""
 	for _, check := range result.Checks {
+		if check.Group != currentGroup {
+			if currentGroup != "" {
+				fmt.Println()
+			}
+			currentGroup = check.Group
+			terminal.section(currentGroup)
+		}
 		fmt.Printf("  %-4s %s\n", terminal.status(check.Status), check.Name)
 		fmt.Printf("       %s\n", terminal.muted(check.Message))
 	}

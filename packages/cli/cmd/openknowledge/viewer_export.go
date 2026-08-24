@@ -72,13 +72,20 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
-	staticJSON, err := viewerStaticFilesJSON(bundle.Root, bundle.Files, bundle.SpecVersion, sourceConfig, frontmatterByPath)
+	claimsData, err := viewerClaimsForRoot(bundle.Root, bundle.SpecVersion, func(path string) string {
+		return viewerHTMLPath(path)
+	})
+	if err != nil {
+		return okf.HTMLResult{}, err
+	}
+	staticJSON, err := viewerStaticFilesJSON(bundle.Root, bundle.Files, bundle.SpecVersion, sourceConfig, frontmatterByPath, claimsData)
 	if err != nil {
 		return okf.HTMLResult{}, err
 	}
 	editorsJSON := viewerEditorsStaticJSON()
 	graphJSON := viewerStaticGraphJSON(bundle.Files, bundle.SpecVersion)
-	dataJS := viewerStaticDataScript(staticJSON, graphJSON, editorsJSON)
+	claimsJSON := viewerClaimsJSON(claimsData)
+	dataJS := viewerStaticDataScript(staticJSON, graphJSON, claimsJSON, editorsJSON)
 
 	var written []string
 	for _, file := range bundle.Files {
@@ -99,6 +106,7 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
 			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
 			Frontmatter: frontmatterByPath[file.Path],
+			Claims:      renderViewerClaimsPanel(claimsData, file.Path),
 			Body:        template.HTML(viewerStaticFileBody(file, bundle.SpecVersion)),
 			Tree:        viewerStaticTree(bundle.Files, file.Path),
 			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
@@ -171,9 +179,9 @@ func viewerStaticAssetURL(currentPath string, assetPath string) string {
 	return filepath.ToSlash(relative)
 }
 
-func viewerStaticDataScript(notes template.JS, graph template.JS, editors template.JS) string {
+func viewerStaticDataScript(notes template.JS, graph template.JS, claims template.JS, editors template.JS) string {
 	return "window.OpenKnowledgeStaticData=Object.freeze({notes:" + string(notes) +
-		",graph:" + string(graph) + ",editors:" + string(editors) + "});\n"
+		",graph:" + string(graph) + ",claims:" + string(claims) + ",editors:" + string(editors) + "});\n"
 }
 
 func writeViewerScriptAssets(out string, dataJS string) ([]string, error) {
@@ -274,7 +282,7 @@ func viewerRelPath(root string, target string) string {
 	return filepath.ToSlash(relative)
 }
 
-func viewerStaticFilesJSON(root string, files []okf.BundleFile, specVersion string, sourceConfig viewerSourceConfig, frontmatterByPath map[string]template.HTML) (template.JS, error) {
+func viewerStaticFilesJSON(root string, files []okf.BundleFile, specVersion string, sourceConfig viewerSourceConfig, frontmatterByPath map[string]template.HTML, claimsData viewerClaimsData) (template.JS, error) {
 	payload := make([]viewerStaticPayload, 0, len(files))
 	for _, file := range files {
 		if !okf.ShouldPublishToTarget(file, okf.PublicationTargetViewer) || !okf.ShouldPublishToTarget(file, okf.PublicationTargetSearch) {
@@ -291,6 +299,7 @@ func viewerStaticFilesJSON(root string, files []okf.BundleFile, specVersion stri
 			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
 			Tags:        tags,
 			Frontmatter: string(frontmatterByPath[file.Path]),
+			Claims:      string(renderViewerClaimsPanel(claimsData, file.Path)),
 			Body:        viewerStaticFileBody(file, specVersion),
 		})
 	}
@@ -426,8 +435,33 @@ func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry,
 		}
 		nodes = append(nodes, viewerGraphNode{
 			Path:  entry.Path,
+			Kind:  entry.Kind,
 			Title: title,
 			URL:   fileURL(entry.Path),
+		})
+	}
+	declaredBy := map[string]string{}
+	for _, edge := range graph.Edges {
+		if edge.Kind == "declares-claim" {
+			declaredBy[edge.Target] = edge.Source
+		}
+	}
+	for _, node := range graph.Nodes {
+		if node.Kind != "claim" {
+			continue
+		}
+		declaringPath := declaredBy[node.Path]
+		if declaringPath == "" || !paths[declaringPath] {
+			continue
+		}
+		paths[node.Path] = true
+		title := strings.TrimSpace(node.Title)
+		if title == "" {
+			title = node.ID
+		}
+		nodes = append(nodes, viewerGraphNode{
+			Path: node.Path, SourcePath: declaringPath, Kind: "claim", Title: title,
+			URL: viewerClaimURL(fileURL(declaringPath), node.ID),
 		})
 	}
 

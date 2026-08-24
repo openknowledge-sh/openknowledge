@@ -8,6 +8,7 @@
     "schemaVersion": {"const": "1"},
     "root": {"type": "string"},
     "specVersion": {"type": "string"},
+    "profile": {"enum": ["bundle", "okf"]},
     "files": {"type": "integer", "minimum": 0}, "concepts": {"type": "integer", "minimum": 0},
     "indexes": {"type": "integer", "minimum": 0}, "logs": {"type": "integer", "minimum": 0},
     "summary": {
@@ -24,6 +25,7 @@
         "required": ["name", "status", "message"],
         "properties": {
           "name": {"type": "string"},
+          "group": {"enum": ["OKF core", "Open Knowledge extensions"]},
           "status": {"enum": ["pass", "warn", "fail"]},
           "message": {"type": "string"}
         },

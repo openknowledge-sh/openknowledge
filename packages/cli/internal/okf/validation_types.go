@@ -21,6 +21,7 @@ type Result struct {
 	SchemaVersion string                 `json:"schemaVersion"`
 	Root          string                 `json:"root"`
 	SpecVersion   string                 `json:"specVersion"`
+	Profile       string                 `json:"profile,omitempty"`
 	Files         int                    `json:"files"`
 	Concepts      int                    `json:"concepts"`
 	Indexes       int                    `json:"indexes"`
@@ -35,6 +36,7 @@ type Result struct {
 
 type Check struct {
 	Name    string `json:"name"`
+	Group   string `json:"group,omitempty"`
 	Status  string `json:"status"`
 	Message string `json:"message"`
 }

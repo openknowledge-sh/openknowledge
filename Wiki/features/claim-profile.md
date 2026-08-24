@@ -3,7 +3,7 @@ type: Feature Documentation
 title: Typed Claims v1
 description: Define evidence-backed, typed, and lifecycle-safe knowledge assertions.
 tags: [openknowledge, claims, provenance, validation, ontology]
-timestamp: 2026-08-22T00:00:00Z
+timestamp: 2026-08-24T00:00:00Z
 profile: openknowledge.claims/v1
 owner: team:openknowledge
 status: stable
@@ -239,6 +239,19 @@ runtime serves an immutable accepted generation and never selects a value by
 
 Use [`okn claims`](/features/commands/claims.md) for deterministic operations.
 
+## Viewer representation
+
+The viewer keeps YAML frontmatter as the canonical claim representation. A
+collapsed **Claims** panel gives each document a read-only semantic view.
+
+The panel uses ontology labels for the subject, predicate, and object. Claim
+details show status, scope, evidence, provenance, time, and occurrence
+relations. A `section_ref` adds a claim count to the matching Markdown heading.
+
+The **Claims** workspace supports bundle-wide claim review and filters. The
+**Graph** workspace preserves claim occurrence nodes and their typed relations.
+Neither view changes claim YAML or lifecycle state.
+
 ---
 
 <!-- okf-footer: agent-maintenance -->
@@ -249,6 +262,9 @@ Use [`okn claims`](/features/commands/claims.md) for deterministic operations.
 > - `packages/cli/internal/claimops/`
 > - `packages/cli/internal/audit/audit.go`
 > - `packages/cli/schemas/claims/v1/frontmatter.schema.json`
+> - `packages/cli/cmd/openknowledge/viewer_claims.go`
+> - `packages/cli/cmd/openknowledge/viewer_export.go`
+> - `packages/web/src/viewer/`
 >
 > **Update notes**
 >

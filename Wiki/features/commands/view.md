@@ -3,7 +3,7 @@ type: Command Documentation
 title: openknowledge view
 description: Browse a local or connected knowledge base in the web viewer.
 tags: [openknowledge, cli, command, viewer]
-timestamp: 2026-08-18T00:00:00Z
+timestamp: 2026-08-24T00:00:00Z
 ---
 
 # `openknowledge view`
@@ -51,8 +51,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Select **Fit** to fit the complete diagram in the viewport.
   Select **100%** to center the diagram at its original scale.
   Press Escape to close the dialog.
-- The sidebar has separate **Documents**, **Graph**, and **Knowledge bases**
-  items. **Documents** shows the active file tree. **Graph** shows the graph
+- The sidebar has separate **Documents**, **Claims**, **Graph**, and
+  **Knowledge bases** items. **Documents** shows the active file tree.
+  **Claims** shows the typed claim workspace. **Graph** shows the graph
   workspace. **Knowledge bases** lists every connected knowledge base and its
   file tree in registry mode. Use the collapse icon to close all expanded
   trees. Use the plus icon to connect another local folder. **Settings** opens
@@ -89,6 +90,12 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - Each note uses a compact header. The full-width **Frontmatter** disclosure is
   immediately below the header and starts collapsed. Select **Frontmatter** to
   expand the full typed YAML table.
+  Each note with typed claims also has a collapsed **Claims** panel. The panel
+  shows typed statements, status, scope, evidence totals, and occurrence
+  relations. It uses ontology labels and keeps technical IDs in claim details.
+  A `section_ref` links a claim to its Markdown section. The matching heading
+  shows the claim count. Select the marker to open the first bound claim. The
+  panel is read-only and does not change canonical YAML.
   When the registry workspace contains multiple knowledge bases, the header
   prefixes the path breadcrumb with the source knowledge-base name. The prefix
   uses the same breadcrumb style and slash separator.
@@ -115,6 +122,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 - The knowledge graph uses a theme-aware canvas. The left detail panel shows
   only the connection count for the selected or hovered node. The canvas
   `aria-label` keeps the node name and Enter hint.
+  The graph preserves typed claim occurrence nodes. It shows declaration,
+  reference, supersession, contradiction, and derivation relations.
   The top-bar Graph icon toggles between the graph and the open documents.
   On viewports wider than 680 px, the graph workspace fills the viewport below
   the header. The canvas is 380 px high on smaller viewports. On viewports up
@@ -158,6 +167,17 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   survive when their targets still exist.
   The viewer removes deleted open paths before refresh.
   Static HTML exports do not include this live reload client.
+
+## Claims workspace
+
+Select **Claims** to browse all typed claim occurrences in the active knowledge
+base. Registry mode combines claims and identifies each source knowledge base.
+
+Filter claims by status, entity, predicate, owner, evidence stance, document,
+or validation state. Select a claim to inspect its typed value, evidence,
+provenance, time, and local relationships. This workspace is read-only.
+Select **Relationships** to inspect authored relations around the selected
+claim.
 
 | Shortcut | Action |
 | --- | --- |
@@ -222,6 +242,8 @@ marker.
 > - `packages/cli/cmd/openknowledge/viewer_live_reload.go`
 > - `packages/cli/cmd/openknowledge/viewer_assets.go`
 > - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
+> - `packages/cli/cmd/openknowledge/viewer_claims.go`
+> - `packages/cli/cmd/openknowledge/viewer_export.go`
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/web/src/viewer/`
 > - `packages/web/vite.viewer.config.js`

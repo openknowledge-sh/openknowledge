@@ -3,7 +3,7 @@ type: Exporter Documentation
 title: HTML Exporter
 description: Publish an Open Knowledge bundle as a static site.
 tags: [openknowledge, cli, exporter, html]
-timestamp: 2026-08-18T00:00:00Z
+timestamp: 2026-08-24T00:00:00Z
 ---
 
 # HTML Exporter
@@ -40,8 +40,11 @@ Plain mode does not support head injection.
 
 Viewer mode includes:
 
-- static Markdown pages with **Documents**, **Graph**, and **Settings** sidebar
-  items, Mermaid diagrams, search, stacked panels, metadata inspectors, table
+- static Markdown pages with **Documents**, **Claims**, **Graph**, and
+  **Settings** sidebar items
+- read-only claim panels, claim filters, claim details, and relationship views
+- claim occurrence nodes and typed claim relations in the graph
+- Mermaid diagrams, search, stacked panels, metadata inspectors, table
   controls, browser-native text-to-speech, themes, and mobile layout
 - a light blue default theme that matches the Open Knowledge website
 - OKF 0.2 trust, status, freshness, provenance, structured source, and
@@ -59,8 +62,11 @@ its site URL.
 Viewer mode writes its executable JavaScript below `assets/openknowledge/`.
 Every page references one shared `viewer.js`, `viewer.css`,
 `viewer-theme.js`, and `viewer-data.js`. The data file contains the rendered
-note collection, graph, and deterministic editor catalog. Individual HTML
-pages do not embed a copy of the complete collection.
+note collection, graph, claim projection, and deterministic editor catalog.
+Individual HTML pages do not embed a copy of the complete collection.
+
+Viewer mode keeps typed claims in canonical YAML frontmatter. It also provides
+the same read-only claim panel and Claims workspace as `okn view`.
 
 Viewer-mode search strips common Markdown markup from excerpts. It adds folder
 context to `Index` titles. It keeps arrow key, Enter, Shift+Enter, and Escape
@@ -98,9 +104,10 @@ Viewer mode displays executor and attester declarations. It does not execute
 either resource.
 
 Plain mode writes only semantic HTML pages. It includes frontmatter in native
-`details`, `dl`, and list elements. OKF 0.2 source footnotes link to matching
-source metadata entries. Plain mode omits viewer assets, discovery files,
-search data, and interactive viewer controls.
+`details`, `dl`, and list elements. Claims remain in this frontmatter view.
+OKF 0.2 source footnotes link to matching source metadata entries. Plain mode
+omits the claim panel, Claims workspace, and other interactive viewer controls.
+It also omits viewer assets, discovery files, and search data.
 
 ## Publication rules
 
@@ -177,6 +184,7 @@ Then, it registers the materialized source.
 > - `packages/cli/internal/okf/atomic_output.go`
 > - `packages/cli/cmd/openknowledge/viewer_export.go`
 > - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`
+> - `packages/cli/cmd/openknowledge/viewer_claims.go`
 > - `packages/cli/cmd/openknowledge/viewer_templates.go`
 > - `packages/cli/cmd/openknowledge/viewer_test.go`
 > - `packages/cli/cmd/openknowledge/viewer_discovery.go`

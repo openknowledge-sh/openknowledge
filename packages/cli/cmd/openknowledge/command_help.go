@@ -761,6 +761,7 @@ Validate a bundle against an Open Knowledge Format spec.
 Usage:
   openknowledge validate [key-or-path]
   openknowledge validate --spec <version> [key-or-path]
+  openknowledge validate --profile okf [key-or-path]
   openknowledge validate --format json [key-or-path]
   openknowledge validate --format json --out <file> [key-or-path]
   openknowledge validate --rule <rule=off|warn|error> [key-or-path]
@@ -772,12 +773,15 @@ Arguments:
 
 Flags:
   --spec       OKF spec version. Defaults to latest.
+  --profile    Validation profile: bundle or okf. Defaults to bundle.
+               bundle includes Open Knowledge extensions such as claims.
+               okf checks only the selected Open Knowledge Format spec.
   --format     Output format: text or json. Defaults to text.
   --json       Alias for --format json.
   --out        Write a JSON validation report to a file. Requires JSON output.
   --rule       Override one validation rule severity as rule=off|warn|error.
                May be repeated and overrides [validation.rules] config.
-               The rule must belong to the selected OKF spec version.
+               The rule must belong to the selected spec and profile.
   --quiet      Print only validation errors.
 
 Config:

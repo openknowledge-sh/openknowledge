@@ -427,6 +427,20 @@ page records release-level changes.
 
 ### Viewer
 
+- Markdown notes with typed claims now include a collapsed, read-only
+  **Claims** panel. It shows labeled statements, status, scope, evidence, and
+  occurrence relations without changing canonical YAML.
+- The sidebar now includes a read-only **Claims** workspace. Users can browse
+  claims, apply filters, and review details across a bundle.
+- The **Graph** workspace now preserves claim occurrence nodes. It shows
+  declaration, reference, supersession, contradiction, and derivation
+  relations.
+- Source: `packages/cli/cmd/openknowledge/viewer_claims.go`,
+  `packages/cli/cmd/openknowledge/viewer_export.go`,
+  `packages/cli/cmd/openknowledge/viewer_templates.go`, and
+  `packages/web/src/viewer/`.
+- Docs: `Wiki/features/commands/view.md`,
+  `Wiki/features/exporters/html.md`, and `Wiki/features/claim-profile.md`.
 - Markdown note panels now provide browser-native text-to-speech controls for
   reader-facing content, with pause, resume, and stop states. The feature uses
   the browser-selected voice and requires no Open Knowledge-managed API key.
@@ -450,6 +464,18 @@ page records release-level changes.
   `packages/web/src/viewer/app.js`, and
   `packages/web/scripts/viewer-live-reload.e2e.mjs`.
 - Docs: `Wiki/features/commands/view.md`.
+
+### Validation
+
+- `okn validate --profile bundle|okf` now selects the validation scope. The
+  default `bundle` profile includes Open Knowledge extension checks. The `okf`
+  profile runs only OKF core checks.
+- Text and JSON output now group checks as **OKF core** and
+  **Open Knowledge extensions**.
+- Source: `packages/cli/cmd/openknowledge/main.go`,
+  `packages/cli/cmd/openknowledge/command_help.go`, and
+  `packages/cli/internal/okf/validation_*.go`.
+- Docs: `Wiki/features/commands/validate.md`.
 
 ### Retrieval
 

@@ -795,12 +795,14 @@ type viewerFileData struct {
 	SearchURL     string
 	Theme         viewerThemeData
 	Frontmatter   template.HTML
+	Claims        template.HTML
 	Body          template.HTML
 	Kind          string
 	Tree          []viewerTreeItem
 	EditorsJSON   template.JS
 	StaticJSON    template.JS
 	GraphJSON     template.JS
+	ClaimsJSON    template.JS
 	HeadHTML      template.HTML
 	Scripts       viewerScriptURLs
 }
@@ -834,6 +836,7 @@ type viewerFilePayload struct {
 	KnowledgeBase string `json:"knowledgeBase,omitempty"`
 	Kind          string `json:"kind,omitempty"`
 	Frontmatter   string `json:"frontmatter,omitempty"`
+	Claims        string `json:"claims,omitempty"`
 	Body          string `json:"body"`
 }
 
@@ -844,6 +847,7 @@ type viewerStaticPayload struct {
 	SourceURL   string   `json:"sourceURL,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Frontmatter string   `json:"frontmatter,omitempty"`
+	Claims      string   `json:"claims,omitempty"`
 	Body        string   `json:"body"`
 }
 
@@ -856,6 +860,7 @@ type viewerGraphNode struct {
 	Path          string `json:"path"`
 	SourcePath    string `json:"sourcePath,omitempty"`
 	KnowledgeBase string `json:"knowledgeBase,omitempty"`
+	Kind          string `json:"kind,omitempty"`
 	Title         string `json:"title"`
 	URL           string `json:"url"`
 }
@@ -957,6 +962,7 @@ func prepareViewerFileRegistryData(data *viewerFileData, frame viewerFrame, opti
 	}
 	data.SearchURL = "/api/search"
 	data.GraphJSON = registryGraphJSON(frame.Workspaces)
+	data.ClaimsJSON = registryClaimsJSON(frame.Workspaces)
 }
 
 func renderViewerAsset(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string, options viewerOptions) {
@@ -1146,6 +1152,7 @@ func renderViewerFileAPI(response http.ResponseWriter, request *http.Request, ro
 		KnowledgeBase: knowledgeBase,
 		Kind:          data.Kind,
 		Frontmatter:   string(data.Frontmatter),
+		Claims:        string(data.Claims),
 		Body:          string(data.Body),
 	}); err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
@@ -1161,6 +1168,12 @@ func viewerFileDataForAsset(root string, asset viewerAssetData, frame viewerFram
 	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(path string) string {
 		return fileURLWithPrefix(linkPrefix, path)
 	})
+	claimsData, err := viewerClaimsForRoot(root, bundle.SpecVersion, func(path string) string {
+		return fileURLWithPrefix(linkPrefix, path)
+	})
+	if err != nil {
+		return viewerFileData{}, err
+	}
 
 	return viewerFileData{
 		Frame:       frame,
@@ -1178,6 +1191,7 @@ func viewerFileDataForAsset(root string, asset viewerAssetData, frame viewerFram
 		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
 		GraphJSON:   graphJSON,
+		ClaimsJSON:  viewerClaimsJSON(claimsData),
 	}, nil
 }
 
@@ -1202,6 +1216,12 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 	graphJSON := viewerGraphJSONFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(path string) string {
 		return fileURLWithPrefix(linkPrefix, path)
 	})
+	claimsData, err := viewerClaimsForRoot(root, bundle.SpecVersion, func(path string) string {
+		return fileURLWithPrefix(linkPrefix, path)
+	})
+	if err != nil {
+		return viewerFileData{}, true, err
+	}
 	theme, err := viewerThemeForServer(root, linkPrefix)
 	if err != nil {
 		return viewerFileData{}, true, err
@@ -1220,10 +1240,12 @@ func viewerFile(root string, rel string, frame viewerFrame, linkPrefix string) (
 		SearchURL:   searchURLWithPrefix(linkPrefix),
 		Theme:       theme,
 		Frontmatter: frontmatter,
+		Claims:      renderViewerClaimsPanel(claimsData, cleanRel),
 		Body:        template.HTML(viewerRenderedBody(file, bundle.SpecVersion, viewerLinkWithPrefix(linkPrefix))),
 		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
 		EditorsJSON: viewerEditorsJSON(),
 		GraphJSON:   graphJSON,
+		ClaimsJSON:  viewerClaimsJSON(claimsData),
 	}, true, nil
 }
 

@@ -28,7 +28,9 @@ before(async () => {
   await writeFile(path.join(wiki, ".openknowledge.toml"), "[publish]\nenabled = true\n");
   await writeFile(path.join(wiki, "index.md"), [
     "---",
+    "type: Index",
     "okf_bundle_title: Browser Test Handbook",
+    "okf_version: \"0.2\"",
     "---",
     "",
     "# Browser Test Handbook",
@@ -75,6 +77,64 @@ before(async () => {
     "```mermaid",
     "not-a-mermaid-diagram",
     "```",
+    "",
+  ].join("\n"));
+  await writeFile(path.join(wiki, "token-evidence.txt"), "Production tokens use the declared format.");
+  await writeFile(path.join(wiki, "authentication.md"), [
+    "---",
+    "type: Authentication",
+    "title: Authentication",
+    "owner: team:identity",
+    "openknowledge_claim_profile: \"1\"",
+    "claim_ontology:",
+    "  namespaces:",
+    "    auth: https://example.test/auth/",
+    "  entities:",
+    "    - id: okn:service/auth",
+    "      types: [okn:Service]",
+    "      pref_label: Authentication service",
+    "  predicates:",
+    "    - id: auth:tokenFormat",
+    "      object_kind: literal",
+    "      datatype: xsd:string",
+    "      maximum_count: 1",
+    "      pref_label: token format",
+    "sources:",
+    "  - id: identity-openapi",
+    "    resource: token-evidence.txt",
+    "    observe: pinned",
+    "    sha256: bb5a64e1c45b93136f128d1a3cf3d791d138709763ee26c2653ad4065f36c384",
+    "    role: authoritative",
+    "claims:",
+    "  - id: okn:claim/token-format",
+    "    slot: okn:slot/token-format",
+    "    subject: okn:service/auth",
+    "    predicate: auth:tokenFormat",
+    "    object:",
+    "      value: JWT",
+    "      datatype: xsd:string",
+    "    evidence:",
+    "      - id: okn:evidence/token-format",
+    "        source_ref: identity-openapi",
+    "        stance: supports",
+    "        role: primary",
+    "        selector:",
+    "          type: text_quote",
+    "          exact: Production tokens use the declared format.",
+    "    owners: [team:identity]",
+    "    status: proposed",
+    "    section_ref: \"#claim-token-format\"",
+    "---",
+    "",
+    "# Authentication",
+    "",
+    "The production authentication service issues JSON Web Tokens.",
+    "",
+    '<a id="claim-token-format"></a>',
+    "",
+    "## Token format",
+    "",
+    "Production tokens use JWT.",
     "",
   ].join("\n"));
 
@@ -631,6 +691,44 @@ test("exported viewer supports accessible search and keyboard navigation", async
   await search.press("Escape");
   assert.equal(await search.inputValue(), "");
   assert.equal(errors.length, 0, `viewer browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("exported viewer presents typed claims inline and in a responsive workspace", async () => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  const errors = collectPageErrors(page);
+
+  await page.goto(new URL("authentication.html", viewerURL).href, { waitUntil: "networkidle" });
+  const disclosure = page.locator("[data-claims-panel]");
+  await disclosure.waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await disclosure.getAttribute("open"), null);
+  assert.match(await disclosure.locator(":scope > summary").innerText(), /1 statement/);
+  await disclosure.locator(":scope > summary").click({ timeout: 5000 });
+  await disclosure.locator(".ok-claim-subject").waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await page.locator("[data-claim-section-marker]").count(), 1);
+
+  await disclosure.locator(".ok-claim-details > summary").click({ timeout: 5000 });
+  await disclosure.getByRole("button", { name: "Explore this claim" }).click({ timeout: 5000 });
+  const workspace = page.locator("[data-claims-workspace]");
+  await workspace.waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(new URL(page.url()).searchParams.get("view"), "claims");
+  assert.equal(new URL(page.url()).searchParams.get("claim"), "okn:claim/token-format");
+  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 1);
+  assert.equal(await workspace.getByRole("heading", { name: /Authentication service/ }).count(), 1);
+  await workspace.locator('[data-claims-filter="status"]').selectOption("proposed");
+  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 1);
+  await workspace.getByRole("button", { name: "Relationships", exact: true }).click({ timeout: 5000 });
+  await workspace.locator(".claims-neighborhood-center").waitFor({ state: "visible", timeout: 5000 });
+  await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-desktop.png"), fullPage: true });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await workspace.getByRole("button", { name: "Browse", exact: true }).click({ timeout: 5000 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  assert.equal(await workspace.locator(".claims-results-list [role=option]").count(), 1);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-mobile.png"), fullPage: true });
+  assert.equal(errors.length, 0, `viewer claims browser errors:\n${errors.join("\n")}`);
   await context.close();
 });
 

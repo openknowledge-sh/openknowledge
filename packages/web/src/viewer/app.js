@@ -8,6 +8,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
   const sidebarResizeHandle = document.querySelector("[data-sidebar-resize-handle]");
   const documentsViewToggle = document.querySelector("[data-documents-view-toggle]");
+  const claimsViewToggle = document.querySelector("[data-claims-view-toggle]");
+  const claimsWorkspace = document.querySelector("[data-claims-workspace]");
+  const claimsList = document.querySelector("[data-claims-list]");
+  const claimsDetail = document.querySelector("[data-claims-detail]");
+  const claimsRelationships = document.querySelector("[data-claims-relationships]");
+  const claimsFilters = document.querySelector("[data-claims-filters]");
+  const claimsQuery = document.querySelector("[data-claims-query]");
   const knowledgeBasesToggle = document.querySelector("[data-knowledge-bases-toggle]");
   const knowledgeBaseList = document.querySelector("#knowledge-base-list");
   const knowledgeBaseDialog = document.querySelector("[data-knowledge-base-dialog]");
@@ -45,6 +52,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const defaultNavigationMode = "beside";
   let navigationMode = defaultNavigationMode;
   let graphViewRequested = false;
+  let claimsViewRequested = false;
+  let claimsMode = "browse";
+  let selectedClaimKey = "";
   const linkPrefix = normalizeLinkPrefix(workspace.dataset.linkPrefix || "");
   const currentKnowledgeBase = String(workspace.dataset.knowledgeBase || document.body.dataset.activeKnowledgeBase || "").trim();
   const viewerStorageScope = graphHash(workspace.dataset.noteRoot || linkPrefix || window.location.pathname).toString(36);
@@ -61,6 +71,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
   const knownNotePaths = collectKnownNotePaths();
   const knowledgeGraph = readKnowledgeGraph();
+  const claimsData = readClaimsData();
   const themePresets = ["default", "night", "paper", "ocean", "rose", "custom"];
   const defaultThemePreset = "default";
   const knowledgeBasePalette = ["#0a4a9c", "#9a4d0f", "#08745d", "#8a3f75", "#5e55a5", "#a0353f", "#316b24", "#8b5f00"];
@@ -389,13 +400,72 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function graphViewIsVisible() {
-    return graphViewRequested || panels().length === 0;
+    return !claimsViewRequested && (graphViewRequested || panels().length === 0);
   }
 
-  function setGraphViewRequested(value) {
+  function claimsViewIsVisible() {
+    return claimsViewRequested;
+  }
+
+  function workspaceViewName() {
+    if (claimsViewIsVisible()) {
+      return "claims";
+    }
+    return graphViewIsVisible() ? "graph" : "notes";
+  }
+
+  function syncWorkspaceViewURL(pushHistory) {
+    const url = new URL(window.location.href);
+    const view = workspaceViewName();
+    if (view === "claims") {
+      url.searchParams.set("view", "claims");
+      const selected = claimByKey(selectedClaimKey);
+      if (selected) {
+        url.searchParams.set("claim", selected.id);
+        if (selected.knowledgeBase) {
+          url.searchParams.set("knowledge-base", selected.knowledgeBase);
+        } else {
+          url.searchParams.delete("knowledge-base");
+        }
+      } else {
+        url.searchParams.delete("claim");
+        url.searchParams.delete("knowledge-base");
+      }
+    } else {
+      url.searchParams.delete("view");
+      url.searchParams.delete("claim");
+      url.searchParams.delete("knowledge-base");
+    }
+    const state = { stack: currentStack(), view: view, claim: selectedClaimKey };
+    window.history[pushHistory ? "pushState" : "replaceState"](state, "", url);
+  }
+
+  function setGraphViewRequested(value, updateLocation) {
+	if (typeof updateLocation === "undefined") {
+	  updateLocation = true;
+	}
     graphViewRequested = Boolean(value);
+    if (graphViewRequested) {
+      claimsViewRequested = false;
+    }
     updateWorkspaceState();
     updateTitle();
+    if (updateLocation) {
+      syncWorkspaceViewURL(false);
+    }
+  }
+
+  function setClaimsViewRequested(value, updateLocation) {
+    claimsViewRequested = Boolean(value) && claimsData.claims.length > 0;
+    if (claimsViewRequested) {
+      graphViewRequested = false;
+      renderClaimsWorkspace();
+    }
+    updateWorkspaceState();
+    updateTitle();
+    if (updateLocation) {
+      syncWorkspaceViewURL(false);
+    }
   }
 
   function bindGraphView() {
@@ -421,11 +491,498 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         fileSidebar?.querySelector("[data-tree-path]")?.focus();
         return;
       }
-      setGraphViewRequested(false);
+      claimsViewRequested = false;
+      setGraphViewRequested(false, true);
       if (mobileSidebar.matches) {
         setSidebarOpen(false);
       }
     });
+  }
+
+  function bindClaimsView() {
+    if (!claimsViewToggle || claimsViewToggle.dataset.claimsViewBound === "true") {
+      return;
+    }
+    claimsViewToggle.dataset.claimsViewBound = "true";
+    claimsViewToggle.hidden = claimsData.claims.length === 0;
+    const count = claimsViewToggle.querySelector("[data-claims-navigation-count]");
+    if (count) {
+      count.textContent = String(claimsData.claims.length);
+    }
+    claimsViewToggle.addEventListener("click", function () {
+      setClaimsViewRequested(!claimsViewRequested, true);
+      if (mobileSidebar.matches) {
+        setSidebarOpen(false);
+      }
+    });
+  }
+
+  function claimIdentity(claim) {
+    const identity = String(claim?.key || ((claim?.knowledgeBase || "") + "\u0000" + (claim?.id || "")));
+    return identity.charCodeAt(0) === 0 ? identity.slice(1) : identity;
+  }
+
+  function claimByKey(key) {
+    return claimsData.claims.find(function (claim) {
+      return claimIdentity(claim) === key;
+    }) || null;
+  }
+
+  function claimByID(id, knowledgeBase) {
+    const exactKnowledgeBase = String(knowledgeBase || "");
+    return claimsData.claims.find(function (claim) {
+      return claim.id === id && (!exactKnowledgeBase || !claim.knowledgeBase || claim.knowledgeBase === exactKnowledgeBase);
+    }) || claimsData.claims.find(function (claim) {
+      return claim.id === id;
+    }) || null;
+  }
+
+  function claimStatement(claim) {
+    return [claim?.subject?.label || claim?.subject?.id, claim?.predicate?.label || claim?.predicate?.id, claim?.object?.label]
+      .filter(Boolean)
+      .join(" — ");
+  }
+
+  function claimRelationEntries(claim) {
+    const relations = claim?.relations || {};
+    return [
+      ["Supersedes", relations.supersedes],
+      ["Contradicts", relations.contradicts],
+      ["Derived from", relations.derivedFrom]
+    ].flatMap(function (entry) {
+      return (Array.isArray(entry[1]) ? entry[1] : []).map(function (id) {
+        return { label: entry[0], id: id, direction: "outgoing" };
+      });
+    });
+  }
+
+  function incomingClaimRelations(claim) {
+    if (!claim) {
+      return [];
+    }
+    const incomingLabels = {
+      supersedes: "Superseded by",
+      contradicts: "Contradicted by",
+      derivedFrom: "Source for"
+    };
+    const entries = [];
+    claimsData.claims.forEach(function (candidate) {
+      if (candidate.knowledgeBase && claim.knowledgeBase && candidate.knowledgeBase !== claim.knowledgeBase) {
+        return;
+      }
+      const relations = candidate.relations || {};
+      Object.keys(incomingLabels).forEach(function (kind) {
+        if (Array.isArray(relations[kind]) && relations[kind].includes(claim.id)) {
+          entries.push({ label: incomingLabels[kind], id: candidate.id, key: claimIdentity(candidate), direction: "incoming" });
+        }
+      });
+    });
+    return entries;
+  }
+
+  function createClaimsElement(tag, className, textValue) {
+    const element = document.createElement(tag);
+    if (className) {
+      element.className = className;
+    }
+    if (typeof textValue === "string") {
+      element.textContent = textValue;
+    }
+    return element;
+  }
+
+  function appendClaimBadge(parent, value, kind) {
+    if (!value) {
+      return;
+    }
+    const badge = createClaimsElement("span", "claims-badge", value);
+    badge.dataset.kind = kind || value;
+    parent.append(badge);
+  }
+
+  function appendClaimDefinition(list, label, value, options) {
+    if (value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0)) {
+      return;
+    }
+    const row = createClaimsElement("div", "claims-definition");
+    row.append(createClaimsElement("dt", "", label));
+    const description = createClaimsElement("dd");
+    if (options?.mono) {
+      description.classList.add("is-mono");
+    }
+    if (options?.multiline) {
+      String(value).split("\n").forEach(function (line) {
+        description.append(createClaimsElement("span", "", line));
+      });
+    } else {
+      description.textContent = Array.isArray(value) ? value.join(", ") : String(value);
+    }
+    row.append(description);
+    list.append(row);
+  }
+
+  function claimsFilterOptions() {
+    const options = {
+      status: new Map(), subject: new Map(), predicate: new Map(), owner: new Map(),
+      stance: new Map(), document: new Map()
+    };
+    claimsData.claims.forEach(function (claim) {
+      options.status.set(claim.status, claim.status);
+      options.subject.set(claim.subject?.id, claim.subject?.label || claim.subject?.id);
+      options.predicate.set(claim.predicate?.id, claim.predicate?.label || claim.predicate?.id);
+      (claim.owners || []).forEach(function (owner) { options.owner.set(owner, owner); });
+      (claim.evidence || []).forEach(function (evidence) { options.stance.set(evidence.stance, evidence.stance); });
+      const documentValue = (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath;
+      options.document.set(claimIdentity(claim) + "\u0000" + claim.declaringPath, documentValue);
+    });
+    return options;
+  }
+
+  function populateClaimsFilters() {
+    if (!claimsFilters || claimsFilters.dataset.populated === "true") {
+      return;
+    }
+    claimsFilters.dataset.populated = "true";
+    const options = claimsFilterOptions();
+    claimsFilters.querySelectorAll("[data-claims-filter]").forEach(function (select) {
+      const key = select.dataset.claimsFilter;
+      const values = options[key];
+      if (!(values instanceof Map)) {
+        return;
+      }
+      Array.from(values.entries()).sort(function (left, right) {
+        return String(left[1]).localeCompare(String(right[1]));
+      }).forEach(function (entry) {
+        const option = document.createElement("option");
+        option.value = key === "document" ? entry[0].split("\u0000").slice(-1)[0] : entry[0];
+        option.textContent = entry[1];
+        select.append(option);
+      });
+    });
+  }
+
+  function currentClaimsFilters() {
+    const values = { query: String(claimsQuery?.value || "").trim().toLocaleLowerCase() };
+    claimsFilters?.querySelectorAll("[data-claims-filter]").forEach(function (select) {
+      values[select.dataset.claimsFilter] = select.value;
+    });
+    return values;
+  }
+
+  function claimMatchesFilters(claim, filters) {
+    if (filters.status && claim.status !== filters.status) {
+      return false;
+    }
+    if (filters.subject && claim.subject?.id !== filters.subject) {
+      return false;
+    }
+    if (filters.predicate && claim.predicate?.id !== filters.predicate) {
+      return false;
+    }
+    if (filters.owner && !(claim.owners || []).includes(filters.owner)) {
+      return false;
+    }
+    if (filters.stance && !(claim.evidence || []).some(function (evidence) { return evidence.stance === filters.stance; })) {
+      return false;
+    }
+    if (filters.document && claim.declaringPath !== filters.document) {
+      return false;
+    }
+    if (filters.validation === "valid" && (claim.issues || []).length > 0) {
+      return false;
+    }
+    if (filters.validation === "invalid" && (claim.issues || []).length === 0) {
+      return false;
+    }
+    if (filters.validation === "stale" && !claim.stale) {
+      return false;
+    }
+    if (!filters.query) {
+      return true;
+    }
+    const haystack = [
+      claimStatement(claim), claim.id, claim.slot, claim.subject?.id, claim.predicate?.id,
+      claim.declaringPath, claim.knowledgeBase, (claim.owners || []).join(" "),
+      (claim.evidence || []).map(function (evidence) { return [evidence.sourceRef, evidence.stance, evidence.role].join(" "); }).join(" ")
+    ].join(" ").toLocaleLowerCase();
+    return haystack.includes(filters.query);
+  }
+
+  function filteredClaims() {
+    const filters = currentClaimsFilters();
+    return claimsData.claims.filter(function (claim) {
+      return claimMatchesFilters(claim, filters);
+    });
+  }
+
+  function renderClaimsList(matches) {
+    if (!claimsList) {
+      return;
+    }
+    claimsList.replaceChildren();
+    matches.forEach(function (claim) {
+      const row = createClaimsElement("button", "claims-result");
+      row.type = "button";
+      row.dataset.claimKey = claimIdentity(claim);
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-selected", claimIdentity(claim) === selectedClaimKey ? "true" : "false");
+      const statement = createClaimsElement("span", "claims-result-statement");
+      statement.append(
+        createClaimsElement("span", "claims-result-subject", claim.subject?.label || claim.subject?.id || "Unknown subject"),
+        createClaimsElement("span", "claims-result-predicate", claim.predicate?.label || claim.predicate?.id || "Unknown predicate"),
+        createClaimsElement("strong", "claims-result-object", claim.object?.label || "—")
+      );
+      const meta = createClaimsElement("span", "claims-result-meta");
+      appendClaimBadge(meta, claim.status, claim.status);
+      if (claim.stale) {
+        appendClaimBadge(meta, "stale", "stale");
+      }
+      if ((claim.issues || []).length > 0) {
+        appendClaimBadge(meta, String(claim.issues.length) + " issues", "invalid");
+      }
+      meta.append(createClaimsElement("span", "claims-result-path", (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath));
+      row.append(statement, meta);
+      row.addEventListener("click", function () {
+        selectClaim(claimIdentity(claim), true);
+      });
+      claimsList.append(row);
+    });
+    if (matches.length === 0) {
+      const empty = createClaimsElement("div", "claims-empty");
+      empty.append(createClaimsElement("strong", "", "No claims match these filters."));
+      empty.append(createClaimsElement("span", "", "Clear a filter or search for another statement, ID, owner, or document."));
+      claimsList.append(empty);
+    }
+  }
+
+  function renderClaimInspector(claim) {
+    if (!claimsDetail) {
+      return;
+    }
+    claimsDetail.replaceChildren();
+    if (!claim) {
+      claimsDetail.append(createClaimsElement("div", "claims-empty", "Select a claim to inspect its evidence and provenance."));
+      return;
+    }
+    const heading = createClaimsElement("header", "claims-inspector-header");
+    const title = createClaimsElement("h2", "claims-inspector-statement");
+    title.append(
+      createClaimsElement("span", "", claim.subject?.label || claim.subject?.id || "Unknown subject"),
+      createClaimsElement("span", "claims-inspector-predicate", claim.predicate?.label || claim.predicate?.id || "Unknown predicate"),
+      createClaimsElement("strong", "", claim.object?.label || "—")
+    );
+    const badges = createClaimsElement("div", "claims-inspector-badges");
+    appendClaimBadge(badges, claim.status, claim.status);
+    appendClaimBadge(badges, claim.trustTier, "trust");
+    if (claim.stale) {
+      appendClaimBadge(badges, "stale", "stale");
+    }
+    heading.append(title, badges);
+
+    const actions = createClaimsElement("div", "claims-inspector-actions");
+    const source = createClaimsElement("a", "claims-source-link", "Open source document");
+    source.href = claim.documentURL;
+    source.dataset.claimDocumentPath = claim.declaringPath;
+    if (claim.knowledgeBase) {
+      source.dataset.knowledgeBase = claim.knowledgeBase;
+    }
+    const relationshipButton = createClaimsElement("button", "claims-relationship-action", "Show relationships");
+    relationshipButton.type = "button";
+    relationshipButton.addEventListener("click", function () {
+      setClaimsMode("relationships");
+    });
+    actions.append(source, relationshipButton);
+
+    const definitions = createClaimsElement("dl", "claims-definition-list");
+    appendClaimDefinition(definitions, "Claim ID", claim.id, { mono: true });
+    appendClaimDefinition(definitions, "Slot", claim.slot, { mono: true });
+    appendClaimDefinition(definitions, "Subject", claim.subject?.id, { mono: true });
+    appendClaimDefinition(definitions, "Predicate", claim.predicate?.id, { mono: true });
+    appendClaimDefinition(definitions, "Datatype", claim.object?.datatype, { mono: true });
+    appendClaimDefinition(definitions, "Scope", (claim.scope || []).map(function (item) {
+      return (item.dimension?.label || item.dimension?.id) + ": " + (item.value?.label || "—");
+    }).join("\n"), { multiline: true });
+    appendClaimDefinition(definitions, "Valid time", claim.validTime?.from || claim.validTime?.until
+      ? [claim.validTime?.from ? "from " + claim.validTime.from : "", claim.validTime?.until ? "until " + claim.validTime.until : ""].filter(Boolean).join(" ")
+      : "");
+    appendClaimDefinition(definitions, "Owners", claim.owners || []);
+    appendClaimDefinition(definitions, "Section", claim.sectionRef, { mono: true });
+
+    const evidenceSection = createClaimsElement("section", "claims-inspector-section");
+    evidenceSection.append(createClaimsElement("h3", "", "Evidence"));
+    if ((claim.evidence || []).length === 0) {
+      evidenceSection.append(createClaimsElement("p", "claims-empty-inline", "No evidence records are attached."));
+    } else {
+      const evidenceList = createClaimsElement("div", "claims-evidence-list");
+      claim.evidence.forEach(function (evidence) {
+        const item = createClaimsElement("article", "claims-evidence");
+        const itemHead = createClaimsElement("div", "claims-evidence-head");
+        itemHead.append(createClaimsElement("strong", "", evidence.sourceRef || evidence.id));
+        appendClaimBadge(itemHead, evidence.stance, evidence.stance);
+        item.append(itemHead);
+        const meta = createClaimsElement("p", "", [evidence.role, evidence.observedAt].filter(Boolean).join(" · "));
+        if (meta.textContent) {
+          item.append(meta);
+        }
+        if (evidence.selector) {
+          const selector = createClaimsElement("code", "claims-selector", evidence.selector.type + (evidence.selector.exact ? ": " + evidence.selector.exact : ""));
+          item.append(selector);
+        }
+        evidenceList.append(item);
+      });
+      evidenceSection.append(evidenceList);
+    }
+
+    const provenance = createClaimsElement("section", "claims-inspector-section");
+    provenance.append(createClaimsElement("h3", "", "Provenance and lifecycle"));
+    const provenanceList = createClaimsElement("dl", "claims-definition-list is-compact");
+    if (claim.verification) {
+      appendClaimDefinition(provenanceList, "Verification", [claim.verification.by, claim.verification.method, claim.verification.at].filter(Boolean).join(" · "));
+    }
+    appendClaimDefinition(provenanceList, "Evidence refs", claim.verification?.evidenceRefs || []);
+    appendClaimDefinition(provenanceList, "Decisions", (claim.decisions || []).map(function (decision) {
+      return [decision.action, decision.by, decision.at, decision.reason].filter(Boolean).join(" · ");
+    }).join("\n"), { multiline: true });
+    appendClaimDefinition(provenanceList, "Dependents", claim.dependents || []);
+    provenance.append(provenanceList);
+
+    if ((claim.issues || []).length > 0) {
+      const issues = createClaimsElement("section", "claims-inspector-section claims-issues");
+      issues.append(createClaimsElement("h3", "", "Needs attention"));
+      const list = document.createElement("ul");
+      claim.issues.forEach(function (issue) {
+        list.append(createClaimsElement("li", "", issue.message));
+      });
+      issues.append(list);
+      claimsDetail.append(heading, actions, definitions, issues, evidenceSection, provenance);
+      return;
+    }
+    claimsDetail.append(heading, actions, definitions, evidenceSection, provenance);
+  }
+
+  function relationClaimFor(claim, relation) {
+    if (relation.key) {
+      return claimByKey(relation.key);
+    }
+    return claimByID(relation.id, claim?.knowledgeBase);
+  }
+
+  function renderClaimRelationships(claim) {
+    if (!claimsRelationships) {
+      return;
+    }
+    claimsRelationships.replaceChildren();
+    if (!claim) {
+      claimsRelationships.append(createClaimsElement("div", "claims-empty", "Select a claim to inspect its relationships."));
+      return;
+    }
+    const header = createClaimsElement("header", "claims-relationships-header");
+    header.append(createClaimsElement("h2", "", "Relationship neighborhood"));
+    header.append(createClaimsElement("p", "", "Only authored occurrence relations around the selected claim are shown."));
+    const neighborhood = createClaimsElement("div", "claims-neighborhood");
+    const center = createClaimsElement("article", "claims-neighborhood-center");
+    const centerStatement = createClaimsElement("div", "claims-neighborhood-statement");
+    centerStatement.append(createClaimsElement("span", "", claim.subject?.label || claim.subject?.id));
+    centerStatement.append(createClaimsElement("span", "claims-inspector-predicate", claim.predicate?.label || claim.predicate?.id));
+    centerStatement.append(createClaimsElement("strong", "", claim.object?.label || "—"));
+    center.append(centerStatement);
+    appendClaimBadge(center, claim.status, claim.status);
+    neighborhood.append(center);
+
+    const relations = incomingClaimRelations(claim).concat(claimRelationEntries(claim));
+    const relationList = createClaimsElement("div", "claims-neighborhood-relations");
+    relations.forEach(function (relation) {
+      const related = relationClaimFor(claim, relation);
+      const button = createClaimsElement("button", "claims-neighborhood-relation");
+      button.type = "button";
+      button.dataset.direction = relation.direction;
+      button.append(createClaimsElement("span", "claims-neighborhood-relation-label", relation.label));
+      button.append(createClaimsElement("strong", "", related ? claimStatement(related) : relation.id));
+      button.addEventListener("click", function () {
+        if (related) {
+          selectClaim(claimIdentity(related), true);
+        }
+      });
+      relationList.append(button);
+    });
+    if (relations.length === 0) {
+      relationList.append(createClaimsElement("p", "claims-empty-inline", "This occurrence has no authored claim relations."));
+    }
+    neighborhood.append(relationList);
+    claimsRelationships.append(header, neighborhood);
+  }
+
+  function setClaimsMode(mode) {
+    claimsMode = mode === "relationships" ? "relationships" : "browse";
+    document.querySelectorAll("[data-claims-mode]").forEach(function (button) {
+      button.setAttribute("aria-pressed", button.dataset.claimsMode === claimsMode ? "true" : "false");
+    });
+    if (claimsDetail) {
+      claimsDetail.hidden = claimsMode !== "browse";
+    }
+    if (claimsRelationships) {
+      claimsRelationships.hidden = claimsMode !== "relationships";
+    }
+    renderClaimRelationships(claimByKey(selectedClaimKey));
+  }
+
+  function selectClaim(key, updateLocation) {
+    const claim = claimByKey(key);
+    if (!claim) {
+      return;
+    }
+    selectedClaimKey = claimIdentity(claim);
+    renderClaimsWorkspace();
+    if (updateLocation) {
+      syncWorkspaceViewURL(true);
+    }
+  }
+
+  function renderClaimsWorkspace() {
+    if (!claimsWorkspace) {
+      return;
+    }
+    populateClaimsFilters();
+    const matches = filteredClaims();
+    if (!claimByKey(selectedClaimKey) || !matches.some(function (claim) { return claimIdentity(claim) === selectedClaimKey; })) {
+      selectedClaimKey = matches.length > 0 ? claimIdentity(matches[0]) : "";
+    }
+    const selected = claimByKey(selectedClaimKey);
+    renderClaimsList(matches);
+    renderClaimInspector(selected);
+    renderClaimRelationships(selected);
+    setClaimsMode(claimsMode);
+    const count = document.querySelector("[data-claims-result-count]");
+    if (count) {
+      count.textContent = matches.length + " of " + claimsData.claims.length;
+    }
+    const summary = document.querySelector("[data-claims-summary]");
+    if (summary) {
+      const invalid = claimsData.claims.filter(function (claim) { return (claim.issues || []).length > 0; }).length;
+      const stale = claimsData.claims.filter(function (claim) { return claim.stale; }).length;
+      summary.textContent = claimsData.claims.length + " typed statements" + (invalid ? " · " + invalid + " need attention" : "") + (stale ? " · " + stale + " stale" : "");
+    }
+  }
+
+  function bindClaimsWorkspace() {
+    if (!claimsFilters || claimsFilters.dataset.bound === "true") {
+      return;
+    }
+    claimsFilters.dataset.bound = "true";
+    const render = function () { renderClaimsWorkspace(); };
+    claimsQuery?.addEventListener("input", render);
+    claimsFilters.querySelectorAll("select").forEach(function (select) {
+      select.addEventListener("change", render);
+    });
+    claimsFilters.addEventListener("reset", function () {
+      window.requestAnimationFrame(renderClaimsWorkspace);
+    });
+    document.querySelectorAll("[data-claims-mode]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        setClaimsMode(button.dataset.claimsMode);
+      });
+    });
+    renderClaimsWorkspace();
   }
 
   function organizeSidebarControls() {
@@ -1331,6 +1888,38 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
   }
 
+  function readClaimsData() {
+    const empty = { schemaVersion: "1", claims: [], references: [], entities: [], predicates: [], issues: [] };
+    const shared = window.OpenKnowledgeStaticData?.claims;
+    if (shared && typeof shared === "object") {
+      return {
+        schemaVersion: String(shared.schemaVersion || "1"),
+        claims: Array.isArray(shared.claims) ? shared.claims : [],
+        references: Array.isArray(shared.references) ? shared.references : [],
+        entities: Array.isArray(shared.entities) ? shared.entities : [],
+        predicates: Array.isArray(shared.predicates) ? shared.predicates : [],
+        issues: Array.isArray(shared.issues) ? shared.issues : []
+      };
+    }
+    const source = document.querySelector("[data-claims-data]");
+    if (!source) {
+      return empty;
+    }
+    try {
+      const parsed = JSON.parse(source.textContent || "{}");
+      return {
+        schemaVersion: String(parsed.schemaVersion || "1"),
+        claims: Array.isArray(parsed.claims) ? parsed.claims : [],
+        references: Array.isArray(parsed.references) ? parsed.references : [],
+        entities: Array.isArray(parsed.entities) ? parsed.entities : [],
+        predicates: Array.isArray(parsed.predicates) ? parsed.predicates : [],
+        issues: Array.isArray(parsed.issues) ? parsed.issues : []
+      };
+    } catch {
+      return empty;
+    }
+  }
+
   const defaultGraphSettings = Object.freeze({
     arrows: false,
     colorGroups: true,
@@ -2115,6 +2704,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
     const knowledgeBase = String(node.knowledgeBase || "").trim();
+    if (node.kind === "claim" && node.url) {
+      window.location.assign(node.url);
+      return;
+    }
     if (knowledgeBase && currentKnowledgeBase && knowledgeBase !== currentKnowledgeBase && node.url) {
       window.location.assign(node.url);
       return;
@@ -3859,7 +4452,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function updateWorkspaceState() {
     const panelCount = panels().length;
     const isEmpty = panelCount === 0;
-    const showGraph = graphViewRequested || isEmpty;
+    const showClaims = claimsViewRequested && claimsData.claims.length > 0;
+    const showGraph = !showClaims && (graphViewRequested || isEmpty);
     const graphWasVisible = document.documentElement.dataset.viewerView === "graph";
     if (showGraph && !graphWasVisible) {
       const graphSidebar = document.querySelector("[data-knowledge-graph-sidebar]");
@@ -3871,10 +4465,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     workspace.classList.toggle("is-empty", isEmpty);
     workspace.classList.toggle("is-graph-view", showGraph);
-    workspace.classList.toggle("is-single-panel", !showGraph && panelCount === 1);
-    workspace.classList.toggle("is-multi-panel", !showGraph && panelCount > 1);
+    workspace.classList.toggle("is-claims-view", showClaims);
+    workspace.classList.toggle("is-single-panel", !showGraph && !showClaims && panelCount === 1);
+    workspace.classList.toggle("is-multi-panel", !showGraph && !showClaims && panelCount > 1);
     if (emptyState) {
       emptyState.hidden = !showGraph;
+    }
+    if (claimsWorkspace) {
+      claimsWorkspace.hidden = !showClaims;
     }
     if (graphViewToggle) {
       graphViewToggle.dataset.active = showGraph ? "true" : "false";
@@ -3896,14 +4494,24 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       }
     }
     if (documentsViewToggle) {
-      documentsViewToggle.dataset.active = showGraph ? "false" : "true";
-      if (showGraph) {
+      documentsViewToggle.dataset.active = showGraph || showClaims ? "false" : "true";
+      if (showGraph || showClaims) {
         documentsViewToggle.removeAttribute("aria-current");
       } else {
         documentsViewToggle.setAttribute("aria-current", "page");
       }
     }
-    document.documentElement.dataset.viewerView = showGraph ? "graph" : "notes";
+    if (claimsViewToggle) {
+      claimsViewToggle.dataset.active = showClaims ? "true" : "false";
+      claimsViewToggle.setAttribute("aria-pressed", showClaims ? "true" : "false");
+      if (showClaims) {
+        claimsViewToggle.setAttribute("aria-current", "page");
+      } else {
+        claimsViewToggle.removeAttribute("aria-current");
+      }
+    }
+    stackEl.hidden = showGraph || showClaims;
+    document.documentElement.dataset.viewerView = showClaims ? "claims" : showGraph ? "graph" : "notes";
     panels().forEach(applyPanelWidth);
     ensureActivePanel();
     updateCloseLinks();
@@ -3990,6 +4598,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function updateTitle() {
+    if (claimsViewIsVisible()) {
+      document.title = "Claims - Open Knowledge";
+      return;
+    }
     if (graphViewIsVisible()) {
       document.title = "Graph view - Open Knowledge";
       return;
@@ -4725,7 +5337,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       createdAt: Date.now(),
       stack: survivors,
       activePath: nextActivePath,
-      view: graphViewIsVisible() ? "graph" : "notes",
+      view: workspaceViewName(),
+      claim: selectedClaimKey,
       workspaceScrollLeft: workspace.scrollLeft || 0,
       panelScrollTop: panelScrollTop
     });
@@ -4747,7 +5360,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (matchingActive) {
       setActivePanel(matchingActive);
     }
-    setGraphViewRequested(state.view === "graph");
+    if (state.claim && claimByKey(state.claim)) {
+      selectedClaimKey = state.claim;
+    }
+    claimsViewRequested = state.view === "claims" && claimsData.claims.length > 0;
+    setGraphViewRequested(state.view === "graph", false);
+    if (claimsViewRequested) {
+      setClaimsViewRequested(true, false);
+    }
     window.requestAnimationFrame(function () {
       window.requestAnimationFrame(function () {
         const scrollByPath = state.panelScrollTop && typeof state.panelScrollTop === "object" ? state.panelScrollTop : {};
@@ -4803,7 +5423,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const body = document.createElement("div");
     const assetKind = data.kind === "code" || data.kind === "text" ? data.kind : "";
     body.className = "note-body" + (assetKind ? " asset-" + assetKind : "");
-    body.innerHTML = (data.frontmatter || "") + data.body;
+    const frontmatterAndBody = (data.frontmatter || "") + data.body;
+    body.innerHTML = data.claims ? (data.frontmatter || "") + data.claims + data.body : frontmatterAndBody;
 
     panel.append(chrome, body);
     bindPanel(panel);
@@ -4824,6 +5445,68 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     chrome.after(frontmatter);
   }
 
+  function integratePanelClaims(panel) {
+    const claims = panel.querySelector(".note-body > [data-claims-panel]");
+    const chrome = panel.querySelector(":scope > .note-chrome");
+    const frontmatter = panel.querySelector(":scope > [data-frontmatter]");
+    if (!claims || !chrome || claims.dataset.panelIntegrated === "true") {
+      return;
+    }
+    claims.dataset.panelIntegrated = "true";
+    claims.classList.add("is-panel-integrated");
+    if (frontmatter) {
+      frontmatter.after(claims);
+    } else {
+      chrome.after(claims);
+    }
+  }
+
+  function findPanelAnchor(panel, id) {
+    return Array.prototype.find.call(panel.querySelectorAll("[id]"), function (candidate) {
+      return candidate.id === id;
+    }) || null;
+  }
+
+  function bindClaimSectionMarkers(panel) {
+    const grouped = new Map();
+    panel.querySelectorAll("[data-claim-section-ref]").forEach(function (claim) {
+      const anchor = String(claim.dataset.claimSectionRef || "").replace(/^#/, "");
+      if (!anchor) {
+        return;
+      }
+      const claims = grouped.get(anchor) || [];
+      claims.push(claim);
+      grouped.set(anchor, claims);
+    });
+    grouped.forEach(function (claims, anchor) {
+      let target = findPanelAnchor(panel, anchor);
+      if (!target) {
+        return;
+      }
+      if (!/^H[1-6]$/.test(target.tagName)) {
+        const next = target.nextElementSibling;
+        if (next && /^H[1-6]$/.test(next.tagName)) {
+          target = next;
+        }
+      }
+      if (target.querySelector(":scope > [data-claim-section-marker]")) {
+        return;
+      }
+      const marker = createClaimsElement("button", "ok-claim-section-marker", claims.length + (claims.length === 1 ? " claim" : " claims"));
+      marker.type = "button";
+      marker.dataset.claimSectionMarker = "";
+      marker.addEventListener("click", function () {
+        const panelDisclosure = panel.querySelector("[data-claims-panel]");
+        if (panelDisclosure) {
+          panelDisclosure.open = true;
+        }
+        claims[0].scrollIntoView({ block: "nearest", behavior: motionIsReduced() ? "auto" : "smooth" });
+        claims[0].querySelector("summary, button")?.focus({ preventScroll: true });
+      });
+      target.append(marker);
+    });
+  }
+
   function updateLinkBehaviorHints(scope) {
     const root = scope || document;
     root.querySelectorAll("[data-tree-path], .search-result[href]").forEach(function (link) {
@@ -4840,6 +5523,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function bindPanel(panel) {
     renderPanelBreadcrumbs(panel);
     integratePanelFrontmatter(panel);
+    integratePanelClaims(panel);
+    bindClaimSectionMarkers(panel);
     applyPanelWidth(panel);
     ensurePanelResizeHandles(panel);
     syncPanelCloseShortcut(panel);
@@ -4979,7 +5664,11 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel) {
     if (graphViewRequested) {
-      setGraphViewRequested(false);
+      setGraphViewRequested(false, false);
+    }
+    if (claimsViewRequested) {
+      claimsViewRequested = false;
+      updateWorkspaceState();
     }
     const source = sourcePanel || activePanel();
     if (!source) {
@@ -5599,6 +6288,33 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       setActivePanel(clickedPanel);
     }
 
+    const openClaimButton = closestElement(event.target, "[data-open-claim]");
+    if (openClaimButton) {
+      const sourcePanel = openClaimButton.closest("[data-note-path]");
+      const sourceKnowledgeBase = String(sourcePanel?.dataset.knowledgeBase || currentKnowledgeBase || "");
+      const claim = claimByID(openClaimButton.dataset.openClaim, sourceKnowledgeBase);
+      if (claim) {
+        event.preventDefault();
+        selectedClaimKey = claimIdentity(claim);
+        setClaimsViewRequested(true, false);
+        syncWorkspaceViewURL(true);
+      }
+      return;
+    }
+
+    const claimDocument = closestElement(event.target, "[data-claim-document-path]");
+    if (claimDocument) {
+      const targetKnowledgeBase = String(claimDocument.dataset.knowledgeBase || "");
+      if (targetKnowledgeBase && currentKnowledgeBase && targetKnowledgeBase !== currentKnowledgeBase) {
+        return;
+      }
+      event.preventDefault();
+      claimsViewRequested = false;
+      setGraphViewRequested(false, false);
+      openTarget(claimDocument.dataset.claimDocumentPath, true, false, "", activePanel());
+      return;
+    }
+
     const closeButton = closestElement(event.target, "[data-close-panel]");
     if (closeButton) {
       const panel = closeButton.closest("[data-note-path]");
@@ -5759,10 +6475,20 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
   }
 
-  window.addEventListener("popstate", function () {
+  window.addEventListener("popstate", async function () {
     graphViewRequested = false;
+    const requestedClaimsView = new URL(window.location.href).searchParams.get("view") === "claims" && claimsData.claims.length > 0;
+    claimsViewRequested = requestedClaimsView;
+    const params = new URL(window.location.href).searchParams;
+    const requestedClaim = claimByID(params.get("claim") || "", params.get("knowledge-base") || currentKnowledgeBase);
+    if (requestedClaim) {
+      selectedClaimKey = claimIdentity(requestedClaim);
+    }
     const paths = stackFromLocation();
-    restoreStack(paths, highlightFromLocation());
+    await restoreStack(paths, highlightFromLocation());
+    if (requestedClaimsView) {
+      setClaimsViewRequested(true, false);
+    }
   });
 
   window.addEventListener("beforeunload", function () {
@@ -5810,12 +6536,20 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     organizeSidebarControls();
     bindNavigationMode();
     bindDocumentsView();
+    bindClaimsView();
+    bindClaimsWorkspace();
     bindGraphView();
     bindViewerSettings();
     prepareKnowledgeBases();
     prepareKnowledgeTrees();
     renderKnowledgeGraph();
     panels().forEach(bindPanel);
+    const initialParams = new URL(window.location.href).searchParams;
+    const initialClaim = claimByID(initialParams.get("claim") || "", initialParams.get("knowledge-base") || currentKnowledgeBase);
+    if (initialClaim) {
+      selectedClaimKey = claimIdentity(initialClaim);
+    }
+    claimsViewRequested = initialParams.get("view") === "claims" && claimsData.claims.length > 0;
     ensureActivePanel();
     if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
       window.history.replaceState({ stack: requestedStack }, "", window.location.href);
@@ -5826,6 +6560,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       updateActiveLinks();
       updateTitle();
       applySearchHighlight(activePanel(), requestedHighlight);
+    }
+    if (initialParams.get("view") === "claims" && claimsData.claims.length > 0) {
+      setClaimsViewRequested(true, false);
+      syncWorkspaceViewURL(false);
     }
     restoreLiveReloadSession(liveReloadRestoreState);
     window.dispatchEvent(new CustomEvent("openknowledge:viewer-ready"));

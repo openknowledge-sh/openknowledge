@@ -1326,6 +1326,38 @@ func TestRunValidateBindsRuleOverridesToSelectedSpec(t *testing.T) {
 	}
 }
 
+func TestRunValidateSelectsValidationProfile(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Bundle\n")
+	writeMainTestFile(t, root, "legacy.md", "---\ntype: Guide\nopenknowledge_claim_profile: \"1\"\nclaims:\n  - id: legacy.claim\n    value: JWT\n---\n# Legacy\n")
+
+	output, code := captureMainStdout(t, func() int {
+		return runValidate([]string{"--json", "--profile", "okf", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected pure OKF validation to ignore extension errors, got %d\n%s", code, output)
+	}
+	var report okf.Result
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Profile != okf.ValidationProfileOKF {
+		t.Fatalf("expected okf profile in machine report: %#v", report)
+	}
+	for _, check := range report.Checks {
+		if check.Group != "OKF core" {
+			t.Fatalf("pure OKF report included an extension check: %#v", check)
+		}
+	}
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runValidate([]string{"--profile", "unknown", root})
+	})
+	if code != 2 || !strings.Contains(stderr, "validation profile must be bundle or okf") {
+		t.Fatalf("expected invalid validation profile usage error, got code=%d stderr=%q", code, stderr)
+	}
+}
+
 func TestRunConnectAcceptsFlagsBeforeAndAfterDocumentedSourceArgument(t *testing.T) {
 	tests := []struct {
 		name string

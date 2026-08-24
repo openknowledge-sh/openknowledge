@@ -56,6 +56,47 @@ func TestClaimProfileRejectsLegacyShapeAndDuplicateOccurrenceID(t *testing.T) {
 	}
 }
 
+func TestValidationProfilesSeparateOKFCoreFromBundleExtensions(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")
+	writeFile(t, root, "legacy.md", "---\ntype: Guide\nopenknowledge_claim_profile: \"1\"\nclaims:\n  - id: legacy.claim\n    value: JWT\n---\n# Legacy\n")
+	bundle, err := ParseASTWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bundleResult, err := ValidateASTWithOptions(bundle, ValidationOptions{Profile: ValidationProfileBundle})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bundleResult.Profile != ValidationProfileBundle || !hasIssueRule(bundleResult.Errors, ClaimValidationRule) {
+		t.Fatalf("bundle profile must report the invalid claim extension: %#v", bundleResult)
+	}
+	if !hasCheckGroup(bundleResult.Checks, "Open Knowledge extensions") {
+		t.Fatalf("bundle profile must include extension checks: %#v", bundleResult.Checks)
+	}
+
+	coreResult, err := ValidateASTWithOptions(bundle, ValidationOptions{Profile: ValidationProfileOKF})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if coreResult.Profile != ValidationProfileOKF || hasIssueRule(coreResult.Errors, ClaimValidationRule) || hasCheckGroup(coreResult.Checks, "Open Knowledge extensions") {
+		t.Fatalf("okf profile must contain only OKF core results: %#v", coreResult)
+	}
+	if !hasCheckGroup(coreResult.Checks, "OKF core") {
+		t.Fatalf("okf profile must label core checks: %#v", coreResult.Checks)
+	}
+}
+
+func hasCheckGroup(checks []Check, group string) bool {
+	for _, check := range checks {
+		if check.Group == group {
+			return true
+		}
+	}
+	return false
+}
+
 func TestClaimComparisonUsesSlotSPOAndTypedObject(t *testing.T) {
 	number, _ := NormalizeClaimObject(ClaimObject{Value: 60, Datatype: "xsd:integer"})
 	text, _ := NormalizeClaimObject(ClaimObject{Value: "60", Datatype: "xsd:string"})

@@ -15,11 +15,24 @@ const (
 	ValidationSeverityOff     = "off"
 	ValidationSeverityWarning = "warning"
 	ValidationSeverityError   = "error"
+	ValidationProfileBundle   = "bundle"
+	ValidationProfileOKF      = "okf"
 )
+
+var extensionValidationRules = map[string]bool{
+	"publish-metadata": true,
+	"insight-contract": true,
+	"rule-catalog":     true,
+	"claim-profile":    true,
+	"corpus-schema":    true,
+}
 
 type ValidationOptions struct {
 	ConfigPath string
 	Rules      map[string]string
+	// Profile selects either pure OKF validation or the Open Knowledge bundle
+	// extensions. Empty means bundle for backward compatibility.
+	Profile string
 	// EvidenceRoot resolves generation-private evidence when a published
 	// projection does not contain the canonical .openknowledge/evidence path.
 	// It is a runtime validation input and is never loaded from project config.
@@ -51,9 +64,12 @@ func ParseValidationOptionsConfig(content string) (ValidationOptions, error) {
 }
 
 func MergeValidationOptions(base ValidationOptions, override ValidationOptions) ValidationOptions {
-	merged := ValidationOptions{ConfigPath: base.ConfigPath, EvidenceRoot: base.EvidenceRoot}
+	merged := ValidationOptions{ConfigPath: base.ConfigPath, EvidenceRoot: base.EvidenceRoot, Profile: base.Profile}
 	if strings.TrimSpace(override.EvidenceRoot) != "" {
 		merged.EvidenceRoot = override.EvidenceRoot
+	}
+	if strings.TrimSpace(override.Profile) != "" {
+		merged.Profile = override.Profile
 	}
 	for rule, severity := range base.Rules {
 		merged = withValidationRuleSeverity(merged, rule, severity)
@@ -62,6 +78,25 @@ func MergeValidationOptions(base ValidationOptions, override ValidationOptions) 
 		merged = withValidationRuleSeverity(merged, rule, severity)
 	}
 	return merged
+}
+
+func NormalizeValidationProfile(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", ValidationProfileBundle:
+		return ValidationProfileBundle, nil
+	case ValidationProfileOKF:
+		return ValidationProfileOKF, nil
+	default:
+		return "", fmt.Errorf("validation profile must be bundle or okf")
+	}
+}
+
+func ValidationProfileAllowsRule(profile string, rule string) bool {
+	normalized, err := NormalizeValidationProfile(profile)
+	if err != nil {
+		return false
+	}
+	return normalized == ValidationProfileBundle || !extensionValidationRules[strings.TrimSpace(rule)]
 }
 
 func SetValidationRuleSeverity(options *ValidationOptions, rule string, severity string) error {
@@ -255,6 +290,9 @@ func normalizedValidationRulesForVersion(profile validationSpecProfile, options 
 	}
 	rules := make(map[string]string, len(options.Rules))
 	for rule, severity := range options.Rules {
+		if !ValidationProfileAllowsRule(options.Profile, rule) {
+			continue
+		}
 		definition, ok := profile.Rules[rule]
 		if !ok {
 			if defined, _ := validationRuleAcrossProfiles(rule); defined {
