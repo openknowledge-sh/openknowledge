@@ -630,15 +630,6 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 		response.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = response.Write([]byte(registryGraphJSONWithCache(registryFrameFor("", workspaceURL).Workspaces, bundleCacheForRoot)))
 	})
-	mux.HandleFunc("/api/claims", func(response http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodGet {
-			response.Header().Set("Allow", http.MethodGet)
-			http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		response.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_, _ = response.Write([]byte(registryClaimsJSONWithCache(registryFrameFor("", workspaceURL).Workspaces, bundleCacheForRoot)))
-	})
 	mux.HandleFunc("/api/knowledge-bases", renderViewerKnowledgeBaseConnect)
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/" {
@@ -678,6 +669,15 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 						return
 					}
 					renderViewerSearch(response, request, cache, prefix)
+					return
+				}
+				if rest == "api/claims" {
+					root, err := registryEntryRoot(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					renderViewerClaimsAPI(response, request, root, entry.Name, prefix, bundleCacheForRoot(root))
 					return
 				}
 				if strings.HasPrefix(rest, "api/file/") {
@@ -757,6 +757,15 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 			renderViewerSearch(response, request, cache, prefix)
 			return
 		}
+		if rest == "api/claims" {
+			root, err := registryEntryRoot(entry)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			renderViewerClaimsAPI(response, request, root, entry.Name, prefix, bundleCacheForRoot(root))
+			return
+		}
 		if strings.HasPrefix(rest, "api/file/") {
 			root, err := registryEntryRoot(entry)
 			if err != nil {
@@ -792,6 +801,22 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 		renderViewerEditorIcon(response, request, editorID)
 	})
 	return mux
+}
+
+func renderViewerClaimsAPI(response http.ResponseWriter, request *http.Request, root string, knowledgeBase string, prefix string, bundleCache *viewerBundleCache) {
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", http.MethodGet)
+		http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	workspace := viewerWorkspace{
+		Name:         knowledgeBase,
+		URL:          strings.TrimRight(prefix, "/") + "/",
+		ResolvedRoot: root,
+	}
+	cacheForRoot := func(string) *viewerBundleCache { return bundleCache }
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = response.Write([]byte(registryClaimsJSONWithCache([]viewerWorkspace{workspace}, cacheForRoot)))
 }
 
 func registryWorkspaceStartPath(entry okf.RegistryEntry) string {
@@ -844,13 +869,14 @@ type viewerEntry struct {
 }
 
 type viewerWorkspace struct {
-	Name         string
-	Root         string
-	ResolvedRoot string
-	URL          string
-	Active       bool
-	Tree         []viewerTreeItem
-	Error        string
+	Name            string
+	Root            string
+	ResolvedRoot    string
+	URL             string
+	Active          bool
+	ClaimsAvailable bool
+	Tree            []viewerTreeItem
+	Error           string
 }
 
 type viewerFrame struct {
@@ -941,33 +967,34 @@ func renderViewerIndex(response http.ResponseWriter, root string, frame viewerFr
 }
 
 type viewerFileData struct {
-	Frame         viewerFrame
-	Title         string
-	BrandName     string
-	KnowledgeBase string
-	HomeURL       string
-	Root          string
-	Editable      bool
-	Path          string
-	FileURL       string
-	SourceURL     string
-	LinkPrefix    string
-	SearchURL     string
-	Theme         viewerThemeData
-	Frontmatter   template.HTML
-	Claims        template.HTML
-	Body          template.HTML
-	Kind          string
-	Tree          []viewerTreeItem
-	EditorsJSON   template.JS
-	StaticJSON    template.JS
-	GraphJSON     template.JS
-	ClaimsJSON    template.JS
-	GraphURL      string
-	ClaimsURL     string
-	HeadHTML      template.HTML
-	Scripts       viewerScriptURLs
-	EmptyRegistry bool
+	Frame           viewerFrame
+	Title           string
+	BrandName       string
+	KnowledgeBase   string
+	HomeURL         string
+	Root            string
+	Editable        bool
+	Path            string
+	FileURL         string
+	SourceURL       string
+	LinkPrefix      string
+	SearchURL       string
+	Theme           viewerThemeData
+	Frontmatter     template.HTML
+	Claims          template.HTML
+	Body            template.HTML
+	Kind            string
+	Tree            []viewerTreeItem
+	EditorsJSON     template.JS
+	StaticJSON      template.JS
+	GraphJSON       template.JS
+	ClaimsJSON      template.JS
+	GraphURL        string
+	ClaimsURL       string
+	ClaimsAvailable bool
+	HeadHTML        template.HTML
+	Scripts         viewerScriptURLs
+	EmptyRegistry   bool
 }
 
 type viewerScriptURLs struct {
@@ -1134,7 +1161,7 @@ func prepareViewerFileRegistryData(data *viewerFileData, frame viewerFrame, opti
 	data.GraphJSON = template.JS(`{}`)
 	data.ClaimsJSON = template.JS(`{}`)
 	data.GraphURL = "/api/graph"
-	data.ClaimsURL = "/api/claims"
+	data.ClaimsURL = strings.TrimRight(data.LinkPrefix, "/") + "/api/claims"
 }
 
 func renderViewerAsset(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string, options viewerOptions) {
@@ -1351,22 +1378,23 @@ func viewerFileDataForAsset(root string, asset viewerAssetData, frame viewerFram
 	}
 
 	return viewerFileData{
-		Frame:       frame,
-		Title:       asset.Title,
-		BrandName:   asset.BrandName,
-		HomeURL:     asset.HomeURL,
-		Root:        root,
-		Path:        asset.Path,
-		FileURL:     fileURLWithPrefix(linkPrefix, asset.Path),
-		LinkPrefix:  strings.TrimRight(linkPrefix, "/"),
-		SearchURL:   searchURLWithPrefix(linkPrefix),
-		Theme:       asset.Theme,
-		Body:        asset.Body,
-		Kind:        asset.Kind,
-		Tree:        viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
-		EditorsJSON: viewerEditorsJSON(),
-		GraphJSON:   graphJSON,
-		ClaimsJSON:  viewerClaimsJSON(claimsData),
+		Frame:           frame,
+		Title:           asset.Title,
+		BrandName:       asset.BrandName,
+		HomeURL:         asset.HomeURL,
+		Root:            root,
+		Path:            asset.Path,
+		FileURL:         fileURLWithPrefix(linkPrefix, asset.Path),
+		LinkPrefix:      strings.TrimRight(linkPrefix, "/"),
+		SearchURL:       searchURLWithPrefix(linkPrefix),
+		Theme:           asset.Theme,
+		Body:            asset.Body,
+		Kind:            asset.Kind,
+		Tree:            viewerTreeWithURL(entries, func(path string) string { return fileURLWithPrefix(linkPrefix, path) }),
+		EditorsJSON:     viewerEditorsJSON(),
+		GraphJSON:       graphJSON,
+		ClaimsJSON:      viewerClaimsJSON(claimsData),
+		ClaimsAvailable: viewerClaimsWorkspaceAvailable(claimsData),
 	}, nil
 }
 
@@ -1434,6 +1462,7 @@ func viewerFileDataWithCache(root string, rel string, frame viewerFrame, linkPre
 	data.EditorsJSON = viewerEditorsJSON()
 	data.GraphJSON = graphJSON
 	data.ClaimsJSON = viewerClaimsJSON(claimsData)
+	data.ClaimsAvailable = viewerClaimsWorkspaceAvailable(claimsData)
 	return data, true, nil
 }
 
@@ -2122,14 +2151,16 @@ func registryFrameWithCache(entries []okf.RegistryEntry, activeName string, urlF
 				continue
 			}
 			listingEntries = viewerEntriesFromBundleFiles(bundle.Files)
+			workspace.ClaimsAvailable = viewerBundleClaimsWorkspaceAvailable(bundle.Files)
 		} else {
-			listing, listErr := okf.List(root)
-			if listErr != nil {
-				workspace.Error = listErr.Error()
+			bundle, parseErr := okf.ParseBundle(root)
+			if parseErr != nil {
+				workspace.Error = parseErr.Error()
 				workspaces = append(workspaces, workspace)
 				continue
 			}
-			listingEntries = listing.Entries
+			listingEntries = viewerEntriesFromBundleFiles(bundle.Files)
+			workspace.ClaimsAvailable = viewerBundleClaimsWorkspaceAvailable(bundle.Files)
 		}
 		prefix := strings.TrimRight(urlFor(entry.Name), "/")
 		workspace.Tree = viewerTreeWithURL(listingEntries, func(path string) string {

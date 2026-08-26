@@ -35,6 +35,9 @@ func CompareLifecycle(base Index, candidate Index) LifecycleReport {
 			if !sameClaimSemantics(current.Claim, previous.Claim) {
 				continue
 			}
+			if !preservesVerificationHistory(current.Claim, previous.Claim) {
+				continue
+			}
 			if !allowedHistoricalTransition(previous.Claim.Status, current.Claim.Status) {
 				continue
 			}
@@ -125,6 +128,26 @@ func sameClaimSemantics(left, right okf.Claim) bool {
 	leftObject, leftErr := okf.NormalizeClaimObject(left.Object)
 	rightObject, rightErr := okf.NormalizeClaimObject(right.Object)
 	return leftErr == nil && rightErr == nil && leftObject == rightObject && okf.ClaimComparisonKey(left) == okf.ClaimComparisonKey(right) && left.ValidTime == right.ValidTime && reflect.DeepEqual(left.Evidence, right.Evidence)
+}
+
+func preservesVerificationHistory(current, previous okf.Claim) bool {
+	if previous.Verification == nil {
+		return true
+	}
+	if current.Verification == nil {
+		return false
+	}
+	if current.Verification.Method != previous.Verification.Method ||
+		current.Verification.By != previous.Verification.By ||
+		current.Verification.At != previous.Verification.At ||
+		!reflect.DeepEqual(current.Verification.EvidenceRefs, previous.Verification.EvidenceRefs) ||
+		len(current.Verification.EvidenceVersions) < len(previous.Verification.EvidenceVersions) {
+		return false
+	}
+	return reflect.DeepEqual(
+		current.Verification.EvidenceVersions[:len(previous.Verification.EvidenceVersions)],
+		previous.Verification.EvidenceVersions,
+	)
 }
 
 func allowedHistoricalTransition(previous string, current string) bool {

@@ -136,7 +136,7 @@ func TestMachineSchemasValidateOKFV02ListAndGraphSignals(t *testing.T) {
 		TrustTier:  OKFV02TrustHumanReviewed,
 		Status:     "stable",
 		Stale:      false,
-		StaleAfter: "2026-12-31",
+		StaleAfter: "2026-12-31T00:00:00Z",
 		Verified:   []OKFV02ActorEvent{{By: "human:reviewer", At: "2026-08-03T10:00:00Z"}},
 		Sources: []OKFV02Source{{
 			ID:          "policy",
@@ -144,7 +144,7 @@ func TestMachineSchemasValidateOKFV02ListAndGraphSignals(t *testing.T) {
 			Observe:     "pinned",
 			SHA256:      strings.Repeat("a", 64),
 			Role:        "authoritative",
-			UsageWindow: &OKFV02UsageWindow{From: "2026-08-01", To: "2026-08-03"},
+			UsageWindow: &OKFV02UsageWindow{From: "2026-08-01T00:00:00Z", To: "2026-08-03T00:00:00Z"},
 		}},
 		Computation: &OKFV02Computation{
 			Runtime:  "python3",
@@ -342,6 +342,14 @@ func TestMachineSchemasRejectUndeclaredFields(t *testing.T) {
 		},
 		"search-results/revision": {
 			output: outputs["search-results"],
+			mutate: func(root map[string]any) { root["revision"].(map[string]any)["undeclared"] = true },
+		},
+		"semantic-facts/namespace": {
+			output: outputs["semantic-facts"],
+			mutate: func(root map[string]any) { firstObject(root, "namespaces")["undeclared"] = true },
+		},
+		"semantic-facts/revision": {
+			output: outputs["semantic-facts"],
 			mutate: func(root map[string]any) { root["revision"].(map[string]any)["undeclared"] = true },
 		},
 		"federated-search-context/fusion": {
@@ -609,11 +617,15 @@ func representativeMachineOutputs(t *testing.T) map[string]any {
 	if err != nil {
 		t.Fatal(err)
 	}
+	semanticFacts, err := BuildSemanticFactsWithVersion(root, "0.1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	validation, err := ValidateWithVersion(root, "0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ast.Documents) == 0 || len(bundle.Files) == 0 || len(sourceGraph.Nodes) == 0 || len(sourceGraph.Edges) == 0 || len(searchGraph.Nodes) == 0 || len(listing.Entries) == 0 || len(searchResults.Results) == 0 || len(context.Sources) == 0 || len(validation.Checks) == 0 {
+	if len(ast.Documents) == 0 || len(bundle.Files) == 0 || len(sourceGraph.Nodes) == 0 || len(sourceGraph.Edges) == 0 || len(searchGraph.Nodes) == 0 || len(listing.Entries) == 0 || len(searchResults.Results) == 0 || len(context.Sources) == 0 || len(semanticFacts.Namespaces) == 0 || len(validation.Checks) == 0 {
 		t.Fatal("representative machine outputs must exercise non-empty nested contracts")
 	}
 	revision := context.Revision
@@ -638,6 +650,7 @@ func representativeMachineOutputs(t *testing.T) map[string]any {
 		"list":                     listing,
 		"search-context":           context,
 		"search-results":           searchResults,
+		"semantic-facts":           semanticFacts,
 		"validation":               validation,
 		"federated-search-context": federatedContext,
 		"federated-search-results": federatedResults,

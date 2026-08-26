@@ -56,7 +56,7 @@ before(async () => {
     "generated: { by: process:browser-e2e, at: 2026-08-03T08:00:00Z }",
     "verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }",
     "status: stable",
-    "stale_after: 2027-08-03",
+    "stale_after: 2027-08-03T00:00:00Z",
     "sources:",
     "  - id: rollback-policy",
     "    resource: https://example.test/rollback-policy",
@@ -781,6 +781,10 @@ test("exported viewer presents typed claims inline and in a responsive workspace
   const errors = collectPageErrors(page);
 
   await page.goto(new URL("authentication.html", viewerURL).href, { waitUntil: "networkidle" });
+  const claimsNavigation = page.locator("[data-claims-view-toggle]");
+  await claimsNavigation.waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await claimsNavigation.locator("[data-claims-navigation-count]").innerText(), "4");
+  assert.doesNotMatch(await claimsNavigation.innerText(), /Claims\s+0\b/);
   const disclosure = page.locator("[data-claims-panel]");
   await disclosure.waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await disclosure.getAttribute("open"), null);

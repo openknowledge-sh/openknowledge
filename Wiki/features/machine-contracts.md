@@ -25,11 +25,18 @@ Audit contracts and private usage events use a type and numeric version.
 | `evidence-pin.schema.json` | `evidence pin --json` |
 | `eval-comparison.schema.json` | `eval run --base <git-ref> --format json` |
 | `eval-report.schema.json` | `eval run --format json` |
+| `claim-replay-report.schema.json` | `eval claims --format json` |
 | `quality-report.schema.json` | `quality report --format json` |
 | `intervention-event.schema.json` | `quality interventions append`, private intervention JSONL |
 | `list.schema.json` | `list --json` |
 | `validation.schema.json` | `validate --format json`, MCP validation |
 | `graph.schema.json` | `export graph` |
+| `semantic-facts.schema.json` | normalized semantic fact projection in the Go API |
+| `vector-search.schema.json` | pluggable local vector result in the Go API |
+| `rdf-dataset.schema.json` | normalized RDF dataset in the Go API; `export rdf` serializes it as N-Quads |
+| `sparql-query.schema.json` | `query sparql` and Go API SPARQL results |
+| `datalog-query.schema.json` | `query datalog` and Go API Datalog results |
+| `hybrid-query.schema.json` | `query hybrid`, MCP `openknowledge_query`, and Go API hybrid results |
 | `search-context.schema.json` | single-bundle context, MCP search |
 | `search-results.schema.json` | single-bundle ranked matches |
 | `federated-search-context.schema.json` | registry-wide context |
@@ -59,6 +66,8 @@ Audit contracts and private usage events use a type and numeric version.
 | `deploy-result.schema.json` | successful `deploy railway` result |
 | `deploy-runtime-scaffold.schema.json` | `deploy railway init` |
 | `claims-find.schema.json` | `claims find --json` |
+| `claims-stale.schema.json` | `claims stale --json` |
+| `claims-reconcile.schema.json` | `claims reconcile --json` |
 | `claims-impact.schema.json` | `claims impact --json` |
 | `claims-mutation.schema.json` | claim mutation `--json` output |
 | `claims-suggestions.schema.json` | `claims suggest` |
@@ -76,6 +85,12 @@ sources, and optional Attested Computation data.
 Search output can contain an ordered retrieval `route`. Search match results
 can contain `lexicalScore`, `vectorScore`, and `rerankScore`. These fields are
 additive diagnostics. The local vector does not use a model or network service.
+
+Semantic fact, RDF, SPARQL, Datalog, and hybrid contracts share the same
+corpus revision and content-addressed provenance model. SPARQL bindings and
+Datalog results contain their supporting sources. Datalog distinguishes
+asserted and derived facts and serializes proof trees. Hybrid results preserve
+per-route ranks and raw scores alongside reciprocal-rank-fusion scores.
 
 The common schema also defines optional `claimProfile` output. List, graph,
 search, context, and runtime source objects use this definition. The
@@ -298,15 +313,16 @@ Other version domains are independent:
 | Immutable evidence receipts | `schemas/evidence/v1/` | `/schemas/cli/evidence/v1/` |
 | Corpus schema frontmatter | `schemas/corpus/v1/` | `/schemas/cli/corpus/v1/` |
 
-Claim command output uses `claims-find`, `claims-impact`, `claims-validation`,
+Claim command output uses `claims-find`, `claims-stale`, `claims-reconcile`,
+`claims-impact`, `claims-validation`,
 `claims-mutation`, `claims-entities`, `claims-entity-impact`, and
 `claims-entity-mutation` schemas. Claim and entity proposals use independent
 v1 contracts. A merge proposal binds both entity declaration document digests.
 Approved apply rewrites every affected claim reference and retains the old ID
 as a deprecated entity with `replaced_by`.
-Claim source projections preserve `resource`, `observe`, and `sha256`, so a
-consumer can retain the exact evidence artifact identity. Indexes and graphs
-remain derived data.
+Claim source projections preserve `resource`, `liveResource`, `observe`, and
+`sha256`. Claim projections include append-only evidence observations and
+exact stale evidence IDs. Indexes and graphs remain derived data.
 
 `evidence pin --json` uses `evidence-pin.schema.json`. Its nested capture
 object follows the independent `openknowledge.evidence-receipt` v1 contract.

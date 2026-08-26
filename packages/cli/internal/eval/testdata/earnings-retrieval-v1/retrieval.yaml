@@ -1,0 +1,131 @@
+type: openknowledge.retrieval-eval
+version: 1
+id: synthetic-earnings-v1
+cutoffs: [1, 3, 5]
+gates:
+  - id: section-order-quality
+    system: all
+    level: section
+    metric: ndcg
+    cutoff: 3
+    minimum: 0.50
+  - id: document-coverage
+    system: all
+    level: document
+    metric: recall
+    cutoff: 3
+    minimum: 0.75
+  - id: embedding-section-uplift
+    system: embedding-delta
+    level: section
+    metric: mrr
+    minimum: 0.20
+  - id: embedding-document-uplift
+    system: embedding-delta
+    level: document
+    metric: mrr
+    minimum: 0.20
+  - id: embedding-section-quality
+    system: embedding
+    level: section
+    metric: mrr
+    minimum: 0.90
+  - id: embedding-document-quality
+    system: embedding
+    level: document
+    metric: mrr
+    minimum: 0.95
+cases:
+  - id: lexical-capacity
+    category: lexical
+    query: factory capacity expansion
+    judgments:
+      - path: calls/northstar.md
+        heading: Manufacturing capacity
+        relevance: 3
+  - id: lexical-retention
+    category: lexical
+    query: enterprise net retention
+    judgments:
+      - path: calls/helio.md
+        heading: Enterprise retention
+        relevance: 3
+  - id: lexical-inventory
+    category: lexical
+    query: inventory normalization
+    judgments:
+      - path: calls/cobalt.md
+        heading: Inventory normalization
+        relevance: 3
+  - id: semantic-capacity
+    category: semantic
+    query: ability to make more units after installing new production lines
+    judgments:
+      - path: calls/northstar.md
+        heading: Manufacturing capacity
+        relevance: 3
+  - id: semantic-retention
+    category: semantic
+    query: large customers are renewing and buying additional seats
+    judgments:
+      - path: calls/helio.md
+        heading: Enterprise retention
+        relevance: 3
+  - id: semantic-cash
+    category: semantic
+    query: working capital released as excess components declined
+    judgments:
+      - path: calls/cobalt.md
+        heading: Cash flow
+        relevance: 3
+  - id: czech-churn
+    category: cross-language
+    query: Jak se vyvíjí odchod zákazníků z cloudové platformy?
+    judgments:
+      - path: calls/juniper.md
+        heading: Customer churn
+        relevance: 3
+  - id: czech-stores
+    category: cross-language
+    query: Kolik nových obchodů společnost plánuje otevřít?
+    judgments:
+      - path: calls/atlas.md
+        heading: Store expansion
+        relevance: 3
+  - id: czech-approval
+    category: cross-language
+    query: Kdy firma očekává schválení hlavního léku?
+    judgments:
+      - path: calls/meridian.md
+        heading: Regulatory approvals
+        relevance: 3
+  - id: hard-negative-margin
+    category: hard-negative
+    query: cost benefits from producing more at the new plant
+    judgments:
+      - path: calls/northstar.md
+        heading: Gross margin
+        relevance: 3
+      - path: calls/northstar.md
+        heading: Manufacturing capacity
+        relevance: 1
+  - id: hard-negative-returns
+    category: hard-negative
+    query: returns without visiting physical stores
+    judgments:
+      - path: calls/atlas.md
+        heading: Online returns
+        relevance: 3
+      - path: calls/atlas.md
+        heading: Store expansion
+        relevance: 1
+  - id: hard-negative-commercialization
+    category: hard-negative
+    query: revenue contribution after regulatory clearance
+    judgments:
+      - path: calls/meridian.md
+        heading: Commercialization
+        relevance: 3
+      - path: calls/meridian.md
+        heading: Regulatory approvals
+        relevance: 1

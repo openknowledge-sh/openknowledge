@@ -138,6 +138,32 @@ approval identity. `dispute` preserves the object and evidence.
 `approve-authority` records who approved a source as authoritative. Hosted
 maintenance always routes authority changes to human review.
 
+## Evidence freshness
+
+`verify` records the current SHA-256 identity of each local evidence resource.
+The history is append-only. A pinned source keeps its upstream path in
+`live_resource` and its immutable artifact in `resource`.
+
+List claims whose recorded evidence no longer matches the live resource:
+
+```sh
+okn claims stale --path Wiki
+okn claims stale --path Wiki --json
+```
+
+After review, reconcile one exact verified claim:
+
+```sh
+okn claims reconcile auth:claim/token-format/2026-08-22 \
+  --document auth.md --approved-by human:alice --path Wiki
+```
+
+`reconcile` hashes local evidence again and appends `verification.evidence_versions`.
+It does not evaluate semantic truth. A pinned source must be pinned again before
+reconciliation when its live bytes changed. The command projects page-level
+`verified` only when all active claims on that page are verified and current.
+It does not change page-level `generated` because the body does not change.
+
 ## Impact and validation
 
 `impact` returns the exact occurrence, evidence sources, `claim_refs`
@@ -151,6 +177,7 @@ dependents, linked documents, shared-source documents, and eval cases.
 - evidence IDs, sources, roles, stances, pinned artifact digests, and selector
   resolution;
 - verification references and actor identities;
+- append-only evidence observation history and live evidence freshness;
 - validity intervals and section bindings;
 - relation targets and supersession cycles;
 - exact `claim_refs` targets.

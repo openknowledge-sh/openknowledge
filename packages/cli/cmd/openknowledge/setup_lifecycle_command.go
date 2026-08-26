@@ -79,7 +79,8 @@ func runSetupComplete(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
-	if !connected {
+	needsConnection := options.skill != setupSkillNone || options.observe
+	if !connected && needsConnection {
 		if code := runConnect([]string{wiki, "--access", "write"}, "openknowledge connect"); code != 0 {
 			return code
 		}
@@ -124,7 +125,11 @@ func runSetupComplete(args []string) int {
 	}
 	fmt.Fprintln(os.Stdout, "\nOpen Knowledge setup is complete.")
 	fmt.Fprintf(os.Stdout, "  Knowledge base: %s\n", wiki)
-	fmt.Fprintf(os.Stdout, "  Connection:     %s (%s)\n", entry.Name, registryEntryAccess(entry))
+	connection := "local only"
+	if connected {
+		connection = fmt.Sprintf("%s (%s)", entry.Name, registryEntryAccess(entry))
+	}
+	fmt.Fprintf(os.Stdout, "  Connection:     %s\n", connection)
 	fmt.Fprintf(os.Stdout, "  Skills:         %s\n", options.skill)
 	fmt.Fprintf(os.Stdout, "  Harnesses:      %s\n", setupHarnessLabel(options.harnesses))
 	fmt.Fprintf(os.Stdout, "  Observation:    %s\n", enabledLabel(options.observe))
@@ -232,8 +237,6 @@ func runSetupStatus(args []string) int {
 	connection := "not connected"
 	if connected {
 		connection = fmt.Sprintf("%s (%s)", entry.Name, registryEntryAccess(entry))
-	} else {
-		healthy = false
 	}
 	fmt.Fprintf(os.Stdout, "Knowledge base: %s\n", wikiAbs)
 	fmt.Fprintf(os.Stdout, "Validation:     %s\n", validation)

@@ -14,6 +14,9 @@ Use `okn setup` to create or complete a knowledge base with an agent.
 
 ```sh
 okn setup
+okn setup Wiki --use-case codebase-docs
+okn setup Wiki --use-case trusted-knowledge
+okn setup Wiki --use-case custom
 okn setup Wiki --prompt
 okn setup Wiki --interactive
 okn setup Wiki --agent codex
@@ -48,13 +51,25 @@ Setup does not require a Git repository.
 
 The optional `wiki` argument selects the bundle path. The default is `Wiki`.
 
+Use `--use-case <codebase-docs|trusted-knowledge|custom>` to select the setup
+intent. The default is `codebase-docs`.
+
+| Intent | Use |
+| --- | --- |
+| `codebase-docs` | Create repository documentation for architecture, services, decisions, and changelog content. |
+| `trusted-knowledge` | Model knowledge with explicit sources, evidence, claim lifecycle, and conflict checks. |
+| `custom` | Let the source and the stated goal determine the initial structure. |
+
+All intents use the same Markdown and OKF format. The intent changes the agent
+task and starter content. It does not enable a separate runtime mode.
+
 Use `--from <source>` to build a bundle from a repository, local folder, or
 website. Use `--about <goal>` to give the intended result. Without `--about`,
 the agent inspects the source and asks for the missing intent. Use `--depth <n>`
 to limit source traversal. A value of `0` lets the agent choose the minimum
 depth.
 
-Setup has no knowledge-base type option. Maintenance rules are independent
+The intent is not a knowledge-base type. Maintenance rules are independent
 choices in the setup flow.
 
 ### Product profiles
@@ -152,17 +167,21 @@ Repeat `--harness` to select more than one supported harness. With the `none`
 skill scope, use `--harness` only when observation is on. Observation is disabled
 unless `--observe on` is explicit.
 
-`complete` validates the finished bundle, creates a missing connection, updates
-selected managed instructions, applies the observation choice, and reports
-health. It does not create wiki content, commit changes, or publish content.
-The command is idempotent. If it fails, fix the reported issue and run it again.
+`complete` validates the finished bundle, updates selected managed
+instructions, applies the observation choice, and reports health. A CLI-only
+bundle (`--skill none --observe off`) remains local and does not create a
+registry connection. Project instructions or observation create the connection
+they need. The command does not create wiki content, commit changes, or publish
+content. It is idempotent. If it fails, fix the reported issue and run it again.
 
-The agent then runs a representative `okn search` query and reports the result.
+Before optional completion choices, the agent runs a representative
+`okn search` query and confirms that the first result is useful.
 
 ## Status and repair
 
 Use `okn setup status` to inspect bundle validation, connections, installed
-skills, and observation state.
+skills, and observation state. A valid local-only bundle is healthy even when
+it is not connected.
 
 Use `okn setup repair` to repair managed skill blocks, harness adapters, and
 local observation configuration. The command does not change wiki content or

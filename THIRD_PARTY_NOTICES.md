@@ -44,3 +44,17 @@ across processes and atomically replace the registry file:
   (`third_party/licenses/natefinch-atomic-MIT.txt`)
 - `golang.org/x/sys` v0.26.0 — BSD 3-Clause License
   (`third_party/licenses/golang-x-sys-BSD-3-Clause.txt`)
+
+## Semantic query dependencies
+
+Open Knowledge CLI uses the following libraries for bounded local semantic
+query evaluation:
+
+- `github.com/tggo/goRDFlib` v0.1.16 — BSD 3-Clause License
+  (`third_party/licenses/goRDFlib-BSD-3-Clause.txt`)
+- `codeberg.org/TauCeti/mangle-go` v0.5.0 — Apache License 2.0
+  (`third_party/licenses/mangle-go-Apache-2.0.txt`)
+
+Open Knowledge provides its own normalized fact projection, access filtering,
+resource limits, source provenance, proof reconstruction, and hybrid ranking
+around these engines.

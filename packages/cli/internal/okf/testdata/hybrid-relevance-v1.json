@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "documents": [
+    {
+      "path": "guides/authentication.md",
+      "title": "Identity controls",
+      "body": "Credential rotation and identity verification protect account access."
+    },
+    {
+      "path": "guides/deployment.md",
+      "title": "Rollout controls",
+      "body": "Rollout validation and rollback checkpoints protect a production release."
+    },
+    {
+      "path": "guides/storage.md",
+      "title": "Persistence controls",
+      "body": "Persistence snapshots and backup restoration protect durable records."
+    }
+  ],
+  "queries": [
+    {"text": "login security", "relevantPath": "guides/authentication.md"},
+    {"text": "shipping procedure", "relevantPath": "guides/deployment.md"},
+    {"text": "database recovery", "relevantPath": "guides/storage.md"}
+  ]
+}

@@ -142,7 +142,7 @@ func Archive(root string, spec string, claimID string, document string, approved
 	if err != nil {
 		return false, err
 	}
-	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, "archived", approvedBy, time.Now().UTC())
+	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, "archived", approvedBy, time.Now().UTC(), nil)
 	if err != nil || !changed {
 		return changed, err
 	}
@@ -188,7 +188,7 @@ func Dispute(root string, spec string, claimID string, document string) (bool, e
 	if err != nil {
 		return false, err
 	}
-	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, "disputed", "", time.Time{})
+	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, "disputed", "", time.Time{}, nil)
 	if err != nil || !changed {
 		return changed, err
 	}
@@ -255,7 +255,7 @@ func transitionClaimWithApproval(root, spec, claimID, status, approvedBy, succes
 	if err != nil {
 		return false, err
 	}
-	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, status, approvedBy, time.Now().UTC())
+	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, status, approvedBy, time.Now().UTC(), nil)
 	if err != nil || !changed {
 		return changed, err
 	}
@@ -301,7 +301,11 @@ func Verify(root string, spec string, claimID string, document string, approvedB
 	if err != nil {
 		return false, err
 	}
-	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, "verified", approvedBy, at)
+	versions, err := ObserveClaimEvidenceVersions(root, match, approvedBy, at)
+	if err != nil {
+		return false, err
+	}
+	updated, changed, err := updateClaimStatusWithVerifierContent(content, match.Claim, "verified", approvedBy, at, versions)
 	if err != nil || !changed {
 		return changed, err
 	}
@@ -405,7 +409,7 @@ func upsertClaimContent(content []byte, claim AuthoredClaim) ([]byte, bool, erro
 	return updated, true, err
 }
 
-func updateClaimStatusWithVerifierContent(content []byte, target okf.Claim, status string, approvedBy string, at time.Time) ([]byte, bool, error) {
+func updateClaimStatusWithVerifierContent(content []byte, target okf.Claim, status string, approvedBy string, at time.Time, versions []okf.ClaimEvidenceVersion) ([]byte, bool, error) {
 	parsed, err := okf.ParseFrontmatterDocument(content)
 	if err != nil || !parsed.Has {
 		return nil, false, fmt.Errorf("claim document requires valid YAML frontmatter")
@@ -424,7 +428,18 @@ func updateClaimStatusWithVerifierContent(content []byte, target okf.Claim, stat
 		mapping["status"] = status
 		if approvedBy != "" {
 			if status == "verified" {
-				mapping["verification"] = map[string]any{"method": "claim-review", "by": approvedBy, "at": at.UTC().Format(time.RFC3339)}
+				verification := map[string]any{"method": "claim-review", "by": approvedBy, "at": at.UTC().Format(time.RFC3339)}
+				if len(target.Evidence) > 0 {
+					refs := make([]string, 0, len(target.Evidence))
+					for _, evidence := range target.Evidence {
+						refs = append(refs, evidence.ID)
+					}
+					verification["evidence_refs"] = uniqueStrings(refs)
+				}
+				if len(versions) > 0 {
+					verification["evidence_versions"] = claimEvidenceVersionMaps(versions)
+				}
+				mapping["verification"] = verification
 			} else {
 				decisions, _ := mapping["decisions"].([]any)
 				decisions = append(decisions, map[string]any{"action": status, "by": approvedBy, "at": at.UTC().Format(time.RFC3339)})
@@ -440,6 +455,21 @@ func updateClaimStatusWithVerifierContent(content []byte, target okf.Claim, stat
 	}
 	updated, err := rewriteFrontmatterField(content, "claims", values)
 	return updated, true, err
+}
+
+func claimEvidenceVersionMaps(versions []okf.ClaimEvidenceVersion) []any {
+	values := make([]any, 0, len(versions))
+	for _, version := range versions {
+		values = append(values, map[string]any{
+			"evidence_ref": version.EvidenceRef,
+			"source_ref":   version.SourceRef,
+			"resource":     version.Resource,
+			"sha256":       version.SHA256,
+			"by":           version.By,
+			"at":           version.At,
+		})
+	}
+	return values
 }
 
 func mappingMatchesClaim(mapping map[string]any, target okf.Claim) bool {
@@ -563,13 +593,17 @@ func rewriteFrontmatterField(content []byte, field string, value any) ([]byte, e
 	if err := yaml.Unmarshal([]byte(block), &document); err != nil || len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
 		return nil, fmt.Errorf("frontmatter must be a YAML mapping")
 	}
-	encoded, err := yaml.Marshal(map[string]any{field: value})
-	if err != nil {
-		return nil, err
+	var replacement []string
+	if value != nil {
+		encoded, err := yaml.Marshal(map[string]any{field: value})
+		if err != nil {
+			return nil, err
+		}
+		replacement = strings.Split(strings.TrimSuffix(string(encoded), "\n"), "\n")
 	}
-	replacement := strings.Split(strings.TrimSuffix(string(encoded), "\n"), "\n")
 	mapping := document.Content[0]
 	start, end := closing, closing
+	found := false
 	for index := 0; index+1 < len(mapping.Content); index += 2 {
 		key, node := mapping.Content[index], mapping.Content[index+1]
 		if key.Value != field {
@@ -577,7 +611,11 @@ func rewriteFrontmatterField(content []byte, field string, value any) ([]byte, e
 		}
 		start = key.Line
 		end = maxYAMLLine(node) + 1
+		found = true
 		break
+	}
+	if value == nil && !found {
+		return content, nil
 	}
 	updated := make([]string, 0, len(lines)-end+start+len(replacement))
 	updated = append(updated, lines[:start]...)

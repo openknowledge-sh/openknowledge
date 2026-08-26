@@ -68,6 +68,7 @@ type ContextSection struct {
 	Description     string
 	Frontmatter     map[string]string
 	FrontmatterData map[string]any
+	ClaimProfile    *ClaimProfileSignals
 	Heading         string
 	HeadingPath     []string
 	Anchors         []string

@@ -48,7 +48,7 @@ func TestOKFV02SourceDiagnostics(t *testing.T) {
 				"sources[0].title should be a non-empty string",
 				"sources[0].author should be a non-empty string",
 				"sources[0].usage_count should be a non-negative number",
-				"sources[0].last_modified should use YYYY-MM-DD",
+				"sources[0].last_modified should be an ISO 8601 datetime with an explicit offset",
 				"sources[0].usage_window should be a { from, to } mapping",
 			},
 		},
@@ -66,12 +66,12 @@ func TestOKFV02SourceDiagnostics(t *testing.T) {
 			expected: []string{"usage_window should be a { from, to } mapping"},
 		},
 		{
-			name: "root usage window dates",
+			name: "root usage window datetimes",
 			meta: map[string]any{
 				"sources":      []any{},
 				"usage_window": map[string]any{"from": "June", "to": "July"},
 			},
-			expected: []string{"usage_window should contain from and to dates in YYYY-MM-DD form"},
+			expected: []string{"usage_window should contain ISO 8601 from and to datetimes with explicit offsets"},
 		},
 	}
 
@@ -105,7 +105,7 @@ func TestOKFV02GeneratedAndVerifiedDiagnostics(t *testing.T) {
 			},
 			expected: []string{
 				"generated.by should identify an actor as <producer>/<version>, human:<id>, or process:<id>",
-				"generated.at should be an ISO 8601 datetime",
+				"generated.at should be an ISO 8601 datetime with an explicit offset",
 			},
 		},
 		{
@@ -129,7 +129,7 @@ func TestOKFV02GeneratedAndVerifiedDiagnostics(t *testing.T) {
 			},
 			expected: []string{
 				"verified[0].by should identify an actor as <producer>/<version>, human:<id>, or process:<id>",
-				"verified[0].at should be an ISO 8601 datetime",
+				"verified[0].at should be an ISO 8601 datetime with an explicit offset",
 			},
 		},
 	}
@@ -158,9 +158,9 @@ func TestOKFV02LifecycleAndAttributionDiagnostics(t *testing.T) {
 			expected: []string{`status "retired" should be draft, stable, or deprecated`},
 		},
 		{
-			name:     "stale date",
+			name:     "stale datetime",
 			meta:     map[string]any{"stale_after": "tomorrow"},
-			expected: []string{"stale_after should use YYYY-MM-DD"},
+			expected: []string{"stale_after should be an ISO 8601 datetime with an explicit offset"},
 		},
 	}
 	for _, test := range lifecycleTests {
@@ -180,6 +180,32 @@ func TestOKFV02LifecycleAndAttributionDiagnostics(t *testing.T) {
 		)
 	})
 	assertOKFV02Messages(t, messages, []string{`footnote "missing" should match a sources[].id`})
+}
+
+func TestOKFV02RejectsDateOnlyTimestampFields(t *testing.T) {
+	meta := map[string]any{
+		"generated":   map[string]any{"by": "process:build", "at": "2026-08-03"},
+		"verified":    []any{map[string]any{"by": "human:reviewer", "at": "2026-08-03"}},
+		"stale_after": "2026-08-03",
+		"sources": []any{map[string]any{
+			"resource":      "https://example.test/source",
+			"last_modified": "2026-08-03",
+			"usage_window":  map[string]any{"from": "2026-08-01", "to": "2026-08-03"},
+		}},
+	}
+	messages := collectOKFV02Messages(func(add func(string)) {
+		validateOKFV02Sources(meta, add)
+		validateOKFV02Generated(meta, add)
+		validateOKFV02Verified(meta, add)
+		validateOKFV02Lifecycle(meta, add)
+	})
+	assertOKFV02Messages(t, messages, []string{
+		"sources[0].last_modified should be an ISO 8601 datetime with an explicit offset",
+		"sources[0].usage_window should contain ISO 8601 from and to datetimes with explicit offsets",
+		"generated.at should be an ISO 8601 datetime with an explicit offset",
+		"verified[0].at should be an ISO 8601 datetime with an explicit offset",
+		"stale_after should be an ISO 8601 datetime with an explicit offset",
+	})
 }
 
 func TestOKFV02ComputationDiagnostics(t *testing.T) {
@@ -296,12 +322,12 @@ func TestOKFV02ExecutorAndDateRangeDiagnostics(t *testing.T) {
 		expected string
 	}{
 		{name: "mapping", value: "June", expected: "window should be a { from, to } mapping"},
-		{name: "dates", value: map[string]any{"from": "June", "to": "July"}, expected: "window should contain from and to dates in YYYY-MM-DD form"},
+		{name: "datetimes", value: map[string]any{"from": "June", "to": "July"}, expected: "window should contain ISO 8601 from and to datetimes with explicit offsets"},
 	}
 	for _, test := range rangeTests {
-		t.Run("date range "+test.name, func(t *testing.T) {
+		t.Run("datetime range "+test.name, func(t *testing.T) {
 			messages := collectOKFV02Messages(func(add func(string)) {
-				validateOKFV02DateRange("window", test.value, add)
+				validateOKFV02DateTimeRange("window", test.value, add)
 			})
 			assertOKFV02Messages(t, messages, []string{test.expected})
 		})
@@ -376,26 +402,14 @@ func TestOKFV02ScalarShapes(t *testing.T) {
 		}
 	}
 
-	dateTests := []struct {
-		value    any
-		expected bool
-	}{
-		{value: "2026-08-03", expected: true},
-		{value: "2026-02-30", expected: false},
-		{value: 20260803, expected: false},
-	}
-	for _, test := range dateTests {
-		if actual := okfDate(test.value); actual != test.expected {
-			t.Errorf("okfDate(%#v): expected %t, got %t", test.value, test.expected, actual)
-		}
-	}
-
 	dateTimeTests := []struct {
 		value    any
 		expected bool
 	}{
 		{value: "2026-08-03T12:00:00Z", expected: true},
+		{value: "2026-08-03T17:30:00+05:30", expected: true},
 		{value: "2026-08-03", expected: false},
+		{value: "2026-08-03T12:00:00", expected: false},
 		{value: 20260803, expected: false},
 	}
 	for _, test := range dateTimeTests {
@@ -608,14 +622,14 @@ func TestOKFV02ValidDirectShapesProduceNoDiagnostics(t *testing.T) {
 			"title":         "Source",
 			"author":        "team:data",
 			"usage_count":   uint64(2),
-			"last_modified": "2026-08-03",
-			"usage_window":  map[string]any{"from": "2026-08-01", "to": "2026-08-03"},
+			"last_modified": "2026-08-03T00:00:00Z",
+			"usage_window":  map[string]any{"from": "2026-08-01T00:00:00Z", "to": "2026-08-03T00:00:00Z"},
 		}},
-		"usage_window": map[string]any{"from": "2026-08-01", "to": "2026-08-03"},
+		"usage_window": map[string]any{"from": "2026-08-01T00:00:00Z", "to": "2026-08-03T00:00:00Z"},
 		"generated":    map[string]any{"by": "process:build", "at": "2026-08-03T12:00:00Z"},
 		"verified":     []any{map[string]any{"by": "human:reviewer", "at": "2026-08-03T12:30:00Z"}},
 		"status":       "deprecated",
-		"stale_after":  "2026-12-31",
+		"stale_after":  "2026-12-31T00:00:00Z",
 		"runtime":      "bigquery",
 		"parameters":   []any{map[string]any{"name": "year", "type": "integer", "required": true}},
 		"computation":  "query.sql",

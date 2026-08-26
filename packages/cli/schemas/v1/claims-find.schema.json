@@ -15,7 +15,7 @@
     "sourceRef": {
       "type": "object",
       "required": ["id", "resource"],
-      "properties": {"id": {"type": "string"}, "resource": {"type": "string"}, "observe": {"enum": ["manual", "metadata", "fetch", "pinned"]}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "role": {"type": "string"}},
+      "properties": {"id": {"type": "string"}, "resource": {"type": "string"}, "liveResource": {"type": "string"}, "observe": {"enum": ["manual", "metadata", "fetch", "pinned"]}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "role": {"type": "string"}},
       "additionalProperties": false
     },
     "occurrence": {

@@ -21,8 +21,9 @@ type commandGroup struct {
 var commandGroups = []commandGroup{
 	{Name: "Start here"},
 	{Name: "Work locally"},
-	{Name: "Share and connect"},
-	{Name: "Automate and operate"},
+	{Name: "Trust and govern"},
+	{Name: "Query and interchange"},
+	{Name: "Publish and operate"},
 	{Name: "Advanced and portable tools"},
 }
 
@@ -30,28 +31,30 @@ var rootCommandCatalog = []rootCommand{
 	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("skill", "complete", "status", "repair", "observe", "ci", "runtime"), Run: runSetup},
 	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
 	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
-	{Name: "eval", Group: "Start here", Summary: "Test retrieval evidence against versioned questions.", Subcommands: commandNames("run"), Run: runEval},
-	{Name: "audit", Group: "Start here", Summary: "Find concrete knowledge risks with deterministic evidence.", Subcommands: commandNames("propose"), Run: runAudit},
-	{Name: "claims", Group: "Start here", Summary: "Find, propose, validate, and maintain typed claims.", Subcommands: commandNames("find", "suggest", "propose", "apply", "link", "dispute", "verify", "reject", "supersede", "archive", "approve-authority", "validate", "impact", "entities"), Run: runClaims},
-	{Name: "evidence", Group: "Start here", Summary: "Capture exact evidence artifacts and bind pinned sources.", Subcommands: commandNames("pin"), Run: runEvidence},
-	{Name: "quality", Group: "Start here", Summary: "Measure usage-grounded knowledge outcomes and priorities.", Subcommands: commandNames("report", "interventions"), Run: runQuality},
+	{Name: "view", Group: "Start here", Summary: "Browse knowledge locally.", Run: runView},
 
 	{Name: "agent", Group: "Work locally", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "doctor"), Run: runAgent},
 	{Name: "get", Group: "Work locally", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
 	{Name: "list", Group: "Work locally", Summary: "Inspect knowledge-base structure.", Run: runList},
-	{Name: "view", Group: "Work locally", Summary: "Browse knowledge locally.", Run: runView},
 
-	{Name: "export", Group: "Share and connect", Summary: "Export HTML, JSON, graph, or portable tar views.", Subcommands: commandNames("html", "json", "tar", "graph"), Run: runExport},
-	{Name: "mcp", Group: "Share and connect", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
-	{Name: "connect", Group: "Share and connect", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
+	{Name: "audit", Group: "Trust and govern", Summary: "Find concrete knowledge risks with deterministic evidence.", Subcommands: commandNames("propose"), Run: runAudit},
+	{Name: "claims", Group: "Trust and govern", Summary: "Find, propose, validate, and maintain typed claims.", Subcommands: commandNames("find", "suggest", "propose", "apply", "link", "dispute", "verify", "reject", "supersede", "archive", "approve-authority", "validate", "impact", "entities"), Run: runClaims},
+	{Name: "evidence", Group: "Trust and govern", Summary: "Capture exact evidence artifacts and bind pinned sources.", Subcommands: commandNames("pin"), Run: runEvidence},
+	{Name: "eval", Group: "Trust and govern", Summary: "Test retrieval evidence against versioned questions.", Subcommands: commandNames("run", "retrieval"), Run: runEval},
+	{Name: "quality", Group: "Trust and govern", Summary: "Measure usage-grounded knowledge outcomes and priorities.", Subcommands: commandNames("report", "interventions"), Run: runQuality},
+
+	{Name: "query", Group: "Query and interchange", Summary: "Query semantic facts with SPARQL, Datalog, or hybrid retrieval.", Subcommands: commandNames("sparql", "datalog", "hybrid"), Run: runQuery},
+	{Name: "export", Group: "Query and interchange", Summary: "Export HTML, JSON, RDF, graph, or portable tar views.", Subcommands: commandNames("html", "json", "rdf", "tar", "graph"), Run: runExport},
+
+	{Name: "mcp", Group: "Publish and operate", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
+	{Name: "connect", Group: "Publish and operate", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
 		return runConnect(args, "openknowledge connect")
 	}},
-	{Name: "disconnect", Group: "Share and connect", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
+	{Name: "disconnect", Group: "Publish and operate", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
 		return runDisconnect(args, "openknowledge disconnect")
 	}},
-	{Name: "registry", Group: "Share and connect", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
-
-	{Name: "automation", Group: "Automate and operate", Summary: "Run jobs, insights, runtimes, and deployments.", Subcommands: commandNames("jobs", "insights", "runtime", "deploy"), Run: runAutomation},
+	{Name: "registry", Group: "Publish and operate", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
+	{Name: "automation", Group: "Publish and operate", Summary: "Run jobs, insights, runtimes, and deployments.", Subcommands: commandNames("jobs", "insights", "runtime", "deploy"), Run: runAutomation},
 
 	{Name: "scaffold", Group: "Advanced and portable tools", Summary: "Create a deterministic local OKF knowledge base.", Run: runScaffold},
 	{Name: "prompt", Group: "Advanced and portable tools", Summary: "Print or install maintenance instructions.", Subcommands: commandNames("rules", "review"), Run: runPrompt},

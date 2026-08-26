@@ -16,7 +16,7 @@
       "title": "Knowledge is past its freshness deadline",
       "impact": "Agents can select information that has not been verified within its declared lifetime.",
       "targets": ["operations/rollback.md"],
-      "evidence": [{"path": "operations/rollback.md", "field": "stale_after", "value": "2026-01-01"}]
+      "evidence": [{"path": "operations/rollback.md", "field": "stale_after", "value": "2026-01-01T00:00:00Z"}]
     }
   ],
   "sources": {"current": 1, "changed": 0, "missing": 0}

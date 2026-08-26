@@ -54,7 +54,13 @@
     },
     "verification": {
       "type": "object", "required": ["method", "by", "at"],
-      "properties": {"method": {"type": "string", "minLength": 1}, "by": {"$ref": "#/$defs/term"}, "at": {"type": "string"}, "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/term"}}},
+      "properties": {"method": {"type": "string", "minLength": 1}, "by": {"$ref": "#/$defs/term"}, "at": {"type": "string"}, "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/term"}}, "evidence_versions": {"type": "array", "items": {"$ref": "#/$defs/evidenceVersion"}}},
+      "additionalProperties": false
+    },
+    "evidenceVersion": {
+      "type": "object",
+      "required": ["evidence_ref", "source_ref", "resource", "sha256", "by", "at"],
+      "properties": {"evidence_ref": {"$ref": "#/$defs/term"}, "source_ref": {"type": "string", "minLength": 1}, "resource": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "by": {"$ref": "#/$defs/term"}, "at": {"type": "string"}},
       "additionalProperties": false
     },
     "relations": {

@@ -76,6 +76,10 @@ func runAudit(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
+	if options.updateBaseline && baseline != nil && auditFindingCategory(report, "source-changed") {
+		fmt.Fprintln(stderrOutput(), "audit baseline cannot advance while source-changed findings remain; reconcile dependent claims and rerun the audit")
+		return 1
+	}
 	if options.updateBaseline {
 		content, encodeErr := knowledgeaudit.EncodeBaseline(currentBaseline)
 		if encodeErr != nil {
@@ -101,6 +105,15 @@ func runAudit(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func auditFindingCategory(report knowledgeaudit.Report, category string) bool {
+	for _, finding := range report.Findings {
+		if finding.Category == category {
+			return true
+		}
+	}
+	return false
 }
 
 func runAuditPropose(args []string) int {

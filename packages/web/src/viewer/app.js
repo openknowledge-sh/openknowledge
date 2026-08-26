@@ -8,8 +8,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
   const sidebarResizeHandle = document.querySelector("[data-sidebar-resize-handle]");
   const documentsViewToggle = document.querySelector("[data-documents-view-toggle]");
-  const claimsViewToggle = document.querySelector("[data-claims-view-toggle]");
+  const claimsViewToggles = Array.from(document.querySelectorAll("[data-claims-view-toggle]"));
   const claimsWorkspace = document.querySelector("[data-claims-workspace]");
+  const claimsTitle = document.querySelector("[data-claims-title]");
   const claimsList = document.querySelector("[data-claims-list]");
   const claimsDetail = document.querySelector("[data-claims-detail]");
   const claimsFilters = document.querySelector("[data-claims-filters]");
@@ -73,7 +74,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const knowledgeGraph = readKnowledgeGraph();
   const claimsData = readClaimsData();
   let knowledgeGraphLoadPromise = null;
-  let claimsDataLoadPromise = null;
+  let activeClaimsKnowledgeBase = currentKnowledgeBase;
+  const claimsDataCache = new Map();
+  const claimsDataLoadPromises = new Map();
   const themePresets = ["default", "night", "paper", "ocean", "rose", "custom"];
   const defaultThemePreset = "default";
   const knowledgeBasePalette = ["#0a4a9c", "#9a4d0f", "#08745d", "#8a3f75", "#5e55a5", "#a0353f", "#316b24", "#8b5f00"];
@@ -406,7 +409,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function claimsViewIsVisible() {
-    return claimsViewRequested;
+    return claimsViewRequested && claimsViewCanOpen(claimsData, activeClaimsKnowledgeBase);
   }
 
   function workspaceViewName() {
@@ -424,13 +427,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       const selected = claimByKey(selectedClaimKey);
       if (selected) {
         url.searchParams.set("claim", selected.id);
-        if (selected.knowledgeBase) {
-          url.searchParams.set("knowledge-base", selected.knowledgeBase);
-        } else {
-          url.searchParams.delete("knowledge-base");
-        }
       } else {
         url.searchParams.delete("claim");
+      }
+      const claimsKnowledgeBase = String(selected?.knowledgeBase || activeClaimsKnowledgeBase || "").trim();
+      if (claimsKnowledgeBase) {
+        url.searchParams.set("knowledge-base", claimsKnowledgeBase);
+      } else {
         url.searchParams.delete("knowledge-base");
       }
     } else if (view === "graph") {
@@ -442,7 +445,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       url.searchParams.delete("claim");
       url.searchParams.delete("knowledge-base");
     }
-    const state = { stack: currentStackTargets(), view: view, claim: selectedClaimKey };
+    const state = { stack: currentStackTargets(), view: view, claim: selectedClaimKey, claimsKnowledgeBase: activeClaimsKnowledgeBase };
     window.history[pushHistory ? "pushState" : "replaceState"](state, "", url);
   }
 
@@ -462,7 +465,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function setClaimsViewRequested(value, updateLocation) {
-    claimsViewRequested = Boolean(value) && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
+    claimsViewRequested = Boolean(value) && claimsViewCanOpen(claimsData, activeClaimsKnowledgeBase);
     if (claimsViewRequested) {
       graphViewRequested = false;
       renderClaimsWorkspace();
@@ -506,45 +509,76 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function bindClaimsView() {
-    if (!claimsViewToggle || claimsViewToggle.dataset.claimsViewBound === "true") {
-      return;
-    }
-    claimsViewToggle.dataset.claimsViewBound = "true";
-    refreshClaimsViewToggle();
-    claimsViewToggle.addEventListener("click", async function () {
-      try {
-        await ensureClaimsData();
-      } catch {
+    claimsViewToggles.forEach(function (toggle) {
+      if (toggle.dataset.claimsViewBound === "true") {
         return;
       }
-      refreshClaimsViewToggle();
-      if (!claimsData.claims.length && !projectionHasProblems(claimsData)) {
-        return;
-      }
-      setClaimsViewRequested(!claimsViewRequested, true);
-      if (mobileSidebar.matches) {
-        setSidebarOpen(false);
-      }
+      toggle.dataset.claimsViewBound = "true";
+      toggle.addEventListener("click", async function () {
+        const knowledgeBase = claimsToggleKnowledgeBase(toggle);
+        const closeCurrent = claimsViewRequested && knowledgeBase === activeClaimsKnowledgeBase;
+        if (!closeCurrent) {
+          toggle.setAttribute("aria-busy", "true");
+          try {
+            await ensureClaimsData(knowledgeBase);
+          } finally {
+            toggle.removeAttribute("aria-busy");
+          }
+        }
+        refreshClaimsViewToggles();
+        setClaimsViewRequested(!closeCurrent, true);
+        if (mobileSidebar.matches) {
+          setSidebarOpen(false);
+        }
+      });
     });
+    refreshClaimsViewToggles();
   }
 
-  function refreshClaimsViewToggle() {
-    if (!claimsViewToggle) {
-      return;
+  function claimsToggleKnowledgeBase(toggle) {
+    return String(toggle?.dataset.knowledgeBase || currentKnowledgeBase || "").trim();
+  }
+
+  function claimsToggleForKnowledgeBase(knowledgeBase) {
+    const requested = String(knowledgeBase || "").trim();
+    return claimsViewToggles.find(function (toggle) {
+      return claimsToggleKnowledgeBase(toggle) === requested;
+    }) || (claimsViewToggles.length === 1 ? claimsViewToggles[0] : null);
+  }
+
+  function claimsDataURL(knowledgeBase) {
+    const toggle = claimsToggleForKnowledgeBase(knowledgeBase);
+    const toggleURL = String(toggle?.dataset.claimsUrl || "");
+    if (toggleURL) {
+      return toggleURL;
     }
     const source = document.querySelector("[data-claims-data]");
-    claimsViewToggle.hidden = claimsData.claims.length === 0
-      && !String(source?.dataset.url || "")
-      && !projectionHasProblems(claimsData);
-    const count = claimsViewToggle.querySelector("[data-claims-navigation-count]");
-    if (count) {
-      count.textContent = claimsData.status === "failed" && claimsData.claims.length === 0
-        ? "!"
-        : String(claimsData.claims.length) + (claimsData.status === "partial" ? "+" : "");
-    }
-    claimsViewToggle.title = projectionHasProblems(claimsData)
-      ? projectionFailureSummary(claimsData)
-      : "Claims";
+    return String(source?.dataset.url || "");
+  }
+
+  function refreshClaimsViewToggles() {
+    claimsViewToggles.forEach(function (toggle) {
+      const knowledgeBase = claimsToggleKnowledgeBase(toggle);
+      const dataURL = String(toggle.dataset.claimsUrl || "") || claimsDataURL(knowledgeBase);
+      const loaded = !dataURL || claimsDataCache.has(knowledgeBase);
+      const cached = loaded
+        ? claimsDataCache.get(knowledgeBase)
+          || (knowledgeBase === activeClaimsKnowledgeBase ? claimsData : null)
+        : null;
+      if (dataURL) {
+        toggle.hidden = false;
+      } else if (loaded) {
+        toggle.hidden = !claimsWorkspaceAvailable(cached);
+      }
+      const count = toggle.querySelector("[data-claims-navigation-count]");
+      if (count) {
+        count.textContent = !cached || cached.claims.length === 0
+          ? ""
+          : String(cached.claims.length);
+      }
+      const label = knowledgeBase ? "Claims for " + knowledgeBase : "Claims";
+      toggle.title = projectionHasProblems(cached) ? projectionFailureSummary(cached) : label;
+    });
   }
 
   function claimIdentity(claim) {
@@ -556,10 +590,29 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return encodeURIComponent(String(claim?.knowledgeBase || "")) + "|" + encodeURIComponent(String(claim?.declaringPath || ""));
   }
 
+  function claimDocumentLabel(claim) {
+    const knowledgeBase = String(claim?.knowledgeBase || "");
+    const prefix = knowledgeBase && knowledgeBase !== activeClaimsKnowledgeBase ? knowledgeBase + " / " : "";
+    return prefix + String(claim?.declaringPath || "");
+  }
+
   function projectionHasProblems(data) {
     return (data?.status === "partial" || data?.status === "failed")
       && Array.isArray(data?.failures)
       && data.failures.length > 0;
+  }
+
+  function claimsWorkspaceAvailable(data) {
+    return Boolean(data?.profilePresent)
+      || (Array.isArray(data?.claims) && data.claims.length > 0)
+      || (Array.isArray(data?.references) && data.references.length > 0)
+      || (Array.isArray(data?.entities) && data.entities.length > 0)
+      || (Array.isArray(data?.predicates) && data.predicates.length > 0);
+  }
+
+  function claimsViewCanOpen(data, knowledgeBase) {
+    const toggle = claimsToggleForKnowledgeBase(knowledgeBase);
+    return Boolean(toggle?.dataset.claimsUrl) || claimsWorkspaceAvailable(data);
   }
 
   function projectionFailureSummary(data) {
@@ -833,8 +886,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       options.predicate.set(claim.predicate?.id, claim.predicate?.label || claim.predicate?.id);
       (claim.owners || []).forEach(function (owner) { options.owner.set(owner, owner); });
       (claim.evidence || []).forEach(function (evidence) { options.stance.set(evidence.stance, evidence.stance); });
-      const documentValue = (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath;
-      options.document.set(claimDocumentIdentity(claim), documentValue);
+      options.document.set(claimDocumentIdentity(claim), claimDocumentLabel(claim));
     });
     return options;
   }
@@ -941,7 +993,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
           }
         }
         if (!claim.projection?.metric || showSource) {
-          meta.append(createClaimsElement("span", "claims-result-path", (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath));
+          meta.append(createClaimsElement("span", "claims-result-path", claimDocumentLabel(claim)));
         }
         if ((claim.issues || []).length > 0) {
           appendClaimBadge(meta, String(claim.issues.length) + " issues", "invalid");
@@ -958,6 +1010,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       if (claimsData.status === "failed") {
         empty.append(createClaimsElement("strong", "", "Claims are unavailable."));
         empty.append(createClaimsElement("span", "", projectionFailureSummary(claimsData) + ". Refresh to try again."));
+      } else if (claimsData.claims.length === 0) {
+        const label = activeClaimsKnowledgeBase ? " in " + activeClaimsKnowledgeBase : "";
+        empty.append(createClaimsElement("strong", "", "No claims" + label + "."));
+        empty.append(createClaimsElement("span", "", "Add typed claims to this knowledge space, then refresh the viewer."));
       } else {
         empty.append(createClaimsElement("strong", "", claimsData.status === "partial"
           ? "No available claims match these filters."
@@ -1252,7 +1308,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     appendClaimDefinition(provenanceList, "Status", claim.status);
     appendClaimDefinition(provenanceList, "Trust tier", claim.trustTier);
     appendClaimDefinition(provenanceList, "Freshness", claim.stale ? "stale" : "current");
-    appendClaimDefinition(provenanceList, "Document", (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath, { mono: true });
+    appendClaimDefinition(provenanceList, "Document", claimDocumentLabel(claim), { mono: true });
     if (claim.verification) {
       appendClaimDefinition(provenanceList, "Verification", [claim.verification.by, claim.verification.method, claim.verification.at].filter(Boolean).join(" · "));
     }
@@ -1373,9 +1429,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       const count = matches.length === claimsData.claims.length
         ? claimsData.claims.length + " claims"
         : matches.length + " of " + claimsData.claims.length;
-      summary.textContent = projectionHasProblems(claimsData)
+      const scopedCount = projectionHasProblems(claimsData)
         ? count + " · " + projectionFailureSummary(claimsData)
         : count;
+      summary.textContent = activeClaimsKnowledgeBase ? activeClaimsKnowledgeBase + " · " + scopedCount : scopedCount;
+    }
+    if (claimsTitle) {
+      claimsTitle.textContent = activeClaimsKnowledgeBase ? "Claims in " + activeClaimsKnowledgeBase : "Claims";
     }
   }
 
@@ -2201,10 +2261,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         return;
       }
       const disclosure = group.querySelector("[data-knowledge-base-disclosure]");
-      const tree = group.querySelector(".knowledge-tree");
+      const content = disclosure ? document.getElementById(disclosure.getAttribute("aria-controls")) : null;
       disclosure?.setAttribute("aria-expanded", "true");
-      if (tree) {
-        tree.hidden = false;
+      if (content) {
+        content.hidden = false;
       }
     });
     if (scrollCurrent && fileSidebar) {
@@ -2355,39 +2415,34 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
   }
 
+  function normalizeClaimsData(value) {
+    const parsed = value && typeof value === "object" ? value : {};
+    return {
+      schemaVersion: String(parsed.schemaVersion || "1"),
+      profilePresent: Boolean(parsed.profilePresent),
+      claims: Array.isArray(parsed.claims) ? parsed.claims : [],
+      references: Array.isArray(parsed.references) ? parsed.references : [],
+      entities: Array.isArray(parsed.entities) ? parsed.entities : [],
+      predicates: Array.isArray(parsed.predicates) ? parsed.predicates : [],
+      sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+      status: String(parsed.status || "complete"),
+      failures: Array.isArray(parsed.failures) ? parsed.failures : []
+    };
+  }
+
   function readClaimsData() {
-    const empty = { schemaVersion: "1", claims: [], references: [], entities: [], predicates: [], sources: [], issues: [], status: "complete", failures: [] };
+    const empty = normalizeClaimsData({});
     const shared = window.OpenKnowledgeStaticData?.claims;
     if (shared && typeof shared === "object") {
-      return {
-        schemaVersion: String(shared.schemaVersion || "1"),
-        claims: Array.isArray(shared.claims) ? shared.claims : [],
-        references: Array.isArray(shared.references) ? shared.references : [],
-        entities: Array.isArray(shared.entities) ? shared.entities : [],
-        predicates: Array.isArray(shared.predicates) ? shared.predicates : [],
-        sources: Array.isArray(shared.sources) ? shared.sources : [],
-        issues: Array.isArray(shared.issues) ? shared.issues : [],
-        status: String(shared.status || "complete"),
-        failures: Array.isArray(shared.failures) ? shared.failures : []
-      };
+      return normalizeClaimsData(shared);
     }
     const source = document.querySelector("[data-claims-data]");
     if (!source) {
       return empty;
     }
     try {
-      const parsed = JSON.parse(source.textContent || "{}");
-      return {
-        schemaVersion: String(parsed.schemaVersion || "1"),
-        claims: Array.isArray(parsed.claims) ? parsed.claims : [],
-        references: Array.isArray(parsed.references) ? parsed.references : [],
-        entities: Array.isArray(parsed.entities) ? parsed.entities : [],
-        predicates: Array.isArray(parsed.predicates) ? parsed.predicates : [],
-        sources: Array.isArray(parsed.sources) ? parsed.sources : [],
-        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
-        status: String(parsed.status || "complete"),
-        failures: Array.isArray(parsed.failures) ? parsed.failures : []
-      };
+      return normalizeClaimsData(JSON.parse(source.textContent || "{}"));
     } catch {
       return empty;
     }
@@ -2423,14 +2478,44 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return knowledgeGraphLoadPromise;
   }
 
-  function ensureClaimsData() {
-    const source = document.querySelector("[data-claims-data]");
-    const dataURL = String(source?.dataset.url || "");
+  function activateClaimsData(nextData, knowledgeBase) {
+    const nextKnowledgeBase = String(knowledgeBase || "").trim();
+    const switchedKnowledgeBase = nextKnowledgeBase !== activeClaimsKnowledgeBase;
+    Object.assign(claimsData, normalizeClaimsData(nextData));
+    activeClaimsKnowledgeBase = nextKnowledgeBase;
+    if (switchedKnowledgeBase) {
+      selectedClaimKey = "";
+      claimsInspectorContext = null;
+      if (claimsQuery) {
+        claimsQuery.value = "";
+      }
+      claimsFilters?.querySelectorAll("select").forEach(function (select) { select.value = ""; });
+    }
+    if (claimsFilters) {
+      claimsFilters.dataset.populated = "false";
+      const options = claimsFilterOptions();
+      claimsFilters.querySelectorAll("[data-claims-filter]").forEach(function (select) {
+        if (options[select.dataset.claimsFilter] instanceof Map) {
+          Array.from(select.options).slice(1).forEach(function (option) { option.remove(); });
+        }
+      });
+    }
+    refreshClaimsViewToggles();
+    return claimsData;
+  }
+
+  function ensureClaimsData(knowledgeBase) {
+    const requestedKnowledgeBase = String(knowledgeBase || activeClaimsKnowledgeBase || currentKnowledgeBase || "").trim();
+    const dataURL = claimsDataURL(requestedKnowledgeBase);
     if (!dataURL) {
+      activeClaimsKnowledgeBase = requestedKnowledgeBase;
       return Promise.resolve(claimsData);
     }
-    if (!claimsDataLoadPromise) {
-      claimsDataLoadPromise = fetch(dataURL, { headers: { "Accept": "application/json" } })
+    if (claimsDataCache.has(requestedKnowledgeBase)) {
+      return Promise.resolve(activateClaimsData(claimsDataCache.get(requestedKnowledgeBase), requestedKnowledgeBase));
+    }
+    if (!claimsDataLoadPromises.has(requestedKnowledgeBase)) {
+      const load = fetch(dataURL, { headers: { "Accept": "application/json" } })
         .then(function (response) {
           if (!response.ok) {
             throw new Error("Claims request failed with status " + response.status);
@@ -2438,30 +2523,26 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
           return response.json();
         })
         .then(function (parsed) {
-          claimsData.schemaVersion = String(parsed.schemaVersion || "1");
-          ["claims", "references", "entities", "predicates", "sources", "issues"].forEach(function (key) {
-            claimsData[key] = Array.isArray(parsed[key]) ? parsed[key] : [];
-          });
-          claimsData.status = String(parsed.status || "complete");
-          claimsData.failures = Array.isArray(parsed.failures) ? parsed.failures : [];
-          if (claimsFilters) {
-            claimsFilters.dataset.populated = "false";
-            const options = claimsFilterOptions();
-            claimsFilters.querySelectorAll("[data-claims-filter]").forEach(function (select) {
-              if (options[select.dataset.claimsFilter] instanceof Map) {
-                Array.from(select.options).slice(1).forEach(function (option) { option.remove(); });
-              }
-            });
-          }
-          source.dataset.url = "";
-          return claimsData;
+          const normalized = normalizeClaimsData(parsed);
+          claimsDataCache.set(requestedKnowledgeBase, normalized);
+          return normalized;
         })
         .catch(function (error) {
-          claimsDataLoadPromise = null;
-          throw error;
+          const failed = normalizeClaimsData({
+            status: "failed",
+            failures: [{ knowledgeBase: requestedKnowledgeBase, message: error.message }]
+          });
+          claimsDataCache.set(requestedKnowledgeBase, failed);
+          return failed;
+        })
+        .finally(function () {
+          claimsDataLoadPromises.delete(requestedKnowledgeBase);
         });
+      claimsDataLoadPromises.set(requestedKnowledgeBase, load);
     }
-    return claimsDataLoadPromise;
+    return claimsDataLoadPromises.get(requestedKnowledgeBase).then(function (loaded) {
+      return activateClaimsData(loaded, requestedKnowledgeBase);
+    });
   }
 
   const defaultGraphSettings = Object.freeze({
@@ -3363,8 +3444,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const knowledgeBase = String(node.knowledgeBase || "").trim();
     if (node.kind === "claim" && node.url) {
       try {
-        await ensureClaimsData();
-        refreshClaimsViewToggle();
+        await ensureClaimsData(knowledgeBase);
+        refreshClaimsViewToggles();
       } catch {
         return;
       }
@@ -3382,8 +3463,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     if (node.kind === "entity") {
       try {
-        await ensureClaimsData();
-        refreshClaimsViewToggle();
+        await ensureClaimsData(knowledgeBase);
+        refreshClaimsViewToggles();
       } catch {
         return;
       }
@@ -5243,7 +5324,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function updateWorkspaceState() {
     const panelCount = panels().length;
     const isEmpty = panelCount === 0;
-    const showClaims = claimsViewRequested && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
+    const showClaims = claimsViewIsVisible();
     const showGraph = !showClaims && (graphViewRequested || isEmpty);
     if (showGraph && !knowledgeGraphRendered) {
       knowledgeGraphRendered = true;
@@ -5299,15 +5380,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         documentsViewToggle.setAttribute("aria-current", "page");
       }
     }
-    if (claimsViewToggle) {
-      claimsViewToggle.dataset.active = showClaims ? "true" : "false";
-      claimsViewToggle.setAttribute("aria-pressed", showClaims ? "true" : "false");
-      if (showClaims) {
-        claimsViewToggle.setAttribute("aria-current", "page");
+    claimsViewToggles.forEach(function (toggle) {
+      const active = showClaims && claimsToggleKnowledgeBase(toggle) === activeClaimsKnowledgeBase;
+      toggle.dataset.active = active ? "true" : "false";
+      toggle.setAttribute("aria-pressed", active ? "true" : "false");
+      if (active) {
+        toggle.setAttribute("aria-current", "page");
       } else {
-        claimsViewToggle.removeAttribute("aria-current");
+        toggle.removeAttribute("aria-current");
       }
-    }
+    });
     stackEl.hidden = showGraph || showClaims;
     document.documentElement.dataset.viewerView = showClaims ? "claims" : showGraph ? "graph" : "notes";
     panels().forEach(applyPanelWidth);
@@ -5397,7 +5479,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function updateTitle() {
     if (claimsViewIsVisible()) {
-      document.title = "Claims - Open Knowledge";
+      document.title = (activeClaimsKnowledgeBase ? "Claims in " + activeClaimsKnowledgeBase : "Claims") + " - Open Knowledge";
       return;
     }
     if (graphViewIsVisible()) {
@@ -6142,6 +6224,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       activePath: nextActivePath,
       view: workspaceViewName(),
       claim: selectedClaimKey,
+      claimsKnowledgeBase: activeClaimsKnowledgeBase,
       workspaceScrollLeft: workspace.scrollLeft || 0,
       panelScrollTop: panelScrollTop
     });
@@ -6167,7 +6250,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (state.claim && claimByKey(state.claim)) {
       selectedClaimKey = state.claim;
     }
-    claimsViewRequested = state.view === "claims" && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
+    if (state.claimsKnowledgeBase) {
+      activeClaimsKnowledgeBase = state.claimsKnowledgeBase;
+    }
+    claimsViewRequested = state.view === "claims" && claimsViewCanOpen(claimsData, activeClaimsKnowledgeBase);
     setGraphViewRequested(state.view === "graph", false);
     if (claimsViewRequested) {
       setClaimsViewRequested(true, false);
@@ -7106,14 +7192,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const openClaimButton = closestElement(event.target, "[data-open-claim]");
     if (openClaimButton) {
       event.preventDefault();
+      const sourcePanel = openClaimButton.closest("[data-note-path]");
+      const sourceKnowledgeBase = String(sourcePanel?.dataset.knowledgeBase || currentKnowledgeBase || "");
       try {
-        await ensureClaimsData();
-        refreshClaimsViewToggle();
+        await ensureClaimsData(sourceKnowledgeBase);
+        refreshClaimsViewToggles();
       } catch {
         return;
       }
-      const sourcePanel = openClaimButton.closest("[data-note-path]");
-      const sourceKnowledgeBase = String(sourcePanel?.dataset.knowledgeBase || currentKnowledgeBase || "");
       const claim = claimByID(openClaimButton.dataset.openClaim, sourceKnowledgeBase);
       if (claim) {
         selectedClaimKey = claimIdentity(claim);
@@ -7288,23 +7374,22 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   window.addEventListener("popstate", async function () {
-    const requestedView = new URL(window.location.href).searchParams.get("view");
+    const params = new URL(window.location.href).searchParams;
+    const requestedView = params.get("view");
     graphViewRequested = requestedView === "graph";
     const wantsClaimsView = requestedView === "claims";
     if (wantsClaimsView) {
-      await ensureClaimsData().catch(function () {});
-      refreshClaimsViewToggle();
+      await ensureClaimsData(params.get("knowledge-base") || currentKnowledgeBase).catch(function () {});
+      refreshClaimsViewToggles();
     }
-    const requestedClaimsView = wantsClaimsView && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
-    claimsViewRequested = requestedClaimsView;
-    const params = new URL(window.location.href).searchParams;
+    claimsViewRequested = wantsClaimsView && claimsViewCanOpen(claimsData, activeClaimsKnowledgeBase);
     const requestedClaim = claimByID(params.get("claim") || "", params.get("knowledge-base") || currentKnowledgeBase);
     if (requestedClaim) {
       selectedClaimKey = claimIdentity(requestedClaim);
     }
     const paths = stackFromLocation();
     await restoreStack(paths, highlightFromLocation());
-    if (requestedClaimsView) {
+    if (claimsViewRequested) {
       setClaimsViewRequested(true, false);
     }
   });
@@ -7363,14 +7448,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     panels().forEach(bindPanel);
     const initialParams = new URL(window.location.href).searchParams;
     if (initialParams.get("view") === "claims") {
-      await ensureClaimsData().catch(function () {});
-      refreshClaimsViewToggle();
+      await ensureClaimsData(initialParams.get("knowledge-base") || currentKnowledgeBase).catch(function () {});
+      refreshClaimsViewToggles();
     }
     const initialClaim = claimByID(initialParams.get("claim") || "", initialParams.get("knowledge-base") || currentKnowledgeBase);
     if (initialClaim) {
       selectedClaimKey = claimIdentity(initialClaim);
     }
-    claimsViewRequested = initialParams.get("view") === "claims" && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
+    claimsViewRequested = initialParams.get("view") === "claims" && claimsViewCanOpen(claimsData, activeClaimsKnowledgeBase);
     graphViewRequested = initialParams.get("view") === "graph";
     ensureActivePanel();
     const initialPanel = panels()[0];
@@ -7388,7 +7473,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       updateTitle();
       applySearchHighlight(activePanel(), requestedHighlight);
     }
-    if (initialParams.get("view") === "claims" && (claimsData.claims.length > 0 || projectionHasProblems(claimsData))) {
+    if (claimsViewRequested) {
       setClaimsViewRequested(true, false);
       syncWorkspaceViewURL(false);
     }

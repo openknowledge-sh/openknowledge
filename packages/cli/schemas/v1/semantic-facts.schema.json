@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/semantic-facts.schema.json",
+  "title": "Open Knowledge normalized semantic facts v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "revision", "valid", "namespaces", "entities", "predicates", "evidenceRoles", "sources", "claims", "evidence", "relations", "references"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+    "valid": {"type": "boolean"},
+    "namespaces": {"type": "array", "items": {"$ref": "#/$defs/namespace"}},
+    "entities": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/claimEntity"}},
+    "predicates": {"type": "array", "items": {"$ref": "#/$defs/predicate"}},
+    "evidenceRoles": {"type": "array", "items": {"$ref": "#/$defs/evidenceRole"}},
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "relations": {"type": "array", "items": {"$ref": "#/$defs/relation"}},
+    "references": {"type": "array", "items": {"$ref": "#/$defs/reference"}},
+    "issues": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/issue"}}
+  },
+  "$defs": {
+    "namespace": {
+      "type": "object",
+      "required": ["prefix", "iri"],
+      "properties": {
+        "prefix": {"type": "string"},
+        "iri": {"type": "string", "format": "uri"}
+      },
+      "additionalProperties": false
+    },
+    "predicate": {
+      "type": "object",
+      "required": ["id", "objectKind"],
+      "properties": {
+        "id": {"type": "string"},
+        "subjectTypes": {"type": "array", "items": {"type": "string"}},
+        "objectKind": {"enum": ["literal", "entity", "quantity"]},
+        "datatype": {"type": "string"},
+        "quantityKind": {"type": "string"},
+        "canonicalUnit": {"type": "string"},
+        "requiredScope": {"type": "array", "items": {"type": "string"}},
+        "maximumCount": {"type": "integer", "minimum": 1},
+        "prefLabel": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "evidenceRole": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string"},
+        "prefLabel": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["key", "document", "id", "resource"],
+      "properties": {
+        "key": {"type": "string"},
+        "document": {"type": "string"},
+        "id": {"type": "string"},
+        "resource": {"type": "string"},
+        "title": {"type": "string"},
+        "author": {"type": "string"},
+        "observe": {"enum": ["manual", "metadata", "fetch", "pinned"]},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "role": {"type": "string"},
+        "access": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^(profile|agent|team|use_case):[^\\s]+$"}},
+        "authorityApprovedBy": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "required": ["key", "value"],
+      "properties": {
+        "key": {"type": "string"},
+        "value": {"$ref": "common.schema.json#/$defs/claimObject"}
+      },
+      "additionalProperties": false
+    },
+    "validTime": {
+      "type": "object",
+      "properties": {
+        "from": {"type": "string"},
+        "until": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": ["method", "by", "at"],
+      "properties": {
+        "method": {"type": "string"},
+        "by": {"type": "string"},
+        "at": {"type": "string"},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "decision": {
+      "type": "object",
+      "required": ["action", "by", "at"],
+      "properties": {
+        "action": {"enum": ["rejected", "superseded", "archived"]},
+        "by": {"type": "string"},
+        "at": {"type": "string"},
+        "reason": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["document", "documentId", "locator", "contentSha256"],
+      "properties": {
+        "document": {"type": "string"},
+        "documentId": {"type": "string"},
+        "locator": {"type": "string", "pattern": "^okf\\+sha256://[a-f0-9]{64}/"},
+        "contentSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "lineStart": {"type": "integer", "minimum": 1},
+        "lineEnd": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "claim": {
+      "type": "object",
+      "required": ["id", "slot", "subject", "predicate", "object", "status", "trustTier", "owners", "scope", "validTime", "stale", "evidenceKeys", "provenance"],
+      "properties": {
+        "id": {"type": "string"},
+        "slot": {"type": "string"},
+        "subject": {"type": "string"},
+        "predicate": {"type": "string"},
+        "object": {"$ref": "common.schema.json#/$defs/claimObject"},
+        "status": {"enum": ["extracted", "proposed", "supported", "verified", "disputed", "rejected", "superseded", "archived"]},
+        "trustTier": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
+        "owners": {"type": "array", "items": {"type": "string"}},
+        "scope": {"type": "array", "items": {"$ref": "#/$defs/scope"}},
+        "validTime": {"$ref": "#/$defs/validTime"},
+        "stale": {"type": "boolean"},
+        "staleAfter": {"type": "string"},
+        "verification": {"$ref": "#/$defs/verification"},
+        "decisions": {"type": "array", "items": {"$ref": "#/$defs/decision"}},
+        "sectionRef": {"type": "string"},
+        "evidenceKeys": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["key", "claimId", "id", "sourceKey", "sourceRef", "stance", "role"],
+      "properties": {
+        "key": {"type": "string"},
+        "claimId": {"type": "string"},
+        "id": {"type": "string"},
+        "sourceKey": {"type": "string"},
+        "sourceRef": {"type": "string"},
+        "stance": {"enum": ["supports", "opposes", "contextualizes"]},
+        "role": {"type": "string"},
+        "selector": {"$ref": "common.schema.json#/$defs/claimSelector"},
+        "observedAt": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "required": ["sourceId", "kind", "targetId"],
+      "properties": {
+        "sourceId": {"type": "string"},
+        "kind": {"enum": ["supersedes", "contradicts", "derived_from"]},
+        "targetId": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "required": ["document", "claimId"],
+      "properties": {
+        "document": {"type": "string"},
+        "claimId": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

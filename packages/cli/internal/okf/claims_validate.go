@@ -22,6 +22,7 @@ func AnalyzeClaimProfile(bundle ASTBundle, now time.Time) ClaimProfileBundle {
 
 func AnalyzeClaimProfileWithEvidenceRoot(bundle ASTBundle, now time.Time, evidenceRoot string) ClaimProfileBundle {
 	profile := ClaimProfileBundle{Documents: map[string]ClaimProfileSignals{}, Claims: []Claim{}, Dependents: map[string][]string{}, Ontology: newClaimOntology()}
+	evidenceVerifier := newClaimEvidenceVerifier(bundle.Root, evidenceRoot)
 	entityPaths := map[string]string{}
 	for _, document := range bundle.Documents {
 		if document.FrontmatterDiagnostic != nil || document.ReadDiagnostic != nil || document.UTF8Diagnostic != nil {
@@ -48,6 +49,9 @@ func AnalyzeClaimProfileWithEvidenceRoot(bundle ASTBundle, now time.Time, eviden
 		if signals == nil {
 			continue
 		}
+		for index := range signals.Claims {
+			deriveClaimEvidenceFreshness(bundle.Root, document, &signals.Claims[index])
+		}
 		profile.Documents[document.Rel] = *signals
 		for _, claim := range signals.Claims {
 			profile.Claims = append(profile.Claims, claim)
@@ -65,7 +69,7 @@ func AnalyzeClaimProfileWithEvidenceRoot(bundle ASTBundle, now time.Time, eviden
 			byID[claim.ID] = claim
 		}
 		document := claimDocuments[claim.ID]
-		profile.Issues = append(profile.Issues, validateClaim(bundle.Root, evidenceRoot, document, claim, profile.Ontology)...)
+		profile.Issues = append(profile.Issues, validateClaim(document, claim, profile.Ontology, evidenceVerifier)...)
 	}
 	for _, claim := range profile.Claims {
 		profile.Issues = append(profile.Issues, validateClaimRelations(claim, byID)...)
@@ -112,7 +116,7 @@ func validateClaimEntityLabels(ontology ClaimOntology, entityPaths map[string]st
 	return issues
 }
 
-func validateClaim(root string, evidenceRoot string, document ASTDocument, claim Claim, ontology ClaimOntology) []Issue {
+func validateClaim(document ASTDocument, claim Claim, ontology ClaimOntology, evidenceVerifier *claimEvidenceVerifier) []Issue {
 	var issues []Issue
 	add := func(message string) {
 		issues = append(issues, claimIssue(document.Rel, fmt.Sprintf("claim %q %s", claim.ID, message)))
@@ -156,7 +160,7 @@ func validateClaim(root string, evidenceRoot string, document ASTDocument, claim
 		}
 		validateClaimObject(object, "scope."+dimension, ontology, add)
 	}
-	validateClaimEvidence(root, evidenceRoot, document, claim, ontology, add)
+	validateClaimEvidence(document, claim, ontology, evidenceVerifier, add)
 	if claim.Status == "verified" && claim.Verification == nil {
 		add("status verified requires verification")
 	}
@@ -265,7 +269,7 @@ func validateClaimObject(object ClaimObject, label string, ontology ClaimOntolog
 	}
 }
 
-func validateClaimEvidence(root string, evidenceRoot string, document ASTDocument, claim Claim, ontology ClaimOntology, add func(string)) {
+func validateClaimEvidence(document ASTDocument, claim Claim, ontology ClaimOntology, evidenceVerifier *claimEvidenceVerifier, add func(string)) {
 	sources := map[string]map[string]any{}
 	if values, ok := document.Frontmatter.Data["sources"].([]any); ok {
 		for _, item := range values {
@@ -300,7 +304,7 @@ func validateClaimEvidence(root string, evidenceRoot string, document ASTDocumen
 		if evidence.Selector != nil {
 			validateClaimSelector(evidence.ID, evidence.Selector, add)
 			if source != nil {
-				verifyClaimEvidenceSelector(root, evidenceRoot, document.Rel, evidence, source, add)
+				evidenceVerifier.verify(document.Rel, evidence, source, add)
 			}
 		}
 	}
@@ -348,6 +352,35 @@ func validateClaimVerification(claim Claim, add func(string)) {
 			add(fmt.Sprintf("verification evidence_ref %q does not match claim evidence", ref))
 		}
 	}
+	for _, version := range verification.EvidenceVersions {
+		evidence, exists := claimEvidenceByID(claim.Evidence, version.EvidenceRef)
+		if !exists {
+			add(fmt.Sprintf("verification evidence_version evidence_ref %q does not match claim evidence", version.EvidenceRef))
+		} else if evidence.SourceRef != version.SourceRef {
+			add(fmt.Sprintf("verification evidence_version %q source_ref %q does not match claim evidence source_ref %q", version.EvidenceRef, version.SourceRef, evidence.SourceRef))
+		}
+		if strings.TrimSpace(version.Resource) == "" {
+			add(fmt.Sprintf("verification evidence_version %q resource must be non-empty", version.EvidenceRef))
+		}
+		if !claimEvidenceSHA256Pattern.MatchString(version.SHA256) {
+			add(fmt.Sprintf("verification evidence_version %q sha256 must be a lowercase SHA-256 digest", version.EvidenceRef))
+		}
+		if !strings.Contains(version.By, ":") {
+			add(fmt.Sprintf("verification evidence_version %q by must be a namespaced actor ID", version.EvidenceRef))
+		}
+		if !claimOptionalDateTime(version.At) {
+			add(fmt.Sprintf("verification evidence_version %q at must be RFC 3339 or YYYY-MM-DD", version.EvidenceRef))
+		}
+	}
+}
+
+func claimEvidenceByID(values []ClaimEvidence, id string) (ClaimEvidence, bool) {
+	for _, evidence := range values {
+		if evidence.ID == id {
+			return evidence, true
+		}
+	}
+	return ClaimEvidence{}, false
 }
 
 func validateClaimRelations(claim Claim, byID map[string]Claim) []Issue {

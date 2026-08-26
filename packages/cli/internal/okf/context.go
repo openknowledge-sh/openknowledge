@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 const DefaultContextBudget = 2400
@@ -35,6 +36,7 @@ func BuildContextIndexWithVersionAndEvidence(root string, version string, eviden
 func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 	issues := append([]Issue{}, validation.Errors...)
 	issues = append(issues, validation.Warnings...)
+	claimProfile := AnalyzeClaimProfile(ast, time.Now())
 	var sections []ContextSection
 	for _, document := range ast.Documents {
 		if document.ReadDiagnostic != nil || document.UTF8Diagnostic != nil {
@@ -45,7 +47,14 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 			metadata = ASTDocumentMetadata{}
 		}
 		entry := listEntryFromASTSummary(SummarizeASTDocument(document, metadata))
-		sections = append(sections, splitContextSectionsFromASTDocument(entry, document)...)
+		documentSections := splitContextSectionsFromASTDocument(entry, document)
+		if signals, exists := claimProfile.Documents[document.Rel]; exists {
+			for index := range documentSections {
+				copySignals := signals
+				documentSections[index].ClaimProfile = &copySignals
+			}
+		}
+		sections = append(sections, documentSections...)
 	}
 	revision := RetrievalRevision{SpecVersion: validation.SpecVersion, IndexSHA256: retrievalIndexSHA256(ast)}
 	for index := range sections {

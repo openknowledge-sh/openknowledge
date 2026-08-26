@@ -1,6 +1,7 @@
 package okf_test
 
 import (
+	stdcontext "context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -63,6 +64,50 @@ func TestPublicReadAPIExercisesCoreViews(t *testing.T) {
 	graph, err := okf.BuildGraphWithType(root, "0.1", okf.GraphTypeSearch)
 	if err != nil || len(graph.Nodes) == 0 || graph.Type != okf.GraphTypeSearch {
 		t.Fatalf("unexpected public graph: %#v err=%v", graph, err)
+	}
+	facts, err := okf.BuildSemanticFactsWithVersion(root, "0.1")
+	if err != nil || facts.SchemaVersion != okf.SemanticFactsSchemaVersion || facts.Revision != revision || len(facts.Namespaces) == 0 {
+		t.Fatalf("unexpected public semantic facts: %#v err=%v", facts, err)
+	}
+	rdf, err := okf.RDFDatasetFromFacts(facts)
+	if err != nil || rdf.SchemaVersion != okf.RDFDatasetSchemaVersion || rdf.Revision != revision || rdf.GraphIRI == "" {
+		t.Fatalf("unexpected public RDF dataset: %#v err=%v", rdf, err)
+	}
+	nquads, err := rdf.NQuads()
+	if err != nil || len(nquads) != 0 {
+		t.Fatalf("unexpected public N-Quads export: %q err=%v", nquads, err)
+	}
+	sparqlSnapshot, err := okf.SPARQLSnapshotFromFacts(facts, okf.SPARQLQueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sparqlResult, err := sparqlSnapshot.Query(stdcontext.Background(), `ASK { ?s ?p ?o }`)
+	if err != nil || sparqlResult.SchemaVersion != okf.SPARQLQuerySchemaVersion || sparqlResult.Boolean == nil || *sparqlResult.Boolean {
+		t.Fatalf("unexpected public SPARQL result: %#v err=%v", sparqlResult, err)
+	}
+	datalogSnapshot, err := okf.DatalogSnapshotFromFacts(facts, okf.DatalogQueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	datalogResult, err := datalogSnapshot.Query(stdcontext.Background(), okf.DatalogQuery{Query: `claim(ID, Subject, Predicate, Object)`})
+	if err != nil || datalogResult.SchemaVersion != okf.DatalogQuerySchemaVersion || len(datalogResult.Results) != 0 || datalogResult.RuleProfile != okf.DatalogProfileSafe {
+		t.Fatalf("unexpected public Datalog result: %#v err=%v", datalogResult, err)
+	}
+	hybridSnapshot, err := okf.BuildHybridSnapshotWithVersion(root, "0.1", okf.HybridQueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hybridResult, err := hybridSnapshot.Query(stdcontext.Background(), okf.HybridQuery{Text: "deterministic search", Limit: 5})
+	if err != nil || hybridResult.SchemaVersion != okf.HybridQuerySchemaVersion || len(hybridResult.Results) == 0 || hybridResult.Results[0].Kind != okf.HybridKindRetrievedText {
+		t.Fatalf("unexpected public hybrid result: %#v err=%v", hybridResult, err)
+	}
+	vectorIndex, err := okf.BuildLocalVectorIndex(stdcontext.Background(), root, "0.1", okf.HashedEmbeddingProvider{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vectorResults, err := vectorIndex.Search(stdcontext.Background(), "deterministic search", 5)
+	if err != nil || len(vectorResults.Results) == 0 || vectorResults.Identity.Revision != revision || vectorIndex.Identity().ModelFingerprint == "" {
+		t.Fatalf("unexpected public vector search: %#v err=%v", vectorResults, err)
 	}
 	info, err := okf.ReadBundleInfo(root)
 	if err != nil || info.Metadata.Name != "sdk-test" {

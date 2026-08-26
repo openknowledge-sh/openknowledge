@@ -170,9 +170,11 @@ func PinEvidence(ctx context.Context, options EvidencePinOptions) (EvidencePinRe
 	}
 	resourceFromDocument = filepath.ToSlash(resourceFromDocument)
 	changed := strings.TrimSpace(claimStringValue(source["resource"])) != resourceFromDocument ||
+		strings.TrimSpace(claimStringValue(source["live_resource"])) != original ||
 		strings.TrimSpace(claimStringValue(source["observe"])) != "pinned" ||
 		strings.TrimSpace(claimStringValue(source["sha256"])) != digest
 	if changed {
+		source["live_resource"] = original
 		source["resource"] = resourceFromDocument
 		source["observe"] = "pinned"
 		source["sha256"] = digest

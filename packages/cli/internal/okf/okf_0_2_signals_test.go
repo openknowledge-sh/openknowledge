@@ -10,7 +10,7 @@ func TestDeriveOKFV02SignalsTrustFreshnessAndContracts(t *testing.T) {
 	metadata := map[string]any{
 		"type":        "Attested Computation",
 		"status":      "deprecated",
-		"stale_after": "2026-08-04",
+		"stale_after": "2026-08-04T00:00:00Z",
 		"generated":   map[string]any{"by": "process:nightly", "at": "2026-08-01T10:00:00Z"},
 		"verified": []any{
 			map[string]any{"by": "agent/reviewer-v1", "at": "2026-08-02T10:00:00Z"},
@@ -24,9 +24,9 @@ func TestDeriveOKFV02SignalsTrustFreshnessAndContracts(t *testing.T) {
 			"title":         "Revenue policy",
 			"author":        "team:finance",
 			"usage_count":   12,
-			"last_modified": "2026-07-31",
+			"last_modified": "2026-07-31T00:00:00Z",
 		}},
-		"usage_window": map[string]any{"from": "2026-07-01", "to": "2026-07-31"},
+		"usage_window": map[string]any{"from": "2026-07-01T00:00:00Z", "to": "2026-07-31T00:00:00Z"},
 		"runtime":      "python3",
 		"parameters":   []any{map[string]any{"name": "year", "type": "integer", "required": true}},
 		"computation":  "scripts/revenue.py",
@@ -41,11 +41,21 @@ func TestDeriveOKFV02SignalsTrustFreshnessAndContracts(t *testing.T) {
 	if signals.Generated == nil || signals.Generated.By != "process:nightly" || len(signals.Verified) != 2 {
 		t.Fatalf("unexpected provenance: %#v", signals)
 	}
-	if len(signals.Sources) != 1 || signals.Sources[0].Observe != "pinned" || signals.Sources[0].SHA256 != strings.Repeat("a", 64) || signals.Sources[0].UsageWindow == nil || signals.Sources[0].UsageWindow.To != "2026-07-31" {
+	if len(signals.Sources) != 1 || signals.Sources[0].Observe != "pinned" || signals.Sources[0].SHA256 != strings.Repeat("a", 64) || signals.Sources[0].UsageWindow == nil || signals.Sources[0].UsageWindow.To != "2026-07-31T00:00:00Z" {
 		t.Fatalf("expected shared usage window on source: %#v", signals.Sources)
 	}
 	if signals.Computation == nil || signals.Computation.Path != "scripts/revenue.py" || signals.Computation.Executor == nil || len(signals.Computation.Executor.Receipt) != 2 || signals.Computation.Attester == nil {
 		t.Fatalf("unexpected computation contract: %#v", signals.Computation)
+	}
+}
+
+func TestDeriveOKFV02SignalsFreshnessUsesAuthoredInstant(t *testing.T) {
+	deadline := "2026-08-04T00:00:00+05:30"
+	before := DeriveOKFV02SignalsAt(map[string]any{"stale_after": deadline}, time.Date(2026, 8, 3, 18, 29, 59, 0, time.UTC))
+	after := DeriveOKFV02SignalsAt(map[string]any{"stale_after": deadline}, time.Date(2026, 8, 3, 18, 30, 0, 0, time.UTC))
+	dateOnly := DeriveOKFV02SignalsAt(map[string]any{"stale_after": "2026-08-04"}, time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC))
+	if before.Stale || !after.Stale || dateOnly.Stale {
+		t.Fatalf("expected absolute-instant freshness and ignored date-only value: before=%#v after=%#v dateOnly=%#v", before, after, dateOnly)
 	}
 }
 

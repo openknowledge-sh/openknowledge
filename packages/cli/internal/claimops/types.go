@@ -19,6 +19,7 @@ type Occurrence struct {
 type SourceRef struct {
 	ID                  string `json:"id"`
 	Resource            string `json:"resource"`
+	LiveResource        string `json:"liveResource,omitempty"`
 	Observe             string `json:"observe,omitempty"`
 	SHA256              string `json:"sha256,omitempty"`
 	Role                string `json:"role,omitempty"`
@@ -36,6 +37,7 @@ type IndexedSource struct {
 	Path                string `json:"path"`
 	ID                  string `json:"id"`
 	Resource            string `json:"resource"`
+	LiveResource        string `json:"liveResource,omitempty"`
 	Observe             string `json:"observe,omitempty"`
 	SHA256              string `json:"sha256,omitempty"`
 	Role                string `json:"role,omitempty"`

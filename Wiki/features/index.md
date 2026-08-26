@@ -4,10 +4,14 @@
   knowledge-base lifecycle.
 - [Knowledge architecture](knowledge-architecture.md) — Explains the canonical
   OKF source and its projections.
+- [Semantic query](commands/query.md) — Documents SPARQL, Datalog, proofs, and
+  hybrid retrieval.
 - [Knowledge CI Golden Path](golden-path.md) — Connects setup, audit, fixes,
   eval gates, and production MCP publication.
 - [Typed Claims v1](claim-profile.md) — Defines typed, evidence-backed claims,
   deterministic conflicts, dependencies, and retrieval metadata.
+- [Claim freshness](claim-freshness.md) — Derives exact claim staleness from
+  changed evidence and defines reconciliation.
 - [Corpus Schema v1](corpus-schema.md) — Adds optional bundle-wide document
   types, path rules, required metadata, typed links, and migration records.
 - [Installation](installation.md) — Gives CLI installation and verification
@@ -17,7 +21,7 @@
 - [Configuration](configuration.md) — Describes the
   `.openknowledge.toml` configuration.
 - [Commands](commands/) — Lists the current CLI commands.
-- [Exporters](exporters/) — Documents HTML, JSON, graph, and tar output.
+- [Exporters](exporters/) — Documents HTML, JSON, graph, RDF, and tar output.
 - [Machine-readable contracts](machine-contracts.md) — Documents JSON schemas
   and compatibility rules.
 - [Go API](go-api.md) — Documents the read-only core.

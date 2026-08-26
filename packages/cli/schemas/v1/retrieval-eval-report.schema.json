@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/retrieval-eval-report.schema.json",
+  "title": "Open Knowledge retrieval eval report",
+  "type": "object",
+  "required": ["schemaVersion", "dataset", "target", "systems", "gates", "summary"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "dataset": {"$ref": "#/$defs/dataset"},
+    "target": {"$ref": "#/$defs/target"},
+    "systems": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/system"}},
+    "gates": {"type": "array", "items": {"$ref": "#/$defs/gate"}},
+    "summary": {"$ref": "#/$defs/gateSummary"}
+  },
+  "$defs": {
+    "dataset": {
+      "type": "object",
+      "required": ["type", "version", "id", "path", "sha256"],
+      "properties": {
+        "type": {"const": "openknowledge.retrieval-eval"},
+        "version": {"const": 1},
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["root", "revision"],
+      "properties": {
+        "root": {"type": "string"},
+        "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"}
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "required": ["provider", "id", "revision", "dimensions", "metric"],
+      "properties": {
+        "provider": {"type": "string"},
+        "id": {"type": "string"},
+        "revision": {"type": "string"},
+        "dimensions": {"type": "integer", "minimum": 1},
+        "metric": {"const": "cosine"}
+      },
+      "additionalProperties": false
+    },
+    "gate": {
+      "type": "object",
+      "required": ["id", "system", "level", "metric", "minimum", "status"],
+      "properties": {
+        "id": {"type": "string"},
+        "system": {"type": "string"},
+        "level": {"enum": ["section", "document"]},
+        "metric": {"enum": ["mrr", "recall", "ndcg"]},
+        "cutoff": {"type": "integer", "minimum": 1},
+        "minimum": {"type": "number", "minimum": 0, "maximum": 1},
+        "actual": {"type": "number", "minimum": -1, "maximum": 1},
+        "status": {"enum": ["pass", "fail", "skipped"]},
+        "reason": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "gateSummary": {
+      "type": "object",
+      "required": ["status", "total", "passed", "failed", "skipped"],
+      "properties": {
+        "status": {"enum": ["pass", "fail"]},
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "skipped": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "system": {
+      "type": "object",
+      "required": ["name", "model", "indexDurationMs", "queryDurationMs", "section", "document", "categories", "cases"],
+      "properties": {
+        "name": {"type": "string"},
+        "model": {"$ref": "#/$defs/model"},
+        "indexDurationMs": {"type": "number", "minimum": 0},
+        "queryDurationMs": {"type": "number", "minimum": 0},
+        "section": {"$ref": "#/$defs/summary"},
+        "document": {"$ref": "#/$defs/summary"},
+        "categories": {"type": "array", "items": {"$ref": "#/$defs/category"}},
+        "cases": {"type": "array", "items": {"$ref": "#/$defs/case"}}
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["queries", "mrr", "cutoffs"],
+      "properties": {
+        "queries": {"type": "integer", "minimum": 0},
+        "mrr": {"type": "number", "minimum": 0, "maximum": 1},
+        "cutoffs": {"type": "array", "items": {"$ref": "#/$defs/cutoff"}}
+      },
+      "additionalProperties": false
+    },
+    "cutoff": {
+      "type": "object",
+      "required": ["k", "recall", "ndcg"],
+      "properties": {
+        "k": {"type": "integer", "minimum": 1},
+        "recall": {"type": "number", "minimum": 0, "maximum": 1},
+        "ndcg": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "queryMetrics": {
+      "type": "object",
+      "required": ["reciprocalRank", "cutoffs"],
+      "properties": {
+        "reciprocalRank": {"type": "number", "minimum": 0, "maximum": 1},
+        "cutoffs": {"type": "array", "items": {"$ref": "#/$defs/cutoff"}}
+      },
+      "additionalProperties": false
+    },
+    "category": {
+      "type": "object",
+      "required": ["category", "section", "document"],
+      "properties": {
+        "category": {"type": "string"},
+        "section": {"$ref": "#/$defs/summary"},
+        "document": {"$ref": "#/$defs/summary"}
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": ["id", "category", "query", "section", "document", "results", "queryDurationMs"],
+      "properties": {
+        "id": {"type": "string"},
+        "category": {"type": "string"},
+        "query": {"type": "string"},
+        "section": {"$ref": "#/$defs/queryMetrics"},
+        "document": {"$ref": "#/$defs/queryMetrics"},
+        "results": {"type": "array", "items": {"$ref": "#/$defs/result"}},
+        "queryDurationMs": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["rank", "path", "score", "relevance"],
+      "properties": {
+        "rank": {"type": "integer", "minimum": 1},
+        "path": {"type": "string"},
+        "heading": {"type": "string"},
+        "score": {"type": "number"},
+        "relevance": {"type": "integer", "minimum": 0, "maximum": 3}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

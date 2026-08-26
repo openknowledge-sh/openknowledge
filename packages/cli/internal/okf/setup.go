@@ -59,13 +59,13 @@ After creation:
 - Record setup decisions in log.md.
 - Remove SETUP.MD after all setup decisions are reflected in the bundle.
 - Run okn validate "<folder path>" and fix all errors and avoidable warnings.
+- Run one representative query with okn search "<folder path>" "<query>" and confirm the returned evidence is relevant.
 - If the setup task does not include a preselected activation plan, ask the user which installed agent harnesses need Open Knowledge instructions. Also ask for the skill scope: global, project, both, or none. Explain that the global skill is reusable across knowledge bases. Explain that the project skill can contain repository-specific guidance. Ask separately whether to enable knowledge-gap observation. Observation is opt-in.
 - Run:
   okn setup complete "<folder path>" --skill <global|project|both|none> [--harness <codex|claude|opencode>] --observe <on|off>
 - Use the user's selected skill scope, harnesses, and observation choice.
 - Repeat --harness for each selected harness. Omit --harness only when the skill scope is none and observation is off.
 - If okn setup complete fails, fix the reported problem and run it again.
-- Run one representative query with okn search "<folder path>" "<query>" and confirm the returned evidence is relevant.
 
 Finish by telling the user:
 - the exact path of the knowledge base
@@ -98,8 +98,50 @@ func SetupPromptWithOptions(options SetupPromptOptions) (string, error) {
 		`okn scaffold --name "<knowledge base name>" --rules "`+strings.Join(ruleIDs, ",")+`" "<folder path>"`,
 		1,
 	)
+	prompt = strings.Replace(
+		prompt,
+		"Before asking the user:\n",
+		setupUseCaseInstructions(options.UseCase)+"\nBefore asking the user:\n",
+		1,
+	)
 	selected := renderSelectedSetupRules(rules)
 	return strings.Replace(prompt, "\nAfter the user answers:", selected+"\nAfter the user answers:", 1), nil
+}
+
+func setupUseCaseOutcome(useCase string) string {
+	switch strings.ToLower(strings.TrimSpace(useCase)) {
+	case "trusted-knowledge":
+		return "trusted knowledge across multiple sources"
+	case "custom":
+		return "a custom knowledge base"
+	default:
+		return "searchable documentation for the codebase"
+	}
+}
+
+func setupUseCaseInstructions(useCase string) string {
+	switch strings.ToLower(strings.TrimSpace(useCase)) {
+	case "trusted-knowledge":
+		return `First working result: trusted knowledge across multiple sources
+- Create source-grounded knowledge across the selected sources.
+- Preserve provenance, disagreement, lifecycle, and access boundaries when the sources support them.
+- Start with ordinary Markdown and one useful search.
+- Ask which trust capabilities the user needs after the first result.
+- Add typed claims, corpus schema, semantic query, Knowledge CI, or runtime only when a stated requirement needs each capability.
+- Do not enable the complete trust stack by default.`
+	case "custom":
+		return `First working result: a custom knowledge base
+- Ask for the intended outcome only when workspace context does not make it clear.
+- Create the smallest useful Markdown knowledge base for that outcome.
+- Validate it and demonstrate one useful search before you offer optional capabilities.`
+	default:
+		return `First working result: searchable documentation for the codebase
+- Create searchable, maintainable documentation for this codebase.
+- Prefer focused pages for the product, architecture, services or modules, development workflows, decisions, and changelog when the repository supports them.
+- Use ordinary Markdown with the minimum required frontmatter.
+- Validate the documentation and demonstrate one useful search.
+- Do not introduce typed claims, evidence receipts, corpus schema, semantic query, Knowledge CI, or runtime unless the user asks for them later.`
+	}
 }
 
 func resolveSetupRuleSets(ids []string) ([]RuleSet, error) {

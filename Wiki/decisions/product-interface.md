@@ -21,7 +21,7 @@ The CLI exposes one primary path and three secondary workflow groups:
 
 | Workflow | Commands |
 | --- | --- |
-| Start here | `setup`, `search`, `validate` |
+| Start here | `setup`, `search`, `query`, `validate` |
 | Work locally | `agent`, `get`, `list`, `view` |
 | Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
 | Automate and operate | `automation` |

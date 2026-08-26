@@ -44,8 +44,8 @@ The default path is `.`. The default OKF spec is `latest`.
 The audit evaluates typed, parseable, nonreserved documents. It skips documents
 with `okf_publish: false`. Current detectors produce these findings:
 
-- High: stale knowledge, broken local dependencies, claim conflicts, invalid
-  typed claims, missing local source resources, changed sources, recurring
+- High: stale knowledge, broken local dependencies, claim conflicts, stale or
+  invalid typed claim evidence, missing local source resources, changed sources, recurring
   unanswered questions, and frequently used unverified knowledge.
 - Medium: missing structured sources, missing owners, identical normalized
   bodies, duplicate titles, exact claim duplicates, and claims without an
@@ -104,6 +104,12 @@ network without `--observe-remote`.
 Use `--update-baseline` to create or replace the current baseline. A later run
 reports changed source identities against that file.
 
+The command refuses `--update-baseline` while a `source-changed` finding is
+open. A changed source remains open until each typed claim that cites it has a
+current evidence observation. Use `claims stale` to inspect the exact claim
+IDs and `claims reconcile` after review. Sources without typed claims keep the
+page-level source-change finding.
+
 After review accepts a changed source and the dependent knowledge is fixed,
 update the baseline in the same pull request. Until then, the changed-source
 gate remains open and production publication fails closed.
@@ -130,6 +136,10 @@ Repository CI runs validation, a base-aware claim lifecycle gate, and a
 high-risk audit for `Wiki`. It uploads the audit and claim reports as the
 `knowledge-audit-report` artifact for 14 days. `okn setup ci` generates a
 complete workflow with the source baseline and answer regression reports.
+
+This repository passes its tracked source baseline to the audit. Only
+frontmatter `sources` entries participate in source-change detection. See
+[Claim freshness](/features/claim-freshness.md) for the claim-level workflow.
 
 JSON reports follow `audit-report.schema.json` v1. Source baselines follow
 `audit-source-baseline.schema.json` v1.

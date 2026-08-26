@@ -1,10 +1,79 @@
 package okf
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestClaimEvidenceVersionDerivesStaleFromSeparateLocalLiveSource(t *testing.T) {
+	root := t.TempDir()
+	live := "The current token format is JWT.\n"
+	artifact := "Pinned JWT evidence.\n"
+	liveDigest := sha256.Sum256([]byte(live))
+	artifactDigest := sha256.Sum256([]byte(artifact))
+	liveResource := filepath.Join(root, "live.txt")
+	writeFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")
+	writeFile(t, root, "live.txt", live)
+	writeFile(t, root, "artifact.txt", artifact)
+	writeFile(t, root, "claim.md", `---
+type: Authentication
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces: {auth: https://example.test/auth/}
+  entities: [{id: auth:service}]
+  predicates: [{id: auth:format, object_kind: literal, datatype: xsd:string, maximum_count: 1}]
+sources:
+  - id: contract
+    resource: artifact.txt
+    live_resource: `+liveResource+`
+    observe: pinned
+    sha256: `+hex.EncodeToString(artifactDigest[:])+`
+claims:
+  - id: auth:claim/format
+    slot: auth:slot/format
+    subject: auth:service
+    predicate: auth:format
+    object: {value: JWT, datatype: xsd:string}
+    evidence: [{id: auth:evidence/format, source_ref: contract}]
+    status: verified
+    verification:
+      method: claim-review
+      by: human:alice
+      at: 2026-08-22T00:00:00Z
+      evidence_refs: [auth:evidence/format]
+      evidence_versions:
+        - evidence_ref: auth:evidence/format
+          source_ref: contract
+          resource: `+liveResource+`
+          sha256: `+hex.EncodeToString(liveDigest[:])+`
+          by: human:alice
+          at: 2026-08-22T00:00:00Z
+---
+
+# Claim
+`)
+	bundle, err := ParseASTWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := AnalyzeClaimProfile(bundle, time.Date(2026, 8, 22, 1, 0, 0, 0, time.UTC))
+	if len(profile.Issues) != 0 || len(profile.Claims) != 1 || profile.Claims[0].Stale {
+		t.Fatalf("fresh observed claim failed: claims=%#v issues=%#v", profile.Claims, profile.Issues)
+	}
+	writeFile(t, root, "live.txt", "The current token format is opaque.\n")
+	bundle, err = ParseASTWithVersion(root, "0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile = AnalyzeClaimProfile(bundle, time.Date(2026, 8, 22, 1, 0, 0, 0, time.UTC))
+	if len(profile.Claims) != 1 || !profile.Claims[0].Stale || len(profile.Claims[0].StaleEvidence) != 1 || profile.Claims[0].StaleEvidence[0] != "auth:evidence/format" {
+		t.Fatalf("live evidence drift did not mark the claim stale: %#v", profile.Claims)
+	}
+}
 
 func TestClaimProfileValidatesTypedClaimAndSectionBinding(t *testing.T) {
 	root := t.TempDir()

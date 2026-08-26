@@ -64,6 +64,23 @@ type claimsMutationReport struct {
 	Changed       bool   `json:"changed"`
 }
 
+type claimsStaleReport struct {
+	SchemaVersion string                `json:"schemaVersion"`
+	Root          string                `json:"root"`
+	Claims        []claimops.Occurrence `json:"claims"`
+	Issues        []okf.Issue           `json:"issues"`
+}
+
+type claimsReconcileReport struct {
+	SchemaVersion string                     `json:"schemaVersion"`
+	Action        string                     `json:"action"`
+	Root          string                     `json:"root"`
+	ClaimID       string                     `json:"claimId"`
+	Document      string                     `json:"document"`
+	Changed       bool                       `json:"changed"`
+	Versions      []okf.ClaimEvidenceVersion `json:"versions"`
+}
+
 type claimEntitiesReport struct {
 	SchemaVersion string                 `json:"schemaVersion"`
 	Query         string                 `json:"query"`
@@ -91,6 +108,10 @@ func runClaims(args []string) int {
 	switch args[0] {
 	case "find":
 		return runClaimsFind(args[1:])
+	case "stale":
+		return runClaimsStale(args[1:])
+	case "reconcile":
+		return runClaimsReconcile(args[1:])
 	case "propose":
 		return runClaimsPropose(args[1:])
 	case "suggest":
@@ -519,6 +540,80 @@ func runClaimsFind(args []string) int {
 	return 0
 }
 
+func runClaimsStale(args []string) int {
+	fs := flag.NewFlagSet("claims stale", flag.ContinueOnError)
+	fs.SetOutput(stderrOutput())
+	path := fs.String("path", ".", "knowledge base")
+	spec := fs.String("spec", "latest", "OKF spec")
+	jsonOutput := fs.Bool("json", false, "JSON output")
+	if err := parseInterspersedFlags(fs, args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge claims stale [--path <target>] [--json]")
+		return 2
+	}
+	root, index, err := loadClaimsIndex(*path, *spec)
+	if err != nil {
+		return printClaimsError(err)
+	}
+	claims := []claimops.Occurrence{}
+	for _, occurrence := range index.Occurrences {
+		if occurrence.Claim.Stale {
+			claims = append(claims, occurrence)
+		}
+	}
+	report := claimsStaleReport{SchemaVersion: okf.MachineSchemaVersion, Root: root, Claims: claims, Issues: nonNilIssues(index.Issues)}
+	if *jsonOutput {
+		if err := printJSON(report); err != nil {
+			return printClaimsError(err)
+		}
+		return 0
+	}
+	if len(claims) == 0 {
+		fmt.Fprintln(os.Stdout, "No stale claims.")
+		return 0
+	}
+	for _, occurrence := range claims {
+		fmt.Fprintf(os.Stdout, "%s\t%s\t%s\n", occurrence.Claim.ID, strings.Join(occurrence.Claim.StaleEvidence, ","), occurrence.Path)
+	}
+	return 0
+}
+
+func runClaimsReconcile(args []string) int {
+	fs := flag.NewFlagSet("claims reconcile", flag.ContinueOnError)
+	fs.SetOutput(stderrOutput())
+	path := fs.String("path", ".", "knowledge base")
+	spec := fs.String("spec", "latest", "OKF spec")
+	document := fs.String("document", "", "declaring document")
+	approvedBy := fs.String("approved-by", "", "verification identity")
+	jsonOutput := fs.Bool("json", false, "JSON output")
+	if err := parseInterspersedFlags(fs, args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 1 || strings.TrimSpace(*approvedBy) == "" {
+		fmt.Fprintln(stderrOutput(), "usage: openknowledge claims reconcile <claim-id> --approved-by <identity> [--document <path>] [--path <target>] [--json]")
+		return 2
+	}
+	root, err := okf.ResolveKnowledgeRoot(*path)
+	if err != nil {
+		return printClaimsError(err)
+	}
+	result, err := claimops.RefreshClaimEvidenceVersions(root, *spec, fs.Arg(0), *document, *approvedBy, time.Now().UTC())
+	if err != nil {
+		return printClaimsError(err)
+	}
+	report := claimsReconcileReport{SchemaVersion: okf.MachineSchemaVersion, Action: "reconcile", Root: root, ClaimID: result.ClaimID, Document: result.Document, Changed: result.Changed, Versions: result.Versions}
+	if *jsonOutput {
+		if err := printJSON(report); err != nil {
+			return printClaimsError(err)
+		}
+		return 0
+	}
+	fmt.Fprintf(os.Stdout, "reconcile: %s changed=%t observations=%d in %s\n", result.ClaimID, result.Changed, len(result.Versions), result.Document)
+	return 0
+}
+
 func runClaimsImpact(args []string) int {
 	fs := flag.NewFlagSet("claims impact", flag.ContinueOnError)
 	fs.SetOutput(stderrOutput())
@@ -891,6 +986,8 @@ Find and maintain typed claims through deterministic agent-facing operations.
 
 Usage:
   openknowledge claims find <query> [--path <target>] [--json]
+  openknowledge claims stale [--path <target>] [--json]
+  openknowledge claims reconcile <claim-id> --approved-by <identity> [--document <path>] [--path <target>] [--json]
   openknowledge claims suggest [document] [--path <target>] [--out <file>]
   openknowledge claims propose --from <document> --claim-json <object> --reason <text> --confidence <0..1>
   openknowledge claims apply <proposal.json> [--path <target>] [--json]

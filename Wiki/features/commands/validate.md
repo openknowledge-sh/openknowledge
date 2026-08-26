@@ -69,7 +69,7 @@ An unsupported profile is a usage error.
 | `frontmatter-format` | 0.1, 0.2 | warning | Parseable frontmatter follows clean formatting. |
 | `markdown-syntax` | 0.1, 0.2 | warning | Links, code spans, tables, and fences look complete. |
 | `okf-version` | 0.1, 0.2 | warning | Root `okf_version` matches the selected spec. |
-| `okf-0.2-metadata` | 0.2 | warning | Optional 0.2 metadata follows its defined shapes. |
+| `okf-0.2-metadata` | 0.2 | warning | Optional 0.2 metadata follows its shapes and explicit-offset datetime rules. |
 | `link-target` | 0.1, 0.2 | warning | Local Markdown links resolve inside the bundle. |
 
 The scan includes `.md` and `.markdown` files. It skips `.git`. It classifies

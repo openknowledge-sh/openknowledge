@@ -10,7 +10,10 @@ func ClaimProfileForSection(section ContextSection) *ClaimProfileSignals {
 }
 
 func ClaimProfileForSectionAt(section ContextSection, now time.Time) *ClaimProfileSignals {
-	signals := DeriveClaimProfileSignalsAt(section.FrontmatterData, section.Path, now)
+	signals := section.ClaimProfile
+	if signals == nil {
+		signals = DeriveClaimProfileSignalsAt(section.FrontmatterData, section.Path, now)
+	}
 	if signals == nil {
 		return nil
 	}

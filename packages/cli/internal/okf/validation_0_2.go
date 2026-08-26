@@ -41,7 +41,7 @@ func validateOKFV02Sources(meta map[string]any, add func(string)) map[string]str
 	value, exists := meta["sources"]
 	if !exists {
 		if window, ok := meta["usage_window"]; ok {
-			validateOKFV02DateRange("usage_window", window, add)
+			validateOKFV02DateTimeRange("usage_window", window, add)
 		}
 		return ids
 	}
@@ -49,7 +49,7 @@ func validateOKFV02Sources(meta map[string]any, add func(string)) map[string]str
 	if !ok {
 		add("sources should be a YAML list")
 		if window, exists := meta["usage_window"]; exists {
-			validateOKFV02DateRange("usage_window", window, add)
+			validateOKFV02DateTimeRange("usage_window", window, add)
 		}
 		return ids
 	}
@@ -120,8 +120,8 @@ func validateOKFV02Sources(meta map[string]any, add func(string)) map[string]str
 		if value, exists := source["usage_count"]; exists && !okfNonNegativeNumber(value) {
 			add(label + ".usage_count should be a non-negative number")
 		}
-		if value, exists := source["last_modified"]; exists && !okfDate(value) {
-			add(label + ".last_modified should use YYYY-MM-DD")
+		if value, exists := source["last_modified"]; exists && !okfDateTime(value) {
+			add(label + ".last_modified should be an ISO 8601 datetime with an explicit offset")
 		}
 		if value, exists := source["observe"]; exists {
 			observe, ok := value.(string)
@@ -137,11 +137,11 @@ func validateOKFV02Sources(meta map[string]any, add func(string)) map[string]str
 			}
 		}
 		if value, exists := source["usage_window"]; exists {
-			validateOKFV02DateRange(label+".usage_window", value, add)
+			validateOKFV02DateTimeRange(label+".usage_window", value, add)
 		}
 	}
 	if window, ok := meta["usage_window"]; ok {
-		validateOKFV02DateRange("usage_window", window, add)
+		validateOKFV02DateTimeRange("usage_window", window, add)
 	}
 	return ids
 }
@@ -160,7 +160,7 @@ func validateOKFV02Generated(meta map[string]any, add func(string)) {
 		add("generated.by should identify an actor as <producer>/<version>, human:<id>, or process:<id>")
 	}
 	if value, exists := generated["at"]; exists && !okfDateTime(value) {
-		add("generated.at should be an ISO 8601 datetime")
+		add("generated.at should be an ISO 8601 datetime with an explicit offset")
 	}
 }
 
@@ -185,7 +185,7 @@ func validateOKFV02Verified(meta map[string]any, add func(string)) {
 			add(label + ".by should identify an actor as <producer>/<version>, human:<id>, or process:<id>")
 		}
 		if !okfDateTime(event["at"]) {
-			add(label + ".at should be an ISO 8601 datetime")
+			add(label + ".at should be an ISO 8601 datetime with an explicit offset")
 		}
 	}
 }
@@ -203,8 +203,8 @@ func validateOKFV02Lifecycle(meta map[string]any, add func(string)) {
 			}
 		}
 	}
-	if value, exists := meta["stale_after"]; exists && !okfDate(value) {
-		add("stale_after should use YYYY-MM-DD")
+	if value, exists := meta["stale_after"]; exists && !okfDateTime(value) {
+		add("stale_after should be an ISO 8601 datetime with an explicit offset")
 	}
 }
 
@@ -296,14 +296,14 @@ func validateOKFV02Executor(meta map[string]any, add func(string)) {
 	}
 }
 
-func validateOKFV02DateRange(label string, value any, add func(string)) {
+func validateOKFV02DateTimeRange(label string, value any, add func(string)) {
 	window, ok := value.(map[string]any)
 	if !ok {
 		add(label + " should be a { from, to } mapping")
 		return
 	}
-	if !okfDate(window["from"]) || !okfDate(window["to"]) {
-		add(label + " should contain from and to dates in YYYY-MM-DD form")
+	if !okfDateTime(window["from"]) || !okfDateTime(window["to"]) {
+		add(label + " should contain ISO 8601 from and to datetimes with explicit offsets")
 	}
 }
 
@@ -357,15 +357,6 @@ func okfActor(value any) bool {
 	}
 	producer, version, ok := strings.Cut(actor, "/")
 	return ok && strings.Count(actor, "/") == 1 && producer != "" && version != ""
-}
-
-func okfDate(value any) bool {
-	text, ok := value.(string)
-	if !ok {
-		return false
-	}
-	_, err := time.Parse("2006-01-02", strings.TrimSpace(text))
-	return err == nil
 }
 
 func okfDateTime(value any) bool {

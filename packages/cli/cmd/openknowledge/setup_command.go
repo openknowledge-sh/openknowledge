@@ -26,6 +26,7 @@ var setupInputIsTerminal = func() bool {
 type setupCLIOptions struct {
 	wiki        string
 	source      string
+	useCase     string
 	agent       string
 	model       string
 	rules       string
@@ -35,18 +36,17 @@ type setupCLIOptions struct {
 	interactive bool
 }
 
-type setupActivationPlan struct {
-	skill     string
-	harnesses []string
-	observe   bool
+type setupWizardPlan struct {
+	options setupCLIOptions
+	action  string
+	agent   string
 }
 
-type setupWizardPlan struct {
-	options    setupCLIOptions
-	action     string
-	agent      string
-	activation setupActivationPlan
-}
+const (
+	setupUseCaseCodebaseDocs     = "codebase-docs"
+	setupUseCaseTrustedKnowledge = "trusted-knowledge"
+	setupUseCaseCustom           = "custom"
+)
 
 func runSetup(args []string) int {
 	if len(args) > 0 {
@@ -84,7 +84,7 @@ func runSetup(args []string) int {
 			return 1
 		}
 		options = plan.options
-		task, err := buildSetupTask(options, &plan.activation)
+		task, err := buildSetupTask(options)
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 2
@@ -96,7 +96,7 @@ func runSetup(args []string) int {
 		return runSetupAgent(options, plan.agent, task)
 	}
 
-	task, err := buildSetupTask(options, nil)
+	task, err := buildSetupTask(options)
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
@@ -108,21 +108,29 @@ func runSetup(args []string) int {
 	return runSetupAgent(options, options.agent, task)
 }
 
-func buildSetupTask(options setupCLIOptions, activation *setupActivationPlan) (string, error) {
+func buildSetupTask(options setupCLIOptions) (string, error) {
+	useCase, err := normalizeSetupUseCase(options.useCase)
+	if err != nil {
+		return "", err
+	}
 	ruleIDs, err := parseRuleIDs(options.rules)
 	if err != nil {
 		return "", err
 	}
+	if len(ruleIDs) == 0 {
+		ruleIDs = defaultSetupRules(useCase)
+	}
 	var task string
 	if options.source == "" {
-		task, err = okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs})
+		task, err = okf.SetupPromptWithOptions(okf.SetupPromptOptions{Rules: ruleIDs, UseCase: useCase})
 	} else {
 		task, err = okf.FromPrompt(okf.FromPromptOptions{
-			Source: options.source,
-			Out:    options.wiki,
-			About:  options.about,
-			Depth:  options.depth,
-			Rules:  ruleIDs,
+			Source:  options.source,
+			Out:     options.wiki,
+			About:   options.about,
+			Depth:   options.depth,
+			Rules:   ruleIDs,
+			UseCase: useCase,
 		})
 	}
 	if err != nil {
@@ -131,35 +139,7 @@ func buildSetupTask(options setupCLIOptions, activation *setupActivationPlan) (s
 	if options.source == "" {
 		task += fmt.Sprintf("\nFor this setup, create or update the knowledge base at %s.\n", options.wiki)
 	}
-	if activation != nil {
-		task += renderSetupActivationInstructions(options.wiki, *activation)
-	}
 	return task, nil
-}
-
-func renderSetupActivationInstructions(wiki string, plan setupActivationPlan) string {
-	var command strings.Builder
-	fmt.Fprintf(&command, "okn setup complete %q --skill %s", wiki, plan.skill)
-	for _, harness := range plan.harnesses {
-		fmt.Fprintf(&command, " --harness %s", harness)
-	}
-	if plan.observe {
-		command.WriteString(" --observe on")
-	} else {
-		command.WriteString(" --observe off")
-	}
-	return fmt.Sprintf(`
-
-The user already selected this activation plan:
-- Skill scope: %s
-- Harnesses: %s
-- Observation: %s
-
-Do not ask for these choices again. After the bundle is complete and
-validation passes, run this exact finalizer:
-
-  %s
-`, plan.skill, setupHarnessLabel(plan.harnesses), enabledLabel(plan.observe), command.String())
 }
 
 func setupHarnessLabel(harnesses []string) string {
@@ -210,7 +190,7 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 			options.prompt = true
 		case argument == "--interactive":
 			options.interactive = true
-		case argument == "--from" || argument == "--agent" || argument == "--model" || argument == "--rules" || argument == "--about" || argument == "--depth":
+		case argument == "--from" || argument == "--use-case" || argument == "--agent" || argument == "--model" || argument == "--rules" || argument == "--about" || argument == "--depth":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
 				return options, err
@@ -221,6 +201,10 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 			index = next
 		case strings.HasPrefix(argument, "--from="):
 			if err := setSetupOption(&options, "--from", strings.TrimPrefix(argument, "--from=")); err != nil {
+				return options, err
+			}
+		case strings.HasPrefix(argument, "--use-case="):
+			if err := setSetupOption(&options, "--use-case", strings.TrimPrefix(argument, "--use-case=")); err != nil {
 				return options, err
 			}
 		case strings.HasPrefix(argument, "--agent="):
@@ -276,6 +260,9 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 			return options, fmt.Errorf("--about and --depth require --from")
 		}
 	}
+	if _, err := normalizeSetupUseCase(options.useCase); err != nil {
+		return options, err
+	}
 	if _, err := parseRuleIDs(options.rules); err != nil {
 		return options, err
 	}
@@ -289,6 +276,12 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 	switch flagName {
 	case "--from":
 		options.source = value
+	case "--use-case":
+		useCase, err := normalizeSetupUseCase(value)
+		if err != nil {
+			return err
+		}
+		options.useCase = useCase
 	case "--agent":
 		options.agent = strings.ToLower(value)
 	case "--model":
@@ -311,7 +304,23 @@ func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
 	reader := bufio.NewReader(setupInput)
 	plan := setupWizardPlan{options: options, action: "print"}
 
-	if options.source == "" {
+	if strings.TrimSpace(plan.options.useCase) == "" {
+		choice, err := setupChoice(reader, "What do you want working first?", []string{
+			"Searchable documentation for this codebase",
+			"Trusted knowledge across multiple sources",
+			"A custom knowledge base",
+		}, 0)
+		if err != nil {
+			return plan, err
+		}
+		plan.options.useCase = []string{
+			setupUseCaseCodebaseDocs,
+			setupUseCaseTrustedKnowledge,
+			setupUseCaseCustom,
+		}[choice]
+	}
+
+	if options.source == "" && plan.options.useCase != setupUseCaseCodebaseDocs {
 		choice, err := setupChoice(reader, "What do you want to set up?", []string{
 			"A knowledge base for this project",
 			"A knowledge base generated from another source",
@@ -343,56 +352,34 @@ func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
 		}
 	}
 	if strings.TrimSpace(plan.options.rules) == "" {
-		rules, err := setupMaintenanceRules(reader)
-		if err != nil {
-			return plan, err
+		if plan.options.useCase == setupUseCaseCustom {
+			rules, err := setupMaintenanceRules(reader)
+			if err != nil {
+				return plan, err
+			}
+			plan.options.rules = strings.Join(rules, ",")
+		} else {
+			plan.options.rules = strings.Join(defaultSetupRules(plan.options.useCase), ",")
 		}
-		plan.options.rules = strings.Join(rules, ",")
 	}
 
 	available := detectSetupRuntimes(context.Background())
 	actionLabels := make([]string, 0, len(available)+1)
+	actionLabels = append(actionLabels, "Print a task for my current agent")
 	for _, runtime := range available {
 		actionLabels = append(actionLabels, "Launch "+displayRuntime(runtime))
 	}
-	actionLabels = append(actionLabels, "Print a task for an existing agent")
 	action, err := setupChoice(reader, "How should setup run?", actionLabels, 0)
 	if err != nil {
 		return plan, err
 	}
-	if action < len(available) {
+	if action > 0 {
 		plan.action = "agent"
-		plan.agent = available[action]
-	}
-
-	skillChoice, err := setupChoice(reader, "Install Open Knowledge instructions for agents?", []string{
-		"Personal — available across all projects",
-		"Project — shared in this repository",
-		"Both — personal and project-specific guidance",
-		"None (not recommended) — CLI only",
-	}, 0)
-	if err != nil {
-		return plan, err
-	}
-	plan.activation.skill = []string{"global", "project", "both", "none"}[skillChoice]
-	observeChoice, err := setupChoice(reader, "Capture possible knowledge gaps after agent sessions?", []string{"Not now", "Enable"}, 0)
-	if err != nil {
-		return plan, err
-	}
-	plan.activation.observe = observeChoice == 1
-	if plan.activation.skill != "none" || plan.activation.observe {
-		defaults := available
-		if plan.agent != "" {
-			defaults = []string{plan.agent}
-		}
-		harnesses, err := setupHarnesses(reader, available, defaults)
-		if err != nil {
-			return plan, err
-		}
-		plan.activation.harnesses = harnesses
+		plan.agent = available[action-1]
 	}
 
 	fmt.Fprintln(os.Stdout, "\nOpen Knowledge setup plan")
+	fmt.Fprintf(os.Stdout, "  First result:   %s\n", setupUseCaseLabel(plan.options.useCase))
 	fmt.Fprintf(os.Stdout, "  Knowledge base: %s\n", plan.options.wiki)
 	if plan.options.source != "" {
 		fmt.Fprintf(os.Stdout, "  Source:         %s\n", plan.options.source)
@@ -402,9 +389,7 @@ func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
 	} else {
 		fmt.Fprintln(os.Stdout, "  Setup agent:    existing agent")
 	}
-	fmt.Fprintf(os.Stdout, "  Skills:         %s\n", plan.activation.skill)
-	fmt.Fprintf(os.Stdout, "  Harnesses:      %s\n", setupHarnessLabel(plan.activation.harnesses))
-	fmt.Fprintf(os.Stdout, "  Observation:    %s\n", enabledLabel(plan.activation.observe))
+	fmt.Fprintln(os.Stdout, "  Later options:  agent instructions, observation, CI, and runtime")
 	confirmed, err := setupConfirm(reader, "Continue?", true)
 	if err != nil {
 		return plan, err
@@ -413,6 +398,32 @@ func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
 		return plan, fmt.Errorf("setup cancelled")
 	}
 	return plan, nil
+}
+
+func normalizeSetupUseCase(value string) (string, error) {
+	switch normalized := strings.ToLower(strings.TrimSpace(value)); normalized {
+	case "", setupUseCaseCodebaseDocs:
+		return setupUseCaseCodebaseDocs, nil
+	case setupUseCaseTrustedKnowledge, setupUseCaseCustom:
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("unsupported setup use case %q; use codebase-docs, trusted-knowledge, or custom", value)
+	}
+}
+
+func defaultSetupRules(useCase string) []string {
+	return []string{"project", "writing"}
+}
+
+func setupUseCaseLabel(useCase string) string {
+	switch useCase {
+	case setupUseCaseTrustedKnowledge:
+		return "trusted multi-source knowledge"
+	case setupUseCaseCustom:
+		return "custom knowledge base"
+	default:
+		return "searchable codebase documentation"
+	}
 }
 
 func detectSetupRuntimes(ctx context.Context) []string {
@@ -608,31 +619,46 @@ func setupConfirm(reader *bufio.Reader, question string, defaultValue bool) (boo
 func setupHelpText() string {
 	return `openknowledge setup
 
-Set up an Open Knowledge knowledge base and its agent instructions.
+Create the smallest useful Markdown knowledge base for one user goal.
 
 Usage:
-  openknowledge setup [wiki]
-  openknowledge setup [wiki] --prompt
-  openknowledge setup [wiki] --interactive
-  openknowledge setup [wiki] --agent <codex|claude|opencode>
-  openknowledge setup [wiki] --from <source> [--about <goal>] [--depth <n>]
-  openknowledge setup skill [--scope <global|project|both>] [--project <target>] [--harness <name>]
-  openknowledge setup complete <wiki> --skill <scope> [--harness <name>] [--observe on|off]
-  openknowledge setup status [wiki]
-  openknowledge setup repair [wiki]
-  openknowledge setup observe <on|off> [repository]
-  openknowledge setup ci [wiki] [--plan] [--force]
-  openknowledge setup runtime [wiki] [--maintenance auto|github-actions|runtime] [--runtimes <list>] [--plan] [--force]
+	openknowledge setup [wiki]
+	openknowledge setup [wiki] --use-case <codebase-docs|trusted-knowledge|custom>
+	openknowledge setup [wiki] --prompt
+	openknowledge setup [wiki] --interactive
+	openknowledge setup [wiki] --agent <codex|claude|opencode>
+	openknowledge setup [wiki] --from <source> [--about <goal>] [--depth <n>]
+
+Use cases:
+	codebase-docs      Create searchable documentation for the current codebase.
+	                   This is the default. It uses ordinary Markdown and keeps
+	                   claims, semantic query, CI, and runtime out of the first result.
+	trusted-knowledge  Build source-grounded knowledge across sources. Add trust
+	                   capabilities only after the first validation and search.
+	custom             Let the agent shape another knowledge-base workflow.
+
+After the first result:
+	openknowledge setup skill [--scope <global|project|both>] [--project <target>] [--harness <name>]
+	openknowledge setup complete <wiki> --skill <scope> [--harness <name>] [--observe on|off]
+	openknowledge setup status [wiki]
+	openknowledge setup repair [wiki]
+	openknowledge setup observe <on|off> [repository]
+
+Optional production upgrades:
+	openknowledge setup ci [wiki] [--plan] [--force]
+	openknowledge setup runtime [wiki] [--maintenance auto|github-actions|runtime] [--runtimes <list>] [--plan] [--force]
 
 With terminal input, setup starts an interactive wizard. Without terminal
 input, setup prints a complete task for an agent. Use --prompt or --interactive
-to select the mode explicitly. Use --agent to start one installed agent.
+to select the mode explicitly. Use --agent to start one installed agent. The
+wizard defers agent instructions, observation, CI, and runtime until after the
+first useful knowledge base.
 
 The source workflow accepts --from, optional --about intent, and optional
---depth. The agent inspects the source and asks for missing intent. Setup does
-not use predefined knowledge-base types.
+--depth. All use cases use the same OKF Markdown format.
 
 Flags:
+  --use-case     First result: codebase-docs, trusted-knowledge, or custom.
   --prompt       Print the complete agent task without changing files.
   --interactive  Run the terminal wizard.
   --agent        Start codex, claude, or opencode with the setup task.
@@ -641,6 +667,6 @@ Flags:
   --about        Optional source-to-wiki goal. Requires --from.
   --depth        Non-negative traversal hint. Requires --from.
   --rules        Comma-separated maintenance rules. Works with ordinary and
-                 --from setup. Defaults to project,writing.
+                 --from setup. Defaults follow the selected use case.
 `
 }

@@ -28,6 +28,7 @@ type Claim struct {
 	TrustTier     string                 `json:"trustTier"`
 	ValidTime     ClaimTimeInterval      `json:"validTime,omitempty"`
 	Stale         bool                   `json:"stale"`
+	StaleEvidence []string               `json:"staleEvidence,omitempty"`
 	StaleAfter    string                 `json:"staleAfter,omitempty"`
 	Verification  *ClaimVerification     `json:"verification,omitempty"`
 	Decisions     []ClaimDecision        `json:"decisions,omitempty"`
@@ -67,10 +68,23 @@ type ClaimSelector struct {
 }
 
 type ClaimVerification struct {
-	Method       string   `json:"method"`
-	By           string   `json:"by"`
-	At           string   `json:"at"`
-	EvidenceRefs []string `json:"evidenceRefs,omitempty"`
+	Method           string                 `json:"method"`
+	By               string                 `json:"by"`
+	At               string                 `json:"at"`
+	EvidenceRefs     []string               `json:"evidenceRefs,omitempty"`
+	EvidenceVersions []ClaimEvidenceVersion `json:"evidenceVersions,omitempty"`
+}
+
+// ClaimEvidenceVersion records one immutable observation of the live source
+// behind a claim evidence reference. Multiple entries for the same evidence
+// reference form append-only verification history; the last entry is current.
+type ClaimEvidenceVersion struct {
+	EvidenceRef string `json:"evidenceRef"`
+	SourceRef   string `json:"sourceRef"`
+	Resource    string `json:"resource"`
+	SHA256      string `json:"sha256"`
+	By          string `json:"by"`
+	At          string `json:"at"`
 }
 
 type ClaimDecision struct {

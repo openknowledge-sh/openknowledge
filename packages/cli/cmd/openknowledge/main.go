@@ -2415,6 +2415,8 @@ func runExport(args []string) int {
 		return runExportHTML(args[1:])
 	case "json":
 		return runExportJSON(args[1:])
+	case "rdf":
+		return runExportRDF(args[1:])
 	case "tar":
 		return runExportTar(args[1:])
 	case "graph":
@@ -2605,6 +2607,67 @@ func runExportTar(args []string) int {
 	fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(result.Root))
 	fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(result.Out))
 	fmt.Printf("%s %s\n", terminal.muted("sha256"), result.SHA256)
+	return 0
+}
+
+func runExportRDF(args []string) int {
+	if hasHelpFlag(args) {
+		fmt.Fprint(os.Stdout, exportRDFHelpText())
+		return 0
+	}
+	options, err := parseExportOptions(args)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 2
+	}
+	if options.plain {
+		fmt.Fprintln(stderrOutput(), "unknown flag: --plain")
+		return 2
+	}
+	if options.graphType != "" {
+		fmt.Fprintln(stderrOutput(), "unknown flag: --type")
+		return 2
+	}
+	if flag := options.headFlag(); flag != "" {
+		fmt.Fprintf(stderrOutput(), "unknown flag: %s\n", flag)
+		return 2
+	}
+	if options.omitSourceArchive {
+		fmt.Fprintln(stderrOutput(), "unknown flag: --no-source-archive")
+		return 2
+	}
+
+	root, err := okf.ResolveKnowledgeRoot(options.path)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 2
+	}
+	dataset, err := okf.BuildRDFDatasetWithVersion(root, options.spec)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	data, err := dataset.NQuads()
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if options.out != "" {
+		if err := writeOutputFileAtomically(options.out, data); err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		terminal.success("Exported RDF")
+		fmt.Printf("%s %s\n", terminal.muted("root"), terminal.path(dataset.Root))
+		fmt.Printf("%s %s\n", terminal.muted("out"), terminal.path(options.out))
+		fmt.Printf("%s %d quads\n", terminal.muted("wrote"), len(dataset.Quads))
+		return 0
+	}
+
+	if _, err := os.Stdout.Write(data); err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
 	return 0
 }
 

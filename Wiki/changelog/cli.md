@@ -13,6 +13,114 @@ page records release-level changes.
 
 ## Unreleased
 
+### Setup
+
+- Setup now accepts `--use-case codebase-docs|trusted-knowledge|custom`.
+  `codebase-docs` is the default. All presets use the same OKF format.
+- The command guide now starts with setup, validation, search, and the viewer.
+  Trust, query, interchange, CI, and runtime features are optional layers.
+- The setup wizard produces the first validated search result before asking
+  about agent instructions or observation. `setup complete --skill none
+  --observe off` now leaves a CLI-only bundle local instead of creating a
+  registry connection.
+- Validation output omits inactive extension checks, and the viewer hides the
+  Claims workspace until a bundle contains a claim profile, ontology, claims,
+  or claim references.
+- Source: `packages/cli/cmd/openknowledge/setup_command.go` and
+  `packages/cli/cmd/openknowledge/command_catalog.go`.
+- Docs: `README.md`, `Wiki/features/commands/setup.md`,
+  `Wiki/features/commands/index.md`, `Wiki/features/tooling-model.md`, and
+  `Wiki/index.md`.
+
+### Self-correcting claim memory
+
+- Claim verification now keeps append-only local evidence observations. A
+  changed live source makes the exact dependent claim stale.
+- New `okn claims stale` and `okn claims reconcile` commands expose and clear
+  reviewed evidence drift. Runtime retrieval, MCP, the viewer, and audit use
+  the same derived freshness state.
+- Audit baseline updates now fail while changed sources have unresolved typed
+  claims. Reconciliation projects page verification only when all active
+  claims are verified and current.
+- New `okn eval claims` replays typed claims at immutable Git checkpoints and
+  classifies supported, stale, hallucinated, and unverified claims.
+- Source: `packages/cli/internal/okf/claims_evidence.go`,
+  `packages/cli/internal/claimops/observation.go`,
+  `packages/cli/internal/eval/claim_replay.go`, and
+  `packages/cli/cmd/openknowledge/claims_command.go`.
+- Docs: `Wiki/features/claim-freshness.md`,
+  `Wiki/features/commands/claims.md`, `Wiki/features/commands/audit.md`, and
+  `Wiki/features/commands/eval.md`.
+
+### OKF 0.2 compatibility
+
+- OKF 0.2 timestamp fields now require ISO 8601 datetimes with explicit
+  offsets. Date-only values produce `okf-0.2-metadata` diagnostics.
+- Freshness checks now compare `stale_after` with the current absolute
+  instant. Consumers ignore date-only and offset-free values.
+- The embedded specification and wiki copy now pin upstream commit
+  `62432a095456147ee71e70ac6e4dc0d2dea3ac30`.
+- Source: `packages/cli/internal/okf/spec.go`,
+  `packages/cli/internal/okf/validation_0_2.go`,
+  `packages/cli/internal/okf/okf_0_2_signals.go`, and
+  `packages/cli/internal/okf/assets/specs/0.2.md`.
+- Docs: `Wiki/SPEC.md`, `Wiki/features/spec-compliance.md`,
+  `Wiki/features/commands/validate.md`, and
+  `Wiki/features/commands/runtime.md`.
+
+### Semantic query and hybrid retrieval
+
+- New `okn eval retrieval` runs versioned graded relevance datasets. It
+  compares the local hash route with an optional HTTP embedding provider.
+  Reports include section and document MRR, Recall@k, nDCG@k, category
+  summaries, model identity, timings, and ranked case details.
+- Retrieval datasets can declare absolute and embedding-uplift quality gates.
+  A failed measured gate returns exit status `1`. An unavailable embedding
+  gate has an explicit `skipped` result.
+- A synthetic earnings call corpus covers lexical, semantic, cross-language,
+  and hard-negative queries. CI runs its deterministic quality gates without
+  an external service.
+- CI also gates two recorded repository questions against the current Wiki.
+  This dataset checks exact section rank and first-ranked document coverage.
+- New `okn query sparql`, `okn query datalog`, and `okn query hybrid`
+  commands query one immutable corpus revision. SPARQL is limited to bounded
+  local `SELECT` and `ASK`. Mangle Datalog supports safe recursion and returns
+  source-backed proof paths. Closed-world negation requires an explicit rule
+  profile.
+- One normalized semantic fact model now feeds RDF, SPARQL, Datalog, and
+  hybrid retrieval. `okn export rdf` writes a deterministic, lossless RDF 1.1
+  N-Quads projection with claim occurrence, lifecycle, scope, evidence,
+  access, and provenance metadata.
+- Hybrid queries run only caller-supplied text, SPARQL, and Datalog routes.
+  Reciprocal-rank fusion combines independent ranks, joins structured
+  provenance back to text sections, and preserves `retrieved-text`,
+  `asserted-fact`, and `derived-fact` result kinds.
+- Hybrid text retrieval adds a document-aware `section-focus` route. It gives
+  one section per retrieved document an extra fusion signal from term coverage
+  and a specific heading match.
+- The read-only MCP server adds `openknowledge_query`. The Go API adds reusable
+  semantic fact, RDF, local vector, SPARQL, Datalog, and hybrid snapshots.
+  Local embedding providers can persist normalized `float32` vectors in an
+  exact-input and model-fingerprint cache.
+- Hybrid text queries can use an OpenAI-compatible embedding URL. Ollama
+  responses are supported. An absent URL keeps the deterministic hash vector.
+  The CLI caches unchanged section vectors in a private per-user file.
+- Access filtering runs before SPARQL or rule evaluation. Hybrid lifecycle
+  defaults exclude rejected, superseded, archived, and stale claims. Query,
+  dataset, result, rule, proof, time, and concurrency limits are bounded.
+  Direct MCP semantic queries are public-only; clients cannot self-issue
+  source access grants.
+- New strict v1 schemas cover semantic facts, vector results, RDF datasets,
+  SPARQL bindings, Datalog proofs, hybrid route fusion, and retrieval evals.
+- Source: `packages/cli/internal/okf/{semantic_facts,embedding,rdf,sparql,datalog,hybrid}*.go`,
+  `packages/cli/internal/eval/retrieval.go`,
+  `packages/cli/cmd/openknowledge/query_command.go`, and
+  `packages/cli/cmd/openknowledge/mcp.go`.
+- Docs: `Wiki/features/commands/query.md`,
+  `Wiki/features/exporters/rdf.md`, `Wiki/features/go-api.md`, and the
+  knowledge architecture, claim profile, MCP, export, and machine-contract
+  pages.
+
 ### Retrieval
 
 - Search now combines BM25 with local deterministic vector candidates. The
@@ -257,6 +365,8 @@ page records release-level changes.
   sources, ownership, local dependencies, duplicates, and structured claims.
 - Optional source baselines detect changed local content or remote
   `last_modified` updates.
+- Repository CI now passes its tracked source baseline to the Wiki audit.
+  Declared source changes therefore participate in the high-risk gate.
 - Private usage inputs add recurring unanswered-question and high-use
   unverified findings.
 - `--fail-on` provides severity gates. Repository CI now uploads the JSON
@@ -427,19 +537,20 @@ page records release-level changes.
 
 ### Viewer
 
-- Registry mode now uses one workspace for **Documents**, **Claims**, and
-  **Graph**. Files from different knowledge bases can share one document
-  stack. Browser history retains each file source.
+- Registry mode now uses one workspace for **Documents** and **Graph**. Files
+  from different knowledge bases can share one document stack. Browser history
+  retains each file source.
+- Each knowledge base now owns a nested **Claims** item. The item requests and
+  shows claims only from that knowledge base.
 - The desktop viewer now opens with a static sidebar. An empty registry uses
   the same application shell and provides a connect action.
 - The combined graph now uses the complete workspace. Filters can select
   documents, claims, entities, and source knowledge bases. Large graphs use a
   scalable layout and reduced force work.
-- Connected knowledge bases keep separate indexes. Combined search, claims,
-  and graph projections do not create cross-base links.
-- Combined Graph and Claims projections now report partial and failed
-  knowledge spaces instead of silently presenting incomplete results as a
-  complete workspace.
+- Connected knowledge bases keep separate indexes. Combined search and graph
+  projections do not create cross-base links.
+- Each Claims projection reports a failure for its knowledge base. A failed
+  Claims projection does not appear as an empty combined workspace.
 - The **Claims** workspace now keeps its count, search, primary filters, and
   additional-filter control in one compact toolbar.
 - Selected claims keep **Evidence and metadata** visible. Authored incoming
@@ -467,9 +578,18 @@ page records release-level changes.
   requests omit global graph, tree, and claims workspace projections. Live
   reload also reuses unchanged file digests. Large knowledge bases open faster
   and no longer cause continuous idle CPU use.
+- Registry document pages request the combined graph or one knowledge-base
+  Claims projection only when a user opens that view. Large pages do not embed
+  those projections in each document response.
+- Claim profile validation now reads, hashes, and indexes each pinned evidence
+  artifact one time per pass. Repeated fragment selectors reuse that index.
+- Graphs with more than 250 nodes now use a stable grid and start with force
+  motion paused. Large combined graphs no longer block document startup.
 - The Wiki now includes one Markdown viewer showcase for supported block,
   inline, asset, table, footnote, annotation, and nested rendering cases.
 - Source: `packages/cli/internal/okf/markdown.go`,
+  `packages/cli/internal/okf/claims_evidence.go`,
+  `packages/cli/internal/okf/claims_validate.go`,
   `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_claims.go`,
   `packages/cli/cmd/openknowledge/viewer_export.go`,

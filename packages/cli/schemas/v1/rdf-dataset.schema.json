@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/rdf-dataset.schema.json",
+  "title": "Open Knowledge RDF dataset projection v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "revision", "graphIri", "quads"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+    "graphIri": {"type": "string", "pattern": "^urn:openknowledge:revision:[a-f0-9]{64}$"},
+    "quads": {"type": "array", "items": {"$ref": "#/$defs/quad"}}
+  },
+  "$defs": {
+    "term": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {"enum": ["iri", "literal"]},
+        "value": {"type": "string"},
+        "datatype": {"type": "string"},
+        "language": {"type": "string", "pattern": "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$"}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "iri"}}}, "then": {"not": {"anyOf": [{"required": ["datatype"]}, {"required": ["language"]}]}}},
+        {"not": {"required": ["datatype", "language"]}}
+      ],
+      "additionalProperties": false
+    },
+    "quad": {
+      "type": "object",
+      "required": ["subject", "predicate", "object", "graph"],
+      "properties": {
+        "subject": {"type": "string"},
+        "predicate": {"type": "string"},
+        "object": {"$ref": "#/$defs/term"},
+        "graph": {"type": "string", "pattern": "^urn:openknowledge:revision:[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

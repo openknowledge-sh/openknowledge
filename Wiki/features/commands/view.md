@@ -55,14 +55,13 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Select **Fit** to fit the complete diagram in the viewport.
   Select **100%** to center the diagram at its original scale.
   Press Escape to close the dialog.
-- The sidebar has separate **Documents**, **Claims**, **Graph**, and
-  **Knowledge bases** items. These views apply to all connected knowledge
-  bases in registry mode. **Documents** opens files from any file tree in one
-  document stack. **Claims** shows the combined claim workspace. **Graph**
-  shows the combined graph. **Knowledge bases** lists each isolated knowledge
-  base and its file tree. Use the collapse icon to close all expanded trees.
-  Use the plus icon to connect another local folder. **Settings** opens the
-  viewer preferences from the sidebar footer.
+- The sidebar has top-level **Documents**, **Graph**, and **Knowledge bases**
+  items. **Documents** opens files from any file tree in one document stack.
+  **Graph** shows the combined graph. Each knowledge base contains its own
+  **Claims** item and file tree. The **Claims** item shows claims only from its
+  knowledge base. Use the collapse icon to close all expanded trees. Use the
+  plus icon to connect another local folder. **Settings** opens the viewer
+  preferences from the sidebar footer.
   Select the shortcut badge in the viewer header to open or close the file
   explorer.
 - Open-beside mode is the default. The link behavior control can select the
@@ -181,6 +180,13 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   One save burst causes one refresh after a short delay.
   The viewer reuses parsed AST and claim data between document requests.
   Navigation requests build only the selected document panel.
+  Registry document pages request the combined graph only after you open it.
+  Each **Claims** item requests data only from its knowledge base. A failed
+  claims index does not affect claims in another knowledge base.
+  A claim profile pass reads and indexes each pinned evidence artifact one
+  time, even when many selectors use that artifact.
+  Graphs with more than 250 nodes use a stable grid and start with force motion
+  paused.
   The watcher reuses content digests for files whose metadata did not change.
   Existing open paths, the active path, the graph view, and scroll positions
   survive when their targets still exist.
@@ -189,8 +195,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 
 ## Claims workspace
 
-Select **Claims** to browse all typed claim occurrences. Registry mode combines
-claims from all connected knowledge bases and identifies each source.
+Expand a knowledge base and select **Claims** to browse its typed claim
+occurrences. Registry mode does not combine claims from different knowledge
+bases. A direct single-base viewer keeps **Claims** in the main navigation.
 
 The compact toolbar keeps the claim count, search, status, entity, predicate,
 and additional filters together. Filter claims by status, entity, predicate,

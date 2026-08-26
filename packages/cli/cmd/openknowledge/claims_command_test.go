@@ -211,6 +211,40 @@ Production token format.
 `
 }
 
+func TestClaimsStaleAndReconcileEvidenceChange(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")
+	writeMainTestFile(t, root, "source.txt", "one\n")
+	document := strings.Replace(mainTypedClaimDocument("okn:claim/token-format/1", "proposed", "JWT"), "resource: openapi.yaml, observe: pinned, sha256: b87733eadcf3da6b39f1407939f630dd48ec885a5a97bd4c0e94df9fb13dd344", "resource: source.txt, observe: manual", 1)
+	writeMainTestFile(t, root, "auth.md", document)
+
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runClaims([]string{"verify", "okn:claim/token-format/1", "--document", "auth.md", "--approved-by", "human:alice", "--path", root})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("verify failed: code=%d stderr=%q", code, stderr)
+	}
+	writeMainTestFile(t, root, "source.txt", "two\n")
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runClaims([]string{"stale", "--path", root, "--json"})
+	})
+	var stale claimsStaleReport
+	if code != 0 || stderr != "" || json.Unmarshal([]byte(stdout), &stale) != nil || len(stale.Claims) != 1 || len(stale.Claims[0].Claim.StaleEvidence) != 1 {
+		t.Fatalf("stale listing failed: code=%d stdout=%q stderr=%q report=%#v", code, stdout, stderr, stale)
+	}
+	stdout, stderr, code = captureMainOutput(t, func() int {
+		return runClaims([]string{"reconcile", "okn:claim/token-format/1", "--document", "auth.md", "--approved-by", "human:bob", "--path", root, "--json"})
+	})
+	var reconciled claimsReconcileReport
+	if code != 0 || stderr != "" || json.Unmarshal([]byte(stdout), &reconciled) != nil || !reconciled.Changed || len(reconciled.Versions) != 1 {
+		t.Fatalf("reconcile failed: code=%d stdout=%q stderr=%q report=%#v", code, stdout, stderr, reconciled)
+	}
+	content, err := os.ReadFile(filepath.Join(root, "auth.md"))
+	if err != nil || !strings.Contains(string(content), "verified:\n    - at:") || !strings.Contains(string(content), "by: human:bob") {
+		t.Fatalf("reconcile did not project page verification: %v\n%s", err, content)
+	}
+}
+
 func TestClaimsSuggestReturnsUncoveredSectionsWithoutMutatingKnowledge(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")

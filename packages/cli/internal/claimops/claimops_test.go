@@ -130,7 +130,7 @@ claims:
 		t.Fatalf("pinned selector did not validate: %#v", index.Issues)
 	}
 	document, _ := os.ReadFile(filepath.Join(root, "auth.md"))
-	for _, expected := range []string{"observe: pinned", "sha256: " + result.SHA256, ".openknowledge/evidence/sha256/" + result.SHA256} {
+	for _, expected := range []string{"observe: pinned", "live_resource: " + filepath.Join(root, "capture.txt"), "sha256: " + result.SHA256, ".openknowledge/evidence/sha256/" + result.SHA256} {
 		if !strings.Contains(string(document), expected) {
 			t.Fatalf("document did not preserve pin %q:\n%s", expected, document)
 		}
@@ -185,6 +185,9 @@ func TestVerificationAndLifecyclePreserveOccurrenceSemantics(t *testing.T) {
 	if verified.Occurrences[0].Claim.Verification == nil {
 		t.Fatal("verification was not parsed")
 	}
+	if versions := verified.Occurrences[0].Claim.Verification.EvidenceVersions; len(versions) != 1 || versions[0].EvidenceRef != "okn:evidence/token-format" || versions[0].Resource != "openapi.yaml" {
+		t.Fatalf("verification did not persist the live evidence version: %#v", versions)
+	}
 	if report := CompareLifecycle(base, verified); !report.Valid {
 		t.Fatalf("valid transition rejected: %#v", report)
 	}
@@ -198,6 +201,70 @@ func TestVerificationAndLifecyclePreserveOccurrenceSemantics(t *testing.T) {
 	}
 	if archived.Occurrences[0].Claim.Verification == nil || len(archived.Occurrences[0].Claim.Decisions) != 1 || archived.Occurrences[0].Claim.Decisions[0].Action != "archived" {
 		t.Fatalf("archive must preserve verification and append a decision: %#v", archived.Occurrences[0].Claim)
+	}
+}
+
+func TestRefreshClaimEvidenceVersionsAppendsHistoryAndClearsLocalDrift(t *testing.T) {
+	root := t.TempDir()
+	writeClaimopsFile(t, root, "index.md", "# Index\n")
+	writeClaimopsFile(t, root, "live.txt", "JWT\n")
+	writeClaimopsFile(t, root, "claim.md", `---
+type: Authentication
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces: {auth: https://example.test/auth/}
+  entities: [{id: auth:service}]
+  predicates: [{id: auth:format, object_kind: literal, datatype: xsd:string, maximum_count: 1}]
+sources: [{id: contract, resource: live.txt, observe: manual}]
+claims:
+  - id: auth:claim/format
+    slot: auth:slot/format
+    subject: auth:service
+    predicate: auth:format
+    object: {value: JWT, datatype: xsd:string}
+    evidence: [{id: auth:evidence/format, source_ref: contract}]
+    status: proposed
+---
+
+# Claim
+`)
+	firstAt := time.Date(2026, 8, 22, 10, 0, 0, 0, time.UTC)
+	changed, err := Verify(root, "0.2", "auth:claim/format", "claim.md", "human:alice", firstAt)
+	if err != nil || !changed {
+		t.Fatalf("verify: changed=%t err=%v", changed, err)
+	}
+	verified := indexAfter(t, root)
+	writeClaimopsFile(t, root, "live.txt", "opaque\n")
+	stale := indexAfter(t, root)
+	if len(stale.Occurrences) != 1 || !stale.Occurrences[0].Claim.Stale {
+		t.Fatalf("changed live evidence did not make claim stale: %#v", stale.Occurrences)
+	}
+	refreshAt := firstAt.Add(time.Hour)
+	refresh, err := RefreshClaimEvidenceVersions(root, "0.2", "auth:claim/format", "claim.md", "human:bob", refreshAt)
+	if err != nil || !refresh.Changed || len(refresh.Versions) != 1 {
+		t.Fatalf("refresh: %#v err=%v", refresh, err)
+	}
+	current := indexAfter(t, root)
+	claim := current.Occurrences[0].Claim
+	if claim.Stale || claim.Verification == nil || len(claim.Verification.EvidenceVersions) != 2 {
+		t.Fatalf("refresh did not append history and clear drift: %#v", claim)
+	}
+	if latest := claim.Verification.EvidenceVersions[1]; latest.By != "human:bob" || latest.At != refreshAt.Format(time.RFC3339) {
+		t.Fatalf("unexpected latest evidence version: %#v", latest)
+	}
+	if report := CompareLifecycle(verified, current); !report.Valid {
+		t.Fatalf("append-only evidence refresh rejected by lifecycle: %#v", report.Issues)
+	}
+}
+
+func TestRewriteFrontmatterFieldCanRemovePageVerification(t *testing.T) {
+	content := []byte("---\ntype: Guide\nverified: {by: human:alice, at: 2026-08-26T10:00:00Z}\n---\n\n# Guide\n")
+	updated, err := rewriteFrontmatterField(content, "verified", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(updated), "verified:") || !strings.Contains(string(updated), "type: Guide") {
+		t.Fatalf("page verification was not removed safely:\n%s", updated)
 	}
 }
 

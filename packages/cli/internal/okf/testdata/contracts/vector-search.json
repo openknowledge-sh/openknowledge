@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1",
+  "root": "/knowledge",
+  "identity": {
+    "revision": {
+      "specVersion": "0.1",
+      "indexSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "model": {
+      "provider": "openknowledge",
+      "id": "hashed-word-trigram",
+      "revision": "1",
+      "dimensions": 256,
+      "metric": "cosine"
+    },
+    "modelFingerprint": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "query": "authentication",
+  "limit": 12,
+  "results": []
+}

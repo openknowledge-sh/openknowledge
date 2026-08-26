@@ -33,6 +33,7 @@ type OKFV02ActorEvent struct {
 type OKFV02Source struct {
 	ID           string             `json:"id,omitempty"`
 	Resource     string             `json:"resource"`
+	LiveResource string             `json:"liveResource,omitempty"`
 	Observe      string             `json:"observe,omitempty"`
 	SHA256       string             `json:"sha256,omitempty"`
 	Role         string             `json:"role,omitempty"`
@@ -85,9 +86,8 @@ func DeriveOKFV02SignalsAt(frontmatter map[string]any, now time.Time) *OKFV02Sig
 	}
 	if staleAfter, ok := frontmatter["stale_after"].(string); ok {
 		signals.StaleAfter = strings.TrimSpace(staleAfter)
-		if date, err := time.ParseInLocation("2006-01-02", signals.StaleAfter, now.Location()); err == nil {
-			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-			signals.Stale = !today.Before(date)
+		if instant, err := time.Parse(time.RFC3339, signals.StaleAfter); err == nil {
+			signals.Stale = !now.Before(instant)
 		}
 	}
 	signals.Generated = okfV02ActorEvent(frontmatter["generated"])
@@ -202,6 +202,7 @@ func okfV02Sources(frontmatter map[string]any) []OKFV02Source {
 		source := OKFV02Source{
 			ID:           okfV02String(data["id"]),
 			Resource:     resource,
+			LiveResource: okfV02String(data["live_resource"]),
 			Observe:      okfV02String(data["observe"]),
 			SHA256:       okfV02String(data["sha256"]),
 			Role:         okfV02String(data["role"]),

@@ -30,8 +30,9 @@ uses established semantic-web concepts without requiring authors to write RDF.
 | `valid_time` | RFC 3339 interval with an OWL-Time-compatible projection |
 | predicate constraints | Deterministic SHACL-style domain, range, cardinality, and required-scope checks |
 
-The CLI validates this model directly. It does not run a general OWL reasoner
-or expose an RDF query endpoint.
+The CLI validates this model directly. It does not run a general OWL reasoner.
+It can export a lossless RDF projection and run bounded local SPARQL queries
+over an immutable revision snapshot.
 
 ## Ontology registry
 
@@ -167,6 +168,22 @@ using a selector.
 `section_ref` binds a claim to a Markdown retrieval section. It is not an
 evidence selector.
 
+## Evidence observations and freshness
+
+Verification records each observable local evidence identity in the
+append-only `verification.evidence_versions` list. Each entry contains the
+evidence ID, source ID, live resource, SHA-256 digest, actor, and time.
+
+For pinned evidence, `resource` names the immutable artifact and
+`live_resource` names the upstream local file. The parser compares the latest
+observation with the live bytes. A mismatch derives claim `stale: true` and
+the exact `staleEvidence` IDs in machine output. The authored claim has no
+separate stale flag.
+
+Use [`okn claims stale` and `okn claims reconcile`](commands/claims.md) for the
+review loop. Reconciliation appends history. Lifecycle validation rejects
+removed or rewritten evidence observations.
+
 ## Lifecycle and relations
 
 Statuses are `extracted`, `proposed`, `supported`, `verified`, `disputed`,
@@ -233,11 +250,19 @@ Runtime retrieval blocks active `extracted`, `proposed`, `supported`, or
 `disputed` claims. It can serve an active verified successor while keeping
 rejected, superseded, or archived history.
 
+Semantic queries keep asserted and derived facts separate. SPARQL returns
+source-backed bindings. Datalog returns asserted facts or derived facts with a
+proof tree that reaches asserted inputs. Hybrid retrieval excludes rejected,
+superseded, archived, and stale facts by default. Every structured engine
+applies source access labels before evaluation.
+
 Production publication rejects unresolved active claims by default. The
 runtime serves an immutable accepted generation and never selects a value by
 "newest timestamp."
 
-Use [`okn claims`](/features/commands/claims.md) for deterministic operations.
+Use [`okn claims`](/features/commands/claims.md) for deterministic operations,
+[`okn query`](/features/commands/query.md) for read-only semantic queries, and
+[`okn export rdf`](/features/exporters/rdf.md) for interchange.
 
 ## Viewer representation
 

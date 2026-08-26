@@ -59,6 +59,73 @@ cases:
 	}
 }
 
+func TestRunEvalRetrievalProducesRankedMetrics(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\ntype: Index\n---\n\n# Earnings calls\n")
+	writeMainTestFile(t, root, "northstar.md", "---\ntype: Earnings Call\ntitle: Northstar\n---\n\n# Northstar\n\n## Capacity\n\nFactory capacity increased by thirty percent.\n")
+	dataset := filepath.Join(t.TempDir(), "retrieval.yaml")
+	writeMainTestFile(t, filepath.Dir(dataset), filepath.Base(dataset), `type: openknowledge.retrieval-eval
+version: 1
+id: earnings
+cutoffs: [1, 3]
+cases:
+  - id: capacity
+    category: lexical
+    query: factory capacity
+    judgments:
+      - path: northstar.md
+        heading: Capacity
+        relevance: 3
+`)
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--no-telemetry", "eval", "retrieval", dataset, root, "--json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("expected retrieval eval, code=%d stderr=%q stdout=%s", code, stderr, stdout)
+	}
+	var report knowledgeeval.RetrievalReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("decode retrieval report: %v\n%s", err, stdout)
+	}
+	if report.SchemaVersion != "1" || len(report.Systems) != 1 || report.Systems[0].Name != "local-hash" || report.Systems[0].Document.MRR != 1 {
+		t.Fatalf("unexpected retrieval report: %#v", report)
+	}
+}
+
+func TestRunEvalRetrievalFailsDeclaredQualityGate(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\ntype: Index\n---\n\n# Knowledge\n\nAvailable evidence.\n")
+	dataset := filepath.Join(t.TempDir(), "retrieval.yaml")
+	writeMainTestFile(t, filepath.Dir(dataset), filepath.Base(dataset), `type: openknowledge.retrieval-eval
+version: 1
+id: failing-gate
+cutoffs: [1]
+gates:
+  - id: exact-first-result
+    system: local-hash
+    level: section
+    metric: mrr
+    minimum: 1
+cases:
+  - id: missing
+    category: regression
+    query: available evidence
+    judgments:
+      - path: missing.md
+        relevance: 3
+`)
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runMain([]string{"--no-telemetry", "eval", "retrieval", dataset, root, "--json"})
+	})
+	if code != 1 || stderr != "" {
+		t.Fatalf("expected quality gate failure, code=%d stderr=%q stdout=%s", code, stderr, stdout)
+	}
+	var report knowledgeeval.RetrievalReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil || report.Summary.Status != "fail" || report.Summary.Failed != 1 {
+		t.Fatalf("unexpected failed retrieval report: err=%v report=%#v", err, report)
+	}
+}
+
 func TestRunEvalWritesReportAtomically(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Home\n\nKnowledge evaluation.\n")
@@ -197,6 +264,11 @@ func TestEvalHelpDocumentsDatasetAndExitContract(t *testing.T) {
 	for _, expected := range []string{"--format", "--out", "--spec", "--answer-command", "Exit codes:"} {
 		if !strings.Contains(evalRunHelpText(), expected) {
 			t.Fatalf("eval run help missing %q:\n%s", expected, evalRunHelpText())
+		}
+	}
+	for _, expected := range []string{"openknowledge eval retrieval <dataset>", "openknowledge.retrieval-eval", "MRR", "Recall@k", "nDCG@k"} {
+		if !strings.Contains(evalRetrievalHelpText(), expected) {
+			t.Fatalf("eval retrieval help missing %q:\n%s", expected, evalRetrievalHelpText())
 		}
 	}
 }

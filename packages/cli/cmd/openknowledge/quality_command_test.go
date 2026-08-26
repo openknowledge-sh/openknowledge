@@ -14,7 +14,7 @@ import (
 func TestQualityReportCommandReturnsVersionedEvidenceStatus(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "---\ntitle: Quality\nokf_version: \"0.2\"\n---\n\n# Quality\n")
-	writeMainTestFile(t, root, "runbook.md", "---\ntype: Runbook\ntitle: Recovery\nverified:\n  - by: human:owner\n    at: 2026-08-01T00:00:00Z\nstale_after: 2027-01-01\nsources:\n  - resource: https://example.test/recovery\n---\n\n# Recovery\n")
+	writeMainTestFile(t, root, "runbook.md", "---\ntype: Runbook\ntitle: Recovery\nverified:\n  - by: human:owner\n    at: 2026-08-01T00:00:00Z\nstale_after: 2027-01-01T00:00:00Z\nsources:\n  - resource: https://example.test/recovery\n---\n\n# Recovery\n")
 	stdout, stderr, code := captureMainOutput(t, func() int {
 		return runMain([]string{"--no-telemetry", "quality", "report", root, "--json"})
 	})

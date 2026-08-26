@@ -26,6 +26,7 @@
       "properties": {
         "id": {"type": "string"},
         "resource": {"type": "string"},
+		"liveResource": {"type": "string"},
 		"observe": {"enum": ["manual", "metadata", "fetch", "pinned"]},
 		"sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "role": {"enum": ["authoritative", "supporting", "contradicting"]},
@@ -119,6 +120,11 @@
       "properties": {"id": {"type": "string"}, "sourceRef": {"type": "string"}, "stance": {"enum": ["supports", "opposes", "contextualizes"]}, "role": {"type": "string"}, "selector": {"$ref": "#/$defs/claimSelector"}, "observedAt": {"type": "string"}},
       "additionalProperties": false
     },
+    "claimEvidenceVersion": {
+      "type": "object", "required": ["evidenceRef", "sourceRef", "resource", "sha256", "by", "at"],
+      "properties": {"evidenceRef": {"type": "string"}, "sourceRef": {"type": "string"}, "resource": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "by": {"type": "string"}, "at": {"type": "string"}},
+      "additionalProperties": false
+    },
     "claim": {
       "type": "object",
       "required": ["id", "slot", "subject", "predicate", "object", "evidence", "owners", "status", "trustTier", "stale"],
@@ -135,8 +141,9 @@
         "trustTier": {"enum": ["unverified", "machine-confirmed", "human-reviewed"]},
         "validTime": {"type": "object", "properties": {"from": {"type": "string"}, "until": {"type": "string"}}, "additionalProperties": false},
         "stale": {"type": "boolean"},
+		"staleEvidence": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "staleAfter": {"type": "string"},
-        "verification": {"type": "object", "required": ["method", "by", "at"], "properties": {"method": {"type": "string"}, "by": {"type": "string"}, "at": {"type": "string"}, "evidenceRefs": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
+		"verification": {"type": "object", "required": ["method", "by", "at"], "properties": {"method": {"type": "string"}, "by": {"type": "string"}, "at": {"type": "string"}, "evidenceRefs": {"type": "array", "items": {"type": "string"}}, "evidenceVersions": {"type": "array", "items": {"$ref": "#/$defs/claimEvidenceVersion"}}}, "additionalProperties": false},
 		"decisions": {"type": "array", "items": {"type": "object", "required": ["action", "by", "at"], "properties": {"action": {"enum": ["rejected", "superseded", "archived"]}, "by": {"type": "string"}, "at": {"type": "string"}, "reason": {"type": "string"}}, "additionalProperties": false}},
         "relations": {"type": "object", "properties": {"supersedes": {"type": "array", "items": {"type": "string"}}, "contradicts": {"type": "array", "items": {"type": "string"}}, "derivedFrom": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
         "sectionRef": {"type": "string"},

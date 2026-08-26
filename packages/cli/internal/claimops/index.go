@@ -129,6 +129,7 @@ func indexedSources(document okf.ASTDocument) []IndexedSource {
 		}
 		id, _ := source["id"].(string)
 		resource, _ := source["resource"].(string)
+		liveResource, _ := source["live_resource"].(string)
 		role, _ := source["role"].(string)
 		observe, _ := source["observe"].(string)
 		sha256, _ := source["sha256"].(string)
@@ -138,7 +139,7 @@ func indexedSources(document okf.ASTDocument) []IndexedSource {
 			continue
 		}
 		result = append(result, IndexedSource{
-			Path: document.Rel, ID: id, Resource: resource, Observe: strings.TrimSpace(observe), SHA256: strings.TrimSpace(sha256), Role: strings.TrimSpace(role),
+			Path: document.Rel, ID: id, Resource: resource, LiveResource: strings.TrimSpace(liveResource), Observe: strings.TrimSpace(observe), SHA256: strings.TrimSpace(sha256), Role: strings.TrimSpace(role),
 			AuthorityApprovedBy: strings.TrimSpace(approvedBy),
 		})
 	}
@@ -163,12 +164,13 @@ func claimSources(document okf.ASTDocument, claim okf.Claim) []SourceRef {
 			continue
 		}
 		resource, _ := source["resource"].(string)
+		liveResource, _ := source["live_resource"].(string)
 		role, _ := source["role"].(string)
 		observe, _ := source["observe"].(string)
 		sha256, _ := source["sha256"].(string)
 		approvedBy, _ := source["authority_approved_by"].(string)
 		result = append(result, SourceRef{
-			ID: id, Resource: strings.TrimSpace(resource), Observe: strings.TrimSpace(observe), SHA256: strings.TrimSpace(sha256), Role: strings.TrimSpace(role),
+			ID: id, Resource: strings.TrimSpace(resource), LiveResource: strings.TrimSpace(liveResource), Observe: strings.TrimSpace(observe), SHA256: strings.TrimSpace(sha256), Role: strings.TrimSpace(role),
 			AuthorityApprovedBy: strings.TrimSpace(approvedBy),
 		})
 	}

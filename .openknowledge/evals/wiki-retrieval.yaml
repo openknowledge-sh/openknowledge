@@ -1,0 +1,32 @@
+type: openknowledge.retrieval-eval
+version: 1
+id: repository-docs-retrieval
+cutoffs: [1, 3, 5]
+gates:
+  - id: correct-document-first
+    system: local-hash
+    level: document
+    metric: recall
+    cutoff: 1
+    minimum: 1.0
+  - id: exact-section-first
+    system: local-hash
+    level: section
+    metric: recall
+    cutoff: 1
+    minimum: 1.0
+cases:
+  - id: eval-regressions
+    category: recorded
+    query: How do I compare knowledge eval results with a Git base and gate regressions?
+    judgments:
+      - path: features/commands/eval.md
+        heading: Base comparison
+        relevance: 3
+  - id: deterministic-jobs
+    category: recorded
+    query: How do deterministic maintenance jobs run verification in isolated worktrees?
+    judgments:
+      - path: features/commands/jobs.md
+        heading: Runtime behavior
+        relevance: 3

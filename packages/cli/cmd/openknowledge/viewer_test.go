@@ -2081,6 +2081,8 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 	writeViewerFile(t, personal, "only-personal.md", "---\ntype: Note\n---\n\n# Personal note\n\nShared context lives here.\n")
 	writeViewerFile(t, work, "index.md", "# Work\n\nSee [Guide](notes/guide.md).\n")
 	writeViewerFile(t, work, "notes/guide.md", "---\ntype: Note\n---\n\n# Guide\n\nShared context supports validation before publishing.\n")
+	writeViewerFile(t, work, "token-evidence.txt", "Production tokens use the declared format.")
+	writeViewerFile(t, work, "auth.md", viewerTypedClaimFixture())
 
 	handler := newRegistryViewerHandler([]okf.RegistryEntry{
 		{Name: "personal", Path: personal, Access: "read"},
@@ -2129,17 +2131,39 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 		`data-note-path="index.md" data-note-title="Index" data-knowledge-base="work"`,
 		`<span class="note-breadcrumb-label">work</span><span class="note-breadcrumb-separator" aria-hidden="true">/</span>`,
 		`data-knowledge-graph data-url="/api/graph">{}</script>`,
-		`data-claims-data data-url="/api/claims">{}</script>`,
+		`data-claims-url="/kb/personal/api/claims"`,
+		`data-claims-url="/kb/work/api/claims"`,
+		`data-claims-data data-url="/kb/work/api/claims">{}</script>`,
 	} {
 		if !strings.Contains(workPage, required) {
 			t.Fatalf("registry document workspace missing %q:\n%s", required, workPage)
 		}
+	}
+	if count := strings.Count(workPage, `data-claims-view-toggle`); count != 2 {
+		t.Fatalf("registry claims navigation should render once per knowledge base, got %d", count)
+	}
+	personalClaimsToggle := viewerButtonTagWith(workPage, `data-knowledge-base="personal" data-claims-url="/kb/personal/api/claims"`)
+	if personalClaimsToggle == "" || strings.Contains(personalClaimsToggle, " hidden") {
+		t.Fatalf("registry navigation should expose an empty claims view for a plain knowledge base: %s", personalClaimsToggle)
+	}
+	workClaimsToggle := viewerButtonTagWith(workPage, `data-knowledge-base="work" data-claims-url="/kb/work/api/claims"`)
+	if workClaimsToggle == "" || strings.Contains(workClaimsToggle, " hidden") {
+		t.Fatalf("registry navigation should expose claims for a claim-enabled knowledge base: %s", workClaimsToggle)
 	}
 	graph := getViewerBody(t, handler, "/api/graph")
 	for _, required := range []string{`"knowledgeBase":"personal"`, `"knowledgeBase":"work"`, `"sourcePath":"index.md"`} {
 		if !strings.Contains(graph, required) {
 			t.Fatalf("lazy registry graph missing %q:\n%s", required, graph)
 		}
+	}
+	claims := getViewerBody(t, handler, "/kb/work/api/claims")
+	if !strings.Contains(claims, `"knowledgeBase":"work"`) || strings.Contains(claims, `"knowledgeBase":"personal"`) {
+		t.Fatalf("knowledge-base claims endpoint must not combine sources:\n%s", claims)
+	}
+	globalClaims := httptest.NewRecorder()
+	handler.ServeHTTP(globalClaims, httptest.NewRequest(http.MethodGet, "/api/claims", nil))
+	if globalClaims.Code != http.StatusNotFound {
+		t.Fatalf("top-level claims endpoint should not exist, got %d: %s", globalClaims.Code, globalClaims.Body.String())
 	}
 	if strings.Contains(workPage, `note-knowledge-base-marker`) || strings.Contains(workPage, `class="note-knowledge-base"`) {
 		t.Fatalf("registry document breadcrumb should not use a colored knowledge-base marker:\n%s", workPage)

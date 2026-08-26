@@ -240,7 +240,7 @@ executor: { resource: https://example.test/executor, receipt: [stdout, sha256] }
 attester: { resource: https://example.test/attester }
 verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }
 status: stable
-stale_after: 2026-08-04
+stale_after: 2026-08-04T00:00:00Z
 sources:
   - id: policy
     resource: https://example.test/policy

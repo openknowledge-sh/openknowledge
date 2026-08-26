@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claim-replay-report.schema.json",
+  "title": "Open Knowledge claim replay eval report",
+  "type": "object",
+  "required": ["schemaVersion", "dataset", "summary", "checkpoints"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "dataset": {"$ref": "#/$defs/dataset"},
+    "summary": {"$ref": "#/$defs/summary"},
+    "checkpoints": {"type": "array", "items": {"$ref": "#/$defs/checkpoint"}}
+  },
+  "$defs": {
+    "summary": {"type": "object", "required": ["total", "supported", "stale", "hallucinated", "unverified"], "properties": {"total": {"type": "integer", "minimum": 0}, "supported": {"type": "integer", "minimum": 0}, "stale": {"type": "integer", "minimum": 0}, "hallucinated": {"type": "integer", "minimum": 0}, "unverified": {"type": "integer", "minimum": 0}}, "additionalProperties": false},
+    "dataset": {"type": "object", "required": ["type", "version", "id"], "properties": {"type": {"const": "openknowledge.claim-replay-eval"}, "version": {"const": 1}, "id": {"type": "string"}, "path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false},
+    "claim": {"type": "object", "required": ["claimId", "classification", "recordedState", "expectationRecorded", "observed"], "properties": {"claimId": {"type": "string"}, "statement": {"type": "string"}, "document": {"type": "string"}, "classification": {"enum": ["supported", "stale", "hallucinated", "unverified"]}, "recordedState": {"enum": ["supported", "refuted", "unverified"]}, "expectationRecorded": {"type": "boolean"}, "observed": {"type": "boolean"}, "lastSupportedCheckpoint": {"type": "string"}}, "additionalProperties": false},
+    "checkpoint": {"type": "object", "required": ["id", "revision", "summary", "claims"], "properties": {"id": {"type": "string"}, "revision": {"type": "string"}, "summary": {"$ref": "#/$defs/summary"}, "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}}}, "additionalProperties": false}
+  },
+  "additionalProperties": false
+}

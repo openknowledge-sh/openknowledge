@@ -16,8 +16,8 @@ import (
 func TestBuildReportsMeasuredQualityAndConcretePriorities(t *testing.T) {
 	root := t.TempDir()
 	writeQualityFile(t, root, "index.md", "---\ntitle: Quality test\nokf_version: \"0.2\"\n---\n\n# Quality test\n")
-	writeQualityFile(t, root, "trusted.md", "---\ntype: Runbook\ntitle: Trusted\nverified:\n  - by: human:alice\n    at: 2026-08-01T00:00:00Z\nstale_after: 2027-01-01\nsources:\n  - resource: https://example.com/trusted\n---\n\n# Trusted\n")
-	writeQualityFile(t, root, "risky.md", "---\ntype: Runbook\ntitle: Risky\nstale_after: 2026-01-01\nsources:\n  - resource: https://example.com/risky\n---\n\n# Risky\n")
+	writeQualityFile(t, root, "trusted.md", "---\ntype: Runbook\ntitle: Trusted\nverified:\n  - by: human:alice\n    at: 2026-08-01T00:00:00Z\nstale_after: 2027-01-01T00:00:00Z\nsources:\n  - resource: https://example.com/trusted\n---\n\n# Trusted\n")
+	writeQualityFile(t, root, "risky.md", "---\ntype: Runbook\ntitle: Risky\nstale_after: 2026-01-01T00:00:00Z\nsources:\n  - resource: https://example.com/risky\n---\n\n# Risky\n")
 	checks := []string{"eval:critical"}
 	trustedEvidence := knowledgeusage.Evidence{ID: "trusted", Path: "trusted.md", Locator: "okf+sha256://" + qualityHex('a') + "/trusted.md#" + qualityHex('b')}
 	riskyEvidence := knowledgeusage.Evidence{ID: "risky", Path: "risky.md", Locator: "okf+sha256://" + qualityHex('c') + "/risky.md#" + qualityHex('d')}

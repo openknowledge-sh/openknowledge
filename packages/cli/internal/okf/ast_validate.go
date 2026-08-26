@@ -49,7 +49,7 @@ func ValidateASTWithOptions(bundle ASTBundle, options ValidationOptions) (Result
 	if err := applyValidationOptions(&result, options); err != nil {
 		return Result{}, err
 	}
-	result.Checks = buildChecks(result, profile)
+	result.Checks = buildChecks(result, profile, bundle)
 	result.Summary = buildValidationSummary(result)
 	result.Errors = nonNilIssues(result.Errors)
 	result.Warnings = nonNilIssues(result.Warnings)

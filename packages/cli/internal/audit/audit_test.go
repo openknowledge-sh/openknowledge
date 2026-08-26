@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/claimops"
 	knowledgeusage "github.com/openknowledge-sh/openknowledge/packages/cli/internal/usage"
 )
 
@@ -27,7 +28,7 @@ claim_ontology:
   namespaces: {deploy: https://example.test/deploy/}
   entities: [{id: deploy:service}]
   predicates: [{id: deploy:region, object_kind: literal, datatype: xsd:string, maximum_count: 1}]
-stale_after: 2026-01-01
+stale_after: 2026-01-01T00:00:00Z
 sources:
   - id: runbook
     resource: evidence.txt
@@ -248,6 +249,53 @@ func TestRunDetectsSourceDriftAndKeepsFindingIDsStable(t *testing.T) {
 	loaded, err := ReadBaseline(path)
 	if err != nil || !reflect.DeepEqual(loaded, baseline) {
 		t.Fatalf("baseline round trip failed: loaded=%#v err=%v", loaded, err)
+	}
+}
+
+func TestRunClearsTypedSourceDriftOnlyAfterClaimReconciliation(t *testing.T) {
+	root := t.TempDir()
+	writeAuditFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Index\n")
+	writeAuditFile(t, root, "source.txt", "one\n")
+	writeAuditFile(t, root, "claim.md", `---
+type: Guide
+owner: team:docs
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces: {docs: https://example.test/docs/}
+  entities: [{id: docs:source}]
+  predicates: [{id: docs:value, object_kind: literal, datatype: xsd:string, maximum_count: 1}]
+sources: [{id: source-file, resource: source.txt, observe: manual, role: authoritative}]
+claims:
+  - id: docs:claim/source-value
+    slot: docs:slot/source-value
+    subject: docs:source
+    predicate: docs:value
+    object: {value: one, datatype: xsd:string}
+    evidence: [{id: docs:evidence/source-value, source_ref: source-file, stance: supports, role: primary}]
+    status: proposed
+---
+
+# Claim
+`)
+	now := time.Date(2026, 8, 26, 10, 0, 0, 0, time.UTC)
+	if changed, err := claimops.Verify(root, "0.2", "docs:claim/source-value", "claim.md", "human:alice", now); err != nil || !changed {
+		t.Fatalf("verify claim: changed=%t err=%v", changed, err)
+	}
+	_, baseline, err := Run(Options{Root: root, Spec: "0.2", Now: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeAuditFile(t, root, "source.txt", "two\n")
+	drifted, _, err := Run(Options{Root: root, Spec: "0.2", Now: now.Add(time.Hour), Baseline: &baseline})
+	if err != nil || !hasCategory(drifted, "source-changed") || !hasCategory(drifted, "claim-evidence-stale") {
+		t.Fatalf("expected source and claim drift: %#v err=%v", drifted.Findings, err)
+	}
+	if _, err := claimops.RefreshClaimEvidenceVersions(root, "0.2", "docs:claim/source-value", "claim.md", "human:bob", now.Add(2*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	reconciled, _, err := Run(Options{Root: root, Spec: "0.2", Now: now.Add(3 * time.Hour), Baseline: &baseline})
+	if err != nil || hasCategory(reconciled, "source-changed") || hasCategory(reconciled, "claim-evidence-stale") {
+		t.Fatalf("reconciled claim kept drift findings: %#v err=%v", reconciled.Findings, err)
 	}
 }
 

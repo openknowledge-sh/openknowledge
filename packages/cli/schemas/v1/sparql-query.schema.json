@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/sparql-query.schema.json",
+  "title": "Open Knowledge bounded SPARQL query result v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "revision", "engine", "queryType", "variables", "bindings", "truncated", "policy"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+    "engine": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {"name": {"const": "goRDFlib"}, "version": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "queryType": {"enum": ["select", "ask"]},
+    "variables": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "bindings": {"type": "array", "items": {"$ref": "#/$defs/binding"}},
+    "boolean": {"type": "boolean"},
+    "truncated": {"type": "boolean"},
+    "policy": {
+      "type": "object",
+      "required": ["allowedAccess", "removedSources", "removedClaims"],
+      "properties": {
+        "allowedAccess": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "removedSources": {"type": "integer", "minimum": 0},
+        "removedClaims": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"queryType": {"const": "ask"}}}, "then": {"required": ["boolean"]}},
+    {"if": {"properties": {"queryType": {"const": "select"}}}, "then": {"not": {"required": ["boolean"]}}}
+  ],
+  "$defs": {
+    "value": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {"enum": ["iri", "literal", "blank"]},
+        "value": {"type": "string"},
+        "datatype": {"type": "string"},
+        "language": {"type": "string"}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"enum": ["iri", "blank"]}}}, "then": {"not": {"anyOf": [{"required": ["datatype"]}, {"required": ["language"]}]}}},
+        {"not": {"required": ["datatype", "language"]}}
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["document", "documentId", "locator", "contentSha256"],
+      "properties": {
+        "document": {"type": "string"},
+        "documentId": {"type": "string"},
+        "locator": {"type": "string"},
+        "contentSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "lineStart": {"type": "integer", "minimum": 1},
+        "lineEnd": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "binding": {
+      "type": "object",
+      "required": ["values", "sources"],
+      "properties": {
+        "values": {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

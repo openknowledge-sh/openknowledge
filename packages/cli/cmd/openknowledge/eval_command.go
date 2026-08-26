@@ -32,6 +32,12 @@ func runEval(args []string) int {
 		}
 		return 0
 	}
+	if args[0] == "retrieval" {
+		return runEvalRetrieval(args[1:])
+	}
+	if args[0] == "claims" {
+		return runEvalClaimReplay(args[1:])
+	}
 	if args[0] != "run" {
 		fmt.Fprintf(stderrOutput(), "unknown eval subcommand: %s\n", args[0])
 		return 2
@@ -316,6 +322,8 @@ Run versioned knowledge eval datasets.
 
 Usage:
   openknowledge eval run <dataset> [key-or-path]
+  openknowledge eval retrieval <dataset> [key-or-path]
+  openknowledge eval claims <dataset> [key-or-path]
   openknowledge eval run <dataset> [key-or-path] --format json|markdown
   openknowledge eval run <dataset> [key-or-path] --format json|markdown --out <file>
   openknowledge eval run <dataset> [key-or-path] --base <git-ref>
@@ -323,8 +331,11 @@ Usage:
 
 Commands:
   run  Retrieve evidence for every question and test declared expectations.
+  retrieval  Measure ranked retrieval quality with graded relevance judgments.
+  claims  Replay Git checkpoints and classify typed claim correctness.
 
-The dataset is strict YAML with type openknowledge.eval and version 1.
+The run dataset uses strict YAML with type openknowledge.eval and version 1.
+Use command help for the retrieval and claim replay dataset types.
 `
 }
 

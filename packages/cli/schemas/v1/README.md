@@ -45,6 +45,8 @@ the source tree and from the public URL.
 | `cli-error.schema.json` | `openknowledge --error-format json <command> ...` failures on stderr |
 | `eval-comparison.schema.json` | `openknowledge eval run --base <git-ref> --format json` |
 | `eval-report.schema.json` | `openknowledge eval run --format json` |
+| `retrieval-eval-report.schema.json` | `openknowledge eval retrieval --format json` |
+| `claim-replay-report.schema.json` | `openknowledge eval claims --format json` |
 | `federated-search-context.schema.json` | `openknowledge search --all <query> --format json` |
 | `federated-search-results.schema.json` | `openknowledge search --all <query> --matches --format json` |
 | `graph.schema.json` | `openknowledge export graph` |
@@ -53,10 +55,18 @@ the source tree and from the public URL.
 | `registry-status.schema.json` | `openknowledge registry status --json` |
 | `search-results.schema.json` | `openknowledge search --matches --format json` |
 | `search-context.schema.json` | `openknowledge search --format json` |
+| `semantic-facts.schema.json` | Shared normalized projection for structured query adapters |
+| `vector-search.schema.json` | Local vector provider result contract |
+| `rdf-dataset.schema.json` | Lossless RDF dataset projection from normalized semantic facts |
+| `sparql-query.schema.json` | Bounded SELECT/ASK bindings with access-policy and source provenance |
+| `datalog-query.schema.json` | Mangle asserted/derived results with source-backed proof paths |
+| `hybrid-query.schema.json` | BM25, vector, section-focus, and structured retrieval with RRF evidence fusion |
 | `validation.schema.json` | `openknowledge validate --format json` |
 | `claims-entities.schema.json` | `openknowledge claims entities find --json` |
 | `claims-entity-impact.schema.json` | `openknowledge claims entities impact --json` |
 | `claims-entity-mutation.schema.json` | `openknowledge claims entities apply --json` |
+| `claims-stale.schema.json` | `openknowledge claims stale --json` |
+| `claims-reconcile.schema.json` | `openknowledge claims reconcile --json` |
 
 Additive fields may be added to v1 outputs. Removing a field, changing its JSON
 type, or changing its meaning incompatibly requires a new schema version and a
@@ -133,7 +143,8 @@ allowed lifecycle statuses, and structured provenance of every selected source.
 Comparison reports include changed paths, affected questions and declared
 agents, plus changed paths that are not covered by any case.
 
-Claim command results use `claims-find.schema.json`,
+Claim command results use `claims-find.schema.json`, `claims-stale.schema.json`,
+`claims-reconcile.schema.json`,
 `claims-impact.schema.json`, `claims-validation.schema.json`, and
 `claims-mutation.schema.json`. Entity search, impact, and approved apply use
 the `claims-entities` and `claims-entity-*` schemas. Deterministic claim candidates use

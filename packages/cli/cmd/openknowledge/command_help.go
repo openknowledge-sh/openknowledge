@@ -114,6 +114,130 @@ Versions:
 `, okf.DefaultContextBudget, supportedSpecVersionsText())
 }
 
+func queryHelpText() string {
+	return `openknowledge query
+
+Run read-only semantic and logical queries over one validated knowledge base.
+
+Usage:
+  openknowledge query sparql --query <sparql> [path]
+  openknowledge query datalog --query <atom> [--rules <file>] [path]
+  openknowledge query hybrid --text <text> [path]
+  openknowledge query hybrid --text <text> --sparql-file <file> [path]
+  openknowledge query hybrid --datalog-query <atom> --rules <file> [path]
+  openknowledge query --help
+
+Engines:
+  sparql   Execute bounded SPARQL SELECT or ASK over the revision-bound RDF graph.
+  datalog  Execute bounded Mangle queries with safe recursive rules and proof paths.
+  hybrid   Route only supplied text/SPARQL/Datalog inputs and fuse evidence with RRF.
+
+Markdown and YAML remain canonical. Query projections are immutable and never
+write asserted or derived facts back into the knowledge base.
+`
+}
+
+func querySPARQLHelpText() string {
+	return fmt.Sprintf(`openknowledge query sparql
+
+Execute read-only SPARQL SELECT or ASK against typed semantic facts.
+
+Usage:
+  openknowledge query sparql --query <sparql> [path]
+  openknowledge query sparql --query-file <file> [path]
+  openknowledge query sparql --query-file <file> --out <file> [path]
+  openknowledge query sparql --help
+
+Flags:
+  --query       Inline SPARQL SELECT or ASK query.
+  --query-file  Read the SPARQL query from a file.
+  --access      Grant one source access scope for this query. May be repeated.
+  --limit       Maximum bindings. Defaults to 12; maximum 1000.
+  --timeout     Evaluation deadline. Defaults to 2s; maximum 30s.
+  --out         Write result JSON atomically. Defaults to stdout.
+  --spec        OKF spec version. Defaults to latest.
+
+The embedded pure-Go engine supports SELECT, ASK, aggregation, property paths,
+and named graphs. Update, CONSTRUCT, federation, and remote loading are disabled.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func queryDatalogHelpText() string {
+	return fmt.Sprintf(`openknowledge query datalog
+
+Execute a Mangle Datalog query over normalized semantic facts.
+
+Usage:
+  openknowledge query datalog --query <atom> [path]
+  openknowledge query datalog --query <atom> --rules <file> [path]
+  openknowledge query datalog --query <atom> --rules <file> --profile openknowledge.closed-world/v1 [path]
+  openknowledge query datalog --help
+
+Flags:
+  --query       Inline Mangle query atom, for example claim(ID, S, P, O).
+  --query-file  Read the query atom from a file.
+  --rules       Read recursive Mangle rules from a file. Rules cannot add base facts.
+  --profile     Rule profile. Defaults to openknowledge.safe/v1. Negation requires
+                the explicit openknowledge.closed-world/v1 profile.
+  --access      Grant one source access scope for this query. May be repeated.
+  --limit       Maximum facts. Defaults to 12; maximum 1000.
+  --timeout     Evaluation deadline. Defaults to 2s; maximum 30s.
+  --out         Write result JSON atomically. Defaults to stdout.
+  --spec        OKF spec version. Defaults to latest.
+
+Every derived fact includes its rule, input facts, source revision, and proof
+path. Created facts, proof depth, result count, concurrency, and time are bounded.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func queryHybridHelpText() string {
+	return fmt.Sprintf(`openknowledge query hybrid
+
+Combine text retrieval with explicit SPARQL and Datalog constraints.
+
+Usage:
+  openknowledge query hybrid --text <text> [path]
+  openknowledge query hybrid --text <text> --sparql <sparql> [path]
+  openknowledge query hybrid --text <text> --sparql-file <file> [path]
+  openknowledge query hybrid --text <text> --datalog-query <atom> --rules <file> [path]
+  openknowledge query hybrid --help
+
+Flags:
+  --text            Text for BM25 and vector retrieval.
+  --embedding-url   OpenAI-compatible embedding endpoint. A base URL uses
+                    /v1/embeddings. Defaults to OPENKNOWLEDGE_EMBEDDING_URL.
+  --embedding-model Embedding model ID. Defaults to OPENKNOWLEDGE_EMBEDDING_MODEL
+                    or embeddinggemma.
+  --embedding-cache Persistent vector cache file. Defaults to a private user cache.
+  --sparql          Inline SPARQL SELECT query.
+  --sparql-file     Read SPARQL from a file.
+  --datalog-query   Inline Mangle query atom.
+  --rules           Read Mangle rules from a file.
+  --profile         Mangle rule profile.
+  --access          Grant one source access scope. May be repeated.
+  --limit           Maximum fused results. Defaults to 12; maximum 1000.
+  --timeout         Per-engine deadline. Defaults to 2s; maximum 30s.
+  --out             Write result JSON atomically. Defaults to stdout.
+  --spec            OKF spec version. Defaults to latest.
+
+Only requested engines run. Text retrieval adds a document-aware section-focus
+route. It selects one answer-focused section from each retrieved document.
+Independent ranks use reciprocal-rank fusion. Structured bindings and proof
+paths are joined back to source text sections.
+When no embedding URL is set, text retrieval uses the deterministic local hash
+vector. Set OPENKNOWLEDGE_EMBEDDING_TOKEN for endpoint bearer authentication.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
 func disconnectHelpText(command string) string {
 	return fmt.Sprintf(`%s
 
@@ -305,6 +429,8 @@ Usage:
   openknowledge export html --script-src <src> --out <folder> [path]
   openknowledge export json [path]
   openknowledge export json --out <file> [path]
+  openknowledge export rdf [path]
+  openknowledge export rdf --out <file> [path]
   openknowledge export tar --out <file> [path]
   openknowledge export graph [path]
   openknowledge export graph --out <file> [path]
@@ -314,12 +440,13 @@ Usage:
 Targets:
   html       Write a static HTML site. Defaults to the viewer app bundle.
   json       Write normalized bundle JSON.
+  rdf        Write deterministic RDF 1.1 N-Quads for typed semantic facts.
   tar        Write a portable bundle tar.gz archive.
   graph      Write node and edge graph JSON by graph type.
 
 Flags:
   --spec       OKF spec version. Defaults to latest.
-  --out        Output folder for html, optional output file for json/graph, archive file for tar.
+  --out        Output folder for html, optional output file for json/rdf/graph, archive file for tar.
   --head-file  Trusted HTML fragment file to inject into default viewer HTML <head>.
   --head-html  Trusted HTML fragment to inject into default viewer HTML <head>.
   --no-source-archive
@@ -420,6 +547,35 @@ Arguments:
 Flags:
   --out       Output archive file. Required.
   --spec      OKF spec version. Defaults to latest.
+
+Versions:
+  %s
+`, supportedSpecVersionsText())
+}
+
+func exportRDFHelpText() string {
+	return fmt.Sprintf(`openknowledge export rdf
+
+Write typed semantic facts as deterministic RDF 1.1 N-Quads.
+
+Usage:
+  openknowledge export rdf [path]
+  openknowledge export rdf --out <file> [path]
+  openknowledge export rdf --spec <version> [path]
+  openknowledge export rdf --help
+
+Arguments:
+  path        Knowledge base root. Defaults to the current directory.
+
+Flags:
+  --out       Output file. Defaults to stdout.
+  --spec      OKF spec version. Defaults to latest.
+
+Behavior:
+  The export uses one immutable named graph per corpus revision. It preserves
+  asserted claim occurrences, direct triples, typed values, scope, evidence,
+  source bindings, relations, and source-bound provenance. Invalid semantic
+  bundles are rejected before any output file is replaced.
 
 Versions:
   %s

@@ -1,0 +1,13 @@
+type: openknowledge.claim-replay-eval
+version: 1
+id: wiki-claims
+checkpoints:
+  - id: current
+    revision: HEAD
+    expectations:
+      - claim_id: okn:claim/claim-freshness/evidence-digest
+        state: supported
+      - claim_id: okn:claim/claim-freshness/reconcile-command
+        state: supported
+      - claim_id: okn:claim/claim-freshness/audit-gate
+        state: supported

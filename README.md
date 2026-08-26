@@ -46,6 +46,10 @@ Run the interactive setup wizard:
 okn setup
 ```
 
+This command uses the `codebase-docs` preset by default. It creates a
+lightweight knowledge base for repository documentation, architecture,
+services, decisions, and changelog content.
+
 To use an agent that already works inside the project, copy this prompt:
 
 ```text
@@ -53,7 +57,7 @@ Set up Open Knowledge for this workspace. Check the CLI with `okn version`.
 If it is missing, install it from https://openknowledge.sh/install and verify
 the installation. Then run `okn setup --prompt` and follow its complete task.
 Ask me before product-level decisions. Finish with the printed `okn validate`
-and `okn setup complete` commands.
+and `okn search` commands.
 ```
 
 The generated task is the source of truth for the setup workflow. The default
@@ -65,8 +69,7 @@ To let the CLI launch an installed agent runtime, run:
 okn setup --agent <codex|claude|opencode>
 ```
 
-Agent mode runs the same generated task. It validates and activates the wiki
-through `okn setup complete`.
+Agent mode runs the same generated task. It creates and validates the wiki.
 
 ### 3. Validate
 
@@ -76,16 +79,12 @@ When the agent finishes:
 okn validate Wiki
 ```
 
-### 4. Add Knowledge CI and production MCP
+### 4. Search or browse
 
 ```sh
-okn setup ci Wiki
-okn setup runtime Wiki
+okn search Wiki "release workflow"
+okn view Wiki
 ```
-
-The CI profile adds a source baseline, starter eval questions, and GitHub gates.
-The runtime profile publishes immutable passing generations. See the complete
-[Knowledge CI Golden Path](Wiki/features/golden-path.md).
 
 <details>
 <summary>Alternative npm installation</summary>
@@ -106,43 +105,70 @@ sanitized error telemetry. Telemetry is enabled by default. Run
 command to disable telemetry and save the opt-out. See
 [Product Telemetry and Privacy](Wiki/features/telemetry.md).
 
+## Optional upgrades
+
+The local documentation workflow does not require typed claims, Knowledge CI,
+or a production runtime.
+
+Use the `trusted-knowledge` preset when the knowledge base needs explicit
+sources, evidence, claim lifecycle, or conflict checks:
+
+```sh
+okn setup --use-case trusted-knowledge
+```
+
+Use `okn setup --use-case custom` when neither preset matches the intended
+result. All presets use the same Markdown and OKF format. A preset changes the
+setup task and starter content, not the knowledge format.
+
+Add Knowledge CI when pull requests must verify knowledge quality. Add the
+runtime when clients need a production MCP service:
+
+```sh
+okn setup ci Wiki
+okn setup runtime Wiki
+```
+
+The CI profile adds a source baseline, starter eval questions, and GitHub gates.
+The runtime profile publishes immutable passing generations. See the complete
+[Knowledge CI Golden Path](Wiki/features/golden-path.md).
+
 ## Workflows
 
-Start with the [Knowledge CI Golden Path](Wiki/features/golden-path.md) for the
-complete setup, audit, repair, eval, and production MCP loop.
-
-### Create, retrieve, and verify
+### Start here
 
 Use [`setup`](Wiki/features/commands/setup.md) for interactive onboarding. Use
 `okn setup --prompt` for an existing agent. Use `okn setup --agent <runtime>`
-to launch one. Use
-[`search`](Wiki/features/commands/search.md) to retrieve knowledge. Use
-[`validate`](Wiki/features/commands/validate.md) to verify the wiki.
+to launch one. Use [`validate`](Wiki/features/commands/validate.md) to verify
+the wiki. Use [`search`](Wiki/features/commands/search.md) to retrieve
+knowledge. Use [`view`](Wiki/features/commands/view.md) to browse the wiki.
 
-### Work locally
+### Trust and govern
 
-Use [`agent`](Wiki/features/commands/agent.md) to run an agent task. Use
-[`get`](Wiki/features/commands/get.md) to read one document. Use
-[`list`](Wiki/features/commands/list.md) to inspect the content tree. Use
-[`view`](Wiki/features/commands/view.md) to browse the wiki.
+Use [`audit`](Wiki/features/commands/audit.md) to find knowledge risks. Use
+[`claims`](Wiki/features/commands/claims.md) and
+[`evidence`](Wiki/features/commands/evidence.md) for trusted facts. Use
+[`eval`](Wiki/features/commands/eval.md) and
+[`quality`](Wiki/features/commands/quality.md) to measure results.
 
-### Share and connect
+### Query and interchange
+
+Use [`query`](Wiki/features/commands/query.md) for explicit semantic queries.
+Use [`export`](Wiki/features/commands/export.md) to create portable output.
+
+### Publish and operate
 
 Use [`mcp`](Wiki/features/commands/mcp.md) to serve MCP tools. Use
-[`export`](Wiki/features/commands/export.md) to publish portable output. Use
-[`connect`](Wiki/features/commands/connect.md) to add a source. Use
-[`disconnect`](Wiki/features/commands/disconnect.md) to remove a source. Use
-[`registry`](Wiki/features/commands/registry.md) to inspect the registry.
+[`connect`](Wiki/features/commands/connect.md) and
+[`registry`](Wiki/features/commands/registry.md) to manage sources. Use
+[`automation`](Wiki/features/commands/automation.md) for jobs and deployments.
 
-### Automate and operate
+### Advanced internals
 
-Use [`automation`](Wiki/features/commands/automation.md) for jobs, insights,
-runtime services, and deployments.
-
-### Use advanced tools
-
-Use [`scaffold`](Wiki/features/commands/scaffold.md) for deterministic bundle
-creation. Other advanced tools are
+Use [`agent`](Wiki/features/commands/agent.md) for an agent task. Use
+[`get`](Wiki/features/commands/get.md) and
+[`list`](Wiki/features/commands/list.md) for direct inspection. Other advanced
+tools are [`scaffold`](Wiki/features/commands/scaffold.md),
 [`prompt`](Wiki/features/commands/prompt.md),
 [`ast`](Wiki/features/commands/ast.md), and
 [`spec`](Wiki/features/commands/spec.md).

@@ -36,7 +36,12 @@ jobs:
           "$RUNNER_TEMP/okn" --no-telemetry validate Wiki
           "$RUNNER_TEMP/okn" --no-telemetry claims validate --path Wiki --json \
             > "$RUNNER_TEMP/openknowledge-reports/claims-validation.json"
+          "$RUNNER_TEMP/okn" --no-telemetry eval claims \
+            .openknowledge/evals/wiki-claims.yaml Wiki --format json \
+            --max-stale 0 --max-hallucinated 0 --max-unverified 0 \
+            --out "$RUNNER_TEMP/openknowledge-reports/claim-replay.json"
           "$RUNNER_TEMP/okn" --no-telemetry audit Wiki \
+            --baseline .openknowledge/audit-sources.json \
             --observe-remote \
             --fail-on high --format json --out "$RUNNER_TEMP/openknowledge-reports/audit.json"
 
@@ -115,6 +120,15 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Gate deterministic retrieval quality
+        run: |
+          go build -o "$RUNNER_TEMP/okn-retrieval" ./packages/cli/cmd/openknowledge
+          "$RUNNER_TEMP/okn-retrieval" --no-telemetry eval retrieval \
+            packages/cli/internal/eval/testdata/earnings-retrieval-v1/retrieval.yaml \
+            packages/cli/internal/eval/testdata/earnings-retrieval-v1/knowledge
+          "$RUNNER_TEMP/okn-retrieval" --no-telemetry eval retrieval \
+            .openknowledge/evals/wiki-retrieval.yaml Wiki
 
       - name: Test Go race safety and collect coverage
         run: |

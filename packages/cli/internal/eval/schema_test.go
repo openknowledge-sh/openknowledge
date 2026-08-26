@@ -59,6 +59,46 @@ func TestDatasetSchemaMatchesParserContract(t *testing.T) {
 	}
 }
 
+func TestRetrievalDatasetSchemaMatchesParserContract(t *testing.T) {
+	path := filepath.Join("..", "..", "schemas", "eval", "v1", "retrieval-dataset.schema.json")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := jsonschema.UnmarshalJSON(bytes.NewReader(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft2020)
+	if err := compiler.AddResource("https://openknowledge.sh/schemas/cli/eval/v1/retrieval-dataset.schema.json", document); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := compiler.Compile("https://openknowledge.sh/schemas/cli/eval/v1/retrieval-dataset.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dataset := RetrievalDataset{
+		Type: RetrievalDatasetType, Version: RetrievalDatasetVersion, ID: "earnings", Cutoffs: []int{1, 3, 5},
+		Gates: []RetrievalGate{{ID: "document-recall", System: "all", Level: "document", Metric: "recall", Cutoff: 3, Minimum: 0.75}},
+		Cases: []RetrievalEvalCase{{ID: "capacity", Category: "semantic", Query: "factory throughput", Judgments: []RetrievalJudgment{{Path: "northstar.md", Heading: "Capacity", Relevance: 3}}}},
+	}
+	if err := ValidateRetrievalDataset(dataset); err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(dataset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := schema.Validate(instance); err != nil {
+		t.Fatalf("parser-valid retrieval dataset does not satisfy the published schema: %v", err)
+	}
+}
+
 func TestAnswerProtocolSchemasCompile(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.DefaultDraft(jsonschema.Draft2020)

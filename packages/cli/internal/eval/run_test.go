@@ -59,7 +59,7 @@ func TestRunEvaluatesTrustFreshnessStatusAndProvenancePolicy(t *testing.T) {
 type: Policy
 title: Release policy
 status: stable
-stale_after: 2099-01-01
+stale_after: 2099-01-01T00:00:00Z
 verified:
   - by: human:alice
     at: 2026-08-21T12:00:00Z
@@ -93,7 +93,7 @@ Production releases require approval.
 type: Policy
 title: Release policy
 status: deprecated
-stale_after: 2020-01-01
+stale_after: 2020-01-01T00:00:00Z
 ---
 
 # Release policy

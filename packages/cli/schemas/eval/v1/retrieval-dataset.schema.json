@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/eval/v1/retrieval-dataset.schema.json",
+  "title": "Open Knowledge Retrieval Eval Dataset v1",
+  "type": "object",
+  "required": ["type", "version", "id", "cutoffs", "cases"],
+  "properties": {
+    "type": {"const": "openknowledge.retrieval-eval"},
+    "version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "cutoffs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {"type": "integer", "minimum": 1, "maximum": 100}
+    },
+    "gates": {"type": "array", "items": {"$ref": "#/$defs/gate"}},
+    "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "gate": {
+      "type": "object",
+      "required": ["id", "system", "level", "metric", "minimum"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "system": {"enum": ["all", "local-hash", "embedding", "embedding-delta"]},
+        "level": {"enum": ["section", "document"]},
+        "metric": {"enum": ["mrr", "recall", "ndcg"]},
+        "cutoff": {"type": "integer", "minimum": 1, "maximum": 100},
+        "minimum": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": ["id", "category", "query", "judgments"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "category": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "query": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "judgments": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/judgment"}}
+      },
+      "additionalProperties": false
+    },
+    "judgment": {
+      "type": "object",
+      "required": ["path", "relevance"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "heading": {"type": "string"},
+        "relevance": {"type": "integer", "minimum": 1, "maximum": 3}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

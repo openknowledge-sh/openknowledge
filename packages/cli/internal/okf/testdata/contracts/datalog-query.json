@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1",
+  "root": "/knowledge",
+  "revision": {
+    "specVersion": "0.1",
+    "indexSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "engine": {
+    "name": "Mangle",
+    "version": "0.5.0"
+  },
+  "query": "claim(ID, Subject, Predicate, Object)",
+  "ruleProfile": "openknowledge.safe/v1",
+  "results": [],
+  "truncated": false,
+  "policy": {
+    "allowedAccess": [],
+    "removedSources": 0,
+    "removedClaims": 0
+  }
+}

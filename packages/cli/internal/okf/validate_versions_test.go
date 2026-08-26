@@ -305,14 +305,14 @@ parameters:
 generated: { by: reference_agent/gemini-2.5-pro, at: 2026-06-20T22:53:05Z }
 verified: { by: human:reviewer, at: 2026-06-25T09:00:00Z }
 status: stable
-stale_after: 2026-12-31
+stale_after: 2026-12-31T00:00:00Z
 sources:
   - id: revenue-policy
     resource: https://example.com/revenue-policy
     author: team:finance
     usage_count: 50
-    last_modified: 2026-06-01
-usage_window: { from: 2026-06-01, to: 2026-06-30 }
+    last_modified: 2026-06-01T00:00:00Z
+usage_window: { from: 2026-06-01T00:00:00Z, to: 2026-06-30T00:00:00Z }
 ---
 
 # Computation

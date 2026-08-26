@@ -16,7 +16,8 @@ var claimAllowedFields = stringSet(
 var claimObjectAllowedFields = stringSet("ref", "value", "datatype", "language", "unit", "quantity_kind")
 var claimEvidenceAllowedFields = stringSet("id", "source_ref", "stance", "role", "selector", "observed_at")
 var claimSelectorAllowedFields = stringSet("type", "value", "exact", "prefix", "suffix", "start", "end", "page", "conforms_to")
-var claimVerificationAllowedFields = stringSet("method", "by", "at", "evidence_refs")
+var claimVerificationAllowedFields = stringSet("method", "by", "at", "evidence_refs", "evidence_versions")
+var claimEvidenceVersionAllowedFields = stringSet("evidence_ref", "source_ref", "resource", "sha256", "by", "at")
 var claimRelationsAllowedFields = stringSet("supersedes", "contradicts", "derived_from")
 var claimTimeAllowedFields = stringSet("from", "until")
 
@@ -303,7 +304,45 @@ func parseClaimVerification(raw any, label, path string, issues *[]Issue) (*Clai
 	if verification.Method == "" || verification.By == "" || verification.At == "" {
 		add("method, by, and at are required")
 	}
+	if rawVersions, exists := mapping["evidence_versions"]; exists {
+		items, ok := rawVersions.([]any)
+		if !ok {
+			add("evidence_versions must be a list")
+		} else {
+			for index, rawVersion := range items {
+				version, versionOK := parseClaimEvidenceVersion(rawVersion, fmt.Sprintf("%s.evidence_versions[%d]", label, index), path, issues)
+				if !versionOK {
+					valid = false
+					continue
+				}
+				verification.EvidenceVersions = append(verification.EvidenceVersions, version)
+			}
+		}
+	}
 	return verification, valid
+}
+
+func parseClaimEvidenceVersion(raw any, label, path string, issues *[]Issue) (ClaimEvidenceVersion, bool) {
+	mapping, ok := raw.(map[string]any)
+	if !ok {
+		*issues = append(*issues, claimIssue(path, label+" must be a mapping"))
+		return ClaimEvidenceVersion{}, false
+	}
+	valid := true
+	add := func(message string) { *issues = append(*issues, claimIssue(path, label+" "+message)); valid = false }
+	checkClaimFields(mapping, claimEvidenceVersionAllowedFields, add)
+	version := ClaimEvidenceVersion{
+		EvidenceRef: claimString(mapping["evidence_ref"]),
+		SourceRef:   claimString(mapping["source_ref"]),
+		Resource:    claimString(mapping["resource"]),
+		SHA256:      claimString(mapping["sha256"]),
+		By:          claimString(mapping["by"]),
+		At:          claimString(mapping["at"]),
+	}
+	if version.EvidenceRef == "" || version.SourceRef == "" || version.Resource == "" || version.SHA256 == "" || version.By == "" || version.At == "" {
+		add("evidence_ref, source_ref, resource, sha256, by, and at are required")
+	}
+	return version, valid
 }
 
 func parseClaimRelations(raw any, label, path string, issues *[]Issue) (ClaimRelations, bool) {

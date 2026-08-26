@@ -35,7 +35,7 @@ func TestRunAuditPrintsVersionedFindingsAndUsesSemanticExitStatus(t *testing.T) 
 func TestRunAuditWritesReportAndSourceBaselineAtomically(t *testing.T) {
 	root := t.TempDir()
 	writeMainTestFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Home\n")
-	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\nsources:\n  - resource: https://example.test/guide\n    last_modified: 2026-08-01\n---\n\n# Guide\n")
+	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\nsources:\n  - resource: https://example.test/guide\n    last_modified: 2026-08-01T00:00:00Z\n---\n\n# Guide\n")
 	out := filepath.Join(t.TempDir(), "audit", "report.json")
 	markdownOut := filepath.Join(filepath.Dir(out), "report.md")
 	baseline := filepath.Join(t.TempDir(), "audit", "sources.json")
@@ -64,6 +64,35 @@ func TestRunAuditWritesReportAndSourceBaselineAtomically(t *testing.T) {
 	loaded, err := knowledgeaudit.ReadBaseline(baseline)
 	if err != nil || len(loaded.Sources) != 1 {
 		t.Fatalf("unexpected baseline: %#v err=%v", loaded, err)
+	}
+}
+
+func TestRunAuditRefusesToAdvanceBaselineAcrossUnreconciledSourceChange(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\ntype: Index\n---\n\n# Home\n")
+	writeMainTestFile(t, root, "source.txt", "version one\n")
+	writeMainTestFile(t, root, "guide.md", "---\ntype: Guide\nowner: team:docs\nsources:\n  - id: source\n    resource: source.txt\n---\n\n# Guide\n")
+	baseline := filepath.Join(t.TempDir(), "sources.json")
+	_, stderr, code := captureMainOutput(t, func() int {
+		return runAudit([]string{root, "--baseline", baseline, "--update-baseline", "--format", "json"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("create baseline: code=%d stderr=%q", code, stderr)
+	}
+	before, err := os.ReadFile(baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeMainTestFile(t, root, "source.txt", "version two\n")
+	_, stderr, code = captureMainOutput(t, func() int {
+		return runAudit([]string{root, "--baseline", baseline, "--update-baseline", "--format", "json"})
+	})
+	if code != 1 || !strings.Contains(stderr, "cannot advance") {
+		t.Fatalf("expected baseline guard, code=%d stderr=%q", code, stderr)
+	}
+	after, err := os.ReadFile(baseline)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("baseline changed across unresolved source drift: err=%v", err)
 	}
 }
 

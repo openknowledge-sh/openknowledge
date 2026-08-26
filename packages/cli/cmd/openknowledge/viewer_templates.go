@@ -301,7 +301,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </svg>
         <span class="sidebar-navigation-label">Documents</span>
       </button>
-      <button class="sidebar-navigation-item" type="button" data-claims-view-toggle aria-label="Claims" aria-controls="claims-workspace" aria-pressed="false" hidden>
+      {{if not .Frame.Workspaces}}<button class="sidebar-navigation-item" type="button" data-claims-view-toggle{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}"{{end}} aria-label="Claims" aria-controls="claims-workspace" aria-pressed="false"{{if not .ClaimsAvailable}} hidden{{end}}>
         <svg class="sidebar-navigation-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="6" cy="7" r="2"></circle>
           <circle cx="18" cy="7" r="2"></circle>
@@ -310,7 +310,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         </svg>
         <span class="sidebar-navigation-label">Claims</span>
         <span class="sidebar-navigation-count" data-claims-navigation-count></span>
-      </button>
+      </button>{{end}}
       <span data-sidebar-graph-slot></span>
     </nav>
     <div class="knowledge-bases-navigation">
@@ -338,7 +338,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
         {{$workspace := .}}
         <section class="knowledge-base-group{{if .Active}} is-active{{end}}" data-knowledge-base="{{.Name}}" data-knowledge-base-name="{{.Name}}">
           <div class="knowledge-base-head">
-            <button class="knowledge-base-disclosure" type="button" data-knowledge-base-disclosure aria-expanded="{{if .Active}}true{{else}}false{{end}}" aria-controls="knowledge-base-tree-{{.Name}}">
+            <button class="knowledge-base-disclosure" type="button" data-knowledge-base-disclosure aria-expanded="{{if .Active}}true{{else}}false{{end}}" aria-controls="knowledge-base-content-{{.Name}}">
               <span class="knowledge-base-marker" aria-hidden="true"></span>
               <span class="knowledge-base-name">{{.Name}}</span>
               <svg class="knowledge-base-chevron control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
@@ -348,19 +348,31 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
               <input type="color" data-knowledge-base-color aria-label="Color for {{.Name}}">
             </label>
           </div>
-          <div id="knowledge-base-tree-{{.Name}}" class="file-sidebar-tree knowledge-tree" role="tree" aria-label="{{.Name}} documents"{{if not .Active}} hidden{{end}}>
-            {{range .Tree}}
-              {{if .Directory}}
-                <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
+          <div id="knowledge-base-content-{{.Name}}" class="knowledge-base-content"{{if not .Active}} hidden{{end}}>
+            <button class="knowledge-base-claims" type="button" data-claims-view-toggle data-knowledge-base="{{.Name}}" data-claims-url="{{.URL}}api/claims" aria-label="Claims for {{.Name}}" aria-controls="claims-workspace" aria-pressed="false">
+              <svg class="knowledge-base-claims-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="6" cy="7" r="2"></circle>
+                <circle cx="18" cy="7" r="2"></circle>
+                <circle cx="12" cy="17" r="2"></circle>
+                <path d="m7.8 8 3.1 7M16.2 8l-3.1 7M8 7h8"></path>
+              </svg>
+              <span>Claims</span>
+              <span class="sidebar-navigation-count" data-claims-navigation-count></span>
+            </button>
+            <div class="file-sidebar-tree knowledge-tree" role="tree" aria-label="{{.Name}} documents">
+              {{range .Tree}}
+                {{if .Directory}}
+                  <div class="tree-row tree-directory" role="treeitem" aria-expanded="true" style="--indent: {{.Indent}}px">{{.Name}}</div>
+                {{else}}
+                  <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" data-knowledge-base="{{$workspace.Name}}" style="--indent: {{.Indent}}px">
+                    <span class="tree-file-name">{{.Name}}</span>
+                    {{if .System}}<span class="tree-file-system">system</span>{{end}}
+                  </a>
+                {{end}}
               {{else}}
-                <a class="tree-row tree-file" role="treeitem" href="{{.URL}}" data-tree-path="{{.Path}}" data-knowledge-base="{{$workspace.Name}}" style="--indent: {{.Indent}}px">
-                  <span class="tree-file-name">{{.Name}}</span>
-                  {{if .System}}<span class="tree-file-system">system</span>{{end}}
-                </a>
+                {{if .Error}}<p class="knowledge-base-error">{{.Error}}</p>{{else}}<p class="empty">No Markdown files found.</p>{{end}}
               {{end}}
-            {{else}}
-              {{if .Error}}<p class="knowledge-base-error">{{.Error}}</p>{{else}}<p class="empty">No Markdown files found.</p>{{end}}
-            {{end}}
+            </div>
           </div>
         </section>
         {{end}}
@@ -398,7 +410,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
     <section id="claims-workspace" class="claims-workspace" data-claims-workspace aria-label="Claims" hidden>
       <header class="claims-workspace-header">
         <div class="claims-workspace-heading">
-          <h1>Claims</h1>
+          <h1 data-claims-title>Claims</h1>
           <p data-claims-summary>Browse typed statements across this knowledge base.</p>
         </div>
         <form class="claims-filters" data-claims-filters role="search" aria-label="Filter claims">

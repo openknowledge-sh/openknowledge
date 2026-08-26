@@ -9,8 +9,8 @@ timestamp: 2026-07-18T00:00:00Z
 # `openknowledge mcp`
 
 Expose one local or connected knowledge base to an MCP client. The server is
-read-only. Clients can list and read files. They can also search knowledge and
-validate the bundle.
+read-only. Clients can list and read files. They can search, run explicit
+semantic queries, and validate the bundle.
 
 ## Usage
 
@@ -68,8 +68,10 @@ reads the filtered `mcp/` projection.
 | Tool | Arguments | Result |
 | --- | --- | --- |
 | `openknowledge_search` | Required `query`. Optional `budget`, `limit`, `noExpand`, and `filters`. | The same v1 context model as `search --format json`. |
+| `openknowledge_query` | Optional `text`, `sparql`, `datalog`, and `limit`. At least one query is required. | The v1 hybrid query result with retrieved text, asserted facts, derived facts, provenance, and proofs. |
 | `openknowledge_validate` | none | The complete v1 validation report. |
 | `openknowledge_claims_find` | Required `query`. | Ranked existing claim IDs and occurrences. |
+| `openknowledge_claims_stale` | none | Exact stale claim occurrences and stale evidence IDs. |
 | `openknowledge_claims_impact` | Required `claimId`. | Sources, documents, dependencies, and eval cases. |
 | `openknowledge_claims_propose` | Document, ID, value, source, reason, confidence, and optional scope data. | A digest-bound `proposed` claim document. |
 
@@ -83,6 +85,12 @@ appears only in its bound retrieval section. Document-wide claims and
 Search defaults to 2,400 estimated tokens and 12 sources. Its maximums are
 32,000 tokens, 50 sources, and 4,096 query characters. Tool arguments are
 strict.
+
+Semantic query defaults to 12 fused results and accepts at most 50 over MCP. Text,
+SPARQL, Datalog atoms, and rule programs have separate byte limits. The tool
+runs only the supplied routes. Direct MCP clients cannot self-issue access
+grants, so structured evaluation is public-only and fails closed for restricted
+sources. See [`okn query`](query.md) for the language profiles and result model.
 
 `filters.types` and `filters.tags` restrict candidates before retrieval. Values
 in one list use OR matching. The two lists use AND matching.

@@ -103,7 +103,7 @@ func TestSetupAgentUsesRuntimeValueWithoutGit(t *testing.T) {
 	}
 }
 
-func TestSetupInteractivePrintsSelectedActivationPlan(t *testing.T) {
+func TestSetupInteractiveDefersOptionalActivationUntilAfterFirstResult(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
 	codexExecutable := absoluteTestPath(t, "/test/codex")
@@ -124,9 +124,8 @@ func TestSetupInteractivePrintsSelectedActivationPlan(t *testing.T) {
 		}
 		return errors.New("not installed")
 	}
-	// Project wiki, print task, project skill, default Codex harness,
-	// observation off, confirm.
-	setupInput = strings.NewReader("\n\n2\n2\n\n\n\n")
+	// Codebase docs, print task for the current agent, confirm.
+	setupInput = strings.NewReader("\n\n\n")
 	setupInputIsTerminal = func() bool { return true }
 
 	var stdout, stderr string
@@ -138,21 +137,52 @@ func TestSetupInteractivePrintsSelectedActivationPlan(t *testing.T) {
 		t.Fatalf("setup code=%d stderr=%s\n%s", code, stderr, stdout)
 	}
 	for _, expected := range []string{
-		"What do you want to set up?",
+		"What do you want working first?",
+		"Searchable documentation for this codebase",
 		"How should setup run?",
-		"Which maintenance behaviors should future agents follow?",
-		"Clear, concise writing",
-		"ISO 24495-1 plain-language principles",
+		"Print a task for my current agent",
 		"Selected maintenance rules:",
 		"- project: General project knowledge.",
 		"- writing: Apply the common editorial rule",
-		"Install Open Knowledge instructions for agents?",
-		"None (not recommended)",
 		"Open Knowledge setup plan",
-		"--skill project --harness codex --observe off",
+		"First result:   searchable codebase documentation",
+		"Later options:  agent instructions, observation, CI, and runtime",
 	} {
 		if !strings.Contains(stdout, expected) {
 			t.Fatalf("interactive setup missing %q:\n%s", expected, stdout)
+		}
+	}
+	for _, unexpected := range []string{
+		"Install Open Knowledge instructions for agents?",
+		"Capture possible knowledge gaps after agent sessions?",
+		"The user already selected this activation plan",
+	} {
+		if strings.Contains(stdout, unexpected) {
+			t.Fatalf("interactive setup must defer %q:\n%s", unexpected, stdout)
+		}
+	}
+	searchIndex := strings.Index(stdout, "Run one representative query")
+	activationIndex := strings.Index(stdout, "ask the user which installed agent harnesses need Open Knowledge instructions")
+	if searchIndex < 0 || activationIndex < 0 || activationIndex < searchIndex {
+		t.Fatalf("interactive setup must demonstrate search before optional activation:\n%s", stdout)
+	}
+}
+
+func TestSetupTrustedKnowledgePresetTailorsTheAgentTask(t *testing.T) {
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runSetup([]string{"Wiki", "--prompt", "--use-case", "trusted-knowledge"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("setup code=%d stderr=%s", code, stderr)
+	}
+	for _, expected := range []string{
+		"trusted knowledge across multiple sources",
+		"Preserve provenance, disagreement, lifecycle, and access boundaries",
+		"Ask which trust capabilities the user needs after the first result",
+		"Do not enable the complete trust stack by default",
+	} {
+		if !strings.Contains(stdout, expected) {
+			t.Fatalf("trusted setup missing %q:\n%s", expected, stdout)
 		}
 	}
 }
@@ -166,6 +196,7 @@ func TestParseSetupArgsRejectsRemovedAndAmbiguousOptions(t *testing.T) {
 		{"Wiki", "--prompt", "--interactive"},
 		{"Wiki", "--prompt", "--agent", "codex"},
 		{"Wiki", "--model", "gpt-test"},
+		{"Wiki", "--use-case", "everything"},
 	} {
 		if _, err := parseSetupArgs(args); err == nil {
 			t.Fatalf("expected setup args to fail: %#v", args)

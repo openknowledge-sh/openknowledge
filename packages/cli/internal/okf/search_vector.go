@@ -1,7 +1,6 @@
 package okf
 
 import (
-	"math"
 	"strings"
 )
 
@@ -11,9 +10,13 @@ const knowledgeSearchVectorDimensions = 256
 // intentionally has no model, network dependency, or mutable index state.
 // A future embedding provider can replace this representation behind the same
 // candidate interface.
-type knowledgeSearchVector []float64
+type knowledgeSearchVector []float32
 
 func newKnowledgeSearchVector(text string) knowledgeSearchVector {
+	return knowledgeSearchVector(hashedKnowledgeSearchVector(text))
+}
+
+func hashedKnowledgeSearchVector(text string) []float32 {
 	vector := make(knowledgeSearchVector, knowledgeSearchVectorDimensions)
 	normalized := normalizeSearchText(text)
 	for _, token := range strings.Fields(normalized) {
@@ -23,21 +26,11 @@ func newKnowledgeSearchVector(text string) knowledgeSearchVector {
 			addKnowledgeSearchFeature(vector, "c:"+string(letters[index:index+3]), 0.35)
 		}
 	}
-	length := 0.0
-	for _, value := range vector {
-		length += value * value
-	}
-	if length == 0 {
-		return vector
-	}
-	length = math.Sqrt(length)
-	for index := range vector {
-		vector[index] /= length
-	}
-	return vector
+	normalizedVector, _ := normalizeEmbeddingVector(vector, knowledgeSearchVectorDimensions)
+	return normalizedVector
 }
 
-func addKnowledgeSearchFeature(vector knowledgeSearchVector, feature string, weight float64) {
+func addKnowledgeSearchFeature(vector knowledgeSearchVector, feature string, weight float32) {
 	var hash uint32 = 2166136261
 	for _, character := range feature {
 		hash ^= uint32(character)
@@ -47,15 +40,5 @@ func addKnowledgeSearchFeature(vector knowledgeSearchVector, feature string, wei
 }
 
 func knowledgeSearchVectorSimilarity(left, right knowledgeSearchVector) float64 {
-	if len(left) == 0 || len(left) != len(right) {
-		return 0
-	}
-	score := 0.0
-	for index, value := range left {
-		score += value * right[index]
-	}
-	if score < 0 {
-		return 0
-	}
-	return score
+	return embeddingCosineSimilarity(left, right)
 }

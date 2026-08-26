@@ -8,10 +8,12 @@ web
 
 ## Users
 
-The primary user is a technical team already deploying AI agents whose
-answers depend on rapidly changing internal knowledge. The product serves
-three roles:
+The entry user is a technical team that wants searchable, maintainable product
+and codebase documentation without adopting a separate knowledge platform.
+Teams can add trust and runtime capabilities when their sources, scale, or
+agent workflows require them. The product serves four roles:
 
+- engineers and documentation owners maintaining a shared codebase view;
 - agent builders who need a safe knowledge runtime;
 - knowledge owners and experts who should review only decisions that need
   human judgment;
@@ -19,31 +21,35 @@ three roles:
 
 ## Product Purpose
 
-Open Knowledge is the CI and runtime for agent knowledge. It turns Markdown
-knowledge into an open, versioned, testable system that can detect concrete
-risks, propose evidence-backed maintenance, verify answer impact, and serve a
-trusted release to any agent.
+Open Knowledge starts as searchable, Git-native Markdown documentation and can
+grow into CI and a runtime for agent knowledge. The same bundle can add
+concrete risk detection, evidence-backed maintenance, answer verification, and
+trusted releases without a format migration.
 
-Success means the maintenance loop closes: real usage exposes a gap or risk,
-maintenance produces an attributable change, evals establish its impact, the
-runtime publishes it safely, and subsequent usage shows whether the outcome
-improved.
+Success at the entry layer means a user can create useful documentation,
+validate it, and retrieve a relevant answer before choosing integrations or
+governance concepts. At the trusted layer, success means the maintenance loop
+closes: real usage exposes a gap or risk, maintenance produces an attributable
+change, evals establish its impact, the runtime publishes it safely, and
+subsequent usage shows whether the outcome improved.
 
 ## Positioning
 
-Open Knowledge does more than index existing content. It actively improves the
-knowledge base while keeping the source readable, Git-native, model-agnostic,
-and portable. Its differentiator is one lifecycle spanning repository,
-continuous audit, agentic maintenance, Knowledge CI, runtime retrieval, and
-usage-grounded observability.
+Open Knowledge uses progressive disclosure: ordinary documentation needs only
+Markdown, validation, search, and optional browsing. The same knowledge base
+can later add provenance, typed claims, continuous audit, agentic maintenance,
+Knowledge CI, runtime retrieval, and usage-grounded observability. This
+cumulative lifecycle keeps the source readable, Git-native, model-agnostic,
+and portable.
 
 ## Operating Context
 
-Teams work locally with Markdown and the Open Knowledge Format, review changes
-through Git and pull requests, run deterministic validation and evals in CI,
-publish immutable runtime generations, and retrieve knowledge over HTTP or
-MCP. Usage, refusal, and grounded feedback events remain private operational
-data unless a team explicitly exports a report.
+Teams begin locally with Markdown and the Open Knowledge Format. Lightweight
+bundles can remain local and use Git review, validation, search, and the viewer.
+Teams that need stronger assurance can add deterministic evals in CI, publish
+immutable runtime generations, and retrieve knowledge over HTTP or MCP. Usage,
+refusal, and grounded feedback events remain private operational data unless a
+team explicitly exports a report.
 
 ## Capabilities and Constraints
 
@@ -74,11 +80,13 @@ fabricate them.
 ## Product Principles
 
 1. Keep knowledge open, readable, Git-native, and vendor-independent.
-2. Show concrete problems, impact, and evidence instead of magic scores.
-3. Test knowledge changes by their effect on agent answers before publication.
-4. Automate mechanical work while preserving explicit human judgment
+2. Deliver a useful local result before asking users to configure optional
+   trust, integration, or production layers.
+3. Show concrete problems, impact, and evidence instead of magic scores.
+4. Test knowledge changes by their effect on agent answers before publication.
+5. Automate mechanical work while preserving explicit human judgment
    boundaries.
-5. Improve the knowledge base from real usage and attributable outcomes.
+6. Improve the knowledge base from real usage and attributable outcomes.
 
 ## Accessibility & Inclusion
 

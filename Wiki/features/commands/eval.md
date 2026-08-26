@@ -21,6 +21,107 @@ okn eval run evals/deploy.yaml Wiki --answer-command ./answer-runner
 `key-or-path` is a registry key or knowledge base directory. The default is
 the current directory.
 
+## Ranked retrieval benchmark
+
+Use `eval retrieval` to measure result ranking against graded relevance
+judgments.
+
+```sh
+okn eval retrieval evals/retrieval.yaml Wiki
+okn eval retrieval evals/retrieval.yaml Wiki --format json --out reports/retrieval.json
+okn eval retrieval evals/retrieval.yaml Wiki \
+  --embedding-url http://127.0.0.1:11434 \
+  --embedding-model embeddinggemma
+```
+
+The command always measures the local hash route. An embedding URL adds a
+second system to the same report.
+
+The strict dataset uses this form:
+
+```yaml
+type: openknowledge.retrieval-eval
+version: 1
+id: earnings
+cutoffs: [1, 3, 5]
+gates:
+  - id: document-coverage
+    system: all
+    level: document
+    metric: recall
+    cutoff: 3
+    minimum: 0.75
+  - id: embedding-uplift
+    system: embedding-delta
+    level: section
+    metric: mrr
+    minimum: 0.30
+cases:
+  - id: capacity
+    category: semantic
+    query: ability to make more units
+    judgments:
+      - path: calls/northstar.md
+        heading: Manufacturing capacity
+        relevance: 3
+```
+
+Relevance values range from `1` to `3`. A judgment can identify a document or
+an exact heading.
+
+The report contains these macro-averaged metrics for all cases and each
+category:
+
+- MRR measures the rank of the first relevant result.
+- Recall@k measures how many judged results occur in the first `k` results.
+- nDCG@k measures order quality and uses the relevance grades.
+
+Section metrics use the judged heading when it is present. A path-only
+judgment accepts the first section from that document.
+
+Document metrics collapse each path to its highest ranked section.
+
+Quality gates can select `all`, `local-hash`, `embedding`, or
+`embedding-delta`. A delta gate measures the embedding value minus the local
+hash value.
+
+An unavailable embedding gate has the `skipped` status. A measured value below
+`minimum` has the `fail` status and makes the command return exit status `1`.
+
+The repository CI runs the synthetic earnings dataset without an external
+embedding service. CI also runs recorded project questions against `Wiki`.
+
+Both runs enforce deterministic absolute gates.
+
+The recorded Wiki gate requires the exact judged section at rank `1` for both
+project questions.
+
+## Claim replay
+
+Use `eval claims` to replay active typed claim IDs across immutable Git
+checkpoints. The dataset records evidence-backed truth. The command does not
+ask a model to decide truth.
+
+```sh
+okn eval claims evals/claim-history.yaml Wiki
+okn eval claims evals/claim-history.yaml Wiki --format json \
+  --max-stale 0 --max-hallucinated 0 --max-unverified 0
+```
+
+A checkpoint expectation is `supported`, `refuted`, or `unverified`. A
+refuted claim is `stale` when an earlier checkpoint supported the same claim
+ID. A newly refuted claim is `hallucinated`. A missing expectation is
+`unverified`. An expected claim that is absent from a checkpoint is also
+unverified. The default gates permit no stale, hallucinated, or unverified
+results. Set a maximum explicitly when the dataset permits one.
+
+The input uses `claim-replay-dataset.schema.json`. JSON output uses
+`claim-replay-report.schema.json`.
+
+`--embedding-url`, `--embedding-model`, and `--embedding-cache` use the same
+defaults and environment values as `query hybrid`. Cached section vectors make
+repeat benchmark runs faster. Each query still requires one query vector.
+
 ## Dataset v1
 
 The command accepts one strict YAML document. Unknown fields, duplicate fields,
@@ -269,8 +370,8 @@ does not configure an answer command. Use datasets without answer expectations.
 
 | Exit status | Meaning |
 | --- | --- |
-| `0` | The selected single-run or comparison gate passed. |
-| `1` | The selected gate failed, or the evaluation could not run. |
+| `0` | All measured gates passed. An unavailable embedding gate can be skipped. |
+| `1` | A measured gate failed, or the evaluation could not run. |
 | `2` | Command usage or dataset validation failed. |
 
 ---
@@ -280,12 +381,15 @@ does not configure an answer command. Use datasets without answer expectations.
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/eval_command.go`
+> - `packages/cli/cmd/openknowledge/eval_retrieval_command.go`
 > - `packages/cli/internal/eval/`
 > - `packages/cli/schemas/eval/v1/dataset.schema.json`
+> - `packages/cli/schemas/eval/v1/retrieval-dataset.schema.json`
 > - `packages/cli/schemas/eval/v1/answer-request.schema.json`
 > - `packages/cli/schemas/eval/v1/answer-response.schema.json`
 > - `packages/cli/schemas/v1/eval-report.schema.json`
 > - `packages/cli/schemas/v1/eval-comparison.schema.json`
+> - `packages/cli/schemas/v1/retrieval-eval-report.schema.json`
 > - `.github/workflows/ci.yml`
 > - `.github/workflows/knowledge-eval.yml`
 >

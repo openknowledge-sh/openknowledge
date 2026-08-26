@@ -55,7 +55,7 @@
       },
       "freshness": {
         "stale": false,
-        "staleAfter": "2027-12-31",
+        "staleAfter": "2027-12-31T00:00:00Z",
         "evaluatedAt": "2026-08-21T12:00:00Z"
       },
       "provenance": {

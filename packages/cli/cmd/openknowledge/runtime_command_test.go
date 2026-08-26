@@ -670,7 +670,7 @@ func TestRuntimeRetrievalPolicyEnrichesAndFiltersHTTPAndMCP(t *testing.T) {
 type: Guide
 title: Trusted policy
 status: stable
-stale_after: 2027-12-31
+stale_after: 2027-12-31T00:00:00Z
 verified: { by: human:reviewer, at: 2026-08-20T10:00:00Z }
 sources:
   - id: handbook
@@ -685,7 +685,7 @@ Runtime selection policy guidance.
 type: Guide
 title: Draft policy
 status: draft
-stale_after: 2026-01-01
+stale_after: 2026-01-01T00:00:00Z
 ---
 
 # Draft policy

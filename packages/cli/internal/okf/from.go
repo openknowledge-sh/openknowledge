@@ -8,11 +8,12 @@ import (
 )
 
 type FromPromptOptions struct {
-	Source string
-	Out    string
-	About  string
-	Depth  int
-	Rules  []string
+	Source  string
+	Out     string
+	About   string
+	Depth   int
+	Rules   []string
+	UseCase string
 }
 
 func FromPrompt(options FromPromptOptions) (string, error) {
@@ -46,6 +47,7 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteString("Simple model:\n")
 	builder.WriteString("source URL or path -> local agent task -> OKF Markdown bundle\n\n")
 	builder.WriteString("Inputs:\n")
+	builder.WriteString(fmt.Sprintf("- First result: %s\n", setupUseCaseOutcome(options.UseCase)))
 	builder.WriteString(fmt.Sprintf("- Source: %s\n", markdownCode(options.Source)))
 	builder.WriteString(fmt.Sprintf("- Source kind: %s\n", inferFromSourceKind(options.Source)))
 	builder.WriteString(fmt.Sprintf("- Output wiki path: %s\n", markdownCode(options.Out)))
@@ -65,6 +67,8 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteByte('\n')
 	builder.WriteString(renderSelectedSetupRules(rules))
 	builder.WriteByte('\n')
+	builder.WriteString(setupUseCaseInstructions(options.UseCase))
+	builder.WriteByte('\n')
 
 	builder.WriteString("Generation recipe:\n")
 	builder.WriteString("- Build the smallest source-grounded structure that serves the user's goal. Choose focused pages for overview, architecture, workflows, API/reference, research synthesis, glossary, diagrams, or citations when useful.\n")
@@ -82,10 +86,10 @@ func FromPrompt(options FromPromptOptions) (string, error) {
 	builder.WriteString("Verify and finish:\n")
 	builder.WriteString("- Remove SETUP.MD after all setup decisions are reflected in the bundle.\n")
 	builder.WriteString(fmt.Sprintf("- Run `okn validate %q` and fix validation errors or avoidable warnings.\n", options.Out))
+	builder.WriteString(fmt.Sprintf("- Run one representative source-grounded query with `okn search %q \"<query>\"`; choose a query that demonstrates the wiki's intended use and confirm the returned evidence is relevant.\n", options.Out))
 	builder.WriteString("- Ask which installed agent harnesses need Open Knowledge instructions. Also ask for the skill scope: global, project, both, or none. Explain that the global skill is reusable across knowledge bases and the project skill can contain repository-specific guidance. Ask separately whether to enable knowledge-gap observation. Observation is opt-in.\n")
 	builder.WriteString(fmt.Sprintf("- Run `okn setup complete %q --skill <global|project|both|none> [--harness <codex|claude|opencode>] --observe <on|off>` with the user's selected skill scope, harnesses, and observation choice. Repeat `--harness` for each selected harness. Omit it only when the skill scope is `none` and observation is off.\n", options.Out))
 	builder.WriteString("- If `okn setup complete` fails, fix the reported problem and run it again.\n")
-	builder.WriteString(fmt.Sprintf("- Run one representative source-grounded query with `okn search %q \"<query>\"`; choose a query that demonstrates the wiki's intended use and confirm the returned evidence is relevant.\n", options.Out))
 	builder.WriteString("- Record meaningful generation or refresh notes in log.md.\n")
 	builder.WriteString("- Finish by telling the user what changed, that validation passed, which connections and skills were installed, and what the demonstrated search returned.\n")
 	builder.WriteString("- Mention `okn get`, `list`, or `view` only when the user asks for exact reading, structural inspection, or human browsing.\n")

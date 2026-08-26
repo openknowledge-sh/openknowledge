@@ -31,15 +31,17 @@ func TestHelpTextOrganizesCommandsAroundProductWorkflows(t *testing.T) {
 		"Flexible knowledge bases in Markdown that your agents can create, retrieve, validate, and publish.",
 		"Start here:",
 		"Work locally:",
-		"Share and connect:",
-		"Automate and operate:",
+		"Trust and govern:",
+		"Query and interchange:",
+		"Publish and operate:",
 		"Advanced and portable tools:",
 		"setup        Set up a knowledge base and its agent instructions.",
 		"search       Build source-grounded context from one or more knowledge bases.",
+		"query        Query semantic facts with SPARQL, Datalog, or hybrid retrieval.",
 		"eval         Test retrieval evidence against versioned questions.",
 		"agent        Run a local knowledge task with an agent.",
 		"automation   Run jobs, insights, runtimes, and deployments.",
-		"export       Export HTML, JSON, graph, or portable tar views.",
+		"export       Export HTML, JSON, RDF, graph, or portable tar views.",
 		"prompt       Print or install maintenance instructions.",
 		"scaffold     Create a deterministic local OKF knowledge base.",
 		"validate     Validate a bundle against an OKF spec.",
@@ -234,6 +236,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge setup [wiki] --prompt",
 				"openknowledge setup [wiki] --interactive",
 				"openknowledge setup [wiki] --agent <codex|claude|opencode>",
+				"openknowledge setup [wiki] --use-case <codebase-docs|trusted-knowledge|custom>",
 				"openknowledge setup skill",
 				"openknowledge setup complete <wiki>",
 				"Without terminal",
@@ -241,7 +244,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"--model",
 				"--about",
 				"--depth",
-				"not use predefined knowledge-base types",
+				"All use cases use the same OKF Markdown format",
 			},
 		},
 		"insights": {
@@ -391,6 +394,42 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"original Markdown",
 			},
 		},
+		"query": {
+			help: queryHelpText(),
+			required: []string{
+				"openknowledge query sparql --query <sparql> [path]",
+				"openknowledge query datalog --query <atom>",
+				"openknowledge query hybrid --text <text>",
+				"write asserted or derived facts back into the knowledge base",
+			},
+		},
+		"query sparql": {
+			help: querySPARQLHelpText(),
+			required: []string{
+				"openknowledge query sparql --query-file <file>",
+				"SELECT, ASK, aggregation, property paths",
+				"Update, CONSTRUCT, federation, and remote loading are disabled",
+			},
+		},
+		"query datalog": {
+			help: queryDatalogHelpText(),
+			required: []string{
+				"openknowledge query datalog --query <atom> --rules <file>",
+				"openknowledge.closed-world/v1",
+				"proof depth, result count, concurrency, and time are bounded",
+			},
+		},
+		"query hybrid": {
+			help: queryHybridHelpText(),
+			required: []string{
+				"openknowledge query hybrid --text <text> --sparql-file <file>",
+				"--embedding-url",
+				"OPENKNOWLEDGE_EMBEDDING_TOKEN",
+				"deterministic local hash",
+				"Only requested engines run",
+				"reciprocal-rank fusion",
+			},
+		},
 		"mcp": {
 			help: mcpHelpText(),
 			required: []string{
@@ -487,6 +526,7 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge export html --head-file <file> --out <folder> [path]",
 				"openknowledge export html --script-src <src> --out <folder> [path]",
 				"openknowledge export json --out <file> [path]",
+				"openknowledge export rdf --out <file> [path]",
 				"openknowledge export tar --out <file> [path]",
 				"openknowledge export graph --out <file> [path]",
 				"openknowledge export graph --type search [path]",
@@ -524,6 +564,15 @@ func TestCommandHelpTextIncludesCommandSpecificDetails(t *testing.T) {
 				"openknowledge export tar --out <file> [path]",
 				"Write a portable tar.gz archive",
 				"Output archive file. Required.",
+			},
+		},
+		"export rdf": {
+			help: exportRDFHelpText(),
+			required: []string{
+				"openknowledge export rdf --out <file> [path]",
+				"deterministic RDF 1.1 N-Quads",
+				"immutable named graph",
+				"bundles are rejected before any output file is replaced",
 			},
 		},
 		"export graph": {
@@ -1878,6 +1927,252 @@ func TestRunExportTarWritesPortableArchive(t *testing.T) {
 	}
 	if len(validation.Errors) != 0 {
 		t.Fatalf("expected extracted archive to validate, got %#v", validation.Errors)
+	}
+}
+
+func TestRunQueryCommandsReturnVersionedMachineResults(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Knowledge\n\nLocal semantic retrieval.\n")
+
+	sparqlOutput, code := captureMainStdout(t, func() int {
+		return runQuerySPARQL([]string{"--query", `ASK { ?s ?p ?o }`, root})
+	})
+	if code != 0 {
+		t.Fatalf("expected SPARQL command to succeed, got %d", code)
+	}
+	var sparqlResult okf.SPARQLResultSet
+	if err := json.Unmarshal([]byte(sparqlOutput), &sparqlResult); err != nil || sparqlResult.SchemaVersion != okf.SPARQLQuerySchemaVersion || sparqlResult.Boolean == nil || *sparqlResult.Boolean {
+		t.Fatalf("unexpected SPARQL command output: %s err=%v", sparqlOutput, err)
+	}
+
+	datalogOutput, code := captureMainStdout(t, func() int {
+		return runQueryDatalog([]string{"--query", `claim(ID, Subject, Predicate, Object)`, root})
+	})
+	if code != 0 {
+		t.Fatalf("expected Datalog command to succeed, got %d", code)
+	}
+	var datalogResult okf.DatalogResultSet
+	if err := json.Unmarshal([]byte(datalogOutput), &datalogResult); err != nil || datalogResult.SchemaVersion != okf.DatalogQuerySchemaVersion || len(datalogResult.Results) != 0 {
+		t.Fatalf("unexpected Datalog command output: %s err=%v", datalogOutput, err)
+	}
+
+	hybridOutput, code := captureMainStdout(t, func() int {
+		return runQueryHybrid([]string{"--text", "semantic retrieval", "--limit", "3", root})
+	})
+	if code != 0 {
+		t.Fatalf("expected hybrid command to succeed, got %d", code)
+	}
+	var hybridResult okf.HybridResultSet
+	if err := json.Unmarshal([]byte(hybridOutput), &hybridResult); err != nil || hybridResult.SchemaVersion != okf.HybridQuerySchemaVersion || len(hybridResult.Results) == 0 || len(hybridResult.Routes) != 3 {
+		t.Fatalf("unexpected hybrid command output: %s err=%v", hybridOutput, err)
+	}
+}
+
+func TestRunQueryHybridUsesConfiguredHTTPEmbeddingAndPersistentCache(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Knowledge\n\nLocal retrieval.\n")
+	writeMainTestFile(t, root, "vehicle.md", "---\ntype: Guide\ntitle: Fleet handbook\n---\n\n# Vehicle policy\n\nThe vehicle inspection schedule.\n")
+	writeMainTestFile(t, root, "deploy.md", "---\ntype: Guide\ntitle: Release handbook\n---\n\n# Deployment\n\nThe production rollback procedure.\n")
+
+	type embeddingRequest struct {
+		Model string   `json:"model"`
+		Input []string `json:"input"`
+	}
+	type embeddingItem struct {
+		Index     int       `json:"index"`
+		Embedding []float32 `json:"embedding"`
+	}
+	var corpusInputs int
+	previousClient := queryEmbeddingHTTPClient
+	queryEmbeddingHTTPClient = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.Path != "/v1/embeddings" || request.Header.Get("Authorization") != "Bearer fixture-token" {
+			return &http.Response{StatusCode: http.StatusUnauthorized, Body: io.NopCloser(bytes.NewReader(nil))}, nil
+		}
+		var payload embeddingRequest
+		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		data := make([]embeddingItem, len(payload.Input))
+		for index, text := range payload.Input {
+			lower := strings.ToLower(text)
+			vector := []float32{0, 0, 1}
+			switch {
+			case strings.Contains(lower, "automobile"), strings.Contains(lower, "vehicle"):
+				vector = []float32{1, 0, 0}
+			case strings.Contains(lower, "deployment"):
+				vector = []float32{0, 1, 0}
+			}
+			if strings.Contains(lower, "vehicle policy") || strings.Contains(lower, "deployment") || strings.Contains(lower, "local retrieval") {
+				corpusInputs++
+			}
+			data[index] = embeddingItem{Index: index, Embedding: vector}
+		}
+		encoded, err := json.Marshal(map[string]any{"model": "fixture:1", "data": data})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(encoded)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+	})}
+	t.Cleanup(func() { queryEmbeddingHTTPClient = previousClient })
+	t.Setenv(embeddingTokenEnv, "fixture-token")
+	t.Setenv("OPENKNOWLEDGE_EMBEDDING_URL", "")
+	t.Setenv("OPENKNOWLEDGE_EMBEDDING_MODEL", "")
+	t.Setenv("OPENKNOWLEDGE_EMBEDDING_CACHE", "")
+	cachePath := filepath.Join(t.TempDir(), "vectors", "cache.json")
+	args := []string{
+		"--text", "automobile maintenance", "--limit", "2",
+		"--embedding-url", "http://127.0.0.1:11434", "--embedding-model", "fixture",
+		"--embedding-cache", cachePath, root,
+	}
+
+	for run := 0; run < 2; run++ {
+		output, code := captureMainStdout(t, func() int { return runQueryHybrid(args) })
+		if code != 0 {
+			t.Fatalf("expected HTTP embedding query to succeed, got %d", code)
+		}
+		var result okf.HybridResultSet
+		if err := json.Unmarshal([]byte(output), &result); err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Results) == 0 || result.Results[0].Text == nil || result.Results[0].Text.Path != "vehicle.md" {
+			t.Fatalf("HTTP embedding did not rank the semantic match first: %s", output)
+		}
+	}
+	if corpusInputs != 3 {
+		t.Fatalf("expected the second run to reuse three cached corpus vectors, embedded=%d", corpusInputs)
+	}
+	if info, err := os.Stat(cachePath); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("expected private persistent embedding cache: info=%v err=%v", info, err)
+	}
+}
+
+func TestParseQueryCommandOptionsBoundsAndSeparatesInputs(t *testing.T) {
+	options, err := parseQueryCommandOptions([]string{"--access", "team:identity", "--access=profile:prod", "--limit", "25", "--timeout", "500ms", "knowledge"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.path != "knowledge" || options.limit != 25 || options.timeout != 500*time.Millisecond || !reflect.DeepEqual(options.access, []string{"team:identity", "profile:prod"}) {
+		t.Fatalf("unexpected query options: %#v", options)
+	}
+	if _, err := parseQueryCommandOptions([]string{"--limit", "1001"}); err == nil {
+		t.Fatal("expected result limit validation")
+	}
+	if err := validateQueryCommandOptions("sparql", queryCommandOptions{spec: "latest", query: "ASK {}", rulesFile: "rules.mg"}); err == nil {
+		t.Fatal("expected cross-engine flag validation")
+	}
+	if err := validateQueryCommandOptions("datalog", queryCommandOptions{spec: "latest", query: `claim(ID, S, P, O)`, profile: "unknown"}); err == nil {
+		t.Fatal("expected Datalog profile validation")
+	}
+	if err := validateQueryCommandOptions("hybrid", queryCommandOptions{spec: "latest", text: "facts", profile: okf.DatalogProfileSafe}); err == nil {
+		t.Fatal("expected hybrid profile to require Datalog")
+	}
+	if got := queryCandidateLimit(1000); got != 1000 {
+		t.Fatalf("expected structured candidate cap, got %d", got)
+	}
+	queryFile := filepath.Join(t.TempDir(), "oversized.rq")
+	if err := os.WriteFile(queryFile, []byte("SELECT123"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := queryCommandText("", queryFile, 8, "SPARQL query"); err == nil || !strings.Contains(err.Error(), "byte limit") {
+		t.Fatalf("expected bounded query file read, got %v", err)
+	}
+	if _, err := queryCommandText("SELECT123", "", 8, "SPARQL query"); err == nil || !strings.Contains(err.Error(), "byte limit") {
+		t.Fatalf("expected bounded inline query, got %v", err)
+	}
+}
+
+func TestRunExportRDFWritesRevisionBoundNQuadsAtomically(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\nokf_version: \"0.2\"\n---\n\n# Bundle\n")
+	writeMainTestFile(t, root, "token-evidence.txt", "Production tokens use the declared format.")
+	writeMainTestFile(t, root, "auth.md", `---
+type: Authentication
+title: Authentication
+owner: team:identity
+openknowledge_claim_profile: "1"
+claim_ontology:
+  namespaces:
+    auth: https://example.test/auth/
+  entities:
+    - id: okn:service/auth
+      types: [okn:Service]
+  predicates:
+    - id: auth:tokenFormat
+      object_kind: literal
+      datatype: xsd:string
+      maximum_count: 1
+sources:
+  - id: identity-openapi
+    resource: token-evidence.txt
+    observe: pinned
+    sha256: bb5a64e1c45b93136f128d1a3cf3d791d138709763ee26c2653ad4065f36c384
+    role: authoritative
+claims:
+  - id: okn:claim/token-format/2026-08-22
+    slot: okn:slot/token-format
+    subject: okn:service/auth
+    predicate: auth:tokenFormat
+    object:
+      value: JWT
+      datatype: xsd:string
+    evidence:
+      - id: okn:evidence/token-format
+        source_ref: identity-openapi
+        stance: supports
+        role: primary
+        selector:
+          type: text_quote
+          exact: Production tokens use the declared format.
+    status: verified
+    section_ref: "#claim-token-format"
+    verification:
+      method: human-review
+      by: human:alice
+      at: 2026-08-22T00:00:00Z
+      evidence_refs: [okn:evidence/token-format]
+---
+
+# Authentication
+
+<a id="claim-token-format"></a>
+
+## Token format
+
+Production tokens use the declared format.
+`)
+	out := filepath.Join(t.TempDir(), "facts.nq")
+	if code := runExportRDF([]string{"--spec", "0.2", "--out", out, root}); code != 0 {
+		t.Fatalf("expected RDF export to succeed, got exit code %d", code)
+	}
+	content := string(readMainTestFile(t, out))
+	for _, expected := range []string{
+		"<https://openknowledge.dev/ns/service/auth> <https://example.test/auth/tokenFormat> \"JWT\"^^<http://www.w3.org/2001/XMLSchema#string>",
+		"<urn:openknowledge:revision:",
+		"<http://www.w3.org/ns/prov#wasDerivedFrom>",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected RDF export to contain %q:\n%s", expected, content)
+		}
+	}
+
+	invalidRoot := t.TempDir()
+	writeMainTestFile(t, invalidRoot, "index.md", `---
+okf_version: "0.2"
+openknowledge_claim_profile: "1"
+claims:
+  - id: invalid
+---
+
+# Invalid
+`)
+	if err := os.WriteFile(out, []byte("sentinel"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, _, code := captureMainOutput(t, func() int {
+		return runExportRDF([]string{"--out", out, invalidRoot})
+	})
+	if code != 1 || string(readMainTestFile(t, out)) != "sentinel" {
+		t.Fatalf("invalid RDF export replaced the previous output; code=%d", code)
 	}
 }
 

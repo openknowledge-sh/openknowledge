@@ -1,8 +1,12 @@
 package okf
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+)
 
-func buildChecks(result Result, profile validationSpecProfile) []Check {
+func buildChecks(result Result, profile validationSpecProfile, bundle ASTBundle) []Check {
 	specLabel := "OKF " + result.SpecVersion
 	const coreGroup = "OKF core"
 	const extensionGroup = "Open Knowledge extensions"
@@ -71,15 +75,71 @@ func buildChecks(result Result, profile validationSpecProfile) []Check {
 		})
 	}
 	if result.Profile == ValidationProfileBundle {
-		checks = append(checks,
-			Check{Name: "Publish metadata", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"publish-metadata"}, []string{"publish-metadata"}), Message: "Publishing metadata must identify valid public projections"},
-			Check{Name: "Insights", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"insight-contract"}, []string{"insight-contract"}), Message: "Insight documents must follow the Open Knowledge insight contract"},
-			Check{Name: "Rule catalog", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"rule-catalog"}, []string{"rule-catalog"}), Message: "Custom rule documents under configured rule paths should define canonical IDs, summaries, and instruction bullets"},
-			Check{Name: "Typed claims", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"claim-profile"}, []string{"claim-profile"}), Message: "Typed claims must pass ontology, evidence, lifecycle, time, relation, reference, and section binding checks"},
-			Check{Name: "Corpus schema", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"corpus-schema"}, []string{"corpus-schema"}), Message: "Optional corpus schemas must enforce document types, paths, required metadata, typed links, and migration records"},
-		)
+		extensions := []struct {
+			check  Check
+			rule   string
+			active bool
+		}{
+			{check: Check{Name: "Publish metadata", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"publish-metadata"}, []string{"publish-metadata"}), Message: "Publishing metadata must identify valid public projections"}, rule: "publish-metadata", active: bundleUsesFrontmatterKey(bundle, "okf_publish", "okf_targets")},
+			{check: Check{Name: "Insights", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"insight-contract"}, []string{"insight-contract"}), Message: "Insight documents must follow the Open Knowledge insight contract"}, rule: "insight-contract", active: bundleUsesInsights(bundle)},
+			{check: Check{Name: "Rule catalog", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"rule-catalog"}, []string{"rule-catalog"}), Message: "Custom rule documents under configured rule paths should define canonical IDs, summaries, and instruction bullets"}, rule: "rule-catalog", active: bundleUsesRuleCatalog(bundle)},
+			{check: Check{Name: "Typed claims", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"claim-profile"}, []string{"claim-profile"}), Message: "Typed claims must pass ontology, evidence, lifecycle, time, relation, reference, and section binding checks"}, rule: "claim-profile", active: bundleUsesFrontmatterKey(bundle, ClaimProfileActivationKey, "claims", "claim_refs")},
+			{check: Check{Name: "Corpus schema", Group: extensionGroup, Status: statusForErrorWarningRules(result.Errors, result.Warnings, []string{"corpus-schema"}, []string{"corpus-schema"}), Message: "Optional corpus schemas must enforce document types, paths, required metadata, typed links, and migration records"}, rule: "corpus-schema", active: rootIndexUsesFrontmatterKey(bundle, CorpusSchemaKey)},
+		}
+		for _, extension := range extensions {
+			if extension.active || hasIssueRule(result.Errors, extension.rule) || hasIssueRule(result.Warnings, extension.rule) {
+				checks = append(checks, extension.check)
+			}
+		}
 	}
 	return checks
+}
+
+func bundleUsesFrontmatterKey(bundle ASTBundle, keys ...string) bool {
+	for _, document := range bundle.Documents {
+		for _, key := range keys {
+			if _, ok := document.Frontmatter.Data[key]; ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func rootIndexUsesFrontmatterKey(bundle ASTBundle, key string) bool {
+	index := rootIndexDocument(bundle)
+	if index == nil {
+		return false
+	}
+	_, ok := index.Frontmatter.Data[key]
+	return ok
+}
+
+func bundleUsesInsights(bundle ASTBundle) bool {
+	for _, document := range bundle.Documents {
+		rel := filepath.ToSlash(document.Rel)
+		inInsights := strings.HasPrefix(rel, "insights/") || strings.Contains(rel, "/insights/")
+		if inInsights || frontmatterString(document.Frontmatter, "type") == "Open Knowledge Insight" {
+			return true
+		}
+	}
+	return false
+}
+
+func bundleUsesRuleCatalog(bundle ASTBundle) bool {
+	config, err := LoadRuleCatalogConfig(bundle.Root)
+	if err != nil {
+		return true
+	}
+	if config.PathsConfigured || config.EnabledConfigured {
+		return true
+	}
+	for _, document := range bundle.Documents {
+		if isCustomRuleDocumentInPaths(document.Rel, rulePathsFromConfig(config)) {
+			return true
+		}
+	}
+	return false
 }
 
 func statusForErrorWarningRules(errors []Issue, warnings []Issue, errorRules []string, warningRules []string) string {

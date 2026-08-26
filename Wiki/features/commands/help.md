@@ -30,11 +30,11 @@ subcommand help. Other groups can provide a group overview. The
 
 | Group | Commands |
 | --- | --- |
-| Start here | `setup`, `search`, `validate` |
-| Work locally | `agent`, `get`, `list`, `view` |
-| Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
-| Automate and operate | `automation` |
-| Advanced and portable tools | `scaffold`, `prompt`, `ast`, `spec`, `version`, `telemetry` |
+| Start here | `setup`, `search`, `validate`, `view` |
+| Trust and govern | `audit`, `claims`, `evidence`, `eval`, `quality` |
+| Query and interchange | `query`, `export` |
+| Publish and operate | `mcp`, `connect`, `disconnect`, `registry`, `automation` |
+| Advanced internals | `agent`, `get`, `list`, `scaffold`, `prompt`, `ast`, `spec`, `version`, `telemetry` |
 
 An unknown command prints root usage to stderr and exits with status `2`.
 

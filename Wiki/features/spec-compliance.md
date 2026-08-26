@@ -60,15 +60,18 @@ explicit CLI `--rule` must belong to the selected profile.
 
 | Family | Checks |
 | --- | --- |
-| `sources` | List and entry shapes, required resource, unique IDs, dates, counts, and usage windows. |
+| `sources` | List and entry shapes, required resource, unique IDs, timestamps, counts, and usage windows. |
 | Per-claim attribution | Footnote labels match `sources[].id`. |
-| `generated` | Mapping shape, actor convention, and ISO 8601 date-time. |
-| `verified` | Mapping or list shape, actor convention, and ISO 8601 date-time. |
-| Lifecycle | `status` values and `stale_after` date form. |
+| `generated` | Mapping shape, actor convention, and ISO 8601 datetime with an explicit offset. |
+| `verified` | Mapping or list shape, actor convention, and ISO 8601 datetime with an explicit offset. |
+| Lifecycle | `status` values and the offset-explicit `stale_after` datetime. |
 | Attested Computation | Runtime, parameters, nested contracts, and one computation form. |
 
 These checks do not reject a conformant bundle. OKF 0.2 makes these families
 optional and gives most family constraints soft conformance status.
+
+The datetime rule does not apply to `log.md` headings. These headings group
+entries by date and continue to use `YYYY-MM-DD`.
 
 The validator accepts fenced and indented computation blocks. The upstream
 worked examples use indented blocks even though §10.3 specifies a fenced block.
@@ -97,8 +100,8 @@ time, and section binding. Strict field checks apply to activated concepts.
 
 Trust derivation follows OKF 0.2: no verification is `unverified`, only
 non-human verification is `machine-confirmed`, and any `human:` verification
-is `human-reviewed`. Missing `status` is `stable`. A concept is stale on or
-after its `stale_after` date in the local calendar.
+is `human-reviewed`. Missing `status` is `stable`. A concept becomes stale at
+the absolute instant in `stale_after`.
 
 The viewer and exported contracts preserve Attested Computation runtime,
 parameters, computation, executor, receipt, and attester metadata. They do not

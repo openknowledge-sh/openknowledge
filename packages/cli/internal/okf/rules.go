@@ -29,7 +29,8 @@ type AgentRulesOptions struct {
 }
 
 type SetupPromptOptions struct {
-	Rules []string
+	Rules   []string
+	UseCase string
 }
 
 func RuleSets() []RuleSet {

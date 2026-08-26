@@ -16,10 +16,11 @@ They do not use separate knowledge models.
 
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
-| Start here | `setup`, `search`, `validate` | Print or run wiki setup, retrieve useful context, and verify its source. |
-| Work locally | `agent`, `get`, `list`, `view` | Maintain, connect, read, and browse knowledge on the current machine. |
-| Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` | Publish portable views and resolve local or remote bundles. |
-| Automate and operate | `automation` | Run jobs, insights, hosted runtimes, and deployments. |
+| Start here | `setup`, `search`, `validate`, `view` | Create, retrieve, verify, and browse local knowledge. |
+| Trust and govern | `audit`, `claims`, `evidence`, `eval`, `quality` | Add evidence, lifecycle checks, and quality controls when required. |
+| Query and interchange | `query`, `export` | Run explicit semantic queries and create portable output. |
+| Publish and operate | `mcp`, `connect`, `disconnect`, `registry`, `automation` | Connect sources, serve tools, and run managed processes. |
+| Advanced internals | `agent`, `get`, `list`, `scaffold`, `prompt`, `ast`, `spec`, `version`, `telemetry` | Inspect or control lower-level CLI behavior. |
 
 `okn setup` prints the primary setup prompt.
 The prompt uses the current directory as its source and writes `Wiki`.
@@ -36,7 +37,7 @@ Each connection change has one command.
 `registry` provides only `refresh`, `list`, `status`, and `where`.
 
 All key-or-path consumers use the same resolver.
-Thus, `get`, `search`, `view`, `mcp`, `validate`, `list`, and `export` use the same source rules.
+Thus, `get`, `search`, `query`, `view`, `mcp`, `validate`, `list`, and `export` use the same source rules.
 These rules apply to direct folders and registered sources.
 `export html` publishes a portable archive and manifest.
 You can connect this output again.
@@ -44,14 +45,16 @@ You can connect this output again.
 Deterministic validation does not require a model.
 `okn prompt review` provides advice and does not affect validation status.
 Machine-readable views use versioned Draft 2020-12 contracts.
-These views include AST, bundle, graph, list, registry, search, and validation output.
+These views include AST, bundle, graph, semantic query, list, registry, search,
+and validation output.
 
 ## Typical local loop
 
 ```sh
 okn setup
-okn search Wiki "release workflow" --budget 1200
 okn validate Wiki
+okn search Wiki "release workflow" --budget 1200
+okn view Wiki
 ```
 
 Use separate commands for exact reads, browsing, integrations, and publication:

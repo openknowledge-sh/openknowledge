@@ -24,14 +24,15 @@ func TestMCPServerEndToEndReadOnlySurface(t *testing.T) {
 		`{"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":"` + resourceURI + `","_meta":{"progressToken":"read"}}}`,
 		`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"openknowledge_search","arguments":{"query":"validation workflow","budget":800,"limit":5}}}`,
 		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"openknowledge_validate","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"openknowledge_query","arguments":{"text":"validation workflow","limit":5}}}`,
 	}
 	var output bytes.Buffer
 	if err := server.serve(strings.NewReader(strings.Join(requests, "\n")+"\n"), &output); err != nil {
 		t.Fatal(err)
 	}
 	responses := decodeMCPTestResponses(t, output.String())
-	if len(responses) != 6 {
-		t.Fatalf("expected six request responses and no notification response, got %d: %s", len(responses), output.String())
+	if len(responses) != 7 {
+		t.Fatalf("expected seven request responses and no notification response, got %d: %s", len(responses), output.String())
 	}
 
 	initialize := mcpTestResult(t, responses[0])
@@ -48,8 +49,8 @@ func TestMCPServerEndToEndReadOnlySurface(t *testing.T) {
 	}
 
 	tools := mcpTestResult(t, responses[1])["tools"].([]any)
-	if len(tools) != 5 {
-		t.Fatalf("expected search, validation, and claim tools, got %#v", tools)
+	if len(tools) != 7 {
+		t.Fatalf("expected search, semantic query, validation, and claim tools, got %#v", tools)
 	}
 	for _, item := range tools {
 		tool := item.(map[string]any)
@@ -100,6 +101,15 @@ func TestMCPServerEndToEndReadOnlySurface(t *testing.T) {
 	if len(validation["errors"].([]any)) != 0 {
 		t.Fatalf("test bundle should validate: %#v", validation["errors"])
 	}
+
+	hybrid := mcpTestResult(t, responses[6])
+	if hybrid["isError"] == true {
+		t.Fatalf("semantic query tool failed: %#v", hybrid)
+	}
+	structuredHybrid := hybrid["structuredContent"].(map[string]any)
+	if structuredHybrid["schemaVersion"] == "" || len(structuredHybrid["results"].([]any)) == 0 || len(structuredHybrid["routes"].([]any)) != 3 {
+		t.Fatalf("unexpected semantic query output: %#v", structuredHybrid)
+	}
 }
 
 func TestMCPClaimToolsFindImpactAndCreateReadOnlyProposal(t *testing.T) {
@@ -117,6 +127,14 @@ func TestMCPClaimToolsFindImpactAndCreateReadOnlyProposal(t *testing.T) {
 	findResult := find.Result.(map[string]any)["structuredContent"].(claimsFindReport)
 	if len(findResult.Matches) != 1 {
 		t.Fatalf("unexpected claim matches: %#v", findResult)
+	}
+	stale := server.handle([]byte(`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"openknowledge_claims_stale","arguments":{}}}`))
+	if stale.Error != nil {
+		t.Fatalf("stale claim listing failed: %#v", stale)
+	}
+	staleResult := stale.Result.(map[string]any)["structuredContent"].(claimsStaleReport)
+	if staleResult.Claims == nil {
+		t.Fatalf("stale claim listing must return a non-nil collection: %#v", staleResult)
 	}
 
 	impact := server.handle([]byte(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"openknowledge_claims_impact","arguments":{"claimId":"okn:claim/token-format/1"}}}`))
@@ -214,6 +232,10 @@ func TestMCPServerRejectsInvalidToolArgumentsAndResourceEscapes(t *testing.T) {
 	overBudget := server.handle([]byte(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"openknowledge_search","arguments":{"query":"setup","budget":32001}}}`))
 	if overBudget.Error == nil || overBudget.Error.Code != -32602 {
 		t.Fatalf("expected bounded search rejection, got %#v", overBudget)
+	}
+	unknownQueryArgument := server.handle([]byte(`{"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"openknowledge_query","arguments":{"text":"setup","access":["team:identity"]}}}`))
+	if unknownQueryArgument.Error == nil || unknownQueryArgument.Error.Code != -32602 {
+		t.Fatalf("expected strict semantic query argument rejection, got %#v", unknownQueryArgument)
 	}
 	escape := server.handle([]byte(`{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"openknowledge://bundle/../secret.txt"}}`))
 	if escape.Error == nil || escape.Error.Code != -32002 {

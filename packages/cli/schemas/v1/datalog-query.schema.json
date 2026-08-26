@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/datalog-query.schema.json",
+  "title": "Open Knowledge bounded Datalog query result v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "revision", "engine", "query", "ruleProfile", "results", "truncated", "policy"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+    "engine": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {"name": {"const": "Mangle"}, "version": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "query": {"type": "string"},
+    "ruleProfile": {"enum": ["openknowledge.safe/v1", "openknowledge.closed-world/v1"]},
+    "results": {"type": "array", "items": {"$ref": "#/$defs/result"}},
+    "truncated": {"type": "boolean"},
+    "policy": {
+      "type": "object",
+      "required": ["allowedAccess", "removedSources", "removedClaims"],
+      "properties": {
+        "allowedAccess": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "removedSources": {"type": "integer", "minimum": 0},
+        "removedClaims": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "value": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {"enum": ["string", "name", "number", "time", "constant", "term"]},
+        "value": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["document", "documentId", "locator", "contentSha256"],
+      "properties": {
+        "document": {"type": "string"},
+        "documentId": {"type": "string"},
+        "locator": {"type": "string"},
+        "contentSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "lineStart": {"type": "integer", "minimum": 1},
+        "lineEnd": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "proof": {
+      "type": "object",
+      "required": ["kind", "atom", "inputs"],
+      "properties": {
+        "kind": {"enum": ["asserted", "rule", "closed-world-absence"]},
+        "atom": {"type": "string"},
+        "ruleId": {"type": "string"},
+        "rule": {"type": "string"},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/proof"}}
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "rule"}}}, "then": {"required": ["ruleId", "rule"]}},
+        {"if": {"properties": {"kind": {"enum": ["asserted", "closed-world-absence"]}}}, "then": {"not": {"anyOf": [{"required": ["ruleId"]}, {"required": ["rule"]}]}}}
+      ],
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["kind", "atom", "predicate", "values", "sources", "proof"],
+      "properties": {
+        "kind": {"enum": ["asserted-fact", "derived-fact"]},
+        "atom": {"type": "string"},
+        "predicate": {"type": "string"},
+        "values": {"type": "array", "items": {"$ref": "#/$defs/value"}},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}},
+        "proof": {"$ref": "#/$defs/proof"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

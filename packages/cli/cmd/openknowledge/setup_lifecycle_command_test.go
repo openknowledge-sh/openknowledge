@@ -102,6 +102,31 @@ func TestSetupCompleteSupportsStandaloneGlobalScope(t *testing.T) {
 	}
 }
 
+func TestSetupCompleteKeepsCLIOnlyBundleLocal(t *testing.T) {
+	_, wiki := setupLifecycleRepository(t)
+	setSetupTestHome(t, t.TempDir())
+
+	stdout, stderr, code := captureMainOutput(t, func() int {
+		return runSetupComplete([]string{wiki, "--skill", "none", "--observe", "off"})
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("complete code=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Connection:     local only") {
+		t.Fatalf("local-only completion did not explain its scope:\n%s", stdout)
+	}
+	if _, connected, err := okf.ResolveRegistryTarget(wiki); err != nil || connected {
+		t.Fatalf("CLI-only bundle connection=%v err=%v", connected, err)
+	}
+
+	status, statusErr, statusCode := captureMainOutput(t, func() int {
+		return runSetupStatus([]string{wiki})
+	})
+	if statusCode != 0 || statusErr != "" || !strings.Contains(status, "Connection:     not connected") {
+		t.Fatalf("status code=%d stdout=%s stderr=%s", statusCode, status, statusErr)
+	}
+}
+
 func TestSetupCompleteSupportsProjectScopeOutsideGit(t *testing.T) {
 	wiki := setupLifecycleStandaloneBundle(t)
 	home := t.TempDir()

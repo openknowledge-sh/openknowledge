@@ -352,7 +352,7 @@ The defaults preserve all previously searchable content:
 | Field | Default | Effect |
 | --- | --- | --- |
 | `minimum_trust` | `unverified` | Set the minimum accepted trust tier. |
-| `allow_stale` | `true` | Permit content after its `stale_after` date. |
+| `allow_stale` | `true` | Permit content at or after its `stale_after` instant. |
 | `allowed_statuses` | all statuses | Permit `draft`, `stable`, and `deprecated`. |
 | `require_sources` | `false` | Require at least one structured source when true. |
 

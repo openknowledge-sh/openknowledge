@@ -20,6 +20,7 @@ const viewerClaimsSchemaVersion = "1"
 
 type viewerClaimsData struct {
 	SchemaVersion    string                      `json:"schemaVersion"`
+	ProfilePresent   bool                        `json:"profilePresent,omitempty"`
 	Claims           []viewerClaim               `json:"claims"`
 	References       []viewerClaimReference      `json:"references"`
 	Entities         []viewerClaimOntologyEntity `json:"entities"`
@@ -45,6 +46,7 @@ type viewerClaim struct {
 	Status        string                 `json:"status"`
 	TrustTier     string                 `json:"trustTier"`
 	Stale         bool                   `json:"stale"`
+	StaleEvidence []string               `json:"staleEvidence,omitempty"`
 	StaleAfter    string                 `json:"staleAfter,omitempty"`
 	ValidTime     okf.ClaimTimeInterval  `json:"validTime,omitempty"`
 	Verification  *okf.ClaimVerification `json:"verification,omitempty"`
@@ -121,6 +123,7 @@ type viewerClaimSource struct {
 	ID            string                 `json:"id"`
 	Title         string                 `json:"title,omitempty"`
 	Resource      string                 `json:"resource"`
+	LiveResource  string                 `json:"liveResource,omitempty"`
 	Observe       string                 `json:"observe,omitempty"`
 	SHA256        string                 `json:"sha256,omitempty"`
 	Role          string                 `json:"role,omitempty"`
@@ -144,14 +147,22 @@ func viewerClaimsForRoot(root string, specVersion string, fileURL func(string) s
 func viewerClaimsFromAST(bundle okf.ASTBundle, fileURL func(string) string) viewerClaimsData {
 	now := time.Now()
 	profile := okf.AnalyzeClaimProfile(bundle, now)
+	profilePresent := false
+	for _, document := range bundle.Documents {
+		if viewerClaimProfileFieldsPresent(document.Frontmatter.Data) {
+			profilePresent = true
+			break
+		}
+	}
 	data := viewerClaimsData{
-		SchemaVersion: viewerClaimsSchemaVersion,
-		Claims:        []viewerClaim{},
-		References:    []viewerClaimReference{},
-		Entities:      []viewerClaimOntologyEntity{},
-		Predicates:    []viewerClaimOntologyTerm{},
-		Sources:       []viewerClaimSource{},
-		Issues:        append([]okf.Issue{}, profile.Issues...),
+		SchemaVersion:  viewerClaimsSchemaVersion,
+		ProfilePresent: profilePresent,
+		Claims:         []viewerClaim{},
+		References:     []viewerClaimReference{},
+		Entities:       []viewerClaimOntologyEntity{},
+		Predicates:     []viewerClaimOntologyTerm{},
+		Sources:        []viewerClaimSource{},
+		Issues:         append([]okf.Issue{}, profile.Issues...),
 	}
 
 	for _, entity := range profile.Ontology.Entities {
@@ -174,7 +185,7 @@ func viewerClaimsFromAST(bundle okf.ASTBundle, fileURL func(string) string) view
 				continue
 			}
 			data.Sources = append(data.Sources, viewerClaimSource{
-				Key: document.Rel + "\x00" + source.ID, ID: source.ID, Title: source.Title, Resource: source.Resource,
+				Key: document.Rel + "\x00" + source.ID, ID: source.ID, Title: source.Title, Resource: source.Resource, LiveResource: source.LiveResource,
 				Observe: source.Observe, SHA256: source.SHA256, Role: source.Role, Author: source.Author,
 				Access: append([]string{}, source.Access...), UsageCount: source.UsageCount, LastModified: source.LastModified,
 				UsageWindow: source.UsageWindow, DeclaringPath: document.Rel, DocumentURL: fileURL(document.Rel),
@@ -193,7 +204,7 @@ func viewerClaimsFromAST(bundle okf.ASTBundle, fileURL func(string) string) view
 			Predicate: viewerClaimTerm{ID: claim.Predicate, Label: viewerClaimPredicateLabel(claim.Predicate, profile.Ontology)},
 			Object:    viewerClaimObjectValue(claim.Object, profile.Ontology),
 			Evidence:  append([]okf.ClaimEvidence{}, claim.Evidence...), Owners: append([]string{}, claim.Owners...),
-			Status: claim.Status, TrustTier: claim.TrustTier, Stale: claim.Stale, StaleAfter: claim.StaleAfter,
+			Status: claim.Status, TrustTier: claim.TrustTier, Stale: claim.Stale, StaleEvidence: append([]string{}, claim.StaleEvidence...), StaleAfter: claim.StaleAfter,
 			ValidTime: claim.ValidTime, Verification: claim.Verification, Decisions: append([]okf.ClaimDecision{}, claim.Decisions...),
 			Relations: claim.Relations, SectionRef: claim.SectionRef, DeclaringPath: claim.DeclaringPath,
 			DocumentURL: documentURL, ClaimURL: viewerClaimURL(documentURL, claim.ID),
@@ -268,6 +279,7 @@ func registryClaimsJSONWithCache(workspaces []viewerWorkspace, cacheForRoot func
 			continue
 		}
 		loaded++
+		combined.ProfilePresent = combined.ProfilePresent || local.ProfilePresent
 		for _, claim := range local.Claims {
 			claim.KnowledgeBase = workspace.Name
 			claim.Key = workspace.Name + "\x00" + claim.ID
@@ -305,6 +317,32 @@ func registryClaimsJSONWithCache(workspaces []viewerWorkspace, cacheForRoot func
 	combined.ProjectionStatus = viewerProjectionStatus(len(workspaces), loaded, len(combined.Failures))
 	sort.Slice(combined.Claims, func(i, j int) bool { return combined.Claims[i].Key < combined.Claims[j].Key })
 	return viewerClaimsJSON(combined)
+}
+
+func viewerClaimsWorkspaceAvailable(data viewerClaimsData) bool {
+	return data.ProfilePresent ||
+		len(data.Claims) > 0 ||
+		len(data.References) > 0 ||
+		len(data.Entities) > 0 ||
+		len(data.Predicates) > 0
+}
+
+func viewerClaimProfileFieldsPresent(frontmatter map[string]any) bool {
+	for _, field := range []string{okf.ClaimProfileActivationKey, "claims", "claim_refs", okf.ClaimOntologyKey} {
+		if _, present := frontmatter[field]; present {
+			return true
+		}
+	}
+	return false
+}
+
+func viewerBundleClaimsWorkspaceAvailable(files []okf.BundleFile) bool {
+	for _, file := range files {
+		if viewerClaimProfileFieldsPresent(file.Frontmatter) {
+			return true
+		}
+	}
+	return false
 }
 
 func viewerClaimsJSON(data viewerClaimsData) template.JS {

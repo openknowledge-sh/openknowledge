@@ -8,6 +8,7 @@ Exporters convert an OKF bundle to another representation.
 * [JSON exporter](json.md) creates a normalized bundle model for tools and agents.
 * [Tar exporter](tar.md) creates a portable source archive for remote connections.
 * [Graph exporter](graph.md) creates source and search graph views.
+* [RDF exporter](rdf.md) creates a lossless typed fact and provenance dataset.
 
 ---
 

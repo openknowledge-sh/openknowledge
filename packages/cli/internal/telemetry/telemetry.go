@@ -401,7 +401,7 @@ func truthy(value string) bool {
 }
 
 func meaningfulCommand(command string) bool {
-	for _, prefix := range []string{"search", "validate", "eval", "get", "list", "view", "mcp", "connect", "export"} {
+	for _, prefix := range []string{"search", "query", "validate", "eval", "get", "list", "view", "mcp", "connect", "export"} {
 		if command == prefix || strings.HasPrefix(command, prefix+" ") {
 			return true
 		}
@@ -413,8 +413,8 @@ func sanitizeCommand(command string) string {
 	command = strings.TrimSpace(command)
 	switch command {
 	case "setup", "setup skill", "setup complete", "setup status", "setup repair", "setup observe",
-		"search", "validate", "eval", "eval run", "agent", "agent exec", "agent doctor", "get", "list", "view",
-		"export", "export html", "export json", "export tar", "export graph", "mcp", "connect",
+		"search", "query", "query sparql", "query datalog", "query hybrid", "validate", "eval", "eval run", "agent", "agent exec", "agent doctor", "get", "list", "view",
+		"export", "export html", "export json", "export rdf", "export tar", "export graph", "mcp", "connect",
 		"disconnect", "registry", "registry refresh", "registry list", "registry status", "registry where",
 		"automation", "automation jobs", "automation insights", "automation runtime", "automation deploy",
 		"scaffold", "prompt", "prompt rules", "prompt review", "ast", "spec", "version", "telemetry",

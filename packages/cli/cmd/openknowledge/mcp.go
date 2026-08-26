@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -244,7 +245,7 @@ func (server *mcpServer) initialize(id json.RawMessage, raw json.RawMessage) *mc
 			"title":   "Open Knowledge",
 			"version": server.version,
 		},
-		"instructions": "Read-only access to one Open Knowledge bundle. Search context, inspect typed claims, calculate claim impact, create digest-bound claim proposals, and validate bundle health before editing through a local Git worktree.",
+		"instructions": "Read-only access to one Open Knowledge bundle. Search context, run bounded SPARQL/Datalog/hybrid queries, inspect typed claims, calculate claim impact, create digest-bound claim proposals, and validate bundle health before editing through a local Git worktree.",
 	})
 }
 
@@ -279,6 +280,26 @@ func mcpTools() []map[string]any {
 			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
 		},
 		{
+			"name":        "openknowledge_query",
+			"title":       "Query Open Knowledge semantic facts",
+			"description": "Run only the supplied text, SPARQL SELECT, and Mangle Datalog paths; fuse source-backed results and preserve proof paths.",
+			"inputSchema": map[string]any{
+				"type": "object", "additionalProperties": false,
+				"properties": map[string]any{
+					"text":   map[string]any{"type": "string", "minLength": 1, "maxLength": mcpMaxSearchQueryLength},
+					"sparql": map[string]any{"type": "string", "minLength": 1, "maxLength": 32 << 10},
+					"datalog": map[string]any{"type": "object", "additionalProperties": false, "required": []string{"query"}, "properties": map[string]any{
+						"query":       map[string]any{"type": "string", "minLength": 1, "maxLength": mcpMaxSearchQueryLength},
+						"rules":       map[string]any{"type": "string", "maxLength": 64 << 10},
+						"ruleProfile": map[string]any{"type": "string", "enum": []string{okf.DatalogProfileSafe, okf.DatalogProfileClosedWorld}},
+					}},
+					"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": mcpMaxSearchLimit, "default": 12},
+				},
+				"anyOf": []any{map[string]any{"required": []string{"text"}}, map[string]any{"required": []string{"sparql"}}, map[string]any{"required": []string{"datalog"}}},
+			},
+			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		},
+		{
 			"name":        "openknowledge_claims_find",
 			"title":       "Find Open Knowledge claims",
 			"description": "Find typed claim occurrences by occurrence ID, slot, subject, predicate, object, or evidence.",
@@ -286,6 +307,13 @@ func mcpTools() []map[string]any {
 				"type": "object", "additionalProperties": false, "required": []string{"query"},
 				"properties": map[string]any{"query": map[string]any{"type": "string", "minLength": 1, "maxLength": mcpMaxSearchQueryLength}},
 			},
+			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		},
+		{
+			"name":        "openknowledge_claims_stale",
+			"title":       "List stale Open Knowledge claims",
+			"description": "Return exact typed claim occurrences whose time window or observed evidence is stale.",
+			"inputSchema": map[string]any{"type": "object", "additionalProperties": false},
 			"annotations": map[string]any{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
 		},
 		{
@@ -437,6 +465,44 @@ func (server *mcpServer) callTool(id json.RawMessage, raw json.RawMessage) *mcpR
 			return mcpResultResponse(id, mcpToolError(err))
 		}
 		return mcpResultResponse(id, mcpToolResult(result))
+	case "openknowledge_query":
+		var arguments struct {
+			Text    string            `json:"text"`
+			SPARQL  string            `json:"sparql"`
+			Datalog *okf.DatalogQuery `json:"datalog"`
+			Limit   int               `json:"limit"`
+		}
+		if err := decodeStrictMCPObject(params.Arguments, &arguments); err != nil {
+			return mcpErrorResponse(id, -32602, "Invalid params", map[string]any{"reason": err.Error()})
+		}
+		arguments.Text = strings.TrimSpace(arguments.Text)
+		arguments.SPARQL = strings.TrimSpace(arguments.SPARQL)
+		if arguments.Text == "" && arguments.SPARQL == "" && arguments.Datalog == nil {
+			return mcpErrorResponse(id, -32602, "Invalid params", nil)
+		}
+		if utf8.RuneCountInString(arguments.Text) > mcpMaxSearchQueryLength || len(arguments.SPARQL) > 32<<10 || arguments.Limit < 0 || arguments.Limit > mcpMaxSearchLimit {
+			return mcpErrorResponse(id, -32602, "Invalid params", nil)
+		}
+		if arguments.Datalog != nil && (strings.TrimSpace(arguments.Datalog.Query) == "" || len(arguments.Datalog.Query) > mcpMaxSearchQueryLength || len(arguments.Datalog.Rules) > 64<<10) {
+			return mcpErrorResponse(id, -32602, "Invalid params", nil)
+		}
+		if arguments.Limit == 0 {
+			arguments.Limit = 12
+		}
+		candidateLimit := arguments.Limit * 5
+		if candidateLimit < 50 {
+			candidateLimit = 50
+		}
+		result, err := okf.QueryHybridWithVersion(context.Background(), server.root, server.spec, okf.HybridQuery{
+			Text: arguments.Text, SPARQL: arguments.SPARQL, Datalog: arguments.Datalog, Limit: arguments.Limit,
+		}, okf.HybridQueryOptions{
+			SPARQLLimits:  okf.SPARQLLimits{MaxResults: candidateLimit},
+			DatalogLimits: okf.DatalogLimits{MaxResults: candidateLimit},
+		})
+		if err != nil {
+			return mcpResultResponse(id, mcpToolError(err))
+		}
+		return mcpResultResponse(id, mcpToolResult(result))
 	case "openknowledge_claims_find":
 		var arguments struct {
 			Query string `json:"query"`
@@ -450,6 +516,22 @@ func (server *mcpServer) callTool(id json.RawMessage, raw json.RawMessage) *mcpR
 		}
 		result := claimsFindReport{SchemaVersion: okf.MachineSchemaVersion, Query: strings.TrimSpace(arguments.Query), Root: server.root, Matches: claimops.Find(index, arguments.Query), Issues: nonNilIssues(index.Issues)}
 		return mcpResultResponse(id, mcpToolResult(result))
+	case "openknowledge_claims_stale":
+		var arguments struct{}
+		if err := decodeStrictMCPObject(params.Arguments, &arguments); err != nil {
+			return mcpErrorResponse(id, -32602, "Invalid params", nil)
+		}
+		index, err := claimops.BuildIndex(server.root, server.spec, time.Now().UTC())
+		if err != nil {
+			return mcpResultResponse(id, mcpToolError(err))
+		}
+		claims := []claimops.Occurrence{}
+		for _, occurrence := range index.Occurrences {
+			if occurrence.Claim.Stale {
+				claims = append(claims, occurrence)
+			}
+		}
+		return mcpResultResponse(id, mcpToolResult(claimsStaleReport{SchemaVersion: okf.MachineSchemaVersion, Root: server.root, Claims: claims, Issues: nonNilIssues(index.Issues)}))
 	case "openknowledge_claims_impact":
 		var arguments struct {
 			ClaimID string `json:"claimId"`

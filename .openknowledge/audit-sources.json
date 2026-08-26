@@ -1,0 +1,35 @@
+{
+  "type": "openknowledge.audit-source-baseline",
+  "version": 1,
+  "bundleSha256": "c0c8303190409b2cc1e65892a1f72f1a7906a33f194721a0fd5b566b6599c4ab",
+  "sources": [
+    {
+      "document": "examples/markdown-showcase.md",
+      "id": "markdown-reference",
+      "resource": "https://commonmark.org/help/",
+      "fingerprint": "f0094ec187c84c7b20a1324d137f1b4244712d5315bbcd7f4311f7b43c98460e",
+      "exists": true
+    },
+    {
+      "document": "features/claim-freshness.md",
+      "id": "claims-command",
+      "resource": "commands/claims.md",
+      "fingerprint": "c3d140afc16f724d0029148be04b07d2706a5baf927b526411e906df8292d6d6",
+      "exists": true
+    },
+    {
+      "document": "features/claim-freshness.md",
+      "id": "knowledge-audit",
+      "resource": "commands/audit.md",
+      "fingerprint": "6972f68dcec3b7dbddf0d514ccafdf34d26ae053e11c6b6b1cec8cf6183626f4",
+      "exists": true
+    },
+    {
+      "document": "features/claim-freshness.md",
+      "id": "typed-claims",
+      "resource": "claim-profile.md",
+      "fingerprint": "4909026b509e79cf095b238d9f780db709f05b12262e824eeff865c71dd5e765",
+      "exists": true
+    }
+  ]
+}

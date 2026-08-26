@@ -15,9 +15,15 @@ Indexes, graphs, exports, and runtime generations are rebuildable projections.
 ```mermaid
 flowchart LR
   OKF["OKF Markdown and YAML"] --> AST["Validated AST and metadata"]
-  AST --> Search["In-memory BM25 inverted index"]
+  AST --> Facts["Normalized semantic facts"]
+  AST --> Search["BM25 and local vector indexes"]
+  Facts --> RDF["RDF and bounded SPARQL"]
+  Facts --> Rules["Mangle Datalog and proofs"]
   AST --> Graphs["Source and search graphs"]
-  AST --> Publish["JSON, HTML, tar, MCP, runtime"]
+  Search --> Hybrid["Explicit hybrid orchestration"]
+  RDF --> Hybrid
+  Rules --> Hybrid
+  AST --> Publish["JSON, HTML, RDF, tar, MCP, runtime"]
 ```
 
 Code and tests define the CLI behavior.
@@ -29,24 +35,36 @@ The README is the product overview.
 | Layer | Current behavior |
 | --- | --- |
 | Source | Filesystem-based Markdown concepts with YAML frontmatter and authored links. |
-| Metadata | Typed claim occurrences, ontology terms, provenance, relations, and optional corpus schema packs in the AST and JSON model. |
-| Retrieval | Field-weighted section BM25, local vector candidates, metadata filters, deterministic reranking, one-hop link expansion, federated rank fusion, and token-budgeted context. |
-| Graphs | Structural graphs plus typed claim declaration and dependency edges. |
+| Metadata | One normalized semantic fact model for typed claim occurrences, ontology terms, provenance, evidence, relations, lifecycle, and access. |
+| Retrieval | Field-weighted section BM25, pluggable embeddings, metadata filters, deterministic reranking, one-hop link expansion, federated rank fusion, and token-budgeted context. |
+| Semantic query | Lossless RDF 1.1 projection with bounded SPARQL `SELECT`/`ASK`; safe recursive Mangle Datalog with source-backed proof paths. |
+| Hybrid | Intent-explicit BM25/vector/SPARQL/Datalog routes, reciprocal-rank fusion, lifecycle policy, and source joins. |
+| Graphs | Structural graphs plus typed claim declaration and dependency edges; deterministic revision-named RDF graph. |
 | Delivery | CLI, Go API, local/static viewer, read-only MCP, portable exports, and immutable runtime generations. |
 | Maintenance | Agent setup, insights, validation, isolated jobs, and source-controlled review. |
 
-Retrieval builds a deterministic in-memory inverted and vector index. The
-vector uses hashed word and character features. It does not use an embedding
-model or a network service. Exact lookup uses postings. Prefix lookup uses a
+Retrieval builds deterministic in-memory inverted and vector indexes. The
+default vector provider uses hashed word and character features without a
+model or network service. The Go API can supply another embedding provider.
+Hybrid CLI queries can use an OpenAI-compatible HTTP endpoint. Vectors use
+normalized `float32` values. The optional on-disk cache uses the exact input
+digest and model fingerprint. Exact lookup uses postings. Prefix lookup uses a
 vocabulary range. Fuzzy lookup can scan the vocabulary.
 
 The graph layer contains claim occurrences and explicit declaration, reference,
 supersession, contradiction, and derivation edges. The claim registry provides
-entity and predicate identity. It does not provide general graph queries.
+entity and predicate identity. The semantic fact layer projects these same
+assertions to RDF and Datalog without making the projections canonical.
+SPARQL handles graph-pattern queries. Mangle handles safe recursive rules and
+keeps asserted and derived facts distinct. The default profile does not apply
+closed-world negation; callers must select that profile explicitly.
+
 Search supports `type` and `tag` metadata filters. It combines lexical and
-local vector candidates with a deterministic reranker. It does not provide
-model embeddings, a cross-encoder reranker, or a query planner.
-It does not provide RDF queries, property-graph queries, or GraphRAG multi-hop reasoning.
+local vector candidates with a deterministic reranker. Hybrid query does not
+infer a query plan from prose. It runs only caller-supplied text, SPARQL, and
+Datalog routes, then fuses independent ranks and joins provenance back to
+source sections. It does not ship a cross-encoder reranker, remote embedding
+model, general OWL reasoner, or automatic GraphRAG reasoning agent.
 
 The optional corpus schema validates allowed document types, paths, required
 metadata, typed local link predicates, and migration records. Stable claim
@@ -94,6 +112,13 @@ the runtime generation and starts the next local usage cycle.
 > - `packages/cli/internal/okf/context.go`
 > - `packages/cli/internal/okf/context_types.go`
 > - `packages/cli/internal/okf/search_knowledge.go`
+> - `packages/cli/internal/okf/semantic_facts.go`
+> - `packages/cli/internal/okf/embedding.go`
+> - `packages/cli/internal/okf/embedding_http.go`
+> - `packages/cli/internal/okf/rdf.go`
+> - `packages/cli/internal/okf/sparql.go`
+> - `packages/cli/internal/okf/datalog.go`
+> - `packages/cli/internal/okf/hybrid.go`
 > - `packages/cli/internal/okf/graph.go`
 > - `packages/cli/internal/okf/ast_bundle_parse.go`
 > - `packages/cli/internal/usage/`

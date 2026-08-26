@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/vector-search.schema.json",
+  "title": "Open Knowledge local vector search output v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "identity", "query", "limit", "results"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "query": {"type": "string"},
+    "limit": {"type": "integer", "minimum": 1},
+    "results": {"type": "array", "items": {"$ref": "#/$defs/result"}}
+  },
+  "$defs": {
+    "model": {
+      "type": "object",
+      "required": ["provider", "id", "revision", "dimensions", "metric"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "dimensions": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "metric": {"const": "cosine"}
+      },
+      "additionalProperties": false
+    },
+    "identity": {
+      "type": "object",
+      "required": ["revision", "model", "modelFingerprint"],
+      "properties": {
+        "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
+        "model": {"$ref": "#/$defs/model"},
+        "modelFingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["id", "path", "title", "locator", "contentSha256", "score"],
+      "properties": {
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "title": {"type": "string"},
+        "heading": {"type": "string"},
+        "headingPath": {"type": "array", "items": {"type": "string"}},
+        "lineStart": {"type": "integer", "minimum": 1},
+        "lineEnd": {"type": "integer", "minimum": 1},
+        "locator": {"type": "string", "pattern": "^okf\\+sha256://[a-f0-9]{64}/"},
+        "contentSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "score": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

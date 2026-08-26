@@ -98,20 +98,21 @@ func writeViewerHTMLGeneration(root string, out string, version string, options 
 		}
 
 		data := viewerFileData{
-			Title:       titleForMarkdownFile(file.Path),
-			BrandName:   viewerKnowledgeBaseNameFromFiles(viewerFilesForTargets(bundle.Files, okf.PublicationTargetViewer), ""),
-			HomeURL:     viewerStaticRelativeURL(file.Path, "index.md"),
-			Root:        "",
-			Path:        file.Path,
-			FileURL:     viewerStaticRelativeURL(file.Path, file.Path),
-			SourceURL:   viewerSourceURL(sourceConfig, file.Path),
-			Frontmatter: frontmatterByPath[file.Path],
-			Claims:      renderViewerClaimsPanel(claimsData, file.Path),
-			Body:        template.HTML(viewerStaticFileBody(file, bundle.SpecVersion)),
-			Tree:        viewerStaticTree(bundle.Files, file.Path),
-			Theme:       viewerThemeForStaticPage(themeConfig, file.Path),
-			HeadHTML:    options.HeadHTML,
-			Scripts:     viewerStaticScriptURLs(file.Path),
+			Title:           titleForMarkdownFile(file.Path),
+			BrandName:       viewerKnowledgeBaseNameFromFiles(viewerFilesForTargets(bundle.Files, okf.PublicationTargetViewer), ""),
+			HomeURL:         viewerStaticRelativeURL(file.Path, "index.md"),
+			Root:            "",
+			Path:            file.Path,
+			FileURL:         viewerStaticRelativeURL(file.Path, file.Path),
+			SourceURL:       viewerSourceURL(sourceConfig, file.Path),
+			Frontmatter:     frontmatterByPath[file.Path],
+			Claims:          renderViewerClaimsPanel(claimsData, file.Path),
+			ClaimsAvailable: viewerClaimsWorkspaceAvailable(claimsData),
+			Body:            template.HTML(viewerStaticFileBody(file, bundle.SpecVersion)),
+			Tree:            viewerStaticTree(bundle.Files, file.Path),
+			Theme:           viewerThemeForStaticPage(themeConfig, file.Path),
+			HeadHTML:        options.HeadHTML,
+			Scripts:         viewerStaticScriptURLs(file.Path),
 		}
 
 		var builder strings.Builder

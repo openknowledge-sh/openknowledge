@@ -4,6 +4,15 @@
 `openknowledge eval run`. A dataset uses `type: openknowledge.eval` and numeric
 `version: 1`.
 
+`retrieval-dataset.schema.json` defines graded relevance judgments for
+`openknowledge eval retrieval`. The command measures section and document
+ranking with MRR, Recall@k, and nDCG@k. Optional quality gates enforce absolute
+metrics or embedding uplift from the local hash baseline.
+
+`claim-replay-dataset.schema.json` defines recorded claim truth at ordered Git
+checkpoints for `openknowledge eval claims`. The command classifies observed
+active claims as supported, stale, hallucinated, or unverified.
+
 The dataset stores questions, retrieval expectations, and optional answer
 expectations. Answer expectations include answer text, decision, conflict
 disclosure, cited sources, minimum valid and entailed citations, and minimum

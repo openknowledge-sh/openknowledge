@@ -58,3 +58,32 @@ func TestClaimEvidenceSelectorRequiresExactPinnedArtifactIdentity(t *testing.T) 
 		t.Fatalf("expected missing artifact identity failure: %#v", messages)
 	}
 }
+
+func TestClaimEvidenceVerifierCachesArtifactAndFragmentIndex(t *testing.T) {
+	root := t.TempDir()
+	content := `<main><section id="revenue"></section><section id="margin"></section></main>`
+	writeFile(t, root, "evidence.html", content)
+	digest := sha256.Sum256([]byte(content))
+	source := map[string]any{
+		"resource": "evidence.html", "observe": "pinned", "sha256": hex.EncodeToString(digest[:]),
+	}
+	verifier := newClaimEvidenceVerifier(root, "")
+	var messages []string
+	for _, value := range []string{"#revenue", "#margin"} {
+		verifier.verify("claim.md", ClaimEvidence{
+			ID: "okn:evidence/" + strings.TrimPrefix(value, "#"), SourceRef: "source",
+			Selector: &ClaimSelector{Type: "fragment", Value: value},
+		}, source, func(message string) { messages = append(messages, message) })
+	}
+	if len(messages) != 0 {
+		t.Fatalf("cached selectors failed: %#v", messages)
+	}
+	if len(verifier.artifacts) != 1 {
+		t.Fatalf("expected one cached artifact, got %d", len(verifier.artifacts))
+	}
+	for _, artifact := range verifier.artifacts {
+		if artifact.fragmentIndexBuilds != 1 {
+			t.Fatalf("expected one fragment index build, got %d", artifact.fragmentIndexBuilds)
+		}
+	}
+}

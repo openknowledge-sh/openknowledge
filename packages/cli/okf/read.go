@@ -1,6 +1,10 @@
 package okf
 
-import core "github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
+import (
+	"context"
+
+	core "github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
+)
 
 func ParseAST(root string) (ASTBundle, error) {
 	return core.ParseAST(root)
@@ -92,6 +96,90 @@ func BuildGraphWithVersion(root string, version string) (Graph, error) {
 
 func BuildGraphWithType(root string, version string, graphType string) (Graph, error) {
 	return core.BuildGraphWithType(root, version, graphType)
+}
+
+func BuildSemanticFacts(root string) (SemanticFactSet, error) {
+	return core.BuildSemanticFacts(root)
+}
+
+func BuildSemanticFactsWithVersion(root string, version string) (SemanticFactSet, error) {
+	return core.BuildSemanticFactsWithVersion(root, version)
+}
+
+func BuildRDFDataset(root string) (RDFDataset, error) {
+	return core.BuildRDFDataset(root)
+}
+
+func BuildRDFDatasetWithVersion(root string, version string) (RDFDataset, error) {
+	return core.BuildRDFDatasetWithVersion(root, version)
+}
+
+func RDFDatasetFromFacts(facts SemanticFactSet) (RDFDataset, error) {
+	return core.RDFDatasetFromFacts(facts)
+}
+
+func DefaultSPARQLLimits() SPARQLLimits {
+	return core.DefaultSPARQLLimits()
+}
+
+func QuerySPARQL(ctx context.Context, root, query string, options SPARQLQueryOptions) (SPARQLResultSet, error) {
+	return core.QuerySPARQL(ctx, root, query, options)
+}
+
+func QuerySPARQLWithVersion(ctx context.Context, root, version, query string, options SPARQLQueryOptions) (SPARQLResultSet, error) {
+	return core.QuerySPARQLWithVersion(ctx, root, version, query, options)
+}
+
+func BuildSPARQLSnapshot(root string, options SPARQLQueryOptions) (*SPARQLSnapshot, error) {
+	return core.BuildSPARQLSnapshot(root, options)
+}
+
+func BuildSPARQLSnapshotWithVersion(root, version string, options SPARQLQueryOptions) (*SPARQLSnapshot, error) {
+	return core.BuildSPARQLSnapshotWithVersion(root, version, options)
+}
+
+func SPARQLSnapshotFromFacts(facts SemanticFactSet, options SPARQLQueryOptions) (*SPARQLSnapshot, error) {
+	return core.SPARQLSnapshotFromFacts(facts, options)
+}
+
+func DefaultDatalogLimits() DatalogLimits {
+	return core.DefaultDatalogLimits()
+}
+
+func QueryDatalog(ctx context.Context, root string, query DatalogQuery, options DatalogQueryOptions) (DatalogResultSet, error) {
+	return core.QueryDatalog(ctx, root, query, options)
+}
+
+func QueryDatalogWithVersion(ctx context.Context, root, version string, query DatalogQuery, options DatalogQueryOptions) (DatalogResultSet, error) {
+	return core.QueryDatalogWithVersion(ctx, root, version, query, options)
+}
+
+func BuildDatalogSnapshot(root string, options DatalogQueryOptions) (*DatalogSnapshot, error) {
+	return core.BuildDatalogSnapshot(root, options)
+}
+
+func BuildDatalogSnapshotWithVersion(root, version string, options DatalogQueryOptions) (*DatalogSnapshot, error) {
+	return core.BuildDatalogSnapshotWithVersion(root, version, options)
+}
+
+func DatalogSnapshotFromFacts(facts SemanticFactSet, options DatalogQueryOptions) (*DatalogSnapshot, error) {
+	return core.DatalogSnapshotFromFacts(facts, options)
+}
+
+func QueryHybrid(ctx context.Context, root string, query HybridQuery, options HybridQueryOptions) (HybridResultSet, error) {
+	return core.QueryHybrid(ctx, root, query, options)
+}
+
+func QueryHybridWithVersion(ctx context.Context, root, version string, query HybridQuery, options HybridQueryOptions) (HybridResultSet, error) {
+	return core.QueryHybridWithVersion(ctx, root, version, query, options)
+}
+
+func BuildHybridSnapshot(root string, options HybridQueryOptions) (*HybridSnapshot, error) {
+	return core.BuildHybridSnapshot(root, options)
+}
+
+func BuildHybridSnapshotWithVersion(root, version string, options HybridQueryOptions) (*HybridSnapshot, error) {
+	return core.BuildHybridSnapshotWithVersion(root, version, options)
 }
 
 func DeriveOKFV02Signals(frontmatter map[string]any) *OKFV02Signals {

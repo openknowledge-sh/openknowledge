@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/claims-reconcile.schema.json",
+  "title": "Open Knowledge claim reconciliation result",
+  "type": "object",
+  "required": ["schemaVersion", "action", "root", "claimId", "document", "changed", "versions"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "action": {"const": "reconcile"},
+    "root": {"type": "string", "minLength": 1},
+    "claimId": {"type": "string", "minLength": 1},
+    "document": {"type": "string", "minLength": 1},
+    "changed": {"type": "boolean"},
+    "versions": {"type": "array", "minItems": 1, "items": {"$ref": "common.schema.json#/$defs/claimEvidenceVersion"}}
+  },
+  "additionalProperties": false
+}

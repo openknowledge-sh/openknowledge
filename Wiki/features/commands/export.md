@@ -1,14 +1,14 @@
 ---
 type: Command Documentation
 title: openknowledge export
-description: Export a knowledge base to HTML, JSON, graph, or portable tar formats.
+description: Export a knowledge base to HTML, JSON, graph, RDF, or portable tar formats.
 tags: [openknowledge, cli, command, export]
 timestamp: 2026-07-18T00:00:00Z
 ---
 
 # `openknowledge export`
 
-Create a static site, normalized model, graph, or portable source archive.
+Create a static site, normalized model, graph, RDF dataset, or portable source archive.
 The source can be a local or connected knowledge base.
 
 ## Targets
@@ -18,6 +18,7 @@ The source can be a local or connected knowledge base.
 | `html` | Static viewer or plain semantic HTML. | [HTML](/features/exporters/html.md) |
 | `json` | Normalized parsed bundle model. | [JSON](/features/exporters/json.md) |
 | `graph` | Authored link graph or derivative search graph. | [Graph](/features/exporters/graph.md) |
+| `rdf` | Typed semantic facts as deterministic RDF 1.1 N-Quads. | [RDF](/features/exporters/rdf.md) |
 | `tar` | Reproducible portable source archive. | [Tar](/features/exporters/tar.md) |
 
 ## Usage
@@ -30,6 +31,7 @@ okn export json Wiki
 okn export json --out ./bundle.json Wiki
 okn export graph Wiki
 okn export graph --type search --out ./search-graph.json Wiki
+okn export rdf --out ./knowledge.nq Wiki
 okn export tar --out ./wiki.tar.gz Wiki
 ```
 
@@ -37,19 +39,19 @@ okn export tar --out ./wiki.tar.gz Wiki
 | --- | --- | --- | --- |
 | `key-or-path` | all | `.` | Registry key or bundle root. |
 | `--spec <version>` | all | `latest` | OKF version. |
-| `--out <path>` | all | stdout for JSON/graph | Required directory for HTML. Required file for tar. |
+| `--out <path>` | all | stdout for JSON/graph/RDF | Required directory for HTML. Required file for tar. |
 | `--type source|search` | graph | `source` | Graph projection. |
 | `--plain` | HTML | off | Semantic HTML without viewer assets. |
 | `--no-source-archive` | HTML viewer | off | Omit the source archive and connect manifest. |
 | `--head-file`, `--head-html` | HTML viewer | environment | Trusted head injection. |
 | `--script-src <src>` | HTML viewer | environment | Trusted script URL. Repeatable. |
 
-HTML and tar require zero validation errors. HTML also requires publication
+HTML, RDF, and tar require zero validation errors. HTML also requires publication
 permission in `.openknowledge.toml`.
 
-JSON and graph print `schemaVersion: "1"` documents to stdout by default. Use
-`--out` to write a file. The command replaces a machine output file only after
-complete serialization.
+JSON and graph print `schemaVersion: "1"` documents to stdout by default. RDF
+prints N-Quads. Use `--out` to write a file. The command replaces a machine
+output file only after complete serialization.
 
 Unknown targets or unsupported flags are usage errors with exit status `2`.
 
@@ -63,6 +65,7 @@ Unknown targets or unsupported flags are usage errors with exit status `2`.
 > - `packages/cli/internal/okf/html.go`
 > - `packages/cli/internal/okf/bundle.go`
 > - `packages/cli/internal/okf/graph.go`
+> - `packages/cli/internal/okf/rdf.go`
 > - `packages/cli/internal/okf/archive.go`
 >
 > **Update notes**

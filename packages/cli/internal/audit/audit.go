@@ -338,7 +338,7 @@ func findingIdentity(category string, targets []string, evidence []Evidence) str
 
 func validCategory(value string) bool {
 	switch value {
-	case "stale", "missing-source", "missing-owner", "broken-dependency", "identical-body", "duplicate-title", "claim-conflict", "claim-duplicate", "claim-missing-evidence", "claim-invalid", "missing-source-resource", "source-changed", "unanswered-question", "high-use-unverified":
+	case "stale", "missing-source", "missing-owner", "broken-dependency", "identical-body", "duplicate-title", "claim-conflict", "claim-duplicate", "claim-missing-evidence", "claim-evidence-stale", "claim-invalid", "missing-source-resource", "source-changed", "unanswered-question", "high-use-unverified":
 		return true
 	default:
 		return false
@@ -354,6 +354,9 @@ func addProfileClaimFindings(report *Report, profile okf.ClaimProfileBundle, now
 		report.add("claim-invalid", "high", "Typed claim is invalid", "Invalid claim semantics or references prevent deterministic trust and conflict evaluation.", []string{target}, Evidence{Path: target, Field: issue.Rule, Value: issue.Message})
 	}
 	for _, claim := range profile.Claims {
+		if len(claim.StaleEvidence) > 0 {
+			report.add("claim-evidence-stale", "high", "Typed claim evidence changed", "Agents must not treat the claim as fresh until an owner reconciles its evidence.", claimTargets(profile, claim), Evidence{Path: claim.DeclaringPath, Field: "claims." + claim.ID + ".staleEvidence", Value: strings.Join(claim.StaleEvidence, ",")})
+		}
 		if len(claim.Evidence) != 0 {
 			continue
 		}
@@ -611,13 +614,26 @@ func changedSources(previous SourceBaseline, current SourceBaseline, profile okf
 			continue
 		}
 		targets := []string{source.Document}
+		relevantClaims := 0
+		unresolvedClaims := 0
 		if document, exists := profile.Documents[source.Document]; exists {
 			for _, claim := range document.Claims {
 				if !containsAuditValue(claimEvidenceSources(claim), source.ID) {
 					continue
 				}
+				relevantClaims++
+				targets = append(targets, claim.ID)
+				if claim.Stale || !claimHasEvidenceObservationForSource(claim, source.ID) {
+					unresolvedClaims++
+				}
 				targets = append(targets, profile.Dependents[claim.ID]...)
 			}
+		}
+		// A changed source remains an audit failure until every typed claim that
+		// cites it has a current evidence observation. Sources without claims keep
+		// the original page-level drift behavior.
+		if relevantClaims > 0 && unresolvedClaims == 0 {
+			continue
 		}
 		report.add("source-changed", "high", "A source changed after the knowledge baseline", "Dependent knowledge can be invalid until an owner verifies the source change.", targets,
 			Evidence{Path: source.Document, Field: "source.resource", Value: source.Resource},
@@ -625,6 +641,18 @@ func changedSources(previous SourceBaseline, current SourceBaseline, profile okf
 			Evidence{Path: source.Document, Field: "source.currentFingerprint", Value: source.Fingerprint})
 	}
 	return report.Findings
+}
+
+func claimHasEvidenceObservationForSource(claim okf.Claim, sourceID string) bool {
+	if claim.Verification == nil {
+		return false
+	}
+	for _, version := range claim.Verification.EvidenceVersions {
+		if version.SourceRef == sourceID {
+			return true
+		}
+	}
+	return false
 }
 
 func containsAuditValue(values []string, target string) bool {

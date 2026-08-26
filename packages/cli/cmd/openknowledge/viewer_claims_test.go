@@ -20,6 +20,9 @@ func TestViewerProjectsClaimsIntoDocumentWorkspaceAndGraph(t *testing.T) {
 	if len(claims.Claims) != 1 {
 		t.Fatalf("expected one projected claim, got %#v", claims)
 	}
+	if !claims.ProfilePresent || !viewerClaimsWorkspaceAvailable(claims) {
+		t.Fatalf("typed claims should activate the claims workspace: %#v", claims)
+	}
 	claim := claims.Claims[0]
 	if claim.Subject.Label != "Authentication service" || claim.Predicate.Label != "token format" || claim.Object.Label != "JWT" {
 		t.Fatalf("expected ontology labels and typed value in statement projection: %#v", claim)
@@ -72,6 +75,82 @@ func TestViewerProjectsClaimsIntoDocumentWorkspaceAndGraph(t *testing.T) {
 	if !foundClaim || !foundEntity || !foundDeclaration || !foundSubject {
 		t.Fatalf("viewer graph must retain documents, claims, entities, and their semantic edges: %#v", graph)
 	}
+}
+
+func TestViewerClaimsWorkspaceAvailabilityRequiresClaimProfileData(t *testing.T) {
+	root := t.TempDir()
+	writeMainTestFile(t, root, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")
+
+	plain, err := viewerClaimsForRoot(root, "0.2", func(path string) string { return "/file/" + path })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if viewerClaimsWorkspaceAvailable(plain) || plain.ProfilePresent {
+		t.Fatalf("plain documentation should not activate the claims workspace: %#v", plain)
+	}
+
+	writeMainTestFile(t, root, "profile.md", "---\ntype: Note\nopenknowledge_claim_profile: \"1\"\nclaim_refs: [okn:claim/external]\n---\n\n# Profile\n")
+	profile, err := viewerClaimsForRoot(root, "0.2", func(path string) string { return "/file/" + path })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !profile.ProfilePresent || len(profile.Claims) != 0 || len(profile.References) != 1 || !viewerClaimsWorkspaceAvailable(profile) {
+		t.Fatalf("claim refs and an active profile should activate the claims workspace without a zero-count claim: %#v", profile)
+	}
+	if encoded := string(viewerClaimsJSON(profile)); !strings.Contains(encoded, `"profilePresent":true`) {
+		t.Fatalf("claims JSON should preserve profile availability: %s", encoded)
+	}
+}
+
+func TestViewerClaimsNavigationUsesProgressiveDisclosure(t *testing.T) {
+	if !strings.Contains(viewerCSS, ".sidebar-navigation-item[hidden]") {
+		t.Fatal("viewer CSS must keep hidden claims navigation out of layout")
+	}
+
+	plainRoot := t.TempDir()
+	writeMainTestFile(t, plainRoot, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Plain documentation\n")
+	plainPage := getViewerBody(t, newViewerHandler(plainRoot), "/file/index.md")
+	plainToggle := viewerButtonTagWith(plainPage, `data-claims-view-toggle`)
+	if !strings.Contains(plainToggle, " hidden") {
+		t.Fatalf("plain documentation should hide claims navigation: %s", plainToggle)
+	}
+	if strings.Contains(plainPage, "Claims 0") {
+		t.Fatalf("plain documentation should not expose a zero-count claims label:\n%s", plainPage)
+	}
+
+	claimsRoot := t.TempDir()
+	writeMainTestFile(t, claimsRoot, "index.md", "---\ntype: Index\nokf_version: \"0.2\"\n---\n\n# Index\n")
+	writeMainTestFile(t, claimsRoot, "token-evidence.txt", "Production tokens use the declared format.")
+	writeMainTestFile(t, claimsRoot, "auth.md", viewerTypedClaimFixture())
+	claimsPage := getViewerBody(t, newViewerHandler(claimsRoot), "/file/auth.md")
+	claimsToggle := viewerButtonTagWith(claimsPage, `data-claims-view-toggle`)
+	if strings.Contains(claimsToggle, " hidden") {
+		t.Fatalf("a bundle with typed claims should expose claims navigation: %s", claimsToggle)
+	}
+	if !strings.Contains(claimsPage, `"profilePresent":true`) {
+		t.Fatalf("claims page should expose workspace availability to the client:\n%s", claimsPage)
+	}
+}
+
+func viewerButtonTagWith(page string, marker string) string {
+	for offset := 0; offset < len(page); {
+		start := strings.Index(page[offset:], "<button")
+		if start < 0 {
+			return ""
+		}
+		start += offset
+		end := strings.Index(page[start:], ">")
+		if end < 0 {
+			return ""
+		}
+		end += start + 1
+		tag := page[start:end]
+		if strings.Contains(tag, marker) {
+			return tag
+		}
+		offset = end
+	}
+	return ""
 }
 
 func TestViewerLabelsQuantityKindAndKeepsAcronymsReadable(t *testing.T) {
