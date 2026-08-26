@@ -998,7 +998,7 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   await reference.click();
   assert.equal(await ledger.getAttribute("open"), "");
   assert.equal(await ledger.locator("#ok-source-rollback-policy").count(), 1);
-  await page.getByRole("button", { name: "Open file explorer" }).click();
+  assert.equal(await page.getByRole("button", { name: "Close file explorer" }).count(), 1);
   await page.locator("[data-viewer-settings-trigger]").click();
   const frontmatterVisibility = page.locator("[data-frontmatter-visibility]");
   await frontmatterVisibility.uncheck({ force: true });
@@ -1096,7 +1096,7 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   const horizontalStack = page.locator("[data-horizontal-stack]");
   const graphViewControl = page.locator("header").getByRole("button", { name: "Graph view" });
   const documentsViewControl = page.getByRole("button", { name: "Documents", exact: true });
-  await page.getByRole("button", { name: "Open file explorer" }).click();
+  assert.equal(await page.getByRole("button", { name: "Close file explorer" }).count(), 1);
   await page.locator('[data-note-path="index.md"]').evaluate((panel) => {
     panel.dataset.graphToggleTest = "preserved";
   });
@@ -1107,6 +1107,7 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await graphViewControl.click();
   await page.locator("[data-knowledge-graph-view] canvas").waitFor({ state: "visible" });
   assert.equal(await page.locator("html").getAttribute("data-viewer-view"), "graph");
+  assert.equal(new URL(page.url()).searchParams.get("view"), "graph");
   assert.equal(await graphViewControl.getAttribute("aria-current"), "page");
   assert.equal(await graphViewControl.getAttribute("aria-pressed"), "true");
   assert.equal(await page.locator("[data-note-path]").count(), 1, "opening graph view should preserve note panels");
@@ -1114,12 +1115,16 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await graphViewControl.click();
   await page.locator('[data-note-path="index.md"]').waitFor({ state: "visible" });
   assert.equal(await page.locator("html").getAttribute("data-viewer-view"), "notes");
+  assert.equal(new URL(page.url()).searchParams.get("view"), null);
   assert.equal(await graphViewControl.getAttribute("aria-current"), null);
   assert.equal(await graphViewControl.getAttribute("aria-pressed"), "false");
   assert.equal(await page.locator("[data-note-path]").count(), 1, "toggling graph view should restore preserved note panels");
   assert.equal(await page.locator('[data-note-path="index.md"]').getAttribute("data-graph-toggle-test"), "preserved", "closing graph view should restore the same panel element");
   await graphViewControl.click();
   await page.locator("[data-knowledge-graph-view] canvas").waitFor({ state: "visible" });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator("[data-knowledge-graph-view] canvas").waitFor({ state: "visible" });
+  assert.equal(await page.locator("html").getAttribute("data-viewer-view"), "graph", "graph view should survive a reload");
   const graphSearch = page.locator(".search-input");
   await graphSearch.fill("rollback");
   const graphSearchResult = page.locator(".search-results a", { hasText: "Rollback Guide" }).first();
@@ -1130,7 +1135,10 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   assert.equal(await graphViewControl.getAttribute("aria-current"), null);
   assert.equal(await page.locator("[data-note-path]").count(), 2, "graph navigation should follow open-beside mode");
   await page.goBack();
-  await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 1);
+  await page.waitForFunction(() => document.documentElement.dataset.viewerView === "graph");
+  assert.equal(await page.locator("[data-note-path]").count(), 1);
+  await graphViewControl.click();
+  await page.locator('[data-note-path="index.md"]').waitFor({ state: "visible" });
   await page.getByRole("button", { name: "Viewer settings" }).click();
   await page.getByText("Horizontal stack", { exact: true }).click();
   await page.getByRole("button", { name: "Viewer settings" }).click();
@@ -1145,7 +1153,7 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.locator('[data-note-path="index.md"]').waitFor({ state: "visible" });
   await page.reload({ waitUntil: "networkidle" });
   assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
-  await page.getByRole("button", { name: "Open file explorer" }).click();
+  assert.equal(await page.getByRole("button", { name: "Close file explorer" }).count(), 1);
   await page.getByRole("button", { name: "Viewer settings" }).click();
   await page.getByText("Horizontal stack", { exact: true }).click();
   await page.getByRole("button", { name: "Viewer settings" }).click();
@@ -1457,7 +1465,7 @@ test("exported viewer renders Mermaid in initial and dynamic note panels", async
   assert.equal(await invalidDiagram.locator("[data-mermaid-error]:visible").count(), 1);
   assert.equal(await invalidDiagram.locator("[data-mermaid-source]:visible").count(), 1);
 
-  await page.getByRole("button", { name: "Open file explorer" }).click();
+  assert.equal(await page.getByRole("button", { name: "Close file explorer" }).count(), 1);
   await page.locator("[data-viewer-settings-trigger]").click();
   await page.locator('[data-theme-option="default"]').click();
   await page.locator('[data-note-path="guides/rollback.md"] [data-mermaid-diagram][data-mermaid-state="rendered"]').waitFor();

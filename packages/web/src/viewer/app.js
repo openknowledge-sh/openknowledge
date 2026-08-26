@@ -41,7 +41,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const mobileSidebar = window.matchMedia("(max-width: 680px)");
+  const mobileSidebar = window.matchMedia("(max-width: 720px)");
   const editorStorageKey = "openknowledge.viewer.editorOrder";
   const themeStorageKey = "openknowledge.viewer.theme";
   const frontmatterStorageKey = "openknowledge.viewer.frontmatter";
@@ -51,6 +51,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const defaultNavigationMode = "beside";
   let navigationMode = defaultNavigationMode;
   let graphViewRequested = false;
+  let knowledgeGraphRendered = false;
   let claimsViewRequested = false;
   let selectedClaimKey = "";
   let claimsInspectorContext = null;
@@ -71,6 +72,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const knownNotePaths = collectKnownNotePaths();
   const knowledgeGraph = readKnowledgeGraph();
   const claimsData = readClaimsData();
+  let knowledgeGraphLoadPromise = null;
+  let claimsDataLoadPromise = null;
   const themePresets = ["default", "night", "paper", "ocean", "rose", "custom"];
   const defaultThemePreset = "default";
   const knowledgeBasePalette = ["#0a4a9c", "#9a4d0f", "#08745d", "#8a3f75", "#5e55a5", "#a0353f", "#316b24", "#8b5f00"];
@@ -430,19 +433,23 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         url.searchParams.delete("claim");
         url.searchParams.delete("knowledge-base");
       }
+    } else if (view === "graph") {
+      url.searchParams.set("view", "graph");
+      url.searchParams.delete("claim");
+      url.searchParams.delete("knowledge-base");
     } else {
       url.searchParams.delete("view");
       url.searchParams.delete("claim");
       url.searchParams.delete("knowledge-base");
     }
-    const state = { stack: currentStack(), view: view, claim: selectedClaimKey };
+    const state = { stack: currentStackTargets(), view: view, claim: selectedClaimKey };
     window.history[pushHistory ? "pushState" : "replaceState"](state, "", url);
   }
 
   function setGraphViewRequested(value, updateLocation) {
-	if (typeof updateLocation === "undefined") {
-	  updateLocation = true;
-	}
+    if (typeof updateLocation === "undefined") {
+      updateLocation = true;
+    }
     graphViewRequested = Boolean(value);
     if (graphViewRequested) {
       claimsViewRequested = false;
@@ -455,7 +462,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function setClaimsViewRequested(value, updateLocation) {
-    claimsViewRequested = Boolean(value) && claimsData.claims.length > 0;
+    claimsViewRequested = Boolean(value) && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
     if (claimsViewRequested) {
       graphViewRequested = false;
       renderClaimsWorkspace();
@@ -503,12 +510,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
     claimsViewToggle.dataset.claimsViewBound = "true";
-    claimsViewToggle.hidden = claimsData.claims.length === 0;
-    const count = claimsViewToggle.querySelector("[data-claims-navigation-count]");
-    if (count) {
-      count.textContent = String(claimsData.claims.length);
-    }
-    claimsViewToggle.addEventListener("click", function () {
+    refreshClaimsViewToggle();
+    claimsViewToggle.addEventListener("click", async function () {
+      try {
+        await ensureClaimsData();
+      } catch {
+        return;
+      }
+      refreshClaimsViewToggle();
+      if (!claimsData.claims.length && !projectionHasProblems(claimsData)) {
+        return;
+      }
       setClaimsViewRequested(!claimsViewRequested, true);
       if (mobileSidebar.matches) {
         setSidebarOpen(false);
@@ -516,9 +528,51 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     });
   }
 
+  function refreshClaimsViewToggle() {
+    if (!claimsViewToggle) {
+      return;
+    }
+    const source = document.querySelector("[data-claims-data]");
+    claimsViewToggle.hidden = claimsData.claims.length === 0
+      && !String(source?.dataset.url || "")
+      && !projectionHasProblems(claimsData);
+    const count = claimsViewToggle.querySelector("[data-claims-navigation-count]");
+    if (count) {
+      count.textContent = claimsData.status === "failed" && claimsData.claims.length === 0
+        ? "!"
+        : String(claimsData.claims.length) + (claimsData.status === "partial" ? "+" : "");
+    }
+    claimsViewToggle.title = projectionHasProblems(claimsData)
+      ? projectionFailureSummary(claimsData)
+      : "Claims";
+  }
+
   function claimIdentity(claim) {
     const identity = String(claim?.key || ((claim?.knowledgeBase || "") + "\u0000" + (claim?.id || "")));
     return identity.charCodeAt(0) === 0 ? identity.slice(1) : identity;
+  }
+
+  function claimDocumentIdentity(claim) {
+    return encodeURIComponent(String(claim?.knowledgeBase || "")) + "|" + encodeURIComponent(String(claim?.declaringPath || ""));
+  }
+
+  function projectionHasProblems(data) {
+    return (data?.status === "partial" || data?.status === "failed")
+      && Array.isArray(data?.failures)
+      && data.failures.length > 0;
+  }
+
+  function projectionFailureSummary(data) {
+    const failures = Array.isArray(data?.failures) ? data.failures : [];
+    if (!failures.length) {
+      return "";
+    }
+    const names = failures.map(function (failure) {
+      return String(failure?.knowledgeBase || "Unknown knowledge space");
+    });
+    return names.length === 1
+      ? names[0] + " is unavailable"
+      : names.length + " knowledge spaces are unavailable";
   }
 
   function claimByKey(key) {
@@ -780,7 +834,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       (claim.owners || []).forEach(function (owner) { options.owner.set(owner, owner); });
       (claim.evidence || []).forEach(function (evidence) { options.stance.set(evidence.stance, evidence.stance); });
       const documentValue = (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath;
-      options.document.set(claimIdentity(claim) + "\u0000" + claim.declaringPath, documentValue);
+      options.document.set(claimDocumentIdentity(claim), documentValue);
     });
     return options;
   }
@@ -801,7 +855,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         return String(left[1]).localeCompare(String(right[1]));
       }).forEach(function (entry) {
         const option = document.createElement("option");
-        option.value = key === "document" ? entry[0].split("\u0000").slice(-1)[0] : entry[0];
+        option.value = entry[0];
         option.textContent = entry[1];
         select.append(option);
       });
@@ -832,7 +886,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (filters.stance && !(claim.evidence || []).some(function (evidence) { return evidence.stance === filters.stance; })) {
       return false;
     }
-    if (filters.document && claim.declaringPath !== filters.document) {
+    if (filters.document && claimDocumentIdentity(claim) !== filters.document) {
       return false;
     }
     if (filters.validation === "valid" && (claim.issues || []).length > 0) {
@@ -877,13 +931,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       const statement = createClaimsElement("span", "claims-result-statement");
       appendClaimStatement(statement, claim, "claims-result-");
       row.append(statement);
-      if (!claim.projection?.metric || (claim.issues || []).length > 0) {
+      const showSource = Boolean(claim.knowledgeBase) && knowledgeBaseNames().length > 1;
+      if (!claim.projection?.metric || showSource || (claim.issues || []).length > 0) {
         const meta = createClaimsElement("span", "claims-result-meta");
         if (!claim.projection?.metric) {
           appendClaimBadge(meta, claim.status, claim.status);
           if (claim.stale) {
             appendClaimBadge(meta, "stale", "stale");
           }
+        }
+        if (!claim.projection?.metric || showSource) {
           meta.append(createClaimsElement("span", "claims-result-path", (claim.knowledgeBase ? claim.knowledgeBase + " / " : "") + claim.declaringPath));
         }
         if ((claim.issues || []).length > 0) {
@@ -898,8 +955,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     });
     if (matches.length === 0) {
       const empty = createClaimsElement("div", "claims-empty");
-      empty.append(createClaimsElement("strong", "", "No claims match these filters."));
-      empty.append(createClaimsElement("span", "", "Clear a filter or search for another statement, ID, owner, or document."));
+      if (claimsData.status === "failed") {
+        empty.append(createClaimsElement("strong", "", "Claims are unavailable."));
+        empty.append(createClaimsElement("span", "", projectionFailureSummary(claimsData) + ". Refresh to try again."));
+      } else {
+        empty.append(createClaimsElement("strong", "", claimsData.status === "partial"
+          ? "No available claims match these filters."
+          : "No claims match these filters."));
+        empty.append(createClaimsElement("span", "", claimsData.status === "partial"
+          ? projectionFailureSummary(claimsData) + ". Clear a filter or search the available results."
+          : "Clear a filter or search for another statement, ID, owner, or document."));
+      }
       claimsList.append(empty);
     }
   }
@@ -1304,9 +1370,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     const summary = document.querySelector("[data-claims-summary]");
     if (summary) {
-      summary.textContent = matches.length === claimsData.claims.length
+      const count = matches.length === claimsData.claims.length
         ? claimsData.claims.length + " claims"
         : matches.length + " of " + claimsData.claims.length;
+      summary.textContent = projectionHasProblems(claimsData)
+        ? count + " · " + projectionFailureSummary(claimsData)
+        : count;
     }
   }
 
@@ -1730,9 +1799,41 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     setSidebarOpen(!document.body.classList.contains("is-sidebar-open"));
   }
 
-  function notePathFromHref(href, sourcePath) {
+  function knowledgeBasePrefix(name) {
+    const normalizedName = String(name || "").trim();
+    if (!normalizedName || normalizedName === currentKnowledgeBase) {
+      return linkPrefix;
+    }
+    const links = document.querySelectorAll("[data-tree-path][data-knowledge-base]");
+    for (const link of links) {
+      if (String(link.dataset.knowledgeBase || "").trim() !== normalizedName) {
+        continue;
+      }
+      try {
+        const url = new URL(link.getAttribute("href") || link.href, window.location.href);
+        const marker = "/file/";
+        const index = url.pathname.indexOf(marker);
+        if (index >= 0) {
+          return url.pathname.slice(0, index);
+        }
+      } catch {
+        return linkPrefix;
+      }
+    }
+    return linkPrefix;
+  }
+
+  function noteTarget(path, knowledgeBase) {
+    return {
+      path: String(path || "index.md"),
+      knowledgeBase: String(knowledgeBase || currentKnowledgeBase || "").trim(),
+    };
+  }
+
+  function noteTargetFromHref(href, sourcePath, sourceKnowledgeBase) {
     if (isStaticBundle()) {
-      return staticNotePathFromHref(href, sourcePath);
+      const path = staticNotePathFromHref(href, sourcePath);
+      return path ? noteTarget(path, sourceKnowledgeBase) : null;
     }
 
     let url;
@@ -1742,20 +1843,35 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return null;
     }
 
-    const filePrefix = serverFilePrefix();
-    if (url.origin !== window.location.origin || !url.pathname.startsWith(filePrefix)) {
+    if (url.origin !== window.location.origin) {
       return null;
     }
 
-    const raw = url.pathname.slice(filePrefix.length) || "index.md";
+    const prefixes = knowledgeBaseNames().map(function (name) {
+      return { knowledgeBase: name, prefix: knowledgeBasePrefix(name) + "/file/" };
+    });
+    prefixes.push({ knowledgeBase: currentKnowledgeBase, prefix: serverFilePrefix() });
+    prefixes.sort(function (left, right) { return right.prefix.length - left.prefix.length; });
+    const match = prefixes.find(function (candidate) {
+      return url.pathname.startsWith(candidate.prefix);
+    });
+    if (!match) {
+      return null;
+    }
+
+    const raw = url.pathname.slice(match.prefix.length) || "index.md";
     if (!isPanelPreviewPath(raw)) {
       return null;
     }
     try {
-      return decodeURIComponent(raw);
+      return noteTarget(decodeURIComponent(raw), match.knowledgeBase || sourceKnowledgeBase);
     } catch {
-      return raw;
+      return noteTarget(raw, match.knowledgeBase || sourceKnowledgeBase);
     }
+  }
+
+  function notePathFromHref(href, sourcePath, sourceKnowledgeBase) {
+    return noteTargetFromHref(href, sourcePath, sourceKnowledgeBase)?.path || null;
   }
 
   function encodedNoteURL(prefix, path) {
@@ -1766,23 +1882,23 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return /\.(md|markdown|go|js|mjs|cjs|jsx|ts|mts|cts|tsx|json|jsonc|html|htm|css|sh|bash|zsh|py|rb|rs|java|kt|kts|swift|sql|yml|yaml|toml|xml|svg|txt|log|csv|tsv|ini|env|gitignore|dockerignore)$/i.test(String(path || "").split("?")[0].split("#")[0]);
   }
 
-  function fileURL(path) {
+  function fileURL(path, knowledgeBase) {
     if (isStaticBundle()) {
       return staticRelativeURL(path);
     }
-    return encodedNoteURL(serverFilePrefix(), path);
+    return encodedNoteURL(serverFilePrefix(knowledgeBase), path);
   }
 
-  function apiURL(path) {
-    return encodedNoteURL(serverAPIPrefix(), path);
+  function apiURL(path, knowledgeBase) {
+    return encodedNoteURL(serverAPIPrefix(knowledgeBase), path);
   }
 
-  function serverFilePrefix() {
-    return linkPrefix + "/file/";
+  function serverFilePrefix(knowledgeBase) {
+    return knowledgeBasePrefix(knowledgeBase) + "/file/";
   }
 
-  function serverAPIPrefix() {
-    return linkPrefix + "/api/file/";
+  function serverAPIPrefix(knowledgeBase) {
+    return knowledgeBasePrefix(knowledgeBase) + "/api/file/";
   }
 
   function normalizeLinkPrefix(value) {
@@ -2218,25 +2334,29 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return {
         nodes: Array.isArray(shared.nodes) ? shared.nodes : [],
         edges: Array.isArray(shared.edges) ? shared.edges : [],
+        status: String(shared.status || "complete"),
+        failures: Array.isArray(shared.failures) ? shared.failures : [],
       };
     }
     const source = document.querySelector("[data-knowledge-graph]");
     if (!source) {
-      return { nodes: [], edges: [] };
+      return { nodes: [], edges: [], status: "complete", failures: [] };
     }
     try {
       const parsed = JSON.parse(source.textContent || "{}");
       return {
         nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
         edges: Array.isArray(parsed.edges) ? parsed.edges : [],
+        status: String(parsed.status || "complete"),
+        failures: Array.isArray(parsed.failures) ? parsed.failures : [],
       };
     } catch {
-      return { nodes: [], edges: [] };
+      return { nodes: [], edges: [], status: "complete", failures: [] };
     }
   }
 
   function readClaimsData() {
-    const empty = { schemaVersion: "1", claims: [], references: [], entities: [], predicates: [], sources: [], issues: [] };
+    const empty = { schemaVersion: "1", claims: [], references: [], entities: [], predicates: [], sources: [], issues: [], status: "complete", failures: [] };
     const shared = window.OpenKnowledgeStaticData?.claims;
     if (shared && typeof shared === "object") {
       return {
@@ -2246,7 +2366,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         entities: Array.isArray(shared.entities) ? shared.entities : [],
         predicates: Array.isArray(shared.predicates) ? shared.predicates : [],
         sources: Array.isArray(shared.sources) ? shared.sources : [],
-        issues: Array.isArray(shared.issues) ? shared.issues : []
+        issues: Array.isArray(shared.issues) ? shared.issues : [],
+        status: String(shared.status || "complete"),
+        failures: Array.isArray(shared.failures) ? shared.failures : []
       };
     }
     const source = document.querySelector("[data-claims-data]");
@@ -2262,17 +2384,90 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         entities: Array.isArray(parsed.entities) ? parsed.entities : [],
         predicates: Array.isArray(parsed.predicates) ? parsed.predicates : [],
         sources: Array.isArray(parsed.sources) ? parsed.sources : [],
-        issues: Array.isArray(parsed.issues) ? parsed.issues : []
+        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+        status: String(parsed.status || "complete"),
+        failures: Array.isArray(parsed.failures) ? parsed.failures : []
       };
     } catch {
       return empty;
     }
   }
 
+  function ensureKnowledgeGraphData() {
+    const source = document.querySelector("[data-knowledge-graph]");
+    const dataURL = String(source?.dataset.url || "");
+    if (!dataURL) {
+      return Promise.resolve(knowledgeGraph);
+    }
+    if (!knowledgeGraphLoadPromise) {
+      knowledgeGraphLoadPromise = fetch(dataURL, { headers: { "Accept": "application/json" } })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error("Graph request failed with status " + response.status);
+          }
+          return response.json();
+        })
+        .then(function (parsed) {
+          knowledgeGraph.nodes = Array.isArray(parsed.nodes) ? parsed.nodes : [];
+          knowledgeGraph.edges = Array.isArray(parsed.edges) ? parsed.edges : [];
+          knowledgeGraph.status = String(parsed.status || "complete");
+          knowledgeGraph.failures = Array.isArray(parsed.failures) ? parsed.failures : [];
+          source.dataset.url = "";
+          return knowledgeGraph;
+        })
+        .catch(function (error) {
+          knowledgeGraphLoadPromise = null;
+          throw error;
+        });
+    }
+    return knowledgeGraphLoadPromise;
+  }
+
+  function ensureClaimsData() {
+    const source = document.querySelector("[data-claims-data]");
+    const dataURL = String(source?.dataset.url || "");
+    if (!dataURL) {
+      return Promise.resolve(claimsData);
+    }
+    if (!claimsDataLoadPromise) {
+      claimsDataLoadPromise = fetch(dataURL, { headers: { "Accept": "application/json" } })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error("Claims request failed with status " + response.status);
+          }
+          return response.json();
+        })
+        .then(function (parsed) {
+          claimsData.schemaVersion = String(parsed.schemaVersion || "1");
+          ["claims", "references", "entities", "predicates", "sources", "issues"].forEach(function (key) {
+            claimsData[key] = Array.isArray(parsed[key]) ? parsed[key] : [];
+          });
+          claimsData.status = String(parsed.status || "complete");
+          claimsData.failures = Array.isArray(parsed.failures) ? parsed.failures : [];
+          if (claimsFilters) {
+            claimsFilters.dataset.populated = "false";
+            const options = claimsFilterOptions();
+            claimsFilters.querySelectorAll("[data-claims-filter]").forEach(function (select) {
+              if (options[select.dataset.claimsFilter] instanceof Map) {
+                Array.from(select.options).slice(1).forEach(function (option) { option.remove(); });
+              }
+            });
+          }
+          source.dataset.url = "";
+          return claimsData;
+        })
+        .catch(function (error) {
+          claimsDataLoadPromise = null;
+          throw error;
+        });
+    }
+    return claimsDataLoadPromise;
+  }
+
   const defaultGraphSettings = Object.freeze({
     arrows: false,
     colorGroups: true,
-    labelThreshold: 48,
+    labelThreshold: 78,
     nodeSize: 100,
     linkThickness: 100,
     centerForce: 34,
@@ -2333,22 +2528,51 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     status.className = "knowledge-graph-status";
     status.dataset.knowledgeGraphStatus = "";
     status.setAttribute("aria-live", "polite");
-    status.textContent = knowledgeGraph.nodes.length
-      ? knowledgeGraph.nodes.length + (knowledgeGraph.nodes.length === 1 ? " note" : " notes")
-      : "No notes";
+    const graphCount = knowledgeGraph.nodes.length
+      ? knowledgeGraph.nodes.length + (knowledgeGraph.nodes.length === 1 ? " item" : " items")
+      : "No items";
+    status.textContent = projectionHasProblems(knowledgeGraph)
+      ? graphCount + " · " + projectionFailureSummary(knowledgeGraph)
+      : graphCount;
     info.append(title, help, status);
     (graphSidebar || graphView).append(info);
 
     if (!knowledgeGraph.nodes.length) {
-      const empty = document.createElement("p");
-      empty.className = "empty";
-      empty.textContent = "No Markdown files found.";
-      graphView.append(empty);
+      const onboarding = document.createElement("section");
+      onboarding.className = "knowledge-graph-onboarding";
+      const onboardingTitle = document.createElement("h2");
+      const onboardingCopy = document.createElement("p");
+      if (knowledgeGraph.status === "failed") {
+        onboardingTitle.textContent = "Graph is unavailable";
+        onboardingCopy.textContent = projectionFailureSummary(knowledgeGraph) + ". Refresh to try again.";
+        onboarding.append(onboardingTitle, onboardingCopy);
+      } else if (knowledgeGraph.status === "partial") {
+        onboardingTitle.textContent = "Graph is incomplete";
+        onboardingCopy.textContent = projectionFailureSummary(knowledgeGraph) + ". No items are available from the remaining knowledge spaces.";
+        onboarding.append(onboardingTitle, onboardingCopy);
+      } else if (knowledgeBaseNames().length === 0 && document.querySelector("[data-knowledge-base-connect]")) {
+        onboardingTitle.textContent = "Bring your knowledge into one workspace";
+        onboardingCopy.textContent = "Connect a knowledge space to search, browse documents, inspect claims, and explore its graph here.";
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "knowledge-graph-onboarding-action";
+        action.textContent = "Connect knowledge space";
+        action.addEventListener("click", function () {
+          document.querySelector("[data-knowledge-base-connect]")?.click();
+        });
+        onboarding.append(onboardingTitle, onboardingCopy, action);
+      } else {
+        onboardingTitle.textContent = "No documents yet";
+        onboardingCopy.textContent = "Add Markdown files to a connected knowledge space, then refresh this view.";
+        onboarding.append(onboardingTitle, onboardingCopy);
+      }
+      graphView.append(onboarding);
       return;
     }
 
-    const worldWidth = 900;
-    const worldHeight = 640;
+    const graphScale = Math.max(1, Math.sqrt(knowledgeGraph.nodes.length / 80));
+    const worldWidth = Math.round(1200 * graphScale);
+    const worldHeight = Math.round(820 * graphScale);
     const labelsByPath = graphUniqueNodeLabels(knowledgeGraph.nodes);
     const positions = graphLayoutPositions(knowledgeGraph, worldWidth, worldHeight, labelsByPath);
     const settingsValue = readGraphSettings();
@@ -2363,12 +2587,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const controller = createKnowledgeGraphCanvas(canvas, knowledgeGraph, positions, labelsByPath, worldWidth, worldHeight, status, settingsValue);
     graphView.append(createKnowledgeGraphViewportActions(controller, graphSidebar));
     if (graphSidebar) {
-      graphSidebar.append(createKnowledgeGraphControls(controller, settingsValue));
+      graphSidebar.append(createKnowledgeGraphControls(controller, settingsValue, knowledgeGraph));
     }
     controller.start();
   }
 
-  function createKnowledgeGraphControls(controller, settingsValue) {
+  function createKnowledgeGraphControls(controller, settingsValue, graph) {
     const controls = document.createElement("div");
     controls.className = "knowledge-graph-controls";
     const bindings = [];
@@ -2390,8 +2614,23 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     filterLabel.append(filterText, filterInput);
     filterSection.body.append(filterLabel);
 
+    const typeChoices = Array.from(new Set(graph.nodes.map(graphNodeCategory))).sort();
+    if (typeChoices.length > 1) {
+      filterSection.body.append(graphFilterChoiceGroup("Content", typeChoices, function (value) {
+        return value.charAt(0).toUpperCase() + value.slice(1);
+      }, controller.setVisibleKinds, false, bindings));
+    }
+    const knowledgeBaseChoices = Array.from(new Set(graph.nodes.map(function (node) {
+      return String(node?.knowledgeBase || "").trim();
+    }).filter(Boolean))).sort();
+    if (knowledgeBaseChoices.length > 1) {
+      filterSection.body.append(graphFilterChoiceGroup("Knowledge spaces", knowledgeBaseChoices, function (value) {
+        return value;
+      }, controller.setVisibleKnowledgeBases, true, bindings));
+    }
+
     const groupSection = graphControlSection("Groups", true);
-    groupSection.body.append(graphToggleControl("Color nodes by folder", settingsValue.colorGroups, function (checked) {
+    groupSection.body.append(graphToggleControl(knowledgeBaseChoices.length > 1 ? "Color nodes by knowledge space" : "Color nodes by folder", settingsValue.colorGroups, function (checked) {
       settingsValue.colorGroups = checked;
       controller.setSetting("colorGroups", checked);
       saveGraphSettings(settingsValue);
@@ -2504,6 +2743,59 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     body.className = "knowledge-graph-control-body";
     details.append(summary, body);
     return { details: details, body: body };
+  }
+
+  function graphFilterChoiceGroup(labelText, values, format, onChange, useKnowledgeBaseColor, bindings) {
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "knowledge-graph-filter-group";
+    const legend = document.createElement("legend");
+    legend.textContent = labelText;
+    fieldset.append(legend);
+    const selected = new Set(values);
+    const inputs = [];
+    values.forEach(function (value) {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = true;
+      input.value = value;
+      inputs.push(input);
+      const marker = document.createElement("span");
+      marker.className = "knowledge-graph-filter-marker";
+      if (useKnowledgeBaseColor) {
+        marker.style.backgroundColor = knowledgeBaseColor(value);
+      }
+      const text = document.createElement("span");
+      text.textContent = format(value);
+      input.addEventListener("change", function () {
+        if (input.checked) {
+          selected.add(value);
+        } else {
+          selected.delete(value);
+        }
+        onChange(Array.from(selected));
+      });
+      label.append(input, marker, text);
+      fieldset.append(label);
+    });
+    bindings?.push(function () {
+      selected.clear();
+      values.forEach(function (value) { selected.add(value); });
+      inputs.forEach(function (input) { input.checked = true; });
+      onChange(Array.from(selected));
+    });
+    return fieldset;
+  }
+
+  function graphNodeCategory(node) {
+    const kind = String(node?.kind || "").toLowerCase();
+    if (kind === "claim") {
+      return "claims";
+    }
+    if (kind === "entity") {
+      return "entities";
+    }
+    return "documents";
   }
 
   function graphToggleControl(labelText, checked, onChange, onReset, bindings) {
@@ -2675,6 +2967,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     };
     const runningListeners = [];
     let filter = "";
+    let visibleKinds = new Set(states.map(function (state) { return graphNodeCategory(state.node); }));
+    let visibleKnowledgeBases = new Set(states.map(function (state) { return String(state.node.knowledgeBase || "").trim(); }).filter(Boolean));
     let activePath = "";
     let keyboardIndex = states.findIndex(function (state) {
       return (state.node.sourcePath || state.path) === "index.md" && (!currentKnowledgeBase || state.node.knowledgeBase === currentKnowledgeBase);
@@ -2686,7 +2980,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     let pointerGesture = null;
     let frame = 0;
     let cameraReady = false;
-    let running = !motionIsReduced();
+    let running = !motionIsReduced() && states.length <= 250;
     let resizeObserver = null;
     let themeObserver = null;
 
@@ -2695,11 +2989,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
 
     const visibleStates = function () {
-      if (!filter) {
-        return states;
-      }
       return states.filter(function (state) {
-        return state.path.toLowerCase().includes(filter) || state.fullLabel.toLowerCase().includes(filter);
+        const categoryVisible = visibleKinds.has(graphNodeCategory(state.node));
+        const knowledgeBase = String(state.node.knowledgeBase || "").trim();
+        const knowledgeBaseVisible = !knowledgeBase || visibleKnowledgeBases.has(knowledgeBase);
+        const textVisible = !filter || state.path.toLowerCase().includes(filter) || state.fullLabel.toLowerCase().includes(filter);
+        return categoryVisible && knowledgeBaseVisible && textVisible;
       });
     };
 
@@ -2712,19 +3007,20 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
     const updateStatus = function () {
       const visible = visibleStates();
+      const projectionNotice = projectionHasProblems(graph) ? " · " + projectionFailureSummary(graph) : "";
       if (activePath && stateByPath[activePath] && visible.includes(stateByPath[activePath])) {
         const selected = stateByPath[activePath];
         const connectionCount = visibleLinks(visible).filter(function (edge) {
           return edge.source === activePath || edge.target === activePath;
         }).length;
         const connectionLabel = connectionCount + (connectionCount === 1 ? " connection" : " connections");
-        status.textContent = connectionLabel;
+        status.textContent = connectionLabel + projectionNotice;
         canvas.setAttribute("aria-label", "Selected " + selected.fullLabel + " with " + connectionLabel + ". Use arrow keys to move and Enter to open.");
         return;
       }
-      status.textContent = filter
-        ? visible.length + " of " + states.length + (states.length === 1 ? " note" : " notes")
-        : states.length + (states.length === 1 ? " note" : " notes");
+      status.textContent = filter || visible.length !== states.length
+        ? visible.length + " of " + states.length + (states.length === 1 ? " item" : " items") + projectionNotice
+        : states.length + (states.length === 1 ? " item" : " items") + projectionNotice;
       canvas.setAttribute("aria-label", "Interactive graph of Markdown files. Drag to pan, scroll to zoom, use arrow keys to select a note, and press Enter to open it.");
     };
 
@@ -2922,7 +3218,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         canvas.releasePointerCapture(event.pointerId);
       }
       if (shouldOpen) {
-        openGraphNode(activatedNode.node);
+        void openGraphNode(activatedNode.node);
       }
     };
     canvas.addEventListener("pointerup", endPointerGesture);
@@ -2951,7 +3247,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       if (event.key === "Enter" || event.key === " ") {
         if (activePath) {
           event.preventDefault();
-          openGraphNode(stateByPath[activePath].node);
+          void openGraphNode(stateByPath[activePath].node);
         }
         return;
       }
@@ -3038,6 +3334,18 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         updateStatus();
         fitCamera();
       },
+      setVisibleKinds: function (values) {
+        visibleKinds = new Set(values);
+        setActivePath("");
+        updateStatus();
+        fitCamera();
+      },
+      setVisibleKnowledgeBases: function (values) {
+        visibleKnowledgeBases = new Set(values);
+        setActivePath("");
+        updateStatus();
+        fitCamera();
+      },
       setSetting: function (key, value) {
         if (Object.prototype.hasOwnProperty.call(settingsState, key)) {
           settingsState[key] = value;
@@ -3048,20 +3356,48 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     };
   }
 
-  function openGraphNode(node) {
+  async function openGraphNode(node) {
     if (!node) {
       return;
     }
     const knowledgeBase = String(node.knowledgeBase || "").trim();
     if (node.kind === "claim" && node.url) {
-      window.location.assign(node.url);
+      try {
+        await ensureClaimsData();
+        refreshClaimsViewToggle();
+      } catch {
+        return;
+      }
+      try {
+        const url = new URL(node.url, window.location.href);
+        const claim = claimByID(url.searchParams.get("claim") || "", knowledgeBase);
+        if (claim) {
+          selectedClaimKey = claimIdentity(claim);
+          setClaimsViewRequested(true, true);
+        }
+      } catch {
+        // Keep the graph usable when a custom claim URL is malformed.
+      }
       return;
     }
-    if (knowledgeBase && currentKnowledgeBase && knowledgeBase !== currentKnowledgeBase && node.url) {
-      window.location.assign(node.url);
+    if (node.kind === "entity") {
+      try {
+        await ensureClaimsData();
+        refreshClaimsViewToggle();
+      } catch {
+        return;
+      }
+      const entityID = String(node.path || "").replace(/^.*entity:/, "");
+      const claim = claimsData.claims.find(function (candidate) {
+        return candidate.knowledgeBase === knowledgeBase && (candidate.subject?.id === entityID || candidate.object?.ref === entityID);
+      });
+      if (claim) {
+        selectedClaimKey = claimIdentity(claim);
+        setClaimsViewRequested(true, true);
+      }
       return;
     }
-    openTarget(node.sourcePath || node.path, true, shouldOpenBeside(false));
+    openTarget(node.sourcePath || node.path, true, shouldOpenBeside(false), "", activePanel(), knowledgeBase);
   }
 
   function graphCanvasPhysicsStep(states, links, stateByPath, activePath, width, height, settingsValue) {
@@ -3098,8 +3434,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       target.vy -= ny * force;
     });
 
+    const neighborWindow = states.length > 320 ? 18 : states.length;
     for (let i = 0; i < states.length; i += 1) {
-      for (let j = i + 1; j < states.length; j += 1) {
+      for (let j = i + 1; j < Math.min(states.length, i + neighborWindow); j += 1) {
         const a = states[i];
         const b = states[j];
         const dx = b.x - a.x || 0.01;
@@ -3162,7 +3499,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const nodeScale = settingsValue.nodeSize / 100;
     const linkScale = settingsValue.linkThickness / 100;
     const groupIndexes = Object.create(null);
-    Array.from(new Set(states.map(function (state) { return state.group; }))).sort().forEach(function (group, index) {
+    Array.from(new Set(states.map(function (state) { return state.node.knowledgeBase || state.group; }))).sort().forEach(function (group, index) {
       groupIndexes[group] = index;
     });
 
@@ -3200,7 +3537,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       const activeNode = state === active;
       const scale = nodeScale * (1 + state.z * 0.32);
       const radius = state.radius * scale;
-      const groupColor = theme.groups[groupIndexes[state.group] % theme.groups.length];
+      const colorGroup = state.node.knowledgeBase || state.group;
+      const groupColor = state.node.knowledgeBase ? knowledgeBaseColor(state.node.knowledgeBase) : theme.groups[groupIndexes[colorGroup] % theme.groups.length];
       const nodeColor = settingsValue.colorGroups ? groupColor : theme.node;
       context.save();
       context.globalAlpha = 1;
@@ -3333,6 +3671,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       positions[nodes[0].path] = { x: width / 2, y: height / 2 };
       return positions;
     }
+    if (nodes.length > 260) {
+      return graphScalableLayoutPositions(nodes, width, height);
+    }
+    if (nodes.length > 250) {
+      return graphGridPositions(nodes, width, height);
+    }
 
     const center = { x: width / 2, y: height / 2 };
     const nodeSet = Object.create(null);
@@ -3437,6 +3781,65 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     resolveGraphCollisions(states, width, height);
     states.forEach(function (state) {
       positions[state.node.path] = { x: state.x, y: state.y };
+    });
+    return positions;
+  }
+
+  function graphScalableLayoutPositions(nodes, width, height) {
+    const positions = Object.create(null);
+    const groups = new Map();
+    nodes.forEach(function (node) {
+      const key = String(node.knowledgeBase || graphPathGroup(node.sourcePath || node.path) || ".");
+      const group = groups.get(key) || [];
+      group.push(node);
+      groups.set(key, group);
+    });
+    const orderedGroups = Array.from(groups.entries()).sort(function (left, right) {
+      return right[1].length - left[1].length || left[0].localeCompare(right[0]);
+    });
+    const columns = Math.max(1, Math.ceil(Math.sqrt(orderedGroups.length * (width / height))));
+    const rows = Math.max(1, Math.ceil(orderedGroups.length / columns));
+    const cellWidth = width / columns;
+    const cellHeight = height / rows;
+    orderedGroups.forEach(function (entry, groupIndex) {
+      const groupNodes = entry[1].slice().sort(function (left, right) {
+        return String(left.path).localeCompare(String(right.path));
+      });
+      const centerX = cellWidth * (groupIndex % columns + 0.5);
+      const centerY = cellHeight * (Math.floor(groupIndex / columns) + 0.5);
+      const spacing = Math.max(18, Math.min(38, Math.sqrt((cellWidth * cellHeight) / Math.max(1, groupNodes.length)) * 0.72));
+      groupNodes.forEach(function (node, index) {
+        const angle = index * 2.399963229728653;
+        const radius = spacing * Math.sqrt(index);
+        positions[node.path] = {
+          x: clamp(centerX + Math.cos(angle) * radius, 28, width - 28),
+          y: clamp(centerY + Math.sin(angle) * radius, 28, height - 28),
+        };
+      });
+    });
+    return positions;
+  }
+
+  function graphGridPositions(nodes, width, height) {
+    const positions = Object.create(null);
+    const sorted = nodes.slice().sort(function (left, right) {
+      const leftGroup = graphPathGroup(left.sourcePath || left.path);
+      const rightGroup = graphPathGroup(right.sourcePath || right.path);
+      if (leftGroup !== rightGroup) {
+        return leftGroup.localeCompare(rightGroup);
+      }
+      return left.path.localeCompare(right.path);
+    });
+    const columns = Math.max(1, Math.ceil(Math.sqrt(sorted.length * (width / height))));
+    const rows = Math.max(1, Math.ceil(sorted.length / columns));
+    const margin = 36;
+    const columnWidth = Math.max(1, (width - margin * 2) / Math.max(1, columns - 1));
+    const rowHeight = Math.max(1, (height - margin * 2) / Math.max(1, rows - 1));
+    sorted.forEach(function (node, index) {
+      positions[node.path] = {
+        x: margin + (index % columns) * columnWidth,
+        y: margin + Math.floor(index / columns) * rowHeight,
+      };
     });
     return positions;
   }
@@ -4758,13 +5161,48 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     });
   }
 
+  function currentStackTargets() {
+    return panels().map(function (panel) {
+      return noteTarget(panel.dataset.notePath, panel.dataset.knowledgeBase);
+    });
+  }
+
+  function serializeStackTarget(target, baseKnowledgeBase) {
+    const normalized = typeof target === "string" ? noteTarget(target, baseKnowledgeBase) : noteTarget(target?.path, target?.knowledgeBase);
+    if (!normalized.knowledgeBase || normalized.knowledgeBase === baseKnowledgeBase) {
+      return normalized.path.startsWith("@") ? "@" + normalized.path : normalized.path;
+    }
+    return "@" + encodeURIComponent(normalized.knowledgeBase) + "/" + normalized.path;
+  }
+
+  function parseStackTarget(value, baseKnowledgeBase) {
+    const raw = String(value || "");
+    if (raw.startsWith("@@")) {
+      return noteTarget(raw.slice(1), baseKnowledgeBase);
+    }
+    if (!raw.startsWith("@")) {
+      return noteTarget(raw, baseKnowledgeBase);
+    }
+    const slash = raw.indexOf("/");
+    if (slash < 2) {
+      return noteTarget(raw, baseKnowledgeBase);
+    }
+    try {
+      return noteTarget(raw.slice(slash + 1), decodeURIComponent(raw.slice(1, slash)));
+    } catch {
+      return noteTarget(raw.slice(slash + 1), raw.slice(1, slash));
+    }
+  }
+
   function stackFromLocation() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("empty") === "1") {
       return [];
     }
-    const base = notePathFromHref(window.location.href) || currentStack()[0] || "index.md";
-    return [base].concat(params.getAll("stack").filter(Boolean));
+    const base = noteTargetFromHref(window.location.href) || currentStackTargets()[0] || noteTarget("index.md");
+    return [base].concat(params.getAll("stack").filter(Boolean).map(function (value) {
+      return parseStackTarget(value, base.knowledgeBase);
+    }));
   }
 
   function highlightFromLocation() {
@@ -4782,15 +5220,19 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function stackURL(paths, highlightText) {
-    if (!paths.length) {
-      const emptyURL = new URL(fileURL("index.md"), window.location.href);
+    const targets = paths.map(function (target) {
+      return typeof target === "string" ? noteTarget(target) : noteTarget(target?.path, target?.knowledgeBase);
+    });
+    if (!targets.length) {
+      const emptyURL = new URL(fileURL("index.md", currentKnowledgeBase), window.location.href);
       emptyURL.searchParams.set("empty", "1");
       return emptyURL;
     }
 
-    const url = new URL(fileURL(paths[0] || "index.md"), window.location.href);
-    paths.slice(1).forEach(function (path) {
-      url.searchParams.append("stack", path);
+    const first = targets[0];
+    const url = new URL(fileURL(first.path || "index.md", first.knowledgeBase), window.location.href);
+    targets.slice(1).forEach(function (target) {
+      url.searchParams.append("stack", serializeStackTarget(target, first.knowledgeBase));
     });
     if (highlightText) {
       url.searchParams.set("ok-highlight", highlightText);
@@ -4801,8 +5243,15 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   function updateWorkspaceState() {
     const panelCount = panels().length;
     const isEmpty = panelCount === 0;
-    const showClaims = claimsViewRequested && claimsData.claims.length > 0;
+    const showClaims = claimsViewRequested && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
     const showGraph = !showClaims && (graphViewRequested || isEmpty);
+    if (showGraph && !knowledgeGraphRendered) {
+      knowledgeGraphRendered = true;
+      void ensureKnowledgeGraphData().then(renderKnowledgeGraph).catch(function () {
+        knowledgeGraphRendered = false;
+        renderKnowledgeGraph();
+      });
+    }
     const graphWasVisible = document.documentElement.dataset.viewerView === "graph";
     if (showGraph && !graphWasVisible) {
       const graphSidebar = document.querySelector("[data-knowledge-graph-sidebar]");
@@ -4869,7 +5318,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function updateCloseLinks() {
-    const paths = currentStack();
+    const paths = currentStackTargets();
     panels().forEach(function (panel, index) {
       const closeLink = panel.querySelector("[data-close-panel]");
       if (!closeLink) {
@@ -5626,7 +6075,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return /^[\p{Letter}\p{Number}]$/u.test(normalized) ? normalized : "";
   }
 
-  async function fetchNote(path) {
+  async function fetchNote(path, knowledgeBase) {
     if (isStaticBundle()) {
       const note = staticNotesByPath[path];
       if (!note) {
@@ -5635,7 +6084,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return note;
     }
 
-    const response = await fetch(apiURL(path), {
+    const response = await fetch(apiURL(path, knowledgeBase), {
       headers: { "Accept": "application/json" }
     });
     if (!response.ok) {
@@ -5644,8 +6093,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return response.json();
   }
 
-  async function liveReloadPathExists(path) {
-    const response = await fetch(apiURL(path), {
+  async function liveReloadPathExists(target) {
+    const normalized = typeof target === "string" ? noteTarget(target) : noteTarget(target?.path, target?.knowledgeBase);
+    const response = await fetch(apiURL(normalized.path, normalized.knowledgeBase), {
       cache: "no-store",
       headers: { "Accept": "application/json" }
     });
@@ -5653,7 +6103,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return false;
     }
     if (!response.ok) {
-      throw new Error("Could not verify " + path);
+      throw new Error("Could not verify " + normalized.path);
     }
     return true;
   }
@@ -5662,24 +6112,28 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (isStaticBundle()) {
       return;
     }
-    const stack = currentStack();
-    const activePath = activePanel()?.dataset.notePath || stack[0] || "";
+    const stack = currentStackTargets();
+    const active = activePanel();
+    const activeTarget = active ? noteTarget(active.dataset.notePath, active.dataset.knowledgeBase) : stack[0] || null;
+    const activeKey = activeTarget ? serializeStackTarget(activeTarget, "") : "";
     const panelScrollTop = {};
     panels().forEach(function (panel) {
       if (panel.dataset.notePath) {
-        panelScrollTop[panel.dataset.notePath] = panel.scrollTop || 0;
+        panelScrollTop[serializeStackTarget(noteTarget(panel.dataset.notePath, panel.dataset.knowledgeBase), "")] = panel.scrollTop || 0;
       }
     });
     const survivors = [];
-    for (const path of stack) {
-      if (await liveReloadPathExists(path)) {
-        survivors.push(path);
+    for (const target of stack) {
+      if (await liveReloadPathExists(target)) {
+        survivors.push(target);
       }
     }
-    if (!survivors.length && await liveReloadPathExists("index.md")) {
-      survivors.push("index.md");
+    const fallback = noteTarget("index.md", currentKnowledgeBase);
+    if (!survivors.length && await liveReloadPathExists(fallback)) {
+      survivors.push(fallback);
     }
-    const nextActivePath = survivors.includes(activePath) ? activePath : survivors[0] || "";
+    const survivorKeys = survivors.map(function (target) { return serializeStackTarget(target, ""); });
+    const nextActivePath = survivorKeys.includes(activeKey) ? activeKey : survivorKeys[0] || "";
     saveLiveReloadState({
       version: 1,
       revision: String(revision || ""),
@@ -5704,7 +6158,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
     const matchingActive = panels().find(function (panel) {
-      return panel.dataset.notePath === state.activePath;
+      const key = serializeStackTarget(noteTarget(panel.dataset.notePath, panel.dataset.knowledgeBase), "");
+      return key === state.activePath || panel.dataset.notePath === state.activePath;
     });
     if (matchingActive) {
       setActivePanel(matchingActive);
@@ -5712,7 +6167,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (state.claim && claimByKey(state.claim)) {
       selectedClaimKey = state.claim;
     }
-    claimsViewRequested = state.view === "claims" && claimsData.claims.length > 0;
+    claimsViewRequested = state.view === "claims" && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
     setGraphViewRequested(state.view === "graph", false);
     if (claimsViewRequested) {
       setClaimsViewRequested(true, false);
@@ -5721,7 +6176,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       window.requestAnimationFrame(function () {
         const scrollByPath = state.panelScrollTop && typeof state.panelScrollTop === "object" ? state.panelScrollTop : {};
         panels().forEach(function (panel) {
-          const requested = Number(scrollByPath[panel.dataset.notePath] || 0);
+          const key = serializeStackTarget(noteTarget(panel.dataset.notePath, panel.dataset.knowledgeBase), "");
+          const requested = Number(scrollByPath[key] || scrollByPath[panel.dataset.notePath] || 0);
           panel.scrollTop = clamp(requested, 0, Math.max(0, panel.scrollHeight - panel.clientHeight));
         });
         const requestedWorkspace = Number(state.workspaceScrollLeft || 0);
@@ -5914,7 +6370,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     closeButton.setAttribute("aria-keyshortcuts", shortcutSystem.ariaKeyShortcut(panelCloseShortcut));
   }
 
-  function createErrorPanel(path, error) {
+  function createErrorPanel(path, error, knowledgeBase) {
     const message = document.createElement("p");
     message.className = "note-error";
     const detail = error instanceof Error ? error.message : "";
@@ -5924,15 +6380,20 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return createPanel({
       title: "Not found",
       path,
+      knowledgeBase,
       body: message.outerHTML
     }, true);
   }
 
-  async function panelForPath(path, animate) {
+  async function panelForPath(path, animate, knowledgeBase) {
     try {
-      return createPanel(await fetchNote(path), animate);
+      const data = await fetchNote(path, knowledgeBase);
+      if (!data.knowledgeBase && knowledgeBase) {
+        data.knowledgeBase = knowledgeBase;
+      }
+      return createPanel(data, animate);
     } catch (error) {
-      return createErrorPanel(path, error);
+      return createErrorPanel(path, error, knowledgeBase);
     }
   }
 
@@ -6001,17 +6462,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     updateTitle();
   }
 
-  async function openInitialNote(targetPath, pushHistory, highlightText) {
-    const panel = await panelForPath(targetPath, true);
+  async function openInitialNote(targetPath, pushHistory, highlightText, targetKnowledgeBase) {
+    const panel = await panelForPath(targetPath, true, targetKnowledgeBase);
     await runStackTransition(function () {
       clearStack();
       appendPanel(panel);
-      updateHistory(currentStack(), pushHistory, highlightText);
+      updateHistory(currentStackTargets(), pushHistory, highlightText);
     });
     applySearchHighlight(panel, highlightText);
   }
 
-  async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel) {
+  async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel, targetKnowledgeBase) {
     if (graphViewRequested) {
       setGraphViewRequested(false, false);
     }
@@ -6021,25 +6482,26 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     const source = sourcePanel || activePanel();
     if (!source) {
-      await openInitialNote(targetPath, pushHistory, highlightText);
+      await openInitialNote(targetPath, pushHistory, highlightText, targetKnowledgeBase);
       return;
     }
-    if (!openBeside && source.dataset.notePath === targetPath) {
+    const normalizedTargetKnowledgeBase = String(targetKnowledgeBase || currentKnowledgeBase || "").trim();
+    if (!openBeside && source.dataset.notePath === targetPath && String(source.dataset.knowledgeBase || currentKnowledgeBase || "").trim() === normalizedTargetKnowledgeBase) {
       setActivePanel(source);
       scrollToPanel(source);
-      updateHistory(currentStack(), pushHistory, highlightText);
+      updateHistory(currentStackTargets(), pushHistory, highlightText);
       applySearchHighlight(source, highlightText);
       return;
     }
     if (openBeside) {
-      await openFromPanel(source, targetPath, pushHistory, highlightText);
+      await openFromPanel(source, targetPath, pushHistory, highlightText, targetKnowledgeBase);
       return;
     }
-    await replaceFromPanel(source, targetPath, pushHistory, highlightText);
+    await replaceFromPanel(source, targetPath, pushHistory, highlightText, targetKnowledgeBase);
   }
 
-  async function replaceFromPanel(sourcePanel, targetPath, pushHistory, highlightText) {
-    const panel = await panelForPath(targetPath, true);
+  async function replaceFromPanel(sourcePanel, targetPath, pushHistory, highlightText, targetKnowledgeBase) {
+    const panel = await panelForPath(targetPath, true, targetKnowledgeBase);
     clearSearchHighlights(stackEl);
     await runStackTransition(function () {
       const all = panels();
@@ -6052,7 +6514,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         item.remove();
       });
       appendPanel(panel);
-      updateHistory(currentStack(), pushHistory, highlightText);
+      updateHistory(currentStackTargets(), pushHistory, highlightText);
     });
     applySearchHighlight(panel, highlightText);
   }
@@ -6070,7 +6532,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       updateWorkspaceState();
       updateActiveLinks();
       updateTitle();
-      updateHistory(currentStack(), pushHistory);
+      updateHistory(currentStackTargets(), pushHistory);
 
       if (!remaining.length) {
         return;
@@ -6086,8 +6548,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     scrollToPanel(nextPanel);
   }
 
-  async function openFromPanel(sourcePanel, targetPath, pushHistory, highlightText) {
-    const panel = await panelForPath(targetPath, true);
+  async function openFromPanel(sourcePanel, targetPath, pushHistory, highlightText, targetKnowledgeBase) {
+    const panel = await panelForPath(targetPath, true, targetKnowledgeBase);
     clearSearchHighlights(stackEl);
     await runStackTransition(function () {
       const all = panels();
@@ -6099,15 +6561,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       trimAfter(sourceIndex);
       appendPanel(panel);
 
-      updateHistory(currentStack(), pushHistory, highlightText);
+      updateHistory(currentStackTargets(), pushHistory, highlightText);
     });
     applySearchHighlight(panel, highlightText);
   }
 
   async function restoreStack(paths, highlightText) {
     const loadedPanels = [];
-    for (const path of paths) {
-      loadedPanels.push(await panelForPath(path, false));
+    for (const target of paths) {
+      const normalized = typeof target === "string" ? noteTarget(target) : noteTarget(target?.path, target?.knowledgeBase);
+      loadedPanels.push(await panelForPath(normalized.path, false, normalized.knowledgeBase));
     }
 
     await runStackTransition(function () {
@@ -6606,7 +7069,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   applySidebarWidth(sidebarWidth);
-  setSidebarOpen(document.body.classList.contains("is-sidebar-open"));
+  setSidebarOpen(!mobileSidebar.matches || document.body.classList.contains("is-sidebar-open"));
+  mobileSidebar.addEventListener("change", function (event) {
+    setSidebarOpen(!event.matches);
+  });
 
   workspace.addEventListener("pointerdown", startWorkspaceDrag);
   workspace.addEventListener("pointermove", updateWorkspaceDrag);
@@ -6627,7 +7093,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     scrollThumb.addEventListener("keydown", scrollRailWithKeyboard);
   }
 
-  workspace.addEventListener("click", function (event) {
+  workspace.addEventListener("click", async function (event) {
     if (consumeSuppressedWorkspaceClick(event)) {
       return;
     }
@@ -6639,11 +7105,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
     const openClaimButton = closestElement(event.target, "[data-open-claim]");
     if (openClaimButton) {
+      event.preventDefault();
+      try {
+        await ensureClaimsData();
+        refreshClaimsViewToggle();
+      } catch {
+        return;
+      }
       const sourcePanel = openClaimButton.closest("[data-note-path]");
       const sourceKnowledgeBase = String(sourcePanel?.dataset.knowledgeBase || currentKnowledgeBase || "");
       const claim = claimByID(openClaimButton.dataset.openClaim, sourceKnowledgeBase);
       if (claim) {
-        event.preventDefault();
         selectedClaimKey = claimIdentity(claim);
         setClaimsViewRequested(true, false);
         syncWorkspaceViewURL(true);
@@ -6654,13 +7126,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const claimDocument = closestElement(event.target, "[data-claim-document-path]");
     if (claimDocument) {
       const targetKnowledgeBase = String(claimDocument.dataset.knowledgeBase || "");
-      if (targetKnowledgeBase && currentKnowledgeBase && targetKnowledgeBase !== currentKnowledgeBase) {
-        return;
-      }
       event.preventDefault();
       claimsViewRequested = false;
       setGraphViewRequested(false, false);
-      openTarget(claimDocument.dataset.claimDocumentPath, true, false, "", activePanel());
+      openTarget(claimDocument.dataset.claimDocumentPath, true, false, "", activePanel(), targetKnowledgeBase);
       return;
     }
 
@@ -6702,7 +7171,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         return;
       }
       event.preventDefault();
-      openTarget(treeLink?.dataset.treePath || graphLink.dataset.graphPath, true, shouldOpenBeside(event.shiftKey), "", activePanel());
+      openTarget(treeLink?.dataset.treePath || graphLink.dataset.graphPath, true, shouldOpenBeside(event.shiftKey), "", activePanel(), treeLink?.dataset.knowledgeBase || graphLink?.dataset.knowledgeBase);
       return;
     }
 
@@ -6719,13 +7188,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
 
-    const targetPath = notePathFromHref(link.getAttribute("href") || link.href, sourcePanel.dataset.notePath);
-    if (!targetPath) {
+    const target = noteTargetFromHref(link.getAttribute("href") || link.href, sourcePanel.dataset.notePath, sourcePanel.dataset.knowledgeBase);
+    if (!target) {
       return;
     }
 
     event.preventDefault();
-    openTarget(targetPath, true, shouldOpenBeside(event.shiftKey), "", sourcePanel);
+    openTarget(target.path, true, shouldOpenBeside(event.shiftKey), "", sourcePanel, target.knowledgeBase);
   });
 
   workspace.addEventListener("keydown", function (event) {
@@ -6737,12 +7206,12 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (!link || !sourcePanel) {
       return;
     }
-    const targetPath = notePathFromHref(link.getAttribute("href") || link.href, sourcePanel.dataset.notePath);
-    if (!targetPath) {
+    const target = noteTargetFromHref(link.getAttribute("href") || link.href, sourcePanel.dataset.notePath, sourcePanel.dataset.knowledgeBase);
+    if (!target) {
       return;
     }
     event.preventDefault();
-    openTarget(targetPath, true, shouldOpenBeside(true), "", sourcePanel);
+    openTarget(target.path, true, shouldOpenBeside(true), "", sourcePanel, target.knowledgeBase);
   });
 
   workspace.addEventListener("focusin", function (event) {
@@ -6785,19 +7254,13 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         return;
       }
       const targetKnowledgeBase = String(treeLink?.dataset.knowledgeBase || "").trim();
-      if (treeLink && currentKnowledgeBase && targetKnowledgeBase && targetKnowledgeBase !== currentKnowledgeBase) {
-        if (mobileSidebar.matches) {
-          setSidebarOpen(false);
-        }
-        return;
-      }
       const targetPath = treeLink?.dataset.treePath || notePathFromHref(link.getAttribute("href") || link.href);
       if (!targetPath) {
         return;
       }
       event.preventDefault();
       closeSearchResults(link);
-      openTarget(targetPath, true, shouldOpenBeside(event.shiftKey), "", activePanel());
+      openTarget(targetPath, true, shouldOpenBeside(event.shiftKey), "", activePanel(), targetKnowledgeBase);
       if (mobileSidebar.matches) {
         setSidebarOpen(false);
       }
@@ -6825,8 +7288,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   window.addEventListener("popstate", async function () {
-    graphViewRequested = false;
-    const requestedClaimsView = new URL(window.location.href).searchParams.get("view") === "claims" && claimsData.claims.length > 0;
+    const requestedView = new URL(window.location.href).searchParams.get("view");
+    graphViewRequested = requestedView === "graph";
+    const wantsClaimsView = requestedView === "claims";
+    if (wantsClaimsView) {
+      await ensureClaimsData().catch(function () {});
+      refreshClaimsViewToggle();
+    }
+    const requestedClaimsView = wantsClaimsView && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
     claimsViewRequested = requestedClaimsView;
     const params = new URL(window.location.href).searchParams;
     const requestedClaim = claimByID(params.get("claim") || "", params.get("knowledge-base") || currentKnowledgeBase);
@@ -6850,14 +7319,14 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
-      const targetPath = notePathFromHref(searchResult.getAttribute("href") || searchResult.href);
-      if (targetPath) {
+      const target = noteTargetFromHref(searchResult.getAttribute("href") || searchResult.href, "", searchResult.dataset.knowledgeBase);
+      if (target) {
         event.preventDefault();
         const shiftOverride = event.shiftKey || searchResult.dataset.openBeside === "true";
         const openBeside = shouldOpenBeside(shiftOverride);
         delete searchResult.dataset.openBeside;
         closeSearchResults(searchResult);
-        openTarget(targetPath, true, openBeside, highlightFromHref(searchResult.getAttribute("href") || searchResult.href), activePanel());
+        openTarget(target.path, true, openBeside, highlightFromHref(searchResult.getAttribute("href") || searchResult.href), activePanel(), target.knowledgeBase);
         return;
       }
     }
@@ -6891,16 +7360,25 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     bindViewerSettings();
     prepareKnowledgeBases();
     prepareKnowledgeTrees();
-    renderKnowledgeGraph();
     panels().forEach(bindPanel);
     const initialParams = new URL(window.location.href).searchParams;
+    if (initialParams.get("view") === "claims") {
+      await ensureClaimsData().catch(function () {});
+      refreshClaimsViewToggle();
+    }
     const initialClaim = claimByID(initialParams.get("claim") || "", initialParams.get("knowledge-base") || currentKnowledgeBase);
     if (initialClaim) {
       selectedClaimKey = claimIdentity(initialClaim);
     }
-    claimsViewRequested = initialParams.get("view") === "claims" && claimsData.claims.length > 0;
+    claimsViewRequested = initialParams.get("view") === "claims" && (claimsData.claims.length > 0 || projectionHasProblems(claimsData));
+    graphViewRequested = initialParams.get("view") === "graph";
     ensureActivePanel();
-    if (requestedStack.length !== 1 || requestedStack[0] !== panels()[0]?.dataset.notePath) {
+    const initialPanel = panels()[0];
+    const requestedInitial = requestedStack[0];
+    const initialMatches = requestedStack.length === 1 && initialPanel && requestedInitial
+      && requestedInitial.path === initialPanel.dataset.notePath
+      && String(requestedInitial.knowledgeBase || "") === String(initialPanel.dataset.knowledgeBase || currentKnowledgeBase || "");
+    if (!initialMatches) {
       window.history.replaceState({ stack: requestedStack }, "", window.location.href);
       await restoreStack(requestedStack, requestedHighlight);
     } else {
@@ -6910,7 +7388,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       updateTitle();
       applySearchHighlight(activePanel(), requestedHighlight);
     }
-    if (initialParams.get("view") === "claims" && claimsData.claims.length > 0) {
+    if (initialParams.get("view") === "claims" && (claimsData.claims.length > 0 || projectionHasProblems(claimsData))) {
       setClaimsViewRequested(true, false);
       syncWorkspaceViewURL(false);
     }

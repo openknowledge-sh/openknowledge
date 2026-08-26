@@ -56,12 +56,13 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Select **100%** to center the diagram at its original scale.
   Press Escape to close the dialog.
 - The sidebar has separate **Documents**, **Claims**, **Graph**, and
-  **Knowledge bases** items. **Documents** shows the active file tree.
-  **Claims** shows the typed claim workspace. **Graph** shows the graph
-  workspace. **Knowledge bases** lists every connected knowledge base and its
-  file tree in registry mode. Use the collapse icon to close all expanded
-  trees. Use the plus icon to connect another local folder. **Settings** opens
-  the viewer preferences from the sidebar footer.
+  **Knowledge bases** items. These views apply to all connected knowledge
+  bases in registry mode. **Documents** opens files from any file tree in one
+  document stack. **Claims** shows the combined claim workspace. **Graph**
+  shows the combined graph. **Knowledge bases** lists each isolated knowledge
+  base and its file tree. Use the collapse icon to close all expanded trees.
+  Use the plus icon to connect another local folder. **Settings** opens the
+  viewer preferences from the sidebar footer.
   Select the shortcut badge in the viewer header to open or close the file
   explorer.
 - Open-beside mode is the default. The link behavior control can select the
@@ -69,12 +70,15 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   The browser stores this selection. Hold Shift during activation to use the
   other mode one time.
   Each panel keeps its own focus and close controls.
-  The open file explorer remains visible during link navigation and uses the
-  first grid column at `25vw` by default. You can resize it within its minimum
-  and maximum limits. The viewer header, note workspace, and horizontal scroll
-  rail remain in the second grid column.
+  The file explorer opens by default on desktop. It remains visible during
+  link navigation and uses the first grid column at `25vw`. You can resize it
+  within its minimum and maximum limits. The viewer header, note workspace,
+  and horizontal scroll rail remain in the second grid column.
   With multiple panels open, drag the bottom horizontal scroll thumb to move
   the document stack directly.
+  A document stack can contain files from different connected knowledge bases.
+  Stack URLs and browser history retain the source knowledge base for each
+  panel.
 - On viewports up to 680 px, sidebar open and close actions have no motion.
   Note stack navigation has no View Transition or fallback panel entrance
   effect. A sidebar link closes the sidebar and shows its destination
@@ -136,7 +140,7 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   The top-bar Graph icon toggles between the graph and the open documents.
   On viewports wider than 680 px, the graph workspace fills the viewport below
   the header. The canvas is 380 px high on smaller viewports. On viewports up
-  to 680 px, the **Graph settings** disclosure starts collapsed and contains
+  to 720 px, the **Graph settings** disclosure starts collapsed and contains
   graph filters, display and force controls, and reset and animation actions.
   Drag the canvas to pan. Use the wheel or trackpad to zoom. Icon-only zoom,
   fit, and settings controls sit in the canvas's lower-left corner.
@@ -145,9 +149,12 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Drag a node to move it. Use the fit control to show the complete graph.
   Filter notes by title or path. The **Color nodes by folder** control applies
   theme-aware colors. Hovered and selected nodes keep their folder colors.
-  Registry mode combines the graphs from all connected knowledge bases. It
-  does not add links between knowledge bases. File-name labels use the source
-  knowledge-base color. The file nodes keep their current graph colors.
+  Registry mode combines the graphs from all connected knowledge bases. Each
+  knowledge base keeps its own index. The viewer does not add cross-base
+  links. The canvas uses the complete workspace. Content filters select
+  documents, claims, or entities. Knowledge-space filters select source
+  knowledge bases. File-name labels use the source knowledge-base color.
+  The file nodes keep their current graph colors.
   Display controls adjust arrows, labels, node size, and link thickness.
   Force controls adjust center, repel, and link forces.
   Select **Pause** to stop graph motion. Select **Resume** to start motion.
@@ -182,8 +189,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 
 ## Claims workspace
 
-Select **Claims** to browse all typed claim occurrences in the active knowledge
-base. Registry mode combines claims and identifies each source knowledge base.
+Select **Claims** to browse all typed claim occurrences. Registry mode combines
+claims from all connected knowledge bases and identifies each source.
 
 The compact toolbar keeps the claim count, search, status, entity, predicate,
 and additional filters together. Filter claims by status, entity, predicate,

@@ -19,13 +19,15 @@ import (
 const viewerClaimsSchemaVersion = "1"
 
 type viewerClaimsData struct {
-	SchemaVersion string                      `json:"schemaVersion"`
-	Claims        []viewerClaim               `json:"claims"`
-	References    []viewerClaimReference      `json:"references"`
-	Entities      []viewerClaimOntologyEntity `json:"entities"`
-	Predicates    []viewerClaimOntologyTerm   `json:"predicates"`
-	Sources       []viewerClaimSource         `json:"sources"`
-	Issues        []okf.Issue                 `json:"issues"`
+	SchemaVersion    string                      `json:"schemaVersion"`
+	Claims           []viewerClaim               `json:"claims"`
+	References       []viewerClaimReference      `json:"references"`
+	Entities         []viewerClaimOntologyEntity `json:"entities"`
+	Predicates       []viewerClaimOntologyTerm   `json:"predicates"`
+	Sources          []viewerClaimSource         `json:"sources"`
+	Issues           []okf.Issue                 `json:"issues"`
+	ProjectionStatus string                      `json:"status,omitempty"`
+	Failures         []viewerProjectionFailure   `json:"failures,omitempty"`
 }
 
 type viewerClaim struct {
@@ -226,6 +228,10 @@ func viewerClaimsFromAST(bundle okf.ASTBundle, fileURL func(string) string) view
 }
 
 func registryClaimsJSON(workspaces []viewerWorkspace) template.JS {
+	return registryClaimsJSONWithCache(workspaces, nil)
+}
+
+func registryClaimsJSONWithCache(workspaces []viewerWorkspace, cacheForRoot func(string) *viewerBundleCache) template.JS {
 	combined := viewerClaimsData{
 		SchemaVersion: viewerClaimsSchemaVersion,
 		Claims:        []viewerClaim{}, References: []viewerClaimReference{}, Entities: []viewerClaimOntologyEntity{},
@@ -233,20 +239,35 @@ func registryClaimsJSON(workspaces []viewerWorkspace) template.JS {
 	}
 	entityKeys := map[string]bool{}
 	predicateKeys := map[string]bool{}
+	loaded := 0
 	for _, workspace := range workspaces {
 		if workspace.ResolvedRoot == "" {
+			message := strings.TrimSpace(workspace.Error)
+			if message == "" {
+				message = "knowledge base is unavailable"
+			}
+			combined.Failures = append(combined.Failures, viewerProjectionFailure{KnowledgeBase: workspace.Name, Message: message})
 			continue
 		}
-		bundle, err := okf.ParseBundle(workspace.ResolvedRoot)
+		prefix := strings.TrimRight(workspace.URL, "/")
+		var local viewerClaimsData
+		var err error
+		if cacheForRoot != nil {
+			_, local, err = cacheForRoot(workspace.ResolvedRoot).loadViewerData(prefix)
+		} else {
+			var bundle okf.Bundle
+			bundle, err = okf.ParseBundle(workspace.ResolvedRoot)
+			if err == nil {
+				local, err = viewerClaimsForRoot(workspace.ResolvedRoot, bundle.SpecVersion, func(path string) string {
+					return fileURLWithPrefix(prefix, path)
+				})
+			}
+		}
 		if err != nil {
+			combined.Failures = append(combined.Failures, viewerProjectionFailure{KnowledgeBase: workspace.Name, Message: err.Error()})
 			continue
 		}
-		local, err := viewerClaimsForRoot(workspace.ResolvedRoot, bundle.SpecVersion, func(path string) string {
-			return fileURLWithPrefix(strings.TrimRight(workspace.URL, "/"), path)
-		})
-		if err != nil {
-			continue
-		}
+		loaded++
 		for _, claim := range local.Claims {
 			claim.KnowledgeBase = workspace.Name
 			claim.Key = workspace.Name + "\x00" + claim.ID
@@ -281,6 +302,7 @@ func registryClaimsJSON(workspaces []viewerWorkspace) template.JS {
 		}
 		combined.Issues = append(combined.Issues, local.Issues...)
 	}
+	combined.ProjectionStatus = viewerProjectionStatus(len(workspaces), loaded, len(combined.Failures))
 	sort.Slice(combined.Claims, func(i, j int) bool { return combined.Claims[i].Key < combined.Claims[j].Key })
 	return viewerClaimsJSON(combined)
 }

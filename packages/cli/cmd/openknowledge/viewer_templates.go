@@ -364,6 +364,8 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           </div>
         </section>
         {{end}}
+      {{else if .EmptyRegistry}}
+        <div class="file-sidebar-empty">Connect a knowledge space to browse its documents.</div>
       {{else}}
         <div id="file-sidebar-tree" class="file-sidebar-tree knowledge-tree" role="tree" aria-label="Documents"{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}" data-knowledge-base-name="{{.KnowledgeBase}}"{{end}}>
           {{range .Tree}}
@@ -427,6 +429,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       </div>
     </section>
     <section class="note-stack" data-note-stack aria-label="Open notes">
+      {{if not .EmptyRegistry}}
       <article class="document note-panel is-active-panel" data-note-path="{{.Path}}" data-note-title="{{.Title}}"{{if .KnowledgeBase}} data-knowledge-base="{{.KnowledgeBase}}"{{end}} tabindex="-1">
         <div class="note-chrome">
           <nav class="note-path note-breadcrumbs" data-note-breadcrumbs data-note-path-value="{{.Path}}" aria-label="Note path">
@@ -481,6 +484,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
           {{.Body}}
         </div>
       </article>
+      {{end}}
     </section>
   </main>
   <div class="workspace-scroll-rail" data-workspace-rail aria-hidden="true" hidden>
@@ -523,8 +527,8 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   </a>
   {{if .Scripts.Data}}<script src="{{.Scripts.Data}}"></script>{{else}}
   <script type="application/json" data-editor-options>{{.EditorsJSON}}</script>
-  <script type="application/json" data-knowledge-graph>{{.GraphJSON}}</script>
-  <script type="application/json" data-claims-data>{{.ClaimsJSON}}</script>
+  <script type="application/json" data-knowledge-graph{{if .GraphURL}} data-url="{{.GraphURL}}"{{end}}>{{.GraphJSON}}</script>
+  <script type="application/json" data-claims-data{{if .ClaimsURL}} data-url="{{.ClaimsURL}}"{{end}}>{{.ClaimsJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
   {{end}}
 	  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script src="/` + viewerAppScriptAsset + `"></script><script src="/` + viewerLiveReloadScriptAsset + `"></script>{{end}}

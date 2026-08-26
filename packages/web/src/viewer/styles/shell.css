@@ -90,6 +90,7 @@ body.is-sidebar-open .file-sidebar { opacity: 1; pointer-events: auto; visibilit
 .file-sidebar-icon-action .control-icon { width: 16px; height: 16px; }
 .knowledge-base-list { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 10px 16px; scrollbar-color: var(--ok-color-rail-thumb) transparent; scrollbar-width: thin; }
 .knowledge-base-list[hidden] { display: none; }
+.file-sidebar-empty { max-width: 28ch; padding: 10px 9px; color: var(--ok-color-muted); font-size: 12px; line-height: 1.5; }
 .knowledge-base-group { --knowledge-base-color: var(--ok-color-accent); display: grid; gap: 2px; }
 .knowledge-base-group + .knowledge-base-group { margin-top: 3px; }
 .knowledge-base-head { display: flex; min-width: 0; align-items: center; gap: 3px; }

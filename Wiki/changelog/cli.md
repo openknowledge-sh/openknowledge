@@ -427,6 +427,19 @@ page records release-level changes.
 
 ### Viewer
 
+- Registry mode now uses one workspace for **Documents**, **Claims**, and
+  **Graph**. Files from different knowledge bases can share one document
+  stack. Browser history retains each file source.
+- The desktop viewer now opens with a static sidebar. An empty registry uses
+  the same application shell and provides a connect action.
+- The combined graph now uses the complete workspace. Filters can select
+  documents, claims, entities, and source knowledge bases. Large graphs use a
+  scalable layout and reduced force work.
+- Connected knowledge bases keep separate indexes. Combined search, claims,
+  and graph projections do not create cross-base links.
+- Combined Graph and Claims projections now report partial and failed
+  knowledge spaces instead of silently presenting incomplete results as a
+  complete workspace.
 - The **Claims** workspace now keeps its count, search, primary filters, and
   additional-filter control in one compact toolbar.
 - Selected claims keep **Evidence and metadata** visible. Authored incoming
@@ -459,6 +472,8 @@ page records release-level changes.
 - Source: `packages/cli/internal/okf/markdown.go`,
   `packages/cli/cmd/openknowledge/viewer.go`,
   `packages/cli/cmd/openknowledge/viewer_claims.go`,
+  `packages/cli/cmd/openknowledge/viewer_export.go`,
+  `packages/cli/cmd/openknowledge/viewer_templates.go`,
   `packages/web/src/viewer/app.js`,
   `packages/web/src/viewer/styles/claims.css`,
   `packages/web/src/viewer/styles/document.css`, and viewer tests.

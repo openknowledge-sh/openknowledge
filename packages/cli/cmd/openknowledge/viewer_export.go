@@ -441,6 +441,7 @@ func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry,
 		})
 	}
 	declaredBy := map[string]string{}
+	claimPaths := map[string]string{}
 	for _, edge := range graph.Edges {
 		if edge.Kind == "declares-claim" {
 			declaredBy[edge.Target] = edge.Source
@@ -463,7 +464,58 @@ func viewerGraphFromBundleFiles(files []okf.BundleFile, entries []okf.ListEntry,
 			Path: node.Path, SourcePath: declaringPath, Kind: "claim", Title: title,
 			URL: viewerClaimURL(fileURL(declaringPath), node.ID),
 		})
+		claimPaths[node.ID] = node.Path
 	}
+	entityTitles := map[string]string{}
+	semanticEdges := []okf.GraphEdge{}
+	for _, file := range files {
+		profile := okf.DeriveClaimProfileSignals(file.Frontmatter)
+		if profile == nil {
+			continue
+		}
+		if profile.Ontology != nil {
+			for id, entity := range profile.Ontology.Entities {
+				title := strings.TrimSpace(entity.PrefLabel)
+				if title == "" {
+					title = id
+				}
+				entityTitles[id] = title
+			}
+		}
+		for _, claim := range profile.Claims {
+			claimPath := claimPaths[claim.ID]
+			if claimPath == "" {
+				continue
+			}
+			for _, relation := range []struct {
+				kind string
+				id   string
+			}{
+				{kind: "claim-subject", id: claim.Subject},
+				{kind: "claim-object", id: claim.Object.Ref},
+			} {
+				if strings.TrimSpace(relation.id) == "" {
+					continue
+				}
+				entityPath := "entity:" + relation.id
+				if _, exists := entityTitles[relation.id]; !exists {
+					entityTitles[relation.id] = relation.id
+				}
+				semanticEdges = append(semanticEdges, okf.GraphEdge{Kind: relation.kind, Source: claimPath, Target: entityPath, Label: relation.id})
+			}
+		}
+	}
+	entityIDs := make([]string, 0, len(entityTitles))
+	for id := range entityTitles {
+		entityIDs = append(entityIDs, id)
+	}
+	sort.Strings(entityIDs)
+	for _, id := range entityIDs {
+		entityPath := "entity:" + id
+		paths[entityPath] = true
+		nodes = append(nodes, viewerGraphNode{Path: entityPath, Kind: "entity", Title: entityTitles[id]})
+	}
+	graph.Edges = append(graph.Edges, semanticEdges...)
 
 	seenEdges := map[string]bool{}
 	var edges []viewerGraphEdge

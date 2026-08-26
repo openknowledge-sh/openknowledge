@@ -374,9 +374,10 @@ func newViewerHandlerWithAlias(root string, aliasName string) http.Handler {
 }
 
 type viewerOptions struct {
-	AliasName string
-	HeadHTML  template.HTML
-	ReadOnly  bool
+	AliasName           string
+	HeadHTML            template.HTML
+	ReadOnly            bool
+	RegistryBundleCache func(string) *viewerBundleCache
 }
 
 type viewerBundleCache struct {
@@ -613,8 +614,30 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 		}
 		return cache
 	}
+	options.RegistryBundleCache = bundleCacheForRoot
+	registryFrameFor := func(activeName string, urlFor func(string) string) viewerFrame {
+		return registryFrameWithCache(entries, activeName, urlFor, bundleCacheForRoot)
+	}
 	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
 		renderRegistryViewerSearch(response, request, entries, searchCacheForEntry)
+	})
+	mux.HandleFunc("/api/graph", func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			response.Header().Set("Allow", http.MethodGet)
+			http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		response.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = response.Write([]byte(registryGraphJSONWithCache(registryFrameFor("", workspaceURL).Workspaces, bundleCacheForRoot)))
+	})
+	mux.HandleFunc("/api/claims", func(response http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			response.Header().Set("Allow", http.MethodGet)
+			http.Error(response, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		response.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = response.Write([]byte(registryClaimsJSONWithCache(registryFrameFor("", workspaceURL).Workspaces, bundleCacheForRoot)))
 	})
 	mux.HandleFunc("/api/knowledge-bases", renderViewerKnowledgeBaseConnect)
 	mux.HandleFunc("/", func(response http.ResponseWriter, request *http.Request) {
@@ -628,7 +651,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 						return
 					}
 					root, err := registryEntryRoot(entry)
-					frame := registryFrame(entries, entry.Name, localAliasURL)
+					frame := registryFrameFor(entry.Name, localAliasURL)
 					if err != nil {
 						renderHTML(response, viewerIndexTemplate, viewerIndexData{
 							Frame:     frame,
@@ -681,7 +704,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 						http.Error(response, err.Error(), http.StatusInternalServerError)
 						return
 					}
-					frame := registryFrame(entries, entry.Name, localAliasURL)
+					frame := registryFrameFor(entry.Name, localAliasURL)
 					renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry), bundleCacheForRoot(root))
 					return
 				}
@@ -693,7 +716,12 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 			renderRegistryEmpty(response, options)
 			return
 		}
-		renderRegistryIndex(response, entries, entries[0].Name, options)
+		startPath := registryWorkspaceStartPath(entries[0])
+		if startPath == workspaceURL(entries[0].Name) {
+			renderRegistryIndex(response, entries, entries[0].Name, options)
+			return
+		}
+		http.Redirect(response, request, startPath, http.StatusFound)
 	})
 	mux.HandleFunc("/kb/", func(response http.ResponseWriter, request *http.Request) {
 		name, rest, ok := parseWorkspaceRoute(request.URL.Path)
@@ -712,7 +740,12 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 				http.Redirect(response, request, workspaceURL(name), http.StatusFound)
 				return
 			}
-			renderRegistryIndex(response, entries, entry.Name, options)
+			startPath := registryWorkspaceStartPath(entry)
+			if startPath == workspaceURL(entry.Name) {
+				renderRegistryIndex(response, entries, entry.Name, options)
+				return
+			}
+			http.Redirect(response, request, startPath, http.StatusFound)
 			return
 		}
 		if rest == "api/search" {
@@ -748,7 +781,7 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 				http.Error(response, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			frame := registryFrame(entries, entry.Name, workspaceURL)
+			frame := registryFrameFor(entry.Name, workspaceURL)
 			renderViewerFile(response, request, root, strings.TrimPrefix(rest, "file/"), frame, prefix, viewerOptionsForRegistryEntry(options, entry), bundleCacheForRoot(root))
 			return
 		}
@@ -759,6 +792,22 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 		renderViewerEditorIcon(response, request, editorID)
 	})
 	return mux
+}
+
+func registryWorkspaceStartPath(entry okf.RegistryEntry) string {
+	prefix := workspacePrefix(entry.Name)
+	root, err := registryEntryRoot(entry)
+	if err != nil {
+		return workspaceURL(entry.Name)
+	}
+	if start := viewerStartPathWithPrefix(root, prefix); start != viewerPrefixRoot(prefix) {
+		return start
+	}
+	listing, err := okf.List(root)
+	if err == nil && len(listing.Entries) > 0 {
+		return fileURLWithPrefix(prefix, listing.Entries[0].Path)
+	}
+	return workspaceURL(entry.Name)
 }
 
 func viewerStartPath(root string) string {
@@ -914,8 +963,11 @@ type viewerFileData struct {
 	StaticJSON    template.JS
 	GraphJSON     template.JS
 	ClaimsJSON    template.JS
+	GraphURL      string
+	ClaimsURL     string
 	HeadHTML      template.HTML
 	Scripts       viewerScriptURLs
+	EmptyRegistry bool
 }
 
 type viewerScriptURLs struct {
@@ -963,8 +1015,15 @@ type viewerStaticPayload struct {
 }
 
 type viewerGraphData struct {
-	Nodes []viewerGraphNode `json:"nodes"`
-	Edges []viewerGraphEdge `json:"edges"`
+	Nodes    []viewerGraphNode         `json:"nodes"`
+	Edges    []viewerGraphEdge         `json:"edges"`
+	Status   string                    `json:"status,omitempty"`
+	Failures []viewerProjectionFailure `json:"failures,omitempty"`
+}
+
+type viewerProjectionFailure struct {
+	KnowledgeBase string `json:"knowledgeBase"`
+	Message       string `json:"message"`
 }
 
 type viewerGraphNode struct {
@@ -1072,8 +1131,10 @@ func prepareViewerFileRegistryData(data *viewerFileData, frame viewerFrame, opti
 		return
 	}
 	data.SearchURL = "/api/search"
-	data.GraphJSON = registryGraphJSON(frame.Workspaces)
-	data.ClaimsJSON = registryClaimsJSON(frame.Workspaces)
+	data.GraphJSON = template.JS(`{}`)
+	data.ClaimsJSON = template.JS(`{}`)
+	data.GraphURL = "/api/graph"
+	data.ClaimsURL = "/api/claims"
 }
 
 func renderViewerAsset(response http.ResponseWriter, request *http.Request, root string, rel string, linkPrefix string, options viewerOptions) {
@@ -1921,13 +1982,18 @@ func viewerHighlightURL(base string, highlightText string) string {
 }
 
 func renderRegistryEmpty(response http.ResponseWriter, options viewerOptions) {
-	renderHTML(response, viewerIndexTemplate, viewerIndexData{
-		Title:     "Open Knowledge Registry",
-		BrandName: "Open Knowledge",
-		HomeURL:   "/",
-		Theme:     viewerThemeData{Name: "default"},
-		Error:     "No registered knowledge bases. Add one with openknowledge connect <path> --as <key>.",
-		HeadHTML:  options.HeadHTML,
+	renderHTML(response, viewerFileTemplate, viewerFileData{
+		Frame:         viewerFrame{CanConnect: true},
+		Title:         "Knowledge workspace",
+		BrandName:     "Open Knowledge",
+		HomeURL:       "/",
+		SearchURL:     "/api/search",
+		Theme:         viewerThemeData{Name: "default"},
+		EditorsJSON:   viewerEditorsJSON(),
+		GraphJSON:     `{"nodes":[],"edges":[]}`,
+		ClaimsJSON:    `{"schemaVersion":"1","claims":[],"references":[],"entities":[],"predicates":[],"sources":[],"issues":[]}`,
+		HeadHTML:      options.HeadHTML,
+		EmptyRegistry: true,
 	})
 }
 
@@ -1939,7 +2005,7 @@ func renderRegistryIndex(response http.ResponseWriter, entries []okf.RegistryEnt
 	}
 
 	root, err := registryEntryRoot(entry)
-	frame := registryFrame(entries, entry.Name, workspaceURL)
+	frame := registryFrameWithCache(entries, entry.Name, workspaceURL, options.RegistryBundleCache)
 	if err != nil {
 		renderHTML(response, viewerIndexTemplate, viewerIndexData{
 			Frame:     frame,
@@ -2028,6 +2094,10 @@ func registryEntryByName(entries []okf.RegistryEntry, name string) (okf.Registry
 }
 
 func registryFrame(entries []okf.RegistryEntry, activeName string, urlFor func(string) string) viewerFrame {
+	return registryFrameWithCache(entries, activeName, urlFor, nil)
+}
+
+func registryFrameWithCache(entries []okf.RegistryEntry, activeName string, urlFor func(string) string, cacheForRoot func(string) *viewerBundleCache) viewerFrame {
 	workspaces := make([]viewerWorkspace, 0, len(entries))
 	for _, entry := range entries {
 		workspace := viewerWorkspace{
@@ -2043,14 +2113,26 @@ func registryFrame(entries []okf.RegistryEntry, activeName string, urlFor func(s
 			continue
 		}
 		workspace.ResolvedRoot = root
-		listing, err := okf.List(root)
-		if err != nil {
-			workspace.Error = err.Error()
-			workspaces = append(workspaces, workspace)
-			continue
+		var listingEntries []okf.ListEntry
+		if cacheForRoot != nil {
+			bundle, loadErr := cacheForRoot(root).load()
+			if loadErr != nil {
+				workspace.Error = loadErr.Error()
+				workspaces = append(workspaces, workspace)
+				continue
+			}
+			listingEntries = viewerEntriesFromBundleFiles(bundle.Files)
+		} else {
+			listing, listErr := okf.List(root)
+			if listErr != nil {
+				workspace.Error = listErr.Error()
+				workspaces = append(workspaces, workspace)
+				continue
+			}
+			listingEntries = listing.Entries
 		}
 		prefix := strings.TrimRight(urlFor(entry.Name), "/")
-		workspace.Tree = viewerTreeWithURL(listing.Entries, func(path string) string {
+		workspace.Tree = viewerTreeWithURL(listingEntries, func(path string) string {
 			return fileURLWithPrefix(prefix, path)
 		})
 		workspaces = append(workspaces, workspace)
@@ -2059,15 +2141,33 @@ func registryFrame(entries []okf.RegistryEntry, activeName string, urlFor func(s
 }
 
 func registryGraphJSON(workspaces []viewerWorkspace) template.JS {
-	graph := viewerGraphData{}
+	return registryGraphJSONWithCache(workspaces, nil)
+}
+
+func registryGraphJSONWithCache(workspaces []viewerWorkspace, cacheForRoot func(string) *viewerBundleCache) template.JS {
+	graph := viewerGraphData{Nodes: []viewerGraphNode{}, Edges: []viewerGraphEdge{}}
+	loaded := 0
 	for _, workspace := range workspaces {
 		if workspace.ResolvedRoot == "" {
+			message := strings.TrimSpace(workspace.Error)
+			if message == "" {
+				message = "knowledge base is unavailable"
+			}
+			graph.Failures = append(graph.Failures, viewerProjectionFailure{KnowledgeBase: workspace.Name, Message: message})
 			continue
 		}
-		bundle, err := okf.ParseBundle(workspace.ResolvedRoot)
+		var bundle okf.Bundle
+		var err error
+		if cacheForRoot != nil {
+			bundle, err = cacheForRoot(workspace.ResolvedRoot).load()
+		} else {
+			bundle, err = okf.ParseBundle(workspace.ResolvedRoot)
+		}
 		if err != nil {
+			graph.Failures = append(graph.Failures, viewerProjectionFailure{KnowledgeBase: workspace.Name, Message: err.Error()})
 			continue
 		}
+		loaded++
 		entries := viewerEntriesFromBundleFiles(bundle.Files)
 		local := viewerGraphFromBundleFiles(bundle.Files, entries, bundle.SpecVersion, func(filePath string) string {
 			return fileURLWithPrefix(strings.TrimRight(workspace.URL, "/"), filePath)
@@ -2088,11 +2188,25 @@ func registryGraphJSON(workspaces []viewerWorkspace) template.JS {
 			graph.Edges = append(graph.Edges, edge)
 		}
 	}
+	graph.Status = viewerProjectionStatus(len(workspaces), loaded, len(graph.Failures))
 	data, err := json.Marshal(graph)
 	if err != nil {
 		return `{"nodes":[],"edges":[]}`
 	}
 	return template.JS(data)
+}
+
+func viewerProjectionStatus(total int, loaded int, failures int) string {
+	if total == 0 {
+		return "empty"
+	}
+	if failures == 0 {
+		return "complete"
+	}
+	if loaded == 0 {
+		return "failed"
+	}
+	return "partial"
 }
 
 func registryEntryRoot(entry okf.RegistryEntry) (string, error) {

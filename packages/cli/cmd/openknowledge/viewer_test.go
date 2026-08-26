@@ -330,7 +330,7 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		!strings.Contains(page, `id: "viewer.search.focus"`) {
 		t.Fatalf("viewer file page did not include the shared shortcut registry:\n%s", page)
 	}
-	if !strings.Contains(page, `const mobileSidebar = window.matchMedia("(max-width: 680px)")`) ||
+	if !strings.Contains(page, `const mobileSidebar = window.matchMedia("(max-width: 720px)")`) ||
 		!strings.Contains(page, "if (mobileSidebar.matches) {\n        setSidebarOpen(false);\n      }") {
 		t.Fatalf("viewer file sidebar should close after opening a tree item only on mobile widths:\n%s", page)
 	}
@@ -590,7 +590,7 @@ attester: { resource: https://example.test/attester }
 generated: { by: process:nightly, at: 2026-08-01T09:00:00Z }
 verified: { by: human:reviewer, at: 2026-08-03T09:00:00Z }
 status: deprecated
-stale_after: 2026-08-04
+stale_after: 2026-08-04T00:00:00Z
 sources:
   - id: revenue-policy
     resource: https://example.test/policy
@@ -1057,7 +1057,7 @@ func TestViewerHTMLExportUsesStackAppBundle(t *testing.T) {
 	if !strings.Contains(index, `"path":"guides/setup.md"`) || !strings.Contains(index, `"htmlPath":"guides/setup.html"`) || !strings.Contains(index, `"path":"AGENTS.md"`) || !strings.Contains(index, `"htmlPath":"features/index.html"`) {
 		t.Fatalf("expected exported index to embed rendered note manifest:\n%s", index)
 	}
-	if !strings.Contains(index, `function fetchNote(path)`) || !strings.Contains(index, `staticNotesByPath[path]`) {
+	if !strings.Contains(index, `function fetchNote(path`) || !strings.Contains(index, `staticNotesByPath[path]`) {
 		t.Fatalf("expected exported index to use static note runtime:\n%s", index)
 	}
 	if !strings.Contains(index, `"frontmatter":"\u003cdetails class=\"ok-frontmatter\"`) ||
@@ -2087,11 +2087,17 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 		{Name: "work", Path: work, Access: "write"},
 	})
 
-	index := getViewerBody(t, handler, "/")
+	rootResponse := httptest.NewRecorder()
+	handler.ServeHTTP(rootResponse, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rootResponse.Code != http.StatusFound || rootResponse.Header().Get("Location") != "/kb/personal/file/index.md" {
+		t.Fatalf("registry root should open the unified workspace, code=%d location=%q", rootResponse.Code, rootResponse.Header().Get("Location"))
+	}
+	index := getViewerBody(t, handler, "/kb/personal/file/index.md")
 	for _, required := range []string{
 		"Knowledge bases",
-		`href="/kb/personal/"`,
-		`href="/kb/work/"`,
+		`data-knowledge-base-name="personal"`,
+		`data-knowledge-base-name="work"`,
+		`href="/kb/work/file/index.md"`,
 		"only-personal.md",
 	} {
 		if !strings.Contains(index, required) {
@@ -2099,12 +2105,10 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 		}
 	}
 
-	workIndex := getViewerBody(t, handler, "/kb/work/")
-	if !strings.Contains(workIndex, `class="workspace active" href="/kb/work/"`) {
-		t.Fatalf("work knowledge base was not active:\n%s", workIndex)
-	}
-	if !strings.Contains(workIndex, "notes/guide.md") || strings.Contains(workIndex, "only-personal.md") {
-		t.Fatalf("work index did not switch file listing:\n%s", workIndex)
+	workRootResponse := httptest.NewRecorder()
+	handler.ServeHTTP(workRootResponse, httptest.NewRequest(http.MethodGet, "/kb/work/", nil))
+	if workRootResponse.Code != http.StatusFound || workRootResponse.Header().Get("Location") != "/kb/work/file/index.md" {
+		t.Fatalf("knowledge base root should keep the user in the workspace, code=%d location=%q", workRootResponse.Code, workRootResponse.Header().Get("Location"))
 	}
 
 	workPage := getViewerBody(t, handler, "/kb/work/file/index.md")
@@ -2124,12 +2128,17 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 		`data-knowledge-base-dialog`,
 		`data-note-path="index.md" data-note-title="Index" data-knowledge-base="work"`,
 		`<span class="note-breadcrumb-label">work</span><span class="note-breadcrumb-separator" aria-hidden="true">/</span>`,
-		`"knowledgeBase":"personal"`,
-		`"knowledgeBase":"work"`,
-		`"sourcePath":"index.md"`,
+		`data-knowledge-graph data-url="/api/graph">{}</script>`,
+		`data-claims-data data-url="/api/claims">{}</script>`,
 	} {
 		if !strings.Contains(workPage, required) {
 			t.Fatalf("registry document workspace missing %q:\n%s", required, workPage)
+		}
+	}
+	graph := getViewerBody(t, handler, "/api/graph")
+	for _, required := range []string{`"knowledgeBase":"personal"`, `"knowledgeBase":"work"`, `"sourcePath":"index.md"`} {
+		if !strings.Contains(graph, required) {
+			t.Fatalf("lazy registry graph missing %q:\n%s", required, graph)
 		}
 	}
 	if strings.Contains(workPage, `note-knowledge-base-marker`) || strings.Contains(workPage, `class="note-knowledge-base"`) {
@@ -2222,8 +2231,47 @@ func TestRegistryViewerConnectsLocalKnowledgeBaseAndGuidesSetup(t *testing.T) {
 
 func TestRegistryViewerEmptyRegistry(t *testing.T) {
 	body := getViewerBody(t, newRegistryViewerHandler(nil), "/")
-	if !strings.Contains(body, "No registered knowledge bases") {
+	if !strings.Contains(body, "Connect a knowledge space to browse its documents") || !strings.Contains(body, `data-knowledge-base-dialog`) {
 		t.Fatalf("empty registry page did not explain the empty state:\n%s", body)
+	}
+}
+
+func TestRegistryCombinedProjectionsReportUnavailableKnowledgeBases(t *testing.T) {
+	available := t.TempDir()
+	writeViewerFile(t, available, "index.md", "# Available\n")
+	workspaces := []viewerWorkspace{
+		{Name: "available", ResolvedRoot: available, URL: "/kb/available/"},
+		{Name: "broken", Error: "index could not be loaded", URL: "/kb/broken/"},
+	}
+
+	var graph viewerGraphData
+	if err := json.Unmarshal([]byte(registryGraphJSON(workspaces)), &graph); err != nil {
+		t.Fatal(err)
+	}
+	if graph.Status != "partial" || len(graph.Nodes) == 0 || len(graph.Failures) != 1 || graph.Failures[0].KnowledgeBase != "broken" {
+		t.Fatalf("global graph should identify partial results: %#v", graph)
+	}
+
+	var claims viewerClaimsData
+	if err := json.Unmarshal([]byte(registryClaimsJSON(workspaces)), &claims); err != nil {
+		t.Fatal(err)
+	}
+	if claims.ProjectionStatus != "partial" || len(claims.Failures) != 1 || claims.Failures[0].KnowledgeBase != "broken" {
+		t.Fatalf("global claims should identify partial results: %#v", claims)
+	}
+
+	failed := []viewerWorkspace{{Name: "broken", Error: "index could not be loaded", URL: "/kb/broken/"}}
+	if err := json.Unmarshal([]byte(registryGraphJSON(failed)), &graph); err != nil {
+		t.Fatal(err)
+	}
+	if graph.Status != "failed" {
+		t.Fatalf("graph with no available knowledge bases should fail, got %#v", graph)
+	}
+	if err := json.Unmarshal([]byte(registryClaimsJSON(failed)), &claims); err != nil {
+		t.Fatal(err)
+	}
+	if claims.ProjectionStatus != "failed" {
+		t.Fatalf("claims with no available knowledge bases should fail, got %#v", claims)
 	}
 }
 
@@ -2254,9 +2302,14 @@ func TestReloadingRegistryViewerTracksConnectionChanges(t *testing.T) {
 	if !strings.Contains(refreshed, "Refreshed Generation") || !strings.Contains(refreshed, `<div class="editor-picker" data-editor-picker>`) {
 		t.Fatalf("viewer did not reload path and access changes:\n%s", refreshed)
 	}
-	index := getViewerBody(t, handler, "/")
-	if !strings.Contains(index, `href="/kb/second/"`) {
-		t.Fatalf("viewer did not load a newly connected knowledge base:\n%s", index)
+	rootResponse := httptest.NewRecorder()
+	handler.ServeHTTP(rootResponse, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rootResponse.Code != http.StatusFound || rootResponse.Header().Get("Location") != "/kb/docs/file/index.md" {
+		t.Fatalf("viewer root did not reopen the unified workspace, code=%d location=%q", rootResponse.Code, rootResponse.Header().Get("Location"))
+	}
+	index := getViewerBody(t, handler, rootResponse.Header().Get("Location"))
+	if !strings.Contains(index, `href="/kb/second/file/index.md"`) {
+		t.Fatalf("viewer did not load a newly connected knowledge base into the workspace:\n%s", index)
 	}
 
 	entries = entries[1:]

@@ -58,15 +58,19 @@ func TestViewerProjectsClaimsIntoDocumentWorkspaceAndGraph(t *testing.T) {
 	}
 	graph := viewerGraphFromBundleFiles(bundle.Files, listing.Entries, "0.2", func(path string) string { return "/file/" + path })
 	foundClaim := false
+	foundEntity := false
 	foundDeclaration := false
+	foundSubject := false
 	for _, node := range graph.Nodes {
 		foundClaim = foundClaim || node.Kind == "claim" && node.SourcePath == "auth.md" && strings.Contains(node.URL, "view=claims")
+		foundEntity = foundEntity || node.Kind == "entity" && node.Path == "entity:okn:service/auth" && node.Title == "Authentication service"
 	}
 	for _, edge := range graph.Edges {
 		foundDeclaration = foundDeclaration || edge.Kind == "declares-claim" && edge.Source == "auth.md"
+		foundSubject = foundSubject || edge.Kind == "claim-subject" && edge.Target == "entity:okn:service/auth"
 	}
-	if !foundClaim || !foundDeclaration {
-		t.Fatalf("viewer graph must retain claim nodes and declaration edges: %#v", graph)
+	if !foundClaim || !foundEntity || !foundDeclaration || !foundSubject {
+		t.Fatalf("viewer graph must retain documents, claims, entities, and their semantic edges: %#v", graph)
 	}
 }
 
