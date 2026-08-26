@@ -124,7 +124,7 @@ func TestSetupInteractiveDefersOptionalActivationUntilAfterFirstResult(t *testin
 		}
 		return errors.New("not installed")
 	}
-	// Codebase docs, print task for the current agent, confirm.
+	// Base knowledge, print task for the current agent, confirm.
 	setupInput = strings.NewReader("\n\n\n")
 	setupInputIsTerminal = func() bool { return true }
 
@@ -138,14 +138,14 @@ func TestSetupInteractiveDefersOptionalActivationUntilAfterFirstResult(t *testin
 	}
 	for _, expected := range []string{
 		"What do you want working first?",
-		"Searchable documentation for this codebase",
+		"Base knowledge — searchable documentation with minimal setup",
 		"How should setup run?",
 		"Print a task for my current agent",
 		"Selected maintenance rules:",
 		"- project: General project knowledge.",
 		"- writing: Apply the common editorial rule",
 		"Open Knowledge setup plan",
-		"First result:   searchable codebase documentation",
+		"First result:   base knowledge",
 		"Later options:  agent instructions, observation, CI, and runtime",
 	} {
 		if !strings.Contains(stdout, expected) {
@@ -170,7 +170,7 @@ func TestSetupInteractiveDefersOptionalActivationUntilAfterFirstResult(t *testin
 
 func TestSetupTrustedKnowledgePresetTailorsTheAgentTask(t *testing.T) {
 	stdout, stderr, code := captureMainOutput(t, func() int {
-		return runSetup([]string{"Wiki", "--prompt", "--use-case", "trusted-knowledge"})
+		return runSetup([]string{"Wiki", "--prompt", "--use-case", "trusted"})
 	})
 	if code != 0 || stderr != "" {
 		t.Fatalf("setup code=%d stderr=%s", code, stderr)
@@ -197,9 +197,20 @@ func TestParseSetupArgsRejectsRemovedAndAmbiguousOptions(t *testing.T) {
 		{"Wiki", "--prompt", "--agent", "codex"},
 		{"Wiki", "--model", "gpt-test"},
 		{"Wiki", "--use-case", "everything"},
+		{"Wiki", "--use-case", "codebase-docs"},
+		{"Wiki", "--use-case", "trusted-knowledge"},
 	} {
 		if _, err := parseSetupArgs(args); err == nil {
 			t.Fatalf("expected setup args to fail: %#v", args)
+		}
+	}
+}
+
+func TestParseSetupArgsAcceptsCanonicalUseCases(t *testing.T) {
+	for _, useCase := range []string{"base", "trusted", "custom"} {
+		options, err := parseSetupArgs([]string{"Wiki", "--use-case", useCase})
+		if err != nil || options.useCase != useCase {
+			t.Fatalf("use case %q options=%#v err=%v", useCase, options, err)
 		}
 	}
 }

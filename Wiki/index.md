@@ -17,7 +17,7 @@ okn validate Wiki
 okn search Wiki "release workflow"
 ```
 
-Setup uses the `codebase-docs` intent by default. Use `okn view Wiki` to browse
+Setup uses the `base` intent by default. Use `okn view Wiki` to browse
 the result.
 
 This documentation uses `okn` as the preferred command. The full
@@ -44,7 +44,7 @@ Use [`setup`](features/commands/setup.md) to create a knowledge base. Use
 
 ### Trust and govern
 
-Use the `trusted-knowledge` intent when you need source, evidence, lifecycle,
+Use the `trusted` intent when you need source, evidence, lifecycle,
 and conflict controls. Use [`audit`](features/commands/audit.md),
 [`claims`](features/commands/claims.md), and
 [`evidence`](features/commands/evidence.md) to apply these controls. Use

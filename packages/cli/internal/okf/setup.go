@@ -110,7 +110,7 @@ func SetupPromptWithOptions(options SetupPromptOptions) (string, error) {
 
 func setupUseCaseOutcome(useCase string) string {
 	switch strings.ToLower(strings.TrimSpace(useCase)) {
-	case "trusted-knowledge":
+	case "trusted":
 		return "trusted knowledge across multiple sources"
 	case "custom":
 		return "a custom knowledge base"
@@ -121,7 +121,7 @@ func setupUseCaseOutcome(useCase string) string {
 
 func setupUseCaseInstructions(useCase string) string {
 	switch strings.ToLower(strings.TrimSpace(useCase)) {
-	case "trusted-knowledge":
+	case "trusted":
 		return `First working result: trusted knowledge across multiple sources
 - Create source-grounded knowledge across the selected sources.
 - Preserve provenance, disagreement, lifecycle, and access boundaries when the sources support them.

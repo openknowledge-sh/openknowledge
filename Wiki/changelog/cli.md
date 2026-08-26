@@ -15,8 +15,8 @@ page records release-level changes.
 
 ### Setup
 
-- Setup now accepts `--use-case codebase-docs|trusted-knowledge|custom`.
-  `codebase-docs` is the default. All presets use the same OKF format.
+- Setup now accepts `--use-case base|trusted|custom`. `base` is the default.
+  All presets use the same OKF format.
 - The command guide now starts with setup, validation, search, and the viewer.
   Trust, query, interchange, CI, and runtime features are optional layers.
 - The setup wizard produces the first validated search result before asking

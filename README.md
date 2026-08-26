@@ -46,7 +46,7 @@ Run the interactive setup wizard:
 okn setup
 ```
 
-This command uses the `codebase-docs` preset by default. It creates a
+This command uses the `base` preset by default. It creates a
 lightweight knowledge base for repository documentation, architecture,
 services, decisions, and changelog content.
 
@@ -110,11 +110,11 @@ command to disable telemetry and save the opt-out. See
 The local documentation workflow does not require typed claims, Knowledge CI,
 or a production runtime.
 
-Use the `trusted-knowledge` preset when the knowledge base needs explicit
+Use the `trusted` preset when the knowledge base needs explicit
 sources, evidence, claim lifecycle, or conflict checks:
 
 ```sh
-okn setup --use-case trusted-knowledge
+okn setup --use-case trusted
 ```
 
 Use `okn setup --use-case custom` when neither preset matches the intended

@@ -43,9 +43,9 @@ type setupWizardPlan struct {
 }
 
 const (
-	setupUseCaseCodebaseDocs     = "codebase-docs"
-	setupUseCaseTrustedKnowledge = "trusted-knowledge"
-	setupUseCaseCustom           = "custom"
+	setupUseCaseBase    = "base"
+	setupUseCaseTrusted = "trusted"
+	setupUseCaseCustom  = "custom"
 )
 
 func runSetup(args []string) int {
@@ -306,21 +306,21 @@ func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
 
 	if strings.TrimSpace(plan.options.useCase) == "" {
 		choice, err := setupChoice(reader, "What do you want working first?", []string{
-			"Searchable documentation for this codebase",
-			"Trusted knowledge across multiple sources",
-			"A custom knowledge base",
+			"Base knowledge — searchable documentation with minimal setup",
+			"Trusted knowledge — source-grounded knowledge with optional governance",
+			"Custom setup",
 		}, 0)
 		if err != nil {
 			return plan, err
 		}
 		plan.options.useCase = []string{
-			setupUseCaseCodebaseDocs,
-			setupUseCaseTrustedKnowledge,
+			setupUseCaseBase,
+			setupUseCaseTrusted,
 			setupUseCaseCustom,
 		}[choice]
 	}
 
-	if options.source == "" && plan.options.useCase != setupUseCaseCodebaseDocs {
+	if options.source == "" && plan.options.useCase != setupUseCaseBase {
 		choice, err := setupChoice(reader, "What do you want to set up?", []string{
 			"A knowledge base for this project",
 			"A knowledge base generated from another source",
@@ -402,12 +402,12 @@ func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
 
 func normalizeSetupUseCase(value string) (string, error) {
 	switch normalized := strings.ToLower(strings.TrimSpace(value)); normalized {
-	case "", setupUseCaseCodebaseDocs:
-		return setupUseCaseCodebaseDocs, nil
-	case setupUseCaseTrustedKnowledge, setupUseCaseCustom:
+	case "", setupUseCaseBase:
+		return setupUseCaseBase, nil
+	case setupUseCaseTrusted, setupUseCaseCustom:
 		return normalized, nil
 	default:
-		return "", fmt.Errorf("unsupported setup use case %q; use codebase-docs, trusted-knowledge, or custom", value)
+		return "", fmt.Errorf("unsupported setup use case %q; use base, trusted, or custom", value)
 	}
 }
 
@@ -417,12 +417,12 @@ func defaultSetupRules(useCase string) []string {
 
 func setupUseCaseLabel(useCase string) string {
 	switch useCase {
-	case setupUseCaseTrustedKnowledge:
-		return "trusted multi-source knowledge"
+	case setupUseCaseTrusted:
+		return "trusted knowledge"
 	case setupUseCaseCustom:
 		return "custom knowledge base"
 	default:
-		return "searchable codebase documentation"
+		return "base knowledge"
 	}
 }
 
@@ -623,19 +623,18 @@ Create the smallest useful Markdown knowledge base for one user goal.
 
 Usage:
 	openknowledge setup [wiki]
-	openknowledge setup [wiki] --use-case <codebase-docs|trusted-knowledge|custom>
+	openknowledge setup [wiki] --use-case <base|trusted|custom>
 	openknowledge setup [wiki] --prompt
 	openknowledge setup [wiki] --interactive
 	openknowledge setup [wiki] --agent <codex|claude|opencode>
 	openknowledge setup [wiki] --from <source> [--about <goal>] [--depth <n>]
 
 Use cases:
-	codebase-docs      Create searchable documentation for the current codebase.
-	                   This is the default. It uses ordinary Markdown and keeps
-	                   claims, semantic query, CI, and runtime out of the first result.
-	trusted-knowledge  Build source-grounded knowledge across sources. Add trust
-	                   capabilities only after the first validation and search.
-	custom             Let the agent shape another knowledge-base workflow.
+	base     Create searchable documentation with minimal setup. This is the
+	         default. It keeps claims, semantic query, CI, and runtime optional.
+	trusted  Build source-grounded knowledge with optional governance. Add each
+	         trust capability only after the first validation and search.
+	custom   Let the agent shape another knowledge-base workflow.
 
 After the first result:
 	openknowledge setup skill [--scope <global|project|both>] [--project <target>] [--harness <name>]
@@ -658,7 +657,7 @@ The source workflow accepts --from, optional --about intent, and optional
 --depth. All use cases use the same OKF Markdown format.
 
 Flags:
-  --use-case     First result: codebase-docs, trusted-knowledge, or custom.
+  --use-case     First result: base, trusted, or custom.
   --prompt       Print the complete agent task without changing files.
   --interactive  Run the terminal wizard.
   --agent        Start codex, claude, or opencode with the setup task.

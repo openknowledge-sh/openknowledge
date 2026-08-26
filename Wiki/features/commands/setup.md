@@ -14,8 +14,8 @@ Use `okn setup` to create or complete a knowledge base with an agent.
 
 ```sh
 okn setup
-okn setup Wiki --use-case codebase-docs
-okn setup Wiki --use-case trusted-knowledge
+okn setup Wiki --use-case base
+okn setup Wiki --use-case trusted
 okn setup Wiki --use-case custom
 okn setup Wiki --prompt
 okn setup Wiki --interactive
@@ -51,13 +51,13 @@ Setup does not require a Git repository.
 
 The optional `wiki` argument selects the bundle path. The default is `Wiki`.
 
-Use `--use-case <codebase-docs|trusted-knowledge|custom>` to select the setup
-intent. The default is `codebase-docs`.
+Use `--use-case <base|trusted|custom>` to select the setup intent. The default
+is `base`.
 
 | Intent | Use |
 | --- | --- |
-| `codebase-docs` | Create repository documentation for architecture, services, decisions, and changelog content. |
-| `trusted-knowledge` | Model knowledge with explicit sources, evidence, claim lifecycle, and conflict checks. |
+| `base` | Create repository documentation for architecture, services, decisions, and changelog content. |
+| `trusted` | Model knowledge with explicit sources, evidence, claim lifecycle, and conflict checks. |
 | `custom` | Let the source and the stated goal determine the initial structure. |
 
 All intents use the same Markdown and OKF format. The intent changes the agent
