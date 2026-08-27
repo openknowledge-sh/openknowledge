@@ -10,3 +10,4 @@ deploy/runtime/secrets/
 *.test
 coverage.out
 .DS_Store
+.impeccable/
