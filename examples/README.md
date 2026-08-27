@@ -3,8 +3,6 @@
 These projects implement the three use cases from
 [openknowledge.sh/use-cases](https://openknowledge.sh/use-cases/).
 
-Each folder is ready to become an independent repository in the
-`openknowledge-sh` GitHub organization:
 
 - [`example-project-docs`](example-project-docs/README.md) keeps architecture,
   conventions, and decisions beside a small citation checker.
@@ -13,9 +11,7 @@ Each folder is ready to become an independent repository in the
 - [`example-research-notes`](example-research-notes/README.md) keeps source
   notes separate from a research summary.
 
-The demos use English Wikipedia policy pages as public source material. They
-are educational examples. They are not affiliated with or approved by the
-Wikimedia Foundation or the Wikipedia community.
+The demos use English Wikipedia policy pages as public source material.
 
 Run all demo checks from the Open Knowledge repository root:
 
