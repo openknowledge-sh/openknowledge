@@ -12,17 +12,26 @@ func enablePublicArtifactTest(t *testing.T, root string) {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ValidationConfigFile), []byte("[publish]\nenabled = true\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ValidationConfigFile), []byte("[release]\noutputs = [\"viewer\", \"mcp\"]\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestPublicArtifactsRequireExplicitBundleEnable(t *testing.T) {
+func TestPublicArtifactsRequireExplicitReleaseOutput(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "index.md", "# Home\n")
 
-	if _, err := BuildPublicationSetWithVersion(root, "0.1"); err == nil || !strings.Contains(err.Error(), "[publish] enabled = true") {
+	if _, err := BuildPublicationSetWithVersion(root, "0.1"); err == nil || !strings.Contains(err.Error(), "release.outputs") {
 		t.Fatalf("expected disabled-by-default publication refusal, got %v", err)
+	}
+}
+
+func TestPublicationTargetRequiresMatchingReleaseOutput(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, ValidationConfigFile, "[release]\noutputs = [\"viewer\"]\n")
+	writeFile(t, root, "index.md", "# Home\n")
+	if _, err := BuildPublicationSetForTargetWithVersion(root, "0.1", PublicationTargetMCP); err == nil || !strings.Contains(err.Error(), "include mcp") {
+		t.Fatalf("expected MCP output refusal, got %v", err)
 	}
 }
 

@@ -28,6 +28,7 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 			SchemaVersion: okf.MachineSchemaVersion,
 			Config:        "/workspace/runtime.toml",
 			StateDir:      "/state",
+			ReleasePolicy: okruntime.ReleasePolicyFollowMain,
 			ArtifactStore: okruntime.ArtifactStoreConfig{Type: "filesystem", Path: "/state/artifacts"},
 			Serve: okruntime.ServeConfig{
 				Address: "127.0.0.1:8080", PollInterval: "5s", RequestTimeout: "15s",
@@ -45,7 +46,7 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 				DraftPullRequest: true, Checks: true,
 			},
 			KnowledgeBases: []okruntime.KnowledgeBaseConfig{
-				{ID: "docs", Path: "/workspace/Wiki", Route: "/", Spec: "0.1", Publish: true},
+				{ID: "docs", Path: "/workspace/Wiki", Route: "/", Spec: "0.1", Outputs: []string{okf.ReleaseOutputViewer}},
 			},
 			AccessProfiles: []okruntime.AccessProfileConfig{{
 				ID: "support", TokenEnv: "SUPPORT_KNOWLEDGE_TOKEN", KnowledgeBases: []string{"docs"}, Agents: []string{"support-agent"}, Teams: []string{"support"}, UseCases: []string{"customer-support"},
@@ -59,6 +60,7 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 			Generation:    "generation-1",
 			Commit:        "0123456789abcdef0123456789abcdef01234567",
 			ContentDigest: strings.Repeat("a", 64),
+			Health:        okruntime.GenerationHealthPassing,
 			Output:        "/state/artifacts/docs/generation-1",
 			Published: &okruntime.ActivePointer{
 				Type: "openknowledge-active", Version: 1, KnowledgeBaseID: "docs",
@@ -68,8 +70,8 @@ func TestOperationalMachineContractGoldenFiles(t *testing.T) {
 		"runtime-releases": runtimeReleasesResult{
 			SchemaVersion: "1", KnowledgeBase: "docs", ActiveGeneration: "generation-2", PreviousGeneration: "generation-1",
 			Releases: []runtimeRelease{
-				{Generation: "generation-1", Commit: "first", Spec: "0.2", ContentDigest: strings.Repeat("a", 64), Checks: []string{"Knowledge Eval"}, Files: 4},
-				{Generation: "generation-2", Commit: "second", Spec: "0.2", ContentDigest: strings.Repeat("b", 64), Checks: []string{"Knowledge Eval"}, Files: 5, Active: true},
+				{Generation: "generation-1", Commit: "first", Spec: "0.2", ContentDigest: strings.Repeat("a", 64), Health: okruntime.GenerationHealthPassing, Checks: []string{"Knowledge Eval"}, Files: 4},
+				{Generation: "generation-2", Commit: "second", Spec: "0.2", ContentDigest: strings.Repeat("b", 64), Health: okruntime.GenerationHealthDegraded, Checks: []string{"Knowledge Eval"}, Files: 5, Active: true},
 			},
 		},
 		"runtime-release-action": runtimeReleaseActionResult{

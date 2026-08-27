@@ -78,7 +78,7 @@ func (manager *runtimeSnapshotManager) refresh() []error {
 	}
 	var failures []error
 	for _, knowledge := range manager.knowledge {
-		if !knowledge.Publish {
+		if !knowledge.Released() {
 			continue
 		}
 		if manager.config.ArtifactStore.Type == "http" {
@@ -119,12 +119,15 @@ func (manager *runtimeSnapshotManager) loadSnapshot(knowledge okruntime.Knowledg
 	if manifest.KnowledgeBaseID != knowledge.ID || pointer.KnowledgeBaseID != knowledge.ID || pointer.Generation != okruntime.GenerationName(manifest) || pointer.ContentDigest != manifest.ContentDigest {
 		return runtimeGenerationSnapshot{}, fmt.Errorf("generation identity does not match knowledge base %s", knowledge.ID)
 	}
-	search, err := manager.loadIndex(knowledge, pointer, manifest, root, okruntime.IndexTargetSearch)
-	if err != nil {
-		return runtimeGenerationSnapshot{}, fmt.Errorf("search index: %w", err)
+	var search okf.ContextIndex
+	if knowledge.HasOutput(okf.ReleaseOutputViewer) {
+		search, err = manager.loadIndex(knowledge, pointer, manifest, root, okruntime.IndexTargetSearch)
+		if err != nil {
+			return runtimeGenerationSnapshot{}, fmt.Errorf("search index: %w", err)
+		}
 	}
 	var mcpIndex okf.ContextIndex
-	if knowledge.MCP {
+	if knowledge.HasOutput(okf.ReleaseOutputMCP) {
 		mcpIndex, err = manager.loadIndex(knowledge, pointer, manifest, root, okruntime.IndexTargetMCP)
 		if err != nil {
 			return runtimeGenerationSnapshot{}, fmt.Errorf("MCP context index: %w", err)
@@ -233,7 +236,7 @@ func (manager *runtimeSnapshotManager) ready() bool {
 	manager.mu.RLock()
 	defer manager.mu.RUnlock()
 	for _, knowledge := range manager.knowledge {
-		if knowledge.Publish {
+		if knowledge.Released() {
 			if _, ok := manager.active[knowledge.ID]; !ok {
 				return false
 			}
@@ -353,7 +356,14 @@ func serveRuntimeHTTP(ctx context.Context, handler http.Handler, address string,
 
 func newRuntimeServeHandler(config okruntime.Config) (*runtimeServeHandler, error) {
 	token := ""
-	if config.Serve.MCPAccess == "token" && len(config.AccessProfiles) == 0 {
+	hasMCPOutput := false
+	for _, knowledge := range config.KnowledgeBases {
+		if knowledge.HasOutput(okf.ReleaseOutputMCP) {
+			hasMCPOutput = true
+			break
+		}
+	}
+	if hasMCPOutput && config.Serve.MCPAccess == "token" && len(config.AccessProfiles) == 0 {
 		token = os.Getenv(config.Serve.MCPTokenEnv)
 		if token == "" {
 			return nil, fmt.Errorf("MCP token environment variable %s is empty", config.Serve.MCPTokenEnv)
@@ -444,13 +454,17 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 	}
 	switch relative {
 	case "_search":
+		if !snapshot.Knowledge.HasOutput(okf.ReleaseOutputViewer) {
+			http.NotFound(response, request)
+			return
+		}
 		access, policy, ok := handler.authorizeRetrieval(response, request, knowledge.ID)
 		if !ok {
 			return
 		}
 		handler.serveSearch(response, request, snapshot, access, policy)
 	case "_feedback":
-		if handler.usage == nil || handler.feedback == nil {
+		if !snapshot.Knowledge.HasOutput(okf.ReleaseOutputViewer) || handler.usage == nil || handler.feedback == nil {
 			http.NotFound(response, request)
 			return
 		}
@@ -460,7 +474,7 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 		}
 		handler.serveFeedback(response, request, snapshot, access)
 	case "_mcp":
-		if !snapshot.Knowledge.MCP || handler.config.Serve.MCPAccess == "off" {
+		if !snapshot.Knowledge.HasOutput(okf.ReleaseOutputMCP) {
 			http.NotFound(response, request)
 			return
 		}
@@ -470,6 +484,10 @@ func (handler *runtimeServeHandler) ServeHTTP(response http.ResponseWriter, requ
 		}
 		handler.serveMCP(response, request, snapshot, access, policy)
 	default:
+		if !snapshot.Knowledge.HasOutput(okf.ReleaseOutputViewer) {
+			http.NotFound(response, request)
+			return
+		}
 		prefix := strings.TrimSuffix(knowledge.Route, "/")
 		if prefix == "" {
 			prefix = "/"
@@ -508,6 +526,9 @@ func (handler *runtimeServeHandler) matchKnowledge(requestPath string) (okruntim
 	var matched *okruntime.KnowledgeBaseConfig
 	for index := range handler.config.KnowledgeBases {
 		knowledge := &handler.config.KnowledgeBases[index]
+		if !knowledge.Released() {
+			continue
+		}
 		prefix := knowledge.Route
 		if prefix == "/" || requestPath == strings.TrimSuffix(prefix, "/") || strings.HasPrefix(requestPath, prefix) {
 			if matched == nil || len(prefix) > len(matched.Route) {

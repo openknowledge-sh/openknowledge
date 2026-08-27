@@ -17,7 +17,11 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const DefaultConfigFile = "runtime.toml"
+const (
+	DefaultConfigFile        = "runtime.toml"
+	ReleasePolicyFollowMain  = "follow-main"
+	ReleasePolicyLastPassing = "last-passing"
+)
 
 type Config struct {
 	Path           string                `toml:"-" json:"-"`
@@ -35,6 +39,14 @@ type Config struct {
 type RuntimeConfig struct {
 	StateDir              string `toml:"state_dir" json:"state_dir"`
 	RequireResolvedClaims bool   `toml:"require_resolved_claims" json:"require_resolved_claims"`
+	ReleasePolicy         string `toml:"release_policy" json:"release_policy"`
+}
+
+func (config RuntimeConfig) EffectiveReleasePolicy() string {
+	if config.ReleasePolicy == "" {
+		return ReleasePolicyFollowMain
+	}
+	return config.ReleasePolicy
 }
 
 type ArtifactStoreConfig struct {
@@ -120,12 +132,24 @@ type GitHubConfig struct {
 }
 
 type KnowledgeBaseConfig struct {
-	ID      string `toml:"id" json:"id"`
-	Path    string `toml:"path" json:"path"`
-	Route   string `toml:"route" json:"route"`
-	Spec    string `toml:"spec" json:"spec"`
-	Publish bool   `toml:"publish" json:"publish"`
-	MCP     bool   `toml:"mcp" json:"mcp"`
+	ID      string   `toml:"id" json:"id"`
+	Path    string   `toml:"path" json:"path"`
+	Route   string   `toml:"route" json:"route"`
+	Spec    string   `toml:"spec" json:"spec"`
+	Outputs []string `toml:"-" json:"outputs"`
+}
+
+func (config KnowledgeBaseConfig) HasOutput(output string) bool {
+	for _, candidate := range config.Outputs {
+		if candidate == output {
+			return true
+		}
+	}
+	return false
+}
+
+func (config KnowledgeBaseConfig) Released() bool {
+	return len(config.Outputs) > 0
 }
 
 func LoadConfig(file string) (Config, error) {
@@ -155,6 +179,9 @@ func LoadConfig(file string) (Config, error) {
 		if err := config.resolvePaths(absoluteRoot); err != nil {
 			return Config{}, fmt.Errorf("env:%s: %w", name, err)
 		}
+		if err := config.resolveReleaseOutputs(); err != nil {
+			return Config{}, fmt.Errorf("env:%s: %w", name, err)
+		}
 		return config, nil
 	}
 	content, err := os.ReadFile(file)
@@ -172,6 +199,9 @@ func LoadConfig(file string) (Config, error) {
 	config.Path = absolute
 	config.Root = filepath.Dir(absolute)
 	if err := config.resolvePaths(filepath.Dir(absolute)); err != nil {
+		return Config{}, fmt.Errorf("%s: %w", file, err)
+	}
+	if err := config.resolveReleaseOutputs(); err != nil {
 		return Config{}, fmt.Errorf("%s: %w", file, err)
 	}
 	return config, nil
@@ -192,7 +222,7 @@ func ParseConfig(content []byte) (Config, error) {
 
 func defaultConfig() Config {
 	return Config{
-		Runtime:        RuntimeConfig{RequireResolvedClaims: true},
+		Runtime:        RuntimeConfig{RequireResolvedClaims: true, ReleasePolicy: ReleasePolicyFollowMain},
 		AccessProfiles: []AccessProfileConfig{},
 		ArtifactStore:  ArtifactStoreConfig{Type: "filesystem"},
 		PublisherAPI:   PublisherAPIConfig{Address: "127.0.0.1:8090"},
@@ -289,9 +319,33 @@ func (config *Config) resolvePaths(base string) error {
 	return nil
 }
 
+func (config *Config) resolveReleaseOutputs() error {
+	for index := range config.KnowledgeBases {
+		knowledge := &config.KnowledgeBases[index]
+		project, err := okf.LoadProjectConfig(knowledge.Path)
+		if err != nil {
+			return fmt.Errorf("knowledge_bases[%d] release outputs: %w", index, err)
+		}
+		knowledge.Outputs = append([]string{}, project.Release.Outputs...)
+	}
+	for index, profile := range config.AccessProfiles {
+		for item, knowledgeID := range profile.KnowledgeBases {
+			for _, knowledge := range config.KnowledgeBases {
+				if knowledge.ID == knowledgeID && !knowledge.Released() {
+					return fmt.Errorf("access_profiles[%d].knowledge_bases[%d] references local-only knowledge base %s", index, item, knowledgeID)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (config Config) Validate() error {
 	if strings.TrimSpace(config.Runtime.StateDir) == "" {
 		return fmt.Errorf("runtime.state_dir is required")
+	}
+	if config.Runtime.ReleasePolicy != ReleasePolicyFollowMain && config.Runtime.ReleasePolicy != ReleasePolicyLastPassing {
+		return fmt.Errorf("runtime.release_policy must be follow-main or last-passing")
 	}
 	if config.ArtifactStore.Type != "filesystem" && config.ArtifactStore.Type != "http" {
 		return fmt.Errorf("artifact_store.type must be filesystem or http")
@@ -335,8 +389,8 @@ func (config Config) Validate() error {
 	if config.Serve.MaxConcurrency < 1 || config.Serve.MaxConcurrency > 10_000 {
 		return fmt.Errorf("serve.max_concurrency must be between 1 and 10000")
 	}
-	if config.Serve.MCPAccess != "off" && config.Serve.MCPAccess != "public" && config.Serve.MCPAccess != "token" {
-		return fmt.Errorf("serve.mcp_access must be off, public, or token")
+	if config.Serve.MCPAccess != "public" && config.Serve.MCPAccess != "token" {
+		return fmt.Errorf("serve.mcp_access must be public or token")
 	}
 	if config.Serve.MCPAccess == "token" && strings.TrimSpace(config.Serve.MCPTokenEnv) == "" {
 		return fmt.Errorf("serve.mcp_token_env is required for token access")
@@ -433,7 +487,6 @@ func (config Config) Validate() error {
 		return fmt.Errorf("at least one knowledge_bases entry is required")
 	}
 	ids := map[string]bool{}
-	publishedIDs := map[string]bool{}
 	routes := map[string]bool{}
 	for index := range config.KnowledgeBases {
 		knowledge := &config.KnowledgeBases[index]
@@ -444,7 +497,6 @@ func (config Config) Validate() error {
 			return fmt.Errorf("knowledge_bases[%d].id is duplicated: %s", index, knowledge.ID)
 		}
 		ids[knowledge.ID] = true
-		publishedIDs[knowledge.ID] = knowledge.Publish
 		if strings.TrimSpace(knowledge.Path) == "" {
 			return fmt.Errorf("knowledge_bases[%d].path is required", index)
 		}
@@ -499,9 +551,6 @@ func (config Config) Validate() error {
 				seen[value] = true
 				if name == "knowledge_bases" && !ids[value] {
 					return fmt.Errorf("%s.knowledge_bases[%d] references unknown knowledge base %s", field, item, value)
-				}
-				if name == "knowledge_bases" && !publishedIDs[value] {
-					return fmt.Errorf("%s.knowledge_bases[%d] references unpublished knowledge base %s", field, item, value)
 				}
 			}
 		}

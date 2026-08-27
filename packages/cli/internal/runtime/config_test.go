@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -23,14 +24,15 @@ path = "artifacts"
 id = "wiki"
 path = "Wiki"
 route = "/docs"
-publish = true
-mcp = true
 `))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if config.Serve.Address != "127.0.0.1:8080" || config.Serve.MCPAccess != "public" {
 		t.Fatalf("unexpected serve defaults: %#v", config.Serve)
+	}
+	if config.Runtime.ReleasePolicy != ReleasePolicyFollowMain {
+		t.Fatalf("unexpected release policy default: %#v", config.Runtime)
 	}
 	policy := config.Serve.RetrievalPolicy
 	if policy.MinimumTrust != okf.OKFV02TrustUnverified || !policy.AllowStale || policy.RequireSources || !reflect.DeepEqual(policy.AllowedStatuses, []string{"draft", "stable", "deprecated"}) {
@@ -47,6 +49,47 @@ mcp = true
 	}
 }
 
+func TestParseConfigValidatesReleasePolicy(t *testing.T) {
+	base := `
+[runtime]
+state_dir = "state"
+release_policy = %q
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+`
+	for _, policy := range []string{ReleasePolicyFollowMain, ReleasePolicyLastPassing} {
+		config, err := ParseConfig([]byte(fmt.Sprintf(base, policy)))
+		if err != nil || config.Runtime.ReleasePolicy != policy {
+			t.Fatalf("release policy %q: config=%#v err=%v", policy, config.Runtime, err)
+		}
+	}
+	if _, err := ParseConfig([]byte(fmt.Sprintf(base, "latest"))); err == nil || !strings.Contains(err.Error(), "release_policy") {
+		t.Fatalf("expected invalid release policy refusal, got %v", err)
+	}
+}
+
+func TestParseConfigRejectsMCPAccessAsPublicationSwitch(t *testing.T) {
+	_, err := ParseConfig([]byte(`
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[serve]
+mcp_access = "off"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+`))
+	if err == nil || !strings.Contains(err.Error(), "must be public or token") {
+		t.Fatalf("expected MCP access policy refusal, got %v", err)
+	}
+}
+
 func TestParseConfigNormalizesPermissionAwareAccessProfiles(t *testing.T) {
 	config, err := ParseConfig([]byte(`
 [runtime]
@@ -59,8 +102,6 @@ mcp_access = "token"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
-mcp = true
 [[access_profiles]]
 id = "support"
 token_env = "SUPPORT_KNOWLEDGE_TOKEN"
@@ -89,7 +130,6 @@ path = "artifacts"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 [[access_profiles]]
 id = "support"
 token_env = "SUPPORT_KNOWLEDGE_TOKEN"
@@ -99,10 +139,34 @@ agents = ["support-agent"]
 	if _, err := ParseConfig([]byte(invalid)); err == nil || !strings.Contains(err.Error(), "unknown knowledge base") {
 		t.Fatalf("expected unknown access route refusal, got %v", err)
 	}
-	unpublished := strings.Replace(invalid, `knowledge_bases = ["missing"]`, `knowledge_bases = ["wiki"]`, 1)
-	unpublished = strings.Replace(unpublished, "publish = true", "publish = false", 1)
-	if _, err := ParseConfig([]byte(unpublished)); err == nil || !strings.Contains(err.Error(), "unpublished knowledge base") {
-		t.Fatalf("expected unpublished access route refusal, got %v", err)
+}
+
+func TestLoadConfigRejectsAccessProfileForLocalOnlyBundle(t *testing.T) {
+	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	if err := os.MkdirAll(wiki, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(root, "runtime.toml")
+	content := `[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+[[access_profiles]]
+id = "support"
+token_env = "SUPPORT_KNOWLEDGE_TOKEN"
+knowledge_bases = ["wiki"]
+agents = ["support-agent"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadConfig(configPath); err == nil || !strings.Contains(err.Error(), "local-only knowledge base") {
+		t.Fatalf("expected local-only access route refusal, got %v", err)
 	}
 }
 
@@ -121,6 +185,24 @@ run_agents = true
 	}
 }
 
+func TestParseConfigRejectsRemovedKnowledgeBasePublicationSwitches(t *testing.T) {
+	for _, field := range []string{"publish = true", "mcp = true"} {
+		_, err := ParseConfig([]byte(`
+[runtime]
+state_dir = "state"
+[artifact_store]
+type = "filesystem"
+path = "artifacts"
+[[knowledge_bases]]
+id = "wiki"
+path = "Wiki"
+` + field + "\n"))
+		if err == nil || !strings.Contains(err.Error(), "missing in the target struct") {
+			t.Fatalf("expected removed %q field refusal, got %v", field, err)
+		}
+	}
+}
+
 func TestParseConfigRequiresExplicitSupportedWorkerRuntimes(t *testing.T) {
 	base := `
 [runtime]
@@ -134,7 +216,6 @@ run_jobs = true
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `
 	if _, err := ParseConfig([]byte(fmt.Sprintf(base, ""))); err == nil || !strings.Contains(err.Error(), "worker.runtimes") {
 		t.Fatalf("expected missing runtime refusal, got %v", err)
@@ -153,6 +234,13 @@ publish = true
 
 func TestLoadConfigSupportsSecretFreeEnvironmentConfiguration(t *testing.T) {
 	root := t.TempDir()
+	wiki := filepath.Join(root, "Wiki")
+	if err := os.MkdirAll(wiki, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wiki, okf.ValidationConfigFile), []byte("[release]\noutputs = [\"mcp\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("OPENKNOWLEDGE_RUNTIME_ROOT", root)
 	t.Setenv("TEST_RUNTIME_CONFIG", `
 [runtime]
@@ -168,7 +256,6 @@ exchange_token_env = "EXCHANGE_TOKEN"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `)
 	config, err := LoadConfig("env:TEST_RUNTIME_CONFIG")
 	if err != nil {
@@ -194,7 +281,6 @@ token_env = "TOKEN"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `))
 	if err == nil || !strings.Contains(err.Error(), "plain HTTP") {
 		t.Fatalf("expected public HTTP refusal, got %v", err)
@@ -211,7 +297,6 @@ path = "artifacts"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `
 	tests := []struct {
 		name    string
@@ -220,10 +305,10 @@ publish = true
 		want    string
 	}{
 		{name: "store", replace: `type = "filesystem"`, with: `type = "s3"`, want: "must be filesystem"},
-		{name: "route", replace: `publish = true`, with: "publish = true\nroute = \"../private\"", want: "must start with /"},
+		{name: "route", replace: `path = "Wiki"`, with: "path = \"Wiki\"\nroute = \"../private\"", want: "must start with /"},
 		{name: "id", replace: `id = "wiki"`, with: `id = "../wiki"`, want: "must contain only"},
 		{name: "dot id", replace: `id = "wiki"`, with: `id = ".."`, want: "must contain only"},
-		{name: "branch traversal", replace: `publish = true`, with: "publish = true\n[worker]\nproduction_branch = \"feature/../main\"", want: "production_branch is invalid"},
+		{name: "branch traversal", replace: `path = "Wiki"`, with: "path = \"Wiki\"\n[worker]\nproduction_branch = \"feature/../main\"", want: "production_branch is invalid"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -250,7 +335,6 @@ require_sources = true
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `
 	config, err := ParseConfig([]byte(fmt.Sprintf(base, "machine-confirmed", `["stable"]`)))
 	if err != nil {
@@ -290,7 +374,6 @@ retention = "24h"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `
 	if _, err := ParseConfig([]byte(content)); err == nil || !strings.Contains(err.Error(), "capture_queries requires enabled") {
 		t.Fatalf("expected explicit usage query capture refusal, got %v", err)
@@ -312,7 +395,6 @@ required_checks = %s
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `
 	config, err := ParseConfig([]byte(fmt.Sprintf(base, true, `["Verify", "Knowledge Eval"]`)))
 	if err != nil {
@@ -354,7 +436,6 @@ auto_merge_low_risk = true
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `
 	if _, err := ParseConfig([]byte(fmt.Sprintf(base, true, `["Verify"]`))); err != nil {
 		t.Fatalf("valid low-risk auto merge rejected: %v", err)

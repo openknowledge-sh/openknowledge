@@ -3,11 +3,12 @@
   "$id": "https://openknowledge.sh/schemas/cli/v1/runtime-plan.schema.json",
   "title": "Open Knowledge runtime plan v1",
   "type": "object",
-  "required": ["schemaVersion", "config", "stateDir", "artifactStore", "serve", "worker", "github", "knowledgeBases", "accessProfiles"],
+  "required": ["schemaVersion", "config", "stateDir", "releasePolicy", "artifactStore", "serve", "worker", "github", "knowledgeBases", "accessProfiles"],
   "properties": {
     "schemaVersion": {"const": "1"},
     "config": {"type": "string", "minLength": 1},
     "stateDir": {"type": "string", "minLength": 1},
+    "releasePolicy": {"enum": ["follow-main", "last-passing"]},
     "artifactStore": {"$ref": "#/$defs/artifactStore"},
     "serve": {"$ref": "#/$defs/serve"},
     "worker": {"$ref": "#/$defs/worker"},
@@ -40,7 +41,7 @@
         "poll_interval": {"type": "string"},
         "request_timeout": {"type": "string"},
         "max_concurrency": {"type": "integer", "minimum": 1},
-        "mcp_access": {"type": "string"},
+        "mcp_access": {"enum": ["public", "token"]},
         "mcp_token_env": {"type": "string"},
         "allowed_origins": {"type": "array", "items": {"type": "string"}},
         "retrieval_policy": {"$ref": "#/$defs/retrievalPolicy"},
@@ -109,14 +110,17 @@
     },
     "knowledgeBase": {
       "type": "object",
-      "required": ["id", "path", "route", "spec", "publish", "mcp"],
+      "required": ["id", "path", "route", "spec", "outputs"],
       "properties": {
         "id": {"type": "string", "minLength": 1},
         "path": {"type": "string", "minLength": 1},
         "route": {"type": "string"},
         "spec": {"type": "string", "minLength": 1},
-        "publish": {"type": "boolean"},
-        "mcp": {"type": "boolean"}
+        "outputs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["viewer", "mcp"]}
+        }
       },
       "additionalProperties": false
     },

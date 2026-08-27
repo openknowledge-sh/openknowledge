@@ -67,8 +67,15 @@ func buildPublicationSetWithVersion(root string, version string, target Publicat
 	if err != nil {
 		return PublicationSet{}, err
 	}
-	if !config.Publish.Enabled {
-		return PublicationSet{}, fmt.Errorf("public artifact publishing is disabled; set [publish] enabled = true in %s", ValidationConfigFile)
+	if target == "" && len(config.Release.Outputs) == 0 {
+		return PublicationSet{}, fmt.Errorf("release outputs are disabled; set release.outputs to viewer, mcp, or both in %s", ValidationConfigFile)
+	}
+	requiredOutput := ReleaseOutputViewer
+	if target == PublicationTargetMCP {
+		requiredOutput = ReleaseOutputMCP
+	}
+	if target != "" && !config.Release.HasOutput(requiredOutput) {
+		return PublicationSet{}, fmt.Errorf("publication target %s requires release.outputs to include %s in %s", target, requiredOutput, ValidationConfigFile)
 	}
 
 	markdownPaths := make(map[string]bool, len(bundle.Files))

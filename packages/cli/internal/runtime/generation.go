@@ -21,6 +21,8 @@ const (
 	GenerationManifestVersion = 1
 	ActivePointerFile         = "active.json"
 	ActivePointerType         = "openknowledge.active-generation"
+	GenerationHealthPassing   = "passing"
+	GenerationHealthDegraded  = "degraded"
 )
 
 type GenerationFile struct {
@@ -36,6 +38,7 @@ type GenerationManifest struct {
 	Commit          string           `json:"commit"`
 	Spec            string           `json:"spec"`
 	ContentDigest   string           `json:"contentDigest"`
+	Health          string           `json:"health,omitempty"`
 	Checks          []string         `json:"checks,omitempty"`
 	Files           []GenerationFile `json:"files"`
 }
@@ -54,7 +57,11 @@ func WriteGenerationManifest(root string, knowledgeBaseID string, commit string,
 }
 
 func WriteGenerationManifestWithChecks(root string, knowledgeBaseID string, commit string, spec string, checks []string) (GenerationManifest, error) {
-	manifest, err := BuildGenerationManifestWithChecks(root, knowledgeBaseID, commit, spec, checks)
+	return WriteGenerationManifestWithHealth(root, knowledgeBaseID, commit, spec, checks, GenerationHealthPassing)
+}
+
+func WriteGenerationManifestWithHealth(root string, knowledgeBaseID string, commit string, spec string, checks []string, health string) (GenerationManifest, error) {
+	manifest, err := BuildGenerationManifestWithHealth(root, knowledgeBaseID, commit, spec, checks, health)
 	if err != nil {
 		return GenerationManifest{}, err
 	}
@@ -74,11 +81,18 @@ func BuildGenerationManifest(root string, knowledgeBaseID string, commit string,
 }
 
 func BuildGenerationManifestWithChecks(root string, knowledgeBaseID string, commit string, spec string, checks []string) (GenerationManifest, error) {
+	return BuildGenerationManifestWithHealth(root, knowledgeBaseID, commit, spec, checks, GenerationHealthPassing)
+}
+
+func BuildGenerationManifestWithHealth(root string, knowledgeBaseID string, commit string, spec string, checks []string, health string) (GenerationManifest, error) {
 	if !validID(knowledgeBaseID) {
 		return GenerationManifest{}, fmt.Errorf("invalid knowledge base id: %s", knowledgeBaseID)
 	}
 	if strings.TrimSpace(commit) == "" || strings.ContainsAny(commit, "/\\") {
 		return GenerationManifest{}, fmt.Errorf("generation commit is required and must not contain path separators")
+	}
+	if health != GenerationHealthPassing && health != GenerationHealthDegraded {
+		return GenerationManifest{}, fmt.Errorf("generation health must be passing or degraded")
 	}
 	checks = append([]string{}, checks...)
 	if len(checks) > 100 {
@@ -103,6 +117,7 @@ func BuildGenerationManifestWithChecks(root string, knowledgeBaseID string, comm
 		KnowledgeBaseID: knowledgeBaseID,
 		Commit:          commit,
 		Spec:            spec,
+		Health:          health,
 		Checks:          checks,
 		Files:           files,
 	}
@@ -125,6 +140,10 @@ func LoadAndValidateGeneration(root string) (GenerationManifest, error) {
 	if !validID(manifest.KnowledgeBaseID) || strings.TrimSpace(manifest.Commit) == "" {
 		return GenerationManifest{}, fmt.Errorf("invalid generation identity")
 	}
+	legacyHealth := manifest.Health == ""
+	if !legacyHealth && manifest.Health != GenerationHealthPassing && manifest.Health != GenerationHealthDegraded {
+		return GenerationManifest{}, fmt.Errorf("generation health must be passing or degraded")
+	}
 	if !sort.StringsAreSorted(manifest.Checks) {
 		return GenerationManifest{}, fmt.Errorf("generation checks must be sorted")
 	}
@@ -142,6 +161,9 @@ func LoadAndValidateGeneration(root string) (GenerationManifest, error) {
 	}
 	if generationContentDigest(manifest) != manifest.ContentDigest {
 		return GenerationManifest{}, fmt.Errorf("generation content digest mismatch")
+	}
+	if legacyHealth {
+		manifest.Health = GenerationHealthPassing
 	}
 	actual, err := generationFiles(root)
 	if err != nil {

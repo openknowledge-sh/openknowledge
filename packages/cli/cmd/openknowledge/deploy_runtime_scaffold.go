@@ -122,6 +122,13 @@ func scaffoldRailwayRuntime(knowledgeInput string, options deployRuntimeScaffold
 	if knowledgeID == "" {
 		knowledgeID = "knowledge"
 	}
+	projectConfig, err := okf.LoadProjectConfig(root)
+	if err != nil {
+		return deployRuntimeScaffoldResult{}, err
+	}
+	if len(projectConfig.Release.Outputs) == 0 {
+		return deployRuntimeScaffoldResult{}, fmt.Errorf("runtime setup requires at least one release output (viewer or mcp) in %s", filepath.Join(root, okf.ValidationConfigFile))
+	}
 	runtimes, err := resolveDeployAgentRuntimes(repoRoot, options.Runtimes, false)
 	if err != nil {
 		return deployRuntimeScaffoldResult{}, err
@@ -142,7 +149,7 @@ func scaffoldRailwayRuntime(knowledgeInput string, options deployRuntimeScaffold
 	}
 	dockerfile := renderDeployRuntimeDockerfile(openKnowledgeVersion, runtimes, versions)
 	entrypoint := renderDeployRuntimeEntrypoint()
-	runtimeConfig := renderDeployRuntimeConfig(knowledgeID, knowledgePath, options.RunJobs, options.KnowledgeCI, runtimes, options.GitHubRepository, options.RequiredChecks)
+	runtimeConfig := renderDeployRuntimeConfig(knowledgeID, knowledgePath, options.RunJobs, options.KnowledgeCI, runtimes, options.GitHubRepository, options.RequiredChecks, projectConfig.Release.Branch, projectConfig.Release.Policy)
 	dockerfilePath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeDockerfile))
 	entrypointPath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeEntrypoint))
 	runtimeConfigPath := filepath.Join(repoRoot, filepath.FromSlash(deployRuntimeConfig))
@@ -268,7 +275,7 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/openknowledge-runtime-entrypo
 `, openKnowledgeVersion, arguments.String(), install)
 }
 
-func renderDeployRuntimeConfig(knowledgeID string, knowledgePath string, runJobs bool, knowledgeCI bool, runtimes []string, githubRepository string, requiredChecks []string) string {
+func renderDeployRuntimeConfig(knowledgeID string, knowledgePath string, runJobs bool, knowledgeCI bool, runtimes []string, githubRepository string, requiredChecks []string, releaseBranch string, releasePolicy string) string {
 	runtimeList := ""
 	if len(runtimes) > 0 {
 		quoted := make([]string, 0, len(runtimes))
@@ -285,6 +292,7 @@ func renderDeployRuntimeConfig(knowledgeID string, knowledgePath string, runJobs
 	return fmt.Sprintf(`[runtime]
 state_dir = "/tmp/openknowledge"
 require_resolved_claims = true
+release_policy = %q
 
 [artifact_store]
 type = "filesystem"
@@ -301,7 +309,7 @@ mcp_token_env = "OPENKNOWLEDGE_MCP_TOKEN"
 [worker]
 repo = "/workspace"
 remote = "origin"
-production_branch = "main"
+production_branch = %q
 poll_interval = "30s"
 run_jobs = %t
 knowledge_ci = %t
@@ -314,9 +322,7 @@ id = %q
 path = %q
 route = "/"
 spec = "latest"
-publish = true
-mcp = true
-`, runJobs, knowledgeCI, runtimeList, githubConfig, knowledgeID, knowledgePath)
+`, releasePolicy, releaseBranch, runJobs, knowledgeCI, runtimeList, githubConfig, knowledgeID, knowledgePath)
 }
 
 func renderDeployRuntimeEntrypoint() string {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -99,7 +100,7 @@ func TestRuntimeExchangeCommitRejectsRemovedVerifiedClaimHistory(t *testing.T) {
 	runGit(t, repo, "config", "user.email", "runtime@example.test")
 	runGit(t, repo, "config", "user.name", "Runtime Test")
 	writeMainTestFile(t, repo, "Wiki/index.md", "---\nokf_version: \"0.2\"\n---\n\n# Wiki\n")
-	writeMainTestFile(t, repo, "Wiki/.openknowledge.toml", "[publish]\nenabled = true\n")
+	writeMainTestFile(t, repo, "Wiki/.openknowledge.toml", "[release]\noutputs = [\"viewer\", \"mcp\"]\n")
 	writeMainTestFile(t, repo, "Wiki/auth.md", mainTypedClaimDocument("okn:claim/token-format/1", "verified", "JWT"))
 	runGit(t, repo, "add", ".")
 	runGit(t, repo, "commit", "-m", "base")
@@ -111,7 +112,7 @@ func TestRuntimeExchangeCommitRejectsRemovedVerifiedClaimHistory(t *testing.T) {
 	config := okruntime.Config{
 		Root:           repo,
 		Runtime:        okruntime.RuntimeConfig{StateDir: filepath.Join(t.TempDir(), "state")},
-		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "wiki", Path: filepath.Join(repo, "Wiki"), Spec: "0.2", Publish: true}},
+		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "wiki", Path: filepath.Join(repo, "Wiki"), Spec: "0.2", Outputs: []string{okf.ReleaseOutputViewer}}},
 	}
 	if _, err := validateRuntimeExchangeCommit(context.Background(), config, repo, base, head); err == nil || !strings.Contains(err.Error(), "cannot be removed") {
 		t.Fatalf("publisher accepted removed verified claim history: %v", err)
@@ -246,7 +247,7 @@ func TestRuntimeHostedMaintenanceRecordsInterventionThroughPublishedGeneration(t
 	runGit(t, repo, "config", "user.email", "runtime@example.test")
 	runGit(t, repo, "config", "user.name", "Runtime Test")
 	writeMainTestFile(t, repo, "Wiki/index.md", "---\nokf_version: \"0.2\"\n---\n\n# Knowledge\n")
-	writeMainTestFile(t, repo, "Wiki/.openknowledge.toml", "[publish]\nenabled = true\n")
+	writeMainTestFile(t, repo, "Wiki/.openknowledge.toml", "[release]\noutputs = [\"viewer\", \"mcp\"]\n")
 	writeMainTestFile(t, repo, "Wiki/guide.md", "---\ntype: Guide\ntitle: Guide\n---\n\n# Guide\n\nOld.\n")
 	insight := `---
 type: Open Knowledge Insight
@@ -287,7 +288,7 @@ tags: [insight]
 	config := okruntime.Config{
 		Root: repo, Runtime: okruntime.RuntimeConfig{StateDir: state},
 		ArtifactStore:  okruntime.ArtifactStoreConfig{Type: "filesystem", Path: filepath.Join(state, "artifacts")},
-		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "docs", Path: filepath.Join(repo, "Wiki"), Spec: "0.2", Publish: true}},
+		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "docs", Path: filepath.Join(repo, "Wiki"), Spec: "0.2", Outputs: []string{okf.ReleaseOutputViewer}}},
 		GitHub:         okruntime.GitHubConfig{RequiredChecks: []string{"Verify"}},
 		Worker:         okruntime.WorkerConfig{ExchangeDir: filepath.Join(state, "exchange")},
 	}
@@ -427,7 +428,7 @@ func TestRuntimeBuildAndServeUseOnlyVerifiedPublicGeneration(t *testing.T) {
 	writeViewerFile(t, root, "Wiki/assets/public/logo.svg", "<svg/>\n")
 	writeViewerFile(t, root, "Wiki/secret.txt", "private\n")
 	writeViewerFile(t, root, "Wiki/.openknowledge/agent.log", "private log\n")
-	writeViewerFile(t, root, "Wiki/.openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\"]\n")
+	writeViewerFile(t, root, "Wiki/.openknowledge.toml", "[release]\noutputs = [\"viewer\", \"mcp\"]\n\n[publish]\nassets = [\"assets/public/**\"]\n")
 	configPath := filepath.Join(root, "runtime.toml")
 	writeViewerFile(t, root, "runtime.toml", `
 [runtime]
@@ -446,8 +447,6 @@ allowed_origins = ["https://allowed.example"]
 id = "wiki"
 path = "Wiki"
 route = "/"
-publish = true
-mcp = true
 `)
 	config, err := okruntime.LoadConfig(configPath)
 	if err != nil {
@@ -571,15 +570,20 @@ path = "artifacts"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `)
 	config, err := okruntime.LoadConfig(filepath.Join(root, "runtime.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	config.GitHub.RequiredChecks = []string{"Knowledge Eval", "Verify"}
+	config.Runtime.ReleasePolicy = okruntime.ReleasePolicyLastPassing
 	if _, err := buildRuntimeKnowledgeGeneration(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "unattested"), true); err == nil || !strings.Contains(err.Error(), "requires verified GitHub checks") {
 		t.Fatalf("expected unattested publication refusal, got %v", err)
+	}
+	config.Runtime.ReleasePolicy = okruntime.ReleasePolicyFollowMain
+	degraded, err := buildRuntimeKnowledgeGeneration(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "degraded"), true)
+	if err != nil || degraded.Health != okruntime.GenerationHealthDegraded || degraded.Published == nil {
+		t.Fatalf("follow-main did not activate buildable degraded generation: result=%#v err=%v", degraded, err)
 	}
 	result, err := buildRuntimeKnowledgeGenerationWithChecks(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "attested"), true, []string{"Knowledge Eval", "Verify"})
 	if err != nil {
@@ -589,7 +593,7 @@ publish = true
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(manifest.Checks, config.GitHub.RequiredChecks) {
+	if manifest.Health != okruntime.GenerationHealthPassing || !reflect.DeepEqual(manifest.Checks, config.GitHub.RequiredChecks) {
 		t.Fatalf("generation did not bind required checks: %#v", manifest.Checks)
 	}
 }
@@ -615,7 +619,7 @@ func TestRuntimeKnowledgeCIPassPersistsReportsAndBlocksChangedSource(t *testing.
 		ArtifactStore: okruntime.ArtifactStoreConfig{Type: "filesystem", Path: filepath.Join(repo, "artifacts")},
 		Worker:        okruntime.WorkerConfig{KnowledgeCI: true},
 	}
-	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Path: root, Spec: "latest", Publish: true}
+	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Path: root, Spec: "latest", Outputs: []string{okf.ReleaseOutputViewer}}
 	commit := strings.Repeat("a", 40)
 	if err := runtimeKnowledgeCIPass(config, repo, knowledge, commit); err != nil {
 		t.Fatal(err)
@@ -629,6 +633,11 @@ func TestRuntimeKnowledgeCIPassPersistsReportsAndBlocksChangedSource(t *testing.
 	writeViewerFile(t, root, "policy.md", "---\ntype: Source\ntitle: API policy\nowner: team:platform\n---\n\n# Policy\n\nUse /v2/users.\n")
 	if err := runtimeKnowledgeCIPass(config, repo, knowledge, strings.Repeat("b", 40)); err == nil || !strings.Contains(err.Error(), "audit high-severity") {
 		t.Fatalf("expected changed source to block runtime CI, got %v", err)
+	} else {
+		var gateErr *runtimeQualityGateError
+		if !errors.As(err, &gateErr) {
+			t.Fatalf("quality failure was not classified for follow-main: %T", err)
+		}
 	}
 }
 
@@ -648,14 +657,19 @@ path = "artifacts"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `)
 	config, err := okruntime.LoadConfig(filepath.Join(root, "runtime.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	config.Runtime.ReleasePolicy = okruntime.ReleasePolicyLastPassing
 	if _, err := buildRuntimeKnowledgeGenerationWithChecks(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "candidate"), true, nil); err == nil || !strings.Contains(err.Error(), "unresolved claim") {
 		t.Fatalf("expected unresolved release refusal, got %v", err)
+	}
+	config.Runtime.ReleasePolicy = okruntime.ReleasePolicyFollowMain
+	result, err := buildRuntimeKnowledgeGenerationWithChecks(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "degraded-claim-release"), true, nil)
+	if err != nil || result.Health != okruntime.GenerationHealthDegraded || result.Published == nil {
+		t.Fatalf("follow-main did not publish unresolved claim generation as degraded: result=%#v err=%v", result, err)
 	}
 	config.Runtime.RequireResolvedClaims = false
 	if _, err := buildRuntimeKnowledgeGenerationWithChecks(config, config.KnowledgeBases[0], "abc123", filepath.Join(root, "partial-release"), true, nil); err != nil {
@@ -707,7 +721,7 @@ Runtime selection policy draft. Quarantine zebra protocol.
 	if err != nil {
 		t.Fatal(err)
 	}
-	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Publish: true, MCP: true}
+	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Outputs: []string{okf.ReleaseOutputMCP, okf.ReleaseOutputViewer}}
 	snapshot := runtimeGenerationSnapshot{
 		Knowledge: knowledge,
 		Pointer:   okruntime.ActivePointer{Generation: "generation-7"},
@@ -877,7 +891,7 @@ func TestRuntimeAccessProfilesAuthorizeAndRouteRetrieval(t *testing.T) {
 		t.Fatal(err)
 	}
 	policy := okruntime.RetrievalPolicyConfig{MinimumTrust: "unverified", AllowStale: true, AllowedStatuses: []string{"draft", "stable", "deprecated"}}
-	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Publish: true, MCP: true}
+	knowledge := okruntime.KnowledgeBaseConfig{ID: "wiki", Route: "/", Outputs: []string{okf.ReleaseOutputMCP, okf.ReleaseOutputViewer}}
 	snapshot := runtimeGenerationSnapshot{Knowledge: knowledge, Pointer: okruntime.ActivePointer{Generation: "generation-1"}, Manifest: okruntime.GenerationManifest{Commit: "abc", Spec: "0.2", ContentDigest: strings.Repeat("a", 64)}, Root: root, Search: index, MCP: index}
 	support := runtimeAccessProfile{config: okruntime.AccessProfileConfig{ID: "support", KnowledgeBases: []string{"wiki"}, Agents: []string{"support-agent"}, Teams: []string{"support"}, UseCases: []string{"customer-support"}}, token: strings.Repeat("s", 32)}
 	viewer := runtimeAccessProfile{config: okruntime.AccessProfileConfig{ID: "viewer", KnowledgeBases: []string{"wiki"}, Agents: []string{"viewer-agent"}}, token: strings.Repeat("v", 32)}
@@ -947,8 +961,6 @@ path = "artifacts"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
-mcp = true
 `)
 	build := func(commit string, extra ...string) runtimeBuildResult {
 		args := []string{"--config", configPath, "--commit", commit}
@@ -1039,7 +1051,7 @@ func TestRuntimeAccessProfilesReplaceLegacyMCPToken(t *testing.T) {
 			MCPTokenEnv:    "LEGACY_TOKEN_IS_INTENTIONALLY_UNSET",
 			MaxConcurrency: 1,
 		},
-		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "wiki", Publish: true, MCP: true}},
+		KnowledgeBases: []okruntime.KnowledgeBaseConfig{{ID: "wiki", Outputs: []string{okf.ReleaseOutputMCP, okf.ReleaseOutputViewer}}},
 		AccessProfiles: []okruntime.AccessProfileConfig{{
 			ID: "support", TokenEnv: "SUPPORT_KNOWLEDGE_TOKEN", KnowledgeBases: []string{"wiki"}, Agents: []string{"support-agent"},
 		}},
@@ -1072,7 +1084,6 @@ max_concurrency = 16
 id = "wiki"
 path = "Wiki"
 route = "/"
-publish = true
 `)
 	config, err := okruntime.LoadConfig(filepath.Join(root, "runtime.toml"))
 	if err != nil {
@@ -1231,7 +1242,6 @@ path = "artifacts"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `)
 	config, err := okruntime.LoadConfig(filepath.Join(root, "runtime.toml"))
 	if err != nil {
@@ -1277,7 +1287,6 @@ exchange_dir = "publisher-exchange"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `)
 	artifactCapability := strings.Repeat("a", 40)
 	exchangeCapability := strings.Repeat("e", 40)
@@ -1400,7 +1409,6 @@ poll_interval = "1s"
 [[knowledge_bases]]
 id = "wiki"
 path = "Wiki"
-publish = true
 `)
 	runtimeGitTest(t, repository, "init", "-b", "main")
 	runtimeGitTest(t, repository, "config", "user.name", "Runtime Test")

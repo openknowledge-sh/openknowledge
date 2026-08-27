@@ -84,10 +84,13 @@ func TestRailwayRuntimeScaffoldPinsProjectOwnedPackages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{`path = "/opt/openknowledge/artifacts"`, `path = "/workspace/Wiki"`, `publish = true`} {
+	for _, expected := range []string{`path = "/opt/openknowledge/artifacts"`, `path = "/workspace/Wiki"`} {
 		if !strings.Contains(string(runtimeConfig), expected) {
 			t.Fatalf("runtime config is missing %q:\n%s", expected, runtimeConfig)
 		}
+	}
+	if strings.Contains(string(runtimeConfig), "publish =") || strings.Contains(string(runtimeConfig), "mcp =") {
+		t.Fatalf("runtime config must derive release outputs from the project config:\n%s", runtimeConfig)
 	}
 }
 

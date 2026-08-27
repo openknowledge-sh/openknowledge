@@ -180,8 +180,11 @@ func runRuntimeCachePrune(args []string) int {
 }
 
 func runtimeIndexTargets(knowledge okruntime.KnowledgeBaseConfig) []string {
-	targets := []string{okruntime.IndexTargetSearch}
-	if knowledge.MCP {
+	targets := []string{}
+	if knowledge.HasOutput(okf.ReleaseOutputViewer) {
+		targets = append(targets, okruntime.IndexTargetSearch)
+	}
+	if knowledge.HasOutput(okf.ReleaseOutputMCP) {
 		targets = append(targets, okruntime.IndexTargetMCP)
 	}
 	return targets

@@ -6,6 +6,7 @@
     "commit": "0123456789abcdef0123456789abcdef01234567",
     "spec": "0.2",
     "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "health": "passing",
     "checks": ["Knowledge Eval", "Verify"]
   },
   "access": {"profile": "support", "agents": ["support-agent"], "teams": ["support"], "useCases": ["customer-support"]},
@@ -54,6 +55,7 @@
           "commit": "0123456789abcdef0123456789abcdef01234567",
           "spec": "0.2",
           "contentDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "health": "passing",
           "checks": ["Knowledge Eval", "Verify"]
         },
         "sources": [{"id": "runbook", "resource": "https://example.test/runbook"}]

@@ -26,7 +26,7 @@ before(async () => {
   const viewer = path.join(temporary, "viewer");
   await mkdir(path.join(wiki, "guides"), { recursive: true });
   await mkdir(path.join(wiki, "assets"), { recursive: true });
-  await writeFile(path.join(wiki, ".openknowledge.toml"), "[publish]\nenabled = true\nassets = [\"assets/**\"]\n");
+  await writeFile(path.join(wiki, ".openknowledge.toml"), "[release]\noutputs = [\"viewer\"]\n\n[publish]\nassets = [\"assets/**\"]\n");
   await writeFile(
     path.join(wiki, "assets", "architecture.png"),
     Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),

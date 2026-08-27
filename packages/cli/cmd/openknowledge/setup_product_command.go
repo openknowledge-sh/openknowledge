@@ -15,7 +15,10 @@ import (
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 )
 
-const setupCIWorkflowPath = ".github/workflows/openknowledge-ci.yml"
+const (
+	setupCIWorkflowPath     = ".github/workflows/openknowledge-ci.yml"
+	setupGitHubWorkflowPath = ".github/workflows/openknowledge.yml"
+)
 
 type setupProductResult struct {
 	SchemaVersion string   `json:"schemaVersion"`
@@ -127,6 +130,112 @@ func setupKnowledgeCI(knowledgeInput string, planOnly bool, force bool) (setupPr
 	return result, nil
 }
 
+func runSetupGitHub(args []string) int {
+	if len(args) > 1 && !strings.HasPrefix(args[0], "-") {
+		args = append(append([]string(nil), args[1:]...), args[0])
+	}
+	flags := flag.NewFlagSet("setup github", flag.ContinueOnError)
+	flags.SetOutput(stderrOutput())
+	planOnly := flags.Bool("plan", false, "show the setup plan without writing files")
+	force := flags.Bool("force", false, "replace the generated GitHub workflow")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if flags.NArg() > 1 {
+		fmt.Fprintln(stderrOutput(), "setup github accepts at most one knowledge base path")
+		return 2
+	}
+	knowledge := "Wiki"
+	if flags.NArg() == 1 {
+		knowledge = flags.Arg(0)
+	}
+	result, err := setupKnowledgeGitHub(knowledge, *planOnly, *force)
+	if err != nil {
+		return printAgentCommandError(err)
+	}
+	if err := printJSON(result); err != nil {
+		return printAgentCommandError(err)
+	}
+	return 0
+}
+
+func setupKnowledgeGitHub(knowledgeInput string, planOnly bool, force bool) (setupProductResult, error) {
+	root, repo, relative, err := setupProductRoots(knowledgeInput)
+	if err != nil {
+		return setupProductResult{}, err
+	}
+	result := setupProductResult{
+		SchemaVersion: okf.MachineSchemaVersion, Profile: "github", Knowledge: root,
+		Repository: repo, Plan: planOnly, Created: []string{}, Preserved: []string{},
+	}
+	evalPath := filepath.Join(repo, ".openknowledge", "evals", "knowledge.yaml")
+	baselinePath := filepath.Join(repo, ".openknowledge", "audit-sources.json")
+	workflowPath := filepath.Join(repo, filepath.FromSlash(setupGitHubWorkflowPath))
+
+	if setupHasEvalDataset(filepath.Dir(evalPath)) {
+		result.Preserved = append(result.Preserved, filepath.Dir(evalPath))
+	} else if planOnly {
+		result.Created = append(result.Created, evalPath)
+	} else {
+		dataset, buildErr := buildStarterEvalDataset(root)
+		if buildErr != nil {
+			return result, buildErr
+		}
+		if err := knowledgeeval.WriteNewDataset(evalPath, dataset); err != nil {
+			return result, err
+		}
+		result.Created = append(result.Created, evalPath)
+	}
+
+	if _, statErr := os.Stat(baselinePath); statErr == nil && !force {
+		result.Preserved = append(result.Preserved, baselinePath)
+	} else if statErr != nil && !os.IsNotExist(statErr) {
+		return result, statErr
+	} else if planOnly {
+		result.Created = append(result.Created, baselinePath)
+	} else {
+		_, baseline, auditErr := knowledgeaudit.Run(knowledgeaudit.Options{Root: root, Spec: "latest"})
+		if auditErr != nil {
+			return result, auditErr
+		}
+		content, encodeErr := knowledgeaudit.EncodeBaseline(baseline)
+		if encodeErr != nil {
+			return result, encodeErr
+		}
+		if err := os.MkdirAll(filepath.Dir(baselinePath), 0o755); err != nil {
+			return result, err
+		}
+		if err := writeOutputFileAtomically(baselinePath, content); err != nil {
+			return result, err
+		}
+		result.Created = append(result.Created, baselinePath)
+	}
+
+	evalRelative, err := filepath.Rel(repo, setupFirstEvalDataset(filepath.Dir(evalPath), evalPath))
+	if err != nil {
+		return result, err
+	}
+	projectConfig, err := okf.LoadProjectConfig(root)
+	if err != nil {
+		return result, err
+	}
+	workflow := renderKnowledgeGitHubWorkflow(filepath.ToSlash(relative), filepath.ToSlash(evalRelative), version, projectConfig.Release.Branch)
+	existingWorkflow, workflowErr := os.ReadFile(workflowPath)
+	workflowCurrent := workflowErr == nil && string(existingWorkflow) == workflow
+	if workflowCurrent {
+		result.Preserved = append(result.Preserved, workflowPath)
+	} else if planOnly {
+		result.Created = append(result.Created, workflowPath)
+	} else if err := writeDeployRuntimeScaffoldFile(workflowPath, []byte(workflow), 0o644, force); err != nil {
+		return result, err
+	} else {
+		result.Created = append(result.Created, workflowPath)
+	}
+	sort.Strings(result.Created)
+	sort.Strings(result.Preserved)
+	return result, nil
+}
+
 func runSetupRuntime(args []string) int {
 	flags := flag.NewFlagSet("setup runtime", flag.ContinueOnError)
 	flags.SetOutput(stderrOutput())
@@ -160,9 +269,16 @@ func setupKnowledgeRuntime(knowledgeInput string, executor string, runtimes stri
 	if err != nil {
 		return setupProductResult{}, err
 	}
+	projectConfig, err := okf.LoadProjectConfig(root)
+	if err != nil {
+		return setupProductResult{}, err
+	}
+	if len(projectConfig.Release.Outputs) == 0 {
+		return setupProductResult{}, fmt.Errorf("setup runtime requires at least one release output (viewer or mcp) in %s", filepath.Join(root, okf.ValidationConfigFile))
+	}
 	executor = strings.ToLower(strings.TrimSpace(executor))
 	if executor == "auto" {
-		if _, statErr := os.Stat(filepath.Join(repo, filepath.FromSlash(setupCIWorkflowPath))); statErr == nil {
+		if _, statErr := os.Stat(filepath.Join(repo, filepath.FromSlash(setupGitHubWorkflowPath))); statErr == nil {
 			executor = "github-actions"
 		} else {
 			executor = "runtime"
@@ -214,7 +330,7 @@ func setupKnowledgeRuntime(knowledgeInput string, executor string, runtimes stri
 	}
 	requiredChecks := []string{}
 	if executor == "github-actions" {
-		requiredChecks = []string{"knowledge-ci"}
+		requiredChecks = []string{"Open Knowledge checks"}
 	}
 	_, err = scaffoldRailwayRuntime(root, deployRuntimeScaffoldOptions{
 		Runtimes: runtimes, OpenKnowledgeVersion: version, CodexVersion: defaultCodexRuntimeVersion,
@@ -226,7 +342,7 @@ func setupKnowledgeRuntime(knowledgeInput string, executor string, runtimes stri
 		return result, err
 	}
 	if executor == "runtime" {
-		content := renderKnowledgeMaintenanceJob(filepath.ToSlash(mustRelative(repo, root)), firstRuntimeName(runtimes))
+		content := renderKnowledgeMaintenanceJob(filepath.ToSlash(mustRelative(repo, root)), firstRuntimeName(runtimes), projectConfig.Release.Branch)
 		if err := writeDeployRuntimeScaffoldFile(jobPath, []byte(content), 0o644, force); err != nil {
 			return result, err
 		}
@@ -281,6 +397,10 @@ func setupRuntimeKnowledgeAssets(root string, repo string, planOnly bool, force 
 
 func setupProductRoots(knowledgeInput string) (string, string, string, error) {
 	root, err := okf.ResolveKnowledgeRoot(knowledgeInput)
+	if err != nil {
+		return "", "", "", err
+	}
+	root, err = filepath.Abs(root)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -371,6 +491,60 @@ func setupFirstEvalDataset(directory string, fallback string) string {
 	}
 	sort.Strings(paths)
 	return paths[0]
+}
+
+func renderKnowledgeGitHubWorkflow(knowledgePath string, evalPath string, cliVersion string, releaseBranch string) string {
+	return fmt.Sprintf(`name: Open Knowledge
+
+on:
+  pull_request:
+  push:
+    branches: [%s]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Open Knowledge checks
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - uses: openknowledge-sh/openknowledge@v%s
+        with:
+          version: %s
+          path: %s
+          eval: %s
+          baseline: .openknowledge/audit-sources.json
+
+  maintenance:
+    name: Open Knowledge maintenance
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - uses: openknowledge-sh/openknowledge@v%s
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENKNOWLEDGE_MODEL_TOKEN: ${{ secrets.OPENKNOWLEDGE_MODEL_TOKEN }}
+        with:
+          version: %s
+          path: %s
+          eval: %s
+          baseline: .openknowledge/audit-sources.json
+`, jsonString(releaseBranch), cliVersion, cliVersion, jsonString(knowledgePath), jsonString(evalPath), cliVersion, cliVersion, jsonString(knowledgePath), jsonString(evalPath))
 }
 
 func renderKnowledgeCIWorkflow(knowledgePath string, evalPath string, cliVersion string) string {
@@ -494,7 +668,7 @@ jobs:
 `, cliVersion, jsonString(knowledgePath), jsonString(knowledgePath), jsonString(knowledgePath), jsonString(knowledgePath), jsonString(evalPath))
 }
 
-func renderKnowledgeMaintenanceJob(knowledgePath string, runtimeName string) string {
+func renderKnowledgeMaintenanceJob(knowledgePath string, runtimeName string, releaseBranch string) string {
 	return fmt.Sprintf(`---
 id: knowledge-maintenance
 enabled: true
@@ -506,7 +680,7 @@ agent:
   timeout: 45m
 workspace:
   repo: "."
-  base: main
+  base: %s
   strategy: branch
   branch: "jobs/{{id}}/{{date}}-{{run_id}}"
   dirty_policy: fail
@@ -536,7 +710,7 @@ openknowledge audit %s --baseline .openknowledge/audit-sources.json \
 Convert actionable findings with openknowledge audit propose. Apply only evidence-backed changes.
 After an accepted source change, update the same baseline in the proposed branch.
 Preserve unresolved conflicts and request an owner decision. End with COMPLETE.
-`, runtimeName, knowledgePath, knowledgePath, knowledgePath)
+`, runtimeName, jsonString(releaseBranch), knowledgePath, knowledgePath, knowledgePath)
 }
 
 func jsonString(value string) string {

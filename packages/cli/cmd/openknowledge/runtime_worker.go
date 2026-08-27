@@ -219,11 +219,17 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 	}
 	runtimeInfof("runtime worker synchronized %s at %s\n", config.Worker.ProductionBranch, commit)
 	verifiedChecks := []string{}
+	publicationHealth := okruntime.GenerationHealthPassing
 	if len(config.GitHub.RequiredChecks) > 0 {
 		client := okruntime.GitHubClient{APIURL: config.GitHub.APIURL, Repository: config.GitHub.Repository, Token: token}
 		verifiedChecks, err = client.RequireSuccessfulChecks(ctx, commit, config.GitHub.RequiredChecks)
 		if err != nil {
-			return fmt.Errorf("production commit %s is not publishable: %w", commit, err)
+			var gateErr *okruntime.CheckGateError
+			if config.Runtime.EffectiveReleasePolicy() != okruntime.ReleasePolicyFollowMain || !errors.As(err, &gateErr) {
+				return fmt.Errorf("production commit %s is not publishable: %w", commit, err)
+			}
+			publicationHealth = okruntime.GenerationHealthDegraded
+			fmt.Fprintf(stderrOutput(), "runtime worker follows %s with degraded health: %v\n", config.Worker.ProductionBranch, err)
 		}
 	}
 	if err := publishRuntimeSourceBundle(ctx, config, checkout); err != nil {
@@ -231,7 +237,7 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 	}
 	var failures []error
 	for _, knowledge := range config.KnowledgeBases {
-		if !knowledge.Publish {
+		if !knowledge.Released() {
 			continue
 		}
 		mapped, err := mapRuntimeKnowledgeToCheckout(config, knowledge, checkout)
@@ -239,32 +245,43 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 			failures = append(failures, fmt.Errorf("%s: %w", knowledge.ID, err))
 			continue
 		}
-		if runtimeStoreAlreadyPublishes(config, mapped.ID, commit) {
-			if err := reconcileRuntimeInterventionPublication(config, mapped.ID, commit); err != nil {
-				failures = append(failures, fmt.Errorf("publish %s intervention log: %w", mapped.ID, err))
+		publicationChecks := append([]string{}, verifiedChecks...)
+		health := publicationHealth
+		if config.Worker.KnowledgeCI {
+			if err := runtimeKnowledgeCIPass(config, checkout, mapped, commit); err != nil {
+				var gateErr *runtimeQualityGateError
+				if config.Runtime.EffectiveReleasePolicy() != okruntime.ReleasePolicyFollowMain || !errors.As(err, &gateErr) {
+					failures = append(failures, fmt.Errorf("knowledge CI %s: %w", mapped.ID, err))
+					continue
+				}
+				health = okruntime.GenerationHealthDegraded
+				fmt.Fprintf(stderrOutput(), "runtime worker follows %s for %s with degraded health: %v\n", config.Worker.ProductionBranch, mapped.ID, err)
+			} else {
+				publicationChecks = append(publicationChecks, "openknowledge-runtime-ci")
+				sort.Strings(publicationChecks)
+			}
+		}
+		if runtimeStoreAlreadyPublishes(config, mapped.ID, commit, publicationChecks, health) {
+			if health == okruntime.GenerationHealthPassing {
+				if err := reconcileRuntimeInterventionPublication(config, mapped.ID, commit); err != nil {
+					failures = append(failures, fmt.Errorf("publish %s intervention log: %w", mapped.ID, err))
+				}
 			}
 			continue
 		}
-		publicationChecks := append([]string{}, verifiedChecks...)
-		if config.Worker.KnowledgeCI {
-			if err := runtimeKnowledgeCIPass(config, checkout, mapped, commit); err != nil {
-				failures = append(failures, fmt.Errorf("knowledge CI %s: %w", mapped.ID, err))
-				continue
-			}
-			publicationChecks = append(publicationChecks, "openknowledge-runtime-ci")
-			sort.Strings(publicationChecks)
-		}
 		out := filepath.Join(config.Runtime.StateDir, "builds", mapped.ID)
-		result, err := buildRuntimeKnowledgeGenerationWithChecks(config, mapped, commit, out, true, publicationChecks)
+		result, err := buildRuntimeKnowledgeGenerationWithHealth(config, mapped, commit, out, true, publicationChecks, health)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("publish %s: %w", mapped.ID, err))
 			continue
 		}
-		if err := reconcileRuntimeInterventionPublication(config, mapped.ID, commit); err != nil {
-			failures = append(failures, fmt.Errorf("publish %s intervention log: %w", mapped.ID, err))
-			continue
+		if health == okruntime.GenerationHealthPassing {
+			if err := reconcileRuntimeInterventionPublication(config, mapped.ID, commit); err != nil {
+				failures = append(failures, fmt.Errorf("publish %s intervention log: %w", mapped.ID, err))
+				continue
+			}
 		}
-		runtimeInfof("runtime worker published %s generation %s\n", mapped.ID, result.Generation)
+		runtimeInfof("runtime worker published %s generation %s health %s\n", mapped.ID, result.Generation, result.Health)
 	}
 	if config.Worker.RunJobs && config.GitHub.Enabled {
 		if err := publishRuntimeExchangePullRequests(ctx, config, checkout, token); err != nil {
@@ -272,6 +289,18 @@ func runtimePublisherPass(ctx context.Context, config okruntime.Config) error {
 		}
 	}
 	return errors.Join(failures...)
+}
+
+type runtimeQualityGateError struct {
+	message string
+}
+
+func (err *runtimeQualityGateError) Error() string {
+	return err.message
+}
+
+func runtimeQualityFailure(message string) error {
+	return &runtimeQualityGateError{message: message}
 }
 
 func runtimeKnowledgeCIPass(config okruntime.Config, checkout string, knowledge okruntime.KnowledgeBaseConfig, commit string) (resultErr error) {
@@ -348,7 +377,7 @@ status: stable
 		return err
 	}
 	if !claimsReport.Valid {
-		return fmt.Errorf("claim lifecycle gate failed")
+		return runtimeQualityFailure("claim lifecycle gate failed")
 	}
 
 	baselinePath := filepath.Join(checkout, ".openknowledge", "audit-sources.json")
@@ -369,7 +398,7 @@ status: stable
 		return err
 	}
 	if auditFails(auditReport, "high") {
-		return fmt.Errorf("audit high-severity gate failed")
+		return runtimeQualityFailure("audit high-severity gate failed")
 	}
 
 	datasetPath := filepath.Join(checkout, ".openknowledge", "evals", "knowledge.yaml")
@@ -385,11 +414,11 @@ status: stable
 		if err := writeOutputFileAtomically(filepath.Join(reportDir, "eval.md"), []byte(knowledgeeval.RenderMarkdown(report))); err != nil {
 			return err
 		}
+		if report.Summary.Status != "pass" {
+			return runtimeQualityFailure("runtime eval gate failed")
+		}
 		if evalErr != nil {
 			return evalErr
-		}
-		if report.Summary.Status != "pass" {
-			return fmt.Errorf("runtime eval gate failed")
 		}
 	} else {
 		report, evalErr := knowledgeeval.Compare(knowledge.Path, knowledge.Spec, dataset, baseCommit, knowledgeeval.GateRegressions)
@@ -399,11 +428,11 @@ status: stable
 		if err := writeOutputFileAtomically(filepath.Join(reportDir, "eval.md"), []byte(knowledgeeval.RenderComparisonMarkdown(report))); err != nil {
 			return err
 		}
+		if report.Summary.Status != "pass" {
+			return runtimeQualityFailure("runtime eval regression gate failed")
+		}
 		if evalErr != nil {
 			return evalErr
-		}
-		if report.Summary.Status != "pass" {
-			return fmt.Errorf("runtime eval regression gate failed")
 		}
 	}
 	return nil
@@ -667,14 +696,14 @@ func mapRuntimeKnowledgeToCheckout(config okruntime.Config, knowledge okruntime.
 	return knowledge, nil
 }
 
-func runtimeStoreAlreadyPublishes(config okruntime.Config, knowledgeID string, commit string) bool {
+func runtimeStoreAlreadyPublishes(config okruntime.Config, knowledgeID string, commit string, checks []string, health string) bool {
 	store := okruntime.FilesystemStore{Root: config.ArtifactStore.Path}
 	_, root, err := store.Active(knowledgeID)
 	if err != nil {
 		return false
 	}
 	manifest, err := okruntime.LoadAndValidateGeneration(root)
-	return err == nil && manifest.Commit == commit && equalStringLists(manifest.Checks, runtimeRequiredPublicationChecks(config))
+	return err == nil && manifest.Commit == commit && manifest.Health == health && equalStringLists(manifest.Checks, checks)
 }
 
 func runRuntimeAgentPass(ctx context.Context, config okruntime.Config, checkout string, runtimeName string) error {
@@ -1388,7 +1417,7 @@ func runtimeInterventionTargets(ctx context.Context, config okruntime.Config, ch
 	}
 	result := map[string][]string{}
 	for _, knowledge := range config.KnowledgeBases {
-		if !knowledge.Publish {
+		if !knowledge.Released() {
 			continue
 		}
 		prefix, err := filepath.Rel(config.Root, knowledge.Path)
@@ -1413,7 +1442,7 @@ func runtimeInterventionTargets(ctx context.Context, config okruntime.Config, ch
 		}
 	}
 	if len(result) == 0 {
-		return nil, fmt.Errorf("maintenance exchange changes no published knowledge base")
+		return nil, fmt.Errorf("maintenance exchange changes no released knowledge base")
 	}
 	return result, nil
 }
@@ -1654,7 +1683,7 @@ func validateRuntimeExchangeCommit(ctx context.Context, config okruntime.Config,
 	defer removeRuntimeVerificationWorktree(config, checkout, baseWorktree)
 	now := time.Now().UTC()
 	for _, knowledge := range config.KnowledgeBases {
-		if !knowledge.Publish {
+		if !knowledge.Released() {
 			continue
 		}
 		relative, err := filepath.Rel(config.Root, knowledge.Path)

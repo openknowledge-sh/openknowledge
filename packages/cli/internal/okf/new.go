@@ -143,7 +143,7 @@ func newProjectConfigContent(ruleIDs []string) string {
 	for _, id := range ruleIDs {
 		quoted = append(quoted, fmt.Sprintf("%q", id))
 	}
-	return "# Open Knowledge bundle configuration.\n\n[rules]\nenabled = [" + strings.Join(quoted, ", ") + "]\n"
+	return "# Open Knowledge bundle configuration.\n\n[release]\noutputs = []\n\n[rules]\nenabled = [" + strings.Join(quoted, ", ") + "]\n"
 }
 
 func newIndexContent(title string, metadata BundleMetadata, options NewProjectOptions) string {

@@ -54,5 +54,3 @@ checks = true
 id = "wiki"
 path = "Wiki"
 route = "/"
-publish = true
-mcp = true

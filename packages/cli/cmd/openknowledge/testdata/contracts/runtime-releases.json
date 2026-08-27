@@ -9,6 +9,7 @@
       "commit": "first",
       "spec": "0.2",
       "contentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "health": "passing",
       "checks": [
         "Knowledge Eval"
       ],
@@ -20,6 +21,7 @@
       "commit": "second",
       "spec": "0.2",
       "contentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "health": "degraded",
       "checks": [
         "Knowledge Eval"
       ],

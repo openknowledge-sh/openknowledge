@@ -902,7 +902,7 @@ func TestViewerServesSandboxedSVGImagesWithTheirMediaType(t *testing.T) {
 func TestViewerHTMLExportRendersAndCopiesRelativeMarkdownImages(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/**\"]\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[publish]\nassets = [\"assets/**\"]\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Architecture](guides/architecture.md).\n")
 	writeViewerFile(t, root, "guides/architecture.md", "---\ntype: Guide\n---\n\n# Architecture\n\n![System overview](../assets/architecture.png)\n")
 	writeViewerFile(t, root, "assets/architecture.png", "not-a-real-png")
@@ -1228,7 +1228,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 	writeViewerFile(t, root, "assets/public/logo.svg", "<svg/>\n")
 	writeViewerFile(t, root, "assets/private/diagram.svg", "<svg>private</svg>\n")
 	writeViewerFile(t, root, "secret.txt", "do not publish\n")
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[publish]\nassets = [\"assets/public/**\", \"**/*.md\"]\n")
 
 	result, err := writeViewerHTMLWithVersion(root, out, "0.1")
 	if err != nil {
@@ -1282,7 +1282,7 @@ func TestViewerHTMLExportSkipsUnpublishedPages(t *testing.T) {
 func TestViewerHTMLExportHonorsPublicationTargets(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://example.test/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[html.site]\nbase_url = \"https://example.test/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 	writeViewerFile(t, root, "no-search.md", "---\ntype: Guide\ntitle: No Search\nokf_targets:\n  search: false\n---\n\n# Unique Search Needle\n")
 	writeViewerFile(t, root, "no-llms.md", "---\ntype: Guide\ntitle: No LLMS\nokf_targets:\n  llms: false\n---\n\n# No LLMS\n")
@@ -1555,7 +1555,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[html.theme]\nname = \"landing\"\nstylesheet = \"assets/wiki-theme.css\"\n")
 	writeViewerFile(t, root, "assets/wiki-theme.css", themeFixture)
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n\nBack to [Home](../index.md).\n")
@@ -1628,7 +1628,7 @@ func TestViewerThemeConfigLinksServerAndStaticExport(t *testing.T) {
 func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[html.source]\ngithub_base = \"https://github.com/openknowledge-sh/openknowledge/blob/main\"\nentry = \"Wiki\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\n---\n\n# Setup\n")
 
@@ -1657,7 +1657,7 @@ func TestViewerHTMLExportLinksConfiguredGitHubSource(t *testing.T) {
 func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 	root := t.TempDir()
 	out := filepath.Join(t.TempDir(), "site")
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[html.site]\nbase_url = \"https://openknowledge.sh/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "---\nokf_bundle_title: \"Team Handbook\"\nokf_bundle_purpose: \"Knowledge for shipping product changes.\"\n---\n\n# Home\n\nRead [Setup](guides/setup.md).\n")
 	writeViewerFile(t, root, "guides/setup.md", "---\ntype: Guide\ntitle: \"Setup Guide\"\n---\n\n# Setup\n")
 
@@ -1689,7 +1689,7 @@ func TestViewerHTMLExportWritesDiscoveryFilesWithSiteURL(t *testing.T) {
 
 func TestViewerSiteConfigRejectsInvalidBaseURL(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.site]\nbase_url = \"/wiki/\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[html.site]\nbase_url = \"/wiki/\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	_, err := writeViewerHTMLWithVersion(root, filepath.Join(t.TempDir(), "site"), "0.1")
@@ -1722,7 +1722,7 @@ func TestViewerThemeConfigReportsMissingStylesheetInOpen(t *testing.T) {
 
 func TestViewerThemeConfigRejectsStylesheetOutsideBundle(t *testing.T) {
 	root := t.TempDir()
-	writeViewerFile(t, root, ".openknowledge.toml", "[publish]\nenabled = true\n\n[html.theme]\nstylesheet = \"../landing.css\"\n")
+	writeViewerFile(t, root, ".openknowledge.toml", "[release]\noutputs = [\"viewer\"]\n\n[html.theme]\nstylesheet = \"../landing.css\"\n")
 	writeViewerFile(t, root, "index.md", "# Home\n")
 
 	if _, err := writeViewerHTMLWithVersion(root, filepath.Join(t.TempDir(), "site"), "0.1"); err == nil || !strings.Contains(err.Error(), "must stay inside the bundle") {

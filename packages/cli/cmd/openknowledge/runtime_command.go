@@ -20,6 +20,7 @@ type runtimePlan struct {
 	SchemaVersion    string                          `json:"schemaVersion"`
 	Config           string                          `json:"config"`
 	StateDir         string                          `json:"stateDir"`
+	ReleasePolicy    string                          `json:"releasePolicy"`
 	ArtifactStore    okruntime.ArtifactStoreConfig   `json:"artifactStore"`
 	Serve            okruntime.ServeConfig           `json:"serve"`
 	Worker           okruntime.WorkerConfig          `json:"worker"`
@@ -35,6 +36,7 @@ type runtimeBuildResult struct {
 	Generation    string                   `json:"generation"`
 	Commit        string                   `json:"commit"`
 	ContentDigest string                   `json:"contentDigest"`
+	Health        string                   `json:"health"`
 	Output        string                   `json:"output"`
 	Staged        bool                     `json:"staged,omitempty"`
 	Published     *okruntime.ActivePointer `json:"published,omitempty"`
@@ -102,6 +104,7 @@ func runRuntimePlan(args []string) int {
 		SchemaVersion:    okf.MachineSchemaVersion,
 		Config:           config.Path,
 		StateDir:         config.Runtime.StateDir,
+		ReleasePolicy:    config.Runtime.EffectiveReleasePolicy(),
 		ArtifactStore:    config.ArtifactStore,
 		Serve:            config.Serve,
 		Worker:           config.Worker,
@@ -232,14 +235,28 @@ func buildRuntimeKnowledgeGeneration(config okruntime.Config, knowledge okruntim
 }
 
 func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledge okruntime.KnowledgeBaseConfig, commit string, out string, publish bool, checks []string) (runtimeBuildResult, error) {
-	if !knowledge.Publish {
-		return runtimeBuildResult{}, fmt.Errorf("knowledge base is configured with publish = false")
+	health := okruntime.GenerationHealthPassing
+	if !equalStringLists(checks, runtimeRequiredPublicationChecks(config)) {
+		health = okruntime.GenerationHealthDegraded
+	}
+	return buildRuntimeKnowledgeGenerationWithHealth(config, knowledge, commit, out, publish, checks, health)
+}
+
+func buildRuntimeKnowledgeGenerationWithHealth(config okruntime.Config, knowledge okruntime.KnowledgeBaseConfig, commit string, out string, publish bool, checks []string, health string) (runtimeBuildResult, error) {
+	if !knowledge.Released() {
+		return runtimeBuildResult{}, fmt.Errorf("knowledge base has no release outputs")
 	}
 	if publish && config.ArtifactStore.Type != "filesystem" {
 		return runtimeBuildResult{}, fmt.Errorf("runtime build can promote only to a filesystem artifact store")
 	}
+	if health != okruntime.GenerationHealthPassing && health != okruntime.GenerationHealthDegraded {
+		return runtimeBuildResult{}, fmt.Errorf("generation health must be passing or degraded")
+	}
 	requiredPublicationChecks := runtimeRequiredPublicationChecks(config)
-	if publish && !equalStringLists(checks, requiredPublicationChecks) {
+	if !equalStringLists(checks, requiredPublicationChecks) {
+		health = okruntime.GenerationHealthDegraded
+	}
+	if publish && health == okruntime.GenerationHealthDegraded && config.Runtime.EffectiveReleasePolicy() == okruntime.ReleasePolicyLastPassing {
 		if !config.Worker.KnowledgeCI {
 			return runtimeBuildResult{}, fmt.Errorf("runtime publication requires verified GitHub checks: %s", strings.Join(requiredPublicationChecks, ", "))
 		}
@@ -255,27 +272,57 @@ func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledg
 				continue
 			}
 			if occurrence.Claim.Status == "extracted" || occurrence.Claim.Status == "proposed" || occurrence.Claim.Status == "supported" || occurrence.Claim.Status == "disputed" {
-				return runtimeBuildResult{}, fmt.Errorf("runtime release contains unresolved claim %s with status %s in %s", occurrence.Claim.ID, occurrence.Claim.Status, occurrence.Path)
+				if config.Runtime.EffectiveReleasePolicy() == okruntime.ReleasePolicyLastPassing {
+					return runtimeBuildResult{}, fmt.Errorf("runtime release contains unresolved claim %s with status %s in %s", occurrence.Claim.ID, occurrence.Claim.Status, occurrence.Path)
+				}
+				health = okruntime.GenerationHealthDegraded
+				break
 			}
 		}
 	}
 	absoluteOut, err := okf.WriteDirectoryAtomically(out, func(staging string) error {
 		public := filepath.Join(staging, "public")
-		if _, err := writeViewerHTMLWithVersion(knowledge.Path, public, knowledge.Spec); err != nil {
+		if err := os.MkdirAll(public, 0o755); err != nil {
 			return err
 		}
 		source := filepath.Join(staging, "source")
-		archive := filepath.Join(public, filepath.FromSlash(okf.BundleArchiveRelPath))
-		if err := okf.ExtractBundleArchive(archive, source); err != nil {
-			return err
+		if knowledge.HasOutput(okf.ReleaseOutputViewer) {
+			if _, err := writeViewerHTMLWithVersion(knowledge.Path, public, knowledge.Spec); err != nil {
+				return err
+			}
+			archive := filepath.Join(public, filepath.FromSlash(okf.BundleArchiveRelPath))
+			if err := okf.ExtractBundleArchive(archive, source); err != nil {
+				return err
+			}
+		} else {
+			sourceArchive := filepath.Join(staging, ".source.tar.gz")
+			if _, err := okf.WritePublishedTargetBundleTarGzipWithVersion(knowledge.Path, sourceArchive, knowledge.Spec, []string{out, staging}, okf.PublicationTargetMCP); err != nil {
+				return err
+			}
+			if err := okf.ExtractBundleArchive(sourceArchive, source); err != nil {
+				return err
+			}
+			if err := os.Remove(sourceArchive); err != nil {
+				return err
+			}
 		}
-		for _, projection := range []struct {
+		projections := []struct {
 			name   string
 			target okf.PublicationTarget
-		}{
-			{name: "search", target: okf.PublicationTargetSearch},
-			{name: "mcp", target: okf.PublicationTargetMCP},
-		} {
+		}{}
+		if knowledge.HasOutput(okf.ReleaseOutputViewer) {
+			projections = append(projections, struct {
+				name   string
+				target okf.PublicationTarget
+			}{name: "search", target: okf.PublicationTargetSearch})
+		}
+		if knowledge.HasOutput(okf.ReleaseOutputMCP) {
+			projections = append(projections, struct {
+				name   string
+				target okf.PublicationTarget
+			}{name: "mcp", target: okf.PublicationTargetMCP})
+		}
+		for _, projection := range projections {
 			projectionArchive := filepath.Join(staging, "."+projection.name+".tar.gz")
 			if _, err := okf.WritePublishedTargetBundleTarGzipWithVersion(knowledge.Path, projectionArchive, knowledge.Spec, []string{out, staging}, projection.target); err != nil {
 				return err
@@ -290,7 +337,7 @@ func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledg
 		if _, err := claimops.MaterializeEvidenceStore(knowledge.Path, filepath.Join(staging, "evidence")); err != nil {
 			return fmt.Errorf("materialize private evidence layer: %w", err)
 		}
-		_, err := okruntime.WriteGenerationManifestWithChecks(staging, knowledge.ID, commit, knowledge.Spec, checks)
+		_, err := okruntime.WriteGenerationManifestWithHealth(staging, knowledge.ID, commit, knowledge.Spec, checks, health)
 		return err
 	})
 	if err != nil {
@@ -306,6 +353,7 @@ func buildRuntimeKnowledgeGenerationWithChecks(config okruntime.Config, knowledg
 		Generation:    okruntime.GenerationName(manifest),
 		Commit:        manifest.Commit,
 		ContentDigest: manifest.ContentDigest,
+		Health:        manifest.Health,
 		Output:        absoluteOut,
 	}
 	if publish {
@@ -343,16 +391,16 @@ func equalStringLists(left []string, right []string) bool {
 func selectRuntimeKnowledgeBases(config okruntime.Config, id string) ([]okruntime.KnowledgeBaseConfig, error) {
 	var selected []okruntime.KnowledgeBaseConfig
 	for _, knowledge := range config.KnowledgeBases {
-		if !knowledge.Publish || (id != "" && knowledge.ID != id) {
+		if !knowledge.Released() || (id != "" && knowledge.ID != id) {
 			continue
 		}
 		selected = append(selected, knowledge)
 	}
 	if len(selected) == 0 {
 		if id != "" {
-			return nil, fmt.Errorf("published knowledge base not found: %s", id)
+			return nil, fmt.Errorf("released knowledge base not found: %s", id)
 		}
-		return nil, fmt.Errorf("runtime has no published knowledge bases")
+		return nil, fmt.Errorf("runtime has no released knowledge bases")
 	}
 	return selected, nil
 }

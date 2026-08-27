@@ -17,6 +17,7 @@ type runtimeRelease struct {
 	Commit        string   `json:"commit"`
 	Spec          string   `json:"spec"`
 	ContentDigest string   `json:"contentDigest"`
+	Health        string   `json:"health"`
 	Checks        []string `json:"checks"`
 	Files         int      `json:"files"`
 	Active        bool     `json:"active"`
@@ -74,7 +75,8 @@ func runRuntimeReleases(args []string) int {
 	for _, release := range stored {
 		result.Releases = append(result.Releases, runtimeRelease{
 			Generation: release.Name, Commit: release.Manifest.Commit, Spec: release.Manifest.Spec,
-			ContentDigest: release.Manifest.ContentDigest, Checks: nonNilStrings(release.Manifest.Checks), Files: len(release.Manifest.Files), Active: release.Active,
+			ContentDigest: release.Manifest.ContentDigest, Health: release.Manifest.Health,
+			Checks: nonNilStrings(release.Manifest.Checks), Files: len(release.Manifest.Files), Active: release.Active,
 		})
 	}
 	if err := printJSON(result); err != nil {
@@ -133,7 +135,7 @@ func runRuntimeReleaseChange(action string, args []string) int {
 			return printAgentCommandError(generationErr)
 		}
 		requiredChecks := runtimeRequiredPublicationChecks(config)
-		if !equalStringLists(manifest.Checks, requiredChecks) {
+		if config.Runtime.EffectiveReleasePolicy() == okruntime.ReleasePolicyLastPassing && (manifest.Health != okruntime.GenerationHealthPassing || !equalStringLists(manifest.Checks, requiredChecks)) {
 			return printAgentCommandError(fmt.Errorf("generation does not carry the configured required checks: %v", requiredChecks))
 		}
 		if action == "pin" {

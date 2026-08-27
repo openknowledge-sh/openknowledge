@@ -13,12 +13,13 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["generation", "commit", "spec", "contentDigest", "checks", "files", "active"],
+        "required": ["generation", "commit", "spec", "contentDigest", "health", "checks", "files", "active"],
         "properties": {
           "generation": {"type": "string", "minLength": 1},
           "commit": {"type": "string", "minLength": 1},
           "spec": {"enum": ["0.1", "0.2"]},
           "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "health": {"enum": ["passing", "degraded"]},
           "checks": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
           "files": {"type": "integer", "minimum": 1},
           "active": {"type": "boolean"}

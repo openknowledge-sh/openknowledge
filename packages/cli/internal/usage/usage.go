@@ -45,6 +45,7 @@ type Generation struct {
 	Commit        string   `json:"commit"`
 	Spec          string   `json:"spec"`
 	ContentDigest string   `json:"contentDigest"`
+	Health        string   `json:"health,omitempty"`
 	Checks        []string `json:"checks"`
 }
 
@@ -370,6 +371,9 @@ func Validate(event Event) error {
 func ValidateGeneration(generation Generation) error {
 	if generation.Name == "" || generation.Commit == "" || !specPattern.MatchString(generation.Spec) || !hex64Pattern.MatchString(generation.ContentDigest) {
 		return fmt.Errorf("usage generation identity is invalid")
+	}
+	if generation.Health != "" && generation.Health != "passing" && generation.Health != "degraded" {
+		return fmt.Errorf("usage generation health is invalid")
 	}
 	if generation.Checks == nil {
 		return fmt.Errorf("usage generation checks are invalid")

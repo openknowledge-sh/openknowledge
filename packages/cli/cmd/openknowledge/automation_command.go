@@ -19,6 +19,8 @@ func runAutomation(args []string) int {
 		return runRuntime(args[1:])
 	case "deploy":
 		return runDeploy(args[1:])
+	case "github":
+		return runAutomationGitHub(args[1:])
 	default:
 		fmt.Fprintf(stderrOutput(), "unknown automation command: %s\n\n", args[0])
 		fmt.Fprint(stderrOutput(), automationHelpText())
@@ -36,12 +38,14 @@ Usage:
   openknowledge automation insights <command> [args...]
   openknowledge automation runtime <command> [args...]
   openknowledge automation deploy <provider> [args...]
+  openknowledge automation github <plan|run> [args...]
 
 Commands:
   jobs       Run repeatable isolated maintenance jobs from Markdown specs.
   insights   Capture and resolve knowledge-maintenance insights.
   runtime    Build, serve, and maintain an isolated knowledge runtime.
   deploy     Provision a runtime on a supported provider.
+  github     Plan or run the config-driven GitHub Action bridge.
 
 Use openknowledge automation <command> --help for command details.
 `

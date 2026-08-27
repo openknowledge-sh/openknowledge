@@ -1,0 +1,105 @@
+name: Open Knowledge
+description: Run deterministic knowledge checks and optional config-driven maintenance.
+
+inputs:
+  path:
+    description: Repository-relative path to the Open Knowledge bundle.
+    required: false
+    default: Wiki
+  eval:
+    description: Repository-relative path to the evaluation dataset.
+    required: false
+    default: .openknowledge/evals/knowledge.yaml
+  baseline:
+    description: Repository-relative path to the source audit baseline.
+    required: false
+    default: .openknowledge/audit-sources.json
+  base:
+    description: Immutable Git base commit for pull request comparison.
+    required: false
+    default: ""
+  version:
+    description: Open Knowledge npm package version.
+    required: false
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 22
+
+    - name: Install Open Knowledge
+      shell: bash
+      env:
+        OPENKNOWLEDGE_VERSION: ${{ inputs.version }}
+      run: |
+        version="${OPENKNOWLEDGE_VERSION#v}"
+        if [[ "$version" != "latest" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+          echo "Open Knowledge version must be latest or a semantic version" >&2
+          exit 2
+        fi
+        npm install --global "@openknowledge-sh/openknowledge@$version"
+
+    - name: Read project automation configuration
+      id: automation
+      shell: bash
+      env:
+        KNOWLEDGE_PATH: ${{ inputs.path }}
+      run: |
+        plan="$RUNNER_TEMP/openknowledge-github-plan.json"
+        okn automation github plan \
+          --event "$GITHUB_EVENT_NAME" \
+          --ref "$GITHUB_REF_NAME" \
+          --path "$KNOWLEDGE_PATH" > "$plan"
+        PLAN_PATH="$plan" node -e '
+          const fs = require("node:fs");
+          const plan = JSON.parse(fs.readFileSync(process.env.PLAN_PATH, "utf8"));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `maintenance_active=${plan.maintenanceActive}\nmaintenance_agent=${plan.maintenanceAgent}\n`);
+        '
+
+    - name: Install configured maintenance agent
+      if: steps.automation.outputs.maintenance_active == 'true'
+      shell: bash
+      env:
+        MAINTENANCE_AGENT: ${{ steps.automation.outputs.maintenance_agent }}
+      run: |
+        case "$MAINTENANCE_AGENT" in
+          codex) npm install --global "@openai/codex@0.128.0" ;;
+          claude) npm install --global "@anthropic-ai/claude-code@2.1.212" ;;
+          opencode) npm install --global "opencode-ai@1.18.3" ;;
+          *)
+            if ! command -v "$MAINTENANCE_AGENT" >/dev/null 2>&1; then
+              echo "Configured maintenance agent is not installed: $MAINTENANCE_AGENT" >&2
+              exit 1
+            fi
+            ;;
+        esac
+
+    - name: Run configured GitHub automation
+      shell: bash
+      env:
+        KNOWLEDGE_PATH: ${{ inputs.path }}
+        BASELINE_PATH: ${{ inputs.baseline }}
+        EVAL_PATH: ${{ inputs.eval }}
+        BASE_SHA: ${{ inputs.base || github.event.pull_request.base.sha || github.event.before }}
+      run: |
+        okn automation github run \
+          --event "$GITHUB_EVENT_NAME" \
+          --ref "$GITHUB_REF_NAME" \
+          --base "$BASE_SHA" \
+          --path "$KNOWLEDGE_PATH" \
+          --eval "$EVAL_PATH" \
+          --baseline "$BASELINE_PATH" \
+          --reports "$RUNNER_TEMP/openknowledge-reports"
+
+    - name: Upload knowledge reports
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: openknowledge-reports
+        path: ${{ runner.temp }}/openknowledge-reports
+        if-no-files-found: warn
+        retention-days: 30

@@ -11,6 +11,7 @@ import (
 
 	knowledgeaudit "github.com/openknowledge-sh/openknowledge/packages/cli/internal/audit"
 	knowledgeeval "github.com/openknowledge-sh/openknowledge/packages/cli/internal/eval"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	okruntime "github.com/openknowledge-sh/openknowledge/packages/cli/internal/runtime"
 )
 
@@ -53,7 +54,7 @@ Call /v1/users to recover a user.
 `)
 	writeMainTestFile(t, repo, ".openknowledge/integration.toml", "version = 1\nknowledge_base = \"Wiki\"\ninsights = \"Wiki/insights\"\nruntime = \"codex\"\n")
 
-	setup, err := setupKnowledgeCI(root, false, false)
+	setup, err := setupKnowledgeGitHub(root, false, false)
 	if err != nil || len(setup.Created) != 3 {
 		t.Fatalf("setup CI: %#v err=%v", setup, err)
 	}
@@ -156,17 +157,17 @@ cases:
 		t.Fatalf("answer comparison: code=%d stdout=%q stderr=%q report=%#v", code, stdout, stderr, comparison)
 	}
 
+	enablePublicArtifactTest(t, root)
 	runtimeSetup, err := setupKnowledgeRuntime(root, "auto", "", false, false)
 	if err != nil || runtimeSetup.Executor != "github-actions" {
 		t.Fatalf("runtime setup: %#v err=%v", runtimeSetup, err)
 	}
 	config := string(mustReadGoldenFile(t, filepath.Join(repo, deployRuntimeConfig)))
-	for _, expected := range []string{"require_resolved_claims = true", "run_jobs = false", `required_checks = ["knowledge-ci"]`} {
+	for _, expected := range []string{"require_resolved_claims = true", "run_jobs = false", `required_checks = ["Open Knowledge checks"]`} {
 		if !strings.Contains(config, expected) {
 			t.Fatalf("runtime does not publish only approved green knowledge; missing %q:\n%s", expected, config)
 		}
 	}
-	enablePublicArtifactTest(t, root)
 	runtimeConfig, err := okruntime.LoadConfig(filepath.Join(repo, filepath.FromSlash(deployRuntimeConfig)))
 	if err != nil {
 		t.Fatal(err)
@@ -174,6 +175,7 @@ cases:
 	runtimeConfig.Runtime.StateDir = filepath.Join(repo, ".openknowledge", "runtime-state")
 	runtimeConfig.ArtifactStore.Path = filepath.Join(repo, ".openknowledge", "artifacts")
 	runtimeConfig.KnowledgeBases[0].Path = root
+	runtimeConfig.KnowledgeBases[0].Outputs = []string{okf.ReleaseOutputMCP, okf.ReleaseOutputViewer}
 	runtimeConfig.Serve.UsageEvents.Enabled = true
 	runtimeConfig.Serve.UsageEvents.CaptureQueries = false
 	first, err := buildRuntimeKnowledgeGenerationWithChecks(runtimeConfig, runtimeConfig.KnowledgeBases[0], "golden-first", filepath.Join(repo, ".openknowledge", "builds", "first"), true, []string{"knowledge-ci"})

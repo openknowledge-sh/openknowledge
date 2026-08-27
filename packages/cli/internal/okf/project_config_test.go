@@ -32,8 +32,18 @@ entry = "Wiki"
 base_url = "https://example.test/knowledge/"
 
 [publish]
-enabled = true
 assets = ["whitepapers/*.pdf", "assets/public/**", "assets/public/**"]
+
+[release]
+branch = "stable"
+policy = "last-passing"
+outputs = ["viewer", "mcp"]
+
+[maintenance]
+mode = "autonomous"
+agent = "claude"
+delivery = "pull-request"
+auto_merge = true
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -56,18 +66,47 @@ assets = ["whitepapers/*.pdf", "assets/public/**", "assets/public/**"]
 	if config.HTML.Site.BaseURL != "https://example.test/knowledge/" {
 		t.Fatalf("unexpected site config: %#v", config.HTML.Site)
 	}
-	if !config.Publish.Enabled || strings.Join(config.Publish.Assets, ",") != "assets/public/**,whitepapers/*.pdf" {
+	if strings.Join(config.Publish.Assets, ",") != "assets/public/**,whitepapers/*.pdf" {
 		t.Fatalf("unexpected publish config: %#v", config.Publish)
+	}
+	if config.Release.Branch != "stable" || config.Release.Policy != ReleasePolicyLastPassing || strings.Join(config.Release.Outputs, ",") != "mcp,viewer" {
+		t.Fatalf("unexpected release config: %#v", config.Release)
+	}
+	if config.Maintenance.Mode != MaintenanceModeAutonomous || config.Maintenance.Agent != MaintenanceAgentClaude || config.Maintenance.Delivery != MaintenanceDeliveryPullRequest || !config.Maintenance.AutoMerge {
+		t.Fatalf("unexpected maintenance config: %#v", config.Maintenance)
 	}
 	defaultConfig, err := ParseProjectConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if defaultConfig.Publish.Enabled {
-		t.Fatal("public artifact publishing must default to disabled")
-	}
 	if strings.Join(defaultConfig.Rules.Enabled, ",") != "project,writing" || defaultConfig.Rules.EnabledConfigured {
 		t.Fatalf("unexpected default rules: %#v", defaultConfig.Rules)
+	}
+	if defaultConfig.Release.Branch != "main" || defaultConfig.Release.Policy != ReleasePolicyFollowMain || len(defaultConfig.Release.Outputs) != 0 {
+		t.Fatalf("unexpected default release config: %#v", defaultConfig.Release)
+	}
+	if defaultConfig.Maintenance.Mode != MaintenanceModeOff || defaultConfig.Maintenance.Agent != "codex" || defaultConfig.Maintenance.Delivery != MaintenanceDeliveryPullRequest || defaultConfig.Maintenance.AutoMerge {
+		t.Fatalf("unexpected default maintenance config: %#v", defaultConfig.Maintenance)
+	}
+}
+
+func TestParseProjectConfigAppliesReleaseAndMaintenanceDefaultsPerField(t *testing.T) {
+	config, err := ParseProjectConfig(`
+[release]
+policy = "last-passing"
+
+[maintenance]
+mode = "propose"
+auto_merge = true
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Release.Branch != "main" || config.Release.Policy != ReleasePolicyLastPassing {
+		t.Fatalf("unexpected release config: %#v", config.Release)
+	}
+	if config.Maintenance.Mode != MaintenanceModePropose || config.Maintenance.Agent != "codex" || config.Maintenance.Delivery != MaintenanceDeliveryPullRequest || !config.Maintenance.AutoMerge {
+		t.Fatalf("unexpected maintenance config: %#v", config.Maintenance)
 	}
 }
 
@@ -83,7 +122,20 @@ func TestParseProjectConfigFailsClosedAcrossEverySection(t *testing.T) {
 		{name: "wrong HTML type", content: "[html.site]\nbase_url = 42\n", expected: "cannot decode TOML integer"},
 		{name: "wrong rules member", content: "[rules]\npaths = [\"rules\", 5]\n", expected: "rules.paths[1] must be a string"},
 		{name: "wrong publish member", content: "[publish]\nassets = [\"assets/**\", 5]\n", expected: "publish.assets[1] must be a string"},
-		{name: "wrong publish enabled type", content: "[publish]\nenabled = \"yes\"\n", expected: "cannot decode TOML string"},
+		{name: "removed publish enabled", content: "[publish]\nenabled = true\n", expected: "fields in the document are missing in the target struct"},
+		{name: "unknown release field", content: "[release]\ntag = \"latest\"\n", expected: "fields in the document are missing in the target struct"},
+		{name: "empty release branch", content: "[release]\nbranch = \" \"\n", expected: "release.branch must not be empty"},
+		{name: "invalid release policy", content: "[release]\npolicy = \"always\"\n", expected: "release.policy must be follow-main or last-passing"},
+		{name: "invalid release output", content: "[release]\noutputs = [\"viewer\", \"api\"]\n", expected: "release.outputs[1] must be viewer or mcp"},
+		{name: "duplicate release output", content: "[release]\noutputs = [\"viewer\", \"viewer\"]\n", expected: "release.outputs[1] is duplicated"},
+		{name: "wrong release output type", content: "[release]\noutputs = [\"viewer\", 5]\n", expected: "release.outputs[1] must be a string"},
+		{name: "release output shorthand", content: "[release]\noutputs = \"viewer\"\n", expected: "release.outputs must be an array of strings"},
+		{name: "unknown maintenance field", content: "[maintenance]\nschedule = \"daily\"\n", expected: "fields in the document are missing in the target struct"},
+		{name: "invalid maintenance mode", content: "[maintenance]\nmode = \"manual\"\n", expected: "maintenance.mode must be off, propose, or autonomous"},
+		{name: "empty maintenance agent", content: "[maintenance]\nagent = \" \"\n", expected: "maintenance.agent must be codex, claude, or opencode"},
+		{name: "unknown maintenance agent", content: "[maintenance]\nagent = \"custom\"\n", expected: "maintenance.agent must be codex, claude, or opencode"},
+		{name: "invalid maintenance delivery", content: "[maintenance]\ndelivery = \"direct\"\n", expected: "maintenance.delivery must be pull-request"},
+		{name: "wrong maintenance auto merge type", content: "[maintenance]\nauto_merge = \"yes\"\n", expected: "cannot decode TOML string"},
 		{name: "unsafe publish parent", content: "[publish]\nassets = \"../secret.txt\"\n", expected: "parent segments"},
 		{name: "unsafe publish absolute", content: "[publish]\nassets = \"/secret.txt\"\n", expected: "clean bundle-relative pattern"},
 		{name: "unsafe publish backslash", content: "[publish]\nassets = 'assets\\secret.txt'\n", expected: "forward slashes"},
@@ -130,13 +182,16 @@ func TestLoadProjectConfigRejectsSymbolicLink(t *testing.T) {
 
 func TestLoadProjectConfigDoesNotLoadLegacyConfigFile(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, legacyValidationConfigFile, "[publish]\nenabled = true\n")
+	writeFile(t, root, legacyValidationConfigFile, "[release]\noutputs = [\"viewer\"]\n")
 
 	config, err := LoadProjectConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.Path != "" || config.Publish.Enabled {
+	if config.Path != "" || len(config.Release.Outputs) != 0 {
 		t.Fatalf("legacy config must be ignored, got %#v", config)
+	}
+	if config.Release.Branch != "main" || config.Release.Policy != ReleasePolicyFollowMain || config.Maintenance.Mode != MaintenanceModeOff {
+		t.Fatalf("missing canonical config must use defaults, got %#v", config)
 	}
 }

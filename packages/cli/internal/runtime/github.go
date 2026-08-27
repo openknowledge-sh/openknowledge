@@ -46,6 +46,17 @@ type CheckRun struct {
 	Conclusion string `json:"conclusion"`
 }
 
+// CheckGateError reports a valid check response that does not satisfy the
+// configured publication gate. Transport, authentication, and commit-binding
+// errors use ordinary errors and remain hard publication failures.
+type CheckGateError struct {
+	Message string
+}
+
+func (err *CheckGateError) Error() string {
+	return err.Message
+}
+
 type GitHubCredential struct {
 	Token     string
 	ExpiresAt time.Time
@@ -224,13 +235,13 @@ func (client GitHubClient) RequireSuccessfulChecks(ctx context.Context, commit s
 	for _, name := range required {
 		run, exists := latest[name]
 		if !exists {
-			return nil, fmt.Errorf("required GitHub check is missing for %s: %s", commit, name)
+			return verified, &CheckGateError{Message: fmt.Sprintf("required GitHub check is missing for %s: %s", commit, name)}
 		}
 		if run.HeadSHA != "" && run.HeadSHA != commit {
 			return nil, fmt.Errorf("required GitHub check targets another commit: %s", name)
 		}
 		if run.Status != "completed" || run.Conclusion != "success" {
-			return nil, fmt.Errorf("required GitHub check has not succeeded: %s (status=%s conclusion=%s)", name, run.Status, run.Conclusion)
+			return verified, &CheckGateError{Message: fmt.Sprintf("required GitHub check has not succeeded: %s (status=%s conclusion=%s)", name, run.Status, run.Conclusion)}
 		}
 		verified = append(verified, name)
 	}

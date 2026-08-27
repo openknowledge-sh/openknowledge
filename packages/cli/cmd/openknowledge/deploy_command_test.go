@@ -160,7 +160,7 @@ func TestRailwayDeployPlanIsSecretFreeAndModelsProviderEndpoint(t *testing.T) {
 	if !strings.Contains(plan.Services[0].Config, `path = "/opt/openknowledge/artifacts"`) || strings.Contains(plan.Services[0].Config, `type = "http"`) {
 		t.Fatalf("serve must read its immutable image artifact directly: %s", plan.Services[0].Config)
 	}
-	if !strings.Contains(plan.Services[1].Config, `exchange_dir = "/var/lib/openknowledge/exchange"`) || !strings.Contains(plan.Services[1].Config, `publish = false`) {
+	if !strings.Contains(plan.Services[1].Config, `exchange_dir = "/var/lib/openknowledge/exchange"`) || strings.Contains(plan.Services[1].Config, `publish =`) || strings.Contains(plan.Services[1].Config, `mcp =`) {
 		t.Fatalf("publisher must broker agent source without rebuilding serve artifacts: %s", plan.Services[1].Config)
 	}
 }
@@ -518,12 +518,12 @@ func TestRailwayDeployRejectsDomainCreationAmbiguity(t *testing.T) {
 
 func TestRailwayDeployPreflightsCommittedProductionSnapshot(t *testing.T) {
 	repository, wiki := newDeployTestRepository(t)
-	writeViewerFile(t, repository, "Wiki/.openknowledge.toml", "[publish]\nenabled = false\n")
+	writeViewerFile(t, repository, "Wiki/.openknowledge.toml", "[release]\noutputs = []\n")
 	runtimeGitTest(t, repository, "add", "Wiki/.openknowledge.toml")
 	runtimeGitTest(t, repository, "commit", "-m", "disable production publication")
 	// A valid uncommitted working copy must not conceal that the deployed branch
 	// still refuses publication.
-	writeViewerFile(t, repository, "Wiki/.openknowledge.toml", "[publish]\nenabled = true\n")
+	writeViewerFile(t, repository, "Wiki/.openknowledge.toml", "[release]\noutputs = [\"viewer\", \"mcp\"]\n")
 	options := defaultRailwayDeployTestOptions(filepath.Join(repository, "state.json"))
 	_, err := buildRailwayDeployPlan(options, wiki)
 	if err == nil || !strings.Contains(err.Error(), "production branch preflight") {
@@ -574,7 +574,7 @@ func newDeployTestRepository(t *testing.T) (string, string) {
 	writeViewerFile(t, repository, "Wiki/index.md", "# Deployable knowledge\n")
 	writeViewerFile(t, repository, deployRuntimeDockerfile, "FROM node:22-bookworm-slim AS build\nRUN openknowledge automation runtime build\nFROM node:22-bookworm-slim\nCOPY --from=build /opt/openknowledge/artifacts /opt/openknowledge/artifacts\nRUN npm install --global \"@openai/codex@${CODEX_VERSION}\" \"@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}\" \"opencode-ai@${OPENCODE_VERSION}\"\n")
 	writeViewerFile(t, repository, deployRuntimeEntrypoint, "#!/bin/sh\n")
-	writeViewerFile(t, repository, deployRuntimeConfig, renderDeployRuntimeConfig("wiki", "/workspace/Wiki", false, false, nil, "", nil))
+	writeViewerFile(t, repository, deployRuntimeConfig, renderDeployRuntimeConfig("wiki", "/workspace/Wiki", false, false, nil, "", nil, "main", "follow-main"))
 	runtimeGitTest(t, repository, "init", "-b", "main")
 	runtimeGitTest(t, repository, "config", "user.name", "Deploy Test")
 	runtimeGitTest(t, repository, "config", "user.email", "deploy@example.test")

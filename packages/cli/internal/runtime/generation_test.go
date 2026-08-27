@@ -1,10 +1,14 @@
 package runtime
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func TestGenerationManifestAndFilesystemPromotionAreContentBound(t *testing.T) {
@@ -28,6 +32,9 @@ func TestGenerationManifestAndFilesystemPromotionAreContentBound(t *testing.T) {
 	if len(manifest.Checks) != 2 || manifest.Checks[0] != "Knowledge Eval" || manifest.Checks[1] != "Verify" {
 		t.Fatalf("generation did not bind sorted successful checks: %#v", manifest.Checks)
 	}
+	if manifest.Health != GenerationHealthPassing {
+		t.Fatalf("generation did not record passing health: %#v", manifest)
+	}
 	if _, activeTarget, err := store.Active("wiki"); err != nil || activeTarget != target {
 		t.Fatalf("expected valid active generation, target=%q err=%v", activeTarget, err)
 	}
@@ -43,6 +50,62 @@ func TestGenerationManifestAndFilesystemPromotionAreContentBound(t *testing.T) {
 	}
 	if _, _, err := store.Active("wiki"); err == nil {
 		t.Fatal("expected tampered active generation to fail validation")
+	}
+}
+
+func TestGenerationHealthIsValidatedAndContentBound(t *testing.T) {
+	generation := t.TempDir()
+	writeRuntimeTestFile(t, generation, "public/index.html", "<h1>Knowledge</h1>\n")
+	passing, err := BuildGenerationManifestWithHealth(generation, "wiki", "abc123", "0.2", []string{"Verify"}, GenerationHealthPassing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	degraded, err := BuildGenerationManifestWithHealth(generation, "wiki", "abc123", "0.2", []string{}, GenerationHealthDegraded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if passing.ContentDigest == degraded.ContentDigest || GenerationName(passing) == GenerationName(degraded) {
+		t.Fatal("generation health and check outcome must change immutable generation identity")
+	}
+	if _, err := BuildGenerationManifestWithHealth(generation, "wiki", "abc123", "0.2", nil, "unknown"); err == nil {
+		t.Fatal("invalid generation health was accepted")
+	}
+}
+
+func TestGenerationManifestSatisfiesPublishedSchema(t *testing.T) {
+	generation := t.TempDir()
+	writeRuntimeTestFile(t, generation, "public/index.html", "ok")
+	writeRuntimeTestFile(t, generation, "evidence/sha256/receipt.json", "{}")
+	manifest, err := WriteGenerationManifestWithHealth(generation, "wiki", "abc123", "0.2", []string{"Verify"}, GenerationHealthDegraded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemaContent, err := os.ReadFile(filepath.Join("..", "..", "schemas", "runtime", "v1", "generation.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemaDocument, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaContent))
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource("https://openknowledge.sh/schemas/cli/runtime/v1/generation.schema.json", schemaDocument); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := compiler.Compile("https://openknowledge.sh/schemas/cli/runtime/v1/generation.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := schema.Validate(instance); err != nil {
+		t.Fatalf("runtime generation does not satisfy its published schema: %v", err)
 	}
 }
 

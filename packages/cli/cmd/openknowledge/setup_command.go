@@ -63,6 +63,8 @@ func runSetup(args []string) int {
 			return runSetupObserve(args[1:])
 		case "ci":
 			return runSetupCI(args[1:])
+		case "github":
+			return runSetupGitHub(args[1:])
 		case "runtime":
 			return runSetupRuntime(args[1:])
 		}
@@ -644,6 +646,7 @@ After the first result:
 	openknowledge setup observe <on|off> [repository]
 
 Optional production upgrades:
+	openknowledge setup github [wiki] [--plan] [--force]
 	openknowledge setup ci [wiki] [--plan] [--force]
 	openknowledge setup runtime [wiki] [--maintenance auto|github-actions|runtime] [--runtimes <list>] [--plan] [--force]
 

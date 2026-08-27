@@ -194,7 +194,7 @@ func runDeployRailway(args []string) int {
 	branch := flags.String("production-branch", "main", "production Git branch")
 	repository := flags.String("repository", "", "GitHub repository URL (defaults to origin)")
 	withoutWorker := flags.Bool("without-worker", false, "deprecated compatibility flag; agents are omitted by default")
-	mcpAccess := flags.String("mcp", "public", "MCP access: public, token, or off")
+	mcpAccess := flags.String("mcp", "public", "MCP access policy: public or token")
 	domain := flags.String("domain", "", "attach a user-owned custom domain")
 	noPublicEndpoint := flags.Bool("no-public-endpoint", false, "do not create a Railway public endpoint")
 	githubTokenEnv := flags.String("github-token-env", "GITHUB_TOKEN", "environment variable containing the GitHub token")
@@ -263,8 +263,8 @@ type railwayDeployOptions struct {
 }
 
 func buildRailwayDeployPlan(options railwayDeployOptions, knowledgeInput string) (deployPlan, error) {
-	if options.MCPAccess != "public" && options.MCPAccess != "token" && options.MCPAccess != "off" {
-		return deployPlan{}, fmt.Errorf("--mcp must be public, token, or off")
+	if options.MCPAccess != "public" && options.MCPAccess != "token" {
+		return deployPlan{}, fmt.Errorf("--mcp must be public or token; remove mcp from release.outputs to disable the endpoint")
 	}
 	if options.NoPublicEndpoint && strings.TrimSpace(options.Domain) != "" {
 		return deployPlan{}, fmt.Errorf("--domain and --no-public-endpoint are mutually exclusive")
@@ -630,8 +630,7 @@ func railwayRuntimeConfig(plan deployPlan, role string, mcpAccess string) string
 	if plan.KnowledgeBase.Path != "." {
 		path += "/" + plan.KnowledgeBase.Path
 	}
-	publish := role != "publisher"
-	fmt.Fprintf(&output, "\n[[knowledge_bases]]\nid = %s\npath = %s\nroute = \"/\"\nspec = %s\npublish = %t\nmcp = %t\n", strconv.Quote(plan.KnowledgeBase.ID), strconv.Quote(path), strconv.Quote(plan.KnowledgeBase.Spec), publish, mcpAccess != "off")
+	fmt.Fprintf(&output, "\n[[knowledge_bases]]\nid = %s\npath = %s\nroute = \"/\"\nspec = %s\n", strconv.Quote(plan.KnowledgeBase.ID), strconv.Quote(path), strconv.Quote(plan.KnowledgeBase.Spec))
 	return output.String()
 }
 
@@ -1290,7 +1289,7 @@ Options:
   --repository URL             GitHub repository (default: origin).
   --without-worker             Compatibility flag; agents are already omitted by default.
   --runtimes LIST              Enable publisher/workers for these agent runtimes.
-  --mcp public|token|off       MCP exposure mode (default: public).
+  --mcp public|token           MCP access policy (default: public).
   --domain HOSTNAME            Attach a custom domain already owned by the user.
   --no-public-endpoint         Do not create a public Railway endpoint.
   --github-token-env NAME      GitHub token environment (default: GITHUB_TOKEN).

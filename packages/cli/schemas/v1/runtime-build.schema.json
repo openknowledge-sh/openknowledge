@@ -21,13 +21,14 @@
   "$defs": {
     "buildResult": {
       "type": "object",
-      "required": ["schemaVersion", "knowledgeBase", "generation", "commit", "contentDigest", "output"],
+      "required": ["schemaVersion", "knowledgeBase", "generation", "commit", "contentDigest", "health", "output"],
       "properties": {
         "schemaVersion": {"const": "1"},
         "knowledgeBase": {"type": "string", "minLength": 1},
         "generation": {"type": "string", "minLength": 1},
         "commit": {"type": "string", "minLength": 1},
         "contentDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "health": {"enum": ["passing", "degraded"]},
         "output": {"type": "string", "minLength": 1},
         "staged": {"type": "boolean", "const": true},
         "published": {

@@ -18,6 +18,7 @@ type runtimeGenerationIdentity struct {
 	Commit        string   `json:"commit"`
 	Spec          string   `json:"spec"`
 	ContentDigest string   `json:"contentDigest"`
+	Health        string   `json:"health"`
 	Checks        []string `json:"checks"`
 }
 
@@ -436,7 +437,7 @@ func publicRuntimeAccess() runtimeAccessIdentity {
 }
 
 func runtimeGeneration(snapshot runtimeGenerationSnapshot) runtimeGenerationIdentity {
-	return runtimeGenerationIdentity{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest, Checks: nonNilStrings(snapshot.Manifest.Checks)}
+	return runtimeGenerationIdentity{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest, Health: snapshot.Manifest.Health, Checks: nonNilStrings(snapshot.Manifest.Checks)}
 }
 
 func runtimeSectionLookup(sections []okf.ContextSection) map[string]okf.ContextSection {
@@ -657,7 +658,7 @@ func (handler *runtimeServeHandler) recordContextUsage(snapshot runtimeGeneratio
 }
 
 func usageGeneration(snapshot runtimeGenerationSnapshot) knowledgeusage.Generation {
-	return knowledgeusage.Generation{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest, Checks: nonNilStrings(snapshot.Manifest.Checks)}
+	return knowledgeusage.Generation{Name: snapshot.Pointer.Generation, Commit: snapshot.Manifest.Commit, Spec: snapshot.Manifest.Spec, ContentDigest: snapshot.Manifest.ContentDigest, Health: snapshot.Manifest.Health, Checks: nonNilStrings(snapshot.Manifest.Checks)}
 }
 
 func runtimeRejectedReasons(rejected []runtimeRejectedCandidate) []string {

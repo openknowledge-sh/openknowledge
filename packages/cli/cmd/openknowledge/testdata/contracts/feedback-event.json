@@ -9,6 +9,7 @@
     "commit": "0123456789abcdef0123456789abcdef01234567",
     "spec": "0.2",
     "contentDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "health": "passing",
     "checks": [
       "Knowledge Eval"
     ]

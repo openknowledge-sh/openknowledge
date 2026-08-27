@@ -122,7 +122,7 @@ func TestWritePublishedBundleTarGzipUsesExplicitPublicAllowlist(t *testing.T) {
 	writeFile(t, root, "assets/private/diagram.svg", "<svg>private</svg>\n")
 	writeFile(t, root, "secret.txt", "do not publish\n")
 	writeFile(t, root, ".openknowledge/runtime.json", "{\"secret\":true}\n")
-	writeFile(t, root, ValidationConfigFile, "[publish]\nenabled = true\nassets = [\"assets/public/**\", \"**/*.md\", \"openknowledge.toml\"]\n")
+	writeFile(t, root, ValidationConfigFile, "[release]\noutputs = [\"viewer\"]\n\n[publish]\nassets = [\"assets/public/**\", \"**/*.md\", \"openknowledge.toml\"]\n")
 	writeFile(t, root, legacyValidationConfigFile, "legacy configuration\n")
 
 	out := filepath.Join(t.TempDir(), "published.tar.gz")

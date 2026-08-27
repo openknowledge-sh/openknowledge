@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -57,6 +58,11 @@ func TestGitHubClientRequiresLatestSuccessfulChecks(t *testing.T) {
 	}
 	if _, err := client.RequireSuccessfulChecks(context.Background(), "abc123", []string{"Missing"}); err == nil || !strings.Contains(err.Error(), "missing") {
 		t.Fatalf("expected missing check refusal, got %v", err)
+	} else {
+		var gateErr *CheckGateError
+		if !errors.As(err, &gateErr) {
+			t.Fatalf("missing check is not classified as a gate failure: %T", err)
+		}
 	}
 }
 
