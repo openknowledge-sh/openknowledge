@@ -97,7 +97,7 @@ okn automation deploy railway init Wiki --runtimes codex \
 | `--repository` | Git `origin` | GitHub repository URL. |
 | `--without-worker` | compatibility no-op | The default omits agents. Incompatible with `--runtimes`. |
 | `--runtimes` | none | Enable the private publisher and one worker per listed harness. |
-| `--mcp` | `public` | `public`, `token`, or `off`. |
+| `--mcp` | `public` | Access policy: `public` or `token`. Remove `mcp` from `release.outputs` to omit the endpoint. |
 | `--domain` | none | Attach a hostname you already own. |
 | `--no-public-endpoint` | off | Disable public ingress. Incompatible with `--domain`. |
 | `--github-token-env` | `GITHUB_TOKEN` | GitHub token source. Authenticated `gh` is the fallback. |

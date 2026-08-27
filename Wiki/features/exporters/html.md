@@ -9,7 +9,7 @@ timestamp: 2026-08-24T00:00:00Z
 # HTML Exporter
 
 Export a validated bundle as a full static viewer or as plain semantic HTML.
-Both modes require `[publish] enabled = true`.
+Both modes require `viewer` in `[release].outputs`.
 
 ## Usage
 
@@ -116,8 +116,10 @@ It also omits viewer assets, discovery files, and search data.
 ## Publication rules
 
 ```toml
+[release]
+outputs = ["viewer"]
+
 [publish]
-enabled = true
 assets = ["assets/public/**", "whitepapers/*.pdf"]
 
 [html.site]
@@ -134,7 +136,7 @@ entry = "Wiki"
 
 - The exporter excludes files with `okf_publish: false`.
 - `okf_targets.viewer`, `search`, `llms`, and `sitemap` control individual
-  projections. They default to `true` after you enable publication.
+  projections. They default to `true` after you enable the viewer output.
 - A non-Markdown file is public only when it matches `publish.assets`.
 - Keep local stylesheets in the bundle.
 - The exporter links HTTP(S) stylesheets as configured.

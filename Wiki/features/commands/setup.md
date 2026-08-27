@@ -24,6 +24,8 @@ okn setup Wiki --from ./repository
 okn setup Wiki --from ./repository --about "Explain release workflows"
 okn setup Wiki --from ./repository --rules project,writing,iso-plain-language
 okn setup Wiki --from https://example.com/docs --depth 2
+okn setup github Wiki --plan
+okn setup github Wiki
 okn setup ci Wiki --plan
 okn setup ci Wiki
 okn setup runtime Wiki
@@ -74,32 +76,53 @@ choices in the setup flow.
 
 ### Product profiles
 
-Use two cumulative profiles after the local setup:
+Use the GitHub Action profile after local setup. Add the runtime only when
+clients need a hosted service:
 
 ```sh
-okn setup ci Wiki
+okn setup github Wiki
 okn setup runtime Wiki
 ```
 
-`setup ci` requires a Git repository. It adds one recommended Knowledge CI
-contract:
+`setup github` requires a Git repository. It adds these files:
 
 - `.openknowledge/evals/knowledge.yaml` with starter questions;
 - `.openknowledge/audit-sources.json` with the initial source baseline;
-- `.github/workflows/openknowledge-ci.yml` with validation, base-aware claim
-  lifecycle checks, audit, answer regression checks, and durable reports.
+- `.github/workflows/openknowledge.yml` with the reusable Open Knowledge Action.
 
-The workflow runs for pull requests, pushes to `main`, and one daily scheduled
-audit. The production push creates the exact `knowledge-ci` check that runtime
-publication requires.
+The workflow runs for pull requests, pushes to `main`, scheduled runs, and
+manual runs. The Action calls `okn automation github run`.
+
+The bridge reads `[release]` and `[maintenance]` from the bundle's
+`.openknowledge.toml`. It does not observe remote sources by default.
+On a push to the configured production branch, `follow-main` reports quality
+failures as degraded health while keeping the release available.
+`last-passing` rejects that run. Pull-request quality failures remain failing
+checks under either policy.
+
+Scheduled and manual runs skip model setup when `maintenance.mode = "off"`.
+Pull-request and push checks have read-only repository permission and never
+receive `OPENKNOWLEDGE_MODEL_TOKEN`. They run the native deterministic eval;
+no answer command, embedding endpoint, or model API call is configured.
+
+The `propose` and `autonomous` modes run a generated maintenance job on
+scheduled and manual events. That separate job has permission to push a branch
+and open a pull request. `propose` stops at the PR. `autonomous` also enables
+GitHub auto-merge after repository protections pass. Configure
+`OPENKNOWLEDGE_MODEL_TOKEN` for the selected agent only when either mode is
+active.
+
+`setup ci` writes the standalone `.github/workflows/openknowledge-ci.yml`
+workflow. `setup runtime` does not detect or reuse that workflow.
 
 The command preserves existing files. Use `--plan` to inspect changes without
 writing. Use `--force` to replace generated profile files. Repeated setup is
 idempotent.
 
-`setup runtime` requires a GitHub origin. It creates the production MCP and
-viewer runtime scaffold. The generated runtime requires the `knowledge-ci`
-check, unresolved claims cannot be published, and rollback remains available.
+`setup runtime` requires a GitHub origin and at least one explicit
+`release.outputs` entry. It creates a runtime scaffold for exactly those
+outputs. The GitHub Actions executor requires the `Open Knowledge checks`
+check. Unresolved claims cannot be published, and rollback remains available.
 
 Maintenance has one executor:
 
@@ -107,8 +130,8 @@ Maintenance has one executor:
 - `--maintenance runtime` enables the runtime jobs worker and writes
   `.openknowledge/jobs/knowledge-maintenance.md`. It also installs a starter
   eval dataset and source baseline for the runtime Knowledge CI pass;
-- `--maintenance auto` uses GitHub Actions when `setup ci` is present. It uses
-  the runtime worker otherwise.
+- `--maintenance auto` uses GitHub Actions when `setup github` or `setup ci` is
+  present. It uses the runtime worker otherwise.
 
 Use `--runtimes codex,claude,opencode` to select agent harnesses for runtime
 maintenance. The default runtime executor uses Codex.
@@ -125,9 +148,16 @@ The generated scaffold command persists the selection before content creation.
 New scaffolds record the default in `.openknowledge.toml`:
 
 ```toml
+[release]
+outputs = []
+
 [rules]
 enabled = ["project", "writing"]
 ```
+
+The empty output list keeps a new bundle local. Before runtime setup or HTML
+export, select `viewer`, `mcp`, or both. Local `okn view` does not require a
+release output.
 
 ## Skill installation
 
@@ -201,6 +231,8 @@ enable, disable, or change product telemetry.
 >
 > * `packages/cli/cmd/openknowledge/setup_command.go`
 > * `packages/cli/cmd/openknowledge/setup_product_command.go`
+> * `packages/cli/cmd/openknowledge/automation_github.go`
+> * `action.yml`
 > * `packages/cli/cmd/openknowledge/setup_lifecycle_command.go`
 > * `packages/cli/cmd/openknowledge/setup_skill_command.go`
 > * `packages/cli/internal/integration/manage.go`

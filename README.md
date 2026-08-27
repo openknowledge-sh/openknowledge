@@ -6,7 +6,8 @@
 
 Git-native CI and an MCP runtime for agent knowledge. Open Knowledge finds
 stale, conflicting, and missing knowledge, prepares evidence-backed fixes,
-tests real agent answers, and serves the latest passing version.
+runs deterministic retrieval and evidence regressions, and serves the current
+production version with explicit passing or degraded health.
 
 [🌐 Website](https://openknowledge.sh) |
 [📖 Documentation](https://openknowledge.sh/wiki/) |
@@ -25,9 +26,9 @@ tests real agent answers, and serves the latest passing version.
 ## The knowledge lifecycle
 
 ```text
-Markdown + Git ──► audit ──► evidence-backed PR ──► answer evals
-      ▲                                                │
-      └──── rollback ◄── production MCP ◄── green merge┘
+Markdown + Git ──► deterministic checks ──► evidence-backed PR
+      ▲                                      │
+      └──── rollback ◄── production MCP ◄────┘
 ```
 
 ## Quick start
@@ -125,12 +126,13 @@ Add Knowledge CI when pull requests must verify knowledge quality. Add the
 runtime when clients need a production MCP service:
 
 ```sh
-okn setup ci Wiki
+okn setup github Wiki
 okn setup runtime Wiki
 ```
 
-The CI profile adds a source baseline, starter eval questions, and GitHub gates.
-The runtime profile publishes immutable passing generations. See the complete
+The GitHub profile adds an Action-first workflow, source baseline, starter eval
+questions, and config-driven gates. The runtime profile publishes immutable generations with
+explicit passing or degraded health. See the complete
 [Knowledge CI Golden Path](Wiki/features/golden-path.md).
 
 ## Workflows
@@ -186,8 +188,8 @@ publication, Markdown is public unless it sets `okf_publish: false`. Add this
 configuration to `Wiki/.openknowledge.toml`:
 
 ```toml
-[publish]
-enabled = true
+[release]
+outputs = ["viewer"]
 ```
 
 Export the reviewed content:
@@ -197,8 +199,8 @@ okn export html --out ./site Wiki
 ```
 
 The bundle includes a static viewer, `llms.txt`, a connect manifest, and a
-portable source archive. A deployed runtime can also expose filtered search
-and HTTP MCP projections. See [HTML export](Wiki/features/exporters/html.md)
+portable source archive. Add `"mcp"` to `release.outputs` when a deployed
+runtime should also expose HTTP MCP. See [HTML export](Wiki/features/exporters/html.md)
 and [`.openknowledge.toml`](Wiki/features/configuration.md) for publication
 filters and asset options.
 

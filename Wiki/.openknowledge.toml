@@ -12,6 +12,16 @@ entry = "Wiki"
 [rules]
 enabled = ["project", "writing", "asd-ste100"]
 
+[release]
+branch = "main"
+policy = "follow-main"
+outputs = ["viewer", "mcp"]
+
 [publish]
-enabled = true
 assets = ["assets/**", "examples/*.go", "examples/*.pdf", "examples/*.svg"]
+
+[maintenance]
+mode = "off"
+agent = "codex"
+delivery = "pull-request"
+auto_merge = false

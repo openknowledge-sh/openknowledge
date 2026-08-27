@@ -81,6 +81,7 @@ also go to stderr.
 [runtime]
 state_dir = "/var/lib/openknowledge"
 require_resolved_claims = true
+release_policy = "follow-main" # follow-main or last-passing
 
 [artifact_store]
 type = "filesystem"
@@ -91,7 +92,7 @@ address = "0.0.0.0:8080"
 poll_interval = "5s"
 request_timeout = "15s"
 max_concurrency = 32
-mcp_access = "public" # public, token, or off
+mcp_access = "public" # public or token
 mcp_token_env = "OPENKNOWLEDGE_MCP_TOKEN" # used only without access profiles
 
 [serve.retrieval_policy]
@@ -129,8 +130,6 @@ auto_merge_low_risk = false
 id = "wiki"
 path = "Wiki"
 route = "/"
-publish = true
-mcp = true
 
 [[access_profiles]]
 id = "support"
@@ -151,12 +150,22 @@ Paths are relative to `runtime.toml`. The runtime rejects unknown fields,
 duplicate IDs, duplicate routes, unsafe routes, and invalid durations. It also
 rejects missing adapters and incomplete authentication.
 
-`require_resolved_claims` defaults to `true`. Publication then rejects a
-knowledge base that contains an active extracted, proposed, supported, or
-disputed claim. This keeps the current green generation active until
-verification or a human decision resolves the change. Set the value to `false`
-only for an intentional partial-release policy. Retrieval still refuses
-evidence that fails claim policy.
+`require_resolved_claims` defaults to `true`. An active extracted, proposed,
+supported, or disputed claim then fails the claim quality gate. `follow-main`
+publishes the structurally valid generation as `degraded`; `last-passing`
+keeps the current passing generation active. Set the value to `false` only for
+an intentional partial-release policy. Retrieval still refuses evidence that
+fails claim policy.
+
+`release_policy` defaults to `follow-main`. This policy activates a buildable
+production commit after a check or knowledge quality failure. The generation
+health is `degraded`. Integrity, configuration, transport, and build errors
+still stop publication.
+
+Set `release_policy = "last-passing"` to keep the active passing generation
+after a check, claim policy, audit, or eval gate failure. Generation manifests,
+build output, release output, retrieval responses, usage, and feedback expose
+`passing` or `degraded` health.
 
 Set `worker.knowledge_ci = true` when the runtime is the lifecycle executor.
 Before each publication, the publisher runs structural validation, compares
@@ -193,8 +202,8 @@ mcp/      # MCP projection
 evidence/ # private content-addressed artifacts and receipts
 ```
 
-The manifest binds the knowledge base ID, OKF spec, source commit, and sorted
-file digests, including private evidence. Promotion uses staging and is atomic.
+The manifest binds the knowledge base ID, OKF spec, source commit, health, and
+sorted file digests, including private evidence. Promotion uses staging and is atomic.
 The static service serves only `public/`. It never maps `evidence/` to an HTTP
 route.
 
@@ -317,8 +326,9 @@ has multiple published knowledge bases.
 ## Access profiles
 
 `[[access_profiles]]` defines bearer-token access for runtime retrieval. Each
-profile has a unique `id`, a unique `token_env`, and one or more published
-knowledge base IDs. Configuration rejects unpublished knowledge bases.
+profile has a unique `id`, a unique `token_env`, and one or more released
+knowledge base IDs. Runtime loads each bundle's `release.outputs` and rejects
+local-only knowledge bases in access profiles.
 
 Each profile must route at least one `agents`, `teams`, or `use_cases` label.
 Successful HTTP search and `openknowledge_search` responses return these
@@ -337,8 +347,9 @@ Profiles replace the legacy `serve.mcp_token_env` token when profiles exist.
 Each MCP request still requires a profile token. An MCP session binds to its
 initial profile and rejects a different profile.
 
-MCP also requires `knowledge_bases.mcp = true`. The endpoint is unavailable
-when `serve.mcp_access = "off"`.
+MCP requires `mcp` in the bundle's `release.outputs`. The `serve.mcp_access`
+field chooses public or bearer-token access; it does not disable publication.
+Viewer pages and `/_search` require the `viewer` output.
 
 The optional `[access_profiles.retrieval_policy]` table replaces the complete
 `serve.retrieval_policy` for that profile. Omit the table to use the global
@@ -609,9 +620,9 @@ credentials to each service. Only `serve` has public ingress.
 The private publisher endpoint transfers bounded Git bundles to workers. The
 serve artifact stays in its source-triggered image.
 
-A source bundle must set `[publish] enabled = true`. Page-level `okf_publish`
-and `okf_targets` filter public projections. They do not protect secrets in a
-public repository.
+A source bundle must list at least one public projection in
+`[release].outputs`. Page-level `okf_publish` and `okf_targets` filter public
+projections. They do not protect secrets in a public repository.
 
 Keep confidential source in a private repository. Apply TLS and rate limits at
 the trusted ingress.

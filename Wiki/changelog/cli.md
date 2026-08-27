@@ -13,6 +13,38 @@ page records release-level changes.
 
 ## Unreleased
 
+### Action-first GitHub automation
+
+- New `okn setup github` writes `.github/workflows/openknowledge.yml`, a starter
+  eval dataset, and a source baseline.
+- The root composite Action installs the matching CLI version. It maps pull
+  request, push, schedule, and manual events to `okn automation github`.
+- The executable bridge reads canonical `[release]` and `[maintenance]` values
+  from `.openknowledge.toml`. It does not observe remote sources by default.
+- On the configured production branch, `follow-main` returns degraded health
+  without rejecting a structurally valid run. Pull-request quality failures
+  remain failing checks. `last-passing` also rejects production quality
+  failures.
+- Maintenance mode `off` does not install or run a model harness. The `propose`
+  and `autonomous` modes execute a generated maintenance job, push its verified
+  branch, and open a pull request. `autonomous` enables GitHub auto-merge.
+- Pull-request and push checks use the native deterministic eval only. They do
+  not configure an answer command, remote observation, embeddings, or a model
+  credential.
+- `setup runtime` recognizes only the canonical GitHub Action workflow. It does
+  not adapt the unreleased standalone `setup ci` workflow into this profile.
+- Publication now has one canonical switch: `[release].outputs` accepts
+  `viewer`, `mcp`, or both. Missing or empty output lists remain local-only.
+  The removed `[publish].enabled` and runtime `knowledge_bases.publish` / `mcp`
+  fields are rejected instead of forming contradictory gates. Runtime derives
+  outputs from each bundle; `[publish]` now contains only public asset globs.
+  `serve.mcp_access` is now only `public` or `token`; output selection disables
+  MCP instead of a second runtime switch.
+- Source: `action.yml`, `packages/cli/cmd/openknowledge/automation_github.go`,
+  and `packages/cli/cmd/openknowledge/setup_product_command.go`.
+- Docs: `Wiki/features/commands/setup.md` and
+  `Wiki/features/commands/automation.md`.
+
 ### Setup
 
 - Setup now accepts `--use-case base|trusted|custom`. `base` is the default.
@@ -384,8 +416,18 @@ page records release-level changes.
 
 ### Publication gate
 
+- Runtime configuration now supports `release_policy = "follow-main"` or
+  `"last-passing"`. The default `follow-main` activates a buildable production
+  commit with `degraded` health after check or knowledge quality failures.
+- `last-passing` keeps the prior passing generation active after a quality gate
+  failure. Integrity, transport, configuration, and generation build errors
+  stop both policies.
+- Immutable generation manifests bind `passing` or `degraded` health into the
+  content digest. Build, release, retrieval, usage, and feedback contracts
+  expose this health.
 - Runtime publication can now require exact GitHub check names on the
-  production commit. Missing, pending, and failed checks stop publication.
+  production commit. Missing, pending, and failed checks produce degraded
+  health under `follow-main` and stop activation under `last-passing`.
 - The publisher verifies checks before it creates a production source bundle
   or generation. Manual publication cannot bypass configured required checks.
 - Successful check names are bound into the generation content digest.

@@ -35,9 +35,19 @@ entry = "Wiki"
 [html.site]
 base_url = "https://example.com/knowledge/"
 
+[release]
+branch = "main"
+policy = "follow-main"
+outputs = ["viewer", "mcp"]
+
 [publish]
-enabled = true
 assets = ["assets/public/**", "whitepapers/*.pdf"]
+
+[maintenance]
+mode = "off"
+agent = "codex"
+delivery = "pull-request"
+auto_merge = false
 ```
 
 | Field | Type | Behavior |
@@ -50,8 +60,14 @@ assets = ["assets/public/**", "whitepapers/*.pdf"]
 | `html.source.github_base` | string | Absolute HTTP(S) repository source base URL. |
 | `html.source.entry` | string | Optional relative repository path prefix. |
 | `html.site.base_url` | string | Absolute HTTP(S) deployed root without query or fragment. |
-| `publish.enabled` | boolean | Permission to create public artifacts. The default is `false`. Public HTML and runtime generation require `true`. |
 | `publish.assets` | string or string array | Bundle-relative glob list for public non-Markdown files. `**` matches path segments recursively. |
+| `release.branch` | string | Production branch watched by GitHub automation. The default is `main`. |
+| `release.policy` | string | On the production branch, `follow-main` publishes a structurally valid generation with `degraded` health after quality failures; `last-passing` keeps the prior passing generation. The default is `follow-main`. Pull-request quality failures remain failing checks. |
+| `release.outputs` | string array | Public projections: `viewer`, `mcp`, or both. Missing or empty means local-only. |
+| `maintenance.mode` | string | `off`, `propose`, or `autonomous`. The default is `off`, so ordinary CI installs and invokes no model harness. |
+| `maintenance.agent` | string | `codex`, `claude`, or `opencode`. The default is `codex`; it is used only when maintenance is active. |
+| `maintenance.delivery` | string | Delivery transport. The supported value is `pull-request`. |
+| `maintenance.auto_merge` | boolean | Ask GitHub to auto-merge a verified maintenance PR. `autonomous` always does this; the field can opt another active mode into the same delivery behavior. |
 
 `rules.paths` and `rules.enabled` accept the existing single-string shorthand.
 All other fields use the exact types in the table.
@@ -101,16 +117,17 @@ It does not load the legacy plain `openknowledge.toml` file.
 The legacy file remains private in viewer raw routes and public artifacts.
 
 Public artifacts use an explicit list of permitted content.
-`[publish] enabled = true` gives the required bundle-level permission.
-The default is `false`.
-After this gate, `okf_publish` and optional `okf_targets` select Markdown.
+`release.outputs` is the single bundle-level release decision. The default is
+an empty list, so a new bundle is local-only. `viewer` permits the static site,
+search, `llms.txt`, and sitemap projections. `mcp` permits the runtime MCP
+projection. After this gate, `okf_publish` and optional `okf_targets` select Markdown.
 A non-Markdown file must match `publish.assets`.
 Asset patterns cannot include unpublished Markdown again.
 The output always excludes `.git`, `.openknowledge`, `.openknowledge.toml`, and legacy `openknowledge.toml`.
 A public source repository still exposes its Git content.
 Thus, `okf_publish: false` is an artifact filter and not a confidentiality control.
 
-Per-page `okf_publish` permits publication only after the bundle gate succeeds.
+Per-page `okf_publish` permits publication only after the matching release output succeeds.
 The default value permits publication after that gate.
 The literal value `false` prevents all public projections.
 Optional target Boolean values default to `true`:
@@ -139,11 +156,26 @@ Use `okf_publish: false` to exclude content from each public generation.
 * `okn prompt review rules` also uses `[rules]`.
 * `okn view` uses `[html.theme]`.
 * Default `okn export html` uses `[html.theme]`, `[html.source]`, and `[html.site]`.
-  It uses the same strict parser as validation.
-  It uses `[publish]` for the bundle gate and public asset list.
-* Plain HTML also requires `publish.enabled`.
+  It uses the same strict parser as validation. It requires `viewer` in
+  `release.outputs` and uses `[publish].assets` for the public asset list.
+  Plain HTML uses the same output requirement.
 * JSON and graph exports ignore publication filters.
 * A standalone tar export preserves the complete source, including this configuration.
+* `okn automation github plan/run` and the root GitHub Action use `[release]`
+  and `[maintenance]` as their desired-state contract.
+* Runtime configuration registers the bundle path and route. Runtime build and
+  serve load `release.outputs` from that bundle; runtime TOML has no second
+  `publish` or `mcp` switch. `[serve].mcp_access` controls access only.
+* `okn setup github` writes `release.branch` into the workflow trigger. Runtime
+  scaffolding maps the same branch and policy into `worker.production_branch`
+  and `runtime.release_policy`.
+* `maintenance.mode = "off"` keeps pull-request and push checks deterministic.
+  They do not need `OPENKNOWLEDGE_MODEL_TOKEN`, an answer command, or an
+  embedding service. Scheduled and manual runs invoke an agent only after an
+  explicit `propose` or `autonomous` setting.
+* `autonomous` still uses a verified branch and pull request. The Action pushes
+  the generated branch, opens the PR, and enables GitHub auto-merge. Structural
+  validation remains a hard boundary.
 
 ---
 

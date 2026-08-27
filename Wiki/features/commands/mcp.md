@@ -108,7 +108,8 @@ stops normally.
 at `<route>/_mcp`. It uses MCP sessions over HTTP. It reads only the filtered
 `mcp/` projection.
 
-Access can be public, bearer-token, or disabled. The runtime validates browser
+Access can be public or bearer-token protected. Omit `mcp` from the bundle's
+`release.outputs` to disable the endpoint. The runtime validates browser
 origins. It limits bodies, sessions, concurrency, and request duration. Apply
 rate limits at the trusted ingress.
 

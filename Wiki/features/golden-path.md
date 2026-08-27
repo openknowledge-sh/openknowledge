@@ -10,7 +10,8 @@ timestamp: 2026-08-22T00:00:00Z
 
 Open Knowledge is the CI and runtime for agent knowledge. GitHub is the review
 interface, Git is the audit log and rollback system, Markdown is the source of
-record, and MCP distributes the last passing production generation.
+record, and MCP distributes the active production generation with explicit
+`passing` or `degraded` health.
 
 ## Command path
 
@@ -19,7 +20,7 @@ record, and MCP distributes the last passing production generation.
 okn setup Wiki
 
 # Recommended GitHub lifecycle
-okn setup ci Wiki
+okn setup github Wiki
 
 # Find concrete risks and preserve one as agent work
 okn audit Wiki --baseline .openknowledge/audit-sources.json \
@@ -35,6 +36,7 @@ okn eval run .openknowledge/evals/knowledge.yaml Wiki \
   --base main --gate regressions --format markdown
 
 # Configure production MCP and viewer publication
+# In Wiki/.openknowledge.toml: [release] outputs = ["viewer", "mcp"]
 okn setup runtime Wiki
 ```
 
@@ -50,26 +52,36 @@ the normal Git review workflow.
 | Agent | Extract candidates, reuse IDs, link evidence, prepare Markdown changes, and explain impact. |
 | Deterministic CLI | Validate structure, provenance, claim identity, lifecycle history, conflicts, source changes, and eval regressions. |
 | Human or executable evidence | Decide meaning, authority, risky procedures, and unresolved conflicts. |
-| GitHub | Show the diff and reports, enforce required checks, and record approval. |
-| Production runtime | Publish immutable green generations, refuse insufficient evidence, and support rollback. |
+| GitHub | Show the diff and reports, enforce repository protections, and deliver reviewed or autonomous maintenance PRs. |
+| Production runtime | Publish immutable generations with explicit health, preserve integrity boundaries, and support rollback. |
 
 An agent can create a `proposed` claim or preserve a disagreement as
 `disputed`. It cannot silently remove verified history or make a new source
-authoritative. A base-aware CI gate requires an approval identity for authority
-changes. Hosted maintenance still routes every authority change to human review.
+authoritative. A base-aware gate still requires the configured evidence and
+claim lifecycle. `maintenance.mode = "propose"` stops at a pull request;
+`"autonomous"` enables auto-merge only after the generated branch passes its
+deterministic verification and repository protections.
 
 ## Local and production access
 
 `okn mcp` serves the current working tree. Agents need this mode while they edit
 and test local knowledge.
 
-The production runtime serves only its active immutable generation. Publication
-requires configured GitHub checks. By default, it also rejects active proposed
-or disputed claims. A failed publication leaves the previous green generation
-active. `runtime rollback` can select an earlier verified generation.
+The production runtime serves only its active immutable generation. The
+bundle's `release.outputs` is the only publication selector: `viewer` exposes
+the static viewer and search projection, while `mcp` exposes MCP. Runtime TOML
+only binds the bundle to a route and applies serving and access policy. The
+default `release.policy = "follow-main"` keeps a structurally valid production
+branch releasable when a quality gate fails; it publishes that commit with
+`degraded` health. Integrity, configuration, transport, and build failures
+still stop publication. Use `"last-passing"` to keep the previous passing
+generation active after a quality failure. `runtime rollback` can select an
+earlier generation.
 
-When GitHub Actions owns maintenance, production requires its `knowledge-ci`
-check. When the runtime owns maintenance, it performs the same structure,
+When the new GitHub Action owns checks, production observes its
+`Open Knowledge checks` result. Pull-request and push jobs are deterministic,
+read-only, and receive no model credential. When the runtime owns maintenance,
+it performs the same structure,
 claim-history, audit, and eval gates before publication and stores the reports
 in runtime state. Only one maintenance executor is enabled.
 
@@ -89,8 +101,9 @@ not select the newest or most convenient source as truth.
 The CLI test suite contains one Golden Path acceptance test. It creates a Git
 documentation repository, installs Knowledge CI, detects a changed authoritative
 source, pins exact evidence, creates a durable finding proposal, applies and
-verifies an evidence-backed claim, and runs answer plus unknown-question
-abstention evals. It publishes a green immutable generation, activates it,
+verifies an evidence-backed claim, and runs deterministic retrieval, citation,
+and unknown-question abstention evals without a model API call. It publishes an
+immutable generation, activates it,
 queries HTTP and MCP, verifies the generation-bound evidence bundle, records
 grounded feedback, publishes a second generation, and rolls back to the first.
 

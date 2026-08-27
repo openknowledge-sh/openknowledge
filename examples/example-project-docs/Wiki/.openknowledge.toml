@@ -11,5 +11,5 @@ entry = "Wiki"
 [html.site]
 base_url = "https://openknowledge-sh.github.io/example-project-docs/"
 
-[publish]
-enabled = true
+[release]
+outputs = ["viewer"]

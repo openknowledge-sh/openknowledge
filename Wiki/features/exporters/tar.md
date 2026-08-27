@@ -49,7 +49,7 @@ It also contains the archive path and required SHA-256.
 Use `okn export html --no-source-archive` to omit the archive and manifest.
 This option does not change the standalone `okn export tar` command.
 
-The public HTML export requires `[publish] enabled = true`.
+The public HTML export requires `viewer` in `[release].outputs`.
 It then uses an explicit publication set.
 It omits Markdown with `okf_publish: false`.
 It omits non-Markdown files that do not match `[publish].assets`.
