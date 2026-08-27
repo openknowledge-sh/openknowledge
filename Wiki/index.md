@@ -10,8 +10,10 @@ maintain, validate, and publish.
 
 ## Get started
 
-Use [Installation](features/installation.md) to install the CLI. Then, use
-[`setup`](features/commands/setup.md) to create or complete a knowledge base.
+```sh
+curl -fsSL https://openknowledge.sh/install | bash
+okn setup
+```
 
 This documentation uses `okn` as the preferred command. The full
 `openknowledge` command remains available.
