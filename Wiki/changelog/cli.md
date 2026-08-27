@@ -13,765 +13,163 @@ page records release-level changes.
 
 ## Unreleased
 
-### Action-first GitHub automation
+This release connects setup, retrieval, evidence, quality gates, publication,
+and maintenance in one trusted knowledge lifecycle.
 
-- New `okn setup github` writes `.github/workflows/openknowledge.yml`, a starter
-  eval dataset, and a source baseline.
-- The root composite Action installs the matching CLI version. It maps pull
-  request, push, schedule, and manual events to `okn automation github`.
-- The executable bridge reads canonical `[release]` and `[maintenance]` values
-  from `.openknowledge.toml`. It does not observe remote sources by default.
-- On the configured production branch, `follow-main` returns degraded health
-  without rejecting a structurally valid run. Pull-request quality failures
-  remain failing checks. `last-passing` also rejects production quality
-  failures.
-- Maintenance mode `off` does not install or run a model harness. The `propose`
-  and `autonomous` modes execute a generated maintenance job, push its verified
-  branch, and open a pull request. `autonomous` enables GitHub auto-merge.
-- Pull-request and push checks use the native deterministic eval only. They do
-  not configure an answer command, remote observation, embeddings, or a model
-  credential.
-- `setup runtime` recognizes only the canonical GitHub Action workflow. It does
-  not adapt the unreleased standalone `setup ci` workflow into this profile.
-- Publication now has one canonical switch: `[release].outputs` accepts
-  `viewer`, `mcp`, or both. Missing or empty output lists remain local-only.
-  The removed `[publish].enabled` and runtime `knowledge_bases.publish` / `mcp`
-  fields are rejected instead of forming contradictory gates. Runtime derives
-  outputs from each bundle; `[publish]` now contains only public asset globs.
-  `serve.mcp_access` is now only `public` or `token`; output selection disables
-  MCP instead of a second runtime switch.
-- Source: `action.yml`, `packages/cli/cmd/openknowledge/automation_github.go`,
-  and `packages/cli/cmd/openknowledge/setup_product_command.go`.
-- Docs: `Wiki/features/commands/setup.md` and
-  `Wiki/features/commands/automation.md`.
+### Setup and GitHub automation
 
-### Setup
-
-- Setup now accepts `--use-case base|trusted|custom`. `base` is the default.
-  All presets use the same OKF format.
-- The command guide now starts with setup, validation, search, and the viewer.
-  Trust, query, interchange, CI, and runtime features are optional layers.
-- The setup wizard produces the first validated search result before asking
-  about agent instructions or observation. `setup complete --skill none
-  --observe off` now leaves a CLI-only bundle local instead of creating a
-  registry connection.
-- Validation output omits inactive extension checks, and the viewer hides the
-  Claims workspace until a bundle contains a claim profile, ontology, claims,
-  or claim references.
-- Source: `packages/cli/cmd/openknowledge/setup_command.go` and
-  `packages/cli/cmd/openknowledge/command_catalog.go`.
+- New setup use cases are `base`, `trusted`, and `custom`. `base` is the
+  default, and all use cases use the same OKF format.
+- The setup wizard creates a validated search result before optional agent
+  instructions, observation, claims, or runtime configuration.
+- The documentation start page now links to installation and setup references.
+  It does not prescribe project-specific validation or search commands.
+- New `okn setup github` creates the canonical GitHub workflow, a starter eval
+  dataset, and a source baseline.
+- The root composite Action maps pull requests, pushes, schedules, and manual
+  runs to `okn automation github`.
+- `[release].outputs` is the only publication switch. It accepts `viewer`,
+  `mcp`, or both. An empty value keeps the bundle local.
+- Source: `action.yml`,
+  `packages/cli/cmd/openknowledge/setup_product_command.go`, and
+  `packages/cli/cmd/openknowledge/automation_github.go`.
 - Docs: `README.md`, `Wiki/features/commands/setup.md`,
-  `Wiki/features/commands/index.md`, `Wiki/features/tooling-model.md`, and
-  `Wiki/index.md`.
+  `Wiki/features/commands/automation.md`, and
+  `Wiki/features/configuration.md`.
 
-### Self-correcting claim memory
+### Claims, evidence, and corpus contracts
 
-- Claim verification now keeps append-only local evidence observations. A
-  changed live source makes the exact dependent claim stale.
-- New `okn claims stale` and `okn claims reconcile` commands expose and clear
-  reviewed evidence drift. Runtime retrieval, MCP, the viewer, and audit use
-  the same derived freshness state.
-- Audit baseline updates now fail while changed sources have unresolved typed
-  claims. Reconciliation projects page verification only when all active
-  claims are verified and current.
-- New `okn eval claims` replays typed claims at immutable Git checkpoints and
-  classifies supported, stale, hallucinated, and unverified claims.
-- Source: `packages/cli/internal/okf/claims_evidence.go`,
-  `packages/cli/internal/claimops/observation.go`,
-  `packages/cli/internal/eval/claim_replay.go`, and
-  `packages/cli/cmd/openknowledge/claims_command.go`.
-- Docs: `Wiki/features/claim-freshness.md`,
-  `Wiki/features/commands/claims.md`, `Wiki/features/commands/audit.md`, and
-  `Wiki/features/commands/eval.md`.
-
-### OKF 0.2 compatibility
-
-- OKF 0.2 timestamp fields now require ISO 8601 datetimes with explicit
-  offsets. Date-only values produce `okf-0.2-metadata` diagnostics.
-- Freshness checks now compare `stale_after` with the current absolute
-  instant. Consumers ignore date-only and offset-free values.
-- The embedded specification and wiki copy now pin upstream commit
-  `62432a095456147ee71e70ac6e4dc0d2dea3ac30`.
-- Source: `packages/cli/internal/okf/spec.go`,
-  `packages/cli/internal/okf/validation_0_2.go`,
-  `packages/cli/internal/okf/okf_0_2_signals.go`, and
-  `packages/cli/internal/okf/assets/specs/0.2.md`.
-- Docs: `Wiki/SPEC.md`, `Wiki/features/spec-compliance.md`,
-  `Wiki/features/commands/validate.md`, and
-  `Wiki/features/commands/runtime.md`.
-
-### Semantic query and hybrid retrieval
-
-- New `okn eval retrieval` runs versioned graded relevance datasets. It
-  compares the local hash route with an optional HTTP embedding provider.
-  Reports include section and document MRR, Recall@k, nDCG@k, category
-  summaries, model identity, timings, and ranked case details.
-- Retrieval datasets can declare absolute and embedding-uplift quality gates.
-  A failed measured gate returns exit status `1`. An unavailable embedding
-  gate has an explicit `skipped` result.
-- A synthetic earnings call corpus covers lexical, semantic, cross-language,
-  and hard-negative queries. CI runs its deterministic quality gates without
-  an external service.
-- CI also gates two recorded repository questions against the current Wiki.
-  This dataset checks exact section rank and first-ranked document coverage.
-- New `okn query sparql`, `okn query datalog`, and `okn query hybrid`
-  commands query one immutable corpus revision. SPARQL is limited to bounded
-  local `SELECT` and `ASK`. Mangle Datalog supports safe recursion and returns
-  source-backed proof paths. Closed-world negation requires an explicit rule
-  profile.
-- One normalized semantic fact model now feeds RDF, SPARQL, Datalog, and
-  hybrid retrieval. `okn export rdf` writes a deterministic, lossless RDF 1.1
-  N-Quads projection with claim occurrence, lifecycle, scope, evidence,
-  access, and provenance metadata.
-- Hybrid queries run only caller-supplied text, SPARQL, and Datalog routes.
-  Reciprocal-rank fusion combines independent ranks, joins structured
-  provenance back to text sections, and preserves `retrieved-text`,
-  `asserted-fact`, and `derived-fact` result kinds.
-- Hybrid text retrieval adds a document-aware `section-focus` route. It gives
-  one section per retrieved document an extra fusion signal from term coverage
-  and a specific heading match.
-- The read-only MCP server adds `openknowledge_query`. The Go API adds reusable
-  semantic fact, RDF, local vector, SPARQL, Datalog, and hybrid snapshots.
-  Local embedding providers can persist normalized `float32` vectors in an
-  exact-input and model-fingerprint cache.
-- Hybrid text queries can use an OpenAI-compatible embedding URL. Ollama
-  responses are supported. An absent URL keeps the deterministic hash vector.
-  The CLI caches unchanged section vectors in a private per-user file.
-- Access filtering runs before SPARQL or rule evaluation. Hybrid lifecycle
-  defaults exclude rejected, superseded, archived, and stale claims. Query,
-  dataset, result, rule, proof, time, and concurrency limits are bounded.
-  Direct MCP semantic queries are public-only; clients cannot self-issue
-  source access grants.
-- New strict v1 schemas cover semantic facts, vector results, RDF datasets,
-  SPARQL bindings, Datalog proofs, hybrid route fusion, and retrieval evals.
-- Source: `packages/cli/internal/okf/{semantic_facts,embedding,rdf,sparql,datalog,hybrid}*.go`,
-  `packages/cli/internal/eval/retrieval.go`,
-  `packages/cli/cmd/openknowledge/query_command.go`, and
-  `packages/cli/cmd/openknowledge/mcp.go`.
-- Docs: `Wiki/features/commands/query.md`,
-  `Wiki/features/exporters/rdf.md`, `Wiki/features/go-api.md`, and the
-  knowledge architecture, claim profile, MCP, export, and machine-contract
-  pages.
-
-### Retrieval
-
-- Search now combines BM25 with local deterministic vector candidates. The
-  vector uses hashed word and character features and does not call an embedding
-  service.
-- New repeatable `okn search --filter type=<value>|tag=<value>` filters
-  candidates before ranking. MCP search accepts the same `types` and `tags`
-  filters.
-- Search output now identifies the retrieval route and can include lexical,
-  vector, and rerank score diagnostics. Runtime access policy now filters
-  candidates before ranking and keeps the final source check.
-- Source: `packages/cli/internal/okf/search_knowledge.go`,
-  `packages/cli/internal/okf/search_vector.go`,
-  `packages/cli/internal/okf/search_filters.go`, and
-  `packages/cli/cmd/openknowledge/runtime_retrieval.go`.
-- Docs: `Wiki/features/commands/search.md`,
-  `Wiki/features/knowledge-architecture.md`,
-  `Wiki/features/commands/mcp.md`, and `Wiki/features/commands/runtime.md`.
-
-### Evidence bundles, corpus contracts, and answer safety
-
-- New `okn evidence pin` captures exact local or HTTP evidence bytes into a
-  content-addressed store, writes an immutable v1 receipt, updates the source
-  to `observe: pinned`, and validates the resulting selector binding.
-- Runtime MCP context now returns an ordered retrieval route, selected typed
-  claims, exact pinned evidence artifact identities and selectors, explicit
-  conflicts, structured missing-knowledge reasons, applied access labels, and
-  retrieval time in one evidence bundle.
-- Runtime generations now contain a manifest-bound private evidence layer.
-  Public, source, search, and MCP projections do not contain its bytes, and the
-  HTTP service does not expose it. Runtime selector validation resolves the
-  active projection against this exact generation layer.
-- Structured source access labels now fail closed at retrieval. A document is
-  rejected with `source_access_denied` when any restricted source does not
-  match the active profile, agent, team, or use case.
-- Eval v1 can require answer or abstain decisions, conflict disclosure, and a
-  minimum number of valid citations carrying entailment attestations. The CLI
-  validates and scores attestations but does not make a semantic entailment
-  judgment itself.
-- Optional Corpus Schema v1 adds fail-closed document type, path, required
-  metadata, typed-link, and migration validation without replacing OKF
-  Markdown/YAML as canonical state.
-- Stable claim ontology entities are searchable by ID and label. Digest-bound
-  alias and merge proposals now support impact preview and approved apply. A
-  merge rewrites claim references transactionally and retains the old ID as
-  `deprecated` with `replaced_by`.
-- New schemas define evidence pin output, evidence receipts, corpus
-  frontmatter, entity search, and entity proposals.
-- Source: `packages/cli/internal/claimops/evidence.go`,
-  `packages/cli/internal/okf/corpus_schema.go`,
-  `packages/cli/internal/claimops/entity.go`,
-  `packages/cli/internal/eval/runner.go`, and
-  `packages/cli/cmd/openknowledge/runtime_retrieval.go`.
-- Docs: `Wiki/features/commands/evidence.md`,
-  `Wiki/features/corpus-schema.md`, and the claims, eval, runtime, knowledge
-  architecture, and machine-contract pages.
-
-### Golden knowledge lifecycle
-
-- New `okn setup ci` installs a starter eval dataset, source baseline, and one
-  GitHub Actions workflow for validation, base-aware claim history, audit, and
-  answer regression gates.
-- New `okn setup runtime` installs the production MCP and viewer runtime. It
-  selects exactly one maintenance executor: GitHub Actions or runtime jobs.
-- Runtime-only maintenance generates its eval and source-baseline inputs. The
-  publisher runs local structure, claim history, audit, and eval gates, stores
-  their reports, and binds `openknowledge-runtime-ci` into passing generations.
-- Production publication now rejects active proposed or disputed claims by
-  default. The prior green generation remains active after a failed build.
-- `okn audit` adds Markdown output and opt-in remote source observation.
-  Sources can use manual, HTTP metadata, bounded fetch, or pinned SHA-256 mode.
-- New `okn audit propose` converts one saved finding into a durable routed
-  insight proposal.
-- Hosted PR jobs copy eval JSON, Markdown, a viewer index, and a strict artifact
-  manifest into `.openknowledge/reports/<run-id>/` before commit.
-- Repository CI now compares claim lifecycle and source authority against the
-  base commit.
-- One Golden Path acceptance test covers setup, source-change detection,
-  evidence pinning, proposal, claim-backed repair and verification, answer and
-  abstention evals, green publication, HTTP and MCP retrieval, feedback, a
-  second generation, and rollback.
-- Source: `packages/cli/cmd/openknowledge/setup_product_command.go`,
-  `packages/cli/cmd/openknowledge/golden_path_test.go`,
-  `packages/cli/internal/audit/audit.go`, and
-  `packages/cli/internal/agents/runner.go`.
-- Docs: `Wiki/features/golden-path.md` and the setup, audit, eval, claims,
-  runtime, and machine-contract command pages.
-
-### Typed Claims v1
-
-- Claims v1 now uses globally unique occurrence IDs and separate reusable
-  slots. Each occurrence contains a subject, predicate, and typed object.
-- A bundle ontology registry declares namespaces, entities, predicate object
-  kinds, datatypes, QUDT quantity kinds and units, cardinality, and required
-  scope dimensions.
-- Evidence is a structured list with stable IDs, source references, stances,
-  roles, observation time, and W3C Web Annotation-style selectors.
-- Evidence selectors now require a pinned source artifact and exact SHA-256.
-  Validation proves local text quotes, text positions, data positions, and
-  Markdown or HTML fragments against those bytes. It reports unavailable
-  remote bytes and unsupported resolvers as `unverifiable`, without a fetch.
-- Claim source projections preserve the observation mode and digest. Digest
-  mismatch is a fail-closed tampering error.
-- Verification records method, actor, time, and evidence references.
-  Proposal confidence is extraction confidence only.
-- Lifecycle states are extracted, proposed, supported, verified, disputed,
-  rejected, superseded, and archived. Relations explicitly record
-  supersession, contradiction, and derivation.
-- Validation rejects duplicate occurrence IDs, unknown registry terms, invalid
-  object ranges, invalid units, selector errors, missing relation targets,
-  supersession cycles, and unresolved exact occurrence references.
-- Audit compares slot, subject, predicate, typed scope, predicate cardinality,
-  overlapping validity, and normalized objects. It does not infer a winner.
-- `okn claims` and MCP accept complete structured proposals. Proposal apply
-  creates a new occurrence and never updates an existing occurrence ID.
-- New reject, supersede, and archive operations preserve reviewed history.
-- List, graph, search, context, MCP, audit, and runtime output use the same typed
-  model. The graph includes supersession, contradiction, and derivation edges.
-- Runtime policy blocks unresolved active occurrences and can serve a verified
-  successor while it preserves rejected, superseded, or archived history.
-- The unreleased scalar `id`, `value`, `source`, and `verified` claim shape was
-  removed. Claims v1 has no compatibility parser.
+- Typed Claims v1 adds ontology terms, globally unique occurrences, typed
+  objects, structured evidence, verification records, and explicit lifecycle
+  relations.
+- Evidence selectors bind to pinned source artifacts. Validation verifies
+  supported selectors against exact bytes and reports unavailable bytes.
+- New `okn evidence pin` creates a content-addressed evidence artifact and an
+  immutable receipt.
+- New `okn claims stale` and `okn claims reconcile` detect and resolve
+  evidence drift without removal of reviewed history.
+- Entity alias and merge proposals provide impact previews. Approved merges
+  update references and retain deprecated entity IDs.
+- Corpus Schema v1 adds optional document, metadata, typed-link, and migration
+  rules. OKF Markdown and YAML remain canonical.
+- OKF 0.2 now requires explicit ISO 8601 offsets in timestamp fields.
 - Source: `packages/cli/internal/okf/claims_*.go`,
-  `packages/cli/internal/claimops/`,
-  `packages/cli/internal/audit/audit.go`, and
-  `packages/cli/cmd/openknowledge/runtime_worker.go`.
+  `packages/cli/internal/claimops/`, and
+  `packages/cli/internal/okf/corpus_schema.go`.
 - Docs: `Wiki/features/claim-profile.md`,
-  `Wiki/features/commands/claims.md`,
-  `Wiki/features/commands/audit.md`, and
+  `Wiki/features/claim-freshness.md`,
+  `Wiki/features/corpus-schema.md`, and
+  `Wiki/features/commands/{claims,evidence}.md`.
+
+### Retrieval and semantic queries
+
+- Search now combines BM25 with deterministic local vectors. Repeatable
+  `--filter type=<value>|tag=<value>` options filter candidates before rank.
+- Hybrid retrieval can combine caller-supplied text, SPARQL, and Datalog routes
+  through reciprocal-rank fusion.
+- New `okn query sparql`, `okn query datalog`, and `okn query hybrid`
+  commands query one immutable corpus revision.
+- New `okn export rdf` writes a deterministic RDF 1.1 N-Quads projection with
+  claims, evidence, access, lifecycle, and provenance data.
+- Optional OpenAI-compatible embedding services can replace local hash vectors.
+  The CLI caches vectors by exact input and model fingerprint.
+- Access and lifecycle filters run before semantic evaluation. Direct MCP
+  semantic queries remain public-only.
+- The Go API exposes reusable context, semantic fact, RDF, vector, SPARQL,
+  Datalog, and hybrid snapshots.
+- Source: `packages/cli/internal/okf/{search,embedding,rdf,sparql,datalog,hybrid}*.go`
+  and `packages/cli/cmd/openknowledge/query_command.go`.
+- Docs: `Wiki/features/commands/{search,query,mcp}.md`,
+  `Wiki/features/exporters/rdf.md`, and `Wiki/features/go-api.md`.
+
+### Eval, audit, and quality
+
+- `okn eval run` adds strict retrieval, answer, citation, groundedness, trust,
+  freshness, lifecycle, and source expectations.
+- Base comparisons identify changed paths, affected questions, affected agents,
+  and uncovered knowledge paths.
+- New `okn eval retrieval` reports MRR, Recall@k, and nDCG@k with absolute and
+  embedding-uplift gates.
+- New `okn eval claims` replays claims at immutable Git revisions and reports
+  supported, stale, hallucinated, and unverified claims.
+- New `okn audit` reports evidence-backed risks for sources, ownership,
+  staleness, dependencies, duplicates, usage, and claim conflicts.
+- New `okn quality report` combines usage, feedback, eval, audit, claims, and
+  intervention data without a global quality score.
+- Text, JSON, Markdown, and offline HTML outputs support local review and
+  continuous integration.
+- Source: `packages/cli/internal/{eval,audit,quality,intervention}/` and
+  `packages/cli/cmd/openknowledge/{eval,audit,quality}_command.go`.
+- Docs: `Wiki/features/commands/{eval,audit,quality}.md`,
+  `Wiki/features/golden-path.md`, and
   `Wiki/features/machine-contracts.md`.
 
-### Knowledge quality report
+### Runtime, publication, and maintenance
 
-- New `okn quality report` combines repeatable usage, feedback, eval, audit,
-  and intervention inputs with the current knowledge bundle.
-- The report strictly binds audit and eval inputs to the current revision. It
-  uses only the latest grounded feedback for each usage event.
-- Evidence-backed metrics cover healthy selected evidence, trusted answers,
-  unanswered requests, negative feedback, generation trends, eval accuracy,
-  and structured claim conflicts.
-- Per-concept priorities combine sources, current trust and lifecycle state,
-  eval coverage, use, feedback reasons, and audit findings. The report does not
-  publish a global quality score.
-- Metrics without sufficient observations are explicit `unavailable` values.
-  Strict intervention lifecycles now measure detection-to-publication time,
-  review minutes, audit false positives, and safely automated maintenance.
-- New `okn quality interventions append` validates and writes private
-  append-only lifecycle events. It enforces risk routing, evidence, verified
-  publication, audit outcomes, and ordered transitions without inferring
-  missing evidence.
-- Hosted maintenance now records detected and proposed intervention stages per
-  affected knowledge base. Low-risk automation reaches published only after
-  the exact squash commit becomes an active generation with required checks;
-  publisher retries do not duplicate events.
-- Text, JSON, and Markdown output support local review and automation. New
-  `quality-report.schema.json` defines the strict machine contract.
-- New HTML output writes a self-contained offline dashboard. It provides a
-  first-view health ledger, a filterable priority queue, generation outcomes,
-  eval changes, the complete metric ledger, and responsive print styles.
-- Source: `packages/cli/cmd/openknowledge/quality_command.go`,
-  `packages/cli/internal/quality/`,
-  `packages/cli/internal/intervention/`,
-  `packages/cli/internal/quality/html.go`,
-  `packages/cli/schemas/v1/quality-report.schema.json`, and
-  `packages/cli/schemas/v1/intervention-event.schema.json`.
-- Docs: `Wiki/features/commands/quality.md`,
-  `Wiki/features/commands/index.md`, and
-  `Wiki/features/machine-contracts.md`.
-
-### Grounded runtime feedback
-
-- Runtime HTTP search and MCP context responses now return an opaque
-  `usageEventId` after successful private usage event persistence.
-- New `POST <route>/_feedback` records positive or reason-coded negative
-  feedback against a retained event. It uses the retrieval access profile and
-  knowledge base allowlist.
-- Feedback binds the original generation, checks, query fingerprint, channel,
-  outcome, and selected evidence. It does not copy raw query text.
-- The runtime stores private feedback JSONL under `<state_dir>/feedback` with
-  user-only directory and file modes. It applies the usage event retention
-  period to these files.
-- New `feedback-event.schema.json` defines the strict feedback v1 contract.
-  Runtime search and context schemas now allow `usageEventId`.
-- Source: `packages/cli/cmd/openknowledge/runtime_feedback.go`,
-  `packages/cli/cmd/openknowledge/runtime_serve.go`,
-  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
-  `packages/cli/internal/feedback/`, `packages/cli/internal/usage/`,
-  `packages/cli/schemas/v1/feedback-event.schema.json`,
-  `packages/cli/schemas/v1/runtime-search.schema.json`, and
-  `packages/cli/schemas/v1/runtime-context.schema.json`.
-- Docs: `Wiki/features/commands/runtime.md`,
-  `Wiki/features/machine-contracts.md`, and `Wiki/features/telemetry.md`.
-
-### Runtime index cache
-
-- Runtime serving now persists generation-bound search and MCP indexes under
-  the private runtime state directory.
-- Cache loading validates knowledge base, generation, content digest, target,
-  OKF specification, payload digest, and section locators. Missing or invalid
-  caches rebuild without changing immutable generation artifacts.
-- New `runtime cache status`, `runtime cache rebuild`, and
-  `runtime cache prune` commands provide strict JSON output. Prune is a dry run
-  unless `--apply` is set and keeps every generation in the release store.
-- Cache directories use mode `0700`. Cache files use mode `0600`.
-- New `runtime-cache.schema.json` defines actions, entry states, paths,
-  index metadata, and prune removals.
-- Source: `packages/cli/cmd/openknowledge/runtime_cache.go`,
-  `packages/cli/cmd/openknowledge/runtime_serve.go`,
-  `packages/cli/internal/runtime/index_cache.go`,
-  `packages/cli/internal/okf/context.go`, and
-  `packages/cli/schemas/v1/runtime-cache.schema.json`.
-- Docs: `Wiki/features/commands/runtime.md` and
-  `Wiki/features/machine-contracts.md`.
-
-### Maintenance routing
-
-- Insights now carry normalized risk, approval, confidence, and owner routes.
-  Low risk requires at least 0.95 confidence and permits automatic processing.
-  Medium risk requires human approval. High risk requires expert approval and
-  keeps declared knowledge targets evidence-only for automation.
-- New `okn automation insights from-audit` creates stable, deduplicated
-  insights from audit findings and routes target owners from OKF frontmatter.
-- Hosted jobs carry bounded maintenance attestations. GitHub owners can request
-  user or team review with `github:<login>` or `github-team:<slug>`.
-- Optional `github.auto_merge_low_risk` creates ready low-risk pull requests
-  and squash merges only after exact required checks succeed. Incomplete gates
-  keep the exchange proposal for a later publisher retry.
-- Source: `packages/cli/internal/insights/`,
-  `packages/cli/cmd/openknowledge/insights_command.go`,
-  `packages/cli/internal/agents/templates.go`,
-  `packages/cli/cmd/openknowledge/runtime_worker.go`,
-  `packages/cli/internal/runtime/config.go`,
-  `packages/cli/internal/runtime/github.go`, and
-  `packages/cli/schemas/v1/runtime-plan.schema.json`.
-- Docs: `Wiki/features/commands/insights.md`,
-  `Wiki/features/commands/jobs.md`, `Wiki/features/commands/runtime.md`, and
-  `Wiki/features/machine-contracts.md`.
-
-### Knowledge audit
-
-- New `okn audit` reports deterministic evidence-backed risks for staleness,
-  sources, ownership, local dependencies, duplicates, and structured claims.
-- Optional source baselines detect changed local content or remote
-  `last_modified` updates.
-- Repository CI now passes its tracked source baseline to the Wiki audit.
-  Declared source changes therefore participate in the high-risk gate.
-- Private usage inputs add recurring unanswered-question and high-use
-  unverified findings.
-- `--fail-on` provides severity gates. Repository CI now uploads the JSON
-  report and fails on high-risk findings.
-- New `owner`, `owners`, and `claims` frontmatter extensions support audit
-  routing and structured conflict detection.
-- Source: `packages/cli/cmd/openknowledge/audit_command.go`,
-  `packages/cli/internal/audit/`,
-  `packages/cli/schemas/v1/audit-report.schema.json`,
-  `packages/cli/schemas/v1/audit-source-baseline.schema.json`, and
-  `.github/workflows/ci.yml`.
-- Docs: `Wiki/features/commands/audit.md`,
-  `Wiki/features/commands/index.md`, and
-  `Wiki/features/machine-contracts.md`.
-
-### Publication gate
-
-- Runtime configuration now supports `release_policy = "follow-main"` or
-  `"last-passing"`. The default `follow-main` activates a buildable production
-  commit with `degraded` health after check or knowledge quality failures.
-- `last-passing` keeps the prior passing generation active after a quality gate
-  failure. Integrity, transport, configuration, and generation build errors
-  stop both policies.
-- Immutable generation manifests bind `passing` or `degraded` health into the
-  content digest. Build, release, retrieval, usage, and feedback contracts
-  expose this health.
-- Runtime publication can now require exact GitHub check names on the
-  production commit. Missing, pending, and failed checks produce degraded
-  health under `follow-main` and stop activation under `last-passing`.
-- The publisher verifies checks before it creates a production source bundle
-  or generation. Manual publication cannot bypass configured required checks.
-- Successful check names are bound into the generation content digest.
-  Retrieval contracts and private usage events return `generation.checks`.
-- Hosted job exchange can carry a bounded worker-reported passing eval summary
-  for draft pull request and job check output. Raw reports remain private.
-- Repository CI now runs knowledge eval on pull requests and `main` pushes.
-  The push comparison uses the prior production SHA.
-- Source: `packages/cli/internal/runtime/github.go`,
-  `packages/cli/internal/runtime/generation.go`,
-  `packages/cli/internal/runtime/config.go`,
-  `packages/cli/cmd/openknowledge/runtime_command.go`,
-  `packages/cli/cmd/openknowledge/runtime_worker.go`,
-  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
-  `packages/cli/internal/usage/`, `.github/workflows/ci.yml`, and
-  `.github/workflows/knowledge-eval.yml`.
-- Docs: `Wiki/features/commands/runtime.md`,
-  `Wiki/features/commands/jobs.md`, `Wiki/features/commands/eval.md`,
-  `Wiki/features/machine-contracts.md`, and
-  `Wiki/features/knowledge-architecture.md`.
-
-### Runtime release control
-
-- `runtime build --stage` now stores a verified immutable generation without
-  a change to the production pin. Build JSON marks this state with `staged`.
-- New `runtime releases` JSON output lists stored generations and the active
-  and previous production pins.
-- New `runtime preview` serves or checks a selected stored generation. Preview
-  does not change production or write production usage events.
-- New `runtime pin` atomically activates a stored generation after required
-  check validation. `runtime rollback` activates the previous pin or an
-  explicit stored generation without a rebuild.
-- The production `active.json` pointer now records `previousGeneration`.
-  Implicit rollback remains available after required check configuration
-  changes.
-- New `runtime-releases.schema.json` and
-  `runtime-release-action.schema.json` define release-control JSON output.
-- Source: `packages/cli/cmd/openknowledge/runtime_command.go`,
-  `packages/cli/cmd/openknowledge/runtime_release.go`,
-  `packages/cli/cmd/openknowledge/runtime_serve.go`,
-  `packages/cli/internal/runtime/store.go`,
-  `packages/cli/internal/runtime/generation.go`,
-  `packages/cli/schemas/v1/runtime-build.schema.json`,
-  `packages/cli/schemas/v1/runtime-releases.schema.json`, and
-  `packages/cli/schemas/v1/runtime-release-action.schema.json`.
-- Docs: `Wiki/features/commands/runtime.md` and
-  `Wiki/features/machine-contracts.md`.
-
-### Runtime usage
-
-- Runtime search can now record private local usage events for HTTP and MCP
-  search. Recording and sanitized query capture are separate opt-in settings.
-- Events use a private HMAC key and contain no user, session, IP address, or
-  request header fields. The default event contains no query text.
-- `okn automation insights from-usage` converts recurring no-evidence and
-  policy-rejected clusters into stable private insights.
-- Captured questions can produce a private strict eval dataset. Exclusive file
-  creation prevents replacement of an existing dataset.
-- New `usage-event.schema.json` defines the local event v1 contract.
-- Source: `packages/cli/internal/runtime/config.go`,
-  `packages/cli/cmd/openknowledge/runtime_serve.go`,
-  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
-  `packages/cli/cmd/openknowledge/insights_command.go`,
-  `packages/cli/internal/usage/`, `packages/cli/internal/insights/`, and
-  `packages/cli/schemas/v1/usage-event.schema.json`.
-- Docs: `Wiki/features/commands/runtime.md`,
-  `Wiki/features/commands/insights.md`, `Wiki/features/telemetry.md`, and
-  `Wiki/features/machine-contracts.md`.
-
-### Runtime retrieval
-
-- Runtime `[[access_profiles]]` now give HTTP search and MCP separate
-  environment-backed bearer tokens, published knowledge base allowlists, and
-  agent, team, or use-case routing labels.
-- A profile can replace the global retrieval policy. Configured profiles
-  replace the legacy single MCP token and bind each MCP session to one profile.
-- Runtime search and context responses now include access identity and an
-  explicit `answer` or `refuse` decision. Refusals identify missing evidence,
-  policy rejection, or insufficient MCP context budget.
-- Refusal responses contain no selected evidence. They keep rejected
-  candidates visible for review.
-- `[serve.retrieval_policy]` now filters runtime evidence by minimum trust,
-  staleness, lifecycle status, and structured source presence. Defaults remain
-  permissive.
-- Runtime HTTP search and MCP `openknowledge_search` enforce the policy for
-  each candidate. Responses include rejected candidates and exact reasons.
-- New v1 runtime search and context contracts include generation identity,
-  trust, freshness, provenance, and selection metadata.
-- MCP `resources/list` and `resources/read` remain exact access methods for the
-  MCP projection. The retrieval policy does not make them access controls.
-- Source: `packages/cli/internal/runtime/config.go`,
-  `packages/cli/cmd/openknowledge/runtime_retrieval.go`,
-  `packages/cli/cmd/openknowledge/runtime_serve.go`,
-  `packages/cli/schemas/v1/runtime-plan.schema.json`,
-  `packages/cli/schemas/v1/runtime-search.schema.json`, and
-  `packages/cli/schemas/v1/runtime-context.schema.json`.
-- Docs: `Wiki/features/commands/runtime.md` and
-  `Wiki/features/machine-contracts.md`.
-
-### Knowledge CI
-
-- Eval dataset cases can now identify agent consumers with optional `agents`.
-  Base comparisons map changed paths to affected questions and agents.
-- Comparison reports now contain `changedPaths`, `affectedAgents`,
-  `affectedQuestions`, and `uncoveredPaths`. Attribution uses expected,
-  retrieved, and cited sources plus retrieval, outcome, and answer changes.
-- Text and Markdown reports summarize review impact. Uncovered paths identify
-  changed knowledge paths that have no eval case source link.
-- Eval dataset v1 now supports `minimum_trust`, `allow_stale`,
-  `allowed_statuses`, and `require_sources` expectations. Each policy check
-  tests all selected sources against derived OKF 0.2 metadata.
-- JSON and Markdown reports include policy check results. Failed checks identify
-  the sources that violate trust, freshness, lifecycle, or provenance rules.
-- `okn eval run` now tests deterministic retrieval evidence against strict,
-  versioned YAML datasets. Expectations cover sources, included or excluded
-  evidence, and minimum source counts.
-- Text output summarizes each case. Versioned JSON reports bind results to the
-  dataset digest and corpus revision. Markdown output creates a pull request
-  report with status, answer changes, citations, groundedness, and failed checks.
-- An explicit answer command can use retrieved source Markdown through a strict
-  JSON stdin and stdout protocol. New expectations test answer text, citation
-  sources, valid citation counts, and claim groundedness.
-- The CLI runs answer commands directly without a shell or sandbox. Retrieval
-  remains deterministic. Answer reproducibility depends on the selected command.
-- Failed expectations return exit status `1`, which supports continuous
-  integration gates.
-- `--base <git-ref>` now compares the working knowledge base with an immutable
-  Git archive snapshot. Both revisions use the same current dataset.
-- Each case is `improved`, `regressed`, `unchanged_pass`, or `unchanged_fail`.
-  The `all` gate rejects all proposed failures. The `regressions` gate rejects
-  only regressions.
-- Jobs now accept structured `verify.eval` settings. The runner performs a
-  native base comparison and retains private JSON and Markdown reports.
-- The built-in `knowledge-eval` job template provides an agentless native gate.
-- Eval gate failures now set `verification_failed`. Run plans and run records
-  expose resolved eval configuration and result summaries.
-- The repository includes a reusable `knowledge-eval.yml` workflow. It adds
-  Markdown to the GitHub job summary and uploads both reports for 14 days.
-- Source: `packages/cli/cmd/openknowledge/eval_command.go`,
-  `packages/cli/internal/eval/`, `packages/cli/schemas/eval/v1/`,
-  `packages/cli/schemas/v1/eval-report.schema.json`,
-  `packages/cli/schemas/v1/eval-comparison.schema.json`,
-  `packages/cli/internal/agents/`,
-  `packages/cli/schemas/v1/job-run-plan.schema.json`,
-  `packages/cli/schemas/v1/job-run-record.schema.json`, and
-  `.github/workflows/knowledge-eval.yml`.
-- Docs: `Wiki/features/commands/eval.md`, `Wiki/features/commands/jobs.md`, and
-  `Wiki/features/machine-contracts.md`.
+- Runtime retrieval returns generation identity, policy decisions, selected
+  evidence, conflicts, access labels, and structured refusal reasons.
+- Access profiles provide separate HTTP and MCP tokens, knowledge base
+  allowlists, and agent, team, or use-case labels.
+- Immutable generations support stage, preview, pin, list, and rollback
+  operations. Failed builds keep the previous production generation.
+- Publication policies are `follow-main` and `last-passing`. Required GitHub
+  checks and knowledge gates determine passing or degraded generation health.
+- Private runtime usage and reason-coded feedback retain generation and evidence
+  identity without storing raw query text by default.
+- Generation-bound retrieval caches validate content identity and rebuild after
+  missing or invalid cache data.
+- Audit findings can create risk-routed maintenance proposals. Automated
+  publication requires exact checks and the active verified commit.
+- `setup runtime` selects GitHub Actions or runtime jobs as the maintenance
+  executor.
+- Source: `packages/cli/cmd/openknowledge/runtime_*.go`,
+  `packages/cli/internal/runtime/`, and
+  `packages/cli/internal/{usage,feedback,insights}/`.
+- Docs: `Wiki/features/commands/{runtime,insights,jobs}.md`,
+  `Wiki/features/knowledge-architecture.md`, and
+  `Wiki/features/telemetry.md`.
 
 ### Viewer
 
-- Registry mode now uses one workspace for **Documents** and **Graph**. Files
-  from different knowledge bases can share one document stack. Browser history
-  retains each file source.
-- Each knowledge base now owns a nested **Claims** item. The item requests and
-  shows claims only from that knowledge base.
-- The desktop viewer now opens with a static sidebar. An empty registry uses
-  the same application shell and provides a connect action.
-- The combined graph now uses the complete workspace. Filters can select
-  documents, claims, entities, and source knowledge bases. Large graphs use a
-  scalable layout and reduced force work.
-- Connected knowledge bases keep separate indexes. Combined search and graph
-  projections do not create cross-base links.
-- Each Claims projection reports a failure for its knowledge base. A failed
-  Claims projection does not appear as an empty combined workspace.
-- The **Claims** workspace now keeps its count, search, primary filters, and
-  additional-filter control in one compact toolbar.
-- Selected claims keep **Evidence and metadata** visible. Authored incoming
-  and outgoing relations appear in an optional collapsed **Relationships**
-  section instead of a separate workspace mode.
-- Claim subjects, metric entities, object entities, predicates, and evidence
-  sources now open contextual inspectors inside the Claims workspace. The
-  inspectors show their canonical metadata and every connected claim without
-  adding permanent workspace tabs.
-- Same-slot occurrences appear in a conditional collapsed **History** section.
-  Claim references and shared-source claims appear in a conditional collapsed
-  **Impact** section; empty sections stay hidden.
-- Scoped metric claims now use the `metric` scope value as their compact
-  identity in document **Claims** panels and workspace summaries.
-  Compact surfaces show only the subject, metric, and formatted quantity.
-  Visible details retain scope, lifecycle, evidence, and source metadata.
-- Markdown images now render as responsive images instead of image-shaped
-  links. Local paths resolve from the source Markdown file through safe raw
-  routes. Static exports keep portable relative paths and copy allowed assets.
-- Image alt text, optional titles, lazy loading, table-cell bounds, and
-  sandboxed SVG media responses improve accessibility and layout resilience.
-- Images inside Markdown links now render as linked images. The viewer resolves
-  the image asset and link destination independently.
-- Local document requests now reuse parsed AST and claim data. Navigation
-  requests omit global graph, tree, and claims workspace projections. Live
-  reload also reuses unchanged file digests. Large knowledge bases open faster
-  and no longer cause continuous idle CPU use.
-- Registry document pages request the combined graph or one knowledge-base
-  Claims projection only when a user opens that view. Large pages do not embed
-  those projections in each document response.
-- Claim profile validation now reads, hashes, and indexes each pinned evidence
-  artifact one time per pass. Repeated fragment selectors reuse that index.
-- Graphs with more than 250 nodes now use a stable grid and start with force
-  motion paused. Large combined graphs no longer block document startup.
-- The Wiki now includes one Markdown viewer showcase for supported block,
-  inline, asset, table, footnote, annotation, and nested rendering cases.
-- Source: `packages/cli/internal/okf/markdown.go`,
-  `packages/cli/internal/okf/claims_evidence.go`,
-  `packages/cli/internal/okf/claims_validate.go`,
-  `packages/cli/cmd/openknowledge/viewer.go`,
-  `packages/cli/cmd/openknowledge/viewer_claims.go`,
-  `packages/cli/cmd/openknowledge/viewer_export.go`,
-  `packages/cli/cmd/openknowledge/viewer_templates.go`,
-  `packages/web/src/viewer/app.js`,
-  `packages/web/src/viewer/styles/claims.css`,
-  `packages/web/src/viewer/styles/document.css`, and viewer tests.
-- Docs: `Wiki/features/commands/view.md`,
-  `Wiki/features/claim-profile.md`,
-  `Wiki/features/exporters/html.md`, and
-  `Wiki/examples/markdown-showcase.md`.
-- Markdown notes with typed claims now include a collapsed, read-only
-  **Claims** panel. It shows labeled statements, status, scope, evidence, and
-  occurrence relations without changing canonical YAML.
-- The sidebar now includes a read-only **Claims** workspace. Users can browse
-  claims, apply filters, and review details across a bundle.
-- The **Graph** workspace now preserves claim occurrence nodes. It shows
-  declaration, reference, supersession, contradiction, and derivation
-  relations.
-- Source: `packages/cli/cmd/openknowledge/viewer_claims.go`,
-  `packages/cli/cmd/openknowledge/viewer_export.go`,
-  `packages/cli/cmd/openknowledge/viewer_templates.go`, and
+- Registry mode now provides one Documents and Graph workspace across connected
+  knowledge bases. Each knowledge base retains separate indexes.
+- Typed bundles add a Claims workspace, document claim panels, claim history,
+  impact data, relationships, and contextual entity inspectors.
+- Graph filters cover documents, claims, entities, and source knowledge bases.
+  Large graphs use bounded layout work.
+- Local document requests reuse parsed data and load graph or claim projections
+  only when required.
+- `okn view` watches local Markdown and assets. Live reload preserves valid
+  document, graph, and scroll state.
+- Markdown images use safe asset routes and portable static exports. Linked
+  images, alt text, titles, lazy loading, and SVG sandboxing are supported.
+- Browser-native narration reads visible document content and omits code,
+  metadata, diagrams, and hidden interface content.
+- Source: `packages/cli/cmd/openknowledge/viewer_*.go` and
   `packages/web/src/viewer/`.
 - Docs: `Wiki/features/commands/view.md`,
-  `Wiki/features/exporters/html.md`, and `Wiki/features/claim-profile.md`.
-- Markdown note panels now provide browser-native text-to-speech controls for
-  reader-facing content, with pause, resume, and stop states. The feature uses
-  the browser-selected voice and requires no Open Knowledge-managed API key.
-  That voice may be local or network-backed. Narration omits frontmatter,
-  agent-only annotations, code blocks, Mermaid diagrams, and hidden UI.
-- Source: `packages/cli/cmd/openknowledge/viewer_templates.go`,
-  `packages/web/src/viewer/app.js`,
-  `packages/web/src/viewer/styles/document.css`, and
-  `packages/web/scripts/browser.e2e.mjs`.
-- Docs: `Wiki/features/commands/view.md` and
-  `Wiki/features/exporters/html.md`.
-- `okn view` now watches local Markdown and asset files. It refreshes an open
-  page after an add, update, rename, move, or deletion.
-- Live reload preserves surviving document stacks, active documents, graph
-  state, and scroll positions. It removes deleted paths before refresh.
-- A content revision and authenticated Server-Sent Events stream coalesce save
-  bursts. Static HTML exports do not include the live reload client.
-- Source: `packages/cli/cmd/openknowledge/viewer_live_reload.go`,
-  `packages/cli/cmd/openknowledge/viewer_live_reload_test.go`,
-  `packages/web/src/viewer/live-reload.js`,
-  `packages/web/src/viewer/app.js`, and
-  `packages/web/scripts/viewer-live-reload.e2e.mjs`.
-- Docs: `Wiki/features/commands/view.md`.
+  `Wiki/features/exporters/html.md`, and
+  `Wiki/examples/markdown-showcase.md`.
 
-### Validation
+### Validation and automation foundations
 
-- `okn validate --profile bundle|okf` now selects the validation scope. The
-  default `bundle` profile includes Open Knowledge extension checks. The `okf`
-  profile runs only OKF core checks.
-- Text and JSON output now group checks as **OKF core** and
-  **Open Knowledge extensions**.
-- Source: `packages/cli/cmd/openknowledge/main.go`,
-  `packages/cli/cmd/openknowledge/command_help.go`, and
-  `packages/cli/internal/okf/validation_*.go`.
-- Docs: `Wiki/features/commands/validate.md`.
-
-### Retrieval
-
-- Search now uses a deterministic Go standard library in-memory inverted
-  index. The index has one sorted vocabulary and field postings.
-- Exact lookup no longer scans every section. Prefix lookup uses a vocabulary
-  range. Fuzzy lookup can scan the vocabulary.
-- Ranking, CLI output, and machine-readable contracts do not change.
-- The public Go API now provides an immutable, revision-bound `ContextIndex`.
-  `BuildContextIndex` and `BuildContextIndexWithVersion` create the snapshot.
-- `ContextIndex.Search` and `ContextIndex.Resolve` reuse the snapshot for
-  concurrent requests. These methods do not read the source files again.
-- Existing `Search`, `SearchWithVersion`, `ResolveContext`, and
-  `ResolveContextWithVersion` remain compatible one-shot helpers.
-- Source: `packages/cli/internal/okf/context.go`,
-  `packages/cli/internal/okf/search.go`,
-  `packages/cli/internal/okf/search_knowledge.go`,
-  `packages/cli/internal/okf/search_inverted_index_test.go`,
-  `packages/cli/internal/okf/search_benchmark_test.go`,
-  `packages/cli/okf/context_index.go`, `packages/cli/okf/read.go`, and
-  `packages/cli/okf/read_test.go`.
-- Docs: `Wiki/features/knowledge-architecture.md` and
-  `Wiki/features/go-api.md`.
-
-### Rules and setup
-
-- New knowledge bases now enable the built-in `project` and `writing` rules.
-  The rule catalog also offers `iso-plain-language` as an optional rule.
-- Setup uses the same default selection. Explicit CLI or
-  `.openknowledge.toml` rule selections continue to replace the defaults.
-- Ordinary setup and source setup now include complete selected-rule
-  instructions. Their scaffold commands persist the exact selection.
-- `okn scaffold --rules <rules>` persists an explicit built-in selection.
-  Starter agent guidance includes those rules. The terminal validation handoff
-  includes the created bundle path.
-- Source: `packages/cli/internal/okf/rules.go`,
-  `packages/cli/internal/okf/rule_catalog.go`,
-  `packages/cli/internal/okf/new.go`,
-  `packages/cli/internal/okf/from.go`,
-  `packages/cli/internal/okf/setup.go`, and
-  `packages/cli/cmd/openknowledge/setup_command.go`.
-- Docs: `Wiki/features/commands/rules.md`,
-  `Wiki/features/commands/setup.md`,
-  `Wiki/features/commands/scaffold.md`, and
-  `Wiki/features/configuration.md`.
-
-### Content review and annotations
-
-- `okn prompt review content` now prints a portable, advisory content-health
-  review with deterministic bundle, page, Git, concern, and ordered-ruleset
-  identity. Changed scope includes direct local Markdown dependencies; full
-  scope works outside Git.
-- Markdown now supports bounded `agent-context` annotations. The AST preserves
-  their child blocks, viewers show them with subdued text, and
-  ordinary reader search excludes their content. Legacy maintenance footers
-  remain accepted through end-of-file.
-- Source: `packages/cli/internal/okf/content_review.go`,
-  `packages/cli/internal/okf/ast_markdown.go`,
-  `packages/cli/internal/okf/markdown.go`, and
-  `packages/cli/cmd/openknowledge/main.go`.
-- Docs: `Wiki/features/commands/review.md`,
-  `Wiki/features/commands/ast.md`,
-  `Wiki/features/commands/view.md`, and
-  `Wiki/features/exporters/html.md`.
-
-### Job validation foundation
-
-- Jobs can run deterministic preflight commands before an agent starts. A
-  failed preflight prevents the harness and post-agent verification from
-  running.
-- Empty-prompt jobs with verification commands can omit the agent runtime. The
-  new `content-validation` template uses this form and never selects model
-  credentials.
-- Published run-plan and run-record schemas now cover preflight artifacts,
-  agentless plans, the `preflight_failed` status, and supported draft-PR output.
-- Source: `packages/cli/internal/agents/spec.go`,
-  `packages/cli/internal/agents/plan.go`,
-  `packages/cli/internal/agents/runner.go`, and
-  `packages/cli/internal/agents/templates.go`.
-- Docs: `Wiki/features/commands/jobs.md`.
+- `okn validate --profile bundle|okf` separates OKF core checks from Open
+  Knowledge extension checks.
+- New bundles enable the built-in `project` and `writing` rules. Explicit
+  rule selections replace these defaults.
+- `okn prompt review content` creates a deterministic content review for a
+  complete bundle or changed Git scope.
+- Markdown supports bounded `agent-context` annotations. Reader search omits
+  this agent-only content.
+- Jobs can run deterministic preflight commands before an agent starts.
+  Validation-only jobs can omit the agent runtime.
+- Strict v1 schemas cover new claim, evidence, retrieval, eval, quality,
+  feedback, runtime, and intervention outputs.
+- Source: `packages/cli/internal/okf/validation_*.go`,
+  `packages/cli/internal/okf/content_review.go`, and
+  `packages/cli/internal/agents/`.
+- Docs: `Wiki/features/commands/{validate,rules,review,jobs}.md` and
+  `Wiki/features/machine-contracts.md`.
 
 ## v0.12.0 — 2026-08-11
 

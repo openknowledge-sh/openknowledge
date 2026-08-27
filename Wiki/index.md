@@ -10,15 +10,8 @@ maintain, validate, and publish.
 
 ## Get started
 
-```sh
-curl -fsSL https://openknowledge.sh/install | bash
-okn setup
-okn validate Wiki
-okn search Wiki "release workflow"
-```
-
-Setup uses the `base` intent by default. Use `okn view Wiki` to browse
-the result.
+Use [Installation](features/installation.md) to install the CLI. Then, use
+[`setup`](features/commands/setup.md) to create or complete a knowledge base.
 
 This documentation uses `okn` as the preferred command. The full
 `openknowledge` command remains available.
