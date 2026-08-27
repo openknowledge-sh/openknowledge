@@ -13,8 +13,30 @@ page records release-level changes.
 
 ## Unreleased
 
-This release connects setup, retrieval, evidence, quality gates, publication,
-and maintenance in one trusted knowledge lifecycle.
+Knowledge that guides agents can now use the same controls as code.
+
+This release connects local Markdown, deterministic CI, evidence-backed
+review, and production MCP in one Git-native lifecycle. Open Knowledge finds
+stale, conflicting, and missing knowledge before agents use it.
+
+Teams can test retrieval and evidence changes before publication. The runtime
+then serves an immutable generation with explicit `passing` or `degraded`
+health and rollback support.
+
+Start with the lightweight `base` setup. Add evidence, GitHub automation,
+quality gates, or the runtime only when the workflow needs them.
+
+### Release highlights
+
+- Create a validated, searchable knowledge base before optional governance or
+  runtime configuration.
+- Keep high-risk facts tied to exact evidence, review history, and explicit
+  lifecycle states.
+- Test retrieval, answers, citations, and freshness with deterministic
+  regression gates.
+- Publish only configured viewer or MCP outputs. Retain rollback to earlier
+  production generations.
+- Browse documents, claims, entities, and graphs in one connected workspace.
 
 ### Setup and GitHub automation
 
