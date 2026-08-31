@@ -210,6 +210,8 @@ quality gates, or the runtime only when the workflow needs them.
   embedded CLI.
 - Release verification runs CLI tests on macOS and Windows. Windows tests use
   a 20-minute package timeout.
+- Windows tests now drain Git archive streams correctly. Path handling and
+  permission assertions also follow Windows behavior.
 - Release verification runs `govulncheck` and OSV Scanner before it can create
   the version commit or tag.
 - The GitHub release body uses the matching dated section from this changelog.

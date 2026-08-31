@@ -486,7 +486,7 @@ Print the Go version.
 			if err != nil {
 				t.Fatal(err)
 			}
-			if info.Mode().Perm() != 0700 {
+			if runtime.GOOS != "windows" && info.Mode().Perm() != 0700 {
 				t.Fatalf("expected private run directory %s mode 0700, got %04o", dir, info.Mode().Perm())
 			}
 		}
@@ -496,7 +496,7 @@ Print the Go version.
 			if err != nil {
 				t.Fatal(err)
 			}
-			if info.Mode().Perm() != 0700 {
+			if runtime.GOOS != "windows" && info.Mode().Perm() != 0700 {
 				t.Fatalf("expected isolated runtime directory %s mode 0700, got %04o", dir, info.Mode().Perm())
 			}
 		}
@@ -509,7 +509,7 @@ Print the Go version.
 			if err != nil {
 				t.Fatal(err)
 			}
-			if info.Mode().Perm() != 0600 {
+			if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 				t.Fatalf("expected private artifact %s mode 0600, got %04o", path, info.Mode().Perm())
 			}
 		}

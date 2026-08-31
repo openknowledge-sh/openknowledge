@@ -110,6 +110,14 @@ func resolveClaimObservedResource(root, document, resource string) (string, bool
 	if resource == "" {
 		return "", true, fmt.Errorf("live evidence resource is empty")
 	}
+	if filepath.IsAbs(filepath.FromSlash(resource)) {
+		absolute := filepath.Clean(filepath.FromSlash(resource))
+		relative, err := filepath.Rel(root, absolute)
+		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return "", true, fmt.Errorf("live evidence resource must stay inside the knowledge base")
+		}
+		return absolute, true, nil
+	}
 	parsed, err := url.Parse(resource)
 	if err != nil {
 		return "", true, err
@@ -117,18 +125,8 @@ func resolveClaimObservedResource(root, document, resource string) (string, bool
 	if parsed.Scheme != "" || parsed.Host != "" {
 		return "", false, nil
 	}
-	path, err := url.PathUnescape(parsed.Path)
-	if err != nil {
+	if _, err := url.PathUnescape(parsed.Path); err != nil {
 		return "", true, err
-	}
-	path = filepath.FromSlash(path)
-	if filepath.IsAbs(path) {
-		absolute := filepath.Clean(path)
-		relative, err := filepath.Rel(root, absolute)
-		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-			return "", true, fmt.Errorf("live evidence resource must stay inside the knowledge base")
-		}
-		return absolute, true, nil
 	}
 	relative, local := localClaimEvidenceResource(document, resource)
 	if !local {

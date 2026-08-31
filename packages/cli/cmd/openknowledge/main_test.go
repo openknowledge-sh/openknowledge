@@ -2041,7 +2041,7 @@ func TestRunQueryHybridUsesConfiguredHTTPEmbeddingAndPersistentCache(t *testing.
 	if corpusInputs != 3 {
 		t.Fatalf("expected the second run to reuse three cached corpus vectors, embedded=%d", corpusInputs)
 	}
-	if info, err := os.Stat(cachePath); err != nil || info.Mode().Perm() != 0o600 {
+	if info, err := os.Stat(cachePath); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0o600) {
 		t.Fatalf("expected private persistent embedding cache: info=%v err=%v", info, err)
 	}
 }

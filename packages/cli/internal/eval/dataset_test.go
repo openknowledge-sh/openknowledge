@@ -3,6 +3,7 @@ package eval
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -109,7 +110,7 @@ func TestWriteNewDatasetCreatesPrivateValidFileAndRefusesOverwrite(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm()&0o077 != 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
 		t.Fatalf("generated usage dataset must be private, mode=%o", info.Mode().Perm())
 	}
 	if err := WriteNewDataset(path, dataset); err == nil || !os.IsExist(err) {

@@ -405,7 +405,7 @@ func TestEnsureRuntimeStateDirectoryTightensExistingPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0700 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0700 {
 		t.Fatalf("runtime state mode = %04o, want 0700", info.Mode().Perm())
 	}
 }

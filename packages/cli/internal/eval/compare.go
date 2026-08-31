@@ -445,9 +445,15 @@ func extractGitArchive(repoRoot string, treeish string, destination string) erro
 		return err
 	}
 	extractErr := extractEvalTar(stdout, destination)
-	waitErr := command.Wait()
 	if extractErr != nil {
+		_ = command.Process.Kill()
+		_ = command.Wait()
 		return extractErr
+	}
+	_, drainErr := io.Copy(io.Discard, stdout)
+	waitErr := command.Wait()
+	if drainErr != nil {
+		return drainErr
 	}
 	if waitErr != nil {
 		message := strings.TrimSpace(stderr.String())

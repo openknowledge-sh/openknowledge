@@ -3,6 +3,7 @@ package runtime
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -22,7 +23,7 @@ func TestRuntimeIndexCacheRestoresSearchAndPrunesOnlyStaleGenerations(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0600 {
+	if info, err := os.Stat(path); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0600) {
 		t.Fatalf("unexpected private cache mode: info=%v err=%v", info, err)
 	}
 	restored, err := cache.Load("wiki", "generation-1", digest, "0.1", IndexTargetSearch, projection)

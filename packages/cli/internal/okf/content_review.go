@@ -339,19 +339,18 @@ func changedContentReviewPaths(wiki string, base string) (map[string]string, str
 	if err != nil {
 		return nil, "", "", fmt.Errorf("resolve changed review base %s: %w", base, err)
 	}
-	diff, err := contentReviewGitOutputBytes(repo, "diff", "--name-only", "-z", base, "--", filepath.ToSlash(wikiRel))
+	diff, err := contentReviewGitOutputBytes(wiki, "diff", "--relative", "--name-only", "-z", base, "--", ".")
 	if err != nil {
 		return nil, "", "", fmt.Errorf("inspect changed review pages from %s: %w", base, err)
 	}
-	untracked, err := contentReviewGitOutputBytes(repo, "ls-files", "--others", "--exclude-standard", "-z", "--", filepath.ToSlash(wikiRel))
+	untracked, err := contentReviewGitOutputBytes(wiki, "ls-files", "--others", "--exclude-standard", "-z", "--", ".")
 	if err != nil {
 		return nil, "", "", err
 	}
 	selected := map[string]string{}
 	for _, item := range append(splitNullPaths(diff), splitNullPaths(untracked)...) {
-		absolute := filepath.Join(repo, filepath.FromSlash(item))
-		rel, err := filepath.Rel(wiki, absolute)
-		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		rel := filepath.Clean(filepath.FromSlash(item))
+		if rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}
 		rel = filepath.ToSlash(rel)

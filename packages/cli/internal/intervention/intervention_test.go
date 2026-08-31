@@ -3,6 +3,7 @@ package intervention
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -29,10 +30,10 @@ func TestRecorderPersistsStrictPrivateLifecycle(t *testing.T) {
 	if err != nil || len(events) != 3 || events[2].Stage != "published" {
 		t.Fatalf("unexpected lifecycle: %#v err=%v", events, err)
 	}
-	if info, err := os.Stat(root); err != nil || info.Mode().Perm() != 0o700 {
+	if info, err := os.Stat(root); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0o700) {
 		t.Fatalf("unexpected log permissions: %v err=%v", info, err)
 	}
-	if info, err := os.Stat(filepath.Join(root, "2026-08-21.jsonl")); err != nil || info.Mode().Perm() != 0o600 {
+	if info, err := os.Stat(filepath.Join(root, "2026-08-21.jsonl")); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0o600) {
 		t.Fatalf("unexpected event permissions: %v err=%v", info, err)
 	}
 }
