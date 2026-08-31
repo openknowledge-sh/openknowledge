@@ -57,9 +57,10 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   Press Escape to close the dialog.
 - The sidebar has top-level **Documents**, **Graph**, and **Knowledge bases**
   items. **Documents** opens files from any file tree in one document stack.
-  **Graph** shows the combined graph. Each knowledge base contains its own
-  **Claims** item and file tree. The **Claims** item shows claims only from its
-  knowledge base. Use the collapse icon to close all expanded trees. Use the
+  **Graph** shows the combined graph. Each knowledge base contains its own file
+  tree. A knowledge base with typed claim occurrences also contains a
+  **Claims** item. The **Claims** item shows claims only from its knowledge
+  base. Use the collapse icon to close all expanded trees. Use the
   plus icon to connect another local folder. **Settings** opens the viewer
   preferences from the sidebar footer.
   Select the shortcut badge in the viewer header to open or close the file
@@ -195,9 +196,10 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 
 ## Claims workspace
 
-Expand a knowledge base and select **Claims** to browse its typed claim
-occurrences. Registry mode does not combine claims from different knowledge
-bases. A direct single-base viewer keeps **Claims** in the main navigation.
+When a knowledge base contains typed claim occurrences, select **Claims** to
+browse them. The viewer hides **Claims** when no claim occurrence is present.
+Registry mode does not combine claims from different knowledge bases. A direct
+single-base viewer keeps an available **Claims** item in the main navigation.
 
 The compact toolbar keeps the claim count, search, status, entity, predicate,
 and additional filters together. Filter claims by status, entity, predicate,

@@ -2143,8 +2143,8 @@ func TestRegistryViewerRendersWorkspaceSelectorAndSwitchesBases(t *testing.T) {
 		t.Fatalf("registry claims navigation should render once per knowledge base, got %d", count)
 	}
 	personalClaimsToggle := viewerButtonTagWith(workPage, `data-knowledge-base="personal" data-claims-url="/kb/personal/api/claims"`)
-	if personalClaimsToggle == "" || strings.Contains(personalClaimsToggle, " hidden") {
-		t.Fatalf("registry navigation should expose an empty claims view for a plain knowledge base: %s", personalClaimsToggle)
+	if personalClaimsToggle == "" || !strings.Contains(personalClaimsToggle, " hidden") {
+		t.Fatalf("registry navigation should hide an empty claims view for a plain knowledge base: %s", personalClaimsToggle)
 	}
 	workClaimsToggle := viewerButtonTagWith(workPage, `data-knowledge-base="work" data-claims-url="/kb/work/api/claims"`)
 	if workClaimsToggle == "" || strings.Contains(workClaimsToggle, " hidden") {

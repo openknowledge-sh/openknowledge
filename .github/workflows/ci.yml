@@ -29,6 +29,23 @@ jobs:
         with:
           go-version-file: packages/cli/go.mod
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build viewer assets
+        run: pnpm build:viewer
+
       - name: Audit knowledge risks
         run: |
           go build -o "$RUNNER_TEMP/okn" ./packages/cli/cmd/openknowledge
@@ -154,7 +171,7 @@ jobs:
   go-platforms:
     name: Go tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -186,7 +203,7 @@ jobs:
         run: pnpm build:viewer
 
       - name: Test CLI
-        run: go test ./packages/cli/...
+        run: go test -timeout 20m ./packages/cli/...
 
       - name: Build CLI
         run: go build ./packages/cli/cmd/openknowledge

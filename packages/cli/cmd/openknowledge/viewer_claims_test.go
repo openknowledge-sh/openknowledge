@@ -94,8 +94,8 @@ func TestViewerClaimsWorkspaceAvailabilityRequiresClaimProfileData(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !profile.ProfilePresent || len(profile.Claims) != 0 || len(profile.References) != 1 || !viewerClaimsWorkspaceAvailable(profile) {
-		t.Fatalf("claim refs and an active profile should activate the claims workspace without a zero-count claim: %#v", profile)
+	if !profile.ProfilePresent || len(profile.Claims) != 0 || len(profile.References) != 1 || viewerClaimsWorkspaceAvailable(profile) {
+		t.Fatalf("claim refs and an active profile should not activate an empty claims workspace: %#v", profile)
 	}
 	if encoded := string(viewerClaimsJSON(profile)); !strings.Contains(encoded, `"profilePresent":true`) {
 		t.Fatalf("claims JSON should preserve profile availability: %s", encoded)

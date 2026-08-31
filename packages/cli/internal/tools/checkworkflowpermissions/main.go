@@ -25,6 +25,7 @@ var expectedPublishSteps = []string{
 	"Setup Node",
 	"Install dependencies",
 	"Build viewer assets",
+	"Prepare GitHub release notes",
 	"Prepare release tag",
 	"Run GoReleaser",
 	"Attest release archives",

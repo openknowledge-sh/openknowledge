@@ -349,7 +349,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
             </label>
           </div>
           <div id="knowledge-base-content-{{.Name}}" class="knowledge-base-content"{{if not .Active}} hidden{{end}}>
-            <button class="knowledge-base-claims" type="button" data-claims-view-toggle data-knowledge-base="{{.Name}}" data-claims-url="{{.URL}}api/claims" aria-label="Claims for {{.Name}}" aria-controls="claims-workspace" aria-pressed="false">
+            <button class="knowledge-base-claims" type="button" data-claims-view-toggle data-knowledge-base="{{.Name}}" data-claims-url="{{.URL}}api/claims" aria-label="Claims for {{.Name}}" aria-controls="claims-workspace" aria-pressed="false"{{if not .ClaimsAvailable}} hidden{{end}}>
               <svg class="knowledge-base-claims-icon control-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="6" cy="7" r="2"></circle>
                 <circle cx="18" cy="7" r="2"></circle>

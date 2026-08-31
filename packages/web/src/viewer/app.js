@@ -565,9 +565,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
         ? claimsDataCache.get(knowledgeBase)
           || (knowledgeBase === activeClaimsKnowledgeBase ? claimsData : null)
         : null;
-      if (dataURL) {
-        toggle.hidden = false;
-      } else if (loaded) {
+      if (loaded) {
         toggle.hidden = !claimsWorkspaceAvailable(cached);
       }
       const count = toggle.querySelector("[data-claims-navigation-count]");
@@ -603,16 +601,11 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function claimsWorkspaceAvailable(data) {
-    return Boolean(data?.profilePresent)
-      || (Array.isArray(data?.claims) && data.claims.length > 0)
-      || (Array.isArray(data?.references) && data.references.length > 0)
-      || (Array.isArray(data?.entities) && data.entities.length > 0)
-      || (Array.isArray(data?.predicates) && data.predicates.length > 0);
+    return Array.isArray(data?.claims) && data.claims.length > 0;
   }
 
-  function claimsViewCanOpen(data, knowledgeBase) {
-    const toggle = claimsToggleForKnowledgeBase(knowledgeBase);
-    return Boolean(toggle?.dataset.claimsUrl) || claimsWorkspaceAvailable(data);
+  function claimsViewCanOpen(data) {
+    return claimsWorkspaceAvailable(data);
   }
 
   function projectionFailureSummary(data) {

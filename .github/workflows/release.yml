@@ -99,6 +99,13 @@ jobs:
       - name: Verify release versions
         run: node scripts/check-versions.mjs "${{ steps.release.outputs.version }}"
 
+      - name: Verify release notes
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          node scripts/extract-release-notes.mjs "$RELEASE_VERSION" Wiki/changelog/cli.md "$RUNNER_TEMP/release-notes.md"
+          test -s "$RUNNER_TEMP/release-notes.md"
+
       - name: Verify Go modules are tidy
         shell: bash
         run: |
@@ -160,8 +167,96 @@ jobs:
           fi
           npm whoami --registry=https://registry.npmjs.org
 
+  release_platforms:
+    name: Release tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: packages/cli/go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build viewer assets
+        run: pnpm build:viewer
+
+      - name: Test CLI
+        run: go test -timeout 20m ./packages/cli/...
+
+      - name: Build CLI
+        run: go build ./packages/cli/cmd/openknowledge
+
+  release_security:
+    name: Release dependency security
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: packages/cli/go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build viewer assets
+        run: pnpm build:viewer
+
+      - name: Run govulncheck
+        working-directory: packages/cli
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+
+      - name: Download verified OSV Scanner
+        env:
+          OSV_SCANNER_SHA256: bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc
+        run: |
+          curl --proto '=https' --tlsv1.2 --location --fail --silent --show-error \
+            --max-time 120 \
+            --output "${RUNNER_TEMP}/osv-scanner" \
+            https://github.com/google/osv-scanner/releases/download/v2.3.8/osv-scanner_linux_amd64
+          echo "${OSV_SCANNER_SHA256}  ${RUNNER_TEMP}/osv-scanner" | sha256sum --check --strict
+          chmod +x "${RUNNER_TEMP}/osv-scanner"
+
+      - name: Scan repository dependencies with OSV
+        run: '"${RUNNER_TEMP}/osv-scanner" scan source --recursive --allow-no-lockfiles .'
+
   commit_release:
-    needs: verify
+    needs: [verify, release_platforms, release_security]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -227,6 +322,11 @@ jobs:
       - name: Build viewer assets
         run: pnpm build:viewer
 
+      - name: Prepare GitHub release notes
+        env:
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+        run: node scripts/extract-release-notes.mjs "$RELEASE_VERSION" Wiki/changelog/cli.md "$RUNNER_TEMP/release-notes.md"
+
       - name: Prepare release tag
         shell: bash
         run: |
@@ -258,7 +358,7 @@ jobs:
         with:
           distribution: goreleaser
           version: v2.17.0
-          args: release --clean
+          args: release --clean --release-notes ${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -14,6 +14,7 @@
     "test:cli": "pnpm build:viewer && go test ./packages/cli/...",
     "test:install": "bash scripts/test-install.sh",
     "test:npm-install": "node --test packages/npm/install.test.js",
+    "test:release-notes": "node --test scripts/extract-release-notes.test.mjs",
     "test:packed-npm": "node scripts/test-packed-npm.mjs",
     "test:demos": "bash scripts/test-demo-knowledge-bases.sh",
     "test:web": "pnpm --filter @openknowledge-sh/web test",
@@ -29,7 +30,7 @@
     "check:security-config": "node scripts/check-security-config.mjs",
     "check:container-runtime": "node scripts/check-container-runtime.mjs",
     "check:repo-jobs": "pnpm build:viewer && go run ./packages/cli/cmd/openknowledge automation jobs validate .openknowledge/jobs",
-    "test": "pnpm build:viewer && pnpm check:format && pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm check:security-config && pnpm check:container-runtime && go run ./packages/cli/cmd/openknowledge automation jobs validate .openknowledge/jobs && pnpm test:install && pnpm test:npm-install && pnpm test:packed-npm && pnpm test:demos && pnpm test:web && go test ./packages/cli/...",
+    "test": "pnpm build:viewer && pnpm check:format && pnpm check:versions && pnpm check:workflow-pins && pnpm check:workflow-secret-scope && pnpm check:workflow-permissions && pnpm check:security-config && pnpm check:container-runtime && go run ./packages/cli/cmd/openknowledge automation jobs validate .openknowledge/jobs && pnpm test:install && pnpm test:npm-install && pnpm test:release-notes && pnpm test:packed-npm && pnpm test:demos && pnpm test:web && go test ./packages/cli/...",
     "build": "pnpm build:web && go build -o bin/openknowledge ./packages/cli/cmd/openknowledge"
   },
   "devDependencies": {
@@ -37,7 +38,7 @@
   },
   "pnpm": {
     "overrides": {
-      "nanoid@3.3.16": "3.3.17"
+      "nanoid@3.3.16": "3.3.18"
     }
   }
 }

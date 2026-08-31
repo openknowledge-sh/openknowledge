@@ -230,24 +230,32 @@ or output. Do not count both event types in one failure metric.
 Run the manual workflow from the current default-branch tip:
 
 ```text
-Actions → Release → Run workflow → version: 0.11.0
+Actions → Release → Run workflow → version: 0.13.0
 ```
 
-The version input accepts `0.11.0`, `v0.11.0`, or a prerelease such as
-`v0.11.0-rc.1`. The workflow serializes release runs and does not cancel an
+The version input accepts `0.13.0`, `v0.13.0`, or a prerelease such as
+`v0.13.0-rc.1`. The workflow serializes release runs and does not cancel an
 active release.
+
+Before the workflow starts, move the release content from `## Unreleased` to a
+dated changelog section. Keep `## Unreleased` above it with `No changes yet.`
 
 The `verify` job requires the current default-branch tip. It then completes
 these tasks before any repository write:
 
 1. Update the root, npm, web, and Go fallback versions.
 2. Install frozen dependencies and verify version alignment.
-3. Verify tidy Go modules, Go formatting, policy checks, tests, and builds.
-4. Run race tests, `go vet`, and Chromium browser journeys.
-5. Build the release binary and validate `Wiki/` with that binary.
-6. Install the packed npm artifact in an isolated test project.
-7. Build and inspect a six-archive GoReleaser snapshot.
-8. Verify `NPM_TOKEN` with the npm registry.
+3. Extract the matching dated changelog section as release notes.
+4. Verify tidy Go modules, Go formatting, policy checks, tests, and builds.
+5. Run race tests, `go vet`, and Chromium browser journeys.
+6. Build the release binary and validate `Wiki/` with that binary.
+7. Install the packed npm artifact in an isolated test project.
+8. Build and inspect a six-archive GoReleaser snapshot.
+9. Verify `NPM_TOKEN` with the npm registry.
+
+Parallel release jobs run CLI tests on macOS and Windows. A separate security
+job runs `govulncheck` and OSV Scanner. All release jobs must pass before the
+version commit.
 
 The `commit_release` job applies the same version update to the verified source.
 It pushes a version commit only when the tracked version files change.
@@ -255,8 +263,8 @@ The `publish_release` job checks out that exact commit and prepares the release
 tag. It reuses the tag only when the tag already points to that commit.
 
 The publication job rebuilds viewer assets before GoReleaser runs. GoReleaser
-publishes six archives, checksums, licenses, and the installer. The workflow
-attests the archives from `dist/checksums.txt`.
+publishes six archives, checksums, licenses, the installer, and the prepared
+release notes. The workflow attests the archives from `dist/checksums.txt`.
 
 The final `npm` job checks out the release tag. It verifies the package version
 before it publishes the wrapper with npm provenance. Stable releases use the

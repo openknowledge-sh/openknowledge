@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM golang:1.26.5-bookworm AS cli-builder
+FROM golang:1.26.6-bookworm AS cli-builder
 WORKDIR /src/packages/cli
 COPY packages/cli/go.mod packages/cli/go.sum ./
 RUN go mod download

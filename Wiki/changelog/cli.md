@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-12T00:00:00Z
+timestamp: 2026-08-31T00:00:00Z
 ---
 
 # CLI Changelog
@@ -12,6 +12,10 @@ Current behavior belongs in the [command reference](/features/commands/). This
 page records release-level changes.
 
 ## Unreleased
+
+No changes yet.
+
+## v0.13.0 — 2026-08-31
 
 Knowledge that guides agents can now use the same controls as code.
 
@@ -153,6 +157,9 @@ quality gates, or the runtime only when the workflow needs them.
 
 ### Viewer
 
+- The viewer hides **Claims** when a knowledge base has no typed claim
+  occurrences. Claim profiles, ontology terms, and references no longer create
+  an empty Claims workspace.
 - Registry mode now provides one Documents and Graph workspace across connected
   knowledge bases. Each knowledge base retains separate indexes.
 - Typed bundles add a Claims workspace, document claim panels, claim history,
@@ -192,6 +199,27 @@ quality gates, or the runtime only when the workflow needs them.
   `packages/cli/internal/agents/`.
 - Docs: `Wiki/features/commands/{validate,rules,review,jobs}.md` and
   `Wiki/features/machine-contracts.md`.
+
+### Release safety and compatibility
+
+- Go 1.26.6 is the build baseline. It includes standard library security fixes
+  for the CLI, viewer, runtime, and GitHub integration paths.
+- Go and JavaScript dependencies move past the affected `x/sys`, `x/text`, and
+  `nanoid` releases reported by the dependency scanner.
+- Knowledge audit and eval jobs build viewer assets before they compile the
+  embedded CLI.
+- Release verification runs CLI tests on macOS and Windows. Windows tests use
+  a 20-minute package timeout.
+- Release verification runs `govulncheck` and OSV Scanner before it can create
+  the version commit or tag.
+- The GitHub release body uses the matching dated section from this changelog.
+  A missing version section stops the release before repository writes.
+- Source: `.github/workflows/{ci,knowledge-eval,release}.yml`,
+  `packages/cli/go.mod`, `packages/cli/go.sum`, `package.json`,
+  `pnpm-lock.yaml`, `go.work`, `Dockerfile`,
+  `docker/runtime.Dockerfile`, and `scripts/extract-release-notes.mjs`.
+- Docs: `Wiki/features/operations.md` and
+  `Wiki/workflows/changelog-updates.md`.
 
 ## v0.12.0 — 2026-08-11
 

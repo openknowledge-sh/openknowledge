@@ -320,11 +320,7 @@ func registryClaimsJSONWithCache(workspaces []viewerWorkspace, cacheForRoot func
 }
 
 func viewerClaimsWorkspaceAvailable(data viewerClaimsData) bool {
-	return data.ProfilePresent ||
-		len(data.Claims) > 0 ||
-		len(data.References) > 0 ||
-		len(data.Entities) > 0 ||
-		len(data.Predicates) > 0
+	return len(data.Claims) > 0
 }
 
 func viewerClaimProfileFieldsPresent(frontmatter map[string]any) bool {
@@ -338,7 +334,8 @@ func viewerClaimProfileFieldsPresent(frontmatter map[string]any) bool {
 
 func viewerBundleClaimsWorkspaceAvailable(files []okf.BundleFile) bool {
 	for _, file := range files {
-		if viewerClaimProfileFieldsPresent(file.Frontmatter) {
+		claims, present := file.Frontmatter["claims"].([]any)
+		if present && len(claims) > 0 {
 			return true
 		}
 	}

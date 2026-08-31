@@ -45,6 +45,12 @@ Use headings such as `Viewer`, `Setup`, `Automation`, `Registry`,
 Do not add dates to entry headings. Put the release date only in the released
 version heading.
 
+Before a release, keep `## Unreleased` with `No changes yet.`. Move the release
+content to a dated `## v<version> — YYYY-MM-DD` section.
+
+The release workflow uses that dated section as the GitHub release body. A
+missing or empty version section stops the release.
+
 ## Do not update
 
 Do not add an entry for a formatting-only edit.

@@ -49,8 +49,8 @@ for (const [name, contents] of [
   ["packages/cli/go.mod", goMod],
   ["go.work", goWork],
 ]) {
-  if (!/^go 1\.26\.5$/m.test(contents)) {
-    failures.push(`${name} must declare the reviewed Go 1.26.5 security baseline`);
+  if (!/^go 1\.26\.6$/m.test(contents)) {
+    failures.push(`${name} must declare the reviewed Go 1.26.6 security baseline`);
   }
 }
 
