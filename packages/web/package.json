@@ -18,7 +18,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "mermaid": "11.16.1"
+    "mermaid": "11.17.2"
   },
   "devDependencies": {
     "oxlint": "1.15.0",
