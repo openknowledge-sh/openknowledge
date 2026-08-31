@@ -10,6 +10,7 @@ import (
 func TestCompareClassifiesImprovementsAndRegressions(t *testing.T) {
 	repo := t.TempDir()
 	runGitTest(t, repo, "init")
+	runGitTest(t, repo, "config", "core.autocrlf", "false")
 	runGitTest(t, repo, "config", "user.email", "eval@example.test")
 	runGitTest(t, repo, "config", "user.name", "Eval Test")
 	wiki := filepath.Join(repo, "Wiki")
@@ -56,6 +57,7 @@ func TestCompareClassifiesImprovementsAndRegressions(t *testing.T) {
 func TestComparisonGateCanPermitUnchangedFailures(t *testing.T) {
 	repo := t.TempDir()
 	runGitTest(t, repo, "init")
+	runGitTest(t, repo, "config", "core.autocrlf", "false")
 	runGitTest(t, repo, "config", "user.email", "eval@example.test")
 	runGitTest(t, repo, "config", "user.name", "Eval Test")
 	wiki := filepath.Join(repo, "Wiki")

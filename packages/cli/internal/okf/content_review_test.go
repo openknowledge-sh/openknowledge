@@ -51,6 +51,7 @@ func TestBuildContentReviewFullUsesExactDefaultRulesAndConcerns(t *testing.T) {
 func TestBuildContentReviewChangedAddsDirectDependenciesAndUntrackedPages(t *testing.T) {
 	repo := t.TempDir()
 	runContentReviewGit(t, repo, "init")
+	runContentReviewGit(t, repo, "config", "core.autocrlf", "true")
 	runContentReviewGit(t, repo, "config", "user.name", "Test")
 	runContentReviewGit(t, repo, "config", "user.email", "test@example.com")
 	wiki := filepath.Join(repo, "Wiki")
@@ -86,6 +87,7 @@ func TestBuildContentReviewChangedAddsDirectDependenciesAndUntrackedPages(t *tes
 func TestBuildContentReviewChangedRecordsDeletedPagesAndIncomingDependencies(t *testing.T) {
 	repo := t.TempDir()
 	runContentReviewGit(t, repo, "init")
+	runContentReviewGit(t, repo, "config", "core.autocrlf", "false")
 	runContentReviewGit(t, repo, "config", "user.name", "Test")
 	runContentReviewGit(t, repo, "config", "user.email", "test@example.com")
 	wiki := filepath.Join(repo, "Wiki")

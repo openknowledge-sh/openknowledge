@@ -1,6 +1,7 @@
 package okf
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -396,9 +397,15 @@ func contentReviewGitOutput(dir string, args ...string) (string, error) {
 func contentReviewGitOutputBytes(dir string, args ...string) ([]byte, error) {
 	command := exec.Command("git", args...)
 	command.Dir = dir
-	output, err := command.CombinedOutput()
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+	output, err := command.Output()
 	if err != nil {
-		return nil, fmt.Errorf("git %s failed: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(output)))
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return nil, fmt.Errorf("git %s failed: %w: %s", strings.Join(args, " "), err, message)
 	}
 	return output, nil
 }

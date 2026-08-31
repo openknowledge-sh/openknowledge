@@ -447,7 +447,7 @@ func (cache *viewerBundleCache) loadViewerSnapshot() (viewerBundleSnapshot, erro
 }
 
 func (cache *viewerBundleCache) loadViewerSnapshotLocked() (viewerBundleSnapshot, bool, error) {
-	fingerprint, err := markdownMetadataFingerprint(cache.root)
+	fingerprint, err := markdownFingerprint(cache.root)
 	if err != nil {
 		return viewerBundleSnapshot{}, false, err
 	}
@@ -1666,48 +1666,6 @@ func markdownFingerprint(root string) (string, error) {
 		if written != info.Size() {
 			return fmt.Errorf("viewer search file changed while hashing: %s", current)
 		}
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func markdownMetadataFingerprint(root string) (string, error) {
-	hash := sha256.New()
-	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !isMarkdownFile(current) {
-			return nil
-		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symbolic links are not supported in viewer cache: %s", current)
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("unsupported viewer cache entry: %s", current)
-		}
-		rel, err := filepath.Rel(root, current)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		_ = binary.Write(hash, binary.BigEndian, uint64(len(rel)))
-		_, _ = io.WriteString(hash, rel)
-		_ = binary.Write(hash, binary.BigEndian, uint64(info.Size()))
-		_ = binary.Write(hash, binary.BigEndian, info.ModTime().UnixNano())
 		return nil
 	})
 	if err != nil {

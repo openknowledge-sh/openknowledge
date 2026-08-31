@@ -866,8 +866,22 @@ func TestViewerBundleCacheReusesParsedASTAndClaimsUntilMarkdownChanges(t *testin
 	}
 
 	path := filepath.Join(root, "index.md")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(path, []byte("# Two\n"), 0644); err != nil {
 		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	changedInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changedInfo.Size() != info.Size() || !changedInfo.ModTime().Equal(info.ModTime()) {
+		t.Fatalf("fixture must preserve size and mtime: before=%#v after=%#v", info, changedInfo)
 	}
 	updated, _, err := cache.loadViewerData("")
 	if err != nil {
