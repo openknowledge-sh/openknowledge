@@ -6997,14 +6997,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
     const fromSpacePan = isSpacePanActive();
+    workspace.classList.add("is-drag-scrolling");
+    const currentScrollLeft = workspace.scrollLeft;
+    workspace.scrollTo({ left: currentScrollLeft, behavior: "auto" });
     workspaceDrag = {
       pointerId: event.pointerId,
       startX: event.clientX,
-      startScrollLeft: workspace.scrollLeft,
+      startScrollLeft: currentScrollLeft,
       moved: false,
       fromSpacePan: fromSpacePan
     };
-    workspace.classList.add("is-drag-scrolling");
     if (fromSpacePan) {
       event.preventDefault();
     }
@@ -7049,6 +7051,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (!canShowWorkspaceRail() || event.button !== 0) {
       return;
     }
+    scrollRail.classList.add("is-rail-dragging");
+    workspace.classList.add("is-rail-dragging");
+    const currentScrollLeft = workspace.scrollLeft;
+    workspace.scrollTo({ left: currentScrollLeft, behavior: "auto" });
     const trackRect = scrollTrack.getBoundingClientRect();
     const thumbRect = scrollThumb.getBoundingClientRect();
     railDrag = {
@@ -7058,8 +7064,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       maxThumbX: Math.max(0, trackRect.width - thumbRect.width),
       maxScroll: maxWorkspaceScroll()
     };
-    scrollRail.classList.add("is-rail-dragging");
-    workspace.classList.add("is-rail-dragging");
     window.addEventListener("pointermove", updateRailDrag);
     window.addEventListener("pointerup", stopRailDrag);
     window.addEventListener("pointercancel", stopRailDrag);

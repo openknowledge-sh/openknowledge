@@ -1202,6 +1202,11 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.mouse.down();
   assert.equal(await workspaceScroll.evaluate((element) => getComputedStyle(element).scrollBehavior), "auto", "thumb dragging should disable animated workspace scrolling");
   await page.mouse.move(dragTargetX, dragY, { steps: 4 });
+  await page.waitForFunction(({ expected, tolerance }) => {
+    const element = document.querySelector(".note-workspace");
+    const maxScroll = element ? element.scrollWidth - element.clientWidth : 0;
+    return maxScroll > 0 && Math.abs(element.scrollLeft / maxScroll - expected) < tolerance;
+  }, { expected: dragRatio, tolerance: 0.03 }, { timeout: 2000 });
   const draggedScrollRatio = await workspaceScroll.evaluate((element) => element.scrollLeft / (element.scrollWidth - element.clientWidth));
   assert.ok(Math.abs(draggedScrollRatio - dragRatio) < 0.03, "the workspace should directly track the dragged thumb position");
   await page.mouse.up();

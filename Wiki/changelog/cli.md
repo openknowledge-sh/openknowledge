@@ -170,6 +170,8 @@ quality gates, or the runtime only when the workflow needs them.
   only when required.
 - `okn view` watches local Markdown and assets. Live reload preserves valid
   document, graph, and scroll state.
+- Pointer dragging takes immediate control of horizontally stacked documents,
+  even when a previous smooth navigation is still settling.
 - Markdown images use safe asset routes and portable static exports. Linked
   images, alt text, titles, lazy loading, and SVG sandboxing are supported.
 - Browser-native narration reads visible document content and omits code,
