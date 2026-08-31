@@ -55,8 +55,8 @@ github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 h1:KRzFb2m7YtdldCEkzs6KqmJw4nqEV
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2/go.mod h1:JXeL+ps8p7/KNMjDQk3TCwPpBy0wYklyWTfbkIzdIFU=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
-github.com/tggo/goRDFlib v0.1.16 h1:dAblOHeN2f1TgTXfnbglCdrfu/l8uwgEGJ0UQcyy0UI=
-github.com/tggo/goRDFlib v0.1.16/go.mod h1:IZCDooVBHaMIs6bCPsltkLQb3mXanCvs2GkuIwQ5oD8=
+github.com/tggo/goRDFlib v0.3.1 h1:BNtLZx2oKwckOa3ZhEKqBs1j8+Q7gf6HwLLEK9Y3OHU=
+github.com/tggo/goRDFlib v0.3.1/go.mod h1:Vb0bBBFrc2MN2mnpNwRlwRZLf4z8bJVymfFWYmf4V80=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
 go.opentelemetry.io/auto/sdk v1.1.0/go.mod h1:3wSPjt5PWp2RhlCcmmOial7AvC4DQqZb7a7wCow3W8A=
 go.opentelemetry.io/otel v1.37.0 h1:9zhNfelUvx0KBfu/gb+ZgeAfAgtWrfHJZcAqFC228wQ=

@@ -9,7 +9,7 @@ require (
 	github.com/natefinch/atomic v1.0.1
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
-	github.com/tggo/goRDFlib v0.1.16
+	github.com/tggo/goRDFlib v0.3.1
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/sys v0.44.0
 	golang.org/x/term v0.42.0
