@@ -1,29 +1,24 @@
 ---
 type: Command Documentation
 title: openknowledge setup
-description: Set up, complete, inspect, and repair an Open Knowledge bundle.
+description: Create or adopt a managed knowledge base from repository Markdown.
 tags: [openknowledge, cli, command, setup]
 timestamp: 2026-08-02T00:00:00Z
 ---
 
 # `openknowledge setup`
 
-Use `okn setup` to create or complete a knowledge base with an agent.
+Use `okn setup` to create a managed copy or adopt one Markdown directory.
 
 ## Usage
 
 ```sh
 okn setup
-okn setup Wiki --use-case base
-okn setup Wiki --use-case trusted
-okn setup Wiki --use-case custom
-okn setup Wiki --prompt
 okn setup Wiki --interactive
-okn setup Wiki --agent codex
-okn setup Wiki --from ./repository
-okn setup Wiki --from ./repository --about "Explain release workflows"
-okn setup Wiki --from ./repository --rules project,writing,iso-plain-language
-okn setup Wiki --from https://example.com/docs --depth 2
+okn setup Wiki --from ./repository --mode copy
+okn setup Wiki --from ./repository --mode copy --include README.md --include docs
+okn setup Wiki --from ./repository --mode copy --exclude docs/generated --plan
+okn setup ./docs --from ./docs --mode in-place
 okn setup github Wiki --plan
 okn setup github Wiki
 okn setup ci Wiki --plan
@@ -41,38 +36,46 @@ okn setup observe on
 
 ## Setup modes
 
-On a terminal, `okn setup` starts the setup wizard. The wizard detects the
-project context and asks only for missing setup decisions.
+On a terminal, `okn setup` discovers Markdown below the current directory.
+Use `--from <directory>` to select a different discovery root. The optional
+`wiki` argument selects the target. The default target is `Wiki`.
 
-Without a terminal, `okn setup` prints the agent task. Use `--prompt` to print
-the task in any environment. Use `--interactive` to start the wizard.
+Discovery accepts ordinary Markdown without YAML frontmatter or links. It
+honors Git ignore rules and skips generated directories and symbolic links.
+The wizard groups discovered files and lets you select paths. You can also add
+a path in the selection prompt.
 
-Use `--agent <codex|claude|opencode>` to start one installed agent harness.
-The agent works from the project directory that contains the target bundle.
-Setup does not require a Git repository.
+The wizard provides two management modes:
 
-The optional `wiki` argument selects the bundle path. The default is `Wiki`.
-
-Use `--use-case <base|trusted|custom>` to select the setup intent. The default
-is `base`.
-
-| Intent | Use |
+| Mode | Result |
 | --- | --- |
-| `base` | Create repository documentation for architecture, services, decisions, and changelog content. |
-| `trusted` | Model knowledge with explicit sources, evidence, claim lifecycle, and conflict checks. |
-| `custom` | Let the source and the stated goal determine the initial structure. |
+| `copy` | Create a new bundle and copy selected files below `imported/`. Keep source files unchanged. |
+| `in-place` | Adopt one complete directory. Add required scaffold files and minimal metadata where needed. |
 
-All intents use the same Markdown and OKF format. The intent changes the agent
-task and starter content. It does not enable a separate runtime mode.
+Copy mode records source paths and content digests in
+`.openknowledge/import.json`. In-place mode does not accept partial include or
+exclude selections. It does not move or delete existing documents.
 
-Use `--from <source>` to build a bundle from a repository, local folder, or
-website. Use `--about <goal>` to give the intended result. Without `--about`,
-the agent inspects the source and asks for the missing intent. Use `--depth <n>`
-to limit source traversal. A value of `0` lets the agent choose the minimum
-depth.
+Setup prints the create, update, preserve, move, and delete counts before it
+writes. Interactive setup asks for confirmation. Use `--plan` with an explicit
+`--mode` to print the deterministic plan without writes. Apply refuses to
+replace an existing copy target or overwrite a file that changed after plan
+creation. Writes are atomic.
 
-The intent is not a knowledge-base type. Maintenance rules are independent
-choices in the setup flow.
+After apply, setup validates the bundle and runs one representative search.
+It reports the document count and readiness of validation and search.
+
+If discovery finds no Markdown, setup asks for the goal, location, and source
+context. It then creates a tailored agent task. Installed agents appear first
+in the continuation list. The remaining choices copy the task or save it. No
+continuation choice has a recommended label.
+
+If the target already contains an OKF bundle, setup does not change it. It
+prints commands for `okn check`, `okn review`, and `okn upgrade`.
+
+The older `--prompt`, `--agent`, `--use-case`, `--about`, `--depth`, and
+`--rules` agent workflow remains available for compatibility. Use
+`--interactive` to start source selection without terminal detection.
 
 ### Product profiles
 
@@ -136,14 +139,8 @@ Maintenance has one executor:
 Use `--runtimes codex,claude,opencode` to select agent harnesses for runtime
 maintenance. The default runtime executor uses Codex.
 
-The setup wizard selects `project` and `writing` by default. It offers
-`iso-plain-language` and the other maintenance rules as optional selections.
-An explicit `--rules` value replaces the default selection.
-
-The same selection applies to ordinary setup and `--from` setup. The generated
-task includes each selected rule's instructions and exact configuration.
-
-The generated scaffold command persists the selection before content creation.
+New managed bundles enable `project` and `writing` by default. An explicit
+`--rules` value replaces this default in the compatibility agent workflow.
 
 New scaffolds record the default in `.openknowledge.toml`:
 
@@ -155,9 +152,8 @@ outputs = []
 enabled = ["project", "writing"]
 ```
 
-The empty output list keeps a new bundle local. Before runtime setup or HTML
-export, select `viewer`, `mcp`, or both. Local `okn view` does not require a
-release output.
+The empty output list keeps a new bundle local. Before `okn publish`, select
+`viewer`, `mcp`, or both. Local `okn view` does not require a release output.
 
 ## Skill installation
 
@@ -237,6 +233,7 @@ enable, disable, or change product telemetry.
 > * `packages/cli/cmd/openknowledge/setup_skill_command.go`
 > * `packages/cli/internal/integration/manage.go`
 > * `packages/cli/internal/okf/setup.go`
+> * `packages/cli/internal/okf/setup_import.go`
 > * `packages/cli/internal/okf/from.go`
 > * `packages/cli/internal/okf/rules.go`
 >

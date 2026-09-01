@@ -8,28 +8,30 @@ timestamp: 2026-07-17T00:00:00Z
 
 # Tooling Model
 
-Open Knowledge provides one lifecycle for an OKF knowledge base.
-Search, the viewer, MCP, agents, jobs, exports, and services use the same knowledge base.
-They do not use separate knowledge models.
+Open Knowledge provides one lifecycle for repository knowledge. Setup converts
+ordinary Markdown into an OKF knowledge base. Search can also read unmanaged
+Markdown before adoption.
 
 ## Workflow surface
 
 | Workflow | Commands | Outcome |
 | --- | --- | --- |
-| Start here | `setup`, `search`, `validate`, `view` | Create, retrieve, verify, and browse local knowledge. |
-| Trust and govern | `audit`, `claims`, `evidence`, `eval`, `quality` | Add evidence, lifecycle checks, and quality controls when required. |
-| Query and interchange | `query`, `export` | Run explicit semantic queries and create portable output. |
-| Publish and operate | `mcp`, `connect`, `disconnect`, `registry`, `automation` | Connect sources, serve tools, and run managed processes. |
-| Advanced internals | `agent`, `get`, `list`, `scaffold`, `prompt`, `ast`, `spec`, `version`, `telemetry` | Inspect or control lower-level CLI behavior. |
+| Start here | `setup`, `check`, `search`, `view`, `review`, `publish`, `upgrade` | Adopt, verify, use, improve, publish, and migrate knowledge. |
+| Advanced | `validate`, `audit`, `claims`, `evidence`, `eval`, `quality`, `query`, `export`, `mcp`, `connect`, `registry`, `automation`, and direct tools | Control a specific layer or integration. |
 
-`okn setup` prints the primary setup prompt.
-The prompt uses the current directory as its source and writes `Wiki`.
-Copy the printed prompt into an agent that already works in the project.
-An explicit wiki path without `--from` prints a guided setup.
-Use this form for a new or open-ended knowledge base.
-Use `--from` only for a different repository, folder, or website.
-`scaffold` is an advanced, deterministic operation without an agent.
-`prompt` provides additional portable workflows that only print output.
+`okn setup` discovers generic Markdown without a required folder structure,
+frontmatter, or link graph. The interactive flow selects paths and creates a
+managed copy or adopts one complete directory. Both modes use a deterministic
+plan before writes.
+
+If no Markdown exists, setup creates a tailored task. The user can run an
+installed agent, copy the task, or save it. Existing OKF bundles continue with
+`check`, `review`, or `upgrade` instead of setup.
+
+`okn check` combines configured deterministic layers into one status. Search
+works for managed bundles and unmanaged Markdown. Review supplies optional
+agent judgment. Publish remains strict and accepts only checked, configured,
+managed bundles. Upgrade handles explicit OKF version transitions.
 
 Each connection change has one command.
 `connect` materializes and registers local, manifest, archive, or Git sources.
@@ -37,13 +39,14 @@ Each connection change has one command.
 `registry` provides only `refresh`, `list`, `status`, and `where`.
 
 All key-or-path consumers use the same resolver.
-Thus, `get`, `search`, `query`, `view`, `mcp`, `validate`, `list`, and `export` use the same source rules.
+Thus, `check`, `search`, `view`, `review`, `publish`, `upgrade`, and advanced
+bundle commands use the same source rules.
 These rules apply to direct folders and registered sources.
 `export html` publishes a portable archive and manifest.
 You can connect this output again.
 
-Deterministic validation does not require a model.
-`okn prompt review` provides advice and does not affect validation status.
+Deterministic setup, check, search, upgrade, and publication planning do not
+require a model. `okn review` provides advice and does not affect check status.
 Machine-readable views use versioned Draft 2020-12 contracts.
 These views include AST, bundle, graph, semantic query, list, registry, search,
 and validation output.
@@ -52,8 +55,9 @@ and validation output.
 
 ```sh
 okn setup
-okn validate Wiki
+okn check Wiki
 okn search Wiki "release workflow" --budget 1200
+okn review Wiki
 okn view Wiki
 ```
 
@@ -62,9 +66,9 @@ Use separate commands for exact reads, browsing, integrations, and publication:
 ```sh
 okn list Wiki
 okn get Wiki
-okn mcp Wiki
-okn view Wiki
+okn validate Wiki
 okn export html --out ./site Wiki
+okn mcp Wiki
 ```
 
 ---

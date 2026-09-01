@@ -11,6 +11,7 @@ type ContextOptions struct {
 
 type ContextResult struct {
 	SchemaVersion   string            `json:"schemaVersion"`
+	Status          string            `json:"status,omitempty"`
 	Root            string            `json:"root"`
 	Revision        RetrievalRevision `json:"revision"`
 	Query           string            `json:"query"`
@@ -44,6 +45,7 @@ type ContextSource struct {
 
 type ContextIndex struct {
 	Root                 string
+	Status               string
 	Revision             RetrievalRevision
 	Sections             []ContextSection
 	Issues               []Issue

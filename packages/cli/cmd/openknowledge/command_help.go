@@ -50,7 +50,7 @@ Examples:
 func searchHelpText() string {
 	return fmt.Sprintf(`openknowledge search
 
-Build source-grounded Markdown context from an Open Knowledge bundle.
+Build source-grounded Markdown context from managed OKF or ordinary Markdown.
 
 Usage:
   openknowledge search <name|path> <query>
@@ -66,7 +66,7 @@ Usage:
   openknowledge search --help
 
 Arguments:
-  name|path      Registry key or local bundle path.
+  name|path      Registry key, managed bundle, or ordinary Markdown directory.
   query          Search text. Quote multi-word queries in shells.
 
 Flags:
@@ -81,6 +81,10 @@ Flags:
   --spec         OKF spec version. Defaults to latest.
 
 Behavior:
+	Ordinary Markdown is indexed without requiring YAML frontmatter or authored
+	links and reports status unmanaged. Managed OKF enables metadata filters,
+	graph expansion, provenance, claims, policies, and a stable revision.
+
   Search builds Markdown chunks from parsed heading sections, preserves source
   line ranges and heading paths. It creates BM25-style lexical and local vector candidates,
   applies metadata filters, and reranks candidates before it packs original
@@ -699,29 +703,27 @@ Examples:
 }
 
 func reviewHelpText() string {
-	return `openknowledge prompt review
+	return `openknowledge review
 
-Print advisory AI review prompts for Open Knowledge workflows.
+Build a source-bound content review task and optionally run an installed agent.
 
-The command does not call a model, edit files, or decide validation status.
-Use openknowledge validate for deterministic CI-safe checks.
+Review findings remain advisory and do not change deterministic check status.
 
 Usage:
+  openknowledge review [path]
+  openknowledge review [path] --scope changed|full
+  openknowledge review [path] --scope changed --base <git-ref>
+  openknowledge review content [path]
   openknowledge prompt review rules [path]
-  openknowledge prompt review rules --rules <rules> --path <path>
-  openknowledge prompt review rules --all [path]
-  openknowledge prompt review --help
 
-Subcommands:
-  content    Print a content-health review prompt with exact source identity.
-  rules      Print an AI review prompt for selected maintenance rules.
+	In a terminal, choose an installed agent, copy the task, or save it. Without a
+terminal, the command prints the portable task. The former prompt review
+content and rules forms remain available.
 
 Examples:
-  openknowledge prompt review content Wiki --scope changed
-  openknowledge prompt review content Wiki --scope full
+  openknowledge review Wiki --scope changed
+  openknowledge review Wiki --scope full
   openknowledge prompt review rules Wiki
-  openknowledge prompt review rules --rules docs,changelog --path Wiki
-  openknowledge prompt review rules --all Wiki
 `
 }
 

@@ -13,7 +13,41 @@ page records release-level changes.
 
 ## Unreleased
 
-No changes yet.
+### Setup
+
+- `okn setup` now discovers ordinary repository Markdown without required
+  frontmatter or links. Users select paths and choose copy or in-place mode.
+- Setup shows a deterministic change plan. Copy mode preserves sources, and
+  in-place mode does not move or delete existing documents.
+- Empty repositories receive a tailored agent task. Installed agents appear
+  before the copy and save choices.
+- Existing OKF bundles continue with `check`, `review`, or `upgrade`.
+- Source: `packages/cli/cmd/openknowledge/setup_command.go` and
+  `packages/cli/internal/okf/setup_import.go`.
+- Docs: `README.md` and `Wiki/features/commands/setup.md`.
+
+### Knowledge lifecycle
+
+- New `okn check` combines configured validation, links, freshness, retrieval,
+  claims, and publication checks into one status.
+- `okn search` now searches unmanaged Markdown and marks the result status.
+- New top-level `review`, `publish`, and `upgrade` commands complete the
+  primary knowledge lifecycle. Publish refuses unmanaged or blocked input.
+- Root help now places the lifecycle commands under **Start here**. Existing
+  lower-level commands remain available under **Advanced**.
+- Source: `packages/cli/cmd/openknowledge/{check,publish,upgrade}_command.go`,
+  `packages/cli/cmd/openknowledge/main.go`, and
+  `packages/cli/internal/okf/{loose_markdown,upgrade}.go`.
+- Docs: `Wiki/features/commands/{check,search,review,publish,upgrade}.md`,
+  `Wiki/features/tooling-model.md`, and
+  `Wiki/decisions/product-interface.md`.
+
+### Machine contracts
+
+- New `check.schema.json` defines unified check JSON. Single-bundle search
+  contracts now identify managed and unmanaged results.
+- Source: `packages/cli/schemas/v1/{check,search-context,search-results}.schema.json`.
+- Docs: `Wiki/features/machine-contracts.md`.
 
 ## v0.13.0 — 2026-08-31
 

@@ -4,10 +4,9 @@
 
 # Open Knowledge
 
-Git-native CI and an MCP runtime for agent knowledge. Open Knowledge finds
-stale, conflicting, and missing knowledge, prepares evidence-backed fixes,
-runs deterministic retrieval and evidence regressions, and serves the current
-production version with explicit passing or degraded health.
+Open Knowledge turns repository Markdown into managed, searchable knowledge
+for people and agents. One lifecycle covers setup, checks, review, format
+upgrades, and publication to a static viewer or MCP runtime.
 
 [🌐 Website](https://openknowledge.sh) |
 [📖 Documentation](https://openknowledge.sh/wiki/) |
@@ -39,7 +38,7 @@ Markdown + Git ──► deterministic checks ──► evidence-backed PR
 curl -fsSL https://openknowledge.sh/install | bash
 ```
 
-### 2. Create
+### 2. Set up
 
 Run the interactive setup wizard:
 
@@ -47,9 +46,12 @@ Run the interactive setup wizard:
 okn setup
 ```
 
-This command uses the `base` preset by default. It creates a
-lightweight knowledge base for repository documentation, architecture,
-services, decisions, and changelog content.
+Setup discovers Markdown across the repository. The Markdown does not need
+YAML frontmatter or authored links. Select paths in the CLI, then create a
+managed copy or adopt one directory in place.
+
+If setup finds no Markdown, it creates a task for an agent. An installed agent
+appears first. You can also copy the task or save it to a file.
 
 To use an agent that already works inside the project, copy this prompt:
 
@@ -72,18 +74,22 @@ okn setup --agent <codex|claude|opencode>
 
 Agent mode runs the same generated task. It creates and validates the wiki.
 
-### 3. Validate
+### 3. Check
 
 When the agent finishes:
 
 ```sh
-okn validate Wiki
+okn check Wiki
 ```
 
-### 4. Search or browse
+`check` reports one status from the configured validation, link, freshness,
+retrieval, claims, and publication layers.
+
+### 4. Search, review, or browse
 
 ```sh
 okn search Wiki "release workflow"
+okn review Wiki
 okn view Wiki
 ```
 
@@ -106,21 +112,10 @@ sanitized error telemetry. Telemetry is enabled by default. Run
 command to disable telemetry and save the opt-out. See
 [Product Telemetry and Privacy](Wiki/features/telemetry.md).
 
-## Optional upgrades
+## Optional controls
 
-The local documentation workflow does not require typed claims, Knowledge CI,
-or a production runtime.
-
-Use the `trusted` preset when the knowledge base needs explicit
-sources, evidence, claim lifecycle, or conflict checks:
-
-```sh
-okn setup --use-case trusted
-```
-
-Use `okn setup --use-case custom` when neither preset matches the intended
-result. All presets use the same Markdown and OKF format. A preset changes the
-setup task and starter content, not the knowledge format.
+The local knowledge workflow does not require typed claims, Knowledge CI, or
+a production runtime.
 
 Add Knowledge CI when pull requests must verify knowledge quality. Add the
 runtime when clients need a production MCP service:
@@ -139,49 +134,27 @@ explicit passing or degraded health. See the complete
 
 ### Start here
 
-Use [`setup`](Wiki/features/commands/setup.md) for interactive onboarding. Use
-`okn setup --prompt` for an existing agent. Use `okn setup --agent <runtime>`
-to launch one. Use [`validate`](Wiki/features/commands/validate.md) to verify
-the wiki. Use [`search`](Wiki/features/commands/search.md) to retrieve
-knowledge. Use [`view`](Wiki/features/commands/view.md) to browse the wiki.
+Use [`setup`](Wiki/features/commands/setup.md) to create or adopt knowledge.
+Use [`check`](Wiki/features/commands/check.md) to get one health status. Use
+[`search`](Wiki/features/commands/search.md) to retrieve managed or unmanaged
+Markdown. Use [`view`](Wiki/features/commands/view.md) to browse a bundle. Use
+[`review`](Wiki/features/commands/review.md) for an optional agent review. Use
+[`publish`](Wiki/features/commands/publish.md) for configured output. Use
+[`upgrade`](Wiki/features/commands/upgrade.md) for OKF format changes.
 
-### Trust and govern
+### Advanced
 
-Use [`audit`](Wiki/features/commands/audit.md) to find knowledge risks. Use
-[`claims`](Wiki/features/commands/claims.md) and
-[`evidence`](Wiki/features/commands/evidence.md) for trusted facts. Use
-[`eval`](Wiki/features/commands/eval.md) and
-[`quality`](Wiki/features/commands/quality.md) to measure results.
-
-### Query and interchange
-
-Use [`query`](Wiki/features/commands/query.md) for explicit semantic queries.
-Use [`export`](Wiki/features/commands/export.md) to create portable output.
-
-### Publish and operate
-
-Use [`mcp`](Wiki/features/commands/mcp.md) to serve MCP tools. Use
-[`connect`](Wiki/features/commands/connect.md) and
-[`registry`](Wiki/features/commands/registry.md) to manage sources. Use
-[`automation`](Wiki/features/commands/automation.md) for jobs and deployments.
-
-### Advanced internals
-
-Use [`agent`](Wiki/features/commands/agent.md) for an agent task. Use
-[`get`](Wiki/features/commands/get.md) and
-[`list`](Wiki/features/commands/list.md) for direct inspection. Other advanced
-tools are [`scaffold`](Wiki/features/commands/scaffold.md),
-[`prompt`](Wiki/features/commands/prompt.md),
-[`ast`](Wiki/features/commands/ast.md), and
-[`spec`](Wiki/features/commands/spec.md).
+The CLI retains direct validation, audit, claims, evidence, eval, quality,
+query, export, MCP, connection, automation, and agent tools. Root help groups
+these lower-level controls under **Advanced**.
 
 See the [command index](Wiki/features/commands/index.md) for all commands. Use
 `okn <command> --help` for exact command syntax.
 
 ## Publish a wiki
 
-`okn export html` creates a public distribution bundle in a local folder.
-It does not deploy the bundle or start an MCP server.
+`okn publish` builds configured output only after `okn check` permits it.
+Unmanaged Markdown and blocked knowledge cannot be published.
 
 Review the knowledge base before you create this bundle. After you enable
 publication, Markdown is public unless it sets `okf_publish: false`. Add this
@@ -192,17 +165,19 @@ configuration to `Wiki/.openknowledge.toml`:
 outputs = ["viewer"]
 ```
 
-Export the reviewed content:
+Inspect the plan, then publish the reviewed content:
 
 ```sh
-okn export html --out ./site Wiki
+okn publish Wiki --target viewer --out ./site --plan
+okn publish Wiki --target viewer --out ./site
 ```
 
 The bundle includes a static viewer, `llms.txt`, a connect manifest, and a
 portable source archive. Add `"mcp"` to `release.outputs` when a deployed
 runtime should also expose HTTP MCP. See [HTML export](Wiki/features/exporters/html.md)
 and [`.openknowledge.toml`](Wiki/features/configuration.md) for publication
-filters and asset options.
+filters and asset options. The advanced `okn export html` command remains
+available for direct exporter control.
 
 ## Development
 

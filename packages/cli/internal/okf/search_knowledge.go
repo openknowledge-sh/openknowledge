@@ -105,6 +105,7 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 
 	result := SearchResultSet{
 		SchemaVersion: MachineSchemaVersion,
+		Status:        index.Status,
 		Root:          index.Root,
 		Revision:      index.Revision,
 		Query:         query,

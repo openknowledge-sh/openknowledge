@@ -71,6 +71,7 @@ func ContextIndexFromAST(validation Result, ast ASTBundle) ContextIndex {
 	})
 	return ContextIndex{
 		Root:                 validation.Root,
+		Status:               "managed",
 		Revision:             revision,
 		Sections:             sections,
 		Issues:               issues,
@@ -94,6 +95,7 @@ func RestoreContextIndex(root string, revision RetrievalRevision, sections []Con
 	})
 	return ContextIndex{
 		Root:                 root,
+		Status:               "managed",
 		Revision:             revision,
 		Sections:             sections,
 		Issues:               issues,
@@ -146,6 +148,7 @@ func (index ContextIndex) Resolve(options ContextOptions) (ContextResult, error)
 
 	result := ContextResult{
 		SchemaVersion: MachineSchemaVersion,
+		Status:        index.Status,
 		Root:          index.Root,
 		Revision:      index.Revision,
 		Query:         query,

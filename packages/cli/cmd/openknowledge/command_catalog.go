@@ -20,48 +20,48 @@ type commandGroup struct {
 
 var commandGroups = []commandGroup{
 	{Name: "Start here"},
-	{Name: "Work locally"},
-	{Name: "Trust and govern"},
-	{Name: "Query and interchange"},
-	{Name: "Publish and operate"},
-	{Name: "Advanced and portable tools"},
+	{Name: "Advanced"},
 }
 
 var rootCommandCatalog = []rootCommand{
-	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("skill", "complete", "status", "repair", "observe", "ci", "runtime"), Run: runSetup},
-	{Name: "search", Group: "Start here", Summary: "Build source-grounded context from one or more knowledge bases.", Run: runSearch},
-	{Name: "validate", Group: "Start here", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
+	{Name: "setup", Group: "Start here", Summary: "Set up a knowledge base and its agent instructions.", Subcommands: commandNames("skill", "complete", "status", "repair", "observe", "ci", "github", "runtime"), Run: runSetup},
+	{Name: "check", Group: "Start here", Summary: "Run configured knowledge checks and report one status.", Run: runCheck},
+	{Name: "search", Group: "Start here", Summary: "Search managed or ordinary Markdown with source context.", Run: runSearch},
 	{Name: "view", Group: "Start here", Summary: "Browse knowledge locally.", Run: runView},
+	{Name: "review", Group: "Start here", Summary: "Review knowledge content with an optional agent.", Subcommands: commandNames("content", "rules"), Run: runReview},
+	{Name: "publish", Group: "Start here", Summary: "Publish checked viewer and MCP artifacts.", Run: runPublish},
+	{Name: "upgrade", Group: "Start here", Summary: "Upgrade a knowledge base to a supported OKF version.", Run: runUpgrade},
 
-	{Name: "agent", Group: "Work locally", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "doctor"), Run: runAgent},
-	{Name: "get", Group: "Work locally", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
-	{Name: "list", Group: "Work locally", Summary: "Inspect knowledge-base structure.", Run: runList},
+	{Name: "validate", Group: "Advanced", Summary: "Validate a bundle against an OKF spec.", Run: runValidate},
+	{Name: "agent", Group: "Advanced", Summary: "Run a local knowledge task with an agent.", Subcommands: commandNames("exec", "doctor"), Run: runAgent},
+	{Name: "get", Group: "Advanced", Summary: "Read an exact Markdown file or bundle entrypoint.", Run: runGet},
+	{Name: "list", Group: "Advanced", Summary: "Inspect knowledge-base structure.", Run: runList},
 
-	{Name: "audit", Group: "Trust and govern", Summary: "Find concrete knowledge risks with deterministic evidence.", Subcommands: commandNames("propose"), Run: runAudit},
-	{Name: "claims", Group: "Trust and govern", Summary: "Find, propose, validate, and maintain typed claims.", Subcommands: commandNames("find", "suggest", "propose", "apply", "link", "dispute", "verify", "reject", "supersede", "archive", "approve-authority", "validate", "impact", "entities"), Run: runClaims},
-	{Name: "evidence", Group: "Trust and govern", Summary: "Capture exact evidence artifacts and bind pinned sources.", Subcommands: commandNames("pin"), Run: runEvidence},
-	{Name: "eval", Group: "Trust and govern", Summary: "Test retrieval evidence against versioned questions.", Subcommands: commandNames("run", "retrieval"), Run: runEval},
-	{Name: "quality", Group: "Trust and govern", Summary: "Measure usage-grounded knowledge outcomes and priorities.", Subcommands: commandNames("report", "interventions"), Run: runQuality},
+	{Name: "audit", Group: "Advanced", Summary: "Find concrete knowledge risks with deterministic evidence.", Subcommands: commandNames("propose"), Run: runAudit},
+	{Name: "claims", Group: "Advanced", Summary: "Find, propose, validate, and maintain typed claims.", Subcommands: commandNames("find", "suggest", "propose", "apply", "link", "dispute", "verify", "reject", "supersede", "archive", "approve-authority", "validate", "impact", "entities"), Run: runClaims},
+	{Name: "evidence", Group: "Advanced", Summary: "Capture exact evidence artifacts and bind pinned sources.", Subcommands: commandNames("pin"), Run: runEvidence},
+	{Name: "eval", Group: "Advanced", Summary: "Test retrieval evidence against versioned questions.", Subcommands: commandNames("run", "retrieval"), Run: runEval},
+	{Name: "quality", Group: "Advanced", Summary: "Measure usage-grounded knowledge outcomes and priorities.", Subcommands: commandNames("report", "interventions"), Run: runQuality},
 
-	{Name: "query", Group: "Query and interchange", Summary: "Query semantic facts with SPARQL, Datalog, or hybrid retrieval.", Subcommands: commandNames("sparql", "datalog", "hybrid"), Run: runQuery},
-	{Name: "export", Group: "Query and interchange", Summary: "Export HTML, JSON, RDF, graph, or portable tar views.", Subcommands: commandNames("html", "json", "rdf", "tar", "graph"), Run: runExport},
+	{Name: "query", Group: "Advanced", Summary: "Query semantic facts with SPARQL, Datalog, or hybrid retrieval.", Subcommands: commandNames("sparql", "datalog", "hybrid"), Run: runQuery},
+	{Name: "export", Group: "Advanced", Summary: "Export HTML, JSON, RDF, graph, or portable tar views.", Subcommands: commandNames("html", "json", "rdf", "tar", "graph"), Run: runExport},
 
-	{Name: "mcp", Group: "Publish and operate", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
-	{Name: "connect", Group: "Publish and operate", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
+	{Name: "mcp", Group: "Advanced", Summary: "Connect an MCP client to read-only knowledge tools.", Run: runMCP},
+	{Name: "connect", Group: "Advanced", Summary: "Connect a local or remote knowledge base.", Run: func(args []string) int {
 		return runConnect(args, "openknowledge connect")
 	}},
-	{Name: "disconnect", Group: "Publish and operate", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
+	{Name: "disconnect", Group: "Advanced", Summary: "Remove a knowledge-base connection.", Run: func(args []string) int {
 		return runDisconnect(args, "openknowledge disconnect")
 	}},
-	{Name: "registry", Group: "Publish and operate", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
-	{Name: "automation", Group: "Publish and operate", Summary: "Run jobs, insights, runtimes, and deployments.", Subcommands: commandNames("jobs", "insights", "runtime", "deploy"), Run: runAutomation},
+	{Name: "registry", Group: "Advanced", Summary: "Refresh, inspect, and resolve connected knowledge bases.", Subcommands: commandNames("refresh", "list", "status", "where"), Run: runRegistry},
+	{Name: "automation", Group: "Advanced", Summary: "Run jobs, insights, runtimes, and deployments.", Subcommands: commandNames("jobs", "insights", "runtime", "deploy"), Run: runAutomation},
 
-	{Name: "scaffold", Group: "Advanced and portable tools", Summary: "Create a deterministic local OKF knowledge base.", Run: runScaffold},
-	{Name: "prompt", Group: "Advanced and portable tools", Summary: "Print or install maintenance instructions.", Subcommands: commandNames("rules", "review"), Run: runPrompt},
-	{Name: "ast", Group: "Advanced and portable tools", Summary: "Print parsed OKF AST JSON.", Run: runAST},
-	{Name: "spec", Group: "Advanced and portable tools", Summary: "Print an embedded OKF spec.", Run: runSpec},
-	{Name: "version", Group: "Advanced and portable tools", Summary: "Print the CLI version.", Run: runVersion},
-	{Name: "telemetry", Group: "Advanced and portable tools", Summary: "Inspect or change anonymous product telemetry.", Subcommands: commandNames("status", "enable", "disable", "show-payload"), Run: runTelemetry},
+	{Name: "scaffold", Group: "Advanced", Summary: "Create a deterministic local OKF knowledge base.", Run: runScaffold},
+	{Name: "prompt", Group: "Advanced", Summary: "Print or install maintenance instructions.", Subcommands: commandNames("rules", "review"), Run: runPrompt},
+	{Name: "ast", Group: "Advanced", Summary: "Print parsed OKF AST JSON.", Run: runAST},
+	{Name: "spec", Group: "Advanced", Summary: "Print an embedded OKF spec.", Run: runSpec},
+	{Name: "version", Group: "Advanced", Summary: "Print the CLI version.", Run: runVersion},
+	{Name: "telemetry", Group: "Advanced", Summary: "Inspect or change anonymous product telemetry.", Subcommands: commandNames("status", "enable", "disable", "show-payload"), Run: runTelemetry},
 }
 
 var rootCommandsByName = func() map[string]rootCommand {

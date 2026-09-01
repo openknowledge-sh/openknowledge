@@ -6,6 +6,7 @@
   "required": ["schemaVersion", "root", "revision", "query", "limit", "results"],
   "properties": {
     "schemaVersion": {"const": "1"},
+    "status": {"enum": ["managed", "unmanaged"]},
     "root": {"type": "string"},
     "revision": {"$ref": "common.schema.json#/$defs/retrievalRevision"},
     "query": {"type": "string"},

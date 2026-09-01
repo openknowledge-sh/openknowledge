@@ -22,7 +22,7 @@ func TestPromptDispatchesPortableTools(t *testing.T) {
 	}
 }
 
-func TestConsolidatedCommandsHaveNoLegacyAliases(t *testing.T) {
+func TestRemovedCommandsHaveNoLegacyAliases(t *testing.T) {
 	for _, args := range [][]string{
 		{"prompt", "setup", "--help"},
 		{"prompt", "from", "--help"},
@@ -30,7 +30,6 @@ func TestConsolidatedCommandsHaveNoLegacyAliases(t *testing.T) {
 		{"agent", "integrate", "--help"},
 		{"from", "--help"},
 		{"rules", "--help"},
-		{"review", "--help"},
 		{"to", "--help"},
 		{"new", "--help"},
 		{"registry", "connect", "."},

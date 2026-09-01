@@ -8,9 +8,9 @@ timestamp: 2026-07-21T00:00:00Z
 
 # `openknowledge search`
 
-Search one knowledge base or all connected knowledge bases. The command returns
-source-based Markdown context. Search is local and deterministic. It does not
-call an LLM or an embedding service.
+Search one managed knowledge base, an ordinary Markdown directory, or all
+connected knowledge bases. Search is local and deterministic. It does not call
+an LLM or an embedding service.
 
 ## Usage
 
@@ -41,6 +41,11 @@ estimate, validation issues, and selected Markdown sections. Each source
 contains its file, heading, line range, score, relationship, and content hash.
 It also contains an `okf+sha256://` locator.
 
+Output contains `status: managed` for an OKF bundle. It contains
+`status: unmanaged` for an ordinary Markdown directory. Unmanaged search does
+not require YAML frontmatter or authored links. Use `okn setup` before
+publication or managed validation.
+
 ```text
 # Open Knowledge Context
 
@@ -55,8 +60,9 @@ Relation: `direct`
 ```
 
 Use `--matches` to inspect ranked snippets and matched fields. JSON output uses
-`schemaVersion: "1"`. The `search-context.schema.json` and
-`search-results.schema.json` files define the contracts.
+`schemaVersion: "1"` and the same `status` values. The
+`search-context.schema.json` and `search-results.schema.json` files define the
+contracts.
 
 ## How selection works
 
@@ -104,6 +110,7 @@ guarantee. Use
 > **Source anchors**
 >
 > - `packages/cli/internal/okf/search_knowledge.go`
+> - `packages/cli/internal/okf/loose_markdown.go`
 > - `packages/cli/internal/okf/search_vector.go`
 > - `packages/cli/internal/okf/search_filters.go`
 > - `packages/cli/internal/okf/context.go`

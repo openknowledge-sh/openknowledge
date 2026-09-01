@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/natefinch/atomic"
+	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/integration"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/okf"
 	"github.com/openknowledge-sh/openknowledge/packages/cli/internal/telemetry"
 )
@@ -277,19 +279,87 @@ func runRulesApply(args []string) int {
 }
 
 func runReview(args []string) int {
-	if len(args) == 0 || isHelpFlag(args[0]) {
+	if len(args) > 0 && isHelpFlag(args[0]) {
 		fmt.Fprint(os.Stdout, reviewHelpText())
 		return 0
 	}
-	switch args[0] {
-	case "rules":
-		return runReviewRules(args[1:])
-	case "content":
-		return runReviewContent(args[1:])
-	default:
-		fmt.Fprintf(stderrOutput(), "unknown review subcommand: %s\n", args[0])
+	if len(args) > 0 {
+		switch args[0] {
+		case "rules":
+			return runReviewRules(args[1:])
+		case "content":
+			return runReviewContent(args[1:])
+		}
+	}
+	return runPrimaryReview(args)
+}
+
+func runPrimaryReview(args []string) int {
+	options, err := parseReviewContentArgs(args)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
+	review, err := okf.BuildContentReview(okf.ContentReviewOptions{
+		Wiki: options.wiki, Rules: options.rules, AllRules: options.allRules,
+		Scope: options.scope, Base: options.base, Concerns: options.concerns,
+	})
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if !setupInputIsTerminal() {
+		fmt.Print(review.Prompt)
+		return 0
+	}
+	reader := bufio.NewReader(setupInput)
+	return continueReviewTask(reader, options.wiki, review.Prompt)
+}
+
+func continueReviewTask(reader *bufio.Reader, wiki string, task string) int {
+	available := detectSetupRuntimes(context.Background())
+	labels := make([]string, 0, len(available)+2)
+	for _, runtime := range available {
+		labels = append(labels, "Run "+displayRuntime(runtime))
+	}
+	labels = append(labels, "Copy the task for an agent", "Save the task to a file")
+	choice, err := setupChoice(reader, "How would you like to continue?", labels, 0)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if choice < len(available) {
+		absolute, err := filepath.Abs(wiki)
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		project, err := integration.ProjectRoot(absolute)
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		return runAgentWithOptions(agentCLIOptions{path: project, prompt: task, runtime: available[choice], modeOverride: "review"})
+	}
+	if choice == len(available) {
+		fmt.Print(task)
+		return 0
+	}
+	path, err := setupLine(reader, "Task file", filepath.Join(".openknowledge", "review-task.md"))
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if err := writeOutputFileAtomically(path, []byte(task)); err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	fmt.Fprintf(os.Stdout, "Saved review task to %s.\n", path)
+	return 0
 }
 
 func runReviewContent(args []string) int {
@@ -1029,14 +1099,21 @@ func runSearch(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
+	managed := setupExistingBundle(root)
 	if options.matches {
-		result, err := okf.SearchKnowledgeWithVersion(root, options.spec, okf.SearchOptions{
+		searchOptions := okf.SearchOptions{
 			Query:    options.query,
 			Limit:    options.limit,
 			Fuzzy:    true,
 			NoExpand: options.noExpand,
 			Filters:  options.filters,
-		})
+		}
+		var result okf.SearchResultSet
+		if managed {
+			result, err = okf.SearchKnowledgeWithVersion(root, options.spec, searchOptions)
+		} else {
+			result, err = okf.SearchLooseMarkdown(root, searchOptions)
+		}
 		if err != nil {
 			fmt.Fprintln(stderrOutput(), err)
 			return 1
@@ -1048,13 +1125,19 @@ func runSearch(args []string) int {
 		return 0
 	}
 
-	result, err := okf.ResolveContextWithVersion(root, options.spec, okf.ContextOptions{
+	contextOptions := okf.ContextOptions{
 		Query:    options.query,
 		Budget:   options.budget,
 		Limit:    options.limit,
 		NoExpand: options.noExpand,
 		Filters:  options.filters,
-	})
+	}
+	var result okf.ContextResult
+	if managed {
+		result, err = okf.ResolveContextWithVersion(root, options.spec, contextOptions)
+	} else {
+		result, err = okf.ResolveLooseMarkdownContext(root, contextOptions)
+	}
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
@@ -1369,6 +1452,7 @@ func printSearchContextMarkdown(result okf.ContextResult) {
 	fmt.Println()
 	fmt.Printf("Query: %s\n", result.Query)
 	fmt.Printf("Root: `%s`\n", result.Root)
+	fmt.Printf("Status: `%s`\n", result.Status)
 	fmt.Printf("Revision: `%s` (OKF %s)\n", result.Revision.IndexSHA256, result.Revision.SpecVersion)
 	fmt.Printf("Context: %d / %d estimated tokens\n", result.EstimatedTokens, result.Budget)
 	fmt.Printf("Sources: %d\n", len(result.Sources))
@@ -1445,6 +1529,7 @@ func printSearchMatchesMarkdown(result okf.SearchResultSet) {
 	fmt.Println()
 	fmt.Printf("Query: %s\n", result.Query)
 	fmt.Printf("Root: `%s`\n", result.Root)
+	fmt.Printf("Status: `%s`\n", result.Status)
 	fmt.Printf("Revision: `%s` (OKF %s)\n", result.Revision.IndexSHA256, result.Revision.SpecVersion)
 	fmt.Printf("Matches: %d\n", len(result.Results))
 	fmt.Printf("Validation issues: %d\n", len(result.Issues))

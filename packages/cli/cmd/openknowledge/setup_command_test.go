@@ -103,7 +103,7 @@ func TestSetupAgentUsesRuntimeValueWithoutGit(t *testing.T) {
 	}
 }
 
-func TestSetupInteractiveDefersOptionalActivationUntilAfterFirstResult(t *testing.T) {
+func TestSetupWithoutMarkdownListsInstalledAgentFirst(t *testing.T) {
 	repo := t.TempDir()
 	runGit(t, repo, "init")
 	codexExecutable := absoluteTestPath(t, "/test/codex")
@@ -124,8 +124,8 @@ func TestSetupInteractiveDefersOptionalActivationUntilAfterFirstResult(t *testin
 		}
 		return errors.New("not installed")
 	}
-	// Base knowledge, print task for the current agent, confirm.
-	setupInput = strings.NewReader("\n\n\n")
+	// Default goal and path, use repository context, then print instead of run.
+	setupInput = strings.NewReader("\n\n\n2\n")
 	setupInputIsTerminal = func() bool { return true }
 
 	var stdout, stderr string
@@ -137,34 +137,29 @@ func TestSetupInteractiveDefersOptionalActivationUntilAfterFirstResult(t *testin
 		t.Fatalf("setup code=%d stderr=%s\n%s", code, stderr, stdout)
 	}
 	for _, expected := range []string{
-		"What do you want working first?",
-		"Base knowledge — searchable documentation with minimal setup",
-		"How should setup run?",
-		"Print a task for my current agent",
+		"No existing Markdown knowledge was found.",
+		"What should this knowledge base help you or your agents do?",
+		"Knowledge base location",
+		"Use the current repository as source context?",
+		"How would you like to continue?",
+		"1. Run Codex",
+		"2. Copy the task for an agent",
 		"Selected maintenance rules:",
 		"- project: General project knowledge.",
 		"- writing: Apply the common editorial rule",
-		"Open Knowledge setup plan",
-		"First result:   base knowledge",
-		"Later options:  agent instructions, observation, CI, and runtime",
+		"Understand and maintain this project",
+		"okn validate",
+		"Run one representative source-grounded query",
+		"okn setup complete",
 	} {
 		if !strings.Contains(stdout, expected) {
 			t.Fatalf("interactive setup missing %q:\n%s", expected, stdout)
 		}
 	}
-	for _, unexpected := range []string{
-		"Install Open Knowledge instructions for agents?",
-		"Capture possible knowledge gaps after agent sessions?",
-		"The user already selected this activation plan",
-	} {
+	for _, unexpected := range []string{"Recommended", "Base knowledge", "Trusted knowledge", "Custom setup"} {
 		if strings.Contains(stdout, unexpected) {
 			t.Fatalf("interactive setup must defer %q:\n%s", unexpected, stdout)
 		}
-	}
-	searchIndex := strings.Index(stdout, "Run one representative query")
-	activationIndex := strings.Index(stdout, "ask the user which installed agent harnesses need Open Knowledge instructions")
-	if searchIndex < 0 || activationIndex < 0 || activationIndex < searchIndex {
-		t.Fatalf("interactive setup must demonstrate search before optional activation:\n%s", stdout)
 	}
 }
 

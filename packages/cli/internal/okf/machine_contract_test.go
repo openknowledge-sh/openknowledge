@@ -171,7 +171,7 @@ func TestMachineContractGoldenFiles(t *testing.T) {
 }
 
 func TestMachineContractSchemasDeclareCurrentVersion(t *testing.T) {
-	names := []string{"ast", "bundle", "datalog-query", "federated-search-context", "federated-search-results", "graph", "hybrid-query", "list", "rdf-dataset", "registry-list", "registry-status", "search-context", "search-results", "semantic-facts", "sparql-query", "validation", "vector-search"}
+	names := []string{"ast", "bundle", "check", "datalog-query", "federated-search-context", "federated-search-results", "graph", "hybrid-query", "list", "rdf-dataset", "registry-list", "registry-status", "search-context", "search-results", "semantic-facts", "sparql-query", "validation", "vector-search"}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			content, err := os.ReadFile(filepath.Join("..", "..", "schemas", "v1", name+".schema.json"))

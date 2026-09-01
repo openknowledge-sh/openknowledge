@@ -26,6 +26,9 @@ var setupInputIsTerminal = func() bool {
 type setupCLIOptions struct {
 	wiki        string
 	source      string
+	mode        string
+	includes    []string
+	excludes    []string
 	useCase     string
 	agent       string
 	model       string
@@ -34,12 +37,7 @@ type setupCLIOptions struct {
 	depth       int
 	prompt      bool
 	interactive bool
-}
-
-type setupWizardPlan struct {
-	options setupCLIOptions
-	action  string
-	agent   string
+	plan        bool
 }
 
 const (
@@ -78,24 +76,15 @@ func runSetup(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 2
 	}
+	if setupExistingBundle(options.wiki) {
+		return printExistingSetup(options.wiki)
+	}
+	if options.mode != "" {
+		return runSetupImport(options)
+	}
 
 	if options.interactive || (!options.prompt && options.agent == "" && setupInputIsTerminal()) {
-		plan, err := runSetupWizard(options)
-		if err != nil {
-			fmt.Fprintln(stderrOutput(), err)
-			return 1
-		}
-		options = plan.options
-		task, err := buildSetupTask(options)
-		if err != nil {
-			fmt.Fprintln(stderrOutput(), err)
-			return 2
-		}
-		if plan.action == "print" {
-			fmt.Print(task)
-			return 0
-		}
-		return runSetupAgent(options, plan.agent, task)
+		return runSetupInteractive(options)
 	}
 
 	task, err := buildSetupTask(options)
@@ -192,7 +181,20 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 			options.prompt = true
 		case argument == "--interactive":
 			options.interactive = true
-		case argument == "--from" || argument == "--use-case" || argument == "--agent" || argument == "--model" || argument == "--rules" || argument == "--about" || argument == "--depth":
+		case argument == "--plan":
+			options.plan = true
+		case argument == "--include" || argument == "--exclude":
+			value, next, err := nextFlagValue(args, index, argument)
+			if err != nil {
+				return options, err
+			}
+			if argument == "--include" {
+				options.includes = append(options.includes, value)
+			} else {
+				options.excludes = append(options.excludes, value)
+			}
+			index = next
+		case argument == "--from" || argument == "--mode" || argument == "--use-case" || argument == "--agent" || argument == "--model" || argument == "--rules" || argument == "--about" || argument == "--depth":
 			value, next, err := nextFlagValue(args, index, argument)
 			if err != nil {
 				return options, err
@@ -205,6 +207,14 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 			if err := setSetupOption(&options, "--from", strings.TrimPrefix(argument, "--from=")); err != nil {
 				return options, err
 			}
+		case strings.HasPrefix(argument, "--mode="):
+			if err := setSetupOption(&options, "--mode", strings.TrimPrefix(argument, "--mode=")); err != nil {
+				return options, err
+			}
+		case strings.HasPrefix(argument, "--include="):
+			options.includes = append(options.includes, strings.TrimPrefix(argument, "--include="))
+		case strings.HasPrefix(argument, "--exclude="):
+			options.excludes = append(options.excludes, strings.TrimPrefix(argument, "--exclude="))
 		case strings.HasPrefix(argument, "--use-case="):
 			if err := setSetupOption(&options, "--use-case", strings.TrimPrefix(argument, "--use-case=")); err != nil {
 				return options, err
@@ -247,6 +257,15 @@ func parseSetupArgs(args []string) (setupCLIOptions, error) {
 	if options.prompt && options.interactive {
 		return options, fmt.Errorf("--prompt and --interactive cannot be combined")
 	}
+	if options.mode != "" && (options.prompt || options.interactive) {
+		return options, fmt.Errorf("--mode cannot be combined with --prompt or --interactive")
+	}
+	if options.mode == "" && (len(options.includes) > 0 || len(options.excludes) > 0 || options.plan) {
+		return options, fmt.Errorf("--include, --exclude, and --plan require --mode")
+	}
+	if options.mode != "" && options.source == "" {
+		options.source = "."
+	}
 	if options.agent != "" && (options.prompt || options.interactive) {
 		return options, fmt.Errorf("--agent cannot be combined with --prompt or --interactive")
 	}
@@ -278,6 +297,12 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 	switch flagName {
 	case "--from":
 		options.source = value
+	case "--mode":
+		mode := strings.ToLower(strings.TrimSpace(value))
+		if mode != string(okf.SetupImportCopy) && mode != string(okf.SetupImportInPlace) {
+			return fmt.Errorf("--mode requires copy or in-place")
+		}
+		options.mode = mode
 	case "--use-case":
 		useCase, err := normalizeSetupUseCase(value)
 		if err != nil {
@@ -302,104 +327,344 @@ func setSetupOption(options *setupCLIOptions, flagName, value string) error {
 	return nil
 }
 
-func runSetupWizard(options setupCLIOptions) (setupWizardPlan, error) {
+func runSetupImport(options setupCLIOptions) int {
+	plan, err := setupImportPlanForOptions(options)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	printSetupImportPlan(plan)
+	if options.plan {
+		return 0
+	}
+	return applySetupImportPlan(plan)
+}
+
+func setupImportPlanForOptions(options setupCLIOptions) (okf.SetupImportPlan, error) {
+	rules, err := parseRuleIDs(options.rules)
+	if err != nil {
+		return okf.SetupImportPlan{}, err
+	}
+	if len(rules) == 0 {
+		rules = defaultSetupRules(options.useCase)
+	}
+	return okf.BuildSetupImportPlan(okf.SetupImportOptions{
+		Mode: okf.SetupImportMode(options.mode), Source: options.source, Target: options.wiki,
+		SpecVersion: "latest", Rules: rules, Include: options.includes, Exclude: options.excludes,
+	})
+}
+
+func applySetupImportPlan(plan okf.SetupImportPlan) int {
+	result, err := okf.ApplySetupImportPlan(plan)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	fmt.Fprintf(os.Stdout, "\nKnowledge base created at %s.\n\n", result.Root)
+	fmt.Fprintf(os.Stdout, "%-16s%d\n", "Documents", result.Documents)
+	fmt.Fprintf(os.Stdout, "%-16s%s\n", "Validation", "READY")
+	fmt.Fprintf(os.Stdout, "%-16s%s (%d hits)\n", "Search index", "READY", result.SearchHits)
+	fmt.Fprintf(os.Stdout, "%-16s%s\n", "Publication", "DISABLED")
+	fmt.Fprintf(os.Stdout, "\nOptional enrichment: okn review %q --scope full\n", result.Root)
+	fmt.Fprintln(os.Stdout, "Use it to classify documents, find duplicates or conflicts, improve navigation, and identify missing documentation.")
+	return 0
+}
+
+func printSetupImportPlan(plan okf.SetupImportPlan) {
+	fmt.Fprintln(os.Stdout, "Setup plan")
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(os.Stdout, "%-12s%s\n", "Mode:", plan.Mode)
+	fmt.Fprintf(os.Stdout, "%-12s%s\n", "Source:", plan.Source)
+	fmt.Fprintf(os.Stdout, "%-12s%s\n", "Target:", plan.Target)
+	fmt.Fprintf(os.Stdout, "%-12s%d\n", "Documents:", plan.Summary.Documents)
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, "Changes:")
+	fmt.Fprintf(os.Stdout, "  %3d create\n", plan.Summary.Create)
+	fmt.Fprintf(os.Stdout, "  %3d update\n", plan.Summary.Update)
+	fmt.Fprintf(os.Stdout, "  %3d preserve existing frontmatter\n", plan.Summary.Preserve)
+	fmt.Fprintf(os.Stdout, "  %3d add minimal frontmatter\n", plan.Summary.AddFrontmatter)
+	fmt.Fprintf(os.Stdout, "  %3d complete frontmatter\n", plan.Summary.CompleteFrontmatter)
+	fmt.Fprintf(os.Stdout, "  %3d move\n", plan.Summary.Move)
+	fmt.Fprintf(os.Stdout, "  %3d delete\n", plan.Summary.Delete)
+}
+
+func runSetupInteractive(options setupCLIOptions) int {
 	reader := bufio.NewReader(setupInput)
-	plan := setupWizardPlan{options: options, action: "print"}
-
-	if strings.TrimSpace(plan.options.useCase) == "" {
-		choice, err := setupChoice(reader, "What do you want working first?", []string{
-			"Base knowledge — searchable documentation with minimal setup",
-			"Trusted knowledge — source-grounded knowledge with optional governance",
-			"Custom setup",
-		}, 0)
-		if err != nil {
-			return plan, err
-		}
-		plan.options.useCase = []string{
-			setupUseCaseBase,
-			setupUseCaseTrusted,
-			setupUseCaseCustom,
-		}[choice]
+	if setupExistingBundle(options.wiki) {
+		return printExistingSetup(options.wiki)
 	}
 
-	if options.source == "" && plan.options.useCase != setupUseCaseBase {
-		choice, err := setupChoice(reader, "What do you want to set up?", []string{
-			"A knowledge base for this project",
-			"A knowledge base generated from another source",
-			"An existing Open Knowledge bundle",
-		}, 0)
-		if err != nil {
-			return plan, err
-		}
-		switch choice {
-		case 1:
-			source, err := setupLine(reader, "Source path or URL", "")
-			if err != nil {
-				return plan, err
-			}
-			plan.options.source = source
-			about, err := setupLine(reader, "What should this knowledge base help with?", "let the agent infer it")
-			if err != nil {
-				return plan, err
-			}
-			if about != "let the agent infer it" {
-				plan.options.about = about
-			}
-		case 2:
-			wiki, err := setupLine(reader, "Knowledge base path", options.wiki)
-			if err != nil {
-				return plan, err
-			}
-			plan.options.wiki = wiki
-		}
+	source := options.source
+	if strings.TrimSpace(source) == "" {
+		source = "."
 	}
-	if strings.TrimSpace(plan.options.rules) == "" {
-		if plan.options.useCase == setupUseCaseCustom {
-			rules, err := setupMaintenanceRules(reader)
-			if err != nil {
-				return plan, err
-			}
-			plan.options.rules = strings.Join(rules, ",")
-		} else {
-			plan.options.rules = strings.Join(defaultSetupRules(plan.options.useCase), ",")
-		}
+	excludes := append([]string(nil), options.excludes...)
+	if rel, err := filepath.Rel(source, options.wiki); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+		excludes = append(excludes, filepath.ToSlash(rel)+"/**")
 	}
-
-	available := detectSetupRuntimes(context.Background())
-	actionLabels := make([]string, 0, len(available)+1)
-	actionLabels = append(actionLabels, "Print a task for my current agent")
-	for _, runtime := range available {
-		actionLabels = append(actionLabels, "Launch "+displayRuntime(runtime))
-	}
-	action, err := setupChoice(reader, "How should setup run?", actionLabels, 0)
+	discovery, err := okf.DiscoverMarkdown(source, okf.MarkdownDiscoveryOptions{Include: options.includes, Exclude: excludes})
 	if err != nil {
-		return plan, err
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
 	}
-	if action > 0 {
-		plan.action = "agent"
-		plan.agent = available[action-1]
+	if len(discovery.Documents) == 0 {
+		return runSetupWithoutMarkdown(reader, options, source)
 	}
 
-	fmt.Fprintln(os.Stdout, "\nOpen Knowledge setup plan")
-	fmt.Fprintf(os.Stdout, "  First result:   %s\n", setupUseCaseLabel(plan.options.useCase))
-	fmt.Fprintf(os.Stdout, "  Knowledge base: %s\n", plan.options.wiki)
-	if plan.options.source != "" {
-		fmt.Fprintf(os.Stdout, "  Source:         %s\n", plan.options.source)
+	selected, err := setupSelectKnowledgeSources(reader, discovery)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
 	}
-	if plan.action == "agent" {
-		fmt.Fprintf(os.Stdout, "  Setup agent:    %s\n", plan.agent)
+	choice, err := setupChoice(reader, "How should Open Knowledge manage these files?", []string{
+		"Create a managed copy",
+		"Adopt a directory in place",
+	}, 0)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	options.source = source
+	options.includes = selected
+	options.excludes = excludes
+	if choice == 0 {
+		options.mode = string(okf.SetupImportCopy)
+		target, err := setupLine(reader, "Knowledge base path", options.wiki)
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		options.wiki = target
 	} else {
-		fmt.Fprintln(os.Stdout, "  Setup agent:    existing agent")
+		defaultDirectory := setupDefaultAdoptDirectory(discovery.Root, selected)
+		directory, err := setupLine(reader, "Directory to adopt", defaultDirectory)
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		absolute, err := filepath.Abs(filepath.Join(discovery.Root, filepath.FromSlash(directory)))
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+		info, err := os.Stat(absolute)
+		if err != nil || !info.IsDir() {
+			fmt.Fprintf(stderrOutput(), "in-place setup requires one existing directory: %s\n", directory)
+			return 1
+		}
+		options.mode = string(okf.SetupImportInPlace)
+		options.source = absolute
+		options.wiki = absolute
+		options.includes = nil
+		options.excludes = nil
 	}
-	fmt.Fprintln(os.Stdout, "  Later options:  agent instructions, observation, CI, and runtime")
-	confirmed, err := setupConfirm(reader, "Continue?", true)
+
+	plan, err := setupImportPlanForOptions(options)
 	if err != nil {
-		return plan, err
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	printSetupImportPlan(plan)
+	confirmed, err := setupConfirm(reader, "Apply this setup plan?", true)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
 	}
 	if !confirmed {
-		return plan, fmt.Errorf("setup cancelled")
+		fmt.Fprintln(os.Stdout, "Setup cancelled. No files changed.")
+		return 0
 	}
-	return plan, nil
+	return applySetupImportPlan(plan)
+}
+
+func printExistingSetup(path string) int {
+	fmt.Fprintf(os.Stdout, "Open Knowledge is already set up at %s.\n\n", path)
+	fmt.Fprintln(os.Stdout, "Check it:")
+	fmt.Fprintf(os.Stdout, "  okn check %q\n\n", path)
+	fmt.Fprintln(os.Stdout, "Review its content:")
+	fmt.Fprintf(os.Stdout, "  okn review %q\n\n", path)
+	fmt.Fprintln(os.Stdout, "Upgrade its format:")
+	fmt.Fprintf(os.Stdout, "  okn upgrade %q\n", path)
+	return 0
+}
+
+func setupExistingBundle(path string) bool {
+	if _, err := os.Stat(filepath.Join(path, okf.ValidationConfigFile)); err == nil {
+		return true
+	}
+	content, err := os.ReadFile(filepath.Join(path, "index.md"))
+	if err != nil {
+		return false
+	}
+	document, err := okf.ParseFrontmatterDocument(content)
+	return err == nil && strings.TrimSpace(document.Values["okf_version"]) != ""
+}
+
+type setupSourceCandidate struct {
+	path  string
+	count int
+}
+
+func setupSelectKnowledgeSources(reader *bufio.Reader, discovery okf.MarkdownDiscovery) ([]string, error) {
+	candidates := setupSourceCandidates(discovery.Documents)
+	fmt.Fprintln(os.Stdout, "\n◆ Select knowledge sources")
+	for index, candidate := range candidates {
+		suffix := ""
+		if candidate.count > 1 {
+			suffix = fmt.Sprintf("  (%d Markdown files)", candidate.count)
+		}
+		fmt.Fprintf(os.Stdout, "  %d. %s%s\n", index+1, candidate.path, suffix)
+	}
+	defaults := make([]string, len(candidates))
+	for index := range candidates {
+		defaults[index] = strconv.Itoa(index + 1)
+	}
+	fmt.Fprintf(os.Stdout, "Select comma-separated numbers [%s]: ", strings.Join(defaults, ","))
+	answer, err := reader.ReadString('\n')
+	answer = strings.TrimSpace(answer)
+	if err != nil && answer == "" {
+		return nil, fmt.Errorf("read knowledge source selection: %w", err)
+	}
+	if answer == "" {
+		answer = strings.Join(defaults, ",")
+	}
+	seen := map[string]bool{}
+	var selected []string
+	for _, raw := range strings.Split(answer, ",") {
+		index, err := strconv.Atoi(strings.TrimSpace(raw))
+		if err != nil || index < 1 || index > len(candidates) {
+			return nil, fmt.Errorf("invalid knowledge source selection %q", raw)
+		}
+		path := candidates[index-1].path
+		if !seen[path] {
+			seen[path] = true
+			selected = append(selected, path)
+		}
+	}
+	for {
+		fmt.Fprint(os.Stdout, "Add another path (leave empty to continue): ")
+		additional, readErr := reader.ReadString('\n')
+		additional = strings.TrimSpace(additional)
+		if readErr != nil && additional != "" {
+			return nil, fmt.Errorf("read additional knowledge path: %w", readErr)
+		}
+		if additional == "" {
+			break
+		}
+		if !seen[additional] {
+			seen[additional] = true
+			selected = append(selected, additional)
+		}
+	}
+	return selected, nil
+}
+
+func setupSourceCandidates(documents []okf.DiscoveredMarkdown) []setupSourceCandidate {
+	counts := map[string]int{}
+	for _, document := range documents {
+		parts := strings.Split(filepath.ToSlash(document.Path), "/")
+		candidate := document.Path
+		if len(parts) > 1 {
+			candidate = parts[0]
+			if (parts[0] == "packages" || parts[0] == "apps" || parts[0] == "services") && len(parts) >= 3 {
+				if len(parts) == 3 {
+					candidate = document.Path
+				} else {
+					candidate = strings.Join(parts[:3], "/")
+				}
+			}
+		}
+		counts[candidate]++
+	}
+	result := make([]setupSourceCandidate, 0, len(counts))
+	for path, count := range counts {
+		result = append(result, setupSourceCandidate{path: path, count: count})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].path < result[j].path })
+	return result
+}
+
+func setupDefaultAdoptDirectory(root string, selected []string) string {
+	if len(selected) == 1 {
+		candidate := filepath.Join(root, filepath.FromSlash(selected[0]))
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return selected[0]
+		}
+	}
+	return "."
+}
+
+func runSetupWithoutMarkdown(reader *bufio.Reader, options setupCLIOptions, source string) int {
+	fmt.Fprintln(os.Stdout, "No existing Markdown knowledge was found.")
+	goal := strings.TrimSpace(options.about)
+	if goal == "" {
+		var err error
+		goal, err = setupLine(reader, "What should this knowledge base help you or your agents do?", "Understand and maintain this project")
+		if err != nil {
+			fmt.Fprintln(stderrOutput(), err)
+			return 1
+		}
+	}
+	wiki, err := setupLine(reader, "Knowledge base location", options.wiki)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	useSource, err := setupConfirm(reader, "Use the current repository as source context?", true)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	options.wiki = wiki
+	options.about = goal
+	if useSource {
+		options.source = source
+	}
+	if strings.TrimSpace(options.rules) == "" {
+		options.rules = strings.Join(defaultSetupRules(options.useCase), ",")
+	}
+	task, err := buildSetupTask(options)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	return continueSetupTask(reader, options, task)
+}
+
+func continueSetupTask(reader *bufio.Reader, options setupCLIOptions, task string) int {
+	available := detectSetupRuntimes(context.Background())
+	labels := make([]string, 0, len(available)+2)
+	for _, runtime := range available {
+		labels = append(labels, "Run "+displayRuntime(runtime))
+	}
+	labels = append(labels, "Copy the task for an agent", "Save the task to a file")
+	choice, err := setupChoice(reader, "How would you like to continue?", labels, 0)
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if choice < len(available) {
+		return runSetupAgent(options, available[choice], task)
+	}
+	if choice == len(available) {
+		fmt.Print(task)
+		return 0
+	}
+	path, err := setupLine(reader, "Task file", filepath.Join(".openknowledge", "setup-task.md"))
+	if err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	if err := writeOutputFileAtomically(path, []byte(task)); err != nil {
+		fmt.Fprintln(stderrOutput(), err)
+		return 1
+	}
+	fmt.Fprintf(os.Stdout, "Saved setup task to %s.\n", path)
+	return 0
 }
 
 func normalizeSetupUseCase(value string) (string, error) {
@@ -415,17 +680,6 @@ func normalizeSetupUseCase(value string) (string, error) {
 
 func defaultSetupRules(useCase string) []string {
 	return []string{"project", "writing"}
-}
-
-func setupUseCaseLabel(useCase string) string {
-	switch useCase {
-	case setupUseCaseTrusted:
-		return "trusted knowledge"
-	case setupUseCaseCustom:
-		return "custom knowledge base"
-	default:
-		return "base knowledge"
-	}
 }
 
 func detectSetupRuntimes(ctx context.Context) []string {
@@ -538,52 +792,6 @@ func setupHarnesses(reader *bufio.Reader, available []string, defaults []string)
 	return selected, nil
 }
 
-func setupMaintenanceRules(reader *bufio.Reader) ([]string, error) {
-	rules := []struct {
-		id    string
-		label string
-	}{
-		{id: "project", label: "Project changes"},
-		{id: "writing", label: "Clear, concise writing"},
-		{id: "iso-plain-language", label: "ISO 24495-1 plain-language principles"},
-		{id: "docs", label: "Documentation"},
-		{id: "decisions", label: "Decisions"},
-		{id: "changelog", label: "Changelog"},
-		{id: "research", label: "Research"},
-		{id: "bugs", label: "Bugs"},
-		{id: "schemas", label: "Schemas"},
-		{id: "summary", label: "Summaries"},
-		{id: "agents", label: "Agent guidance"},
-	}
-	fmt.Fprintln(os.Stdout, "\n◆ Which maintenance behaviors should future agents follow?")
-	for index, rule := range rules {
-		fmt.Fprintf(os.Stdout, "  %d. %s\n", index+1, rule.label)
-	}
-	fmt.Fprint(os.Stdout, "Select comma-separated numbers [1,2]: ")
-	answer, err := reader.ReadString('\n')
-	answer = strings.TrimSpace(answer)
-	if err != nil && answer == "" {
-		return nil, fmt.Errorf("read setup maintenance rules: %w", err)
-	}
-	if answer == "" {
-		return []string{"project", "writing"}, nil
-	}
-	seen := map[string]bool{}
-	var selected []string
-	for _, raw := range strings.Split(answer, ",") {
-		index, err := strconv.Atoi(strings.TrimSpace(raw))
-		if err != nil || index < 1 || index > len(rules) {
-			return nil, fmt.Errorf("invalid maintenance rule selection %q", raw)
-		}
-		id := rules[index-1].id
-		if !seen[id] {
-			seen[id] = true
-			selected = append(selected, id)
-		}
-	}
-	return selected, nil
-}
-
 func setupDefaultHarnessIndexes(available []string, defaults []string) string {
 	selected := map[string]bool{}
 	for _, runtime := range defaults {
@@ -621,22 +829,23 @@ func setupConfirm(reader *bufio.Reader, question string, defaultValue bool) (boo
 func setupHelpText() string {
 	return `openknowledge setup
 
-Create the smallest useful Markdown knowledge base for one user goal.
+Create or adopt a managed knowledge base from ordinary Markdown.
 
 Usage:
 	openknowledge setup [wiki]
-	openknowledge setup [wiki] --use-case <base|trusted|custom>
-	openknowledge setup [wiki] --prompt
-	openknowledge setup [wiki] --interactive
-	openknowledge setup [wiki] --agent <codex|claude|opencode>
-	openknowledge setup [wiki] --from <source> [--about <goal>] [--depth <n>]
+	openknowledge setup [wiki] --from <directory> --mode copy [--include <path>]
+	openknowledge setup <directory> --from <directory> --mode in-place
+	openknowledge setup [wiki] --from <directory> --mode copy --plan
 
-Use cases:
-	base     Create searchable documentation with minimal setup. This is the
-	         default. It keeps claims, semantic query, CI, and runtime optional.
-	trusted  Build source-grounded knowledge with optional governance. Add each
-	         trust capability only after the first validation and search.
-	custom   Let the agent shape another knowledge-base workflow.
+Interactive setup discovers generic Markdown, lets you select source files or
+directories, and offers only two management modes:
+
+	Create a managed copy     Preserve sources and import them into a new bundle.
+	Adopt a directory in place Add minimal metadata without moving or deleting files.
+
+When no Markdown exists, setup creates a tailored task and lets you run an
+installed agent, print the task to copy, or save it. An existing OKF bundle is
+redirected to check, review, and upgrade instead of being changed by setup.
 
 After the first result:
 	openknowledge setup skill [--scope <global|project|both>] [--project <target>] [--harness <name>]
@@ -650,25 +859,22 @@ Optional production upgrades:
 	openknowledge setup ci [wiki] [--plan] [--force]
 	openknowledge setup runtime [wiki] [--maintenance auto|github-actions|runtime] [--runtimes <list>] [--plan] [--force]
 
-With terminal input, setup starts an interactive wizard. Without terminal
-input, setup prints a complete task for an agent. Use --prompt or --interactive
-to select the mode explicitly. Use --agent to start one installed agent. The
-wizard defers agent instructions, observation, CI, and runtime until after the
-first useful knowledge base.
-
-The source workflow accepts --from, optional --about intent, and optional
---depth. All use cases use the same OKF Markdown format.
+The older prompt/agent workflow and --use-case remain available for compatibility.
 
 Flags:
-  --use-case     First result: base, trusted, or custom.
+  --from         Directory to discover or adopt. Defaults to the current directory.
+  --mode         Deterministic import mode: copy or in-place.
+  --include      Import-only source path or pattern. Repeat as needed.
+  --exclude      Import-only excluded path or pattern. Repeat as needed.
+  --plan         Print the deterministic change plan without writing.
+  --interactive  Run source selection even when input is not a terminal.
   --prompt       Print the complete agent task without changing files.
-  --interactive  Run the terminal wizard.
   --agent        Start codex, claude, or opencode with the setup task.
   --model        Harness-specific model override. Requires --agent.
-  --from         Repository, folder, or website source.
   --about        Optional source-to-wiki goal. Requires --from.
   --depth        Non-negative traversal hint. Requires --from.
   --rules        Comma-separated maintenance rules. Works with ordinary and
                  --from setup. Defaults follow the selected use case.
+  --use-case     Compatibility preset: base, trusted, or custom.
 `
 }

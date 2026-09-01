@@ -18,6 +18,7 @@ type SearchFilters struct {
 
 type SearchResultSet struct {
 	SchemaVersion string            `json:"schemaVersion"`
+	Status        string            `json:"status,omitempty"`
 	Root          string            `json:"root"`
 	Revision      RetrievalRevision `json:"revision"`
 	Query         string            `json:"query"`

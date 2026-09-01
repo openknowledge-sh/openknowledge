@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openknowledge.sh/schemas/cli/v1/check.schema.json",
+  "title": "Open Knowledge unified check report v1",
+  "type": "object",
+  "required": ["schemaVersion", "root", "overall", "layers"],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "root": {"type": "string"},
+    "specVersion": {"type": "string"},
+    "overall": {"enum": ["READY", "NEEDS ATTENTION", "BLOCKED", "UNMANAGED"]},
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "status": {"enum": ["READY", "NEEDS ATTENTION", "BLOCKED", "UNMANAGED", "NOT CONFIGURED"]},
+          "message": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

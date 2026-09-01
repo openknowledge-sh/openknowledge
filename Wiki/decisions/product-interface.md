@@ -11,23 +11,21 @@ decision_status: accepted
 
 ## Decision
 
-Open Knowledge gives one lifecycle for an OKF knowledge base. All product
-interfaces use the same OKF Markdown bundle.
+Open Knowledge gives one lifecycle from repository Markdown to published OKF
+knowledge. Managed product interfaces use the same OKF Markdown bundle.
 
 These interfaces include search, the viewer, MCP, agents, jobs, exports, and
 runtime generations.
 
-The CLI exposes one primary path and three secondary workflow groups:
+The CLI exposes one primary workflow and one advanced group:
 
 | Workflow | Commands |
 | --- | --- |
-| Start here | `setup`, `search`, `query`, `validate` |
-| Work locally | `agent`, `get`, `list`, `view` |
-| Share and connect | `export`, `mcp`, `connect`, `disconnect`, `registry` |
-| Automate and operate | `automation` |
+| Start here | `setup`, `check`, `search`, `view`, `review`, `publish`, `upgrade` |
+| Advanced | Direct validation, governance, query, export, runtime, connection, automation, and inspection commands |
 
-The advanced section contains the deterministic `scaffold`, `prompt`, `ast`,
-and `spec` tools.
+Existing commands remain available. Root help places the lower-level commands
+under **Advanced**.
 
 ## Interface Rules
 
@@ -40,26 +38,30 @@ and `spec` tools.
 6. Provider configuration stays under `automation deploy`.
 7. Runtime operations stay under `automation runtime`.
 
-The primary activation flow is:
+The primary lifecycle is:
 
 ```sh
 okn setup
+okn check Wiki
+okn search Wiki "release workflow"
+okn view Wiki
+okn review Wiki
+okn publish Wiki --plan
 ```
 
-The command starts a terminal wizard. Without terminal input, it prints a
-complete agent task. Use `--prompt` or `--interactive` to select a mode.
+Setup accepts ordinary Markdown without YAML frontmatter or an authored link
+graph. It provides path selection and two results: a managed copy or in-place
+adoption. The plan shows all writes before apply.
 
-The agent also demonstrates one search that uses source evidence. Thus,
-activation does not require another command.
+If the source has no Markdown, setup creates a tailored agent task. The
+continuation offers installed agents first, then copy and save choices.
 
-Use `search` independently after activation. Use `validate` independently
-after activation. `scaffold` remains an agent-free primitive, not a second
-activation path.
+Search accepts unmanaged Markdown and marks it as `unmanaged`. Check reports
+`UNMANAGED`, and publish refuses unmanaged input. Review is optional agent work
+after deterministic checks. Upgrade is the explicit format migration path.
 
-Use `setup --prompt` for portable setup instructions. Use
-`prompt rules|review` for maintenance and review instructions.
-Use `export html|json|graph|tar` for publication.
-Use `automation jobs|insights|runtime|deploy` for unattended and hosted work.
+Use advanced commands when direct control of a layer is necessary. These
+commands include `validate`, `audit`, `eval`, `query`, `export`, and `mcp`.
 
 Use the top-level `connect` command to add a connection. Use the top-level
 `disconnect` command to remove a connection.
@@ -74,4 +76,5 @@ interfaces.
 
 > **Update notes**
 >
-> Extend these workflows. Keep compatibility aliases hidden from root help.
+> Keep the lifecycle commands in **Start here**. Keep lower-level commands in
+> **Advanced**.

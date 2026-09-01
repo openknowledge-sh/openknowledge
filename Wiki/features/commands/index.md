@@ -5,34 +5,29 @@ Use this index to select a command for your task. Run
 
 ## Start here
 
-- [setup](setup.md): Configure a knowledge base and its agent instructions.
-- [search](search.md): Build source-grounded context.
-- [validate](validate.md): Validate OKF conformance.
+- [setup](setup.md): Create a managed copy or adopt Markdown in place.
+- [check](check.md): Run configured checks and report one status.
+- [search](search.md): Search managed or ordinary Markdown.
 - [view](view.md): Browse the bundle in the local viewer.
+- [review](review.md): Create and optionally run an agent review task.
+- [publish](publish.md): Build configured viewer or MCP output.
+- [upgrade](upgrade.md): Upgrade the OKF format explicitly.
 
-## Trust and govern
+## Advanced
 
+- [validate](validate.md): Validate OKF conformance directly.
 - [audit](audit.md): Find concrete knowledge risks and their evidence.
 - [claims](claims.md): Maintain evidence-backed typed claims and lifecycle history.
 - [evidence](evidence.md): Capture immutable evidence artifacts and receipts.
 - [eval](eval.md): Test retrieval evidence against versioned questions.
 - [quality](quality.md): Combine observations into quality metrics, priorities, and an intervention audit log.
-
-## Query and interchange
-
 - [query](query.md): Run SPARQL, Datalog, or hybrid semantic queries.
 - [export](export.md): Create HTML, JSON, graph, RDF, or tar output.
-
-## Publish and operate
-
 - [mcp](mcp.md): Serve read-only MCP resources and tools.
 - [connect](connect.md): Register a local or remote bundle.
 - [disconnect](disconnect.md): Remove a connection.
 - [registry](registry.md): List, inspect, refresh, and resolve connections.
 - [automation](automation.md): Run jobs, insights, runtimes, and deployments.
-
-## Advanced internals
-
 - [agent](agent.md): Run a steered Codex, Claude Code, or OpenCode session.
 - [get](get.md): Read an exact page or entrypoint.
 - [list](list.md): Inspect the bundle structure.

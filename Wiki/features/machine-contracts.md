@@ -20,6 +20,7 @@ Audit contracts and private usage events use a type and numeric version.
 | `ast.schema.json` | `ast` |
 | `bundle.schema.json` | `export json` |
 | `cli-error.schema.json` | global `--error-format json` failures |
+| `check.schema.json` | `check --format json` |
 | `audit-report.schema.json` | `audit --format json` |
 | `audit-source-baseline.schema.json` | `audit --baseline <file> --update-baseline` |
 | `evidence-pin.schema.json` | `evidence pin --json` |
@@ -85,6 +86,16 @@ sources, and optional Attested Computation data.
 Search output can contain an ordered retrieval `route`. Search match results
 can contain `lexicalScore`, `vectorScore`, and `rerankScore`. These fields are
 additive diagnostics. The local vector does not use a model or network service.
+
+Single-bundle search context and match output contain `status`. The value is
+`managed` for an OKF bundle and `unmanaged` for an ordinary Markdown directory.
+The unmanaged value identifies search capability without publication or OKF
+validation readiness.
+
+`check.schema.json` defines the unified knowledge check. The object contains
+`schemaVersion`, `root`, optional `specVersion`, `overall`, and ordered
+`layers`. Overall values are `READY`, `NEEDS ATTENTION`, `BLOCKED`, and
+`UNMANAGED`. A layer can also use `NOT CONFIGURED`.
 
 Semantic fact, RDF, SPARQL, Datalog, and hybrid contracts share the same
 corpus revision and content-addressed provenance model. SPARQL bindings and
