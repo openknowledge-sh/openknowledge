@@ -8,6 +8,7 @@ const headMarker = "<!-- OPENKNOWLEDGE_HEAD -->";
 const sitePages = [
   path.join(dist, "index.html"),
   path.join(dist, "getting-started", "index.html"),
+  path.join(dist, "terminal", "index.html"),
 ];
 for (const pagePath of sitePages) {
   await writeFile(pagePath, await injectHeadHTML(await readFile(pagePath, "utf8")));

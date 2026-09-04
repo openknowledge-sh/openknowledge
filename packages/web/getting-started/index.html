@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#e5f0f9">
+    <meta name="theme-color" content="#000000">
     <title>Getting Started with Open Knowledge</title>
-    <meta name="description" content="Install Open Knowledge, create a Markdown knowledge base, open it locally, and use it with your agent.">
+    <meta name="description" content="Install Open Knowledge, create a Markdown knowledge base, open it locally, search it, and validate every change.">
     <link rel="canonical" href="https://openknowledge.sh/getting-started/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Open Knowledge">
@@ -16,10 +16,13 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="/favicon.png?v=2" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" sizes="180x180">
-    <link rel="stylesheet" href="/src/styles/index.css">
+    <link rel="stylesheet" href="/src/styles/terminal.css">
+    <link rel="stylesheet" href="/src/styles/getting-started-terminal.css">
     <!-- OPENKNOWLEDGE_HEAD -->
   </head>
   <body class="guide-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+
     <svg class="icon-sprite" aria-hidden="true" focusable="false">
       <symbol id="icon-copy" viewBox="0 0 24 24">
         <rect x="8" y="7" width="10" height="12" rx="2"></rect>
@@ -28,82 +31,57 @@
       <symbol id="icon-check" viewBox="0 0 24 24">
         <path d="m5 12.5 4.2 4.2L19 7.5"></path>
       </symbol>
-      <symbol id="icon-terminal" viewBox="0 0 24 24">
-        <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
-        <path d="m7 9 3 3-3 3M13 15h4"></path>
-      </symbol>
-      <symbol id="icon-window" viewBox="0 0 24 24">
-        <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
-        <path d="M3 9h18M6.5 6.75h.01M9.5 6.75h.01"></path>
-      </symbol>
-      <symbol id="icon-search" viewBox="0 0 24 24">
-        <circle cx="10.5" cy="10.5" r="5.5"></circle>
-        <path d="m15 15 5 5"></path>
-      </symbol>
-      <symbol id="icon-validated" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="8.5"></circle>
-        <path d="m8 12.5 2.6 2.6L16.5 9"></path>
-      </symbol>
     </svg>
-    <div class="page-shell">
-      <open-knowledge-header></open-knowledge-header>
 
-      <main class="guide-main">
-        <section class="guide-hero" aria-labelledby="guide-title">
-          <div class="guide-hero-copy">
-            <h1 id="guide-title">Create your knowledge base in 5 minutes.</h1>
-            <p>
-              Start in the terminal. Keep the source in plain Markdown. Open the
-              same knowledge base for people, search, and agent workflows.
-            </p>
-            <div class="guide-hero-actions">
-              <a class="primary-action" href="#install">
-                <svg class="hero-action-icon" aria-hidden="true" focusable="false">
-                  <use href="#icon-terminal"></use>
-                </svg>
-                Start with the terminal
-              </a>
-            </div>
-          </div>
+    <header class="site-header" aria-label="Getting started navigation">
+      <a class="wordmark" href="/terminal/" aria-label="Open Knowledge terminal landing page">
+        <img src="/logo-mark.png" alt="" width="32" height="32">
+        <span>Open Knowledge</span>
+      </a>
 
-          <ol class="guide-index" aria-label="Getting started steps">
-            <li>
-              <a href="#install">
-                <svg class="guide-index-icon" aria-hidden="true"><use href="#icon-terminal"></use></svg>
-                Install and set up
-              </a>
-            </li>
-            <li>
-              <a href="#open">
-                <svg class="guide-index-icon" aria-hidden="true"><use href="#icon-window"></use></svg>
-                Open locally
-              </a>
-            </li>
-            <li>
-              <a href="#search">
-                <svg class="guide-index-icon" aria-hidden="true"><use href="#icon-search"></use></svg>
-                Search
-              </a>
-            </li>
-            <li>
-              <a href="#maintain">
-                <svg class="guide-index-icon" aria-hidden="true"><use href="#icon-validated"></use></svg>
-                Validate
-              </a>
-            </li>
-          </ol>
-        </section>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="/terminal/#product">Product</a>
+        <a href="/terminal/#how-it-works">How it works</a>
+        <a href="/wiki/">Docs</a>
+        <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
 
-        <div class="guide-flows">
-          <section class="guide-step" id="install" aria-labelledby="install-title">
+      <a class="nav-action" href="/terminal/">Overview <span aria-hidden="true">›</span></a>
+    </header>
+
+    <main id="main">
+      <section class="guide-hero" aria-labelledby="guide-title">
+        <img class="hero-mark" src="/logo-mark.png" alt="" width="176" height="176">
+        <h1 id="guide-title">Create your knowledge base in 5 minutes.</h1>
+        <p>
+          Start in the terminal. Keep the source in plain Markdown. Use the same
+          knowledge base for people, search, and agent workflows.
+        </p>
+        <div class="guide-hero-actions">
+          <a class="button button-primary" href="#install">Start with the terminal <span aria-hidden="true">›</span></a>
+          <a class="button button-secondary" href="/wiki/features/commands/setup.html">Read the setup reference</a>
+        </div>
+
+        <ol class="guide-index" aria-label="Getting started steps">
+          <li><a href="#install"><span>01</span>Install + setup</a></li>
+          <li><a href="#open"><span>02</span>Open locally</a></li>
+          <li><a href="#search"><span>03</span>Search</a></li>
+          <li><a href="#maintain"><span>04</span>Validate</a></li>
+        </ol>
+      </section>
+
+      <div class="journey guide-journey" data-journey>
+        <div class="journey-line" aria-hidden="true"><span data-journey-progress></span></div>
+
+        <section class="journey-section guide-step" id="install" data-journey-section aria-labelledby="install-title">
+          <aside class="journey-index" aria-hidden="true"><span>01</span><span>/ install</span></aside>
+          <div class="journey-content guide-step-layout">
             <div class="guide-step-copy">
-              <h2 id="install-title">Install and set up the knowledge base</h2>
-              <p>
-                Install the CLI. Run <code>okn setup</code> to create or complete
-                a knowledge base with an agent.
-              </p>
+              <h2 id="install-title">Install and set up the knowledge base.</h2>
+              <p>Install the CLI. Run <code>okn setup</code> to create or complete a knowledge base with an agent.</p>
               <div class="guide-command-stack" aria-label="Installation commands">
                 <button class="guide-copy-command" type="button" data-copy-command aria-label="Copy install command">
+                  <span class="guide-command-prefix" aria-hidden="true">$</span>
                   <code data-command>curl -fsSL https://openknowledge.sh/install | bash</code>
                   <span class="guide-copy-icon" aria-hidden="true">
                     <svg class="guide-copy-icon-copy" viewBox="0 0 24 24"><use href="#icon-copy"></use></svg>
@@ -112,6 +90,7 @@
                   <span class="guide-copy-status" data-command-status>Copy</span>
                 </button>
                 <button class="guide-copy-command" type="button" data-copy-command aria-label="Copy setup command">
+                  <span class="guide-command-prefix" aria-hidden="true">$</span>
                   <code data-command>okn setup</code>
                   <span class="guide-copy-icon" aria-hidden="true">
                     <svg class="guide-copy-icon-copy" viewBox="0 0 24 24"><use href="#icon-copy"></use></svg>
@@ -120,35 +99,25 @@
                   <span class="guide-copy-status" data-command-status>Copy</span>
                 </button>
               </div>
-              <a class="text-action guide-reference-link" href="/wiki/features/commands/setup.html">
-                <svg class="guide-reference-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M7 3.5h7l4 4v13H7zM14 3.5v4h4M10 12h5M10 16h5"></path>
-                </svg>
-                <span>Read the setup reference</span>
-              </a>
+              <a class="guide-reference-link" href="/wiki/features/commands/setup.html">Read the setup reference <span aria-hidden="true">›</span></a>
             </div>
             <figure class="guide-media">
+              <figcaption>/setup/session.log</figcaption>
               <div class="guide-media-frame guide-media-frame--screenshot guide-media-frame--install-screenshot">
-                <img
-                  class="guide-media-image"
-                  src="/getting-started-install.webp"
-                  alt="Terminal showing the interactive Open Knowledge setup wizard"
-                  width="952"
-                  height="1464"
-                  loading="lazy"
-                  decoding="async"
-                >
+                <img class="guide-media-image" src="/getting-started-install.webp" alt="Terminal showing the interactive Open Knowledge setup wizard" width="952" height="1464" loading="lazy" decoding="async">
               </div>
             </figure>
-          </section>
+          </div>
+        </section>
 
-          <section class="guide-step guide-step-reverse" id="open" aria-labelledby="open-title">
+        <section class="journey-section guide-step" id="open" data-journey-section aria-labelledby="open-title">
+          <aside class="journey-index" aria-hidden="true"><span>02</span><span>/ open</span></aside>
+          <div class="journey-content guide-step-layout guide-step-reverse">
             <div class="guide-step-copy">
-              <h2 id="open-title">Open the knowledge base</h2>
-              <p>
-                Run the local viewer. The viewer opens in your browser by default.
-              </p>
+              <h2 id="open-title">Open the knowledge base.</h2>
+              <p>Run the local viewer. The viewer opens in your browser by default.</p>
               <button class="guide-copy-command" type="button" data-copy-command aria-label="Copy viewer command">
+                <span class="guide-command-prefix" aria-hidden="true">$</span>
                 <code data-command>okn view Wiki</code>
                 <span class="guide-copy-icon" aria-hidden="true">
                   <svg class="guide-copy-icon-copy" viewBox="0 0 24 24"><use href="#icon-copy"></use></svg>
@@ -156,36 +125,25 @@
                 </span>
                 <span class="guide-copy-status" data-command-status>Copy</span>
               </button>
-              <a class="text-action guide-reference-link" href="/wiki/features/commands/view.html">
-                <svg class="guide-reference-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M7 3.5h7l4 4v13H7zM14 3.5v4h4M10 12h5M10 16h5"></path>
-                </svg>
-                <span>Read the viewer reference</span>
-              </a>
+              <a class="guide-reference-link" href="/wiki/features/commands/view.html">Read the viewer reference <span aria-hidden="true">›</span></a>
             </div>
             <figure class="guide-media">
+              <figcaption>/viewer/local</figcaption>
               <div class="guide-media-frame guide-media-frame--screenshot guide-media-frame--viewer-screenshot">
-                <img
-                  class="guide-media-image"
-                  src="/getting-started-viewer.webp"
-                  alt="Open Knowledge local viewer showing the knowledge architecture and view command documentation side by side"
-                  width="1966"
-                  height="1610"
-                  loading="lazy"
-                  decoding="async"
-                >
+                <img class="guide-media-image" src="/getting-started-viewer.webp" alt="Open Knowledge local viewer showing the knowledge architecture and view command documentation side by side" width="1966" height="1610" loading="lazy" decoding="async">
               </div>
             </figure>
-          </section>
+          </div>
+        </section>
 
-          <section class="guide-step" id="search" aria-labelledby="search-title">
+        <section class="journey-section guide-step" id="search" data-journey-section aria-labelledby="search-title">
+          <aside class="journey-index" aria-hidden="true"><span>03</span><span>/ search</span></aside>
+          <div class="journey-content guide-step-layout">
             <div class="guide-step-copy">
-              <h2 id="search-title">Search the knowledge base</h2>
-              <p>
-                Search the knowledge base from the terminal. The command returns
-                Markdown context from local files.
-              </p>
+              <h2 id="search-title">Search the knowledge base.</h2>
+              <p>Search from the terminal. The command returns Markdown context from local files.</p>
               <button class="guide-copy-command" type="button" data-copy-command aria-label="Copy search command">
+                <span class="guide-command-prefix" aria-hidden="true">$</span>
                 <code data-command>okn search Wiki "how to setup wikipedia?"</code>
                 <span class="guide-copy-icon" aria-hidden="true">
                   <svg class="guide-copy-icon-copy" viewBox="0 0 24 24"><use href="#icon-copy"></use></svg>
@@ -193,33 +151,25 @@
                 </span>
                 <span class="guide-copy-status" data-command-status>Copy</span>
               </button>
-              <a class="text-action guide-reference-link" href="/wiki/features/commands/search.html">
-                <svg class="guide-reference-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M7 3.5h7l4 4v13H7zM14 3.5v4h4M10 12h5M10 16h5"></path>
-                </svg>
-                <span>Read the search reference</span>
-              </a>
+              <a class="guide-reference-link" href="/wiki/features/commands/search.html">Read the search reference <span aria-hidden="true">›</span></a>
             </div>
             <figure class="guide-media">
+              <figcaption>/search/results.md</figcaption>
               <div class="guide-media-frame guide-media-frame--screenshot guide-media-frame--search-screenshot">
-                <img
-                  class="guide-media-image"
-                  src="/getting-started-search.webp"
-                  alt="Terminal showing Open Knowledge search results with Markdown source locations, relationships, and scores"
-                  width="1298"
-                  height="1668"
-                  loading="lazy"
-                  decoding="async"
-                >
+                <img class="guide-media-image" src="/getting-started-search.webp" alt="Terminal showing Open Knowledge search results with Markdown source locations, relationships, and scores" width="1298" height="1668" loading="lazy" decoding="async">
               </div>
             </figure>
-          </section>
+          </div>
+        </section>
 
-          <section class="guide-step guide-step-reverse" id="maintain" aria-labelledby="maintain-title">
+        <section class="journey-section guide-step" id="maintain" data-journey-section aria-labelledby="maintain-title">
+          <aside class="journey-index" aria-hidden="true"><span>04</span><span>/ validate</span></aside>
+          <div class="journey-content guide-step-layout guide-step-reverse">
             <div class="guide-step-copy">
-              <h2 id="maintain-title">Validate the knowledge base</h2>
-              <p>Check the knowledge base after each change.</p>
+              <h2 id="maintain-title">Validate every change.</h2>
+              <p>Check the knowledge base after each change. Fix errors before people or agents depend on the content.</p>
               <button class="guide-copy-command" type="button" data-copy-command aria-label="Copy validation command">
+                <span class="guide-command-prefix" aria-hidden="true">$</span>
                 <code data-command>okn validate Wiki</code>
                 <span class="guide-copy-icon" aria-hidden="true">
                   <svg class="guide-copy-icon-copy" viewBox="0 0 24 24"><use href="#icon-copy"></use></svg>
@@ -227,51 +177,37 @@
                 </span>
                 <span class="guide-copy-status" data-command-status>Copy</span>
               </button>
-              <a class="text-action guide-reference-link" href="/wiki/features/commands/validate.html">
-                <svg class="guide-reference-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M7 3.5h7l4 4v13H7zM14 3.5v4h4M10 12h5M10 16h5"></path>
-                </svg>
-                <span>Read the validation reference</span>
-              </a>
+              <a class="guide-reference-link" href="/wiki/features/commands/validate.html">Read the validation reference <span aria-hidden="true">›</span></a>
             </div>
             <figure class="guide-media">
+              <figcaption>/validate/report</figcaption>
               <div class="guide-media-frame guide-media-frame--screenshot guide-media-frame--validate-screenshot">
-                <img
-                  class="guide-media-image"
-                  src="/getting-started-validate.webp"
-                  alt="Terminal showing Open Knowledge validation checks passing against Open Knowledge Format v0.2"
-                  width="1152"
-                  height="1334"
-                  loading="lazy"
-                  decoding="async"
-                >
+                <img class="guide-media-image" src="/getting-started-validate.webp" alt="Terminal showing Open Knowledge validation checks passing against Open Knowledge Format v0.2" width="1152" height="1334" loading="lazy" decoding="async">
               </div>
             </figure>
-          </section>
-        </div>
-
-        <section class="guide-closing" aria-labelledby="guide-closing-title">
-          <img
-            class="guide-closing-image"
-            src="/knowledge-stays-yours.webp"
-            alt=""
-            width="1672"
-            height="941"
-            loading="lazy"
-            decoding="async"
-            aria-hidden="true"
-          >
-          <h2 id="guide-closing-title">Start with one useful question.</h2>
-          <p>Build only the context that people and agents need, then improve it as the work changes.</p>
-          <div class="guide-hero-actions">
-            <a class="primary-action" href="/wiki/features/commands/setup.html">Set up a knowledge base</a>
-            <a class="text-action" href="/">Back to the overview</a>
           </div>
         </section>
-      </main>
+      </div>
 
-      <open-knowledge-footer></open-knowledge-footer>
-    </div>
+      <section class="guide-closing" aria-labelledby="guide-closing-title">
+        <span class="hero-prompt" aria-hidden="true">&gt;_</span>
+        <h2 id="guide-closing-title">Start with one useful question.</h2>
+        <p>Build only the context that people and agents need. Improve it as the work changes.</p>
+        <div class="guide-hero-actions">
+          <a class="button button-primary" href="/wiki/features/commands/setup.html">Set up a knowledge base <span aria-hidden="true">›</span></a>
+          <a class="button button-secondary" href="/terminal/">Back to the overview</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Open Knowledge</span>
+      <nav aria-label="Footer navigation">
+        <a href="/terminal/">Overview</a>
+        <a href="/wiki/">Docs</a>
+        <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </footer>
 
     <aside class="analytics-consent" data-analytics-consent hidden aria-labelledby="analytics-consent-title">
       <div class="analytics-consent-copy">
@@ -285,6 +221,7 @@
       </div>
     </aside>
 
+    <script type="module" src="/src/terminal.js"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

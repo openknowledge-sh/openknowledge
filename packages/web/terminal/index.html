@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#000000">
+    <title>Open Knowledge — The knowledge layer behind every reliable agent</title>
+    <meta name="description" content="Continuously test, verify, update, and serve knowledge you and your agents can trust.">
+    <link rel="canonical" href="https://openknowledge.sh/terminal/">
+    <link rel="icon" href="/favicon.png">
+    <!-- OPENKNOWLEDGE_HEAD -->
+    <link rel="stylesheet" href="/src/styles/terminal.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header" aria-label="Site navigation">
+      <a class="wordmark" href="/terminal/" aria-label="Open Knowledge terminal landing page">
+        <img src="/logo-mark.png" alt="" width="32" height="32">
+        <span>Open Knowledge</span>
+      </a>
+
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="#product">Product</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="/wiki/">Docs</a>
+        <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+
+      <a class="nav-action" href="/getting-started/">Get started <span aria-hidden="true">›</span></a>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <img class="hero-mark" src="/logo-mark.png" alt="" width="176" height="176">
+        <h1 id="hero-title">The knowledge layer behind every reliable agent.</h1>
+        <p>
+          Open Knowledge continuously tests, verifies, updates, and serves knowledge
+          you and your agents can trust.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/getting-started/">Get started <span aria-hidden="true">›</span></a>
+          <a class="button button-secondary" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">View on GitHub <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="hero-meta">Open source <span>·</span> Git-native <span>·</span> Model-agnostic</p>
+      </section>
+
+      <div class="journey" data-journey>
+        <div class="journey-line" aria-hidden="true"><span data-journey-progress></span></div>
+
+        <section class="journey-section audit-section" id="product" data-journey-section aria-labelledby="audit-title">
+          <aside class="journey-index" aria-hidden="true"><span>01</span><span>/ audit</span></aside>
+          <div class="journey-content">
+            <h2 class="sr-only" id="audit-title">Knowledge audit</h2>
+            <div class="console console-large">
+              <header class="console-bar">
+                <span>/var/ok/console/audit.log</span>
+              </header>
+              <div class="console-body" aria-label="Example knowledge audit output">
+                <p class="command"><span>$</span> okn audit</p>
+                <p><span class="status status-error">×</span> Knowledge drift detected</p>
+                <p><span class="status status-error">×</span> docs/auth.md references a deprecated endpoint</p>
+                <p><span class="status status-error">×</span> Two documents disagree on token expiration</p>
+                <p><span class="status status-warning">!</span> Four production questions have no trusted answer</p>
+                <p class="console-step"><span class="status status-active">›</span> Evidence collected</p>
+                <p class="console-step"><span class="status status-active">›</span> Fix proposed</p>
+                <p class="console-step"><span class="status status-active">›</span> Agent evals: 16/20 <span class="status-active">→ 19/20</span></p>
+                <p><span class="status status-pass">✓</span> Pull request ready for review.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="journey-section problem-section" data-journey-section aria-labelledby="problem-title">
+          <aside class="journey-index" aria-hidden="true"><span>02</span><span>/ problem</span></aside>
+          <div class="journey-content split-layout">
+            <div>
+              <h2 id="problem-title">RAG can retrieve the wrong answer perfectly.</h2>
+              <p>Your agents depend on knowledge that starts decaying the moment it is written.</p>
+            </div>
+            <div class="trace-panel" aria-label="Example retrieval trace">
+              <div class="panel-label">live retrieval trace</div>
+              <p>q: How do I rotate API keys?</p>
+              <p><span>retrieved</span> → docs/auth.md <span>score: 0.93</span></p>
+              <p><span>retrieved</span> → docs/keys.md <span>score: 0.92</span></p>
+              <p class="trace-divider"></p>
+              <p>answer&nbsp;&nbsp;→ Use /v1/rotate <strong class="status-error">(wrong)</strong></p>
+              <p>truth&nbsp;&nbsp;&nbsp;→ Use /v2/rotate <strong class="status-pass">(correct)</strong></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="journey-section infrastructure-section" id="principle" data-journey-section aria-labelledby="infrastructure-title">
+          <aside class="journey-index" aria-hidden="true"><span>03</span><span>/ principle</span></aside>
+          <div class="journey-content infrastructure-content">
+            <h2 id="infrastructure-title">Knowledge is production infrastructure now.</h2>
+          </div>
+        </section>
+
+        <section class="journey-section product-section" data-journey-section aria-labelledby="product-title">
+          <aside class="journey-index" aria-hidden="true"><span>04</span><span>/ release</span></aside>
+          <div class="journey-content">
+            <div class="section-heading compact-heading">
+              <h2 id="product-title">Knowledge you can ship.</h2>
+              <p>Open Knowledge turns Markdown documentation into a versioned, continuously maintained system.</p>
+            </div>
+            <ol class="release-trace" aria-label="Source-to-release workflow">
+              <li><span class="trace-number">01</span><strong>source changed</strong><small>docs/auth.md</small></li>
+              <li><span class="trace-number status-error">02</span><strong>drift detected</strong><small class="status-error">audit fails</small></li>
+              <li><span class="trace-number status-warning">03</span><strong>evidence</strong><small class="status-warning">diagnostics</small></li>
+              <li><span class="trace-number status-active">04</span><strong>pull request</strong><small class="status-active">proposed fix</small></li>
+              <li><span class="trace-number status-pass">05</span><strong>evals</strong><small class="status-pass">16/20 → 19/20</small></li>
+              <li><span class="trace-number status-pass">06</span><strong>last green</strong><small class="status-pass">deployed</small></li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="journey-section how-section" id="how-it-works" data-journey-section aria-labelledby="how-title">
+          <aside class="journey-index" aria-hidden="true"><span>05</span><span>/ how it works</span></aside>
+          <div class="journey-content">
+            <div class="section-heading wide-heading">
+              <h2 id="how-title">From changing sources to trusted agent context.</h2>
+            </div>
+            <div class="how-grid">
+              <ol class="how-steps">
+                <li>
+                  <span>connect</span>
+                  <strong>Connect what you already have.</strong>
+                  <p>Point Open Knowledge at your existing Markdown repository. Keep your files, Git history, and workflow.</p>
+                </li>
+                <li>
+                  <span>detect</span>
+                  <strong>Detect what is breaking.</strong>
+                  <p>Continuously check for stale references, conflicts, missing answers, and unsupported claims.</p>
+                </li>
+                <li>
+                  <span>repair + test</span>
+                  <strong>Repair and test.</strong>
+                  <p>Collect evidence, propose a focused diff, and compare agent answers before and after the change.</p>
+                </li>
+                <li>
+                  <span>serve last green</span>
+                  <strong>Serve the last green version.</strong>
+                  <p>Publish approved knowledge as a versioned release and keep failed changes away from agents.</p>
+                </li>
+              </ol>
+              <div class="source-map" aria-label="Connected sources and outputs">
+                <div><span>/docs/**</span><span>git · files</span></div>
+                <div><span>/runbooks/**</span><span>operations</span></div>
+                <div><span>/api/**</span><span>contracts</span></div>
+                <hr>
+                <p><span class="status-error">×</span> drift</p>
+                <p><span class="status-error">×</span> contradictions</p>
+                <p><span class="status-warning">!</span> missing answers</p>
+                <p><span class="status-warning">!</span> missing provenance</p>
+                <hr>
+                <p>diffs</p><p>citations</p><p>unit tests</p><p>agent evals</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="journey-section knowledge-audit-section" id="knowledge-audit" data-journey-section aria-labelledby="knowledge-audit-title">
+          <aside class="journey-index" aria-hidden="true"><span>06</span><span>/ audit</span></aside>
+          <div class="journey-content">
+            <div class="section-heading">
+              <h2 id="knowledge-audit-title">Know what your agents cannot trust.</h2>
+              <p>Open Knowledge identifies the exact issue, the evidence behind it, and the agent behavior it can affect.</p>
+            </div>
+            <div class="diagnostic-table" role="table" aria-label="Knowledge audit issues">
+              <div class="diagnostic-row diagnostic-head" role="row">
+                <span role="columnheader">issue</span><span role="columnheader">severity</span><span role="columnheader">evidence</span><span role="columnheader">impact</span>
+              </div>
+              <div class="diagnostic-row" role="row"><strong role="cell">Stale knowledge</strong><span class="status-warning" role="cell">!</span><span role="cell">docs/auth.md:12</span><span role="cell">Deprecated /v1/rotate</span></div>
+              <div class="diagnostic-row" role="row"><strong role="cell">Contradictions</strong><span class="status-error" role="cell">×</span><span role="cell">docs/keys.md:34</span><span role="cell">Token expiration mismatch</span></div>
+              <div class="diagnostic-row" role="row"><strong role="cell">Missing knowledge</strong><span class="status-warning" role="cell">!</span><span role="cell">questions/prod/q4.md</span><span role="cell">No trusted answer</span></div>
+              <div class="diagnostic-row" role="row"><strong role="cell">Missing provenance</strong><span class="status-warning" role="cell">!</span><span role="cell">docs/billing.md:7</span><span role="cell">No source or owner</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="journey-section repair-section" data-journey-section aria-labelledby="repair-title">
+          <aside class="journey-index" aria-hidden="true"><span>07</span><span>/ repair</span></aside>
+          <div class="journey-content">
+            <div class="section-heading wide-heading">
+              <h2 id="repair-title">From finding the problem to proposing the fix.</h2>
+              <p>Maintenance agents gather evidence, identify affected knowledge, and propose focused, reviewable changes.</p>
+            </div>
+            <div class="diff-panel" aria-label="Example proposed documentation change">
+              <header><span>file: docs/auth.md</span><span>confidence: high&nbsp;&nbsp;&nbsp;owner: @alice</span></header>
+              <p class="diff-remove"><span>−</span> POST /v1/rotate rotates an API key.</p>
+              <p class="diff-add"><span>+</span> POST /v2/rotate rotates an API key.</p>
+              <footer><span>evidence: /evidence/rotate-endpoint-change.md:4</span><span class="status-warning">review: needs owner</span></footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="journey-section ci-section" data-journey-section aria-labelledby="ci-title">
+          <aside class="journey-index" aria-hidden="true"><span>08</span><span>/ knowledge CI</span></aside>
+          <div class="journey-content">
+            <div class="section-heading wide-heading">
+              <h2 id="ci-title">Test agent answers before knowledge ships.</h2>
+              <p>Open Knowledge runs real questions against every proposed change and compares the results with production.</p>
+            </div>
+            <div class="ci-comparison">
+              <div>
+                <h3>Knowledge checks</h3>
+                <p><span class="status-pass">✓</span> Structure valid</p>
+                <p><span class="status-pass">✓</span> Sources available</p>
+                <p><span class="status-pass">✓</span> Provenance complete</p>
+                <p><span class="status-pass">✓</span> No new contradictions</p>
+              </div>
+              <div>
+                <h3>Agent evals</h3>
+                <p><span class="status-pass">✓</span> 19 passing</p>
+                <p><span class="status-error">×</span> 1 needs owner review</p>
+                <p><span class="status-pass">+</span> 3 improved</p>
+                <p><span>−</span> 0 regressed</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="journey-section runtime-section" data-journey-section aria-labelledby="runtime-title">
+          <aside class="journey-index" aria-hidden="true"><span>09</span><span>/ runtime</span></aside>
+          <div class="journey-content">
+            <div class="section-heading wide-heading">
+              <h2 id="runtime-title">Serve knowledge that has earned trust.</h2>
+              <p>Agents receive the latest permitted knowledge that has passed your policies and tests.</p>
+            </div>
+            <div class="runtime-pair">
+              <div class="runtime-panel">
+                <h3>version manifest</h3>
+                <dl>
+                  <div><dt>version</dt><dd class="status-pass">v2026.08.21</dd></div>
+                  <div><dt>commit</dt><dd class="status-pass">7f3c2d1</dd></div>
+                  <div><dt>sources</dt><dd>128 files · 5 repos</dd></div>
+                  <div><dt>freshness</dt><dd class="status-pass">✓ up to date</dd></div>
+                  <div><dt>trust</dt><dd class="status-pass">✓ verified</dd></div>
+                  <div><dt>history</dt><dd>12 reviews</dd></div>
+                </dl>
+              </div>
+              <div class="runtime-bridge" aria-hidden="true"><span></span></div>
+              <div class="runtime-panel">
+                <h3>human control gate</h3>
+                <dl>
+                  <div><dt>status</dt><dd class="status-warning">needs owner review</dd></div>
+                  <div><dt>checks</dt><dd class="status-pass">19/20 passing</dd></div>
+                  <div><dt>blocked by</dt><dd>1 eval</dd></div>
+                  <div><dt>required</dt><dd>@alice</dd></div>
+                  <div><dt>override</dt><dd>requires justification</dd></div>
+                  <div><dt>history</dt><dd>12 reviews</dd></div>
+                </dl>
+              </div>
+            </div>
+            <p class="human-note">Autonomous where the evidence is clear. Human where judgment is required.</p>
+          </div>
+        </section>
+
+        <section class="journey-section difference-section" data-journey-section aria-labelledby="difference-title">
+          <aside class="journey-index" aria-hidden="true"><span>10</span><span>/ why OK</span></aside>
+          <div class="journey-content">
+            <h2 class="sr-only" id="difference-title">How Open Knowledge is different</h2>
+            <p>Wikis help you write knowledge.</p>
+            <p>Enterprise search helps you find knowledge.</p>
+            <p>RAG retrieves knowledge that looks relevant.</p>
+            <p class="difference-final"><span>Open Knowledge</span> maintains, tests, and ships<br>knowledge that agents can trust.</p>
+          </div>
+        </section>
+
+        <section class="journey-section foundation-section" data-journey-section aria-labelledby="foundation-title">
+          <aside class="journey-index" aria-hidden="true"><span>11</span><span>/ foundation</span></aside>
+          <div class="journey-content">
+            <div class="section-heading compact-heading">
+              <h2 id="foundation-title">Your knowledge stays yours.</h2>
+              <p>Store knowledge as human-readable Markdown and Open Knowledge Format. Version it with Git. Serve it through MCP.</p>
+            </div>
+            <div class="foundation-list" aria-label="Open foundation principles">
+              <div><span aria-hidden="true">&lt;&gt;</span><strong>Open source</strong><small>Inspect every layer.</small></div>
+              <div><span aria-hidden="true">01</span><strong>You own the data</strong><small>Run it anywhere.</small></div>
+              <div><span aria-hidden="true">git</span><strong>Git-native</strong><small>Review every change.</small></div>
+              <div><span aria-hidden="true">MCP</span><strong>Model-agnostic</strong><small>Use any agent.</small></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="journey-section closing-section" data-journey-section aria-labelledby="closing-title">
+          <aside class="journey-index" aria-hidden="true"><span>12</span><span>/ loop</span></aside>
+          <div class="journey-content">
+            <span class="hero-prompt" aria-hidden="true">&gt;_</span>
+            <h2 id="closing-title">One continuous knowledge loop.</h2>
+            <div class="release-status" aria-label="Latest green knowledge release">
+              <div><small>latest green</small><strong class="status-pass">v2026.08.21</strong></div>
+              <div><small>status</small><strong class="status-pass">all checks passing</strong></div>
+              <div><small>agent evals</small><strong class="status-pass">19/20</strong></div>
+              <div><small>last commit</small><strong class="status-pass">7f3c2d1</strong></div>
+              <div><small>freshness</small><strong class="status-pass">up to date</strong></div>
+            </div>
+            <div class="hero-actions closing-actions">
+              <a class="button button-primary" href="/getting-started/">Get started <span aria-hidden="true">›</span></a>
+              <a class="button button-secondary" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">View on GitHub <span aria-hidden="true">↗</span></a>
+            </div>
+            <p class="hero-meta">Open source <span>·</span> Git-native <span>·</span> Model-agnostic</p>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <span>Open Knowledge</span>
+      <nav aria-label="Footer navigation">
+        <a href="/">Current landing page</a>
+        <a href="/wiki/">Docs</a>
+        <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </footer>
+
+    <script type="module" src="/src/terminal.js"></script>
+  </body>
+</html>
