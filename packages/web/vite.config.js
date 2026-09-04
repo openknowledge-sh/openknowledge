@@ -8,7 +8,6 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         gettingStarted: fileURLToPath(new URL("./getting-started/index.html", import.meta.url)),
-        terminal: fileURLToPath(new URL("./terminal/index.html", import.meta.url)),
       },
     },
   },

@@ -13,18 +13,6 @@ page records release-level changes.
 
 ## Unreleased
 
-### Website
-
-- New `/terminal/` page presents knowledge audit, eval, release, and runtime
-  workflows in an alternate terminal-style landing page.
-- The `/getting-started/` guide now uses the same terminal-style interface.
-  Its install, setup, view, search, and validation commands remain copyable.
-- The page uses the existing GitHub, documentation, and setup destinations.
-- Source: `packages/web/terminal/index.html`,
-  `packages/web/src/styles/terminal.css`, and
-  `packages/web/src/terminal.js`; `packages/web/getting-started/index.html` and
-  `packages/web/src/styles/getting-started-terminal.css`.
-
 ### Setup
 
 - `okn setup` now discovers ordinary repository Markdown without required

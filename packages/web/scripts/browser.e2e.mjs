@@ -709,7 +709,7 @@ test("getting started keeps completed commands visible and reusable", async () =
   );
   assert.equal(
     await install.locator(".guide-copy-icon").evaluate((icon) => getComputedStyle(icon).color),
-    "rgb(72, 221, 120)",
+    "rgb(7, 90, 73)",
   );
   assert.equal(errors.length, 0, `getting started browser errors:\n${errors.join("\n")}`);
   await context.close();
