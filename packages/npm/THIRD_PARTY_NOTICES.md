@@ -30,6 +30,17 @@ The packaged Open Knowledge CLI embeds Mermaid 11.15.0 to render fenced
 - License copy: `third_party/licenses/mermaid-MIT.txt`
 
 The embedded browser build retains upstream bundled dependency notices.
+It uses patched DOMPurify 3.4.16 and KaTeX 0.18.2 dependencies.
+Their copyright and license copies are in `third_party/licenses/dompurify-LICENSE.txt`
+and `third_party/licenses/katex-LICENSE.txt`.
+
+## Markdown editor
+
+Open Knowledge embeds Tiptap 3.31.4 and its Markdown and ProseMirror dependencies
+in the local viewer. The editor source is `packages/web/src/viewer/`.
+
+- Licenses: MIT and other permissive licenses identified in the dependency notices
+- License and copyright copies: `third_party/licenses/viewer-editor.txt`
 
 ## Registry persistence dependencies
 

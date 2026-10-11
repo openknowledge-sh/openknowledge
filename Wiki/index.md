@@ -13,7 +13,15 @@ maintain, validate, and publish.
 ```sh
 curl -fsSL https://openknowledge.sh/install | bash
 okn setup
+okn check Wiki
+okn search Wiki "release workflow"
+okn view Wiki
 ```
+
+Setup creates a managed copy of existing Markdown or adopts one directory.
+Existing Markdown does not require an agent, frontmatter, or authored links.
+If no Markdown exists, setup creates an agent task. Complete that task before
+the checks. Replace `Wiki` with your selected target path.
 
 This documentation uses `okn` as the preferred command. The full
 `openknowledge` command remains available.
@@ -32,10 +40,14 @@ version of this OKF wiki.
 
 ### Start here
 
-Use [`setup`](features/commands/setup.md) to create a knowledge base. Use
-[`validate`](features/commands/validate.md) to verify it. Use
+Use [`setup`](features/commands/setup.md) to create or adopt a knowledge base.
+Use [`check`](features/commands/check.md) to get one health status. Use
 [`search`](features/commands/search.md) to retrieve knowledge. Use
 [`view`](features/commands/view.md) to browse the knowledge base.
+
+Use [`validate`](features/commands/validate.md) for detailed format and link
+diagnostics. Use [`review`](features/commands/review.md) for an optional agent
+review. Use [`upgrade`](features/commands/upgrade.md) for OKF format changes.
 
 ### Trust and govern
 
@@ -53,7 +65,8 @@ Use [`query`](features/commands/query.md) for explicit semantic queries. Use
 
 ### Publish and operate
 
-Use [`mcp`](features/commands/mcp.md) to serve MCP tools. Use
+Use [`publish`](features/commands/publish.md) to build configured output after
+checks permit publication. Use [`mcp`](features/commands/mcp.md) to serve MCP tools. Use
 [`connect`](features/commands/connect.md) and
 [`registry`](features/commands/registry.md) to manage sources. Use
 [`automation`](features/commands/automation.md) for managed processes.

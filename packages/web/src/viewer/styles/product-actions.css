@@ -1,0 +1,29 @@
+.product-actions, .knowledge-health { position: relative; font-size: 13px; }
+.product-actions summary, .knowledge-health summary { min-height: 32px; padding: 7px 9px; cursor: pointer; border-radius: 8px; }
+.product-actions summary:hover, .knowledge-health summary:hover { background: var(--ok-color-control-hover-bg); }
+.product-actions-body, .knowledge-health-body { position: absolute; z-index: 30; right: 0; top: 100%; width: min(400px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; padding: 16px; border-radius: 12px; background: var(--ok-color-surface); color: var(--ok-color-text); box-shadow: 0 12px 32px var(--ok-color-shadow); line-height: 1.5; }
+.knowledge-health-body { position: fixed; inset: auto auto 52px 16px; width: min(480px, calc(100vw - 32px)); }
+.product-actions-body button, .knowledge-health-body button, .copy-code-button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--ok-color-border); border-radius: 8px; background: var(--ok-color-surface); color: var(--ok-color-text); font: inherit; cursor: pointer; }
+.product-actions-body > button { display: block; width: 100%; text-align: left; margin: 5px 0; }
+.product-actions-body p, .knowledge-health-body p { font-size: 13px; overflow-wrap: anywhere; }
+.product-actions-body textarea { width: 100%; min-height: 90px; box-sizing: border-box; padding: 9px; font: inherit; font-size: 16px; border: 1px solid var(--ok-color-border); border-radius: 8px; background: var(--ok-color-surface); color: var(--ok-color-text); }
+.knowledge-report { display: grid; gap: 8px; }
+.knowledge-health-body h2 { font-size: 21px; margin: 0; }
+.knowledge-health-body h3 { font-size: 16px; margin-top: 22px; }
+.knowledge-health-body h4 { font-size: 14px; margin-bottom: 4px; }
+.knowledge-health-body a { display: block; margin: 8px 0; color: var(--ok-color-accent); }
+.knowledge-health-body pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.product-action-status:empty { display: none; }
+.copy-code-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 12px; }
+.copy-code-row + pre { margin-top: 5px; }
+.copy-code-button { font-size: 12px; }
+.product-actions :focus-visible, .knowledge-health :focus-visible, .copy-code-button:focus-visible { outline: 2px solid var(--ok-color-accent); outline-offset: 2px; }
+@media (max-width: 720px) {
+ .product-actions-body { position: fixed; top: 64px; right: 16px; }
+ .product-actions summary, .knowledge-health summary, .product-actions-body button { min-height: 44px; }
+ .note-actions { gap: 2px; }
+}
+
+.knowledge-gap-dialog { width: min(440px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; border: 1px solid var(--ok-color-border); border-radius: 12px; padding: 20px; color: var(--ok-color-text); background: var(--ok-color-surface); }
+.knowledge-gap-dialog textarea { box-sizing: border-box; width: 100%; min-height: 100px; font: inherit; font-size: 16px; }
+.knowledge-gap-dialog button { min-height: 44px; margin-top: 10px; }

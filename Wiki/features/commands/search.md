@@ -66,6 +66,8 @@ contracts.
 
 ## How selection works
 
+- English questions with at least three terms omit common question words
+  from retrieval, such as `how`, `do`, and `I`. Shorter queries keep all terms.
 - Search divides Markdown into content sections at H1 through H3 headings.
   Lower headings stay in their parent section.
 - BM25 and local vector retrieval create one candidate set. The local vector uses hashed word and character features. It does not use a model or network service.
@@ -90,6 +92,7 @@ contracts.
   score. It stays one direct result with its lexical snippet and highlights.
   Multiple links do not add their scores.
 - The command packs direct evidence first. Document and link context follow.
+  Each source occurs once in the context packet.
   It tries the five strongest lexical seeds before it truncates a large seed.
   It truncates a prioritized document context section before it selects a
   lower-ranked short section. Only the final selected section can be
@@ -99,8 +102,8 @@ contracts.
   Partial failures stay visible. The command exits with status `1` only when
   all entries in a non-empty registry fail.
 
-The token budget is an estimate. It is not a model-specific tokenizer
-guarantee. Use
+The token budget estimates selected Markdown content. It excludes packet
+headings and source metadata. It is not a model-specific tokenizer guarantee. Use
 [`okn get`](get.md) when you already know the exact file to read.
 
 ---

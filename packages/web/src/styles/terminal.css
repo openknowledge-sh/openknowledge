@@ -10,8 +10,8 @@
   color-scheme: dark;
   --black: #000;
   --white: #ededed;
-  --muted: #8a8a8a;
-  --quiet: #5a5a5a;
+  --muted: #a2a8b2;
+  --quiet: #89919e;
   --line: #262626;
   --line-strong: #3a3a3a;
   --blue: #2878ff;
@@ -55,7 +55,8 @@ a {
   color: inherit;
 }
 
-a:focus-visible {
+a:focus-visible,
+[tabindex]:focus-visible {
   outline: 2px solid var(--blue-soft);
   outline-offset: 5px;
 }
@@ -93,7 +94,7 @@ a:focus-visible {
   top: 30px;
   left: 50%;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   width: min(calc(100% - 32px), 1076px);
   min-height: 64px;
@@ -128,7 +129,8 @@ a:focus-visible {
 .primary-nav {
   display: flex;
   align-items: center;
-  gap: clamp(28px, 4vw, 58px);
+  gap: clamp(20px, 3vw, 40px);
+  justify-content: center;
 }
 
 .primary-nav a {
@@ -186,19 +188,19 @@ a:focus-visible {
 .hero {
   display: flex;
   width: min(calc(100% - 40px), 900px);
-  min-height: 80svh;
+  min-height: 0;
   margin: 0 auto;
   align-items: center;
   flex-direction: column;
   justify-content: center;
-  padding: 62px 0 76px;
+  padding: 156px 0 64px;
   text-align: center;
 }
 
 .hero-mark {
-  width: clamp(122px, 13vw, 176px);
-  height: clamp(122px, 13vw, 176px);
-  margin-bottom: 42px;
+  width: 88px;
+  height: 88px;
+  margin-bottom: 24px;
   object-fit: contain;
   filter: drop-shadow(0 0 8px rgba(40, 120, 255, 0.36));
   animation: mark-drift 7s ease-in-out infinite;
@@ -213,7 +215,7 @@ a:focus-visible {
 .hero h1 {
   max-width: 850px;
   margin: 0 0 24px;
-  font-size: clamp(31px, 4vw, 49px);
+  font-size: clamp(36px, 4.7vw, 62px);
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.055em;
@@ -307,9 +309,9 @@ a:focus-visible {
   grid-template-columns: var(--rail) minmax(0, var(--content));
   width: 100%;
   justify-content: start;
-  min-height: 80svh;
+  min-height: 0;
   align-items: center;
-  padding: clamp(72px, 10svh, 120px) 0;
+  padding: 76px 0;
 }
 
 .journey-section::before {
@@ -481,9 +483,9 @@ a:focus-visible {
 }
 
 .infrastructure-section {
-  min-height: 80svh;
+  min-height: 0;
   align-items: center;
-  padding-block: clamp(120px, 18vh, 220px);
+  padding-block: 76px;
   scroll-margin-top: 80px;
 }
 
@@ -498,7 +500,7 @@ a:focus-visible {
 
 .infrastructure-content {
   display: flex;
-  min-height: min(58vh, 560px);
+  min-height: 0;
   align-items: center;
 }
 
@@ -1007,7 +1009,7 @@ a:focus-visible {
   }
 
   .infrastructure-content {
-    min-height: max(260px, calc(80svh - 128px));
+    min-height: 0;
   }
 
   .infrastructure-content h2 {
@@ -1050,8 +1052,8 @@ a:focus-visible {
   }
 
   .hero {
-    min-height: 80svh;
-    padding-top: 110px;
+    min-height: 0;
+    padding-top: 156px;
   }
 
   .hero h1 br {
@@ -1068,7 +1070,7 @@ a:focus-visible {
 
   .journey-section {
     display: grid;
-    min-height: 80svh;
+    min-height: 0;
     grid-template-columns: 1fr;
     align-content: center;
     padding: 64px 0 72px 32px;
@@ -1086,7 +1088,7 @@ a:focus-visible {
 
   .infrastructure-section {
     display: block;
-    min-height: 80svh;
+    min-height: 0;
     padding-block: 56px;
   }
 
@@ -1096,7 +1098,7 @@ a:focus-visible {
   }
 
   .infrastructure-content {
-    min-height: max(240px, calc(80svh - 160px));
+    min-height: 0;
   }
 
   .infrastructure-content h2 {
@@ -1124,11 +1126,11 @@ a:focus-visible {
   }
 
   .diagnostic-row {
-    grid-template-columns: 1.1fr 0.35fr 1.35fr;
+    grid-template-columns: 1.2fr 0.6fr 1.5fr 1.7fr;
   }
 
   .diagnostic-row > *:last-child {
-    display: none;
+    display: block;
   }
 
   .foundation-list {
@@ -1185,7 +1187,7 @@ a:focus-visible {
   }
 
   .hero {
-    min-height: 80svh;
+    min-height: 0;
     padding-bottom: 58px;
   }
 
@@ -1249,11 +1251,11 @@ a:focus-visible {
   }
 
   .diagnostic-row {
-    grid-template-columns: 1fr 0.3fr;
+    grid-template-columns: 1.2fr 0.6fr 1.5fr 1.7fr;
   }
 
   .diagnostic-row > *:nth-child(3) {
-    display: none;
+    display: block;
   }
 
   .ci-comparison {
@@ -1338,4 +1340,48 @@ a:focus-visible {
   .infrastructure-content h2 {
     font-size: clamp(29px, 9.5vw, 36px);
   }
+}
+
+/* Terminal landing: typography, proof surfaces, and compact reading rhythm. */
+.hero h1 span { color: var(--blue-soft); }
+.button { border-radius: 8px; }
+.hero-meta { font-size: 11px; }
+.journey-section + .journey-section .journey-content { border-top: 1px solid var(--line); padding-top: 44px; }
+.audit-section { padding-top: 12px; }
+.console { overflow: hidden; border: 1px solid var(--line-strong); border-radius: 12px; background: #080c12; box-shadow: 0 24px 80px #0005; }
+.console-bar { padding: 12px 22px; background: #10151d; border-bottom: 1px solid var(--line); }
+.console-dot { display: inline-block; width: 7px; height: 7px; margin-right: 9px; border-radius: 50%; background: var(--blue-soft); }
+.console-body { padding: 24px; font-size: 14px; }
+.console-body .workflow-divider { margin-top: 24px; padding-top: 18px; border-top: 1px dashed var(--line-strong); color: var(--quiet); font-size: 11px; }
+.trace-panel, .diff-panel, .runtime-panel { border-radius: 8px; background: #080c12; overflow: hidden; }
+.source-map { padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: #080c12; align-self: start; }
+.source-map p { justify-content: flex-start; }
+.release-trace strong, .foundation-list strong { font-size: 12px; }
+.release-trace small, .foundation-list small { font-size: 11px; }
+.diagnostic-table { overflow-x: auto; }
+.diagnostic-row { min-width: 680px; }
+.example-caption { margin: 0 0 12px; color: var(--quiet); font-size: 11px; }
+.closing-copy { max-width: 600px; margin: -12px auto 32px; color: var(--muted); }
+.closing-section .journey-content { padding: 48px 28px; border: 1px solid var(--line); border-radius: 12px; background: #080c12; }
+.release-status { border-color: #285f3b; border-radius: 6px; }
+.diff-panel header, .diff-panel footer { overflow-wrap: anywhere; }
+@media (max-width: 780px) {
+  .site-header { top: 12px; }
+  .journey-section { padding: 40px 0 40px 24px; }
+  .journey-section + .journey-section .journey-content { padding-top: 28px; }
+  .infrastructure-section { padding-block: 44px; }
+  .hero { padding-bottom: 48px; }
+  .closing-section .journey-content { padding: 28px 18px; }
+  .console-body { padding: 18px; font-size: 12px; }
+  .console-bar { padding: 12px 18px; }
+  .diff-panel header, .diff-panel footer { padding: 10px 14px; }
+  .release-trace li { padding-inline: 4px; }
+}
+@media (max-width: 540px) {
+  .hero h1 { font-size: clamp(32px, 8vw, 42px); }
+    .hero-mark { width: 68px; height: 68px; }
+  .hero-actions { gap: 10px; }
+  .foundation-list { grid-template-columns: 1fr 1fr; }
+  .foundation-list > div:nth-child(2) { border-top: 0; }
+  .foundation-list > div:nth-child(even) { border-left: 1px solid var(--line); }
 }

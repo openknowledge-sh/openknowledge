@@ -14,6 +14,8 @@ registry workspace.
 
 ## Usage
 
+Start the local viewer without opening a browser. Use `--no-browser` to print its URL.
+
 ```sh
 okn view [key-or-path]
 okn view --no-browser Wiki
@@ -38,6 +40,9 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
 
 ## Viewer features
 
+- [Browser WebMCP](/features/webmcp.md) exposes page list, search, read, and
+  navigation tools to compatible browser agents. Local editor tools share the
+  visible draft and can save changes to writable Markdown files.
 - The viewer renders Markdown and follows local links. It renders fenced
   `mermaid` blocks as diagrams. It also shows note panels, source graphs,
   validation context, highlighted assets, and media or PDF previews.
@@ -65,8 +70,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   preferences from the sidebar footer.
   Select the shortcut badge in the viewer header to open or close the file
   explorer.
-- Open-beside mode is the default. The link behavior control can select the
-  current panel mode.
+- Links replace the current panel by default. The link behavior control can
+  select open-beside mode.
   The browser stores this selection. Hold Shift during activation to use the
   other mode one time.
   Each panel keeps its own focus and close controls.
@@ -95,17 +100,16 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   and errors. Select **Retry** after an error. Use the arrow keys to select a
   result. Press Enter to open it. Press Shift+Enter to use the other panel
   mode. Press Escape to close search.
-- Each note uses a compact header. The full-width **Frontmatter** disclosure is
-  immediately below the header and starts collapsed. Select **Frontmatter** to
-  expand the full typed YAML table.
+- Each note uses a compact header. The **Details** disclosure in the header
+  starts collapsed. Select **Details** to inspect the typed YAML table.
   Each note with typed claims also has a collapsed **Claims** panel. The panel
   shows typed statements, status, scope, evidence totals, and occurrence
   relations. It uses ontology labels and keeps technical IDs in claim details.
   For a scoped metric, the panel uses the `metric` scope value as the compact
   identity. The compact statement shows only the subject, metric, and formatted
   quantity. **Evidence and metadata** retains scope, lifecycle, time, IDs,
-  quantity kind, and evidence. These details stay visible in the Claims
-  workspace.
+  quantity kind, and evidence. The Claims workspace keeps technical fields
+  under a collapsed **Technical details** disclosure.
   A `section_ref` links a claim to its Markdown section. The matching heading
   shows the claim count. Select the marker to open the first bound claim. The
   panel is read-only and does not change canonical YAML.
@@ -166,8 +170,8 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   defaults. The first visit uses the light blue default theme. A saved theme
   preference overrides this default. These preferences do not change source
   Markdown.
-  The **Horizontal stack** switch is enabled by default in the **Document**
-  section. Disable it to replace the current document when following a link.
+  The **Horizontal stack** switch is disabled by default in the **Document**
+  section. Enable it to open linked documents beside the current document.
 - The browser assigns a color to each connected knowledge base. Use the color
   control beside its name to change the color. The browser saves this choice
   locally and reuses it in search results and graph labels.
@@ -194,6 +198,74 @@ Head injection also reads `OPENKNOWLEDGE_HEAD_FILE`,
   The viewer removes deleted open paths before refresh.
   Static HTML exports do not include this live reload client.
 
+## Use a page and report problems
+
+Open **Use this page** in a note header. **Copy context and source** copies
+selected text, or the article text when no text is selected, with its source.
+For an open editor, it copies current draft text and identifies unsaved changes.
+**Copy page link** copies the document URL. **Copy code** copies a code block.
+If clipboard access fails, the viewer shows selectable text.
+
+Open **Report a problem** to describe missing or outdated information.
+**Copy report** includes the source. Local **Save to insights** requires a
+writable project integration for this knowledge base. A saved report enters
+the insight inbox and does not change the document. Static viewers provide
+report copying only. A no-result search can open a report with the search question.
+
+In the local viewer, open **Knowledge health** in the sidebar footer.
+The panel shows the current knowledge status, attention items, and pending insights.
+**All checks and coverage** shows each check layer, including unconfigured checks.
+**Review and repair** provides CLI commands. **Refresh checks** reloads the results.
+Static viewers do not provide live knowledge health.
+
+Tables with four rows or fewer stay compact without filtering controls. Larger
+tables support sorting and filtering.
+
+## Edit Markdown
+
+Open an existing Markdown page in a writable local knowledge base to edit its body directly.
+The WYSIWYG editor appears automatically in the document panel.
+Read-only registry connections and static exports do not permit edits.
+The editor does not create, rename, or delete documents.
+
+Type `###` followed by a space at a paragraph start to create a level-three heading.
+Type `/` at a paragraph start to open the block menu, or select **+**.
+The menu provides headings, lists, tasks, quotes, code, dividers, and tables.
+Use the formatting toolbar for text style, bold, italic, strikethrough, and links.
+Hold Ctrl or Command while you click an editor link to open its destination.
+Images resolve against the source document, including in additional panels.
+Select **Preview saved page** to inspect rendered diagrams and source references.
+This preview shows saved content. It does not include unsaved draft changes.
+
+Visual body edits preserve YAML frontmatter without displaying it in the editor.
+Unchanged source blocks retain their original Markdown formatting.
+The editor serializes changed blocks as Markdown.
+Unsupported Markdown appears as an opaque block with a source preview.
+Its internal text is not visually editable and remains unchanged during other body edits.
+
+Human input and [WebMCP editor tools](/features/webmcp.md) change the same
+visible draft. **Undo** and **Redo** share one change history.
+**Changes** expands the difference from the saved source below the editor.
+**Hide changes** closes that comparison. The editor remains visible.
+Unsaved drafts remain available when you navigate away and return to a page.
+Select **Save**, or press `Cmd+S` / `Ctrl+S`, to write the draft.
+
+Each save checks the source revision and validates the document before the
+file replacement. Validation errors block the save. The editor shows warnings
+after a successful save. Bundle-wide claim and rule checks remain separate.
+The editor limits UTF-8 documents to 1 MiB.
+
+When the saved file changes, an editor without unsaved changes loads the new source.
+If the draft has unsaved changes, the editor preserves them and blocks its
+save. **Compare saved file** shows the current source against the draft.
+**Load saved version** replaces the draft with that source. **Undo** restores
+the previous draft, which can then be reconciled before another save.
+
+Live reload refreshes clean viewers, including their file catalog and metadata.
+If unsaved drafts exist, live reload preserves them and checks open documents for source conflicts.
+The browser keeps recovery text in tab session storage when
+available. If recovery storage fails, keep the tab open until the draft is saved.
+
 ## Claims workspace
 
 When a knowledge base contains typed claim occurrences, select **Claims** to
@@ -205,7 +277,8 @@ The compact toolbar keeps the claim count, search, status, entity, predicate,
 and additional filters together. Filter claims by status, entity, predicate,
 owner, evidence stance, document, or validation state. Select a claim to
 inspect its typed value, evidence, provenance, and time. **Evidence and
-metadata** stays visible. This workspace is read-only.
+metadata** shows source information, owners, and evidence first. Expand
+**Technical details** for IDs and typed fields. This workspace is read-only.
 
 When the selected claim has authored incoming or outgoing relations, a
 collapsed **Relationships** section appears below its details. Claims without
@@ -279,6 +352,12 @@ marker.
 > **Source anchors**
 >
 > - `packages/cli/cmd/openknowledge/viewer.go`
+> - `packages/cli/cmd/openknowledge/viewer_product.go`
+> - `packages/web/src/viewer/product-actions.js`
+> - `packages/web/src/viewer/{editor,editor-state}.js`
+> - `packages/web/src/viewer/{rich-editor,rich-markdown}.js`
+> - `packages/cli/cmd/openknowledge/viewer_document.go`
+> - `packages/cli/internal/authoring/documents.go`
 > - `packages/cli/cmd/openknowledge/viewer_live_reload.go`
 > - `packages/cli/cmd/openknowledge/viewer_assets.go`
 > - `packages/cli/cmd/openknowledge/viewer_frontmatter.go`

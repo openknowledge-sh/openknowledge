@@ -1,6 +1,10 @@
 package main
 
-import _ "embed"
+import (
+	"crypto/sha256"
+	_ "embed"
+	"fmt"
+)
 
 // pnpm build:viewer generates these ignored assets from packages/web/src/viewer.
 
@@ -15,3 +19,8 @@ var viewerThemeBootstrapJS string
 
 //go:embed viewer_assets/viewer.css
 var viewerAppCSS string
+
+func viewerVersionedAsset(path, content string) string {
+	digest := sha256.Sum256([]byte(content))
+	return fmt.Sprintf("%s?v=%x", path, digest[:8])
+}

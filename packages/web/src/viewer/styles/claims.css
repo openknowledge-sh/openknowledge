@@ -292,3 +292,10 @@ a.claims-relationship-row:hover { color: var(--ok-color-accent-strong); }
   .ok-claim-badges { justify-content: flex-start; }
   .ok-claim-detail { grid-template-columns: 1fr; gap: 3px; }
 }
+
+.claims-inspector-disclosure > summary { cursor: pointer; padding: 12px 0; font-weight: 650; }
+@media (max-width: 720px) {
+  .claims-filters input, .claims-filters select { font-size: 16px; min-height: 44px; }
+  .claims-result-statement { font-size: 15px; }
+  .claims-result-path, .claims-workspace-header p { font-size: 12px; }
+}

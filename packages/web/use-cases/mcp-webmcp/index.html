@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#080b0d">
+<title>MCP &amp; WebMCP for your agents · Open Knowledge</title>
+<meta name="description" content="Create a Markdown knowledge base your agent can use. Connect through local MCP, or browse and edit together in the local viewer with WebMCP.">
+<link rel="canonical" href="https://openknowledge.sh/use-cases/mcp-webmcp/"><link rel="icon" href="/favicon.png">
+<!-- OPENKNOWLEDGE_HEAD -->
+<link rel="stylesheet" href="/src/styles/terminal.css"><link rel="stylesheet" href="/src/styles/terminal-draft.css"><link rel="stylesheet" href="/src/styles/site-chrome.css"><link rel="stylesheet" href="/src/styles/site-polish.css">
+</head><body class="terminal-draft nx-page"><a class="skip-link" href="#main">Skip to content</a>
+<header class="nx-header">
+  <div class="nx-wrap nx-header-in">
+    <a class="nx-brand" href="/" aria-label="Open Knowledge home">
+      <img src="/logo-mark.png" width="26" height="26" alt="">
+      <span>Open Knowledge</span>
+    </a>
+    <nav class="nx-nav" aria-label="Primary">
+      <a href="/wiki/">Docs</a>
+      <a href="/use-cases/" aria-current="page">Use cases</a>
+      <a href="/wiki/changelog/cli.html">Changelog</a>
+    </nav>
+    <div class="nx-header-actions">
+      <a class="nx-version" href="https://github.com/openknowledge-sh/openknowledge/releases/latest" target="_blank" rel="noreferrer"
+         data-release-badge data-release-api="https://api.github.com/repos/openknowledge-sh/openknowledge/releases/latest"
+         aria-label="Latest Open Knowledge release on GitHub">
+        <span class="nx-pulse" aria-hidden="true"></span>
+        <span data-release-version>Releases</span>
+        <time data-release-age hidden></time>
+      </a>
+      <a class="nx-icon-link" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer" aria-label="Open Knowledge on GitHub">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.37 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.51-1.11-1.51-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.27 2.75 1.05A9.28 9.28 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.82-4.57 5.08.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.8 0 .27.18.59.69.49A10.06 10.06 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"/></svg>
+        <span class="nx-icon-label">GitHub</span>
+      </a>
+      <a class="nx-btn nx-btn-primary nx-btn-sm" href="/getting-started/">Get started</a>
+    </div>
+  </div>
+</header>
+<main id="main"><section class="terminal-intro" aria-labelledby="hero-title"><p class="product-kind"><a href="/use-cases/">Use cases</a> / MCP + WebMCP</p>
+<h1 id="hero-title">Your wiki.<br> <span class="hero-accent">Work with your agent.</span></h1>
+<p>Create your wiki once. Let an agent find context through local MCP, or open the viewer and work on the same pages together through WebMCP.</p>
+<div class="hero-actions"><a class="primary-cta" href="#webmcp">Work together in the browser <span aria-hidden="true">↓</span></a><a class="text-link" href="#local-mcp">Connect an MCP client <span aria-hidden="true">↘</span></a></div>
+</section><section class="workflow-section" id="create" aria-labelledby="create-title"><div class="step-heading"><span class="step-number" aria-hidden="true">01</span><h2 id="create-title">Start with your knowledge</h2></div><div class="step-body">
+<p class="step-lead">You or your coding agent can start setup from the repository.</p>
+<div class="install-commands"><div class="copy-command"><span class="command-prompt" aria-hidden="true">$</span><code id="mcp-create"><span class="syntax-executable">okn</span> <span class="syntax-command">setup</span></code><button type="button" data-copy-command="mcp-create" data-copy-label="Setup command copied" aria-label="Copy setup command">Copy</button></div>
+<div class="command-output"><div class="output-label">Example output · after confirming a copy</div><pre><code><span class="output-highlight">Knowledge base created at /your-project/Wiki.</span>
+Documents       3
+Validation      <span class="output-success">READY</span>
+Search index    <span class="output-success">READY</span> (5 hits)</code></pre><p class="output-note">The same local Markdown wiki works with both connections below.</p></div></div><p class="copy-feedback" data-copy-status role="status" aria-live="polite"></p>
+<p class="step-note">Select existing Markdown to copy or adopt. Starting from scratch? Setup prepares a task for your installed agent to build the wiki.</p>
+<a class="text-link" href="/getting-started/">Installation and setup <span aria-hidden="true">→</span></a></div></section><section class="workflow-section" id="webmcp" aria-labelledby="webmcp-title"><div class="step-heading"><span class="step-number" aria-hidden="true">02</span><h2 id="webmcp-title">Work together in the browser</h2></div><div class="step-body">
+<p class="connection-kind">WebMCP / shared viewer</p>
+<p class="step-lead">Open the wiki locally. A compatible browser agent can use its tools and work in the same editor you see.</p>
+<div class="install-commands"><div class="copy-command"><span class="command-prompt" aria-hidden="true">$</span><code id="webmcp-view"><span class="syntax-executable">okn</span> <span class="syntax-command">view</span> <span class="syntax-path">Wiki</span></code><button type="button" data-copy-command="webmcp-view" data-copy-label="Viewer command copied" aria-label="Copy viewer command">Copy</button></div>
+<div class="command-output"><div class="output-label">Example output · address varies</div><pre><code><span class="output-highlight">Open Knowledge view: http://127.0.0.1:4185/wiki/</span>
+root /your-project/Wiki
+Press Ctrl+C to stop.</code></pre><p class="output-note">The command opens your browser. Keep the viewer running while you and your agent use it.</p></div></div><p class="copy-feedback" data-copy-status role="status" aria-live="polite"></p>
+<ol class="agent-flow">
+<li><strong>Open the viewer with your browser agent.</strong><p>The page exposes WebMCP tools for listing, searching, reading, and opening wiki pages.</p><code>openknowledge_search → openknowledge_open_page</code></li>
+<li><strong>Make the change in one shared draft.</strong><p>The agent reads the current editor state and edits the Markdown. Its changes appear in your editor, with a shared Undo history.</p><code>openknowledge_get_editor_state → openknowledge_apply_edit</code></li>
+<li><strong>Review the change, then save.</strong><p>Inspect Changes and click Save, or ask the agent to save. Draft edits only reach the existing Markdown file when saving succeeds.</p><code>openknowledge_save_document</code></li>
+</ol>
+<div class="compatibility-note"><strong>Bring a WebMCP-capable browser and agent.</strong><p>WebMCP support is still evolving. The local page registers its tools when the browser provides the API; the agent must support discovering and calling them. No separate Open Knowledge MCP server configuration is needed for this route.</p><a href="https://developer.chrome.com/docs/ai/webmcp/imperative-api" target="_blank" rel="noreferrer">Browser API and availability ↗</a></div>
+<p class="step-note">Shared editing works on existing writable Markdown pages in the local viewer. Static viewer exports expose browsing tools only. Browsers without WebMCP still work as ordinary viewers.</p>
+<a class="text-link" href="/wiki/features/webmcp.html">WebMCP tools and editing details <span aria-hidden="true">→</span></a></div></section><section class="workflow-section" id="try-a-task" aria-labelledby="try-a-task-title"><div class="step-heading"><span class="step-number" aria-hidden="true">03</span><h2 id="try-a-task-title">Give the agent a concrete task</h2></div><div class="step-body">
+<p class="step-lead">For the Relay demo shown in our walkthrough, a request can look like this:</p>
+<div class="agent-task"><div class="agent-task-header"><span>Example task / browser agent</span><button type="button" data-copy-command="browser-agent-task" data-copy-label="Agent task copied" aria-label="Copy agent task">Copy task</button></div><p id="browser-agent-task">Find the delivery policy in this wiki. Add this requirement to the delivery note: “Honor the Retry-After header on HTTP 429 responses.” Leave the change as a draft for me to review.</p></div>
+<p class="copy-feedback" data-copy-status role="status" aria-live="polite"></p>
+<div class="diff-panel"><header>Example draft change · imported/delivery.md</header><p class="diff-add"><span aria-hidden="true">+</span><code>Honor the Retry-After header on HTTP 429 responses.</code></p><footer>Visible in the editor · unsaved until you or the agent save</footer></div>
+<p class="step-note">This is an illustrative task and draft, not a live agent session. WebMCP gives your agent actions; your chosen agent interprets the request.</p>
+<a class="text-link" href="/#product-film">Watch the shared editor walkthrough <span aria-hidden="true">→</span></a></div></section><section class="workflow-section" id="local-mcp" aria-labelledby="local-mcp-title"><div class="step-heading"><span class="step-number" aria-hidden="true">04</span><h2 id="local-mcp-title">Connect from your agent client</h2></div><div class="step-body">
+<p class="connection-kind">Local MCP / read-only context</p>
+<p class="step-lead">Use this route when your agent needs wiki context from an editor or desktop client, without opening a browser.</p>
+<div class="install-commands"><div class="copy-command"><span class="command-prompt" aria-hidden="true">$</span><code id="local-mcp-command"><span class="syntax-executable">okn</span> <span class="syntax-command">mcp</span> <span class="syntax-path">/absolute/path/to/Wiki</span></code><button type="button" data-copy-command="local-mcp-command" data-copy-label="MCP server command copied" aria-label="Copy mcp server command">Copy</button></div>
+<div class="command-output"><div class="output-label">Protocol server · not a chat command</div><pre><code>stdin / stdout ↔ your MCP client</code></pre><p class="output-note">The client normally starts this process. It exchanges MCP messages over stdio, so running it alone does not print a human-readable search result.</p></div></div><p class="copy-feedback" data-copy-status role="status" aria-live="polite"></p>
+<div class="agent-task"><div class="agent-task-header"><span>Example client configuration</span><button type="button" data-copy-command="local-mcp-config" data-copy-label="MCP configuration copied" aria-label="Copy MCP configuration">Copy config</button></div><pre><code id="local-mcp-config">{
+  <span class="syntax-key">&quot;mcpServers&quot;</span>: {
+    <span class="syntax-key">&quot;project-knowledge&quot;</span>: {
+      <span class="syntax-key">&quot;command&quot;</span>: <span class="syntax-string">&quot;okn&quot;</span>,
+      <span class="syntax-key">&quot;args&quot;</span>: [<span class="syntax-string">&quot;mcp&quot;</span>, <span class="syntax-string">&quot;/absolute/path/to/Wiki&quot;</span>]
+    }
+  }
+}</code></pre></div>
+<p class="step-note">Install okn where the client can run it and replace the absolute path with your wiki location. Add this server in your client's MCP settings; the configuration format depends on the client.</p>
+<div class="choice-pair"><div><h3>Ask for relevant context</h3><p>The client can search and read wiki sources, run explicit semantic queries, and validate the bundle.</p></div><div><h3>Keep writes explicit</h3><p>This MCP server is read-only. It does not edit files. Use the local viewer or your agent's file tools for changes.</p></div></div>
+<a class="text-link" href="/wiki/features/commands/mcp.html">Local MCP configuration and tools <span aria-hidden="true">→</span></a></div></section><section class="workflow-section" id="choose" aria-labelledby="choose-title"><div class="step-heading"><span class="step-number" aria-hidden="true">05</span><h2 id="choose-title">Choose how you want to work</h2></div><div class="step-body">
+<div class="connection-comparison"><table><caption>Two connections to the same knowledge base</caption><thead><tr><th scope="col">Your task</th><th scope="col">Browser WebMCP</th><th scope="col">Local MCP</th></tr></thead><tbody>
+<tr><th scope="row">Connect</th><td>Open the local viewer with a compatible browser agent</td><td>Add a command-based server to your MCP client</td></tr>
+<tr><th scope="row">Read and search</th><td>Viewer pages and search results</td><td>Bundle resources and context packets</td></tr>
+<tr><th scope="row">Edit together</th><td>Shared draft, Undo, Changes, and Save in the local viewer</td><td>Read-only; use separate editing tools</td></tr>
+<tr><th scope="row">Where it runs</th><td>Your open viewer page</td><td>A local process started by the client</td></tr>
+</tbody></table></div>
+<p class="step-note">Both routes use your Markdown knowledge base. You can use both for different tasks.</p>
+<a class="text-link" href="/examples/project-documentation/">Explore a read-only demo wiki <span aria-hidden="true">→</span></a>
+<a class="text-link" href="/#start">Create your own knowledge base <span aria-hidden="true">→</span></a></div></section></main><footer class="nx-footer">
+  <div class="nx-wrap nx-footer-in">
+    <a class="nx-brand" href="/" aria-label="Open Knowledge home"><img src="/logo-mark.png" width="22" height="22" alt=""><span>Open Knowledge</span></a>
+    <nav aria-label="Footer">
+      <a href="/wiki/">Docs</a>
+      <a href="/use-cases/">Use cases</a>
+      <a href="/wiki/changelog/cli.html">Changelog</a>
+      <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="/wiki/features/telemetry.html">Privacy</a>
+    </nav>
+    <span class="nx-dim">Apache-2.0</span>
+  </div>
+</footer>
+<script type="module" src="/src/terminal-draft.js"></script><script type="module" src="/src/site.js"></script></body></html>

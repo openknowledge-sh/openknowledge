@@ -82,7 +82,7 @@ func buildPublishPlan(root, requestedTarget, out, runtimeConfig, runtimeID strin
 	if !setupExistingBundle(root) {
 		return publishPlan{}, fmt.Errorf("publication requires a managed OKF knowledge base; run okn setup %q first", root)
 	}
-	report, err := buildKnowledgeCheckReport(root)
+	report, err := buildKnowledgeCheckReportWithRuntime(root, runtimeConfig, runtimeID)
 	if err != nil {
 		return publishPlan{}, err
 	}

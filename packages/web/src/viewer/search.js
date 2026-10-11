@@ -1,3 +1,4 @@
+import { isIndexMarkdownPath, normalizeSearchText, searchStaticNotes } from "./search-data.js";
 
 (() => {
   const searches = Array.from(document.querySelectorAll(".search"));
@@ -166,7 +167,7 @@
       setActiveResult(-1, false);
 
       if (staticNotes.length > 0) {
-        renderResults(results, status, searchStaticNotes(query), query, setResultsOpen, setActiveResult);
+        renderResults(results, status, searchStaticNotes(staticNotes, query), query, setResultsOpen, setActiveResult);
         return;
       }
 
@@ -340,10 +341,16 @@
     resetSearchResults(results);
     results.dataset.mode = query ? "matches" : "initial";
     if (groupedItems.length === 0) {
-      const emptyText = config.emptyStatus ?? "No results for \"" + query + "\".";
+      const emptyText = config.emptyStatus ?? "No results for \"" + query + "\". Try a topic or command name, or report the missing information.";
       if (emptyText) {
         const keepOpenWhenEmpty = config.keepOpenWhenEmpty !== false;
-        renderSearchState(results, status, emptyText, "empty", setResultsOpen, setActiveResult, keepOpenWhenEmpty);
+        renderSearchState(results, status, emptyText, "empty", setResultsOpen, setActiveResult, keepOpenWhenEmpty, query && !config.emptyStatus ? {
+          label: "Report missing information",
+          run: function () {
+            setResultsOpen(false);
+            document.dispatchEvent(new CustomEvent("openknowledge-report-gap", { detail: { query } }));
+          }
+        } : undefined);
       } else {
         status.textContent = "";
         setActiveResult(-1, false);
@@ -580,10 +587,6 @@
     });
   }
 
-  function isIndexMarkdownPath(path) {
-    return String(path || "").split("/").pop().toLowerCase() === "index.md";
-  }
-
   function initializeSearchAccessibility(input, results) {
     if (!results.id) {
       results.id = (input.id || "viewer-search") + "-results-" + Math.random().toString(36).slice(2);
@@ -638,43 +641,6 @@
     }
   }
 
-  function searchStaticNotes(query) {
-    const normalizedQuery = normalizeSearchText(query);
-    return staticNotes
-      .map(function (note) {
-        const bodyText = htmlToText(note.body || "");
-        const frontmatterText = htmlToText(note.frontmatter || "");
-        const title = note.title || note.path || "";
-        const path = note.path || "";
-        const contentText = [frontmatterText, bodyText].filter(Boolean).join(" ");
-        const haystack = normalizeSearchText([title, path, contentText].join(" "));
-        const titleMatch = normalizeSearchText(title).includes(normalizedQuery);
-        const pathMatch = normalizeSearchText(path).includes(normalizedQuery);
-        const contentMatch = haystack.includes(normalizedQuery);
-        if (!contentMatch) {
-          return null;
-        }
-        const baseScore = (titleMatch ? 3 : 0) + (pathMatch ? 2 : 0) + 1;
-        return {
-          path,
-          title,
-          snippet: staticSnippet(contentText, query),
-          score: isIndexMarkdownPath(path) ? baseScore * 0.55 : baseScore,
-        };
-      })
-      .filter(Boolean)
-      .sort(function (a, b) {
-        if (b.score !== a.score) {
-          return b.score - a.score;
-        }
-        if (isIndexMarkdownPath(a.path) !== isIndexMarkdownPath(b.path)) {
-          return isIndexMarkdownPath(a.path) ? 1 : -1;
-        }
-        return a.path.localeCompare(b.path);
-      })
-      .slice(0, 12);
-  }
-
   function searchStaticTag(tag, excludePath) {
     const normalizedTag = normalizeSearchText(tag).trim();
     return staticNotes
@@ -694,27 +660,6 @@
       .sort(function (left, right) {
         return left.path.localeCompare(right.path);
       });
-  }
-
-  function normalizeSearchText(value) {
-    return String(value || "").toLowerCase();
-  }
-
-  function htmlToText(html) {
-    const element = document.createElement("div");
-    element.innerHTML = html;
-    return element.textContent || "";
-  }
-
-  function staticSnippet(text, query) {
-    const value = String(text || "").replace(/\s+/g, " ").trim();
-    if (!value) {
-      return "";
-    }
-    const index = value.toLowerCase().indexOf(String(query || "").toLowerCase());
-    const start = Math.max(0, index < 0 ? 0 : index - 48);
-    const end = Math.min(value.length, start + 140);
-    return (start > 0 ? "..." : "") + value.slice(start, end) + (end < value.length ? "..." : "");
   }
 
   function staticRelativeURL(targetPath) {

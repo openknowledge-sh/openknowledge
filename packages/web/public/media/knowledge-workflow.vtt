@@ -1,0 +1,27 @@
+WEBVTT
+
+00:00.000 --> 00:05.000
+Import three existing Markdown documents with okn setup.
+Then open the knowledge base with okn view.
+
+00:05.000 --> 00:09.000
+Browse connected project notes in the local viewer.
+
+00:09.000 --> 00:13.000
+Search for retry behavior to find the delivery decision.
+
+00:13.000 --> 00:18.000
+Read the decision and the reason behind it.
+
+00:18.000 --> 00:22.000
+An agent adds a clarification to the shared, unsaved draft.
+
+00:22.000 --> 00:26.000
+Review the exact change before saving.
+
+00:26.000 --> 00:30.000
+Save the updated note to its Markdown file.
+
+00:30.000 --> 00:33.000
+Build it once. Use it in your next task.
+Open Knowledge. openknowledge.sh.

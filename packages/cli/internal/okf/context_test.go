@@ -432,3 +432,44 @@ func TestRetrievalRevisionAndLocatorsBindResultsToIndexedContent(t *testing.T) {
 		t.Fatalf("expected content edit to invalidate revision and locator: before=%#v after=%#v", first, changed)
 	}
 }
+
+func TestContextPackingDoesNotRepeatDeferredSourcesOrExceedBudget(t *testing.T) {
+	sections := []ContextSection{
+		{ID: "large", Locator: "same-source", Path: "guide.md", Text: "Useful evidence.\n" + strings.Repeat("More evidence.\n", 100), EstimatedTokens: 400},
+		{ID: "small", Locator: "small-source", Path: "short.md", Text: "Small.", EstimatedTokens: 2},
+	}
+	for _, priority := range []int{1, 2} {
+		direct := []SearchResult{{ID: "large", contextPriority: priority}, {ID: "small", contextPriority: 0}}
+		sources := packContextSources(sections, direct, []SearchResult{{ID: "large"}}, 30, 12)
+		seen := map[string]bool{}
+		total := 0
+		for _, source := range sources {
+			if seen[source.Locator] {
+				t.Fatalf("repeated source: %s", source.Locator)
+			}
+			seen[source.Locator] = true
+			total += source.EstimatedTokens
+		}
+		if total > 30 || len(sources) == 0 {
+			t.Fatalf("invalid packet: %d tokens, %#v", total, sources)
+		}
+	}
+}
+
+func TestConversationalQuestionFindsCanonicalAction(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "index.md", "# Home\n")
+	writeFile(t, root, "publish.md", "---\ntype: Guide\ntitle: Publish a wiki\n---\n# Publish a wiki\n\nUse the publish command to create a viewer bundle.\n")
+	writeFile(t, root, "decisions.md", "---\ntype: Decision\ntitle: How we work\n---\n# How we work\n\nHow do I do things? We use a wiki. Our processes are described here.\n")
+	index, err := BuildContextIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := index.Search(SearchOptions{Query: "How do I publish a wiki?", Limit: 3, Fuzzy: true, NoExpand: true})
+	if len(result.Results) == 0 || result.Results[0].Path != "publish.md" {
+		t.Fatalf("wrong first source: %#v", result.Results)
+	}
+	if got := knowledgeQueryTerms("go"); len(got) != 1 || got[0] != "go" {
+		t.Fatalf("lost exact term: %v", got)
+	}
+}

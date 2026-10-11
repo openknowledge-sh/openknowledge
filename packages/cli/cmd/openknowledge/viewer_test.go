@@ -48,10 +48,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 	if !strings.Contains(page, `class="search-icon control-icon"`) {
 		t.Fatalf("viewer header search should include its search icon:\n%s", page)
 	}
-	if !strings.Contains(page, `data-horizontal-stack checked`) ||
+	if !strings.Contains(page, `data-horizontal-stack`) ||
+		strings.Contains(page, `data-horizontal-stack checked`) ||
 		!strings.Contains(page, `<strong>Horizontal stack</strong>`) ||
 		strings.Contains(page, `data-navigation-mode-toggle`) {
-		t.Fatalf("viewer should render horizontal stack as an enabled Document setting instead of a header control:\n%s", page)
+		t.Fatalf("viewer should render horizontal stack as an opt-in Document setting instead of a header control:\n%s", page)
 	}
 	if !strings.Contains(page, `data-graph-view-toggle`) ||
 		!strings.Contains(page, `data-documents-view-toggle`) ||
@@ -95,11 +96,11 @@ func TestViewerRendersIndexAndMarkdownFile(t *testing.T) {
 		t.Fatalf("viewer should persist a global frontmatter visibility preference:\n%s", page)
 	}
 	if !strings.Contains(page, `function integratePanelFrontmatter(panel)`) ||
-		!strings.Contains(page, `chrome.after(frontmatter)`) ||
+		!strings.Contains(page, `prepend(frontmatter)`) ||
 		!strings.Contains(page, `frontmatter.classList.add("is-panel-integrated")`) ||
 		strings.Contains(page, `actions.prepend(trigger)`) ||
 		strings.Contains(page, `summary.hidden = true`) {
-		t.Fatalf("viewer note panels should keep collapsed, full-width frontmatter below the compact header:\n%s", page)
+		t.Fatalf("viewer note panels should keep collapsed frontmatter in the document actions:\n%s", page)
 	}
 	if !strings.Contains(page, `data-accessibility-font`) ||
 		!strings.Contains(page, `data-accessibility-size`) ||
@@ -455,7 +456,7 @@ func TestViewerRendersMermaidBlocksWithLocalRuntime(t *testing.T) {
 	for _, expected := range []string{
 		`data-language="mermaid" data-mermaid-source`,
 		`&lt;unsafe&gt;`,
-		`src="/assets/openknowledge/viewer.js"`,
+		`src="/` + viewerVersionedAsset(viewerAppScriptAsset, viewerJS) + `"`,
 	} {
 		if !strings.Contains(page, expected) {
 			t.Fatalf("viewer Mermaid integration missing %q:\n%s", expected, page)
@@ -1172,6 +1173,8 @@ func viewerSourceForAssertions(t *testing.T) string {
 		"shortcuts.js",
 		"app.js",
 		"search.js",
+		"search-data.js",
+		"webmcp.js",
 	} {
 		content, err := os.ReadFile(filepath.Join("..", "..", "..", "web", "src", "viewer", name))
 		if err != nil {

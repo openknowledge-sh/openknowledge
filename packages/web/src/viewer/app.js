@@ -1,6 +1,10 @@
 import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js";
+import { registerViewerWebMCP } from "./webmcp.js";
+import { createViewerEditor } from "./editor.js";
+import { staticExportURL } from "./static-url.js";
 
 (function () {
+  let viewerEditor;
   const workspace = document.querySelector("[data-note-workspace]");
   const stackEl = document.querySelector("[data-note-stack]");
   const emptyState = document.querySelector("[data-empty-state]");
@@ -49,7 +53,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const accessibilityStorageKey = "openknowledge.viewer.accessibility";
   const navigationModeStorageKey = "openknowledge.viewer.navigationMode";
   const knowledgeBaseColorStorageKey = "openknowledge.viewer.knowledgeBaseColors";
-  const defaultNavigationMode = "beside";
+  const defaultNavigationMode = "replace";
+  let documentsScrollLeft = 0;
   let navigationMode = defaultNavigationMode;
   let graphViewRequested = false;
   let knowledgeGraphRendered = false;
@@ -67,6 +72,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   const panelWidths = readPanelWidths();
   let sidebarWidth = readSidebarWidth();
   const staticNotes = readStaticNotes();
+  const loadedDocumentURL = window.location.href;
+  const loadedDocumentPath = staticHTMLPath(stackEl.querySelector("[data-note-path]")?.dataset.notePath || "index.md");
   const liveReloadRestoreState = readLiveReloadState();
   const staticNotesByPath = indexStaticNotes(staticNotes, "path");
   const staticNotePathByHTML = indexStaticNotePathsByHTML(staticNotes);
@@ -295,6 +302,19 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       names.unshift(currentKnowledgeBase);
     }
     return names;
+  }
+
+  // Draft recovery follows the document's source root, not the first route
+  // loaded in this tab. Registry navigation can change the current URL without
+  // replacing this viewer instance, and a later reload can start from any KB.
+  function editorStorageScopeForPage(page) {
+    const name = String(page.knowledgeBase || currentKnowledgeBase || "");
+    const group = Array.from(document.querySelectorAll("[data-knowledge-base-root]")).find(function (element) {
+      return element.dataset.knowledgeBase === name;
+    });
+    const root = group?.dataset.knowledgeBaseRoot || (name === currentKnowledgeBase ? workspace.dataset.noteRoot : "");
+    if (!root) throw new Error("Could not identify the source knowledge base for draft recovery.");
+    return root;
   }
 
   function readKnowledgeBaseColorOverrides() {
@@ -1315,7 +1335,6 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const metadata = createClaimsElement("section", "claims-inspector-metadata");
     metadata.append(createClaimsElement("h3", "claims-inspector-section-title", "Evidence and metadata"));
     const metadataBody = createClaimsElement("div", "claims-inspector-metadata-body");
-    metadataBody.append(definitions);
     if ((claim.issues || []).length > 0) {
       const issues = createClaimsElement("section", "claims-inspector-section claims-issues");
       issues.append(createClaimsElement("h3", "", "Needs attention"));
@@ -1326,7 +1345,11 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       issues.append(list);
       metadataBody.append(issues);
     }
-    metadataBody.append(evidenceSection, provenance);
+    appendClaimDefinition(provenanceList, "Owners", claim.owners || []);
+    metadataBody.prepend(provenance, evidenceSection);
+    const technical = createClaimsElement("details", "claims-inspector-disclosure");
+    technical.append(createClaimsElement("summary", "", "Technical details"), definitions);
+    metadataBody.append(technical);
     metadata.append(metadataBody);
     claimsDetail.append(heading, actions, metadata);
     const relationships = createClaimRelationships(claim);
@@ -4243,22 +4266,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   }
 
   function staticRelativeURL(targetPath) {
-    const currentPath = currentStack()[0] || document.querySelector("[data-note-path]")?.dataset.notePath || "index.md";
-    const currentHTML = staticHTMLPath(currentPath);
-    const targetHTML = staticHTMLPath(targetPath);
-    const currentDirectory = currentHTML.includes("/") ? currentHTML.slice(0, currentHTML.lastIndexOf("/") + 1) : "";
-    return relativeStaticPath(currentDirectory, targetHTML);
-  }
-
-  function relativeStaticPath(fromDirectory, targetPath) {
-    const fromParts = normalizeStaticPath(fromDirectory).split("/").filter(Boolean);
-    const targetParts = normalizeStaticPath(targetPath).split("/").filter(Boolean);
-    while (fromParts.length && targetParts.length && fromParts[0] === targetParts[0]) {
-      fromParts.shift();
-      targetParts.shift();
-    }
-    const relativeParts = fromParts.map(function () { return ".."; }).concat(targetParts);
-    return relativeParts.join("/") || ".";
+    return staticExportURL(loadedDocumentURL, loadedDocumentPath, staticHTMLPath(targetPath));
   }
 
   function normalizeStaticPath(value) {
@@ -5319,6 +5327,16 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     const isEmpty = panelCount === 0;
     const showClaims = claimsViewIsVisible();
     const showGraph = !showClaims && (graphViewRequested || isEmpty);
+    const previousView = document.documentElement.dataset.viewerView || "notes";
+    const nextView = showClaims ? "claims" : showGraph ? "graph" : "notes";
+    if (previousView !== nextView) {
+      if (previousView === "notes") documentsScrollLeft = workspace.scrollLeft;
+      workspace.scrollLeft = 0;
+      window.requestAnimationFrame(function () {
+        workspace.scrollLeft = nextView === "notes" ? documentsScrollLeft : 0;
+        queueWorkspaceRailUpdate();
+      });
+    }
     if (showGraph && !knowledgeGraphRendered) {
       knowledgeGraphRendered = true;
       void ensureKnowledgeGraphData().then(renderKnowledgeGraph).catch(function () {
@@ -5712,6 +5730,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       });
 
       const wrapper = ensureTableWrapper(table);
+      if (rows.length <= 4) return;
       const state = {
         query: "",
         filters: headers.map(function () { return ""; }),
@@ -6024,7 +6043,11 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     });
   }
 
+  let searchHighlightGeneration = 0;
+
   function clearSearchHighlights(scope) {
+    searchHighlightGeneration++;
+    window.CSS?.highlights?.delete("openknowledge-search");
     const root = scope || document;
     root.querySelectorAll("mark.ok-search-highlight").forEach(function (mark) {
       const parent = mark.parentNode;
@@ -6036,16 +6059,29 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     });
   }
 
-  function applySearchHighlight(panel, highlightText) {
+  async function applySearchHighlight(panel, highlightText) {
     clearSearchHighlights(stackEl);
+    const generation = searchHighlightGeneration;
     const text = String(highlightText || "").trim();
-    const body = panel?.querySelector(".note-body");
-    if (!body || !text) {
+    if (!panel || !text) {
       return;
     }
+    await viewerEditor?.bindPanel(panel);
+    const richContent = panel.querySelector(".document-rich-content");
+    const body = richContent || panel.querySelector(".note-body");
+    if (!body) return;
     window.requestAnimationFrame(function () {
+      if (!panel.isConnected || generation !== searchHighlightGeneration) return;
       const range = searchHighlightRange(body, text);
       if (!range) {
+        return;
+      }
+      // Highlight the editor without changing its DOM or document history.
+      if (richContent) {
+        if (window.CSS?.highlights && window.Highlight) {
+          window.CSS.highlights.set("openknowledge-search", new window.Highlight(range));
+        }
+        range.startContainer.parentElement?.scrollIntoView({ block: "center", inline: "nearest" });
         return;
       }
       const mark = document.createElement("mark");
@@ -6150,7 +6186,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     return /^[\p{Letter}\p{Number}]$/u.test(normalized) ? normalized : "";
   }
 
-  async function fetchNote(path, knowledgeBase) {
+  async function fetchNote(path, knowledgeBase, signal) {
+    signal?.throwIfAborted();
     if (isStaticBundle()) {
       const note = staticNotesByPath[path];
       if (!note) {
@@ -6160,6 +6197,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
 
     const response = await fetch(apiURL(path, knowledgeBase), {
+      signal,
       headers: { "Accept": "application/json" }
     });
     if (!response.ok) {
@@ -6187,6 +6225,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     if (isStaticBundle()) {
       return;
     }
+    if (await viewerEditor?.handleSourceChanges()) return false;
     const stack = currentStackTargets();
     const active = activePanel();
     const activeTarget = active ? noteTarget(active.dataset.notePath, active.dataset.knowledgeBase) : stack[0] || null;
@@ -6326,7 +6365,9 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
     frontmatter.dataset.panelIntegrated = "true";
     frontmatter.classList.add("is-panel-integrated");
-    chrome.after(frontmatter);
+    const label = summary.querySelector(".ok-frontmatter-title");
+    if (label) label.textContent = "Details";
+    panel.querySelector(".note-actions")?.prepend(frontmatter);
   }
 
   function integratePanelClaims(panel) {
@@ -6417,6 +6458,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     enhanceMermaid(panel, false);
     enhanceTables(panel);
     updateLinkBehaviorHints(panel);
+    viewerEditor?.bindPanel(panel);
 
     const closeButton = panel.querySelector("[data-close-panel]");
     if (!closeButton || closeButton.dataset.closeBound === "true") {
@@ -6478,6 +6520,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
 
   function appendPanel(panel) {
     stackEl.append(panel);
+    void viewerEditor?.bindPanel(panel);
     setActivePanel(panel);
     updateWorkspaceState();
     updateActiveLinks();
@@ -6541,9 +6584,10 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     updateTitle();
   }
 
-  async function openInitialNote(targetPath, pushHistory, highlightText, targetKnowledgeBase) {
-    const panel = await panelForPath(targetPath, true, targetKnowledgeBase);
+  async function openInitialNote(targetPath, pushHistory, highlightText, targetKnowledgeBase, navigation) {
+    const panel = navigation?.panel || await panelForPath(targetPath, true, targetKnowledgeBase);
     await runStackTransition(function () {
+      navigation?.signal?.throwIfAborted();
       clearStack();
       appendPanel(panel);
       updateHistory(currentStackTargets(), pushHistory, highlightText);
@@ -6551,7 +6595,8 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     applySearchHighlight(panel, highlightText);
   }
 
-  async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel, targetKnowledgeBase) {
+  async function openTarget(targetPath, pushHistory, openBeside, highlightText, sourcePanel, targetKnowledgeBase, navigation) {
+    navigation?.signal?.throwIfAborted();
     if (graphViewRequested) {
       setGraphViewRequested(false, false);
     }
@@ -6561,7 +6606,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     }
     const source = sourcePanel || activePanel();
     if (!source) {
-      await openInitialNote(targetPath, pushHistory, highlightText, targetKnowledgeBase);
+      await openInitialNote(targetPath, pushHistory, highlightText, targetKnowledgeBase, navigation);
       return;
     }
     const normalizedTargetKnowledgeBase = String(targetKnowledgeBase || currentKnowledgeBase || "").trim();
@@ -6573,16 +6618,17 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       return;
     }
     if (openBeside) {
-      await openFromPanel(source, targetPath, pushHistory, highlightText, targetKnowledgeBase);
+      await openFromPanel(source, targetPath, pushHistory, highlightText, targetKnowledgeBase, navigation);
       return;
     }
-    await replaceFromPanel(source, targetPath, pushHistory, highlightText, targetKnowledgeBase);
+    await replaceFromPanel(source, targetPath, pushHistory, highlightText, targetKnowledgeBase, navigation);
   }
 
-  async function replaceFromPanel(sourcePanel, targetPath, pushHistory, highlightText, targetKnowledgeBase) {
-    const panel = await panelForPath(targetPath, true, targetKnowledgeBase);
+  async function replaceFromPanel(sourcePanel, targetPath, pushHistory, highlightText, targetKnowledgeBase, navigation) {
+    const panel = navigation?.panel || await panelForPath(targetPath, true, targetKnowledgeBase);
     clearSearchHighlights(stackEl);
     await runStackTransition(function () {
+      navigation?.signal?.throwIfAborted();
       const all = panels();
       let sourceIndex = all.indexOf(sourcePanel);
       if (sourceIndex < 0) {
@@ -6627,10 +6673,11 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
     scrollToPanel(nextPanel);
   }
 
-  async function openFromPanel(sourcePanel, targetPath, pushHistory, highlightText, targetKnowledgeBase) {
-    const panel = await panelForPath(targetPath, true, targetKnowledgeBase);
+  async function openFromPanel(sourcePanel, targetPath, pushHistory, highlightText, targetKnowledgeBase, navigation) {
+    const panel = navigation?.panel || await panelForPath(targetPath, true, targetKnowledgeBase);
     clearSearchHighlights(stackEl);
     await runStackTransition(function () {
+      navigation?.signal?.throwIfAborted();
       const all = panels();
       let sourceIndex = all.indexOf(sourcePanel);
       if (sourceIndex < 0) {
@@ -6656,6 +6703,7 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       clearStack();
       loadedPanels.forEach(function (panel) {
         stackEl.append(panel);
+        void viewerEditor?.bindPanel(panel);
       });
       ensureActivePanel();
       updateWorkspaceState();
@@ -7431,6 +7479,26 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
   window.OpenKnowledgeViewerLiveReload = Object.freeze({ prepare: prepareLiveReload });
 
   async function initializeViewer() {
+    const staticMode = Boolean(window.OpenKnowledgeStaticData || document.querySelector("[data-static-notes]"));
+    viewerEditor = createViewerEditor({
+      staticMode, currentKnowledgeBase, activePanel, fileURL, storageScope: viewerStorageScope,
+      storageScopeForPage: editorStorageScopeForPage,
+      documentURL: (path, knowledgeBase) => knowledgeBasePrefix(knowledgeBase) + "/api/document",
+      async renderPreview(page, element) {
+        const note = await fetchNote(page.path, page.knowledgeBase);
+        element.innerHTML = note.body;
+        enhanceMermaid(element, false);
+        enhanceTables(element);
+      },
+      openLink(page, href) {
+        const target = noteTargetFromHref(href, page.path, page.knowledgeBase);
+        if (target) void openTarget(target.path, true, false, "", activePanel(), target.knowledgeBase);
+        else {
+          const url = new URL(href, new URL(fileURL(page.path, page.knowledgeBase), window.location.href));
+          if (/^https?:$/.test(url.protocol)) window.open(url.href, "_blank", "noopener,noreferrer");
+        }
+      },
+    });
     const requestedStack = stackFromLocation();
     const requestedHighlight = highlightFromLocation();
     organizeSidebarControls();
@@ -7475,6 +7543,29 @@ import { bindMermaidViewport, closeMermaidViewport } from "./mermaid-viewport.js
       syncWorkspaceViewURL(false);
     }
     restoreLiveReloadSession(liveReloadRestoreState);
+    await Promise.all(panels().map((panel) => viewerEditor.bindPanel(panel)));
+    const disposeWebMCP = await registerViewerWebMCP({
+      staticNotes,
+      staticMode,
+      editor: viewerEditor,
+      currentKnowledgeBase,
+      fileURL,
+      fetchNote,
+      async openPage(page, beside, signal) {
+        // Read once, then commit that exact document through normal navigation.
+        const note = await fetchNote(page.path, page.knowledgeBase, signal);
+        signal?.throwIfAborted();
+        const prepared = createPanel({ ...note, knowledgeBase: page.knowledgeBase }, true);
+        await openTarget(page.path, true, beside, "", null, page.knowledgeBase, { panel: prepared, signal });
+        const panel = activePanel();
+        if (!panel || panel.dataset.notePath !== page.path ||
+            String(panel.dataset.knowledgeBase || currentKnowledgeBase || "") !== page.knowledgeBase || panel.querySelector(".note-error")) {
+          throw new Error("Could not open " + page.path);
+        }
+        await viewerEditor.bindPanel(panel);
+      },
+    });
+    if (import.meta.hot) import.meta.hot.dispose(disposeWebMCP);
     window.dispatchEvent(new CustomEvent("openknowledge:viewer-ready"));
   }
 

@@ -76,8 +76,16 @@ Viewer-mode search strips common Markdown markup from excerpts. It adds folder
 context to `Index` titles. It keeps arrow key, Enter, Shift+Enter, and Escape
 controls.
 
+Opening a note preserves its exported folder path in the address bar, including
+after replacing the current panel. Nested notes remain reloadable and linkable
+on hosted sites and in local file exports.
+
 Viewer mode provides the graph controls that the [`view`](../commands/view.md)
 command provides.
+
+Viewer mode also provides [browser WebMCP](/features/webmcp.md) tools for
+compatible browser agents. These tools expose only embedded notes enabled for
+both `viewer` and `search` publication. Plain mode omits these tools.
 
 Viewer-mode Markdown pages expose **Listen**, pause/resume, and stop controls
 when the browser supports speech synthesis. Narration uses the browser or

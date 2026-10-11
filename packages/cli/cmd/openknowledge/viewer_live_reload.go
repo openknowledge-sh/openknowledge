@@ -159,6 +159,11 @@ func (hub *viewerLiveReload) run() {
 		case <-hub.trigger:
 			schedule()
 		case <-reconcile.C:
+			// Do not publish an intermediate revision while a write burst is
+			// still settling. The debounce timer will reconcile the same roots.
+			if timerC != nil {
+				continue
+			}
 			if err := hub.refresh(false); err != nil {
 				hub.publishStatus("Live reload waits for readable source files.")
 			}

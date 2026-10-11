@@ -266,3 +266,7 @@ pre code, .code-block code { display: block; min-width: max-content; padding: 0;
 ul, ol { padding-left: 22px; }
 .empty { color: var(--ok-color-muted); }
 .note-error { color: var(--ok-color-danger); }
+
+.note-actions > .ok-frontmatter.is-panel-integrated { position: relative; width: auto; margin: 0; border: 0; }
+.note-actions > .ok-frontmatter > summary { min-height: 32px; padding: 6px 9px; font-size: 12px; }
+.note-actions > .ok-frontmatter > .ok-frontmatter-body { position: absolute; z-index: 10; right: 0; top: 100%; width: min(440px, calc(100vw - 40px)); max-height: 65vh; overflow: auto; padding: 16px; background: var(--ok-color-surface); box-shadow: 0 12px 32px var(--ok-color-shadow); border-radius: 12px; }

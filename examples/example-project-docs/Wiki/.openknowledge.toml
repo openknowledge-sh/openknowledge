@@ -5,11 +5,11 @@ enabled = ["project", "docs", "decisions"]
 link-target = "error"
 
 [html.source]
-github_base = "https://github.com/openknowledge-sh/example-project-docs/blob/main"
-entry = "Wiki"
+github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
+entry = "examples/example-project-docs/Wiki"
 
 [html.site]
-base_url = "https://openknowledge-sh.github.io/example-project-docs/"
+base_url = "https://openknowledge.sh/examples/project-documentation/"
 
 [release]
 outputs = ["viewer"]

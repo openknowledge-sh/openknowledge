@@ -50,8 +50,33 @@ Setup discovers Markdown across the repository. The Markdown does not need
 YAML frontmatter or authored links. Select paths in the CLI, then create a
 managed copy or adopt one directory in place.
 
-If setup finds no Markdown, it creates a task for an agent. An installed agent
-appears first. You can also copy the task or save it to a file.
+Existing Markdown needs no agent. Setup adds the metadata and scaffold for a
+managed bundle. If setup finds no Markdown, it creates a task for an agent.
+Complete that task before the next step.
+
+### 3. Check
+
+```sh
+okn check Wiki
+```
+
+`check` reports one status across structure, links, and configured freshness,
+retrieval, claims, and publication checks. Use `okn validate Wiki` for detailed
+format and link diagnostics.
+
+### 4. Search and browse
+
+```sh
+okn search Wiki "release workflow"
+okn view Wiki
+```
+
+Replace `Wiki` with your selected target path. Search for a topic in your
+content to verify the first result is useful. Local browsing does not require
+publication configuration.
+
+<details>
+<summary>Agent setup and review</summary>
 
 To use an agent that already works inside the project, copy this prompt:
 
@@ -59,39 +84,21 @@ To use an agent that already works inside the project, copy this prompt:
 Set up Open Knowledge for this workspace. Check the CLI with `okn version`.
 If it is missing, install it from https://openknowledge.sh/install and verify
 the installation. Then run `okn setup --prompt` and follow its complete task.
-Ask me before product-level decisions. Finish with the printed `okn validate`
-and `okn search` commands.
+Ask me before product-level decisions. Finish with `okn check Wiki` and a
+representative `okn search Wiki` query. Use the selected target path.
 ```
 
-The generated task is the source of truth for the setup workflow. The default
-target is `Wiki`.
-
-To let the CLI launch an installed agent runtime, run:
+The generated task defines the agent setup workflow. The default target is
+`Wiki`. To let the CLI launch an installed agent runtime, run:
 
 ```sh
 okn setup --agent <codex|claude|opencode>
 ```
 
 Agent mode runs the same generated task. It creates and validates the wiki.
+For an optional agent review after setup, run `okn review Wiki`.
 
-### 3. Check
-
-When the agent finishes:
-
-```sh
-okn check Wiki
-```
-
-`check` reports one status from the configured validation, link, freshness,
-retrieval, claims, and publication layers.
-
-### 4. Search, review, or browse
-
-```sh
-okn search Wiki "release workflow"
-okn review Wiki
-okn view Wiki
-```
+</details>
 
 <details>
 <summary>Alternative npm installation</summary>
@@ -117,16 +124,30 @@ command to disable telemetry and save the opt-out. See
 The local knowledge workflow does not require typed claims, Knowledge CI, or
 a production runtime.
 
-Add Knowledge CI when pull requests must verify knowledge quality. Add the
-runtime when clients need a production MCP service:
+Add Knowledge CI when pull requests must verify knowledge quality:
 
 ```sh
 okn setup github Wiki
-okn setup runtime Wiki
 ```
 
 The GitHub profile adds an Action-first workflow, source baseline, starter eval
-questions, and config-driven gates. The runtime profile publishes immutable generations with
+questions, and config-driven gates.
+
+When clients need a production MCP service, select the output in
+`Wiki/.openknowledge.toml`:
+
+```toml
+[release]
+outputs = ["mcp"]
+```
+
+Then create the runtime scaffold from a repository with a GitHub origin:
+
+```sh
+okn setup runtime Wiki
+```
+
+The runtime profile configures publication of immutable generations with
 explicit passing or degraded health. See the complete
 [Knowledge CI Golden Path](Wiki/features/golden-path.md).
 

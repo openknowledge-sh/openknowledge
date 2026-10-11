@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "openknowledge-local",
+  "version": "0.0.6",
+  "description": "Use the complete local Open Knowledge Viewer beside your conversation. Development prototype.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Open Knowledge Local",
+        "shortDescription": "Your knowledge library beside your conversation",
+        "longDescription": "Use the existing Open Knowledge Viewer with its workspaces, document tree, search, and editor beside your conversation. Codex starts the local server automatically. Share the active document or selected text with the conversation.",
+        "category": "Productivity",
+        "brandColor": "#28634D",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg",
+        "defaultPrompt": ["Open my Open Knowledge library.", "Show my registered knowledge bases."]
+      }
+    }
+  }
+}

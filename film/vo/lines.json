@@ -1,0 +1,102 @@
+{
+ "take": "take.mp3",
+ "voice": "ElevenLabs Roger (laid-back, casual, resonant)",
+ "lines": [
+  {
+   "line": 1,
+   "from": 0,
+   "to": 3.593,
+   "at": 2.35,
+   "tempo": 1.0,
+   "text": "Your agent sounds sure, but it doesn't know your project."
+  },
+  {
+   "line": 2,
+   "from": 3.902,
+   "to": 8.095,
+   "at": 6.602,
+   "tempo": 1.0,
+   "text": "So you explain it again, every session, every tool."
+  },
+  {
+   "line": 3,
+   "from": 8.454,
+   "to": 12.117,
+   "at": 11.384,
+   "tempo": 1.0,
+   "text": "What you wrote down is scattered, stale, and unverifiable."
+  },
+  {
+   "line": 4,
+   "from": 12.643,
+   "to": 17.736,
+   "at": 16.633,
+   "tempo": 1.0,
+   "text": "Meet open knowledge. One knowledge base for your team and every agent."
+  },
+  {
+   "line": 5,
+   "from": 18.129,
+   "to": 26.786,
+   "at": 22.409,
+   "tempo": 1.0,
+   "text": "Start with the docs you already have. One command turns plain markdown into a managed knowledge base. No docs yet? Your agent drafts them."
+  },
+  {
+   "line": 6,
+   "from": 27.108,
+   "to": 36.171,
+   "at": 32.37,
+   "tempo": 1.0,
+   "text": "Search it, and every answer comes with receipts. The file, the lines, and a content hash. Your agent stops guessing and starts citing."
+  },
+  {
+   "line": 7,
+   "from": 36.547,
+   "to": 43.323,
+   "at": 42.357,
+   "tempo": 1.0,
+   "text": "One wiki for every agent. Any MCP client can search it. Switch tools and keep your knowledge."
+  },
+  {
+   "line": 8,
+   "from": 43.65,
+   "to": 50.6,
+   "at": 51.87,
+   "tempo": 1.0,
+   "text": "When things change, your agent proposes the edit. You review the diff, then save. The history lives in Git."
+  },
+  {
+   "line": 9,
+   "from": 50.933,
+   "to": 59.0,
+   "at": 60.472,
+   "tempo": 1.0,
+   "text": "Checks catch stale knowledge before it ships. When a source changes, you know. And every pull request is tested before it merges."
+  },
+  {
+   "line": 10,
+   "from": 59.286,
+   "to": 65.294,
+   "at": 71.076,
+   "tempo": 1.0,
+   "text": "Then ship knowledge like code. Every release is immutable, and rollback is one command."
+  },
+  {
+   "line": 11,
+   "from": 65.582,
+   "to": 70.573,
+   "at": 77.9,
+   "tempo": 1.08,
+   "text": "One lifecycle. From a folder of notes to production. No migrations."
+  },
+  {
+   "line": 12,
+   "from": 71.046,
+   "to": 77.636,
+   "at": 86.396,
+   "tempo": 1.0,
+   "text": "Open knowledge. Build a knowledge base your agents can use. Start today at openknowledge .sh."
+  }
+ ]
+}

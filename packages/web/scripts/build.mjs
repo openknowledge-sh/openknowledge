@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { publishCLISchemas } from "./schema-distribution.mjs";
-import { distRoot as dist, exportWiki } from "./wiki-export.mjs";
+import { distRoot as dist, exportWiki, exportKnowledgeBase, repoRoot } from "./wiki-export.mjs";
 
 const headMarker = "<!-- OPENKNOWLEDGE_HEAD -->";
 
@@ -9,12 +9,27 @@ const sitePages = [
   path.join(dist, "index.html"),
   path.join(dist, "getting-started", "index.html"),
   path.join(dist, "terminal", "index.html"),
+  path.join(dist, "signal", "index.html"),
+  path.join(dist, "blueprint", "index.html"),
+  ...["", "project-documentation", "research-notes", "agent-context", "mcp-webmcp", "changelogs", "knowledge-ci"]
+    .map((slug) => path.join(dist, "use-cases", slug, "index.html")),
 ];
 for (const pagePath of sitePages) {
   await writeFile(pagePath, await injectHeadHTML(await readFile(pagePath, "utf8")));
 }
 
 await exportWiki(path.join(dist, "wiki"), { clean: false });
+for (const [source, route] of [
+  ["example-project-docs", "project-documentation"],
+  ["example-research-notes", "research-notes"],
+  ["example-changelog", "changelogs"],
+]) {
+  await exportKnowledgeBase(
+    path.join(repoRoot, "examples", source, "Wiki"),
+    path.join(dist, "examples", route),
+    { clean: false },
+  );
+}
 await publishCLISchemas(path.join(dist, "schemas"));
 
 console.log(`Built ${dist}`);

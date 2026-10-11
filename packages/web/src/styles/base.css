@@ -1621,3 +1621,12 @@ h1 > span,
     font-size: clamp(2.05rem, 10.5vw, 2.35rem);
   }
 }
+
+.hero-proof { max-width: 510px; margin-top: 22px; padding: 16px 18px; background: #f3f8fd; border-radius: 12px; color: #082b63; }
+.hero-proof label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 650; }
+.hero-proof select { width: 100%; min-height: 38px; padding: 7px; font: inherit; font-size: 14px; color: #082b63; background: #fff; border: 1px solid #bdd0e4; border-radius: 6px; }
+.hero-proof p { margin: 12px 0 7px; font-size: 14px; line-height: 1.5; }
+.hero-proof a { color: #123b71; font-size: 13px; text-underline-offset: 3px; }
+.hero-proof select:focus-visible, .hero-proof a:focus-visible { outline: 2px solid #123b71; outline-offset: 3px; }
+@media (min-width: 721px) { .hero h1 { font-size: clamp(3rem, 4.5vw, 4.2rem); } }
+@media (max-width: 720px) { .hero-proof { margin-top: 18px; } .hero-proof select { font-size: 16px; min-height: 44px; } }

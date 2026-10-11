@@ -1,6 +1,6 @@
 module github.com/openknowledge-sh/openknowledge/packages/cli
 
-go 1.26.6
+go 1.26.9
 
 require (
 	codeberg.org/TauCeti/mangle-go v0.5.0
@@ -23,5 +23,5 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/text v0.39.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 )

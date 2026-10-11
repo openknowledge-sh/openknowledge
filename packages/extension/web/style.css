@@ -1,0 +1,36 @@
+@import '@openai/mcp-extensions/app/styles.css';
+
+:root { color-scheme: light; --surface: #fff; --ink: #242d29; --muted: #747d75; --line: #e5e7df; --green: #28634d; --tint: #e8eee6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink); background: var(--surface); font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+button:disabled { opacity: .5; cursor: default; }
+[hidden] { display: none !important; }
+#app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.integration-toolbar { min-height: 38px; display: flex; align-items: center; gap: 12px; padding: 5px 12px; border-bottom: 1px solid var(--line); }
+.integration-toolbar strong { font-size: 12px; }
+#connection { color: var(--muted); font-size: 10px; }
+#open-external { margin-left: auto; }
+.quiet { border: 0; background: transparent; color: var(--muted); padding: 6px; border-radius: 5px; font-size: 11px; }
+.quiet:hover { background: var(--tint); color: var(--green); }
+.viewer-container { flex: 1; min-height: 0; display: flex; }
+.viewer-container iframe { width: 100%; height: 100%; flex: 1; min-height: 0; border: 0; background: var(--surface); }
+.fallback { flex: 1; display: grid; place-content: center; padding: 32px; max-width: 620px; margin: auto; }
+.fallback h1 { font-size: 22px; }
+.fallback p { color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.fallback button { justify-self: start; }
+.context-actions { border-top: 1px solid var(--line); padding: 9px 12px; display: flex; align-items: center; gap: 14px; background: var(--surface); }
+.context-actions > div { flex: 1; min-width: 0; }
+.context-actions p { margin: 0; font-size: 10px; line-height: 1.5; color: var(--muted); }
+#active-page { color: var(--ink); overflow-wrap: anywhere; }
+.primary { flex: 0 0 auto; border: 0; padding: 9px 12px; border-radius: 6px; background: var(--green); color: white; font-size: 11px; }
+.primary:hover { background: #194c39; }
+.viewer-status { margin: 0; padding: 0 12px 4px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.context-preview { position: fixed; bottom: 75px; right: 12px; z-index: 10; max-width: min(620px, calc(100vw - 24px)); border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: 0 8px 30px #16320c12; }
+.context-preview summary { padding: 8px 12px; cursor: pointer; font-size: 10px; color: var(--green); }
+.context-preview pre { padding: 0 12px 12px; margin: 0; max-height: 240px; overflow: auto; font-size: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.toast { position: fixed; bottom: 105px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 15px; border-radius: 7px; font-size: 12px; z-index: 20; max-width: 90vw; }
+html[data-theme="dark"] { color-scheme: dark; --surface: #202621; --ink: #e0e7de; --muted: #9da89c; --line: #354034; --green: #9ac8a3; --tint: #2b3b2d; }
+html[data-theme="dark"] .primary { color: #16291d; }
+@media(max-width:420px) { .integration-toolbar { gap: 6px; padding: 5px 8px; }.integration-toolbar strong { font-size: 11px; }.quiet { font-size: 10px; }.context-actions { padding: 8px; gap: 8px; } }

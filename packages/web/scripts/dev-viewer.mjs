@@ -1,29 +1,30 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { createServer } from "vite";
 import { repoRoot, webRoot } from "./wiki-export.mjs";
 
-const viewerAssetPrefix = "/assets/openknowledge/";
 const viewerThemePath = path.join(repoRoot, "packages/cli/cmd/openknowledge/viewer_theme.css");
 const viewerThemeURL = `/@fs/${viewerThemePath.replaceAll(path.sep, "/")}`;
 
 export function useViteViewerAssets(html) {
   return html
     .replaceAll(
-      `<script src="${viewerAssetPrefix}viewer-theme.js"></script>`,
+      /<script src="\/assets\/openknowledge\/viewer-theme\.js(?:\?v=[a-f0-9]{16})?"><\/script>/g,
       '<script type="module" src="/src/viewer/theme.js"></script>',
     )
     .replaceAll(
-      `<link rel="stylesheet" href="${viewerAssetPrefix}viewer.css">`,
+      /<link rel="stylesheet" href="\/assets\/openknowledge\/viewer\.css(?:\?v=[a-f0-9]{16})?">/g,
       `<link rel="stylesheet" href="${viewerThemeURL}">\n  <link rel="stylesheet" href="/src/viewer/styles/index.css">`,
     )
     .replaceAll(
-      `<script src="${viewerAssetPrefix}viewer.js"></script>`,
+      /<script src="\/assets\/openknowledge\/viewer\.js(?:\?v=[a-f0-9]{16})?"><\/script>/g,
       '<script type="module" src="/src/viewer/index.js"></script>',
     )
     .replaceAll(
-      `<script src="${viewerAssetPrefix}viewer-live-reload.js"></script>`,
+      /<script src="\/assets\/openknowledge\/viewer-live-reload\.js(?:\?v=[a-f0-9]{16})?"><\/script>/g,
       '<script type="module" src="/src/viewer/live-reload-entry.js"></script>',
     );
 }
@@ -47,6 +48,21 @@ function copyResponseHeaders(upstream, response, transformed) {
   }
 }
 
+export function viewerProxyHeaders(incoming, target) {
+  const headers = { ...incoming, host: target.host };
+  delete headers["accept-encoding"];
+  // Preserve the same-origin boundary while forwarding the development UI to
+  // its loopback backend. A foreign Origin must never acquire write access.
+  if (incoming.origin === `http://${incoming.host}`) headers.origin = target.origin;
+  return headers;
+}
+
+export async function streamViewerResponse(upstream, response) {
+  response.flushHeaders?.();
+  if (!upstream.body) { response.end(); return; }
+  await pipeline(Readable.fromWeb(upstream.body), response);
+}
+
 function createViewerProxy(backendURL, vite) {
   return async (request, response, next) => {
     if (isViteViewerRequest(request.url)) {
@@ -54,15 +70,17 @@ function createViewerProxy(backendURL, vite) {
       return;
     }
 
+    const controller = new AbortController();
+    response.once("close", () => controller.abort());
     try {
       const target = new URL(request.url || "/", backendURL);
-      const headers = { ...request.headers, host: target.host };
-      delete headers["accept-encoding"];
+      const headers = viewerProxyHeaders(request.headers, target);
       const hasBody = request.method !== "GET" && request.method !== "HEAD";
       const init = {
         method: request.method,
         headers,
         redirect: "manual",
+        signal: controller.signal,
       };
       if (hasBody) {
         init.body = request;
@@ -79,9 +97,9 @@ function createViewerProxy(backendURL, vite) {
         return;
       }
 
-      response.end(Buffer.from(await upstream.arrayBuffer()));
+      await streamViewerResponse(upstream, response);
     } catch (error) {
-      next(error);
+      if (!response.destroyed) next(error);
     }
   };
 }

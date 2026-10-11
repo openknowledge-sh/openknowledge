@@ -47,8 +47,7 @@
   async function applyRevision(nextRevision) {
     const bridge = window.OpenKnowledgeViewerLiveReload;
     if (bridge && typeof bridge.prepare === "function") {
-      await bridge.prepare(nextRevision);
-      return;
+      return bridge.prepare(nextRevision);
     }
     window.location.reload();
   }
@@ -63,8 +62,12 @@
       preparing = true;
       setStatus("Refreshing changed files…", "info");
       try {
-        await applyRevision(nextRevision);
+        const applied = await applyRevision(nextRevision);
         revision = nextRevision;
+        if (applied === false) {
+          preparing = false;
+          setStatus("", "");
+        }
       } catch {
         preparing = false;
         setStatus("Live reload could not verify changed files. It will retry after the next change.", "error");

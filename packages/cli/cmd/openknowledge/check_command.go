@@ -46,6 +46,8 @@ func runCheck(args []string) int {
 	flags.SetOutput(stderrOutput())
 	format := flags.String("format", "text", "output format: text or json")
 	gate := flags.Bool("gate", false, "fail when the result needs attention or is unmanaged")
+	runtimeConfig := flags.String("config", "runtime.toml", "runtime configuration for MCP publication checks")
+	runtimeID := flags.String("id", "", "runtime knowledge-base ID")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -62,7 +64,7 @@ func runCheck(args []string) int {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
 	}
-	report, err := buildKnowledgeCheckReport(resolved)
+	report, err := buildKnowledgeCheckReportWithRuntime(resolved, *runtimeConfig, *runtimeID)
 	if err != nil {
 		fmt.Fprintln(stderrOutput(), err)
 		return 1
@@ -96,6 +98,10 @@ func lifecycleFlagsAfterPath(args []string) []string {
 }
 
 func buildKnowledgeCheckReport(root string) (knowledgeCheckReport, error) {
+	return buildKnowledgeCheckReportWithRuntime(root, "runtime.toml", "")
+}
+
+func buildKnowledgeCheckReportWithRuntime(root, runtimeConfig, runtimeID string) (knowledgeCheckReport, error) {
 	report := knowledgeCheckReport{SchemaVersion: okf.MachineSchemaVersion, Root: root, Overall: checkReady}
 	if !setupExistingBundle(root) {
 		discovery, err := okf.DiscoverMarkdown(root, okf.MarkdownDiscoveryOptions{})
@@ -163,6 +169,16 @@ func buildKnowledgeCheckReport(root string) (knowledgeCheckReport, error) {
 		links.Message = fmt.Sprintf("%d link warnings.", linkWarnings)
 	}
 	report.Layers = append(report.Layers, links)
+	if imported, err := okf.InspectSetupImport(root); err != nil {
+		report.Layers = append(report.Layers, knowledgeCheckLayer{Name: "Imported copy", Status: checkNeedsAttention, Message: err.Error()})
+	} else if imported != nil {
+		layer := knowledgeCheckLayer{Name: "Imported copy", Status: checkReady, Message: fmt.Sprintf("%d documents copied from %s. Originals and managed copies remain separate.", imported.Documents, imported.Source)}
+		if imported.SourceChanged+imported.CopyChanged+imported.Unavailable > 0 {
+			layer.Status = checkNeedsAttention
+			layer.Message = fmt.Sprintf("%d changed originals, %d changed copies, %d unavailable originals. Review differences with %s before applying updates.", imported.SourceChanged, imported.CopyChanged, imported.Unavailable, imported.Source)
+		}
+		report.Layers = append(report.Layers, layer)
+	}
 
 	baselinePath := filepath.Join(root, ".openknowledge", "audit-sources.json")
 	if _, err := os.Stat(baselinePath); err == nil {
@@ -237,7 +253,7 @@ func buildKnowledgeCheckReport(root string) (knowledgeCheckReport, error) {
 	publication := knowledgeCheckLayer{Name: "Publication", Status: checkNotConfigured, Message: "Publication is disabled."}
 	if len(config.Release.Outputs) > 0 {
 		publication.Status = checkReady
-		publication.Message = "Configured publication outputs are ready."
+		publication.Message = "Content checks passed. Target readiness is listed separately."
 		for _, output := range config.Release.Outputs {
 			target := okf.PublicationTarget(output)
 			if _, err := okf.BuildPublicationSetForTargetWithVersion(root, version, target); err != nil {
@@ -248,6 +264,20 @@ func buildKnowledgeCheckReport(root string) (knowledgeCheckReport, error) {
 		}
 	}
 	report.Layers = append(report.Layers, publication)
+	if publication.Status == checkReady {
+		for _, output := range config.Release.Outputs {
+			layer := knowledgeCheckLayer{Name: "Target " + output, Status: checkReady, Message: "Ready to build the viewer bundle."}
+			if output == okf.ReleaseOutputMCP {
+				_, err := resolvePublishRuntimeTarget(publishPlan{Root: root, RuntimeConfig: runtimeConfig, RuntimeID: runtimeID})
+				layer.Message = "Runtime configuration selects this knowledge base."
+				if err != nil {
+					layer.Status = checkNeedsAttention
+					layer.Message = err.Error() + ". Configure the runtime, or publish with --target viewer."
+				}
+			}
+			report.Layers = append(report.Layers, layer)
+		}
+	}
 
 	report.Overall = checkOverallStatus(report.Layers)
 	return report, nil
@@ -300,9 +330,12 @@ Usage:
   openknowledge check [path]
   openknowledge check [path] --format json
   openknowledge check [path] --gate
+  openknowledge check [path] --config runtime.toml [--id <knowledge-base>]
 
 Validation always runs. Audit, eval, claims, and publication checks run only
 when their inputs or profiles are present. --gate fails for unmanaged or
 attention-needed results in addition to blocked results.
+Publication reports content eligibility and readiness for each configured target.
+Unconfigured freshness and retrieval layers have not been checked.
 `
 }

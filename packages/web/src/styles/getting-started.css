@@ -782,3 +782,9 @@
     opacity: 0.72;
   }
 }
+
+.guide-explanation { padding: clamp(24px, 4vw, 48px); background: #e5f0f9; border-radius: 16px; color: #082b63; }
+.guide-explanation h3 { margin-top: 0; font-size: clamp(1.5rem, 2.5vw, 2rem); }
+.guide-explanation p { line-height: 1.7; }
+.guide-explanation a { color: #123b71; }
+.guide-step { scroll-margin-top: 120px; }

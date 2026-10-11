@@ -1,0 +1,179 @@
+/* Brings the use-case pages and the setup guide up to the landing page's quality.
+   Page structure and markup stay the same; this layer only restyles existing classes.
+   Loaded after terminal.css / terminal-draft.css / getting-started-terminal.css. */
+
+.nx-page {
+  background: var(--nx-bg);
+  -webkit-font-smoothing: antialiased;
+}
+.nx-page .skip-link { z-index: 100; }
+
+/* ================================================================ use cases */
+.nx-page.terminal-draft main {
+  overflow-x: clip;
+  width: min(100%, calc(var(--nx-wrap) + var(--nx-gutter) * 2));
+  padding-inline: var(--nx-gutter);
+  margin-inline: auto;
+}
+
+/* hero */
+.nx-page .terminal-intro { position: relative; max-width: none; padding: clamp(64px, 9vw, 112px) 0 clamp(48px, 6vw, 72px); isolation: isolate; }
+.nx-page .terminal-intro::before {
+  content: ""; position: absolute; z-index: -1; inset: 0 -20vw auto; height: 520px; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(154, 194, 255, 0.12) 1px, transparent 1.6px);
+  background-size: 32px 32px;
+  -webkit-mask-image: radial-gradient(ellipse 50% 70% at 30% 0%, #000 10%, transparent 75%);
+  mask-image: radial-gradient(ellipse 50% 70% at 30% 0%, #000 10%, transparent 75%);
+}
+.nx-page .terminal-intro .product-kind {
+  display: inline-flex; gap: 8px; align-items: center; margin: 0 0 26px; padding: 7px 13px;
+  border: 1px solid var(--nx-line-2); border-radius: 999px; background: var(--nx-bg-1);
+  font: 500 12.5px/1 var(--nx-mono); color: var(--nx-quiet); letter-spacing: 0;
+}
+.nx-page .terminal-intro .product-kind a { color: var(--nx-text); text-decoration: none; }
+.nx-page .terminal-intro .product-kind a:hover { color: var(--nx-accent); }
+.nx-page .terminal-intro h1 {
+  max-width: 22ch; font: 500 clamp(2.4rem, 5.6vw, 4.6rem)/1 var(--nx-mono); letter-spacing: -0.06em; text-wrap: balance;
+}
+.nx-page .terminal-intro h1 .hero-accent { color: var(--nx-accent); }
+.nx-page .terminal-intro > p {
+  max-width: 56ch; margin: 26px 0 0; font: 400 clamp(1.05rem, 1.5vw, 1.2rem)/1.6 var(--nx-sans); color: var(--nx-muted); letter-spacing: -0.01em;
+}
+.nx-page .terminal-intro .hero-actions { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; margin-top: 32px; }
+.nx-page .primary-cta {
+  min-height: 46px; padding: 0 20px; border-radius: 6px; background: var(--nx-accent); border-color: var(--nx-accent);
+  color: var(--nx-accent-ink); font: 500 14px/1 var(--nx-mono);
+}
+.nx-page .primary-cta:hover { background: var(--nx-accent-2); }
+
+/* sections */
+.nx-page .workflow-section {
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 24px clamp(28px, 5vw, 64px);
+  padding: clamp(48px, 6vw, 72px) 0; border-top: 1px solid var(--nx-line);
+}
+.nx-page .step-heading { position: sticky; top: 92px; align-self: start; flex-direction: column; gap: 14px; }
+.nx-page .step-number {
+  display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--nx-line-blue); border-radius: 8px;
+  background: var(--nx-bg-1); color: var(--nx-accent); font: 500 12.5px/1 var(--nx-mono);
+}
+.nx-page .step-heading h2 { font: 500 clamp(1.35rem, 2.2vw, 1.75rem)/1.15 var(--nx-mono); letter-spacing: -0.045em; text-wrap: balance; }
+.nx-page .step-body { font: 400 16px/1.65 var(--nx-sans); color: var(--nx-muted); }
+.nx-page .step-body > p, .nx-page .step-lead { max-width: 62ch; }
+.nx-page .step-lead { margin-top: 0; color: var(--nx-text); font-size: 17px; }
+.nx-page .step-body code:not(pre code):not(.copy-command code) { font: 500 .9em var(--nx-mono); color: #e6c18c; }
+.nx-page .step-note { margin-top: 20px; font: 400 15px/1.65 var(--nx-sans); color: var(--nx-quiet); max-width: 62ch; }
+.nx-page .step-note a { color: var(--nx-text); }
+.nx-page .plain-list, .nx-page .step-body ul { display: grid; gap: 10px; padding-left: 20px; }
+.nx-page .step-body li { font: 400 16px/1.6 var(--nx-sans); color: var(--nx-muted); }
+.nx-page .step-body li::marker { color: var(--nx-accent); }
+.nx-page .step-body li strong, .nx-page .step-body li b { color: var(--nx-text); font-weight: 600; }
+
+/* links */
+.nx-page .text-link {
+  display: flex; width: fit-content; gap: 12px; min-height: 40px; color: var(--nx-accent);
+  font: 500 14px/1.4 var(--nx-mono); text-decoration: none; transition: gap .2s, color .2s;
+}
+.nx-page .text-link:hover { gap: 18px; color: var(--nx-accent-2); text-decoration: none; }
+
+/* commands and output */
+.nx-page .install-commands {
+  border: 1px solid var(--nx-line-2); border-radius: var(--nx-radius); background: linear-gradient(180deg, #0a0d12, #06080b);
+  box-shadow: 0 30px 80px -40px rgba(0, 0, 0, .9);
+}
+.nx-page .install-commands + .install-commands, .nx-page .install-commands + * { margin-top: 16px; }
+.nx-page .copy-command { gap: 12px; padding: 14px 12px 14px 18px; font: 500 13.5px/1.5 var(--nx-mono); }
+.nx-page .copy-command + .copy-command { border-top: 1px solid var(--nx-line); }
+.nx-page .command-prompt { color: var(--nx-dim); }
+.nx-page .copy-command button {
+  min-width: 0; min-height: 34px; padding: 0 12px; border: 1px solid var(--nx-line-2); border-radius: 6px; background: var(--nx-bg-2);
+  color: var(--nx-muted); font: 500 12px/1 var(--nx-mono); transition: color .18s, border-color .18s, background-color .18s;
+}
+.nx-page .copy-command button:hover { color: var(--nx-text); border-color: var(--nx-quiet); background: var(--nx-bg-2); }
+.nx-page .copy-command button[data-copied] { color: var(--nx-ok); border-color: rgba(72, 221, 120, .45); background: rgba(72, 221, 120, .08); }
+.nx-page .command-output { padding: 18px 22px 20px; border-top: 1px dashed var(--nx-line-2); background: #04060a; }
+.nx-page .output-label { margin-bottom: 12px; font: 500 11.5px/1 var(--nx-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nx-dim); }
+.nx-page .command-output pre { margin: 0; overflow-x: auto; font: 500 13px/1.75 var(--nx-mono); color: var(--nx-text); }
+.nx-page .command-output code { white-space: pre; }
+.nx-page .output-note { margin: 14px 0 0; font: 400 14px/1.6 var(--nx-sans); color: var(--nx-quiet); }
+.nx-page .output-highlight { color: var(--nx-accent); }
+.nx-page .output-success { color: var(--nx-ok); }
+.nx-page .copy-feedback { min-height: 0; margin: 10px 0 0; font: 500 12.5px var(--nx-mono); color: var(--nx-ok); }
+.nx-page .copy-feedback:empty { margin: 0; }
+
+/* use-case lists */
+.nx-page .use-case-list { display: grid; gap: 10px; border: 0; }
+.nx-page .use-case-entry {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px;
+  padding: 20px 22px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius);
+  background: linear-gradient(180deg, var(--nx-bg-1), #040507); color: var(--nx-text); text-decoration: none;
+  transition: border-color .2s, background-color .2s, transform .2s;
+}
+.nx-page .use-case-entry:hover { border-color: var(--nx-line-blue); padding-inline: 22px; transform: translateY(-1px); }
+.nx-page .use-case-entry h3 { margin: 0 0 6px; font: 500 17px/1.3 var(--nx-mono); letter-spacing: -0.03em; }
+.nx-page .use-case-entry p { margin: 0; font: 400 15px/1.55 var(--nx-sans); color: var(--nx-muted); }
+.nx-page .use-case-entry > span { color: var(--nx-accent); font-family: var(--nx-mono); transition: transform .2s; }
+.nx-page .use-case-entry:hover > span { transform: translateX(4px); }
+
+/* pairs, comparisons, agent tasks */
+.nx-page .choice-pair, .nx-page .connection-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.nx-page .choice-pair > div, .nx-page .connection-comparison > * {
+  padding: 18px 20px; border: 1px solid var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-bg-1);
+}
+.nx-page .choice-pair h3, .nx-page .connection-comparison h3 { margin: 0 0 8px; font: 500 15px/1.3 var(--nx-mono); color: var(--nx-text); }
+.nx-page .choice-pair p, .nx-page .connection-comparison p { margin: 0; font-size: 14.5px; }
+.nx-page .agent-task, .nx-page .source-preview, .nx-page .agent-flow, .nx-page .compatibility-note {
+  border-color: var(--nx-line-2); border-radius: var(--nx-radius);
+}
+.nx-page .connection-kind { font: 500 11.5px/1 var(--nx-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nx-accent); }
+
+/* viewer screenshot */
+.nx-page .viewer-showcase {
+  overflow: hidden; border: 1px solid var(--nx-line-blue); border-radius: 14px; background: #000;
+  box-shadow: 0 50px 140px -40px rgba(40, 120, 255, .45);
+}
+.nx-page .viewer-showcase-bar { border-bottom: 1px solid var(--nx-line); background: #090c11; font: 500 12.5px var(--nx-mono); }
+.nx-page .viewer-showcase figcaption { font: 500 12.5px var(--nx-mono); color: var(--nx-quiet); }
+
+/* ================================================================ setup guide */
+.nx-page.guide-page { font-family: var(--nx-sans); }
+.nx-page.guide-page .guide-hero { padding-top: clamp(56px, 8vw, 96px); }
+.nx-page.guide-page .hero-mark { filter: drop-shadow(0 0 34px rgba(102, 160, 255, .45)); }
+.nx-page.guide-page .guide-hero h1 { font: 500 clamp(2.4rem, 5.6vw, 4.6rem)/1 var(--nx-mono); letter-spacing: -0.06em; text-wrap: balance; }
+.nx-page.guide-page .guide-hero > p { font: 400 clamp(1.05rem, 1.5vw, 1.2rem)/1.6 var(--nx-sans); color: var(--nx-muted); letter-spacing: -0.01em; }
+.nx-page.guide-page .button {
+  min-height: 46px; padding: 0 20px; border-radius: 6px; font: 500 14px/1 var(--nx-mono); letter-spacing: -0.01em;
+}
+.nx-page.guide-page .button-primary { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-ink); box-shadow: none; }
+.nx-page.guide-page .button-primary:hover { background: var(--nx-accent-2); }
+.nx-page.guide-page .button-secondary { border-color: var(--nx-line-2); background: transparent; color: var(--nx-text); }
+.nx-page.guide-page .button-secondary:hover { border-color: var(--nx-quiet); }
+.nx-page.guide-page .guide-index { border-color: var(--nx-line); border-radius: var(--nx-radius); background: var(--nx-bg-1); overflow: hidden; }
+.nx-page.guide-page .guide-index a { font-family: var(--nx-mono); }
+.nx-page.guide-page .guide-index a span { color: var(--nx-accent); }
+.nx-page.guide-page .guide-step-copy h2 { font: 500 clamp(1.8rem, 3.4vw, 2.7rem)/1.04 var(--nx-mono); letter-spacing: -0.05em; text-wrap: balance; }
+.nx-page.guide-page .guide-step-copy p { font: 400 16.5px/1.65 var(--nx-sans); color: var(--nx-muted); }
+.nx-page.guide-page .guide-step-copy p code { font: 500 .9em var(--nx-mono); color: #e6c18c; }
+.nx-page.guide-page .journey-index { font-family: var(--nx-mono); }
+.nx-page.guide-page .guide-copy-command {
+  border-color: var(--nx-line-2); border-radius: var(--nx-radius); background: linear-gradient(180deg, #0a0d12, #06080b);
+  font-family: var(--nx-mono); transition: border-color .18s;
+}
+.nx-page.guide-page .guide-copy-command:hover { border-color: var(--nx-quiet); }
+.nx-page.guide-page .guide-media-frame { border-color: var(--nx-line-2); border-radius: 14px; box-shadow: 0 50px 140px -50px rgba(40, 120, 255, .4); }
+.nx-page.guide-page .guide-reference-link { font-family: var(--nx-mono); color: var(--nx-accent); }
+
+/* ================================================================ responsive */
+@media (max-width: 860px) {
+  .nx-page .workflow-section { grid-template-columns: minmax(0, 1fr); }
+  .nx-page .step-heading { position: static; flex-direction: row; align-items: center; }
+}
+@media (max-width: 560px) {
+  .nx-page .copy-command { padding-left: 14px; font-size: 12.5px; }
+  .nx-page .command-output { padding: 16px; }
+  .nx-page .command-output pre { font-size: 12px; }
+  .nx-page .use-case-entry { padding: 16px 18px; }
+}
+
+/* long inline code wraps instead of widening the page */
+.nx-page .step-body code { overflow-wrap: anywhere; }
+.nx-page .command-output code, .nx-page .copy-command code { overflow-wrap: normal; }

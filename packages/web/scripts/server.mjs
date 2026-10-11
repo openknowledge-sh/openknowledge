@@ -56,10 +56,12 @@ const contentTypes = new Map([
   [".jpg", "image/jpeg"],
   [".js", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
+  [".mp4", "video/mp4"],
   [".pdf", "application/pdf"],
   [".png", "image/png"],
   [".svg", "image/svg+xml"],
   [".txt", "text/plain; charset=utf-8"],
+  [".vtt", "text/vtt; charset=utf-8"],
   [".wasm", "application/wasm"],
   [".webp", "image/webp"],
   [".woff2", "font/woff2"],
@@ -158,7 +160,7 @@ async function handleRequest(request, response, options) {
     if (!file) {
       continue;
     }
-    await writeFile(response, method, file);
+    await writeFile(response, method, file, request.headers?.range);
     return;
   }
 
@@ -424,21 +426,41 @@ function commandAliasLocation(parsed) {
   return `/wiki/features/commands/${match[1]}.html${parsed.search}`;
 }
 
-async function writeFile(response, method, file) {
+async function writeFile(response, method, file, rangeHeader) {
   const extension = path.extname(file.path).toLowerCase();
   const cacheControl = extension === ".html" ? "no-cache" : "public, max-age=300, stale-while-revalidate=60";
-  response.writeHead(200, responseHeaders({
+  const headers = {
     "Cache-Control": cacheControl,
     "Content-Length": String(file.size),
     "Content-Type": contentTypes.get(extension) || "application/octet-stream",
-  }));
+  };
+  let range;
+  if (extension === ".mp4") {
+    headers["Accept-Ranges"] = "bytes";
+    if (method === "GET" && rangeHeader) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+      if (match && (match[1] || match[2])) {
+        const start = match[1] ? Number(match[1]) : Math.max(0, file.size - Number(match[2]));
+        const end = match[1] && match[2] ? Math.min(Number(match[2]), file.size - 1) : file.size - 1;
+        if (Number.isSafeInteger(start) && Number.isSafeInteger(end) && start <= end && start < file.size) range = { start, end };
+      }
+      if (!range) {
+        response.writeHead(416, responseHeaders({ ...headers, "Content-Range": `bytes */${file.size}`, "Content-Length": "0" }));
+        response.end();
+        return;
+      }
+      headers["Content-Range"] = `bytes ${range.start}-${range.end}/${file.size}`;
+      headers["Content-Length"] = String(range.end - range.start + 1);
+    }
+  }
+  response.writeHead(range ? 206 : 200, responseHeaders(headers));
   if (method === "HEAD") {
     response.end();
     return;
   }
 
   await new Promise((resolve, reject) => {
-    const stream = createReadStream(file.path);
+    const stream = createReadStream(file.path, range);
     const cleanup = () => {
       response.off("close", onClose);
       response.off("finish", onFinish);

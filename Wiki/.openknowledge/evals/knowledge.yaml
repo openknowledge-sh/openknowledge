@@ -1,0 +1,38 @@
+type: openknowledge.eval
+version: 1
+id: wiki-product-workflows
+defaults:
+  budget: 2400
+  limit: 12
+  no_expand: true
+cases:
+  - id: setup-copy
+    question: How do I set up a managed copy of my Markdown without changing the source files?
+    expect:
+      sources: [features/commands/setup.md#setup-modes]
+      evidence_contains: ["imported/", "Keep source files unchanged"]
+      min_sources: 1
+  - id: publish-viewer
+    question: How do I publish the viewer to a custom output directory?
+    expect:
+      sources: [features/commands/publish.md#usage]
+      evidence_contains: ["--target viewer --out ./site"]
+      min_sources: 1
+  - id: search-budget
+    question: How do I search with a smaller context token budget?
+    expect:
+      sources: [features/commands/search.md#usage]
+      evidence_contains: ["--budget 1200"]
+      min_sources: 1
+  - id: check-status
+    question: What does the NEEDS ATTENTION status mean when I check a knowledge base?
+    expect:
+      sources: [features/commands/check.md#status]
+      evidence_contains: ["one configured check needs attention"]
+      min_sources: 1
+  - id: local-viewer
+    question: How do I start the local viewer without opening a browser?
+    expect:
+      sources: [features/commands/view.md#usage]
+      evidence_contains: ["okn view --no-browser Wiki"]
+      min_sources: 1

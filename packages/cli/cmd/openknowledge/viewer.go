@@ -41,6 +41,7 @@ func runView(args []string) int {
 		fmt.Fprint(os.Stdout, viewHelpText())
 		return 0
 	}
+	args = lifecycleFlagsAfterPath(args)
 	fs := flag.NewFlagSet("view", flag.ContinueOnError)
 	fs.SetOutput(stderrOutput())
 	host := fs.String("host", "127.0.0.1", "host to bind")
@@ -512,6 +513,13 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 			renderViewerIndex(response, root, viewerFrame{}, prefix, filepath.Base(root), options)
 			return
 		}
+		if serveViewerProductAPI(response, request, root, rest, options.ReadOnly) {
+			return
+		}
+		if rest == "api/document" {
+			serveViewerDocumentAPI(response, request, root, options.ReadOnly)
+			return
+		}
 		if rest == "api/search" {
 			renderViewerSearch(response, request, searchCache, prefix)
 			return
@@ -539,9 +547,18 @@ func newViewerHandlerWithOptions(root string, options viewerOptions) http.Handle
 		rel := strings.TrimPrefix(request.URL.Path, "/api/file/")
 		renderViewerFileAPI(response, request, root, rel, "", aliasName, bundleCache)
 	})
+	mux.HandleFunc("/api/document", func(response http.ResponseWriter, request *http.Request) {
+		serveViewerDocumentAPI(response, request, root, options.ReadOnly)
+	})
 	mux.HandleFunc("/raw/", func(response http.ResponseWriter, request *http.Request) {
 		rel := strings.TrimPrefix(request.URL.Path, "/raw/")
 		renderViewerRaw(response, request, root, rel)
+	})
+	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		serveViewerProductAPI(w, r, root, "api/health", options.ReadOnly)
+	})
+	mux.HandleFunc("/api/feedback", func(w http.ResponseWriter, r *http.Request) {
+		serveViewerProductAPI(w, r, root, "api/feedback", options.ReadOnly)
 	})
 	mux.HandleFunc("/api/search", func(response http.ResponseWriter, request *http.Request) {
 		renderViewerSearch(response, request, searchCache, "")
@@ -662,6 +679,19 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 					renderViewerIndex(response, root, frame, prefix, entry.Name, options)
 					return
 				}
+				if rest == "api/health" || rest == "api/feedback" || rest == "api/document" {
+					root, err := registryEntryRoot(entry)
+					if err != nil {
+						http.Error(response, err.Error(), http.StatusInternalServerError)
+						return
+					}
+					if rest == "api/document" {
+						serveViewerDocumentAPI(response, request, root, options.ReadOnly || !okf.RegistryEntryCanWrite(entry))
+					} else {
+						serveViewerProductAPI(response, request, root, rest, options.ReadOnly || !okf.RegistryEntryCanWrite(entry))
+					}
+					return
+				}
 				if rest == "api/search" {
 					cache, err := searchCacheForEntry(entry)
 					if err != nil {
@@ -746,6 +776,19 @@ func newRegistryViewerHandlerWithOptions(entries []okf.RegistryEntry, options vi
 				return
 			}
 			http.Redirect(response, request, startPath, http.StatusFound)
+			return
+		}
+		if rest == "api/health" || rest == "api/feedback" || rest == "api/document" {
+			root, err := registryEntryRoot(entry)
+			if err != nil {
+				http.Error(response, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if rest == "api/document" {
+				serveViewerDocumentAPI(response, request, root, options.ReadOnly || !okf.RegistryEntryCanWrite(entry))
+			} else {
+				serveViewerProductAPI(response, request, root, rest, options.ReadOnly || !okf.RegistryEntryCanWrite(entry))
+			}
 			return
 		}
 		if rest == "api/search" {
@@ -1280,7 +1323,7 @@ func renderViewerBundledAsset(name string, contentType string, content string) h
 			return
 		}
 		response.Header().Set("Content-Type", contentType)
-		response.Header().Set("Cache-Control", "public, max-age=3600")
+		response.Header().Set("Cache-Control", "no-cache")
 		http.ServeContent(response, request, filepath.Base(name), time.Time{}, strings.NewReader(content))
 	}
 }

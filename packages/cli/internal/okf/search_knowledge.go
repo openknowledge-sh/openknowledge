@@ -113,7 +113,7 @@ func (index ContextIndex) Search(options SearchOptions) SearchResultSet {
 		Route:         knowledgeSearchRoute(options),
 		Issues:        index.Issues,
 	}
-	terms := searchTerms(query)
+	terms := knowledgeQueryTerms(query)
 	if len(terms) == 0 {
 		return result
 	}
@@ -174,7 +174,7 @@ type knowledgeSearchTermMatches struct {
 
 func (index ContextIndex) rankKnowledgeSearchPrepared(options SearchOptions, prepareQuery knowledgeSearchQueryPreparer) []SearchResult {
 	query := strings.TrimSpace(options.Query)
-	terms := searchTerms(query)
+	terms := knowledgeQueryTerms(query)
 	if len(terms) == 0 {
 		return nil
 	}
@@ -200,7 +200,11 @@ func (index ContextIndex) rankKnowledgeSearchPrepared(options SearchOptions, pre
 			lexical[documentID] = searchResult
 		}
 	}
-	vectorScores := knowledgeSearchVectorScores(corpus, query, options, maxInt(50, options.Limit*5))
+	vectorQuery := query
+	if len(terms) < len(searchTerms(query)) {
+		vectorQuery = strings.Join(terms, " ")
+	}
+	vectorScores := knowledgeSearchVectorScores(corpus, vectorQuery, options, maxInt(50, options.Limit*5))
 	results := make([]SearchResult, 0, len(lexical)+len(vectorScores))
 	maxLexical := 0.0
 	for _, result := range lexical {
@@ -261,6 +265,16 @@ func (index ContextIndex) rankKnowledgeSearchPrepared(options SearchOptions, pre
 			boost = 0.75
 		}
 		results[resultIndex].Score = roundSearchScore(results[resultIndex].Score + documentScore*boost)
+	}
+	// Conversational questions need evidence for the complete request, rather
+	// than a title that repeats only its broad topic. Reward exact section
+	// coverage; fuzzy matches alone must not earn this additional boost.
+	if len(terms) < len(searchTerms(query)) {
+		for resultIndex := range results {
+			document := corpus.documents[corpus.documentIDs[results[resultIndex].ID]]
+			coverage := float64(len(contextCoveredTerms(document.section, terms))) / float64(len(terms))
+			results[resultIndex].Score = roundSearchScore(results[resultIndex].Score * (1 + 3*math.Pow(coverage, 3)))
+		}
 	}
 	for resultIndex := range results {
 		// Keep score stable for existing clients. RerankScore is the final
@@ -1171,4 +1185,33 @@ func mergeKnowledgeSearchResults(direct []SearchResult, neighbors []SearchResult
 		return results[i].LineStart < results[j].LineStart
 	})
 	return results
+}
+
+// Ignore conversational filler only in multi-word questions. Preserve single
+// terms and all-filler queries so exact searches such as "go" remain possible.
+func knowledgeQueryTerms(query string) []string {
+	terms := searchTerms(query)
+	if len(terms) < 3 {
+		return terms
+	}
+	question := false
+	switch terms[0] {
+	case "how", "what", "where", "when", "why", "which", "can", "could", "should":
+		question = true
+	}
+	if !question {
+		return terms
+	}
+	var focused []string
+	for _, term := range terms {
+		switch term {
+		case "how", "what", "where", "when", "why", "which", "can", "could", "should", "do", "does", "did", "i", "we", "you", "my", "our", "a", "an", "the", "to", "is", "are":
+			continue
+		}
+		focused = append(focused, term)
+	}
+	if len(focused) == 0 {
+		return terms
+	}
+	return focused
 }

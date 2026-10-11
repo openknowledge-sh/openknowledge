@@ -25,6 +25,8 @@
 - [Machine-readable contracts](machine-contracts.md) — Documents JSON schemas
   and compatibility rules.
 - [Go API](go-api.md) — Documents the read-only core.
+- [Extension prototype](extension-prototype.md) — Describes the development-only
+  MCP App library, reader, and local preview.
 - [Specification compliance](spec-compliance.md) — Reports the OKF v0.2
   implementation status.
 - [CLI operations](operations.md) — Gives development, test, publication, and

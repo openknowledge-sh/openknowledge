@@ -16,13 +16,11 @@ export function initializeAnalytics() {
         if (notice)
             notice.hidden = false;
     });
-    if (consent === "granted") {
+    if (consent === "granted")
         trackWebEvent("web_page_viewed");
+    if (!notice || !accept || !decline)
         return;
-    }
-    if (consent === "denied" || !notice || !accept || !decline)
-        return;
-    notice.hidden = false;
+    notice.hidden = consent === "granted" || consent === "denied";
     accept.addEventListener("click", () => {
         storeValue(consentKey, "granted");
         updateGoogleAnalyticsConsent("granted");

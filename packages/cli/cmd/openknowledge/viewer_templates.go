@@ -8,8 +8,8 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
-  <script src="/` + viewerThemeScriptAsset + `"></script>
-  <link rel="stylesheet" href="/` + viewerStylesheetAsset + `">
+  <script src="/` + viewerVersionedAsset(viewerThemeScriptAsset, viewerThemeBootstrapJS) + `"></script>
+  <link rel="stylesheet" href="/` + viewerVersionedAsset(viewerStylesheetAsset, viewerCSS) + `">
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
 </head>
@@ -56,8 +56,8 @@ var viewerIndexTemplate = template.Must(template.New("viewer-index").Parse(`<!do
       </section>
     {{end}}
   </main>
-	  <script src="/` + viewerAppScriptAsset + `"></script>
-	  <script src="/` + viewerLiveReloadScriptAsset + `"></script>
+	  <script src="/` + viewerVersionedAsset(viewerAppScriptAsset, viewerJS) + `"></script>
+	  <script src="/` + viewerVersionedAsset(viewerLiveReloadScriptAsset, viewerLiveReloadJS) + `"></script>
 </body>
 </html>`))
 
@@ -67,8 +67,8 @@ var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!do
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
-  <script src="/` + viewerThemeScriptAsset + `"></script>
-  <link rel="stylesheet" href="/` + viewerStylesheetAsset + `">
+  <script src="/` + viewerVersionedAsset(viewerThemeScriptAsset, viewerThemeBootstrapJS) + `"></script>
+  <link rel="stylesheet" href="/` + viewerVersionedAsset(viewerStylesheetAsset, viewerCSS) + `">
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
 </head>
@@ -102,7 +102,7 @@ var viewerAssetTemplate = template.Must(template.New("viewer-asset").Parse(`<!do
       </div>
     </article>
 	  </main>
-	  <script src="/` + viewerLiveReloadScriptAsset + `"></script>
+	  <script src="/` + viewerVersionedAsset(viewerLiveReloadScriptAsset, viewerLiveReloadJS) + `"></script>
 	</body>
 </html>`))
 
@@ -112,8 +112,8 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Open Knowledge</title>
-  {{if .Scripts.Theme}}<script src="{{.Scripts.Theme}}"></script>{{else}}<script src="/` + viewerThemeScriptAsset + `"></script>{{end}}
-  {{if .Scripts.Stylesheet}}<link rel="stylesheet" href="{{.Scripts.Stylesheet}}">{{else}}<link rel="stylesheet" href="/` + viewerStylesheetAsset + `">{{end}}
+  {{if .Scripts.Theme}}<script src="{{.Scripts.Theme}}"></script>{{else}}<script src="/` + viewerVersionedAsset(viewerThemeScriptAsset, viewerThemeBootstrapJS) + `"></script>{{end}}
+  {{if .Scripts.Stylesheet}}<link rel="stylesheet" href="{{.Scripts.Stylesheet}}">{{else}}<link rel="stylesheet" href="/` + viewerVersionedAsset(viewerStylesheetAsset, viewerCSS) + `">{{end}}
   {{if .Theme.Stylesheet}}<link rel="stylesheet" href="{{.Theme.Stylesheet}}">{{end}}
   {{.HeadHTML}}
 </head>
@@ -204,7 +204,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
               <strong>Horizontal stack</strong>
               <small>Open linked documents beside the current document.</small>
             </span>
-            <input type="checkbox" data-horizontal-stack checked>
+            <input type="checkbox" data-horizontal-stack>
             <span class="viewer-setting-switch" aria-hidden="true"></span>
           </label>
           <label class="viewer-setting-toggle">
@@ -336,7 +336,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
       {{if .Frame.Workspaces}}
         {{range .Frame.Workspaces}}
         {{$workspace := .}}
-        <section class="knowledge-base-group{{if .Active}} is-active{{end}}" data-knowledge-base="{{.Name}}" data-knowledge-base-name="{{.Name}}">
+        <section class="knowledge-base-group{{if .Active}} is-active{{end}}" data-knowledge-base="{{.Name}}" data-knowledge-base-name="{{.Name}}" data-knowledge-base-root="{{if .ResolvedRoot}}{{.ResolvedRoot}}{{else}}{{.Root}}{{end}}">
           <div class="knowledge-base-head">
             <button class="knowledge-base-disclosure" type="button" data-knowledge-base-disclosure aria-expanded="{{if .Active}}true{{else}}false{{end}}" aria-controls="knowledge-base-content-{{.Name}}">
               <span class="knowledge-base-marker" aria-hidden="true"></span>
@@ -543,7 +543,7 @@ var viewerFileTemplate = template.Must(template.New("viewer-file").Parse(`<!doct
   <script type="application/json" data-claims-data{{if .ClaimsURL}} data-url="{{.ClaimsURL}}"{{end}}>{{.ClaimsJSON}}</script>
   {{if .StaticJSON}}<script type="application/json" data-static-notes>{{.StaticJSON}}</script>{{end}}
   {{end}}
-	  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script src="/` + viewerAppScriptAsset + `"></script><script src="/` + viewerLiveReloadScriptAsset + `"></script>{{end}}
+	  {{if .Scripts.App}}<script src="{{.Scripts.App}}"></script>{{else}}<script src="/` + viewerVersionedAsset(viewerAppScriptAsset, viewerJS) + `"></script><script src="/` + viewerVersionedAsset(viewerLiveReloadScriptAsset, viewerLiveReloadJS) + `"></script>{{end}}
 </body>
 </html>`))
 

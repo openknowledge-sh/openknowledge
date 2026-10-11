@@ -1,0 +1,91 @@
+WEBVTT
+
+00:02.350 --> 00:05.943
+Your agent sounds sure, but it doesn't know your project.
+
+00:06.602 --> 00:10.795
+So you explain it again, every session, every tool.
+
+00:11.384 --> 00:15.047
+What you wrote down is scattered, stale, and unverifiable.
+
+00:16.633 --> 00:18.088
+Meet Open Knowledge.
+
+00:18.088 --> 00:21.726
+One knowledge base for your team and every agent.
+
+00:22.409 --> 00:24.730
+Start with the docs you already have.
+
+00:24.730 --> 00:28.745
+One command turns plain markdown into a managed knowledge base.
+
+00:28.745 --> 00:29.560
+No docs yet?
+
+00:29.560 --> 00:31.066
+Your agent drafts them.
+
+00:32.370 --> 00:35.616
+Search it, and every answer comes with receipts.
+
+00:35.616 --> 00:38.389
+The file, the lines, and a content hash.
+
+00:38.389 --> 00:41.433
+Your agent stops guessing and starts citing.
+
+00:42.357 --> 00:44.179
+One wiki for every agent.
+
+00:44.179 --> 00:46.364
+Any MCP client can search it.
+
+00:46.364 --> 00:49.133
+Switch tools and keep your knowledge.
+
+00:51.870 --> 00:55.053
+When things change, your agent proposes the edit.
+
+00:55.053 --> 00:57.131
+You review the diff, then save.
+
+00:57.131 --> 00:58.820
+The history lives in Git.
+
+01:00.472 --> 01:03.286
+Checks catch stale knowledge before it ships.
+
+01:03.286 --> 01:05.350
+When a source changes, you know.
+
+01:05.350 --> 01:08.539
+And every pull request is tested before it merges.
+
+01:11.076 --> 01:13.148
+Then ship knowledge like code.
+
+01:13.148 --> 01:17.084
+Every release is immutable, and rollback is one command.
+
+01:17.900 --> 01:18.866
+One lifecycle.
+
+01:18.866 --> 01:21.487
+From a folder of notes to production.
+
+01:21.487 --> 01:22.521
+No migrations.
+
+01:26.396 --> 01:27.459
+Open Knowledge.
+
+01:27.459 --> 01:30.577
+Build a knowledge base your agents can use.
+
+01:30.577 --> 01:32.773
+Start today at openknowledge .
+
+01:32.773 --> 01:32.986
+sh.

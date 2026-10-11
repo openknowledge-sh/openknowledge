@@ -5,11 +5,11 @@ enabled = ["docs", "changelog"]
 link-target = "error"
 
 [html.source]
-github_base = "https://github.com/openknowledge-sh/example-changelog/blob/main"
-entry = "Wiki"
+github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
+entry = "examples/example-changelog/Wiki"
 
 [html.site]
-base_url = "https://openknowledge-sh.github.io/example-changelog/"
+base_url = "https://openknowledge.sh/examples/changelogs/"
 
 [release]
 outputs = ["viewer"]

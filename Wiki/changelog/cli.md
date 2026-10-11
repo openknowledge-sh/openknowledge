@@ -3,7 +3,7 @@ type: Changelog
 title: CLI Changelog
 description: Release-level history for the Open Knowledge CLI.
 tags: [openknowledge, cli, changelog]
-timestamp: 2026-08-31T00:00:00Z
+timestamp: 2026-10-11T00:00:00Z
 ---
 
 # CLI Changelog
@@ -15,51 +15,171 @@ page records release-level changes.
 
 ### Website
 
-- New `/terminal/` page presents knowledge audit, eval, release, and runtime
-  workflows in an alternate terminal-style landing page.
-- The `/getting-started/` guide now uses the same terminal-style interface.
-  Its install, setup, view, search, and validation commands remain copyable.
-- The page uses the existing GitHub, documentation, and setup destinations.
-- Source: `packages/web/terminal/index.html`,
-  `packages/web/src/styles/terminal.css`, and
-  `packages/web/src/terminal.js`; `packages/web/getting-started/index.html` and
-  `packages/web/src/styles/getting-started-terminal.css`.
+- The homepage presents link and copy as separate Markdown setup choices.
+  Link adopts one directory at its original location. Copy preserves separate
+  originals without automatic synchronization.
+- The homepage shows an example wiki file tree. Its caption identifies the
+  layout as an example that an agent organizes.
+- Homepage and use-case examples show a wide screenshot of the local viewer.
+  Users can open the full-size image or browse the read-only demo wiki.
+- Source: `packages/web/index.html`, `packages/web/use-cases/index.html`, and
+  `packages/web/public/media/project-wiki-viewer.png`.
+- Docs: `Wiki/features/commands/setup.md`.
 
-### Setup
+## v0.14.0 — 2026-10-11
 
-- `okn setup` now discovers ordinary repository Markdown without required
-  frontmatter or links. Users select paths and choose copy or in-place mode.
-- Setup shows a deterministic change plan. Copy mode preserves sources, and
-  in-place mode does not move or delete existing documents.
-- Empty repositories receive a tailored agent task. Installed agents appear
-  before the copy and save choices.
-- Existing OKF bundles continue with `check`, `review`, or `upgrade`.
-- Source: `packages/cli/cmd/openknowledge/setup_command.go` and
-  `packages/cli/internal/okf/setup_import.go`.
-- Docs: `README.md` and `Wiki/features/commands/setup.md`.
+This release connects Markdown adoption, knowledge checks, search, and local
+editing. Publication remains an explicit step. The MCP App extension remains
+experimental and separate from the CLI distribution.
 
-### Knowledge lifecycle
+### Setup and knowledge lifecycle
 
+- `okn setup` discovers repository Markdown without required frontmatter or
+  links. Users select a managed copy or adoption of one complete directory.
+- Setup shows a deterministic plan before writes. Copy mode preserves source
+  files. In-place mode does not move or delete existing documents.
+- Empty repositories receive an agent task. Existing OKF bundles continue with
+  `check`, `review`, or `upgrade`.
 - New `okn check` combines configured validation, links, freshness, retrieval,
   claims, and publication checks into one status.
-- `okn search` now searches unmanaged Markdown and marks the result status.
-- New top-level `review`, `publish`, and `upgrade` commands complete the
-  primary knowledge lifecycle. Publish refuses unmanaged or blocked input.
-- Root help now places the lifecycle commands under **Start here**. Existing
-  lower-level commands remain available under **Advanced**.
-- Source: `packages/cli/cmd/openknowledge/{check,publish,upgrade}_command.go`,
+- Publication checks distinguish content eligibility from target readiness.
+  MCP checks accept `--config` and `--id`. Missing runtime setup requires attention.
+- Copied imports report changed originals, changed copies, and unavailable
+  originals. The check does not synchronize files.
+- Top-level `review`, `publish`, and `upgrade` commands complete the lifecycle.
+  Publish refuses unmanaged or blocked input.
+- Root help groups lifecycle commands under **Start here** and direct controls
+  under **Advanced**. The README follows setup, check, search, and view.
+- Source: `packages/cli/cmd/openknowledge/{setup,check,publish,upgrade}_command.go`,
   `packages/cli/cmd/openknowledge/main.go`, and
-  `packages/cli/internal/okf/{loose_markdown,upgrade}.go`.
-- Docs: `Wiki/features/commands/{check,search,review,publish,upgrade}.md`,
-  `Wiki/features/tooling-model.md`, and
-  `Wiki/decisions/product-interface.md`.
+  `packages/cli/internal/okf/{setup_import,setup_import_status,upgrade}.go`.
+- Docs: `README.md`, `Wiki/index.md`,
+  `Wiki/features/commands/{setup,check,review,publish,upgrade}.md`,
+  `Wiki/features/tooling-model.md`, and `Wiki/decisions/product-interface.md`.
 
-### Machine contracts
+### Shared Markdown editor and browser tools
 
+- Writable local Markdown pages open in a WYSIWYG body editor with formatting
+  controls, heading shortcuts, and a slash block menu.
+- Visual edits preserve frontmatter and unchanged source blocks. Unsupported
+  Markdown remains an opaque block with a source preview.
+- Human and WebMCP edits share one draft, Undo, Redo, source comparison, and
+  explicit Save. Agent edits use complete Markdown offsets.
+- Saves require an existing writable file, the matching source revision, and
+  successful document validation. Conflicts preserve unsaved drafts for comparison.
+- Drafts survive navigation and live reload. Tab session storage provides
+  recovery when available. Clean drafts receive external source updates automatically.
+- Compatible browser agents can list, search, read, and open viewer pages through
+  WebMCP. Local editor tools can change and save the shared draft.
+- Static exports remain read-only. Their WebMCP tools expose only notes enabled
+  for both viewer and search publication.
+- Saved-page preview retains rendered diagrams and source references during editing.
+  Ctrl-click or Command-click opens editor links. Images resolve against their source document.
+- Context copying uses the current draft and identifies unsaved text.
+  Clean viewers refresh added, removed, and renamed files after source changes.
+- Browser regression checks cover drafts, conflict recovery, images, and Save.
+  Release packages include licenses for the embedded editor dependencies.
+- Source: `packages/web/src/viewer/{editor,editor-state,rich-editor,rich-markdown,webmcp,search-data,app}.js`,
+  `packages/cli/cmd/openknowledge/viewer_document.go`, and
+  `packages/cli/internal/authoring/documents.go`.
+- Docs: `Wiki/features/commands/view.md`, `Wiki/features/webmcp.md`, and
+  `Wiki/features/exporters/html.md`.
+
+### Viewer navigation, health, and development
+
+- Static viewer navigation preserves nested note paths when replacing panels,
+  so search results and internal links remain reloadable and shareable.
+
+- Links replace the current panel by default. Open-beside mode remains available.
+  Note headers collapse frontmatter under **Details**. Claims show evidence before technical fields.
+- Page actions copy context, source links, and code. Problem reports can enter
+  insights through writable local project integration. Static viewers provide report copying.
+- The local **Knowledge health** panel shows check coverage, attention items,
+  and pending insights. Static viewers do not claim live health.
+- Tables with four rows or fewer omit filtering controls.
+- Responsive headers reserve space for search and actions without hiding the title.
+- Content-versioned asset URLs prevent stale viewer code after a CLI update.
+  The development proxy substitutes these URLs and streams source-change events.
+- Source: `packages/cli/cmd/openknowledge/viewer_{product,templates,assets}.go`,
+  `packages/web/src/viewer/{app,product-actions,search,live-reload}.js`, and
+  `packages/web/scripts/dev-viewer.mjs`.
+- Docs: `Wiki/features/commands/view.md` and `Wiki/features/operations.md`.
+
+### Retrieval and machine contracts
+
+- `okn search` searches unmanaged Markdown and identifies its management status.
+- Conversational questions prioritize sections that cover the request. Context
+  packets avoid repeated deferred sources and respect the content token budget.
 - New `check.schema.json` defines unified check JSON. Single-bundle search
-  contracts now identify managed and unmanaged results.
-- Source: `packages/cli/schemas/v1/{check,search-context,search-results}.schema.json`.
-- Docs: `Wiki/features/machine-contracts.md`.
+  contracts identify managed and unmanaged results.
+- Source: `packages/cli/internal/okf/{loose_markdown,search_knowledge,context_selection}.go`
+  and `packages/cli/schemas/v1/{check,search-context,search-results}.schema.json`.
+- Docs: `Wiki/features/commands/search.md` and `Wiki/features/machine-contracts.md`.
+
+### Website
+
+- New `/signal/` and `/blueprint/` pages provide alternate
+  explanations of the local workflow, knowledge checks, and publication.
+- The `/getting-started/` guide uses the terminal-style interface with copyable
+  install, setup, view, search, and validation commands.
+- The homepage adopts the terminal-style design and explains wiki creation, local search and editing, agent
+  access, and maintenance. Copy controls provide install, setup, search, view, check, and review commands.
+- The homepage retains its root canonical URL, search metadata, and analytics
+  consent controls. `/terminal/` redirects to `/` and preserves query parameters and fragments.
+- New `/use-cases/` pages cover project documentation, research notes, shared
+  agent context, changelogs, and Knowledge CI. They link to setup and command references.
+- New `/use-cases/mcp-webmcp/` explains setup, shared local WebMCP drafts, Undo,
+  and Save, with read-only stdio MCP as an alternative. WebMCP requires a compatible browser agent.
+  Shared edits require existing writable local pages. Static exports provide read-only tools.
+- The use-case index links to three working demo wikis. The build exports
+  repository fixtures under `/examples/project-documentation/`, `/examples/research-notes/`, and `/examples/changelogs/`.
+- Project, research, and changelog pages link to demo documents and their source
+  files. Agent context includes copyable MCP configuration and a search command.
+- Homepage and use-case commands include labeled, abbreviated output examples.
+  These illustrate results without live execution. Copy buttons copy only commands.
+- The homepage includes a 33-second walkthrough with English captions.
+  Users start playback. Edited screenshots from the actual viewer show browse, search, draft changes, review, and Save.
+- The walkthrough combines captured states and title cards. It is not a
+  continuous screen recording. The website server supports MP4 byte ranges for playback and seeking.
+- Source: `packages/web/index.html`,
+  `packages/web/{signal,blueprint,terminal,getting-started}/index.html`,
+  `packages/web/use-cases/`, `packages/web/scripts/{build,wiki-export,server}.mjs`,
+  `packages/web/demo/{sources,captures}/`, `packages/web/demo/render-video.py`,
+  `packages/web/public/media/knowledge-workflow.{mp4,vtt}`,
+  `packages/web/vite.config.js`,
+  `examples/{example-project-docs,example-research-notes,example-changelog}/Wiki/`,
+  `packages/web/src/{main,terminal,terminal-draft,explorations}.js`, and
+  `packages/web/src/styles/{terminal,terminal-draft,getting-started-terminal,explorations}.css`.
+- Docs: `README.md` and `Wiki/features/operations.md`.
+
+### Release security and packaging
+
+- Go 1.26.9 supplies standard-library security fixes. Module, workspace, and
+  container builds use the same baseline. Website container builds use Node.js 22.
+- Updated sanitizer, source-map, YAML, math-rendering, and test dependencies
+  remove known dependency vulnerabilities from the release lockfile.
+- Updated `golang.org/x/text` removes a vulnerable indirect Go dependency.
+- Source: `go.work`, `packages/cli/go.mod`, `Dockerfile`,
+  `docker/runtime.Dockerfile`, `package.json`, and `pnpm-lock.yaml`.
+- Docs: `Wiki/features/operations.md`.
+
+### Experimental extension
+
+- Local plugin version `0.0.6` provides a stdio MCP server and the existing
+  viewer with registered knowledge bases, search, shared drafts, and document Save.
+- Model-facing tools remain read-only. App-only Save retains write-access,
+  source-revision, and document validation checks.
+- The local package includes Node.js and CLI binaries for the build host.
+  It requires no HTTP development server after installation.
+- Local checks verify Codex CLI startup and resource discovery. Full viewer
+  display in native sidebar and conversation panels remains unverified.
+- Native resources do not subscribe to external file changes. Other write
+  actions and remote assets require the browser viewer.
+- The extension remains outside the CLI release archives and npm wrapper.
+  The root test suite includes its unit tests. Native host checks run separately.
+- Source: `packages/extension/{server,web,scripts,test}/` and
+  `packages/extension/{package,plugin,mcp}.json`.
+- Docs: `Wiki/features/extension-prototype.md` and `Wiki/features/operations.md`.
 
 ## v0.13.0 — 2026-08-31
 

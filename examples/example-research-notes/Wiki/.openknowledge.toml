@@ -5,11 +5,11 @@ enabled = ["research"]
 link-target = "error"
 
 [html.source]
-github_base = "https://github.com/openknowledge-sh/example-research-notes/blob/main"
-entry = "Wiki"
+github_base = "https://github.com/openknowledge-sh/openknowledge/blob/main"
+entry = "examples/example-research-notes/Wiki"
 
 [html.site]
-base_url = "https://openknowledge-sh.github.io/example-research-notes/"
+base_url = "https://openknowledge.sh/examples/research-notes/"
 
 [release]
 outputs = ["viewer"]

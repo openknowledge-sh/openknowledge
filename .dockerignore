@@ -1,8 +1,11 @@
 .git
 .github
 bin
+dist
 node_modules
+**/node_modules
 packages/web/dist
+packages/extension/dist
 deploy/runtime/secrets
 .env
 .env.*

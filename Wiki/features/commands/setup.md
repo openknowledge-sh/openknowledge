@@ -10,29 +10,27 @@ timestamp: 2026-08-02T00:00:00Z
 
 Use `okn setup` to create a managed copy or adopt one Markdown directory.
 
-## Usage
+## Recommended local workflow
+
+Run setup from your repository:
 
 ```sh
 okn setup
-okn setup Wiki --interactive
-okn setup Wiki --from ./repository --mode copy
-okn setup Wiki --from ./repository --mode copy --include README.md --include docs
-okn setup Wiki --from ./repository --mode copy --exclude docs/generated --plan
-okn setup ./docs --from ./docs --mode in-place
-okn setup github Wiki --plan
-okn setup github Wiki
-okn setup ci Wiki --plan
-okn setup ci Wiki
-okn setup runtime Wiki
-okn setup runtime Wiki --maintenance runtime --runtimes codex
-okn setup skill
-okn setup skill --scope global --harness codex
-okn setup skill --scope project --project ./repository --harness codex
-okn setup complete Wiki --skill project --harness codex --observe off
-okn setup status
-okn setup repair
-okn setup observe on
+okn check Wiki
+okn search Wiki "release workflow"
+okn view Wiki
 ```
+
+Select source paths in the wizard. Use copy mode to keep source files unchanged.
+Replace `Wiki` with your selected target path. Use a search query from your content.
+Local use does not require publication, Knowledge CI, or a hosted runtime.
+
+Existing Markdown does not require an agent, frontmatter, or authored links.
+If no Markdown exists, setup creates an agent task. Complete that task before
+`okn check`. Explicit `--prompt` and `--agent` options also select the agent workflow.
+
+Use `okn check` for one health status. Use `okn validate` for detailed format
+and link diagnostics.
 
 ## Setup modes
 
@@ -53,8 +51,16 @@ The wizard provides two management modes:
 | `in-place` | Adopt one complete directory. Add required scaffold files and minimal metadata where needed. |
 
 Copy mode records source paths and content digests in
-`.openknowledge/import.json`. In-place mode does not accept partial include or
-exclude selections. It does not move or delete existing documents.
+`.openknowledge/import.json`. Originals and managed copies remain separate.
+`okn check` compares both with the recorded digests. Changed originals, changed
+copies, or unavailable originals require attention. Review differences before
+updates. Setup does not provide automatic synchronization.
+
+The homepage calls in-place mode **link**. It adopts one complete directory.
+Files stay at their original paths. Setup adds required scaffold files and
+minimal metadata where needed. It does not create symbolic links.
+In-place mode does not accept partial include or exclude selections.
+It does not move or delete existing documents.
 
 Setup prints the create, update, preserve, move, and delete counts before it
 writes. Interactive setup asks for confirmation. Use `--plan` with an explicit
@@ -76,6 +82,29 @@ prints commands for `okn check`, `okn review`, and `okn upgrade`.
 The older `--prompt`, `--agent`, `--use-case`, `--about`, `--depth`, and
 `--rules` agent workflow remains available for compatibility. Use
 `--interactive` to start source selection without terminal detection.
+
+## Advanced usage
+
+```sh
+okn setup Wiki --interactive
+okn setup Wiki --from ./repository --mode copy
+okn setup Wiki --from ./repository --mode copy --include README.md --include docs
+okn setup Wiki --from ./repository --mode copy --exclude docs/generated --plan
+okn setup ./docs --from ./docs --mode in-place
+okn setup github Wiki --plan
+okn setup github Wiki
+okn setup ci Wiki --plan
+okn setup ci Wiki
+okn setup runtime Wiki
+okn setup runtime Wiki --maintenance runtime --runtimes codex
+okn setup skill
+okn setup skill --scope global --harness codex
+okn setup skill --scope project --project ./repository --harness codex
+okn setup complete Wiki --skill project --harness codex --observe off
+okn setup status
+okn setup repair
+okn setup observe on
+```
 
 ### Product profiles
 
@@ -133,7 +162,7 @@ Maintenance has one executor:
 - `--maintenance runtime` enables the runtime jobs worker and writes
   `.openknowledge/jobs/knowledge-maintenance.md`. It also installs a starter
   eval dataset and source baseline for the runtime Knowledge CI pass;
-- `--maintenance auto` uses GitHub Actions when `setup github` or `setup ci` is
+- `--maintenance auto` uses GitHub Actions when the `setup github` workflow is
   present. It uses the runtime worker otherwise.
 
 Use `--runtimes codex,claude,opencode` to select agent harnesses for runtime
@@ -234,8 +263,10 @@ enable, disable, or change product telemetry.
 > * `packages/cli/internal/integration/manage.go`
 > * `packages/cli/internal/okf/setup.go`
 > * `packages/cli/internal/okf/setup_import.go`
+> * `packages/cli/internal/okf/setup_import_status.go`
 > * `packages/cli/internal/okf/from.go`
 > * `packages/cli/internal/okf/rules.go`
+> * `packages/web/index.html`
 >
 > **Update notes**
 >

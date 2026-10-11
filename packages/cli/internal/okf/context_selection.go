@@ -32,7 +32,7 @@ func prioritizeContextResults(sections []ContextSection, direct []SearchResult, 
 		return true
 	}
 
-	terms := searchTerms(query)
+	terms := knowledgeQueryTerms(query)
 
 	// Preserve the strongest direct evidence before adding context. This keeps
 	// ranking and context mode aligned while still leaving room for document
@@ -212,6 +212,24 @@ func packContextSources(sections []ContextSection, direct []SearchResult, neighb
 
 	sources := make([]ContextSource, 0, minInt(limit, len(direct)+len(neighbors)))
 	remaining := budget
+	packed := make(map[string]bool)
+	appendSource := func(source ContextSource) {
+		key := source.Locator
+		if key == "" {
+			key = source.ID
+		}
+		if packed[key] || len(sources) >= limit || remaining <= 0 {
+			return
+		}
+		if source.EstimatedTokens > remaining {
+			source = truncateContextSource(source, remaining)
+		}
+		if source.EstimatedTokens > 0 && strings.TrimSpace(source.Markdown) != "" {
+			packed[key] = true
+			sources = append(sources, source)
+			remaining -= source.EstimatedTokens
+		}
+	}
 	var deferredSeeds []ContextSource
 	var deferred []ContextSource
 	pack := func(results []SearchResult) bool {
@@ -222,7 +240,7 @@ func packContextSources(sections []ContextSection, direct []SearchResult, neighb
 			if result.contextPriority < 2 && len(deferredSeeds) > 0 {
 				source := truncateContextSource(deferredSeeds[0], remaining)
 				if source.EstimatedTokens > 0 && strings.TrimSpace(source.Markdown) != "" {
-					sources = append(sources, source)
+					appendSource(source)
 				}
 				return false
 			}
@@ -231,6 +249,13 @@ func packContextSources(sections []ContextSection, direct []SearchResult, neighb
 				continue
 			}
 			source := contextSourceFromSearchResult(section, result)
+			sourceKey := source.Locator
+			if sourceKey == "" {
+				sourceKey = source.ID
+			}
+			if packed[sourceKey] {
+				continue
+			}
 			if source.EstimatedTokens > remaining {
 				switch result.contextPriority {
 				case 2:
@@ -239,7 +264,7 @@ func packContextSources(sections []ContextSection, direct []SearchResult, neighb
 				case 1:
 					source = truncateContextSource(source, remaining)
 					if source.EstimatedTokens > 0 && strings.TrimSpace(source.Markdown) != "" {
-						sources = append(sources, source)
+						appendSource(source)
 					}
 					return false
 				default:
@@ -247,8 +272,7 @@ func packContextSources(sections []ContextSection, direct []SearchResult, neighb
 					continue
 				}
 			}
-			sources = append(sources, source)
-			remaining -= source.EstimatedTokens
+			appendSource(source)
 		}
 		return true
 	}
@@ -264,7 +288,7 @@ func packContextSources(sections []ContextSection, direct []SearchResult, neighb
 		if len(candidates) > 0 {
 			source := truncateContextSource(candidates[0], remaining)
 			if source.EstimatedTokens > 0 && strings.TrimSpace(source.Markdown) != "" {
-				sources = append(sources, source)
+				appendSource(source)
 			}
 		}
 	}

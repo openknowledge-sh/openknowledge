@@ -3,7 +3,7 @@ type: Feature Documentation
 title: CLI Operations
 description: Develop, test, publish, and release the Open Knowledge CLI.
 tags: [openknowledge, cli, operations, release]
-timestamp: 2026-08-11T00:00:00Z
+timestamp: 2026-10-11T00:00:00Z
 ---
 
 # CLI Operations
@@ -11,15 +11,17 @@ timestamp: 2026-08-11T00:00:00Z
 ## Workspace
 
 ```text
-packages/cli  Go CLI and public Go package
-packages/npm  npm wrapper for release binaries
-packages/web  website and static wiki host
-Wiki          canonical CLI documentation
+packages/cli        Go CLI and public Go package
+packages/npm        npm wrapper for release binaries
+packages/web        website and static wiki host
+packages/extension  experimental local MCP App and plugin
+Wiki                canonical CLI documentation
 ```
 
 The root `package.json` owns the release version and workspace commands.
-Node 20 or a later version is required for JavaScript workspace commands and
-the npm wrapper.
+Go builds use the Go 1.26.9 security baseline.
+The web package and npm wrapper require Node 20 or a later version.
+The experimental extension requires Node 22 or a later version.
 
 ## Local development
 
@@ -36,7 +38,8 @@ pnpm build
 | `pnpm test:npm-install` | Test the npm downloader and archive parser offline. |
 | `pnpm test:packed-npm` | Pack and install the exact npm publication artifact on the active Node version. |
 | `pnpm test:demos` | Validate, search, export, and test the three use-case demo knowledge bases. |
-| `pnpm test:web` | Run Oxlint and static server tests. |
+| `pnpm test:extension` | Run experimental extension unit tests on Node 22 or later. |
+| `pnpm test:web` | Run Oxlint and Vitest tests for the server, viewer, and editor. |
 | `pnpm test:browser` | Exercise the production landing build and exported viewer over HTTP and `file://` in Chromium. |
 | `pnpm test:race` | Run all Go tests with the race detector. |
 | `pnpm test:coverage` | Produce `coverage.out` for the Go packages. |
@@ -55,7 +58,20 @@ pnpm build
 | `pnpm dev:web` | Run the local website workflow. |
 
 `pnpm test` runs all policy checks.
-It also runs installer, web, and CLI tests.
+It also runs installer, web, CLI, and extension unit tests.
+Use Node 22 or a later version for this complete suite.
+The experimental extension has additional build and host checks:
+
+```sh
+pnpm --filter @openknowledge-sh/extension test
+pnpm --filter @openknowledge-sh/extension build
+pnpm --filter @openknowledge-sh/extension package:local
+```
+
+The local package includes runtime and CLI binaries for the build host.
+It is not part of the CLI release archives or npm wrapper.
+See the [extension prototype](extension-prototype.md) for native host checks
+and current limitations.
 
 Use `pnpm dev:viewer -- Wiki` when you change files in
 `packages/web/src/viewer`. Vite updates CSS without a restart. It reloads the
@@ -94,17 +110,44 @@ Results can change when vulnerability databases change.
 ## Website
 
 `pnpm build:web` builds `packages/web/dist`.
-Vite compiles the landing page from `packages/web/src/main.js`.
-It builds the shared viewer bundle from `packages/web/src/viewer`.
+Vite compiles the homepage, setup guide, landing alternatives, and use-case pages.
+The homepage uses the terminal-style design at `/` with the root canonical URL
+and search metadata. `/terminal/` redirects to `/` with its query parameters and fragment.
+The `/use-cases/` index links to project documentation, research notes, shared
+agent context, changelogs, Knowledge CI, and MCP/WebMCP setup. The MCP/WebMCP
+guide uses `/use-cases/mcp-webmcp/`. Their overview and setup links
+point to `/` and `/#start`.
+Vite builds the shared viewer bundle from `packages/web/src/viewer`.
 Vite writes the bundle directly into the ignored Go embed directory.
 Git does not track the compiled viewer files.
 Commands that build or test the CLI generate these files first.
-It exports `Wiki/` to `dist/wiki`.
-It publishes JSON schemas under `dist/schemas/cli/`.
+The build exports `Wiki/` to `dist/wiki`.
+It also exports three repository fixtures as interactive demo wikis:
+
+| Source directory | Published route |
+| --- | --- |
+| `examples/example-project-docs/Wiki` | `/examples/project-documentation/` |
+| `examples/example-research-notes/Wiki` | `/examples/research-notes/` |
+| `examples/example-changelog/Wiki` | `/examples/changelogs/` |
+
+The use-case index and related pages link to these demos.
+The related pages also link to specific documents and fixture source files.
+`scripts/build.mjs` and `scripts/wiki-export.mjs` in the web package use the CLI
+HTML exporter for the documentation and demos.
+The build publishes JSON schemas under `dist/schemas/cli/`.
 By default, the exporter uses the current Go source.
 Set `OPENKNOWLEDGE_BIN` to test a specified binary.
 
-The landing and getting-started pages use Google Advanced Consent Mode v2.
+The homepage includes a 33-second walkthrough with English captions,
+playback controls, and a poster. It does not autoplay or preload video data.
+The edited walkthrough combines actual viewer screenshots with title cards,
+rather than a continuous screen recording.
+`packages/web/demo/sources/` contains its Markdown inputs.
+`packages/web/demo/captures/` contains the captured states.
+`packages/web/demo/render-video.py` requires FFmpeg and writes the MP4 and poster
+to `packages/web/public/media/`. The same directory contains the WebVTT captions.
+
+The homepage and getting-started pages use Google Advanced Consent Mode v2.
 They also use a first-party telemetry client after website consent.
 The build does not inject product analytics into exported wiki pages.
 Use these variables for trusted custom head content:
@@ -120,6 +163,7 @@ It also defines the publication asset list.
 Keep `Wiki/assets/openknowledge-site.css` consistent with the landing-page visual system.
 
 The production Node server serves only the built tree.
+It serves MP4 byte ranges to support video playback and seeking.
 It limits methods, headers, timeouts, and requests per socket.
 It resolves real paths before each read.
 It sends CSP, HSTS, frame denial, MIME sniffing prevention, and explicit cache policies.
@@ -230,11 +274,11 @@ or output. Do not count both event types in one failure metric.
 Run the manual workflow from the current default-branch tip:
 
 ```text
-Actions → Release → Run workflow → version: 0.13.0
+Actions → Release → Run workflow → version: 0.14.0
 ```
 
-The version input accepts `0.13.0`, `v0.13.0`, or a prerelease such as
-`v0.13.0-rc.1`. The workflow serializes release runs and does not cancel an
+The version input accepts `0.14.0`, `v0.14.0`, or a prerelease such as
+`v0.14.0-rc.1`. The workflow serializes release runs and does not cancel an
 active release.
 
 Before the workflow starts, move the release content from `## Unreleased` to a

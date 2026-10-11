@@ -41,6 +41,10 @@ async function runOpenKnowledge(args) {
 }
 
 export async function exportWiki(out = path.join(distRoot, "wiki"), options = {}) {
+  return exportKnowledgeBase(wikiRoot, out, options);
+}
+
+export async function exportKnowledgeBase(root, out, options = {}) {
   if (options.clean !== false) {
     await rm(out, { recursive: true, force: true });
   }
@@ -50,6 +54,6 @@ export async function exportWiki(out = path.join(distRoot, "wiki"), options = {}
   if (headHTML.trim()) {
     args.push("--head-html", headHTML);
   }
-  args.push(wikiRoot);
+  args.push(root);
   await runOpenKnowledge(args);
 }

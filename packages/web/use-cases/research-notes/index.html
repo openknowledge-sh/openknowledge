@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#000000">
+<title>Research notes · Open Knowledge</title><meta name="description" content="Turn source notes into linked findings you can revisit, question, and reuse in your next piece of work.">
+<link rel="canonical" href="https://openknowledge.sh/use-cases/research-notes/"><link rel="icon" href="/favicon.png">
+<!-- OPENKNOWLEDGE_HEAD -->
+<link rel="stylesheet" href="/src/styles/terminal.css"><link rel="stylesheet" href="/src/styles/terminal-draft.css"><link rel="stylesheet" href="/src/styles/site-chrome.css"><link rel="stylesheet" href="/src/styles/site-polish.css">
+</head><body class="terminal-draft nx-page">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="nx-header">
+  <div class="nx-wrap nx-header-in">
+    <a class="nx-brand" href="/" aria-label="Open Knowledge home">
+      <img src="/logo-mark.png" width="26" height="26" alt="">
+      <span>Open Knowledge</span>
+    </a>
+    <nav class="nx-nav" aria-label="Primary">
+      <a href="/wiki/">Docs</a>
+      <a href="/use-cases/" aria-current="page">Use cases</a>
+      <a href="/wiki/changelog/cli.html">Changelog</a>
+    </nav>
+    <div class="nx-header-actions">
+      <a class="nx-version" href="https://github.com/openknowledge-sh/openknowledge/releases/latest" target="_blank" rel="noreferrer"
+         data-release-badge data-release-api="https://api.github.com/repos/openknowledge-sh/openknowledge/releases/latest"
+         aria-label="Latest Open Knowledge release on GitHub">
+        <span class="nx-pulse" aria-hidden="true"></span>
+        <span data-release-version>Releases</span>
+        <time data-release-age hidden></time>
+      </a>
+      <a class="nx-icon-link" href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer" aria-label="Open Knowledge on GitHub">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2C6.48 2 2 6.58 2 12.24c0 4.53 2.87 8.37 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.51-1.11-1.51-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.57 2.36 1.12 2.94.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.31.1-2.72 0 0 .84-.27 2.75 1.05A9.28 9.28 0 0 1 12 6.92c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.64 1.03 2.76 0 3.95-2.34 4.82-4.57 5.08.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.8 0 .27.18.59.69.49A10.06 10.06 0 0 0 22 12.24C22 6.58 17.52 2 12 2Z"/></svg>
+        <span class="nx-icon-label">GitHub</span>
+      </a>
+      <a class="nx-btn nx-btn-primary nx-btn-sm" href="/getting-started/">Get started</a>
+    </div>
+  </div>
+</header><main id="main"><section class="terminal-intro" aria-labelledby="hero-title"><p class=product-kind><a href="/use-cases/">Use cases</a> / Research notes</p><h1 id="hero-title">Keep the findings. Keep the sources.</h1><p>Turn source notes into linked findings you can revisit, question, and reuse in your next piece of work.</p></section><section class="workflow-section"  aria-labelledby="section-1"><div class="step-heading"><span class="step-number" aria-hidden="true">01</span><h2 id="section-1">Separate evidence from interpretation</h2></div><div class="step-body"><ul class="plain-list"><li><strong>Sources:</strong> notes linked to the original material.</li><li><strong>Findings:</strong> synthesis with citations and uncertainty.</li><li><strong>Questions:</strong> what the sources do not establish yet.</li></ul><p class="step-note">Start from saved Markdown notes. Ask your agent to organize them and retain source references. Web capture and PDF extraction depend on your agent’s tools.</p></div></section><section class="workflow-section"  aria-labelledby="section-2"><div class="step-heading"><span class="step-number" aria-hidden="true">02</span><h2 id="section-2">Build from your source notes</h2></div><div class="step-body"><div class="install-commands"><div class="copy-command"><span class="command-prompt" aria-hidden="true">$</span><code id="research-setup"><span class="syntax-executable">okn</span> <span class="syntax-command">setup</span> <span class="syntax-path">Wiki</span> <span class="syntax-flag">--agent</span> <span class="syntax-argument">codex</span> <span class="syntax-flag">--from</span> <span class="syntax-path">./sources</span> <span class="syntax-flag">--rules</span> <span class="syntax-argument">research</span></code><button type="button" data-copy-command="research-setup" data-copy-label="Research setup command copied" aria-label="Copy research setup command">Copy</button></div><div class="command-output"><div class="output-label">Example result · after the agent completes setup</div><pre><code>Wiki/
+├── index.md
+├── sources/
+└── research/
+    └── citation-workflow.md</code></pre><p class="output-note">An illustrative wiki structure. Codex builds the pages from your sources; filenames and agent output vary.</p></div><div class="copy-command"><span class="command-prompt" aria-hidden="true">$</span><code id="research-search"><span class="syntax-executable">okn</span> <span class="syntax-command">search</span> <span class="syntax-path">Wiki</span> <span class="syntax-string">"what evidence supports the citation workflow?"</span></code><button type="button" data-copy-command="research-search" data-copy-label="Example search command copied" aria-label="Copy example search command">Copy</button></div><div class="command-output"><div class="output-label">Example output · demo excerpt</div><pre><code><span class="output-highlight">Source: `research/citation-workflow.md:23-28`</span>
+
+The workflow should store the reviewed claim beside the source that directly
+supports it.</code></pre><p class="output-note">Retrieve the finding together with its source location. Open the full page to inspect its citations.</p></div></div><p class="copy-feedback" data-copy-status role="status" aria-live="polite"></p><p class="step-note">The setup command uses an installed Codex agent. Use --prompt instead of --agent codex to get the task for an agent you already use. The example search question matches the demo below.</p></div></section><section class="workflow-section"  aria-labelledby="section-3"><div class="step-heading"><span class="step-number" aria-hidden="true">03</span><h2 id="section-3">Return to the evidence</h2></div><div class="step-body"><div class="install-commands"><div class="copy-command"><span class="command-prompt" aria-hidden="true">$</span><code id="research-view"><span class="syntax-executable">okn</span> <span class="syntax-command">view</span> <span class="syntax-path">Wiki</span></code><button type="button" data-copy-command="research-view" data-copy-label="Viewer command copied" aria-label="Copy viewer command">Copy</button></div><div class="command-output"><div class="output-label">Example output · local address varies</div><pre><code><span class="output-highlight">Open Knowledge view: http://127.0.0.1:4185/wiki/</span>
+root /your-project/Wiki
+Press Ctrl+C to stop.</code></pre><p class="output-note">Opens the local viewer in your browser so you can browse, search, and edit the Markdown.</p></div><div class="copy-command"><span class="command-prompt" aria-hidden="true">$</span><code id="research-review"><span class="syntax-executable">okn</span> <span class="syntax-command">review</span> <span class="syntax-path">Wiki</span> <span class="syntax-flag">--scope</span> <span class="syntax-argument">full</span></code><button type="button" data-copy-command="research-review" data-copy-label="Review command copied" aria-label="Copy review command">Copy</button></div><div class="command-output"><div class="output-label">Example output · copied review task excerpt</div><pre><code><span class="output-highlight"># Open Knowledge Content Review</span>
+
+<span class="output-highlight">Review scope: `full`</span>
+Deterministic validation: 0 errors, 0 warnings.
+
+Treat findings as advisory.</code></pre><p class="output-note">The task covers all Markdown pages. Your selected agent reviews the content and evidence.</p></div></div><p class="copy-feedback" data-copy-status role="status" aria-live="polite"></p><p class="step-note">Browse findings beside source notes. When new material disagrees, ask the agent to revise the synthesis and keep the disagreement explicit. Review the diff before you commit.</p></div></section><section class="workflow-section"  aria-labelledby="section-4"><div class="step-heading"><span class="step-number" aria-hidden="true">04</span><h2 id="section-4">Explore the example</h2></div><div class="step-body"><p class="step-note">Open the research notes demo. It contains real Markdown pages, working links, and local search.</p><a class="text-link" href="/examples/research-notes/">Open demo wiki <span aria-hidden="true">→</span></a><a class="text-link" href="/examples/research-notes/research/citation-workflow.html">Read citation workflow findings <span aria-hidden="true">→</span></a><a class="text-link" href="https://github.com/openknowledge-sh/openknowledge/tree/main/examples/example-research-notes">View source files <span aria-hidden="true">→</span></a></div></section><section class="workflow-section"  aria-labelledby="section-5"><div class="step-heading"><span class="step-number" aria-hidden="true">05</span><h2 id="section-5">Set up your knowledge base</h2></div><div class="step-body"><a class="text-link" href="/getting-started/">Follow the setup guide <span aria-hidden="true">→</span></a><a class="text-link" href="/use-cases/">Explore other workflows <span aria-hidden="true">→</span></a></div></section></main>
+<footer class="nx-footer">
+  <div class="nx-wrap nx-footer-in">
+    <a class="nx-brand" href="/" aria-label="Open Knowledge home"><img src="/logo-mark.png" width="22" height="22" alt=""><span>Open Knowledge</span></a>
+    <nav aria-label="Footer">
+      <a href="/wiki/">Docs</a>
+      <a href="/use-cases/">Use cases</a>
+      <a href="/wiki/changelog/cli.html">Changelog</a>
+      <a href="https://github.com/openknowledge-sh/openknowledge" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="/wiki/features/telemetry.html">Privacy</a>
+    </nav>
+    <span class="nx-dim">Apache-2.0</span>
+  </div>
+</footer>
+<script type="module" src="/src/terminal-draft.js"></script><script type="module" src="/src/site.js"></script></body></html>

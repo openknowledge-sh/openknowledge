@@ -1,5 +1,6 @@
 import { initializeAnalytics, trackWebEvent } from "./analytics.js";
 import "./site-components.js";
+import { hydrateReleaseBadge } from "./release-badge.js";
 const copyButton = document.querySelector("[data-copy-setup]");
 const copyStatus = document.querySelector("[data-copy-status]");
 const installCopyButton = document.querySelector("[data-copy-install]");
@@ -7,8 +8,6 @@ const installCommand = document.querySelector("[data-install-command]");
 const installStatus = document.querySelector("[data-install-status]");
 const guideCopyButtons = document.querySelectorAll("[data-copy-command]");
 const promptTemplate = document.querySelector("#setup-prompt");
-const releaseBadge = document.querySelector("[data-release-badge]");
-const releaseFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 const copyStatusReadyText = copyStatus?.textContent?.trim() ?? "";
 let copyResetTimer;
 let installCopyResetTimer;
@@ -38,52 +37,6 @@ async function copyText(text) {
     }
     finally {
         field.remove();
-    }
-}
-function relativeReleaseAge(date, now = new Date()) {
-    const elapsedSeconds = Math.max(0, Math.round((now.getTime() - date.getTime()) / 1000));
-    const units = [
-        ["year", 60 * 60 * 24 * 365],
-        ["month", 60 * 60 * 24 * 30],
-        ["day", 60 * 60 * 24],
-        ["hour", 60 * 60],
-        ["minute", 60],
-    ];
-    for (const [unit, seconds] of units) {
-        const value = Math.floor(elapsedSeconds / seconds);
-        if (value >= 1)
-            return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
-    }
-    return "just now";
-}
-async function hydrateReleaseBadge() {
-    const releaseAPI = releaseBadge?.dataset.releaseApi;
-    if (!releaseBadge || !releaseAPI)
-        return;
-    try {
-        const response = await fetch(releaseAPI, {
-            headers: { Accept: "application/vnd.github+json" },
-        });
-        if (!response.ok)
-            return;
-        const release = (await response.json());
-        const tag = String(release.tag_name || "").trim();
-        const publishedAt = new Date(release.published_at || release.created_at || "");
-        if (!tag || Number.isNaN(publishedAt.getTime()))
-            return;
-        const version = releaseBadge.querySelector("[data-release-version]");
-        const age = releaseBadge.querySelector("[data-release-age]");
-        if (!version || !age)
-            return;
-        version.textContent = tag;
-        age.textContent = relativeReleaseAge(publishedAt);
-        age.dateTime = publishedAt.toISOString();
-        age.title = releaseFormatter.format(publishedAt);
-        age.hidden = false;
-        releaseBadge.setAttribute("aria-label", `Latest Open Knowledge release ${tag}, published ${age.textContent}`);
-    }
-    catch {
-        // Keep the static releases link when GitHub is unavailable or rate-limited.
     }
 }
 void hydrateReleaseBadge();
@@ -329,3 +282,17 @@ async function initializeHeroCanvas() {
 }
 void initializeHeroCanvas();
 initializeHeroPowerLight();
+
+const exampleQuestion = document.querySelector('[data-example-question]');
+const documentationExamples = {
+  view: ['Run the local viewer. The viewer opens in your browser by default.', 'view'],
+  search: ['Search is local and deterministic. It does not call an LLM or an embedding service.', 'search'],
+  publish: ['Use --plan to inspect target file counts and destinations without writes.', 'publish'],
+};
+exampleQuestion?.addEventListener('change', () => {
+  const [answer, source] = documentationExamples[exampleQuestion.value];
+  document.querySelector('[data-example-answer]').textContent = answer;
+  const link = document.querySelector('[data-example-source]');
+  link.href = '/wiki/features/commands/' + source + '.html';
+  link.textContent = 'Read the source: ' + source;
+});

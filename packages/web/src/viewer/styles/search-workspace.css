@@ -73,3 +73,6 @@ main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 56p
 .powered-by-openknowledge::after { position: absolute; right: calc(100% - 2px); bottom: 50%; padding: 6px 8px; border-radius: var(--ok-search-popover-radius); background: var(--ok-color-text); box-shadow: 0 6px 18px var(--ok-color-shadow); color: var(--ok-color-surface); content: attr(data-tooltip); font: 650 11px/1.2 var(--ok-font-body); opacity: 0; pointer-events: none; transform: translate(4px, 50%); transition: opacity .14s ease, transform .14s ease, visibility 0s linear .14s; visibility: hidden; white-space: nowrap; }
 .powered-by-openknowledge:hover, .powered-by-openknowledge:focus-visible { opacity: 1; }
 .powered-by-openknowledge:hover::after, .powered-by-openknowledge:focus-visible::after { opacity: 1; transform: translate(0, 50%); transition-delay: 0s; visibility: visible; }
+
+.note-workspace.is-claims-view { overflow: hidden; }
+.note-workspace.is-claims-view .note-stack { display: none; }

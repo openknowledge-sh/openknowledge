@@ -1,0 +1,158 @@
+/* Shared site chrome: tokens, header, footer, buttons, consent.
+   Loaded by the landing page and by every content page. Tokens are --nx-* so they never
+   collide with the older terminal.css variables. */
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 500;
+}
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope-latin-wght-normal.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 200 800;
+}
+
+:root {
+  color-scheme: dark;
+  --nx-bg: #000;
+  --nx-bg-1: #07090c;
+  --nx-bg-2: #0b0f15;
+  --nx-bg-3: #101721;
+  --nx-line: #1a2029;
+  --nx-line-2: #27303c;
+  --nx-line-blue: #2c3d57;
+  --nx-text: #ededed;
+  --nx-muted: #a2a8b2;
+  --nx-quiet: #89919e;
+  --nx-dim: #5d6672;
+  --nx-accent: #66a0ff;
+  --nx-accent-2: #9ac2ff;
+  --nx-accent-ink: #07162d;
+  --nx-ok: #48dd78;
+  --nx-ok-soft: #a0d6b3;
+  --nx-warn: #ffc247;
+  --nx-bad: #ff4b45;
+  --nx-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --nx-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --nx-wrap: 1120px;
+  --nx-gutter: clamp(20px, 4vw, 32px);
+  --nx-radius: 10px;
+  --nx-section: clamp(96px, 13vw, 168px);
+}
+
+.nx-wrap { width: min(100%, calc(var(--nx-wrap) + var(--nx-gutter) * 2)); margin-inline: auto; padding-inline: var(--nx-gutter); }
+
+.nx-acc { color: var(--nx-accent); }
+
+.nx-dim { color: var(--nx-dim); }
+
+.nx-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.nx-skip { position: fixed; z-index: 100; top: 12px; left: 12px; padding: 10px 14px; background: var(--nx-text); color: #000 !important; font: 500 14px var(--nx-mono); transform: translateY(-200%); }
+
+.nx-skip:focus { transform: none; }
+
+/* syntax, matching the live site */
+.x-prompt { color: var(--nx-dim); }
+.x-exe { color: #66a0ff; }
+.x-cmd { color: #9ac2ff; }
+.x-flag { color: #c5a6f7; }
+.x-str { color: #a0d6b3; }
+.x-path { color: #e6c18c; }
+.x-arg { color: #91d3df; }
+.x-pun { color: #9aa9bc; }
+.o-hi { color: var(--nx-accent); }
+.o-ok { color: var(--nx-ok); }
+.o-soft { color: var(--nx-ok-soft); }
+.o-muted { color: #929dab; }
+.o-dim { color: var(--nx-dim); }
+.o-warn { color: var(--nx-warn); }
+
+/* ------------------------------------------------------------ buttons & links */
+.nx-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 46px; padding: 0 20px; border-radius: 6px; border: 1px solid transparent;
+  font: 500 14px/1 var(--nx-mono); letter-spacing: -0.01em; white-space: nowrap;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+.nx-btn-sm { min-height: 34px; padding: 0 14px; font-size: 13px; }
+.nx-btn-primary { background: var(--nx-accent); color: var(--nx-accent-ink); }
+.nx-btn-primary:hover { background: var(--nx-accent-2); }
+.nx-btn-ghost { border-color: var(--nx-line-2); color: var(--nx-text); }
+.nx-btn-ghost:hover { border-color: var(--nx-quiet); }
+.nx-btn:active { transform: translateY(1px); }
+.nx-link { font: 500 14px var(--nx-mono); color: var(--nx-muted); transition: color .18s; }
+.nx-link:hover { color: var(--nx-text); }
+
+/* ------------------------------------------------------------ header */
+.nx-header {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, #000 78%, transparent);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--nx-line);
+}
+.nx-header-in { display: flex; align-items: center; gap: 28px; height: 60px; }
+.nx-brand { display: inline-flex; align-items: center; gap: 10px; font: 500 15px var(--nx-mono); letter-spacing: -0.02em; white-space: nowrap; }
+.nx-brand img { display: block; }
+.nx-nav { display: flex; gap: 4px; }
+.nx-nav a { padding: 6px 10px; border-radius: 6px; font: 500 13.5px var(--nx-mono); color: var(--nx-quiet); transition: color .18s, background-color .18s; }
+.nx-nav a:hover { color: var(--nx-text); background: var(--nx-bg-2); }
+.nx-header-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.nx-icon-link { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font: 500 13.5px var(--nx-mono); color: var(--nx-quiet); transition: color .18s; }
+.nx-icon-link:hover { color: var(--nx-text); }
+
+/* footer */
+.nx-footer { border-top: 1px solid var(--nx-line); }
+.nx-footer-in { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 32px; padding-block: 28px; font: 500 13px var(--nx-mono); }
+.nx-footer nav { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-left: auto; }
+.nx-footer nav a, .nx-footer nav button { padding: 0; border: 0; background: none; font: inherit; color: var(--nx-quiet); cursor: pointer; transition: color .18s; }
+.nx-footer nav a:hover, .nx-footer nav button:hover { color: var(--nx-text); }
+
+/* analytics consent */
+.nx-consent {
+  position: fixed; z-index: 60; right: 20px; bottom: 20px; width: min(420px, calc(100% - 40px));
+  display: grid; gap: 14px; padding: 18px 20px; border: 1px solid var(--nx-line-2); border-radius: var(--nx-radius);
+  background: rgba(9, 11, 14, .96); box-shadow: 0 24px 60px rgba(0, 0, 0, .6); font: 500 13px/1.5 var(--nx-mono); color: var(--nx-muted);
+}
+.nx-consent strong { display: block; color: var(--nx-text); font-weight: 500; }
+.nx-consent a { color: var(--nx-accent); }
+.nx-consent .analytics-consent-copy { display: grid; gap: 4px; }
+.nx-consent .analytics-consent-actions { display: flex; gap: 8px; }
+.nx-consent button { height: 36px; padding: 0 14px; border: 1px solid var(--nx-line-2); border-radius: 6px; background: var(--nx-bg-2); color: var(--nx-text); font: inherit; cursor: pointer; }
+.nx-consent button[data-analytics-accept] { background: var(--nx-accent); border-color: var(--nx-accent); color: var(--nx-accent-ink); }
+
+/* release version in the header, left of GitHub */
+.nx-version {
+  display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 11px 0 10px;
+  border: 1px solid var(--nx-line-2); border-radius: 999px; background: var(--nx-bg-1);
+  font: 500 12px/1 var(--nx-mono); color: var(--nx-text); white-space: nowrap; transition: border-color .18s;
+}
+.nx-version:hover { border-color: var(--nx-line-blue); }
+.nx-version time { display: none; }
+.nx-version .nx-pulse { width: 6px; height: 6px; }
+
+@media (max-width: 340px) { .nx-version { display: none; } }
+
+.nx-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--nx-ok); box-shadow: 0 0 0 3px rgba(72, 221, 120, .16); }
+
+/* chrome resets for pages that do not use body.next */
+.nx-header a, .nx-footer a, .nx-btn { text-decoration: none; }
+.nx-header, .nx-footer { font-family: var(--nx-mono); color: var(--nx-text); letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; }
+.nx-header :focus-visible, .nx-footer :focus-visible { outline: 2px solid var(--nx-accent); outline-offset: 3px; border-radius: 4px; }
+.nx-nav a[aria-current="page"] { color: var(--nx-text); background: var(--nx-bg-2); }
+@media (max-width: 720px) {
+  .nx-nav, .nx-icon-label { display: none; }
+  .nx-header-in { gap: 12px; }
+  .nx-footer nav { margin-left: 0; }
+}
+@media (max-width: 400px) { .nx-brand span { display: none; } }
+@media (max-width: 960px) {
+  .nx-icon-label { display: none; }
+  .nx-header-in { gap: 18px; }
+  .nx-header-actions { gap: 10px; }
+}

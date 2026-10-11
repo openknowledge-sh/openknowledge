@@ -19,6 +19,8 @@ beforeAll(async () => {
   await mkdir(path.join(fallback, "wiki"), { recursive: true });
   await writeFile(path.join(root, "index.html"), "<!doctype html><title>Home</title>");
   await writeFile(path.join(root, "main.js"), "console.log('ok');\n");
+  await writeFile(path.join(root, "demo.mp4"), "0123456789");
+  await writeFile(path.join(root, "demo.vtt"), "WEBVTT\n");
   await writeFile(path.join(root, "guide", "index.html"), "<!doctype html><title>Guide</title>");
   await writeFile(path.join(fallback, "wiki", "fallback.html"), "<!doctype html><title>Fallback</title>");
   const outside = path.join(temporary, "outside.txt");
@@ -60,6 +62,33 @@ test("implements HEAD without a response body", async () => {
   assert.equal(response.body(), "");
   assert.equal(response.header("content-length"), String(Buffer.byteLength("console.log('ok');\n")));
   assertSecurityHeaders(response);
+});
+
+test("serves video seeking ranges and captions", async () => {
+  for (const [range, body, contentRange] of [
+    ["bytes=2-5", "2345", "bytes 2-5/10"],
+    ["bytes=7-", "789", "bytes 7-9/10"],
+    ["bytes=-3", "789", "bytes 7-9/10"],
+    ["bytes=7-100", "789", "bytes 7-9/10"],
+  ]) {
+    const response = await request("/demo.mp4", "GET", { headers: { range } });
+    assert.equal(response.statusCode, 206);
+    assert.equal(response.body(), body);
+    assert.equal(response.header("content-range"), contentRange);
+    assert.equal(response.header("content-type"), "video/mp4");
+    assert.equal(response.header("content-length"), String(body.length));
+  }
+  for (const range of ["bytes=20-", "bytes=5-2", "bytes=-0", "bytes=bad"]) {
+    const response = await request("/demo.mp4", "GET", { headers: { range } });
+    assert.equal(response.statusCode, 416);
+    assert.equal(response.header("content-range"), "bytes */10");
+    assert.equal(response.body(), "");
+  }
+  const head = await request("/demo.mp4", "HEAD", { headers: { range: "bytes=2-5" } });
+  assert.equal(head.statusCode, 200);
+  assert.equal(head.body(), "");
+  assert.equal(head.header("accept-ranges"), "bytes");
+  assert.equal((await request("/demo.vtt")).header("content-type"), "text/vtt; charset=utf-8");
 });
 
 test("rejects unsupported methods and malformed URLs", async () => {

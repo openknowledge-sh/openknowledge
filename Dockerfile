@@ -1,7 +1,9 @@
-FROM golang:1.26.6-bookworm AS build
+FROM golang:1.26.9-bookworm AS build
+
+COPY --from=node:22-bookworm-slim /usr/local/ /usr/local/
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates nodejs npm \
+  && apt-get install -y --no-install-recommends ca-certificates \
   && npm install -g pnpm@10 \
   && rm -rf /var/lib/apt/lists/*
 

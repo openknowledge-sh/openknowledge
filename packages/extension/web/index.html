@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Open Knowledge</title></head>
+  <body>
+    <div id="app">
+      <header class="integration-toolbar">
+        <strong>Open Knowledge</strong>
+        <span id="connection">Connecting…</span>
+        <button id="open-external" class="quiet" disabled title="Open the original local viewer">Open in browser ↗</button>
+      </header>
+      <main id="viewer-container" class="viewer-container" aria-label="Open Knowledge viewer"></main>
+      <section id="fallback" class="fallback" role="alert" hidden>
+        <h1>Open the local viewer</h1>
+        <p id="fallback-message"></p>
+        <button id="retry" class="primary">Retry connection</button>
+      </section>
+      <footer class="context-actions">
+        <div><p id="active-page">Open a document in the viewer.</p><p id="context-status">Page context uses saved content. Save viewer edits to include them.</p></div>
+        <button id="context-button" class="primary" disabled>Use saved page</button>
+      </footer>
+      <p id="viewer-status" class="viewer-status" role="status">Opening Open Knowledge…</p>
+      <details id="context-preview" class="context-preview" hidden><summary>Context preview · Local development</summary><pre id="context-output">Open a page, then choose “Preview context”.</pre></details>
+      <div id="toast" class="toast" role="status" hidden></div>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

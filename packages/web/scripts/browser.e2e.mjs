@@ -314,51 +314,28 @@ test("landing page exposes one keyboard-usable onboarding path", async () => {
   await page.waitForTimeout(10);
   assert.equal(telemetry.length, 1);
   assert.equal(telemetry[0].events[0].event_name, "web_page_viewed");
-  await assertSemanticPage(page, "Build a knowledge base for people and AI agents.");
-  assert.equal(await page.title(), "Open Knowledge - Markdown Knowledge Bases for AI Agents");
+  await assertSemanticPage(page, "Build a knowledge base your agents can use.");
+  assert.equal(await page.title(), "Create and manage a knowledge base for people and agents · Open Knowledge");
   assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://openknowledge.sh/");
-  assert.match(await page.locator('meta[name="description"]').getAttribute("content"), /AI-ready knowledge bases in Markdown/);
-  await page.getByText("Ready for Codex, Claude, Cursor, or any local agent.").waitFor();
-  const walkthrough = page.getByRole("link", { name: "See how it works" });
-  assert.equal(await walkthrough.getAttribute("href"), "/getting-started/");
-  assert.equal(await walkthrough.locator('use[href="#icon-arrow-right"]').count(), 1);
-  assert.deepEqual(
-    await walkthrough.evaluate((link) => {
-      const style = getComputedStyle(link);
-      return { display: style.display, minHeight: style.minHeight, borderWidth: style.borderTopWidth };
-    }),
-    { display: "flex", minHeight: "50px", borderWidth: "1px" },
-  );
-  const release = page.getByRole("link", { name: /Latest Open Knowledge release v0\.8\.4/ });
-  await release.waitFor();
-  const setupPrompt = page.getByRole("button", { name: "Copy setup prompt" });
-  await setupPrompt.click();
-  await page.getByText("Paste the prompt into your agent to begin.").waitFor();
-  await page.waitForTimeout(10);
-  assert.equal(telemetry.length, 2);
-  assert.equal(telemetry[1].events[0].event_name, "setup_prompt_copied");
-  assert.equal(telemetry[1].events[0].interaction, "setup_prompt");
-  assert.ok((await googleTagCommands(page)).some(([command, eventName]) => command === "event" && eventName === "setup_prompt_copied"));
-  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(clipboard, /curl -fsSL https:\/\/openknowledge\.sh\/install\?source=homepage \| bash/);
-  assert.match(clipboard, /okn version/);
-  assert.match(clipboard, /run: okn setup --prompt/);
-  assert.match(clipboard, /okn validate and okn setup complete/);
-  assert.match(clipboard, /purpose, audience, sources, structure, and maintenance needs/);
-  assert.equal(await page.getByRole("heading", { name: "Write", exact: true }).count(), 1);
-  assert.equal(await page.getByRole("heading", { name: "Verify", exact: true }).count(), 1);
-  assert.equal(await page.getByRole("heading", { name: "Share", exact: true }).count(), 1);
-  assert.equal(await page.getByRole("heading", { name: "Use plain files" }).count(), 1);
-  assert.equal(await page.getByRole("heading", { name: "Share one source" }).count(), 1);
-  assert.equal(await page.getByRole("heading", { name: "Change tools without starting over" }).count(), 1);
-  const guideLink = page.getByRole("link", { name: "See the 5-minute guide" });
-  assert.equal(await guideLink.getAttribute("href"), "/getting-started/");
-  assert.equal(await page.getByRole("heading", { name: "The idea behind Open Knowledge" }).count(), 1);
-  assert.match(await page.locator("#closing-title").innerText(), /Your knowledge\s+stays yours/);
-  const closingGitHub = page.getByRole("link", { name: "Save on GitHub" });
-  assert.equal(await closingGitHub.getAttribute("href"), "https://github.com/openknowledge-sh/openknowledge");
-  assert.equal(await closingGitHub.locator("svg").count(), 1);
-  assert.equal(await page.locator("details").count(), 0);
+  assert.match(await page.locator('meta[name="description"]').getAttribute("content"), /Create a Markdown wiki/);
+  const walkthrough = page.getByRole("link", { name: "Get started", exact: true });
+  assert.equal(await walkthrough.getAttribute("href"), "#install");
+  await walkthrough.focus();
+  await page.keyboard.press("Enter");
+  await page.waitForURL("**/#install");
+  await page.getByRole("button", { name: "Copy install command" }).first().click();
+  await page.getByText("Install command copied", { exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), "curl -fsSL https://openknowledge.sh/install | bash");
+  await page.getByRole("tab", { name: "npm" }).first().click();
+  await page.getByRole("button", { name: "Copy install command" }).first().click();
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), "npm install -g @openknowledge-sh/openknowledge");
+  const video = page.locator(".nx-video video");
+  assert.equal(await video.getAttribute("preload"), "none");
+  assert.equal(await video.getAttribute("autoplay"), null);
+  assert.equal(await video.locator("source").getAttribute("src"), "/media/openknowledge-explainer.mp4");
+  assert.equal(await video.locator('track[kind="captions"]').getAttribute("src"), "/media/openknowledge-explainer.vtt");
+  assert.equal(await page.locator('.nx-nav a[href="/use-cases/"]').count(), 1);
+  assert.equal(await page.getByRole("link", { name: /Read the setup guide/ }).getAttribute("href"), "/getting-started/");
   await page.getByRole("button", { name: "Analytics preferences" }).click();
   await analyticsNotice.waitFor({ state: "visible" });
   assert.equal(await page.evaluate(() => window.localStorage.getItem("openknowledge.analytics.consent")), null);
@@ -396,6 +373,12 @@ test("landing page keeps Google Analytics cookieless after a declined cookie cho
   assert.equal(await page.evaluate(() => window.localStorage.getItem("openknowledge.analytics.id")), null);
   assert.equal(await page.evaluate(() => document.cookie.split(";").some((cookie) => cookie.trim().startsWith("_ga"))), false);
   assert.equal(telemetry.length, 0, "declining cookies must keep first-party telemetry disabled");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Analytics preferences" }).click();
+  await page.getByRole("button", { name: "No cookies", exact: true }).click();
+  await page.locator("[data-analytics-consent]").waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => window.localStorage.getItem("openknowledge.analytics.consent")), "denied");
+  assert.equal(telemetry.length, 0, "reconfirming declined consent after reload must keep telemetry disabled");
   await context.close();
 });
 
@@ -858,6 +841,7 @@ test("exported viewer presents typed claims inline and in a responsive workspace
   assert.equal(await inspectorMetadata.evaluate((element) => element.tagName), "SECTION");
   assert.equal(await inspectorMetadata.locator(".claims-inspector-metadata-body").isVisible(), true);
   await page.screenshot({ path: path.join(os.tmpdir(), "openknowledge-claims-desktop.png"), fullPage: true });
+  await workspace.getByText("Technical details", { exact: true }).click();
   const scopeDefinition = workspace.locator("[data-claims-detail] .claims-definition", { hasText: "Scope" });
   assert.match(await scopeDefinition.innerText(), /accounting basis: GAAP/i);
   assert.match(await scopeDefinition.innerText(), /fiscal period: FY2026 Q2/i);
@@ -879,6 +863,7 @@ test("exported viewer presents typed claims inline and in a responsive workspace
   assert.match(await workspace.locator("[data-claims-detail] .claims-context-section").innerText(), /Used by \(4\)/);
   await workspace.locator("[data-claims-detail] .claims-context-back").click({ timeout: 5000 });
 
+  await workspace.getByText("Technical details", { exact: true }).click();
   const predicateDefinition = workspace.locator("[data-claims-detail] .claims-definition", { hasText: "Predicate" });
   await predicateDefinition.locator("button").click({ timeout: 5000 });
   assert.equal(await workspace.locator("[data-claims-detail] h2").innerText(), "token format");
@@ -924,6 +909,12 @@ test("exported viewer right-aligns search and keeps long responsive brands visib
 
   for (const width of [570, 690, 943]) {
     await page.setViewportSize({ width, height: 844 });
+    // Desktop sidebar layout changes after the resize event and animates the
+    // body grid. Measure the settled header rather than an intermediate frame.
+    await page.evaluate(async () => {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await Promise.all(document.body.getAnimations().map(animation => animation.finished.catch(() => {})));
+    });
     const brandBox = await brand.boundingBox();
     const searchBox = await page.locator(".search.header-search").boundingBox();
     const graphBox = await page.locator("body.viewer-document > header > .graph-view-toggle").boundingBox();
@@ -966,8 +957,8 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   const collapsedFrontmatterBox = await frontmatter.boundingBox();
   const collapsedHeadingBox = await panel.getByRole("heading", { name: "Rollback Guide" }).boundingBox();
   assert.ok(panelBox && chromeBox && collapsedFrontmatterBox && collapsedHeadingBox);
-  assert.ok(collapsedFrontmatterBox.y >= chromeBox.y + chromeBox.height - 1, "frontmatter should sit below the compact header");
-  assert.ok(collapsedFrontmatterBox.width >= panelBox.width - 2, "collapsed frontmatter should use the full note width");
+  assert.ok(collapsedFrontmatterBox.y >= chromeBox.y && collapsedFrontmatterBox.y < chromeBox.y + chromeBox.height, "Details should sit in the compact header");
+  assert.ok(collapsedFrontmatterBox.width < panelBox.width / 2, "collapsed Details should leave room for reading actions");
   assert.ok(collapsedHeadingBox.y >= collapsedFrontmatterBox.y + collapsedFrontmatterBox.height, "collapsed frontmatter should stay in normal flow before the Markdown body");
   await frontmatterSummary.focus();
   await page.keyboard.press("Enter");
@@ -975,7 +966,7 @@ test("exported viewer resolves OKF 0.2 source references", async () => {
   const expandedFrontmatterBox = await frontmatter.boundingBox();
   const expandedHeadingBox = await panel.getByRole("heading", { name: "Rollback Guide" }).boundingBox();
   assert.ok(expandedFrontmatterBox && expandedHeadingBox);
-  assert.ok(expandedHeadingBox.y >= expandedFrontmatterBox.y + expandedFrontmatterBox.height, "expanded frontmatter should stay in normal flow before the Markdown body");
+  assert.equal(expandedHeadingBox.y, collapsedHeadingBox.y, "opening Details should not move the article");
   const signals = frontmatter.locator("[data-okf02-signals]");
   assert.equal(await signals.count(), 1);
   assert.match(await signals.innerText(), /Human reviewed/);
@@ -1104,8 +1095,11 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.locator('[data-note-path="index.md"]').evaluate((panel) => {
     panel.dataset.graphToggleTest = "preserved";
   });
-  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
-  assert.equal(await horizontalStack.isChecked(), true);
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
+  assert.equal(await horizontalStack.isChecked(), false);
+  await page.getByRole("button", { name: "Viewer settings" }).click();
+  await page.getByText("Horizontal stack", { exact: true }).click();
+  await page.getByRole("button", { name: "Viewer settings" }).click();
   assert.equal(await graphViewControl.getAttribute("aria-current"), null);
   assert.equal(await graphViewControl.getAttribute("aria-pressed"), "false");
   await graphViewControl.click();
@@ -1168,20 +1162,20 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.getByRole("link", { name: "rollback guide" }).click();
   await page.locator('[data-note-path="guides/rollback.md"]').waitFor({ state: "visible" });
   assert.equal(await page.locator("[data-note-path]").count(), 2, "beside mode should open a normal note link beside the active panel");
-  const dynamicFrontmatter = page.locator('[data-note-path="guides/rollback.md"] > [data-frontmatter]');
-  assert.equal(await dynamicFrontmatter.count(), 1, "dynamic note panels should place frontmatter below the header");
+  const dynamicFrontmatter = page.locator('[data-note-path="guides/rollback.md"] .note-actions > [data-frontmatter]');
+  assert.equal(await dynamicFrontmatter.count(), 1, "dynamic note panels should place Details in the header");
   assert.equal(await dynamicFrontmatter.getAttribute("open"), null, "dynamic frontmatter should start collapsed");
   assert.equal(await dynamicFrontmatter.locator(":scope > summary").isVisible(), true);
   assert.equal(await page.locator('[data-note-path="guides/rollback.md"] .note-actions > [data-frontmatter-trigger]').count(), 0, "frontmatter should not add a control to the header");
   assert.equal(await page.locator("[data-note-navigator]").count(), 0, "multi-panel mode should not add a fixed bottom navigator");
-  await page.locator('[data-note-path="index.md"] .note-chrome').click();
+  await page.locator('[data-note-path="index.md"] .note-body h1').click();
   assert.equal(await page.locator('[data-note-path="index.md"][data-active-panel="true"]').count(), 1);
   await page.getByRole("link", { name: "rollback guide" }).click({ modifiers: ["Shift"] });
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 1);
   assert.equal(await page.locator("[data-note-path]").count(), 1, "Shift-click should invert beside mode and replace the active panel");
   await page.goBack();
   await page.waitForFunction(() => document.querySelectorAll("[data-note-path]").length === 2);
-  await page.locator('[data-note-path="index.md"] .note-chrome').click();
+  await page.locator('[data-note-path="index.md"] .note-body h1').click();
 
   await page.locator("html").evaluate((html) => {
     html.dataset.viewerMotion = "full";
@@ -1315,8 +1309,8 @@ test("exported viewer keeps note navigation, explorer context, and settings disc
   await page.getByRole("button", { name: "Reset to defaults" }).click();
   assert.equal(await page.locator("html").getAttribute("data-viewer-theme"), "default");
   assert.equal(await page.locator("html").getAttribute("data-viewer-font-size"), "default");
-  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "beside");
-  assert.equal(await horizontalStack.isChecked(), true);
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
+  assert.equal(await horizontalStack.isChecked(), false);
   await page.getByRole("button", { name: "Viewer settings" }).click();
 
   await page.locator("[data-note-path]").first().locator("[data-close-panel]").click();
@@ -1585,6 +1579,29 @@ test("nested exported pages work directly from file URLs", async () => {
     state: "visible",
   });
   assert.equal(errors.length, 0, `file URL viewer browser errors:\n${errors.join("\n")}`);
+  await context.close();
+});
+
+test("exported viewer copies source context and offers portable feedback", async () => {
+  const context = await browser.newContext();
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: viewerURL });
+  const page = await context.newPage();
+  await page.goto(viewerURL, { waitUntil: "networkidle" });
+  assert.equal(await page.locator("html").getAttribute("data-viewer-navigation-mode"), "replace");
+  assert.equal(await page.getByText("Knowledge health", { exact: true }).count(), 0);
+  await page.getByText("Use this page", { exact: true }).click();
+  await page.getByRole("button", { name: "Copy context and source", exact: true }).click();
+  const contextText = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(contextText, /Browser Test Handbook/);
+  assert.match(contextText, /Source: index\.md/);
+  assert.doesNotMatch(contextText, /Copy code/);
+  await page.getByText("Report a problem", { exact: true }).click();
+  await page.getByLabel("What needs to change?").fill("Explain the rollback prerequisites.");
+  assert.equal(await page.getByRole("button", { name: "Save to insights" }).count(), 0);
+  await page.getByRole("button", { name: "Copy report", exact: true }).click();
+  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /Explain the rollback prerequisites.[\s\S]*Source: index\.md/);
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".product-actions").getAttribute("open"), null);
   await context.close();
 });
 

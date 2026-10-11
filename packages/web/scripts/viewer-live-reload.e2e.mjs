@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtemp, mkdir, rename, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,9 @@ before(async () => {
   temporary = await mkdtemp(path.join(os.tmpdir(), "openknowledge-live-reload-e2e-"));
   wiki = path.join(temporary, "Wiki");
   await mkdir(path.join(wiki, "notes"), { recursive: true });
+  await mkdir(path.join(wiki, "media"));
+  await writeFile(path.join(wiki, "media", "pixel.png"), Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"));
+  await writeFile(path.join(wiki, "notes", "editor.md"), markdown("Editor", "Original passage.\n\n![Local image](../media/pixel.png)\n\n[Home](../index.md)\n\n```mermaid\ngraph LR\nA-->B\n```"));
   await writeFile(path.join(wiki, "index.md"), markdown("Home", "Initial body."));
   await writeFile(path.join(wiki, "notes", "a.md"), markdown("Alpha", "Alpha body."));
   await writeFile(path.join(wiki, "notes", "b.md"), markdown("Bravo", "Bravo body."));
@@ -104,8 +107,8 @@ test("local viewer reloads stable content changes and reconciles deleted panels"
   if (await notesDirectory.getAttribute("aria-expanded") !== "true") {
     await notesDirectory.click();
   }
-  await page.locator('[data-tree-path="notes/a.md"]').click();
-  await page.locator('[data-tree-path="notes/b.md"]').click();
+  await page.locator('[data-tree-path="notes/a.md"]').click({ modifiers: ["Shift"] });
+  await page.locator('[data-tree-path="notes/b.md"]').click({ modifiers: ["Shift"] });
   await page.locator('[data-note-path="notes/a.md"]').click();
   assert.match(page.url(), /stack=notes%2Fa\.md/);
   assert.match(page.url(), /stack=notes%2Fb\.md/);
@@ -119,6 +122,79 @@ test("local viewer reloads stable content changes and reconciles deleted panels"
   await page.locator('[data-tree-path="notes/renamed.md"]').waitFor({ state: "attached" });
   await page.locator('[data-note-path="notes/a.md"]').waitFor({ state: "detached" });
   assert.equal(await page.locator('[data-note-path="index.md"]').getAttribute("data-active-panel"), "true");
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("local editing preserves source, resolves panel assets, shares current context, and recovers conflicts", { timeout: 90000 }, async () => {
+  const context = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+  const page = await context.newPage();
+  page.setDefaultTimeout(15000);
+  page.on("dialog", dialog => dialog.accept());
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => {
+    window.editorTools = new Map();
+    Object.defineProperty(document, "modelContext", { value: { registerTool(tool) { window.editorTools.set(tool.name, tool); } } });
+  });
+  const targetURL = new URL("notes/editor.md", new URL("file/", viewerURL)).href;
+  await page.goto(targetURL);
+  const editor = page.locator(".is-active-panel .document-rich-content");
+  await editor.waitFor();
+  await page.waitForFunction(() => window.editorTools.has("openknowledge_get_editor_state"));
+  const image = editor.locator("img");
+  await image.evaluate(element => element.decode());
+  assert.match(await image.getAttribute("src"), /\/raw\/media\/pixel\.png$/);
+  const original = await readFile(path.join(wiki, "notes/editor.md"), "utf8");
+  await page.getByText("Preview saved page", { exact: true }).click();
+  await page.locator(".document-saved-preview [data-mermaid-output] svg").waitFor();
+  await page.getByText("Preview saved page", { exact: true }).click();
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Human draft.");
+  await page.locator(".document-editor-status").filter({ hasText: "Not saved" }).waitFor();
+  await page.evaluate(async () => {
+    const state = await window.editorTools.get("openknowledge_get_editor_state").execute();
+    await window.editorTools.get("openknowledge_apply_edit").execute({ draftRevision: state.draftRevision, start: state.totalChars, end: state.totalChars, text: "\n\nAgent draft.\n" });
+  });
+  await editor.filter({ hasText: "Agent draft." }).waitFor();
+  assert.equal(await readFile(path.join(wiki, "notes/editor.md"), "utf8"), original);
+  await page.getByText("Use this page", { exact: true }).click();
+  await page.getByRole("button", { name: "Copy context and source" }).click();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(copied, /Human draft/);
+  assert.match(copied, /Agent draft/);
+  assert.match(copied, /Status: Unsaved draft/);
+  await page.getByText("Use this page", { exact: true }).click();
+  await editor.getByRole("link", { name: "Home", exact: true }).click({ modifiers: ["ControlOrMeta"] });
+  await page.locator('.is-active-panel[data-note-path="index.md"] .document-rich-content').waitFor();
+  await page.evaluate(() => window.editorTools.get("openknowledge_open_editor").execute({ path: "notes/editor.md" }));
+  await editor.filter({ hasText: "Agent draft." }).waitFor();
+  await page.reload();
+  await editor.filter({ hasText: "Agent draft." }).waitFor();
+  const external = original.replace("Original passage.", "External revision.");
+  await writeFile(path.join(wiki, "notes/editor.md"), external);
+  await page.locator(".document-editor-conflict").waitFor({ state: "visible" });
+  assert.match(await editor.innerText(), /Agent draft/);
+  assert.equal(await page.getByRole("button", { name: "Save", exact: true }).isDisabled(), true);
+  await page.getByRole("button", { name: "Load saved version", exact: true }).click();
+  await editor.filter({ hasText: "External revision." }).waitFor();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await editor.filter({ hasText: "Agent draft." }).waitFor();
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await editor.filter({ hasText: "External revision." }).waitFor();
+  await page.evaluate(async () => {
+    const state = await window.editorTools.get("openknowledge_get_editor_state").execute();
+    await window.editorTools.get("openknowledge_apply_edit").execute({ draftRevision: state.draftRevision, start: state.totalChars, end: state.totalChars, text: "\nSaved edit.\n" });
+    const updated = await window.editorTools.get("openknowledge_get_editor_state").execute();
+    await window.editorTools.get("openknowledge_save_document").execute({ draftRevision: updated.draftRevision });
+  });
+  const saved = await readFile(path.join(wiki, "notes/editor.md"), "utf8");
+  assert.match(saved, /External revision/);
+  assert.match(saved, /Saved edit/);
+  assert.match(saved, /!\[Local image\]\(\.\.\/media\/pixel\.png\)/);
+  assert.ok(saved.startsWith("---\ntype: Guide\ntitle: Editor\n---\n"));
   assert.deepEqual(errors, []);
   await context.close();
 });
