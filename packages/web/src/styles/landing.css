@@ -313,8 +313,8 @@ body.next {
   background: radial-gradient(ellipse 50% 50% at 50% 0%, rgba(102, 160, 255, .38), transparent 72%); filter: blur(26px);
 }
 .nx-video-play {
-  position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; gap: 16px;
-  padding-bottom: 4.6%; border: 0; cursor: pointer; background: linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, .4));
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 0; border: 0; cursor: pointer; background: linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, .4));
 }
 .nx-video-play-ring {
   position: relative; display: grid; place-items: center; width: 68px; height: 68px; border-radius: 50%;
@@ -326,17 +326,14 @@ body.next {
 .nx-video-play:hover .nx-video-play-ring, .nx-video-play:focus-visible .nx-video-play-ring { transform: scale(1.07); background: var(--nx-accent-2); }
 .nx-video-play:focus-visible { outline: none; }
 .nx-video-play:focus-visible .nx-video-play-ring { outline: 2px solid #fff; outline-offset: 6px; }
-.nx-video-play-time { margin-bottom: 20px; padding: 7px 12px; border-radius: 999px; background: rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .08); font: 500 12.5px/1 var(--nx-mono); color: var(--nx-text); }
 
 @keyframes nx-breathe { 50% { opacity: .78; transform: translate(-50%, -50%) scale(1.04); } }
 @keyframes nx-orbit { to { --nx-angle: 360deg; } }
 @keyframes nx-ping { 0% { transform: scale(1); opacity: .9; } 80%, 100% { transform: scale(1.7); opacity: 0; } }
 
 @media (max-width: 720px) {
-  .nx-video-play { padding-bottom: 3%; }
   .nx-video-play-ring { width: 44px; height: 44px; font-size: 13px; box-shadow: 0 0 0 5px rgba(102, 160, 255, .16), 0 0 34px rgba(102, 160, 255, .7); }
   .nx-video-play-ring span { padding-left: 3px; }
-  .nx-video-play-time { display: none; }
   .nx-video-ring { border-radius: 12px; }
   .nx-video-frame { border-radius: 11px; }
 }
@@ -356,5 +353,4 @@ body.next {
   .nx-install-inline .nx-copy [data-copy-label] { display: none; }
   .nx-install-inline .nx-cmd { padding-left: 10px; }
 }
-
 
