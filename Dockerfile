@@ -1,4 +1,4 @@
-FROM golang:1.26.9-bookworm AS build
+FROM golang:1.27.2-bookworm AS build
 
 COPY --from=node:22-bookworm-slim /usr/local/ /usr/local/
 
