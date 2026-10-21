@@ -26,7 +26,7 @@
     "@tiptap/extension-task-list": "^3.31.4",
     "@tiptap/markdown": "^3.31.4",
     "@tiptap/starter-kit": "^3.31.4",
-    "mermaid": "11.16.1"
+    "mermaid": "12.1.0"
   },
   "devDependencies": {
     "oxlint": "1.15.0",
